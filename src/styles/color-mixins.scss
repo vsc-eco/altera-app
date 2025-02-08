@@ -1,0 +1,46 @@
+$color-nums: 10, 30, 35, 40, 60, 80, 85, 90, 99;
+$color-dark-shade-names: bg, bg-accent, bg-accent-shifted, bg-mid, mid, fg-mid, fg-accent-shifted,
+	fg-accent, fg;
+$color-light-shade-names: fg, fg-accent, fg-accent-shifted, fg-mid, mid, bg-mid, bg-accent-shifted,
+	bg-accent, bg;
+@use 'sass:list';
+@use 'sass:string';
+@use 'sass:math';
+/**
+* @param {string} $color-name - The name of the color - ex: gold/violet/fire/sea
+* @param {string} $type - The type of shade - ex: accent/neutral/error/warning/success
+* @param {string} $num - The number of the color - ex: 100/300/500/700/900
+* @param {string} $shade-name - The name of the shade - ex: bg/bg-accent/mid/fg-accent/fg
+*/
+@mixin color($color-name, $name, $num, $shade-name) {
+	$padded: string.slice(string.insert('#{$num}', '0', 0), -2);
+	--#{$name}-#{$shade-name}: var(--#{$color-name}-#{$padded});
+}
+
+@mixin colors($color-name, $name, $shade-names) {
+	@for $i from 1 through list.length($color-nums) {
+		$num: list.nth($color-nums, $i);
+		$shade-name: list.nth($shade-names, $i);
+		@include color($color-name, $name, $num, $shade-name);
+	}
+}
+
+@mixin shade-class($name, $shade-names: $color-light-shade-names) {
+	@for $i from 1 through list.length($shade-names) {
+		$shade-name: list.nth($shade-names, $i);
+		--#{$shade-name}: var(--#{$name}-#{$shade-name});
+	}
+}
+
+@mixin oklch-palette($color-nums, $name, $c-start, $h-start, $c-end: $l-start, $h-end: $h-start) {
+	$total-c-delta: ($c-end - $c-start);
+	$total-h-delta: ($h-end - $h-start);
+	@for $i from 1 through list.length($color-nums) {
+		$num: list.nth($color-nums, $i);
+		$num-percent: #{math.div($num, 100)};
+		$padded: string.slice(string.insert('#{$num}', '0', 0), -2);
+		$c: math.div($num, 100) * $total-c-delta;
+		$h: math.div($num, 100) * $total-h-delta;
+		--#{$name}-#{$padded}: oklch(#{math.div($num, 100)} #{$c_start + $c} #{$h-start + $h});
+	}
+}

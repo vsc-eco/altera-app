@@ -16,15 +16,20 @@
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
+		"@iconify/svelte": "^4.2.0",
 		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.16.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
+		"@types/d3-array": "^3.2.1",
+		"@types/d3-scale": "^4.0.9",
+		"@types/d3-shape": "^3.1.7",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^2.46.1",
 		"globals": "^15.14.0",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
+		"sass": "^1.84.0",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"typescript": "^5.0.0",
@@ -35,5 +40,13 @@
 		"onlyBuiltDependencies": [
 			"esbuild"
 		]
+	},
+	"dependencies": {
+		"@aninest/extensions": "^1.8.0",
+		"aninest": "^4.11.0",
+		"d3-array": "^3.2.4",
+		"d3-scale": "^4.0.2",
+		"d3-shape": "^3.2.0",
+		"lucide-svelte": "^0.475.0"
 	}
 }

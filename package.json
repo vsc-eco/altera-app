@@ -43,10 +43,13 @@
 	},
 	"dependencies": {
 		"@aninest/extensions": "^1.8.0",
+		"@zag-js/select": "^0.82.1",
+		"@zag-js/svelte": "^0.82.1",
 		"aninest": "^4.11.0",
 		"d3-array": "^3.2.4",
 		"d3-scale": "^4.0.2",
 		"d3-shape": "^3.2.0",
-		"lucide-svelte": "^0.475.0"
+		"lucide-svelte": "^0.475.0",
+		"moment": "^2.30.1"
 	}
 }

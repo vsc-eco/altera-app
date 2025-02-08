@@ -15,22 +15,22 @@
 	--teal: oklch(0.72 0.08 var(--teal-hue));
 	--gray: oklch(0.92 0.03 305.19);
 }
-$color-nums: 1, 2, 5, 10, 20, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 98, 99;
+$color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 98, 99;
 :root {
 	@include color-mixins.oklch-palette($color-nums, 'salmon', 0.4, 45, 0.1, 0);
 	@include color-mixins.oklch-palette($color-nums, 'teal', 0.2, 150, 0.02, 250);
-	@include color-mixins.oklch-palette($color-nums, 'gray', 0, 305.19, 0.02, 385);
+	@include color-mixins.oklch-palette($color-nums, 'gray', 0, 305.19, 0.005, 385);
 }
 /* Defaults to light mode if user's OS does not support light/dark mode toggling */
 :root {
-	@include color-mixins.colors('salmon', primary, color-mixins.$color-light-shade-names);
-	@include color-mixins.colors('teal', secondary, color-mixins.$color-light-shade-names);
+	@include color-mixins.colors('salmon', secondary, color-mixins.$color-light-shade-names);
+	@include color-mixins.colors('teal', primary, color-mixins.$color-light-shade-names);
 	@include color-mixins.colors('gray', neutral, color-mixins.$color-light-shade-names);
 }
 @media (prefers-color-scheme: dark) {
 	:root {
-		@include color-mixins.colors('salmon', primary, color-mixins.$color-dark-shade-names);
-		@include color-mixins.colors('teal', secondary, color-mixins.$color-dark-shade-names);
+		@include color-mixins.colors('salmon', secondary, color-mixins.$color-dark-shade-names);
+		@include color-mixins.colors('teal', primary, color-mixins.$color-dark-shade-names);
 		@include color-mixins.colors('gray', neutral, color-mixins.$color-dark-shade-names);
 	}
 }
@@ -43,14 +43,14 @@ $color-nums: 1, 2, 5, 10, 20, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 98
 .neutral {
 	@include color-mixins.shade-class('neutral');
 }
-/* Allows for toggling color scheme with a toggle */
+/* Allows for toggling color scheme with a class on the html elem instead of with a user theme */
 :root.light {
-	@include color-mixins.colors('salmon', primary, color-mixins.$color-light-shade-names);
-	@include color-mixins.colors('teal', secondary, color-mixins.$color-light-shade-names);
+	@include color-mixins.colors('salmon', secondary, color-mixins.$color-light-shade-names);
+	@include color-mixins.colors('teal', primary, color-mixins.$color-light-shade-names);
 	@include color-mixins.colors('gray', neutral, color-mixins.$color-light-shade-names);
 }
 :root.dark {
-	@include color-mixins.colors('salmon', primary, color-mixins.$color-dark-shade-names);
-	@include color-mixins.colors('teal', secondary, color-mixins.$color-dark-shade-names);
+	@include color-mixins.colors('salmon', secondary, color-mixins.$color-dark-shade-names);
+	@include color-mixins.colors('teal', primary, color-mixins.$color-dark-shade-names);
 	@include color-mixins.colors('gray', neutral, color-mixins.$color-dark-shade-names);
 }

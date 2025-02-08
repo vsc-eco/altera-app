@@ -23,6 +23,6 @@
 	}
 	h2 {
 		margin: auto 0;
-		color: var(--primary-mid);
+		color: var(--secondary-mid);
 	}
 </style>

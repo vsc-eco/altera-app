@@ -7,8 +7,10 @@
 		icon?: Snippet;
 		href?: string;
 		theme?: string;
+		invert?: boolean;
 	};
-	let { onclick, children, icon, href, theme = 'neutral' }: Props = $props();
+	let { onclick, children, icon, href, theme = 'neutral', invert }: Props = $props();
+	let className = $derived([theme, { invert }]);
 </script>
 
 {#snippet inner()}
@@ -23,11 +25,11 @@
 	{/if}
 {/snippet}
 {#if href}
-	<a {href} class={theme}>{@render inner()}</a>
+	<a {href} class={className}>{@render inner()}</a>
 {:else if onclick}
-	<button {onclick} class={theme}>{@render inner()}</button>
+	<button {onclick} class={className}>{@render inner()}</button>
 {:else}
-	<button class={theme}>actionless</button>
+	<button class={className}>actionless</button>
 {/if}
 
 <style lang="scss">
@@ -36,7 +38,6 @@
 		--height: 32px;
 		height: var(--height);
 		border-radius: calc(var(--height) / 2);
-		background-color: var(--bg-accent);
 		color: inherit;
 		font: inherit;
 		border: none;
@@ -50,14 +51,33 @@
 		vertical-align: middle;
 		position: relative;
 		overflow: hidden;
+		transition: transform 0.05s;
+
+		background-color: var(--bg-accent);
+		color: var(--fg-mid);
 		&:hover {
 			background-color: var(--bg-accent-shifted);
+			color: var(--fg-accent);
 		}
 		&:active {
-			background-color: var(--bg-mid);
+			background-color: var(--bg-accent-shifted);
+			color: var(--fg);
+			transform: scale(0.98);
 		}
 		:global(svg) {
 			height: 18px;
+		}
+		&.invert {
+			background-color: var(--mid);
+			color: var(--bg);
+			&:hover {
+				background-color: var(--fg-mid);
+				color: var(--bg);
+			}
+			&:active {
+				background-color: var(--fg-mid);
+				color: var(--bg);
+			}
 		}
 	}
 </style>

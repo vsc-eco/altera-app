@@ -15,7 +15,8 @@
 	import { defaultData } from './defaultData';
 	import moment from 'moment';
 	let updateLayer = getUpdateLayer();
-	const margin = { top: 4, right: 0, bottom: 0, left: 0 };
+	let svg: SVGElement | undefined = $state();
+	const margin = { top: 8, right: 0, bottom: 0, left: 0 };
 	export type Point = {
 		value: number;
 		date: Date;
@@ -23,15 +24,14 @@
 	type Props = {
 		hoveredPoint?: Point;
 		hoveredIndex?: number;
-		width?: number;
 		height?: number;
 		data?: Point[];
 		theme?: string;
 	};
+	let width = $state(0);
 	let {
 		hoveredPoint: hoveredPoint = $bindable(),
 		hoveredIndex = $bindable(),
-		width = 200,
 		height = 100,
 		data = $bindable(defaultData),
 		theme = 'primary'
@@ -87,8 +87,8 @@
 		dotY = y;
 		dotR = r;
 	});
-	let chunkSize = (width - margin.left - margin.right) / (data.length - 1);
-	function setLinePos(e: PointerEvent) {
+	let chunkSize = $derived((width - margin.left - margin.right) / (data.length - 1));
+	function setLinePos(e: MouseEvent) {
 		let bb = (e.currentTarget as HTMLElement).getBoundingClientRect();
 
 		let fromLeft = e.clientX - bb.left + margin.left;
@@ -114,8 +114,16 @@
 	}
 </script>
 
-<figure class={theme}>
-	<svg {width} {height} onpointermove={setLinePos} onmouseleave={unsetLinePos} role="figure">
+<figure class={theme} bind:clientWidth={width}>
+	<svg
+		{width}
+		{height}
+		onpointermove={setLinePos}
+		onpointerdown={setLinePos}
+		ontouchend={unsetLinePos}
+		onmouseleave={unsetLinePos}
+		role="figure"
+	>
 		<path d={areaPlot} stroke="none" stroke-width={0} fill="url(#MyGradient)"></path>
 		<path d={linePlot} stroke="var(--fg-mid)" stroke-width={4}></path>
 		<line
@@ -124,15 +132,15 @@
 			x2={dotX}
 			y2={dotY}
 			stroke="var(--fg-mid)"
-			stroke-width={dotR * 2}
+			stroke-width={dotR * 4}
 		></line>
 		<circle
 			cx={dotX}
 			cy={dotY}
-			r={dotR * 4}
+			r={dotR * 6}
 			fill="var(--bg)"
 			stroke="var(--fg-mid)"
-			stroke-width={2}
+			stroke-width={4}
 		></circle>
 		<defs>
 			<linearGradient id="MyGradient" x1="0" y1="0" x2="0" y2="1">
@@ -149,6 +157,10 @@
 </figure>
 
 <style>
+	figure {
+		touch-action: pinch-zoom;
+		min-width: 250px;
+	}
 	.dates {
 		display: flex;
 		justify-content: space-evenly;

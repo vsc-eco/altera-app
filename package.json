@@ -43,6 +43,8 @@
 	},
 	"dependencies": {
 		"@aninest/extensions": "^1.8.0",
+		"@fontsource-variable/dm-sans": "^5.1.1",
+		"@fontsource-variable/noto-sans-mono": "^5.1.1",
 		"@zag-js/select": "^0.82.1",
 		"@zag-js/svelte": "^0.82.1",
 		"aninest": "^4.11.0",

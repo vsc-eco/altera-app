@@ -45,7 +45,7 @@
 				currency: 'USD',
 				maximumFractionDigits: 0
 			}).format(balance)}<span
-				>.{new Intl.NumberFormat('en-US', {
+				><span>.</span>{new Intl.NumberFormat('en-US', {
 					style: 'decimal',
 					maximumSignificantDigits: 2,
 					minimumIntegerDigits: 2
@@ -61,7 +61,7 @@
 			</div>
 		</div>
 		<div class="lc-wrapper">
-			<LineChart bind:data bind:hoveredPoint bind:hoveredIndex width={350} height={200} />
+			<LineChart bind:data bind:hoveredPoint bind:hoveredIndex height={200} />
 		</div>
 	</Card>
 </div>
@@ -69,7 +69,6 @@
 <style>
 	.root {
 		display: block;
-		width: 350px;
 		overflow: hidden;
 	}
 	.caption {
@@ -87,12 +86,19 @@
 		margin-top: 0.25rem;
 		margin-bottom: 0.5rem;
 		font-size: var(--text-5xl);
+		font-family: 'Noto Sans Mono Variable', monospace;
 	}
 	.price span:last-child {
 		padding-top: 0.125rem;
 		font-size: var(--text-1xl);
+		span {
+			font-size: var(--text-base);
+			display: inline-flex;
+			align-items: right;
+			justify-content: end;
+		}
 	}
 	.lc-wrapper {
-		margin-left: -0.55rem;
+		margin: 0 -0.55rem;
 	}
 </style>

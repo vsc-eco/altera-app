@@ -3,6 +3,8 @@
 	import '../styles/colors.scss';
 	import '../styles/base.scss';
 	let { children } = $props();
+	import '@fontsource-variable/noto-sans-mono';
+	import '@fontsource-variable/dm-sans';
 </script>
 
 <header>

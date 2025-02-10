@@ -4,6 +4,7 @@
 	import moment from 'moment';
 	import Card from './Card.svelte';
 	import Diff from './Balance/Diff.svelte';
+	import Date from './Balance/Date.svelte';
 	let data: Point[] = $state(defaultData);
 	function calcTotalChange(data: { value: number }[]) {
 		let up = 0;
@@ -23,7 +24,7 @@
 	let hoveredIndex: number | undefined = $state();
 	const active = $derived(hoveredPoint ?? data?.at(-1)!);
 	const balance = $derived(active.value);
-	const date = $derived(active.date);
+	const date = $derived(hoveredPoint && active.date);
 	const prev = $derived(hoveredIndex == undefined ? undefined : data[hoveredIndex - 1]);
 	const priceDiff = $derived(
 		calcTotalChange(
@@ -34,9 +35,28 @@
 				: data
 		)
 	);
+	const dateRanges = [
+		{ label: 'Last 7 Days', end: moment().subtract(7, 'days').toDate(), start: moment().toDate() },
+		{
+			label: 'Last 30 Days',
+			end: moment().subtract(30, 'days').toDate(),
+			start: moment().toDate()
+		},
+		{
+			label: 'Last 90 Days',
+			end: moment().subtract(90, 'days').toDate(),
+			start: moment().toDate()
+		},
+		{
+			label: 'Last 365 Days',
+			end: moment().subtract(365, 'days').toDate(),
+			start: moment().toDate()
+		}
+		// TODO: add month to date, quarter to date, year to date
+	];
 </script>
 
-<div class="root">
+<div class={['root', { hovered: hoveredIndex }]}>
 	<Card>
 		<span class="caption">VSC Balance</span>
 		<div class="price">
@@ -54,14 +74,14 @@
 		</div>
 		<div class="date-change-bar">
 			<div class="date">
-				{moment(date).format('MMMM D, YYYY')}
+				<Date {dateRanges} currDate={date}></Date>
 			</div>
 			<div class="change">
 				<Diff up={priceDiff[0]} down={priceDiff[1]} compact={hoveredPoint == undefined} />
 			</div>
 		</div>
 		<div class="lc-wrapper">
-			<LineChart bind:data bind:hoveredPoint bind:hoveredIndex height={200} />
+			<LineChart bind:data bind:hoveredPoint bind:hoveredIndex height={250} />
 		</div>
 	</Card>
 </div>
@@ -70,6 +90,7 @@
 	.root {
 		display: block;
 		overflow: hidden;
+		max-width: 512px;
 	}
 	.caption {
 		font-size: var(--text-sm);
@@ -78,6 +99,8 @@
 	.date-change-bar {
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
+		min-height: 48px;
 	}
 	.price {
 		vertical-align: text-top;

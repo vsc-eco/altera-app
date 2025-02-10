@@ -1,9 +1,23 @@
 <script lang="ts">
+	import Select from '$lib/zag/Select.svelte';
+	import moment from 'moment';
+	export type DateRange = { label: string; start: Date; end: Date };
 	type Props = {
-        dateRanges: []
+		dateRanges?: DateRange[];
 		currDate?: Date;
 	};
-	let { date }: Props = $props();
+	let { dateRanges = [], currDate }: Props = $props();
+	let initial: string = $state(dateRanges[0].label);
 </script>
 
-<div class="date">{moment(date).format('MMMM D, YYYY')}</div>
+{#if currDate}
+	{moment(currDate).format('MMMM D, YYYY')}
+{:else}
+	<Select
+		onValueChange={(v) => {
+			initial = v.value[0];
+		}}
+		{initial}
+		options={dateRanges}
+	></Select>
+{/if}

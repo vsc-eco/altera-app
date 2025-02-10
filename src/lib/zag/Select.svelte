@@ -1,57 +1,51 @@
-<script lang="ts" , generics="Option extends {value: string}">
+<script lang="ts" generics="Option extends {label: string}">
+	import PillButton, { type ButtonAttributes } from '$lib/PillButton.svelte';
+	import type { ValueChangeDetails } from '@zag-js/select';
 	import * as select from '@zag-js/select';
 	import { portal, useMachine, normalizeProps } from '@zag-js/svelte';
+	import { Check, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import Toggle from './Select/Toggle.svelte';
+	import List from './Select/List.svelte';
 	type Props = {
-		options: Option;
-		initial: string;
+		options: Option[];
+		initial?: string;
+		onValueChange?: (value: ValueChangeDetails<unknown>) => void;
 	};
-	let { options, initial }: Props = $props();
-	const selectData = [
-		{ label: 'Nigeria', value: 'NG' },
-		{ label: 'Japan', value: 'JP' },
-		{ label: 'Korea', value: 'KO' },
-		{ label: 'Kenya', value: 'KE' },
-		{ label: 'United Kingdom', value: 'UK' },
-		{ label: 'Ghana', value: 'GH' },
-		{ label: 'Uganda', value: 'UG' }
-	];
+	let label = undefined;
+	let { options, initial, onValueChange }: Props = $props();
+	const selectData = $derived(options);
 
 	const collection = select.collection({
-		items: selectData,
+		// svelte-ignore state_referenced_locally
+		items: options as Option[],
 		itemToString: (item) => item.label,
-		itemToValue: (item) => item.value
+		itemToValue: (item) => item.label
+	});
+	$effect(() => {
+		collection.items = selectData;
 	});
 
 	const [snapshot, send] = useMachine(
 		select.machine({
 			id: '1',
 			collection,
-			value: [initial]
+			value: initial ? [initial] : undefined,
+			onValueChange
 		})
 	);
-
 	const api = $derived(select.connect(snapshot, send, normalizeProps));
 </script>
 
 <div {...api.getRootProps()}>
-	<div {...api.getControlProps()}>
-		<label {...api.getLabelProps()}>Label</label>
-		<button {...api.getTriggerProps()}>
-			{api.valueAsString || 'Select option'}
-		</button>
-	</div>
+	<Toggle {api}></Toggle>
 
 	<div use:portal {...api.getPositionerProps()}>
-		<ul {...api.getContentProps()}>
-			{#each selectData as item}
-				<li {...api.getItemProps({ item })}>
-					<span {...api.getItemTextProps({ item })}>{item.label}</span>
-					<span {...api.getItemIndicatorProps({ item })}>✓</span>
-				</li>
-			{/each}
-		</ul>
+		<List {api} {selectData}></List>
 	</div>
 </div>
 
 <style lang="scss">
+	.dropdown {
+		background-color: var(--bg-accent);
+	}
 </style>

@@ -1,33 +1,39 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { MouseEventHandler } from 'svelte/elements';
-	type Props = {
-		onclick?: MouseEventHandler<HTMLButtonElement>;
+	import type {
+		HTMLAnchorAttributes,
+		HTMLButtonAttributes,
+		MouseEventHandler
+	} from 'svelte/elements';
+	type SharedProps = {
 		children?: Snippet;
-		icon?: Snippet;
-		href?: string;
 		theme?: string;
-		invert?: boolean;
+		style?: 'invert' | 'text' | 'default';
 	};
-	let { onclick, children, icon, href, theme = 'neutral', invert }: Props = $props();
-	let className = $derived([theme, { invert }]);
+	export type AnchorProps = { href: string; onclick?: undefined } & HTMLAnchorAttributes;
+	export type ButtonAttributes = {
+		href?: undefined;
+		onclick: MouseEventHandler<HTMLButtonElement>;
+	} & HTMLButtonAttributes;
+	type Props = SharedProps & (AnchorProps | ButtonAttributes);
+	let { children, theme = 'neutral', style, ...rest }: Props = $props();
+	let invertStyle = $derived(style == 'invert');
+	let textStyle = $derived(style == 'text');
+
+	let className = $derived([theme, { invert: invertStyle, text: textStyle }]);
 </script>
 
 {#snippet inner()}
-	{#if icon}
-		{@render icon()}
-	{/if}
-
 	{#if children}
 		{@render children()}
 	{:else}
 		Click me!
 	{/if}
 {/snippet}
-{#if href}
-	<a {href} class={className}>{@render inner()}</a>
-{:else if onclick}
-	<button {onclick} class={className}>{@render inner()}</button>
+{#if rest.href}
+	<a class={className} {...rest}>{@render inner()}</a>
+{:else if rest.onclick}
+	<button class={className} {...rest}>{@render inner()}</button>
 {:else}
 	<button class={className}>actionless</button>
 {/if}
@@ -54,7 +60,7 @@
 		transition: transform 0.05s;
 
 		background-color: var(--bg-accent);
-		color: var(--fg-mid);
+		color: var(--fg-accent-shifted);
 		&:hover {
 			background-color: var(--bg-accent-shifted);
 			color: var(--fg-accent);
@@ -77,6 +83,18 @@
 			&:active {
 				background-color: var(--fg-mid);
 				color: var(--bg);
+			}
+		}
+		&.text {
+			background-color: transparent;
+			color: var(--fg);
+			&:hover {
+				background-color: var(--bg-accent);
+				color: var(--fg);
+			}
+			&:active {
+				background-color: var(--bg-accent);
+				color: var(--fg);
 			}
 		}
 	}

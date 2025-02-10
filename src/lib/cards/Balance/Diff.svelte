@@ -47,20 +47,22 @@
 	span {
 		display: inline-flex;
 		align-items: center;
+		font-family: 'Noto Sans Mono Variable', monospace;
 	}
 	div {
 		display: inline-flex;
 		gap: 0.5rem;
 	}
 	div :global(svg) {
-		height: 16px;
-		width: 16px;
+		height: 14px;
+		width: 14px;
 		padding: none;
+		overflow: hidden;
 	}
 	.up {
-		color: var(--teal-50);
+		color: var(--primary-fg-mid);
 	}
 	.down {
-		color: var(--salmon-50);
+		color: var(--secondary-fg-mid);
 	}
 </style>

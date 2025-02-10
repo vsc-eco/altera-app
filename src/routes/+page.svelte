@@ -6,7 +6,7 @@
 </script>
 
 <h1>Welcome, Name</h1>
-<PillBtn theme="primary" invert href="./send"><Send /> Send</PillBtn>
+<PillBtn theme="primary" style="invert" href="./send"><Send /> Send</PillBtn>
 <PillBtn href="./receive"><HandCoins /> Receive</PillBtn>
 <PillBtn href="./deposit"><PiggyBank /> Deposit</PillBtn>
 <Balance></Balance>

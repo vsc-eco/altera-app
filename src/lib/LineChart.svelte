@@ -1,13 +1,21 @@
 <script lang="ts">
+	// TODO: Handle case where data points are not evenly spaced out in time
+	// What breaks:
+	// - the linear interp in the afterUpdate listener over toIdx since
+	//   if values are not evenly spaced over x then the interp should vary
+	//   from index gap to index gap.
+	// - the mapping from mouse position to hoveredIndex
 	import { scaleLinear, scaleTime } from 'd3-scale';
 	import { extent, max } from 'd3-array';
 	import { curveBasis, area, curveCardinal } from 'd3-shape';
 	import {
+		changeInterpFunction,
 		changeLocalInterpFunction,
 		createAnimation,
 		getLinearInterp,
 		getSlerp,
 		getStateTree,
+		lerpFunc,
 		modifyTo,
 		NO_INTERP
 	} from 'aninest';
@@ -76,15 +84,19 @@
 	let dotX: number = $state(0);
 	let dotY: number = $state(height + 10);
 	let dotR: number = $state(0);
-	let dotAnim = createAnimation({ pos: { x: 0, y: 0 }, r: 0 }, getSlerp(0.1));
+	let dotAnimRunningState = { pos: { x: 0, toIdx: 0 }, r: 0 };
+	let dotAnim = createAnimation({ pos: { x: 0, toIdx: 0 }, r: 0 }, getLinearInterp(0.1));
+
 	updateLayer.mount(dotAnim);
 	updateLayer.subscribe('afterUpdate', () => {
 		let {
-			pos: { x, y },
+			pos: { x, toIdx },
 			r
-		} = getStateTree(dotAnim);
+		} = getStateTree(dotAnim, dotAnimRunningState, false);
 		dotX = x;
-		dotY = y;
+		let leftPos = data[Math.floor(toIdx)];
+		let rightPos = data[Math.ceil(toIdx)];
+		dotY = yScale(lerpFunc(leftPos.value, rightPos.value, toIdx % 1));
 		dotR = r;
 	});
 	let chunkSize = $derived((width - margin.left - margin.right) / (data.length - 1));
@@ -99,11 +111,11 @@
 			changeLocalInterpFunction(dotAnim.children.pos, NO_INTERP);
 		}
 		modifyTo(dotAnim, {
-			pos: { x: xScale(hoveredPoint.date), y: yScale(hoveredPoint.value) },
+			pos: { x: xScale(hoveredPoint.date), toIdx: hoveredIndex },
 			r: 1
 		});
 		if (dotR == 0) {
-			changeLocalInterpFunction(dotAnim.children.pos, getLinearInterp(0.05));
+			changeLocalInterpFunction(dotAnim.children.pos, getLinearInterp(0.1));
 		}
 	}
 
@@ -125,22 +137,22 @@
 		role="figure"
 	>
 		<path d={areaPlot} stroke="none" stroke-width={0} fill="url(#MyGradient)"></path>
-		<path d={linePlot} stroke="var(--fg-mid)" stroke-width={4}></path>
+		<path d={linePlot} stroke="var(--fg-mid)" stroke-width={1}></path>
 		<line
 			x1={dotX}
 			y1={height - margin.bottom}
 			x2={dotX}
 			y2={dotY}
 			stroke="var(--fg-mid)"
-			stroke-width={dotR * 4}
+			stroke-width={dotR * 1}
 		></line>
 		<circle
 			cx={dotX}
 			cy={dotY}
-			r={dotR * 6}
+			r={dotR * 4}
 			fill="var(--bg)"
 			stroke="var(--fg-mid)"
-			stroke-width={4}
+			stroke-width={1}
 		></circle>
 		<defs>
 			<linearGradient id="MyGradient" x1="0" y1="0" x2="0" y2="1">

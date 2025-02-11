@@ -24,8 +24,6 @@
 	let hoveredIndex: number | undefined = $state();
 	const active = $derived(hoveredPoint ?? data?.at(-1)!);
 	const balance = $derived(active.value);
-	const date = $derived(hoveredPoint && active.date);
-	const prev = $derived(hoveredIndex == undefined ? undefined : filteredData[hoveredIndex - 1]);
 	const dateRanges = [
 		{ label: 'Last 7 Days', start: moment().subtract(7, 'days').toDate(), end: moment().toDate() },
 		{
@@ -54,6 +52,8 @@
 			);
 		})
 	);
+	const date = $derived(hoveredPoint && active.date);
+	const prev = $derived(hoveredIndex == undefined ? undefined : filteredData[hoveredIndex - 1]);
 	const priceDiff = $derived(
 		calcTotalChange(
 			hoveredPoint

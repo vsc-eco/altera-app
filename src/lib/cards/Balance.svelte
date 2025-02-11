@@ -25,35 +25,44 @@
 	const active = $derived(hoveredPoint ?? data?.at(-1)!);
 	const balance = $derived(active.value);
 	const date = $derived(hoveredPoint && active.date);
-	const prev = $derived(hoveredIndex == undefined ? undefined : data[hoveredIndex - 1]);
+	const prev = $derived(hoveredIndex == undefined ? undefined : filteredData[hoveredIndex - 1]);
+	const dateRanges = [
+		{ label: 'Last 7 Days', start: moment().subtract(7, 'days').toDate(), end: moment().toDate() },
+		{
+			label: 'Last 30 Days',
+			start: moment().subtract(30, 'days').toDate(),
+			end: moment().toDate()
+		},
+		{
+			label: 'Last 90 Days',
+			start: moment().subtract(90, 'days').toDate(),
+			end: moment().toDate()
+		},
+		{
+			label: 'Last 365 Days',
+			start: moment().subtract(365, 'days').toDate(),
+			end: moment().toDate()
+		}
+		// TODO: add month to date, quarter to date, year to date
+	];
+	let selectedDateRange = $state(dateRanges[0]);
+	let filteredData = $derived(
+		data.filter((v) => {
+			return (
+				v.date.getTime() > selectedDateRange.start.getTime() &&
+				v.date.getTime() < selectedDateRange.end.getTime()
+			);
+		})
+	);
 	const priceDiff = $derived(
 		calcTotalChange(
 			hoveredPoint
 				? prev == undefined
 					? [{ value: 0 }, { value: 0 }]
 					: [prev, hoveredPoint]
-				: data
+				: filteredData
 		)
 	);
-	const dateRanges = [
-		{ label: 'Last 7 Days', end: moment().subtract(7, 'days').toDate(), start: moment().toDate() },
-		{
-			label: 'Last 30 Days',
-			end: moment().subtract(30, 'days').toDate(),
-			start: moment().toDate()
-		},
-		{
-			label: 'Last 90 Days',
-			end: moment().subtract(90, 'days').toDate(),
-			start: moment().toDate()
-		},
-		{
-			label: 'Last 365 Days',
-			end: moment().subtract(365, 'days').toDate(),
-			start: moment().toDate()
-		}
-		// TODO: add month to date, quarter to date, year to date
-	];
 </script>
 
 <div class={['root', { hovered: hoveredIndex }]}>
@@ -74,14 +83,20 @@
 		</div>
 		<div class="date-change-bar">
 			<div class="date">
-				<Date {dateRanges} currDate={date}></Date>
+				<Date
+					onValueChange={(v) => {
+						selectedDateRange = v;
+					}}
+					{dateRanges}
+					currDate={date}
+				></Date>
 			</div>
 			<div class="change">
 				<Diff up={priceDiff[0]} down={priceDiff[1]} compact={hoveredPoint == undefined} />
 			</div>
 		</div>
 		<div class="lc-wrapper">
-			<LineChart bind:data bind:hoveredPoint bind:hoveredIndex height={250} />
+			<LineChart data={filteredData} bind:hoveredPoint bind:hoveredIndex height={250} />
 		</div>
 	</Card>
 </div>
@@ -106,8 +121,7 @@
 		vertical-align: text-top;
 		display: flex;
 		align-items: first;
-		margin-top: 0.25rem;
-		margin-bottom: 0.5rem;
+		margin: 0.5rem 0;
 		font-size: var(--text-5xl);
 		font-family: 'Noto Sans Mono Variable', monospace;
 	}

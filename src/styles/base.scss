@@ -1,7 +1,11 @@
 /* Defines spacing, fonts, and sizes */
-
+@import './fonts/plex/plex.css';
 :root {
-	font-family: 'DM Sans Variable', system-ui, sans-serif;
+	font-family: 'IBM Plex Sans', system-ui, sans-serif;
+	font-optical-sizing: auto;
+	font-style: normal;
+	font-weight: 450;
+	// font-variation-settings: 'wdth' 80;
 	--text-xs: 0.79rem;
 	--text-sm: 0.88rem;
 	--text-base: 1rem; /* 16px */
@@ -16,7 +20,7 @@
 h1,
 h2,
 h3 {
-	font-weight: bold;
+	font-weight: 600;
 }
 
 h1,

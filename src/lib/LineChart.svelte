@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { scaleLinear, scaleTime } from 'd3-scale';
 	import { extent, max } from 'd3-array';
-	import { curveBasis, area } from 'd3-shape';
+	import { curveBasis, area, curveCardinal } from 'd3-shape';
 	import {
 		changeLocalInterpFunction,
 		createAnimation,
@@ -65,12 +65,12 @@
 	let lineGenerator = area<{ value: number; date: Date }>()
 		.y((d) => yScale(d.value))
 		.x((d) => xScale(d.date))
-		.curve(curveBasis);
+		.curve(curveCardinal);
 	let areaGenerator = area<{ value: number; date: Date }>()
 		.y0((d) => height)
 		.y1((d) => yScale(d.value))
 		.x((d) => xScale(d.date))
-		.curve(curveBasis);
+		.curve(curveCardinal);
 	let areaPlot = $derived(areaGenerator(data));
 	let linePlot = $derived(lineGenerator(data));
 	let dotX: number = $state(0);

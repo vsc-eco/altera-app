@@ -8,7 +8,7 @@
 </script>
 
 <header>
-	<img src="/vsc.png" alt="VSC Logo" />
+	<img src="/vsc.png" alt="VSC Logo" width="48" />
 	<h2>DeFi</h2>
 </header>
 {@render children()}

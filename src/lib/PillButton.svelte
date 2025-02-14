@@ -57,6 +57,7 @@
 		vertical-align: middle;
 		position: relative;
 		overflow: hidden;
+		white-space: nowrap; /* keep on same line */
 		transition: transform 0.05s;
 
 		background-color: var(--bg-accent);

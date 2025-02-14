@@ -104,8 +104,8 @@
 <style>
 	.root {
 		display: block;
-		overflow: hidden;
 		max-width: 512px;
+		min-width: 300px;
 	}
 	.caption {
 		font-size: var(--text-sm);
@@ -137,5 +137,6 @@
 	}
 	.lc-wrapper {
 		margin: 0 -0.55rem;
+		overflow: scroll;
 	}
 </style>

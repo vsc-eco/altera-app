@@ -12,6 +12,7 @@
 		changeLocalInterpFunction,
 		createAnimation,
 		getLinearInterp,
+		getSlerp,
 		getStateTree,
 		lerpFunc,
 		modifyTo,
@@ -20,7 +21,6 @@
 	import { getUpdateLayer } from '@aninest/extensions';
 	import { defaultData } from './defaultData';
 	import moment from 'moment';
-	let updateLayer = getUpdateLayer();
 	const margin = { top: 8, right: 0, bottom: 0, left: 0 };
 	export type Point = {
 		value: number;
@@ -82,19 +82,31 @@
 	let dotY: number = $state(height + 10);
 	let dotR: number = $state(0);
 	let dotAnimRunningState = { pos: { x: 0, toIdx: 0 }, r: 0 };
-	let dotAnim = createAnimation({ pos: { x: 0, toIdx: 0 }, r: 0 }, getLinearInterp(0.05));
+	type DotAnimatable = { pos: { x: number; toIdx: number }; r: number };
+	let dotAnim = createAnimation({ pos: { x: 0, toIdx: 0 }, r: 0 }, getSlerp(0.2));
+	let updateLayer = getUpdateLayer<DotAnimatable>();
 
-	updateLayer.mount(dotAnim);
-	updateLayer.subscribe('afterUpdate', () => {
-		let {
-			pos: { x, toIdx },
-			r
-		} = getStateTree(dotAnim, dotAnimRunningState, false);
-		dotX = x;
-		let leftPos = data[Math.floor(toIdx)];
-		let rightPos = data[Math.ceil(toIdx)];
-		dotY = yScale(lerpFunc(leftPos.value, rightPos.value, toIdx % 1));
-		dotR = r;
+	$effect(() => {
+		let signal = new AbortController();
+		updateLayer.mount(dotAnim, signal);
+		updateLayer.subscribe(
+			'afterUpdate',
+			(anim) => {
+				let {
+					pos: { x, toIdx },
+					r
+				} = getStateTree(anim, dotAnimRunningState, false);
+				let leftPos = data[Math.floor(toIdx)];
+				let rightPos = data[Math.ceil(toIdx)];
+				if (leftPos != undefined && rightPos != undefined) {
+					dotX = x;
+					dotY = yScale(lerpFunc(leftPos.value, rightPos.value, toIdx % 1));
+					dotR = r;
+				}
+			},
+			signal
+		);
+		return signal.abort;
 	});
 	let chunkSize = $derived((width - margin.left - margin.right) / (data.length - 1));
 	function setLinePos(e: MouseEvent) {
@@ -121,9 +133,10 @@
 		hoveredPoint = undefined;
 		hoveredIndex = undefined;
 	}
+	// FEAT: animate range change https://d3-graph-gallery.com/graph/line_change_data.html
 </script>
 
-<figure class={theme} bind:clientWidth={width}>
+<figure class={[theme, { zero: width == 0 }]} bind:clientWidth={width}>
 	<svg
 		{width}
 		{height}
@@ -170,11 +183,16 @@
 <style>
 	figure {
 		touch-action: pinch-zoom;
-		min-width: 250px;
+		transition: opacity 0.05s;
+		opacity: 1;
 	}
 	.dates {
 		position: relative;
 		height: calc(var(--text-xs) + 0.5rem);
+	}
+	/* hide graph until width determined */
+	.zero {
+		opacity: 0;
 	}
 	.date {
 		position: absolute;
@@ -183,5 +201,6 @@
 		transform: translate(-50%, -50%);
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-xs);
+		white-space: nowrap;
 	}
 </style>

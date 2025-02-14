@@ -160,7 +160,9 @@
 	</svg>
 	<div class="dates">
 		{#each spacedDates as date}
-			<span class="date">{date.format('MMM DD')}</span>
+			<span class="date" style={`--position: ${xScale(date.toDate())}px`}
+				>{date.format('MMM DD')}</span
+			>
 		{/each}
 	</div>
 </figure>
@@ -171,10 +173,14 @@
 		min-width: 250px;
 	}
 	.dates {
-		display: flex;
-		justify-content: space-evenly;
+		position: relative;
+		height: calc(var(--text-xs) + 0.5rem);
 	}
 	.date {
+		position: absolute;
+		left: var(--position);
+		top: 50%;
+		transform: translate(-50%, -50%);
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-xs);
 	}

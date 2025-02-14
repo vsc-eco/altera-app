@@ -1,6 +1,5 @@
 <script>
 	import Balance from '$lib/cards/Balance.svelte';
-	import LineChart from '$lib/LineChart.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
 	import { Send, HandCoins, PiggyBank } from 'lucide-svelte';
 </script>

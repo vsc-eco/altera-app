@@ -22,7 +22,7 @@
 	}
 	let hoveredPoint: Point | undefined = $state();
 	let hoveredIndex: number | undefined = $state();
-	const active = $derived(hoveredPoint ?? data?.at(-1)!);
+	const active = $derived(hoveredPoint ?? data?.[data.length - 1]);
 	const balance = $derived(active.value);
 	const dateRanges = [
 		{ label: 'Last 7 Days', start: moment().subtract(7, 'days').toDate(), end: moment().toDate() },

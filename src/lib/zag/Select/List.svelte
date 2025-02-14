@@ -1,12 +1,6 @@
-<script lang="ts" generics="Option extends {label: string}">
-	import PillButton, { type ButtonAttributes } from '$lib/PillButton.svelte';
+<script lang="ts">
 	import { Check } from 'lucide-svelte';
-	import type { Api } from '@zag-js/select';
-	import type { PropTypes } from '@zag-js/svelte';
-	type Props = {
-		api: Api<PropTypes, any>;
-		selectData: Option[];
-	};
+
 	let { api, selectData } = $props();
 </script>
 

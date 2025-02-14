@@ -4,9 +4,9 @@
 	import type { Api } from '@zag-js/select';
 	import type { PropTypes } from '@zag-js/svelte';
 	type Props = {
-		api: Api<PropTypes, any>;
+		api: Api<PropTypes, unknown>;
 	};
-	let { api } = $props();
+	let { api }: Props = $props();
 	const triggerProps: ButtonAttributes = $derived(api.getTriggerProps()) as ButtonAttributes;
 	let open = $derived(api.open);
 </script>

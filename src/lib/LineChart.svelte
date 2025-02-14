@@ -7,13 +7,11 @@
 	// - the mapping from mouse position to hoveredIndex
 	import { scaleLinear, scaleTime } from 'd3-scale';
 	import { extent, max } from 'd3-array';
-	import { curveBasis, area, curveCardinal } from 'd3-shape';
+	import { area, curveCardinal } from 'd3-shape';
 	import {
-		changeInterpFunction,
 		changeLocalInterpFunction,
 		createAnimation,
 		getLinearInterp,
-		getSlerp,
 		getStateTree,
 		lerpFunc,
 		modifyTo,
@@ -23,7 +21,6 @@
 	import { defaultData } from './defaultData';
 	import moment from 'moment';
 	let updateLayer = getUpdateLayer();
-	let svg: SVGElement | undefined = $state();
 	const margin = { top: 8, right: 0, bottom: 0, left: 0 };
 	export type Point = {
 		value: number;
@@ -75,7 +72,7 @@
 		.x((d) => xScale(d.date))
 		.curve(curveCardinal);
 	let areaGenerator = area<{ value: number; date: Date }>()
-		.y0((d) => height)
+		.y0(() => height)
 		.y1((d) => yScale(d.value))
 		.x((d) => xScale(d.date))
 		.curve(curveCardinal);
@@ -162,7 +159,7 @@
 		</defs>
 	</svg>
 	<div class="dates">
-		{#each spacedDates as date, i}
+		{#each spacedDates as date}
 			<span class="date">{date.format('MMM DD')}</span>
 		{/each}
 	</div>

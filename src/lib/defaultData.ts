@@ -2,7 +2,7 @@ import moment from 'moment';
 
 const noiseScaled = (scale: number) => {
 	return (i: number) => {
-		let s = Math.log(scale * 10);
+		const s = Math.log(scale * 10);
 		i /= scale;
 		return s * (Math.sin(2 * i) + Math.sin(Math.PI * i)) + s * 2;
 	};
@@ -16,8 +16,8 @@ const values = [...Array(400)].map((_, i) => {
 	}, 0);
 });
 export const defaultData = values.map((data, idx) => {
-	let start = moment().subtract(399, 'days').toDate();
-	let out = new Date(start.setDate(start.getDate() + idx));
+	const start = moment().subtract(399, 'days').toDate();
+	const out = new Date(start.setDate(start.getDate() + idx));
 	return {
 		value: data,
 		date: out

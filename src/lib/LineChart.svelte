@@ -82,7 +82,7 @@
 	let dotY: number = $state(height + 10);
 	let dotR: number = $state(0);
 	let dotAnimRunningState = { pos: { x: 0, toIdx: 0 }, r: 0 };
-	let dotAnim = createAnimation({ pos: { x: 0, toIdx: 0 }, r: 0 }, getLinearInterp(0.1));
+	let dotAnim = createAnimation({ pos: { x: 0, toIdx: 0 }, r: 0 }, getLinearInterp(0.05));
 
 	updateLayer.mount(dotAnim);
 	updateLayer.subscribe('afterUpdate', () => {
@@ -112,7 +112,7 @@
 			r: 1
 		});
 		if (dotR == 0) {
-			changeLocalInterpFunction(dotAnim.children.pos, getLinearInterp(0.1));
+			changeLocalInterpFunction(dotAnim.children.pos, getLinearInterp(0.05));
 		}
 	}
 

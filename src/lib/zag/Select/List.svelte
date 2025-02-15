@@ -7,7 +7,14 @@
 <ul {...api.getContentProps()}>
 	{#each selectData as item}
 		<li {...api.getItemProps({ item })}>
-			<span {...api.getItemTextProps({ item })}>{item.label}</span>
+			<span {...api.getItemTextProps({ item })}>
+				{#if typeof item.snippet == 'function'}
+					{@const Snippet = item.snippet}
+					{@render Snippet(item.snippetData)}
+				{:else}
+					{item.label}
+				{/if}
+			</span>
 			<span class="check" {...api.getItemIndicatorProps({ item })}>
 				<Check></Check>
 			</span>
@@ -19,7 +26,7 @@
 	ul {
 		border-radius: 0.25rem;
 		background-color: var(--neutral-bg-accent);
-		width: 160px;
+		// width: 160px;
 		padding: 0.25rem;
 	}
 	li {
@@ -36,7 +43,7 @@
 	.check {
 		margin-left: 0.25rem;
 	}
-	.check :global(svg) {
+	.check :global(.lucide) {
 		max-height: 16px;
 		max-width: 16px;
 	}

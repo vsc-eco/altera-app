@@ -20,6 +20,6 @@
 			onRangeChange(v.items[0] as DateRange);
 		}}
 		{initial}
-		options={dateRanges}
+		items={dateRanges}
 	></Select>
 {/if}

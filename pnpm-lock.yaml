@@ -17,6 +17,12 @@ importers:
       '@fontsource-variable/noto-sans-mono':
         specifier: ^5.1.1
         version: 5.1.1
+      '@lucide/svelte':
+        specifier: 0.474.0-rc.0
+        version: 0.474.0-rc.0(svelte@5.20.0)
+      '@zag-js/menu':
+        specifier: ^0.82.1
+        version: 0.82.1
       '@zag-js/select':
         specifier: ^0.82.1
         version: 0.82.1
@@ -526,6 +532,11 @@ packages:
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
 
+  '@lucide/svelte@0.474.0-rc.0':
+    resolution: {integrity: sha512-mr2H36LBJ9LIHVTcApWCxb9mJZr55VpkOr1STqc9eXJdincsEIDRxWstmAZy3uxrZtUdl1WiDn14t95aX689pw==}
+    peerDependencies:
+      svelte: ^5
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -836,8 +847,14 @@ packages:
   '@zag-js/interact-outside@0.82.1':
     resolution: {integrity: sha512-WcWJB5kM41fDM6YMGC3ZEPVn1q3Nrm+cAFkllRJrRY4+bUKXmtN8bqDaRKghP+dG5CXz66SiM6xBvDE4nqtK5Q==}
 
+  '@zag-js/menu@0.82.1':
+    resolution: {integrity: sha512-faAlQZYeWHcGH8nIxBYh7HHfVjSKsHV8yUsbhMD0XkePWM6eB+dPRd/Fc3DeT8ieM8+sUODnTHEuxar0i48v4w==}
+
   '@zag-js/popper@0.82.1':
     resolution: {integrity: sha512-vQTmVUs6aLGqKmWb+FnLDntsulvd/sCvgndeTmwOHRW8PBwPb86aDnvNrNosBSS+Kk9p6CMJwWZ6CuPWR5Kf7Q==}
+
+  '@zag-js/rect-utils@0.82.1':
+    resolution: {integrity: sha512-gXmvj1wK9FeToOCzvoZ5gycqUNRzfeqd84uwJeG9zA8SVdoyEnoAji8IAynneq8t3LbiNUcu37wjTw0dcWM6ig==}
 
   '@zag-js/select@0.82.1':
     resolution: {integrity: sha512-cc6D8Iz+Ewnx9L0J63QGqC2bbiwzCEcJVE/j4OZDcy4Qk3lqr3qA09uuJbQxAi7yvIeB44DIEt9ryTZPkZbgiw==}
@@ -1836,6 +1853,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
+  '@lucide/svelte@0.474.0-rc.0(svelte@5.20.0)':
+    dependencies:
+      svelte: 5.20.0
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -2134,11 +2155,24 @@ snapshots:
       '@zag-js/dom-query': 0.82.1
       '@zag-js/utils': 0.82.1
 
+  '@zag-js/menu@0.82.1':
+    dependencies:
+      '@zag-js/anatomy': 0.82.1
+      '@zag-js/core': 0.82.1
+      '@zag-js/dismissable': 0.82.1
+      '@zag-js/dom-query': 0.82.1
+      '@zag-js/popper': 0.82.1
+      '@zag-js/rect-utils': 0.82.1
+      '@zag-js/types': 0.82.1
+      '@zag-js/utils': 0.82.1
+
   '@zag-js/popper@0.82.1':
     dependencies:
       '@floating-ui/dom': 1.6.12
       '@zag-js/dom-query': 0.82.1
       '@zag-js/utils': 0.82.1
+
+  '@zag-js/rect-utils@0.82.1': {}
 
   '@zag-js/select@0.82.1':
     dependencies:

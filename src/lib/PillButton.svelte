@@ -5,22 +5,26 @@
 		HTMLButtonAttributes,
 		MouseEventHandler
 	} from 'svelte/elements';
-	type SharedProps = {
+	export type SharedProps = {
 		children?: Snippet;
 		theme?: string;
-		style?: 'invert' | 'text' | 'default';
+		style?: 'invert' | 'text' | 'outline' | 'default';
 	};
 	export type AnchorProps = { href: string; onclick?: undefined } & HTMLAnchorAttributes;
 	export type ButtonAttributes = {
 		href?: undefined;
 		onclick: MouseEventHandler<HTMLButtonElement>;
 	} & HTMLButtonAttributes;
-	type Props = SharedProps & (AnchorProps | ButtonAttributes);
+	export type Props = SharedProps & (AnchorProps | ButtonAttributes);
 	let { children, theme = 'neutral', style, ...rest }: Props = $props();
 	let invertStyle = $derived(style == 'invert');
 	let textStyle = $derived(style == 'text');
+	let outlineStyle = $derived(style == 'outline');
 
-	let className = $derived([theme, { invert: invertStyle, text: textStyle }]);
+	let className = $derived([
+		theme,
+		{ invert: invertStyle, text: textStyle, outline: outlineStyle }
+	]);
 </script>
 
 {#snippet inner()}
@@ -56,7 +60,6 @@
 		text-decoration: none;
 		vertical-align: middle;
 		position: relative;
-		overflow: hidden;
 		white-space: nowrap; /* keep on same line */
 		transition: transform 0.05s;
 
@@ -71,7 +74,7 @@
 			color: var(--fg);
 			transform: scale(0.98);
 		}
-		:global(svg) {
+		:global(.lucide-check) {
 			height: 18px;
 		}
 		&.invert {
@@ -89,6 +92,19 @@
 		&.text {
 			background-color: transparent;
 			color: var(--fg);
+			&:hover {
+				background-color: var(--bg-accent);
+				color: var(--fg);
+			}
+			&:active {
+				background-color: var(--bg-accent);
+				color: var(--fg);
+			}
+		}
+		&.outline {
+			background-color: transparent;
+			color: var(--fg);
+			border: 1px solid var(--bg-mid);
 			&:hover {
 				background-color: var(--bg-accent);
 				color: var(--fg);

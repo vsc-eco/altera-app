@@ -86,28 +86,28 @@
 	let dotAnim = createAnimation({ pos: { x: 0, toIdx: 0 }, r: 0 }, getSlerp(0.2));
 	let updateLayer = getUpdateLayer<DotAnimatable>();
 
-	$effect(() => {
-		let signal = new AbortController();
-		updateLayer.mount(dotAnim, signal);
-		updateLayer.subscribe(
-			'afterUpdate',
-			(anim) => {
-				let {
-					pos: { x, toIdx },
-					r
-				} = getStateTree(anim, dotAnimRunningState, false);
-				let leftPos = data[Math.floor(toIdx)];
-				let rightPos = data[Math.ceil(toIdx)];
-				if (leftPos != undefined && rightPos != undefined) {
-					dotX = x;
-					dotY = yScale(lerpFunc(leftPos.value, rightPos.value, toIdx % 1));
-					dotR = r;
-				}
-			},
-			signal
-		);
-		return signal.abort;
-	});
+	// $effect(() => {
+	let signal = new AbortController();
+	updateLayer.mount(dotAnim, signal);
+	updateLayer.subscribe(
+		'afterUpdate',
+		(anim) => {
+			let {
+				pos: { x, toIdx },
+				r
+			} = getStateTree(anim, dotAnimRunningState, false);
+			let leftPos = data[Math.floor(toIdx)];
+			let rightPos = data[Math.ceil(toIdx)];
+			if (leftPos != undefined && rightPos != undefined) {
+				dotX = x;
+				dotY = yScale(lerpFunc(leftPos.value, rightPos.value, toIdx % 1));
+				dotR = r;
+			}
+		},
+		signal
+	);
+	// return signal.abort;
+	// });
 	let chunkSize = $derived((width - margin.left - margin.right) / (data.length - 1));
 	function setLinePos(e: MouseEvent) {
 		let bb = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -136,7 +136,7 @@
 	// FEAT: animate range change https://d3-graph-gallery.com/graph/line_change_data.html
 </script>
 
-<figure class={[theme, { zero: width == 0 }]} bind:clientWidth={width}>
+<figure class={[theme, { zero: width == 0 }]} bind:clientWidth={width} tabindex="-1">
 	<svg
 		{width}
 		{height}
@@ -178,6 +178,7 @@
 			>
 		{/each}
 	</div>
+	<figcaption>A graph of your balance over time.</figcaption>
 </figure>
 
 <style>
@@ -185,6 +186,11 @@
 		touch-action: pinch-zoom;
 		transition: opacity 0.05s;
 		opacity: 1;
+	}
+	figcaption {
+		overflow: hidden;
+		height: 0;
+		width: 0;
 	}
 	.dates {
 		position: relative;

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import PillButton, { type ButtonAttributes } from '$lib/PillButton.svelte';
 	import { ChevronDown, ChevronUp } from 'lucide-svelte';
-	import type { Api } from '@zag-js/select';
+	import type { Api } from '@zag-js/menu';
 	import type { PropTypes } from '@zag-js/svelte';
 	type Props = {
-		api: Api<PropTypes, unknown>;
+		api: Api<PropTypes>;
 		def: string;
 	};
 	let { api, def }: Props = $props();
@@ -12,13 +12,11 @@
 	let open = $derived(api.open);
 </script>
 
-<div {...api.getControlProps()}>
-	<PillButton {...triggerProps} style="text">
-		{api.valueAsString || def || 'Select option'}
-		{#if open}
-			<ChevronUp></ChevronUp>
-		{:else}
-			<ChevronDown></ChevronDown>
-		{/if}
-	</PillButton>
-</div>
+<PillButton {...triggerProps} style="outline">
+	{def || 'Actions...'}
+	{#if open}
+		<ChevronUp></ChevronUp>
+	{:else}
+		<ChevronDown></ChevronDown>
+	{/if}
+</PillButton>

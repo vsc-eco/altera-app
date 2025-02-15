@@ -6,7 +6,6 @@
 	let { children } = $props();
 	import '@fontsource-variable/noto-sans-mono';
 	import '@fontsource-variable/dm-sans';
-	import Select from '$lib/zag/Select.svelte';
 	import { actions } from './quickActions';
 	import Menu from '$lib/zag/Menu.svelte';
 </script>

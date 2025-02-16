@@ -8,7 +8,7 @@
 	export type SharedProps = {
 		children?: Snippet;
 		theme?: string;
-		style?: 'invert' | 'text' | 'outline' | 'default';
+		style?: 'invert' | 'text' | 'outline' | 'default' | 'icon';
 	};
 	export type AnchorProps = { href: string; onclick?: undefined } & HTMLAnchorAttributes;
 	export type ButtonAttributes = {
@@ -20,10 +20,10 @@
 	let invertStyle = $derived(style == 'invert');
 	let textStyle = $derived(style == 'text');
 	let outlineStyle = $derived(style == 'outline');
-
+	let iconStyle = $derived(style == 'icon');
 	let className = $derived([
 		theme,
-		{ invert: invertStyle, text: textStyle, outline: outlineStyle }
+		{ invert: invertStyle, text: textStyle, outline: outlineStyle, icon: iconStyle }
 	]);
 </script>
 
@@ -113,6 +113,15 @@
 				background-color: var(--bg-accent);
 				color: var(--fg);
 			}
+		}
+		&.icon {
+			padding: 0.5rem;
+			width: 2rem;
+			height: 2rem;
+			box-sizing: border-box;
+		}
+		&.icon:hover {
+			color: var(--primary-fg-mid);
 		}
 	}
 </style>

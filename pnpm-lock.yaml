@@ -20,6 +20,9 @@ importers:
       '@lucide/svelte':
         specifier: 0.474.0-rc.0
         version: 0.474.0-rc.0(svelte@5.20.0)
+      '@zag-js/avatar':
+        specifier: ^0.82.1
+        version: 0.82.1
       '@zag-js/menu':
         specifier: ^0.82.1
         version: 0.82.1
@@ -831,6 +834,9 @@ packages:
 
   '@zag-js/anatomy@0.82.1':
     resolution: {integrity: sha512-wpgU7LyU9St3o/ft8Nkundi7MkW37vN1hYc2E7VA/R6mun0qiANsEf83ymIlAYnovLC6WUlBso9xwqejr6wRCg==}
+
+  '@zag-js/avatar@0.82.1':
+    resolution: {integrity: sha512-XjRvDRmBxwy5OtIzlQOpf7zNk4g0b/uA7qZve5Hz0R7yWOu+NFlbFv0GsvRfgyYMCT5J0xBu271EG9FJq3QKyw==}
 
   '@zag-js/collection@0.82.1':
     resolution: {integrity: sha512-uteM+xWZlWhRQe5biA5QWyva9PdzXONs+bpycUtZt8MakQgPmhW2whY9r1aW5NFVb/ScTwGAIGB3Eyc6Npz7Wg==}
@@ -2130,6 +2136,14 @@ snapshots:
       eslint-visitor-keys: 4.2.0
 
   '@zag-js/anatomy@0.82.1': {}
+
+  '@zag-js/avatar@0.82.1':
+    dependencies:
+      '@zag-js/anatomy': 0.82.1
+      '@zag-js/core': 0.82.1
+      '@zag-js/dom-query': 0.82.1
+      '@zag-js/types': 0.82.1
+      '@zag-js/utils': 0.82.1
 
   '@zag-js/collection@0.82.1':
     dependencies:

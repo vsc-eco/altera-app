@@ -47,6 +47,7 @@
 		"@fontsource-variable/dm-sans": "^5.1.1",
 		"@fontsource-variable/noto-sans-mono": "^5.1.1",
 		"@lucide/svelte": "0.474.0-rc.0",
+		"@zag-js/avatar": "^0.82.1",
 		"@zag-js/menu": "^0.82.1",
 		"@zag-js/select": "^0.82.1",
 		"@zag-js/svelte": "^0.82.1",

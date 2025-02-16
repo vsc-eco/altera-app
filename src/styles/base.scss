@@ -45,8 +45,13 @@ a {
 	color: var(--secondary-fg-mid);
 }
 
+:root {
+	height: 100%;
+}
+
 body {
-	margin: 0.5rem;
+	display: block;
+	height: 100%;
 }
 :root {
 	background-color: var(--neutral-bg);

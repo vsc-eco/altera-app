@@ -138,7 +138,6 @@
 
 <figure class={[theme, { zero: width == 0 }]} bind:clientWidth={width} tabindex="-1">
 	<svg
-		{width}
 		{height}
 		onpointermove={setLinePos}
 		onpointerdown={setLinePos}
@@ -191,6 +190,9 @@
 		overflow: hidden;
 		height: 0;
 		width: 0;
+	}
+	svg {
+		width: 100%;
 	}
 	.dates {
 		position: relative;

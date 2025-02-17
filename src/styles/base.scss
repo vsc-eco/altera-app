@@ -61,6 +61,24 @@ body {
 *:focus-visible {
 	outline: 2px solid var(--primary-fg-mid);
 	outline-offset: 2px;
-
 	z-index: 1;
+}
+
+button.icon {
+	background-color: transparent;
+	border: none;
+	border-radius: 100%;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+button.icon:active {
+	transform: scale(0.98);
+}
+@media screen and (min-width: 500px) {
+	button.icon {
+		display: none;
+	}
 }

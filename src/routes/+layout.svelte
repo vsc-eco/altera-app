@@ -7,12 +7,17 @@
 	import '@fontsource-variable/dm-sans';
 	import Sidebar from '$lib/Sidebar.svelte';
 	import Topbar from '$lib/Topbar.svelte';
+	let showSidebar = $state(false);
 </script>
 
-<div class="flex">
-	<Sidebar></Sidebar>
+<div class={['flex', { showSidebar }]}>
+	<Sidebar bind:visible={showSidebar}></Sidebar>
 	<div class="main">
-		<Topbar></Topbar>
+		<Topbar
+			onMenuToggle={() => {
+				showSidebar = !showSidebar;
+			}}
+		></Topbar>
 		<main>
 			{@render children()}
 		</main>
@@ -24,9 +29,17 @@
 		display: flex;
 		min-height: 100%;
 	}
+	@media screen and (max-width: 500px) {
+		.showSidebar .main {
+			opacity: 0.2;
+		}
+	}
 	.main {
-		padding: 0.5rem;
+		padding: 0rem 0.5rem;
 		flex: 1;
+		flex-shrink: 1;
+		width: 100%;
+		box-sizing: border-box;
 		flex-basis: 0;
 	}
 </style>

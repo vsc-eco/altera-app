@@ -10,7 +10,9 @@
 		}
 	});
 	let navWidth = $state(0);
+	let bodyWidth = $state(0);
 	let { visible = $bindable(false) } = $props();
+	let actuallyVisible = $derived(visible || bodyWidth >= 500);
 	const paths = [
 		{
 			name: 'Home',
@@ -30,7 +32,9 @@
 	];
 </script>
 
-{#if visible}
+<svelte:body bind:clientWidth={bodyWidth} />
+
+{#if actuallyVisible}
 	<nav
 		bind:clientWidth={navWidth}
 		transition:fly={{ x: -navWidth, opacity: 1 }}

@@ -30,7 +30,12 @@
 		min-height: 100%;
 	}
 	@media screen and (max-width: 500px) {
+		.main {
+			opacity: 1;
+			transition: opacity 0.2s;
+		}
 		.showSidebar .main {
+			pointer-events: none;
 			opacity: 0.2;
 		}
 	}

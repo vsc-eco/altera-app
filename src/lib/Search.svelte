@@ -46,6 +46,7 @@
 		flex-grow: 1;
 	}
 	input {
+		color: inherit;
 		font: inherit;
 		width: 100%;
 		margin: 0.5rem 0.1rem;

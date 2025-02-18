@@ -31,7 +31,7 @@
 			};
 		})}
 		label="Move Money"
-		onSelect={(e) => {
+		onSelect={(e: { value: string }) => {
 			let action = actions.find((v) => v.label == e.value)!;
 			goto(action.href);
 		}}

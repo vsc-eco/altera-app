@@ -20,7 +20,8 @@
 <style lang="scss">
 	ul {
 		border-radius: 0.25rem;
-		background-color: var(--neutral-bg-accent);
+		background-color: var(--neutral-off-bg);
+		border: 1px solid var(--neutral-bg-accent);
 		// width: 160px;
 		padding: 0.25rem;
 	}

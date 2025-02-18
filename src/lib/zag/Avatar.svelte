@@ -33,7 +33,7 @@
 		aspect-ratio: 1;
 	}
 
-	[data-scope='avatar'][data-part='fallback'] {
-		/* Styles for the fallback part */
-	}
+	/* [data-scope='avatar'][data-part='fallback'] { */
+	/* Styles for the fallback part */
+	/* } */
 </style>

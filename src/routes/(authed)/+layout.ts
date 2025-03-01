@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 
-const authed = false;
+const authed = true;
 
 export async function load() {
 	if (!authed) {

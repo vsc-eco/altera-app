@@ -8,6 +8,9 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
+		alias: {
+			'@styles': 'src/styles'
+		},
 		adapter: adapter(),
 		env: {
 			publicPrefix: '',

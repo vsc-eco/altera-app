@@ -44,6 +44,7 @@
 		]
 	},
 	"dependencies": {
+		"@aioha/aioha": "^1.5.6",
 		"@aninest/extensions": "^1.8.0",
 		"@fontsource-variable/dm-sans": "^5.1.1",
 		"@fontsource-variable/noto-sans-mono": "^5.1.1",

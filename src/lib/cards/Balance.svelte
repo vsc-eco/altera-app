@@ -137,6 +137,6 @@
 	}
 	.lc-wrapper {
 		margin: 0 -0.55rem;
-		overflow: scroll;
+		overflow: auto;
 	}
 </style>

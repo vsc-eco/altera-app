@@ -19,7 +19,7 @@
 <style>
 	.action-bar {
 		max-width: 100%;
-		overflow-x: scroll;
+		overflow-x: auto;
 		overflow-y: hidden;
 		height: 3rem;
 		white-space: nowrap;

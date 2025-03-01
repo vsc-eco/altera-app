@@ -33,6 +33,8 @@ Collapse search and move money dropdown into icons. Consider dropping bar into a
 
 #### Tiles
 
+- Transfer
+  - Type in username/eth address first, infer network based on address
 - day by day balance graph
 - balance of each token the user owns
   - **Suggestion**: Maybe allow each account to be clicked on to show a graph of that individual token's balance over time?
@@ -74,4 +76,3 @@ Collapse search and move money dropdown into icons. Consider dropping bar into a
   - tag search
 
 ### Swap
-

@@ -2,11 +2,28 @@ import { readable, writable } from 'svelte/store';
 
 type Auth = {
 	status: 'none' | 'pending' | 'authenticated';
-	value?: unknown;
+	value?: unknown & {
+		username?: string;
+		address?: string;
+	};
 };
-export const _authStore = writable<Auth>({ status: 'none' });
-export const authStore = readable<Auth>({ status: 'none' }, (set) => {
-	_authStore.subscribe((v) => {
+export const _hiveAuthStore = writable<Auth>({ status: 'pending' });
+export const _reownAuthStore = writable<Auth>({ status: 'pending' });
+export const authStore = readable<Auth>({ status: 'pending' }, (set) => {
+	let hiveStatus = 'pending';
+	let reownStatus = 'pending';
+	_hiveAuthStore.subscribe((v) => {
+		hiveStatus = v.status;
+		if (hiveStatus == 'none' && reownStatus != 'none') {
+			return;
+		}
+		set(v);
+	});
+	_reownAuthStore.subscribe((v) => {
+		reownStatus = v.status;
+		if (reownStatus == 'none' && hiveStatus != 'none') {
+			return;
+		}
 		set(v);
 	});
 });

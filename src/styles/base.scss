@@ -64,7 +64,7 @@ body {
 	z-index: 1;
 }
 
-button.icon {
+button.transparent-icon {
 	color: inherit;
 	background-color: transparent;
 	border: none;
@@ -74,13 +74,13 @@ button.icon {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-}
-button.icon:active {
-	transform: scale(0.98);
-}
-@media screen and (min-width: 560px) {
-	button.icon {
-		display: none;
+	&:active {
+		transform: scale(0.98);
+	}
+	@media screen and (min-width: 560px) {
+		&.icon {
+			display: none;
+		}
 	}
 }
 

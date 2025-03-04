@@ -41,7 +41,7 @@
 		class={{ visible }}
 	>
 		<button
-			class="icon"
+			class="transparent-icon"
 			onclick={() => {
 				visible = !visible;
 			}}
@@ -82,7 +82,7 @@
 			position: unset;
 		}
 	}
-	button.icon {
+	button.transparent-icon {
 		align-self: flex-end;
 	}
 	a {

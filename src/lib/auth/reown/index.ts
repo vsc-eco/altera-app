@@ -2,8 +2,8 @@
 import { createAppKit } from '@reown/appkit';
 import { mainnet } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// import { VERCEL_URL } from '$env/static/public';
-const VERCEL_URL = 'localhost:5173';
+import { VERCEL_URL } from '$env/static/public';
+import { _reownAuthStore } from '../store';
 
 // 1. Get a project ID at https://cloud.reown.com
 export const projectId = '55a54e098e74ddb214919fe0da4ac384';
@@ -30,5 +30,21 @@ export const modal = createAppKit({
 	projectId,
 	features: {
 		analytics: false // Optional - defaults to your Cloud configuration
+	}
+});
+
+modal.subscribeAccount((value) => {
+	if (value.isConnected) {
+		console.log(value);
+		_reownAuthStore.set({
+			status: 'authenticated',
+			value: {
+				address: value.address
+			}
+		});
+	} else {
+		_reownAuthStore.set({
+			status: 'none'
+		});
 	}
 });

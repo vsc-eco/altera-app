@@ -1,21 +1,12 @@
 <script lang="ts">
 	import { modal } from '$lib/auth/reown';
 	import PillButton from '../PillButton.svelte';
-	import { _authStore } from './store';
-	modal.subscribeAccount((value) => {
-		console.log(value);
-		_authStore.set({
-			status: 'authenticated',
-			value: {
-				address: value.address
-			}
-		});
-	});
+	import { _reownAuthStore } from './store';
 </script>
 
 <PillButton
 	onclick={() => {
-		_authStore.set({
+		_reownAuthStore.set({
 			status: 'pending'
 		});
 		modal.open();

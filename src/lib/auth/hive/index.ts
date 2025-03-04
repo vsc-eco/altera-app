@@ -1,8 +1,7 @@
 import { initAioha, KeyTypes, Providers, Aioha } from '@aioha/aioha';
-// import { VERCEL_URL } from '$env/static/public';
-const VERCEL_URL = 'localhost:5173';
-import { _authStore } from '../store';
+import { VERCEL_URL } from '$env/static/public';
 import { browser } from '$app/environment';
+import { _hiveAuthStore } from '../store';
 let aioha: Aioha;
 
 if (browser) {
@@ -21,13 +20,14 @@ if (browser) {
 		}
 	});
 	if (aioha.isLoggedIn()) {
-		_authStore.set({
+		_hiveAuthStore.set({
 			status: 'authenticated',
 			value: {
-				username: aioha.getCurrentUser(),
-				aioha: aioha
+				username: aioha.getCurrentUser()
 			}
 		});
+	} else {
+		_hiveAuthStore.set({ status: 'none' });
 	}
 	aioha.on('account_changed', () => {
 		const user = aioha.getCurrentUser();
@@ -36,8 +36,7 @@ if (browser) {
 			authStore = {
 				status: 'authenticated' as const,
 				value: {
-					username: user,
-					aioha: aioha
+					username: user
 				}
 			};
 		} else {
@@ -45,7 +44,7 @@ if (browser) {
 				status: 'none' as const
 			};
 		}
-		_authStore.set(authStore);
+		_hiveAuthStore.set(authStore);
 	});
 }
 /**
@@ -69,17 +68,16 @@ export async function login(
 		msg: 'Sign into Altera',
 		hiveauth: {
 			cbWait: (payload, evt) => {
-				// display HiveAuth QR code using payload as data
+				// TODO: display HiveAuth QR code using payload as data
 			}
 		},
 		keyType: KeyTypes.Posting
 	});
 	if (login.success) {
-		_authStore.set({
+		_hiveAuthStore.set({
 			status: 'authenticated',
 			value: {
-				username: aioha.getCurrentUser(),
-				aioha: aioha
+				username: aioha.getCurrentUser()
 			}
 		});
 	}
@@ -87,6 +85,6 @@ export async function login(
 }
 
 export async function logout() {
-	_authStore.set({ status: 'none' });
+	_hiveAuthStore.set({ status: 'none' });
 	await aioha.logout();
 }

@@ -2,13 +2,9 @@
 	import { getUniqueId } from '$lib/zag/Select/idgen';
 	import * as radio from '@zag-js/radio-group';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
+	import type { Snippet } from 'svelte';
 
-	const items = [
-		{ id: 'apple', label: 'Apples' },
-		{ id: 'orange', label: 'Oranges' },
-		{ id: 'mango', label: 'Mangoes' },
-		{ id: 'grape', label: 'Grapes' }
-	];
+	let items: { id: string; label: Snippet }[] = [];
 
 	const service = useMachine(radio.machine, {
 		id: getUniqueId(),

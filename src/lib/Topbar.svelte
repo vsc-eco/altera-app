@@ -6,7 +6,15 @@
 	import PillButton from './PillButton.svelte';
 	import Avatar from './zag/Avatar.svelte';
 	import { Bell, Component, MenuIcon } from '@lucide/svelte';
+	import { authStore } from './auth/store';
 	let { onMenuToggle } = $props();
+	let username: string | undefined = $state('  ');
+	$effect(() => {
+		authStore.subscribe((v) => {
+			if (!v.value) return;
+			username = v.value.username || v.value.address || 'AA';
+		});
+	});
 </script>
 
 {#snippet option(a: { label: string; icon: typeof Component })}
@@ -19,7 +27,7 @@
 <header>
 	<!-- <img src="/vsc.png" alt="VSC Logo" width="48" />
 	<h2>DeFi</h2> -->
-	<button class="icon" onclick={onMenuToggle}> <MenuIcon></MenuIcon> </button>
+	<button class="transparent-icon" onclick={onMenuToggle}> <MenuIcon></MenuIcon> </button>
 	<Search></Search>
 	<Menu
 		items={actions.map((a) => {
@@ -36,7 +44,9 @@
 		}}
 	></Menu>
 	<PillButton onclick={() => {}} styleType="icon"><Bell /></PillButton>
-	<Avatar fallback="ZP"></Avatar>
+	{#if username != undefined}
+		<Avatar fallback={username.slice(0, 2).toLocaleUpperCase()}></Avatar>
+	{/if}
 </header>
 
 <style>

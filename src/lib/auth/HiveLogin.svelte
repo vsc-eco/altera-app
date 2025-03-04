@@ -14,7 +14,6 @@
 			errorTxt = input!.validationMessage;
 			return;
 		}
-		await logout(); // FIXME: delete this; only for testing
 		let username = input!.value;
 		let res = await login(username, 'keychain');
 		if (res.success) {
@@ -91,11 +90,10 @@
 			position: absolute;
 			top: 50%;
 			transform: translateY(-50%);
-
 			left: 0.5rem;
 		}
 		span:has(+ input:focus-visible) {
-			color: var(--primary-fg-accent-shifted);
+			color: var(--primary-fg-mid);
 		}
 	}
 	input {

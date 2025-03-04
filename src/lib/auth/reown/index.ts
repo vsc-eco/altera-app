@@ -1,7 +1,9 @@
-import { VERCEL_URL } from '$env/static/public';
+// import { VERCEL_URL } from '$env/static/public';
 import { createAppKit } from '@reown/appkit';
 import { mainnet } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
+// import { VERCEL_URL } from '$env/static/public';
+const VERCEL_URL = 'localhost:5173';
 
 // 1. Get a project ID at https://cloud.reown.com
 export const projectId = '55a54e098e74ddb214919fe0da4ac384';
@@ -17,7 +19,7 @@ const wagmiAdapter = new WagmiAdapter({
 const metadata = {
 	name: 'VSC Frontend',
 	description: '',
-	url: VERCEL_URL != 'localhost' ? `https://${VERCEL_URL}` : 'http://localhost:5173', // origin must match your domain & subdomain
+	url: VERCEL_URL.includes('localhost') ? `http://${VERCEL_URL}` : `https://${VERCEL_URL}`, // origin must match your domain & subdomain
 	icons: ['https://avatars.githubusercontent.com/u/133249767']
 };
 

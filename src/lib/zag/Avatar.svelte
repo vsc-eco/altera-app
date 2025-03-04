@@ -3,8 +3,8 @@
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from './Select/idgen';
 	let { src, fallback }: { src?: string | null | undefined; fallback: string } = $props();
-	const [snapshot, send] = useMachine(avatar.machine({ id: getUniqueId() }));
-	const api = $derived(avatar.connect(snapshot, send, normalizeProps));
+	const service = useMachine(avatar.machine, { id: getUniqueId() });
+	const api = $derived(avatar.connect(service, normalizeProps));
 </script>
 
 <div {...api.getRootProps()}>

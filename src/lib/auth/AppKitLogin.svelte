@@ -19,5 +19,5 @@
 			status: 'pending'
 		});
 		modal.open();
-	}}>Open Modal</PillButton
+	}}>Social/Eth Login</PillButton
 >

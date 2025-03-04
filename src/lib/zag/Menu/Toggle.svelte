@@ -1,6 +1,6 @@
 <script lang="ts">
 	import PillButton, { type ButtonAttributes } from '$lib/PillButton.svelte';
-	import { ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 	import type { Api } from '@zag-js/menu';
 	import type { PropTypes } from '@zag-js/svelte';
 	type Props = {

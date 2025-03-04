@@ -45,19 +45,4 @@
 	form {
 		flex-grow: 1;
 	}
-	input {
-		color: inherit;
-		font: inherit;
-		width: 100%;
-		margin: 0.5rem 0.1rem;
-		height: 32px;
-		border: 1px solid var(--neutral-bg-accent);
-		background-color: var(--neutral-bg);
-		border-radius: 0.25rem;
-	}
-	input:focus-visible {
-		border-bottom: 2px solid var(--primary-bg-mid);
-		outline: none;
-		border-radius: 0.25rem 0.25rem 0 0;
-	}
 </style>

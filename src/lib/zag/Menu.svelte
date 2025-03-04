@@ -6,9 +6,9 @@
 	import { getUniqueId } from './Select/idgen';
 
 	let { label, items, onSelect } = $props();
-	const [snapshot, send] = useMachine(menu.machine({ id: getUniqueId(), onSelect }));
+	const service = useMachine(menu.machine, { id: getUniqueId(), onSelect });
 
-	const api = $derived(menu.connect(snapshot, send, normalizeProps));
+	const api = $derived(menu.connect(service, normalizeProps));
 </script>
 
 <div>

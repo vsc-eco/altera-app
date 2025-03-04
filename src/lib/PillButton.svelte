@@ -8,7 +8,7 @@
 	export type SharedProps = {
 		children?: Snippet;
 		theme?: string;
-		style?: 'invert' | 'text' | 'outline' | 'default' | 'icon';
+		styleType?: 'invert' | 'text' | 'outline' | 'default' | 'icon';
 	};
 	export type AnchorProps = { href: string; onclick?: undefined } & HTMLAnchorAttributes;
 	export type ButtonAttributes = {
@@ -16,11 +16,11 @@
 		onclick: MouseEventHandler<HTMLButtonElement>;
 	} & HTMLButtonAttributes;
 	export type Props = SharedProps & (AnchorProps | ButtonAttributes);
-	let { children, theme = 'neutral', style, ...rest }: Props = $props();
-	let invertStyle = $derived(style == 'invert');
-	let textStyle = $derived(style == 'text');
-	let outlineStyle = $derived(style == 'outline');
-	let iconStyle = $derived(style == 'icon');
+	let { children, theme = 'neutral', styleType: type, ...rest }: Props = $props();
+	let invertStyle = $derived(type == 'invert');
+	let textStyle = $derived(type == 'text');
+	let outlineStyle = $derived(type == 'outline');
+	let iconStyle = $derived(type == 'icon');
 	let className = $derived([
 		theme,
 		{ invert: invertStyle, text: textStyle, outline: outlineStyle, icon: iconStyle }

@@ -78,8 +78,27 @@ button.icon {
 button.icon:active {
 	transform: scale(0.98);
 }
-@media screen and (min-width: 500px) {
+@media screen and (min-width: 560px) {
 	button.icon {
 		display: none;
 	}
+}
+
+input {
+	color: inherit;
+	font: inherit;
+	margin: 0.5rem 0.125rem;
+	height: 32px;
+	border: 1px solid var(--neutral-bg-accent);
+	background-color: var(--neutral-bg);
+	border-radius: 0.5rem;
+}
+
+input:focus-visible {
+	box-shadow: 0 -2px inset var(--primary-bg-mid);
+	outline: none;
+	border-radius: 0.5rem 0.5rem 0 0;
+}
+input:user-invalid {
+	color: var(--secondary-mid);
 }

@@ -1,10 +1,10 @@
 import type { SharedProps } from '$lib/PillButton.svelte';
-import { ArrowRightLeft, HandCoins, Icon, PiggyBank, Send } from 'lucide-svelte';
+import { ArrowRightLeft, HandCoins, Component, PiggyBank, Send } from '@lucide/svelte';
 
 export const actions: {
 	label: string;
 	href: string;
-	icon: typeof Icon;
+	icon: typeof Component;
 	styling?: SharedProps;
 }[] = [
 	{
@@ -13,7 +13,7 @@ export const actions: {
 		icon: Send,
 		styling: {
 			theme: 'primary',
-			style: 'invert'
+			styleType: 'invert'
 		}
 	},
 	{

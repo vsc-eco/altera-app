@@ -24,7 +24,7 @@
 		display: flex;
 		min-height: 100%;
 	}
-	@media screen and (max-width: 500px) {
+	@media screen and (max-width: 560px) {
 		.main {
 			opacity: 1;
 			transition: opacity 0.2s;
@@ -37,6 +37,9 @@
 	.main {
 		padding: 0rem 0.5rem;
 		flex: 1;
+		max-width: 800px;
+		margin-left: auto;
+		margin-right: auto;
 		flex-shrink: 1;
 		width: 100%;
 		box-sizing: border-box;

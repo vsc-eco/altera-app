@@ -1,7 +1,7 @@
 <script>
 	import { ScrollText, ArrowRightLeft, Home } from '@lucide/svelte';
 	import { page } from '$app/state';
-	import { PanelLeftCloseIcon } from 'lucide-svelte';
+	import { PanelLeftCloseIcon } from '@lucide/svelte';
 	import { beforeNavigate } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	beforeNavigate(() => {
@@ -12,7 +12,7 @@
 	let navWidth = $state(0);
 	let bodyWidth = $state(1000);
 	let { visible = $bindable(false) } = $props();
-	let actuallyVisible = $derived(visible || bodyWidth >= 500);
+	let actuallyVisible = $derived(visible || bodyWidth >= 560);
 	const paths = [
 		{
 			name: 'Home',
@@ -76,7 +76,7 @@
 		display: flex;
 		left: 0;
 	}
-	@media screen and (min-width: 500px) {
+	@media screen and (min-width: 560px) {
 		nav {
 			display: flex;
 			position: unset;

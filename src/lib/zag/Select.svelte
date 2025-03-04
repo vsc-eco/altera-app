@@ -24,15 +24,13 @@
 		collection.items = selectData;
 	});
 
-	const [snapshot, send] = useMachine(
-		select.machine({
-			id: getUniqueId(),
-			collection,
-			value: initial ? [initial] : undefined,
-			onValueChange
-		})
-	);
-	const api = $derived(select.connect(snapshot, send, normalizeProps));
+	const service = useMachine(select.machine, {
+		id: getUniqueId(),
+		collection,
+		value: initial ? [initial] : undefined,
+		onValueChange
+	});
+	const api = $derived(select.connect(service, normalizeProps));
 </script>
 
 <div {...api.getRootProps()}>

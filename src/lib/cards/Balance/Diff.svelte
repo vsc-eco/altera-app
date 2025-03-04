@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowDownRight, ArrowUpRight } from 'lucide-svelte';
+	import { ArrowDownRight, ArrowUpRight } from '@lucide/svelte';
 	type Props = {
 		up: number;
 		down: number;
@@ -11,7 +11,7 @@
 			style: 'currency',
 			currency: 'USD',
 			notation: props.compact ? 'compact' : undefined,
-			minimumFractionDigits: !props.compact ? 2 : undefined
+			maximumFractionDigits: 2
 		})
 	);
 </script>

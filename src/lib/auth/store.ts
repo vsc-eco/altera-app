@@ -9,6 +9,7 @@ type Auth = {
 };
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });
 export const _reownAuthStore = writable<Auth>({ status: 'pending' });
+// TODO: add signout function to auth object
 export const authStore = readable<Auth>({ status: 'pending' }, (set) => {
 	let hiveStatus = 'pending';
 	let reownStatus = 'pending';

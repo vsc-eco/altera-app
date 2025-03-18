@@ -81,6 +81,9 @@
 			display: flex;
 			position: unset;
 		}
+		button.transparent-icon {
+			display: none;
+		}
 	}
 	button.transparent-icon {
 		align-self: flex-end;

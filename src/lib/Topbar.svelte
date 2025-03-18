@@ -8,11 +8,13 @@
 	import { Bell, Component, MenuIcon } from '@lucide/svelte';
 	import { authStore } from './auth/store';
 	let { onMenuToggle } = $props();
-	let username: string | undefined = $state('  ');
+	let username: string = $state('  ');
+	let logout: () => Promise<void> = async () => {};
 	$effect(() => {
 		authStore.subscribe((v) => {
 			if (!v.value) return;
-			username = v.value.username || v.value.address || 'AA';
+			username = v.value.username || v.value.address?.slice(2) || '**';
+			logout = v.value.logout;
 		});
 	});
 </script>
@@ -42,11 +44,26 @@
 			let action = actions.find((v) => v.label == e.value)!;
 			goto(action.href);
 		}}
-	></Menu>
+	/>
 	<PillButton onclick={() => {}} styleType="icon"><Bell /></PillButton>
-	{#if username != undefined}
+	<Menu
+		label="Account Settings"
+		styleType="icon"
+		items={[{ label: 'logout', snippet: 'logout' }]}
+		onSelect={async (e) => {
+			console.log(e);
+			switch (e.value) {
+				case 'logout':
+					await logout();
+					goto('/logout');
+					break;
+				default:
+					console.warn('unknown action triggered in avatar dropdown');
+			}
+		}}
+	>
 		<Avatar fallback={username.slice(0, 2).toLocaleUpperCase()}></Avatar>
-	{/if}
+	</Menu>
 </header>
 
 <style>
@@ -57,6 +74,11 @@
 		align-items: center;
 		max-width: 800px;
 		margin: auto;
+	}
+	@media screen and (min-width: 560px) {
+		button.transparent-icon {
+			display: none;
+		}
 	}
 	.icon {
 		margin-right: 0.5rem;

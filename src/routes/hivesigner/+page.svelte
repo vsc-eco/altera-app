@@ -1,5 +1,5 @@
 <script>
+	import { browser } from '$app/environment';
 	import { hivesignerCb } from '@aioha/aioha/build/lib/hivesigner-cb';
-
-	hivesignerCb();
+	if (browser) hivesignerCb();
 </script>

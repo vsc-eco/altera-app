@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { login, logout } from './hive';
+	import { login } from './hive';
 	// credit for regex: https://github.com/Mintrawa/hive-username-regex/blob/main/src/index.ts
 	const hiveRegex =
 		'^(?=.{3,16}$)[a-z][0-9a-z\\-]{1,}[0-9a-z]([.][a-z][0-9a-z\\-]{1,}[0-9a-z]){0,}';

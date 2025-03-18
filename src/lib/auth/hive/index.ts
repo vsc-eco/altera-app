@@ -23,7 +23,8 @@ if (browser) {
 		_hiveAuthStore.set({
 			status: 'authenticated',
 			value: {
-				username: aioha.getCurrentUser()
+				username: aioha.getCurrentUser(),
+				logout: logout
 			}
 		});
 	} else {
@@ -36,7 +37,8 @@ if (browser) {
 			authStore = {
 				status: 'authenticated' as const,
 				value: {
-					username: user
+					username: user,
+					logout: logout
 				}
 			};
 		} else {
@@ -77,7 +79,8 @@ export async function login(
 		_hiveAuthStore.set({
 			status: 'authenticated',
 			value: {
-				username: aioha.getCurrentUser()
+				username: aioha.getCurrentUser(),
+				logout
 			}
 		});
 	}

@@ -3,20 +3,17 @@
 	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 	import type { Api } from '@zag-js/menu';
 	import type { PropTypes } from '@zag-js/svelte';
+	import type { Snippet } from 'svelte';
 	type Props = {
 		api: Api<PropTypes>;
 		def: string;
+		children: Snippet;
 	};
-	let { api, def }: Props = $props();
+	let { api, def, children }: Props = $props();
 	const triggerProps: ButtonAttributes = $derived(api.getTriggerProps()) as ButtonAttributes;
 	let open = $derived(api.open);
 </script>
 
-<PillButton {...triggerProps} styleType="outline">
-	{def || 'Actions...'}
-	{#if open}
-		<ChevronUp></ChevronUp>
-	{:else}
-		<ChevronDown></ChevronDown>
-	{/if}
+<PillButton {...triggerProps} styleType="icon">
+	{@render children()}
 </PillButton>

@@ -23,6 +23,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		color: var(--neutral-off-fg);
 
 		background: var(--neutral-bg-accent);
 	}

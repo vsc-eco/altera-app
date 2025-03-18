@@ -45,6 +45,9 @@
 <style lang="scss">
 	button,
 	a {
+		display: inline-flex;
+		justify-content: center;
+		cursor: pointer;
 		--height: 32px;
 		height: var(--height);
 		border-radius: calc(var(--height) / 2);
@@ -119,6 +122,9 @@
 			width: 2rem;
 			height: 2rem;
 			box-sizing: border-box;
+			display: flex;
+			justify-content: center;
+			align-items: center;
 		}
 		&.icon:hover {
 			color: var(--primary-fg-mid);

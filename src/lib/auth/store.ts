@@ -5,6 +5,7 @@ type Auth = {
 	value?: unknown & {
 		username?: string;
 		address?: string;
+		logout: () => Promise<void>;
 	};
 };
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });

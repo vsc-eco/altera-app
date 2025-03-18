@@ -49,7 +49,7 @@
 	hr {
 		position: relative;
 		overflow: visible;
-		width: 80%;
+		width: calc(100% - 2rem);
 		border: 1px solid var(--neutral-fg-accent-shifted);
 	}
 

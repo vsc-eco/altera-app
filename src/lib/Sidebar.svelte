@@ -67,7 +67,8 @@
 		flex-direction: column;
 		background-color: var(--neutral-off-bg);
 		border-right: 1px solid var(--neutral-bg-accent);
-		min-height: 100%;
+		min-height: 100vh;
+		box-sizing: border-box;
 		padding: 0.5rem;
 		z-index: 10;
 		transition: transform 0.2s;
@@ -98,11 +99,25 @@
 		border-radius: 0.25rem;
 		color: var(--neutral-fg);
 		text-decoration: none;
+		transition: transform 0.05s;
 	}
-	a:hover,
-	a.current {
+
+	a.current,
+	a.current:hover {
 		background-color: var(--neutral-bg-accent);
+		color: var(--primary-fg-accent-shifted);
 	}
+	a:hover {
+		background-color: var(--neutral-bg-accent);
+		color: var(--primary-fg-accent);
+	}
+
+	a:active {
+		background-color: var(--neutral-bg-accent);
+		color: var(--primary-fg-accent-shifted);
+		transform: scale(0.99);
+	}
+
 	a :global(.lucide-icon) {
 		margin-right: 0.5rem;
 	}

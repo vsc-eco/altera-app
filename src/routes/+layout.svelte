@@ -8,9 +8,3 @@
 </script>
 
 {@render children()}
-
-<style>
-	:global(body) {
-		margin: 1rem 0.5rem;
-	}
-</style>

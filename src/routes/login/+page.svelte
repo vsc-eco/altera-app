@@ -30,6 +30,7 @@
 
 <style>
 	main {
+		padding: 0.5rem 0.5rem;
 		margin: auto;
 		width: fit-content;
 		min-width: 250px;

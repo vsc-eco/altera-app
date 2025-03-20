@@ -14,7 +14,7 @@ if (browser) {
 		hivesigner: {
 			app: 'altera.app',
 			callbackURL:
-				(VERCEL_URL.includes('localhost') ? `http://${VERCEL_URL}` : `https://${VERCEL_URL}`) +
+				(VERCEL_URL.includes('localhost') ? `https://${VERCEL_URL}` : `https://${VERCEL_URL}`) +
 				'/hivesigner',
 			scope: ['login']
 		}
@@ -63,6 +63,18 @@ export async function login(
 		case 'keychain':
 			aiohaProvider = Providers.Keychain;
 			break;
+		case 'hiveauth':
+			aiohaProvider = Providers.HiveAuth;
+			break;
+		case 'hivesigner':
+			aiohaProvider = Providers.HiveSigner;
+			break;
+		case 'ledger':
+			aiohaProvider = Providers.Ledger;
+			break;
+		case 'peakvault':
+			aiohaProvider = Providers.PeakVault;
+			break;
 		default:
 			aiohaProvider = Providers.Custom;
 	}
@@ -70,6 +82,7 @@ export async function login(
 		msg: 'Sign into Altera',
 		hiveauth: {
 			cbWait: (payload, evt) => {
+				console.log('HERE');
 				// TODO: display HiveAuth QR code using payload as data
 			}
 		},

@@ -95,7 +95,7 @@ input {
 }
 
 input:focus-visible {
-	box-shadow: 0 -2px inset var(--primary-bg-mid);
+	box-shadow: 0 -2px inset var(--secondary-bg-mid);
 	outline: none;
 	border-radius: 0.5rem 0.5rem 0 0;
 }

@@ -4,7 +4,8 @@
 	import { portal, normalizeProps, useMachine } from '@zag-js/svelte';
 	import { X } from '@lucide/svelte';
 	import { type Snippet } from 'svelte';
-	import { getUniqueId } from './Select/idgen';
+	import { getUniqueId } from './idgen';
+	import Card from '$lib/cards/Card.svelte';
 	type Props = {
 		content: Snippet;
 		title: Snippet;
@@ -26,22 +27,24 @@
 {#if api.open}
 	<div use:portal {...api.getBackdropProps()}></div>
 	<div use:portal {...api.getPositionerProps()}>
-		<div {...api.getContentProps()}>
-			<PillButton
-				{...api.getCloseTriggerProps()}
-				onclick={api.getTriggerProps().onclick!}
-				styleType="icon"
-			>
-				<X></X>
-			</PillButton>
-			<h2 {...api.getTitleProps()}>{@render title()}</h2>
-			{#if description}
-				<div {...api.getDescriptionProps()}>
-					{@render description()}
-				</div>
-			{/if}
-			{@render content()}
-		</div>
+		<Card>
+			<div {...api.getContentProps()}>
+				<PillButton
+					{...api.getCloseTriggerProps()}
+					onclick={api.getTriggerProps().onclick!}
+					styleType="icon"
+				>
+					<X></X>
+				</PillButton>
+				<h2 {...api.getTitleProps()}>{@render title()}</h2>
+				{#if description}
+					<div {...api.getDescriptionProps()}>
+						{@render description()}
+					</div>
+				{/if}
+				{@render content()}
+			</div>
+		</Card>
 	</div>
 {/if}
 
@@ -59,7 +62,6 @@
 	[data-part='positioner'] {
 		border-radius: 0.5rem;
 		position: absolute;
-		background: var(--neutral-bg);
 		padding: 0.5rem;
 		top: 25%;
 		max-width: 75vw;

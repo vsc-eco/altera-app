@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as avatar from '@zag-js/avatar';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import { getUniqueId } from './Select/idgen';
+	import { getUniqueId } from './idgen';
 	let { src, fallback }: { src?: string | null | undefined; fallback: string } = $props();
 	const service = useMachine(avatar.machine, { id: getUniqueId() });
 	const api = $derived(avatar.connect(service, normalizeProps));

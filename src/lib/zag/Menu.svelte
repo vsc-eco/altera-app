@@ -3,7 +3,7 @@
 	import { portal, useMachine, normalizeProps } from '@zag-js/svelte';
 	import Toggle from './Menu/Toggle.svelte';
 	import List from './Menu/List.svelte';
-	import { getUniqueId } from './Select/idgen';
+	import { getUniqueId } from './idgen';
 	import type { Snippet } from 'svelte';
 	import IconToggle from './Menu/IconToggle.svelte';
 	type Props = {

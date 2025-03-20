@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as qrCode from '@zag-js/qr-code';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import { getUniqueId } from './Select/idgen';
+	import { getUniqueId } from './idgen';
 
 	const service = useMachine(qrCode.machine, {
 		id: getUniqueId(),

@@ -138,6 +138,9 @@ importers:
       vite:
         specifier: ^6.1.0
         version: 6.1.0(@types/node@18.19.78)(sass@1.85.0)
+      vite-plugin-mkcert:
+        specifier: ^1.17.8
+        version: 1.17.8(vite@6.1.0(@types/node@18.19.78)(sass@1.85.0))
 
 packages:
 
@@ -1508,6 +1511,9 @@ packages:
 
   axios@1.8.1:
     resolution: {integrity: sha512-NN+fvwH/kV01dYUQ3PTOZns4LWtWhOFCAhQ/pHb88WQ1hNe5V/dvFwc4VJcDL11LT9xSX0QtsR8sWUuyOuOq7g==}
+
+  axios@1.8.4:
+    resolution: {integrity: sha512-eBSYY4Y68NNlHbHBMdeDmKNtDgXWhQsJcGqzO3iLUM0GraQFSS9cVgPX5I9b3lbdFKyYoAEGAZF1DwhTaljNAw==}
 
   axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
@@ -3118,6 +3124,12 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  vite-plugin-mkcert@1.17.8:
+    resolution: {integrity: sha512-S+4tNEyGqdZQ3RLAG54ETeO2qyURHWrVjUWKYikLAbmhh/iJ+36gDEja4OWwFyXNuvyXcZwNt5TZZR9itPeG5Q==}
+    engines: {node: '>=v16.7.0'}
+    peerDependencies:
+      vite: '>=3'
 
   vite@6.1.0:
     resolution: {integrity: sha512-RjjMipCKVoR4hVfPY6GQTgveinjNuyLw+qruksLDvA5ktI1150VmcMBKmQaEWJhg/j6Uaf6dNCNA0AfdzUb/hQ==}
@@ -5445,7 +5457,15 @@ snapshots:
 
   axios@1.8.1:
     dependencies:
-      follow-redirects: 1.15.9
+      follow-redirects: 1.15.9(debug@4.4.0)
+      form-data: 4.0.2
+      proxy-from-env: 1.1.0
+    transitivePeerDependencies:
+      - debug
+
+  axios@1.8.4(debug@4.4.0):
+    dependencies:
+      follow-redirects: 1.15.9(debug@4.4.0)
       form-data: 4.0.2
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
@@ -6134,7 +6154,9 @@ snapshots:
 
   fn.name@1.1.0: {}
 
-  follow-redirects@1.15.9: {}
+  follow-redirects@1.15.9(debug@4.4.0):
+    optionalDependencies:
+      debug: 4.4.0
 
   for-each@0.3.5:
     dependencies:
@@ -7137,6 +7159,15 @@ snapshots:
       - bufferutil
       - utf-8-validate
       - zod
+
+  vite-plugin-mkcert@1.17.8(vite@6.1.0(@types/node@18.19.78)(sass@1.85.0)):
+    dependencies:
+      axios: 1.8.4(debug@4.4.0)
+      debug: 4.4.0
+      picocolors: 1.1.1
+      vite: 6.1.0(@types/node@18.19.78)(sass@1.85.0)
+    transitivePeerDependencies:
+      - supports-color
 
   vite@6.1.0(@types/node@18.19.78)(sass@1.85.0):
     dependencies:

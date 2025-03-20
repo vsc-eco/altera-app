@@ -81,14 +81,12 @@
 			height: 18px;
 		}
 		&.invert {
-			background-color: var(--mid);
+			background-color: var(--fg-mid);
 			color: var(--bg);
 			&:hover {
-				background-color: var(--fg-mid);
 				color: var(--bg);
 			}
 			&:active {
-				background-color: var(--fg-mid);
 				color: var(--bg);
 			}
 		}

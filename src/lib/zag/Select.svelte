@@ -6,7 +6,7 @@
 	import { portal, useMachine, normalizeProps } from '@zag-js/svelte';
 	import Toggle from './Select/Toggle.svelte';
 	import List from './Select/List.svelte';
-	import { getUniqueId } from './Select/idgen';
+	import { getUniqueId } from './idgen';
 	type Props = {
 		items: Option[];
 		initial?: string;

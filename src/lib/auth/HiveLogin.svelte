@@ -1,12 +1,21 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
+	import SegmentedControl from '$lib/zag/RadioGroup.svelte';
 	import { login } from './hive';
 	// credit for regex: https://github.com/Mintrawa/hive-username-regex/blob/main/src/index.ts
 	const hiveRegex =
 		'^(?=.{3,16}$)[a-z][0-9a-z\\-]{1,}[0-9a-z]([.][a-z][0-9a-z\\-]{1,}[0-9a-z]){0,}';
 	let input: HTMLInputElement | undefined = $state();
 	let close = $state(() => {});
+	let authProvider:
+		| 'keychain'
+		| 'hivesigner'
+		| 'hiveauth'
+		| 'ledger'
+		| 'peakvault'
+		| 'custom'
+		| undefined = $state();
 	let errorTxt = $state('');
 	async function loginOnSubmit(event: Event) {
 		event.preventDefault(); // disables refresh on onsubmit & tooltip oninvalid
@@ -15,7 +24,12 @@
 			return;
 		}
 		let username = input!.value;
-		let res = await login(username, 'keychain');
+		console.log(authProvider);
+		if (authProvider == undefined) {
+			errorTxt = 'Authentication Service required.';
+			return;
+		}
+		let res = await login(username, authProvider);
 		if (res.success) {
 			errorTxt = '';
 			close();
@@ -49,13 +63,25 @@
 					placeholder="hiveio"
 				/>
 			</div>
+			<br />
 			<div class="error">{errorTxt}</div>
+			<SegmentedControl
+				name="Authentication Service"
+				items={[
+					{ label: 'Hive Keychain', value: 'keychain' },
+					{ label: 'Hive Signer', value: 'hivesigner' },
+					{ label: 'Hive Auth', value: 'hiveauth' },
+					{ label: 'Hive Ledger', value: 'ledger' },
+					{ label: 'Peak Vault', value: 'peakvault' }
+				]}
+				bind:value={authProvider}
+			></SegmentedControl>
 			<PillButton
 				onclick={() => {
 					// explicitly doesn't do anything;
 					// instead relies on parent form's submit event
 				}}
-				type="submit">submit</PillButton
+				type="submit">Login</PillButton
 			>
 		</form>
 	{/snippet}
@@ -66,6 +92,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
+		max-width: 300px;
 	}
 	label {
 		margin-top: 0.5rem;
@@ -78,7 +105,6 @@
 	}
 	.error {
 		color: var(--secondary-mid);
-		width: 100%;
 	}
 	.input-parent {
 		font-family: 'Noto Sans Mono Variable', monospace;
@@ -93,7 +119,7 @@
 			left: 0.5rem;
 		}
 		span:has(+ input:focus-visible) {
-			color: var(--primary-fg-mid);
+			color: var(--secondary-fg-mid);
 		}
 	}
 	input {

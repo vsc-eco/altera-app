@@ -63,13 +63,16 @@
 		border-radius: 0.5rem;
 		position: absolute;
 		padding: 0.5rem;
-		top: 25%;
+		--top-offset: min(2rem, 1%);
+		top: var(--top-offset);
 		max-width: 75vw;
 		width: max-content;
-		overflow: auto;
 		left: 50%;
 		z-index: 10;
-		transform: translateX(-50%) translateY(-50%);
+		overflow: hidden;
+		height: 100%;
+		max-height: calc(100svh - var(--top-offset, 0) * 8);
+		transform: translateX(-50%);
 
 		/* styles for the positioner element */
 	}

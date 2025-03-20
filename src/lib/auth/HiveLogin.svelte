@@ -1,7 +1,9 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
+	import Qr from '$lib/zag/QR.svelte';
 	import SegmentedControl from '$lib/zag/RadioGroup.svelte';
+	import { ArrowLeft } from '@lucide/svelte';
 	import { login } from './hive';
 	// credit for regex: https://github.com/Mintrawa/hive-username-regex/blob/main/src/index.ts
 	const hiveRegex =
@@ -16,26 +18,39 @@
 		| 'peakvault'
 		| 'custom'
 		| undefined = $state();
-	let errorTxt = $state('');
+	let usernameErrorText = $state('');
+	let authServiceErrorText = $state('');
+	let aiohaErrorText = $state('');
+	let errorArr = $derived([usernameErrorText, authServiceErrorText, aiohaErrorText]);
+	function clearErrors() {
+		for (let i = 0; i < errorArr.length; i++) {
+			errorArr[i] = '';
+		}
+	}
+	let hasError = $derived(errorArr.some((err) => err != ''));
+	let qrData: string | undefined = $state();
+	function displayQr(data: string) {
+		qrData = data;
+	}
 	async function loginOnSubmit(event: Event) {
 		event.preventDefault(); // disables refresh on onsubmit & tooltip oninvalid
 		if (!input!.validity.valid) {
-			errorTxt = input!.validationMessage;
+			usernameErrorText = input!.validationMessage;
 			return;
 		}
 		let username = input!.value;
 		console.log(authProvider);
 		if (authProvider == undefined) {
-			errorTxt = 'Authentication Service required.';
+			authServiceErrorText = 'Authentication Service required.';
 			return;
 		}
-		let res = await login(username, authProvider);
-		if (res.success) {
-			errorTxt = '';
-			close();
-			return;
+		let res = await login(username, authProvider, displayQr);
+		if (!res.success) {
+			aiohaErrorText = res.error;
 		}
-		errorTxt = res.error;
+		clearErrors();
+		close();
+		return;
 	}
 </script>
 
@@ -46,48 +61,70 @@
 	{/snippet}
 
 	{#snippet content()}
-		<form onsubmit={loginOnSubmit} oninvalidcapture={loginOnSubmit}>
-			<label for="hive-username-login"> Username: </label>
-			<div class="input-parent">
-				<span>@</span>
-				<input
-					bind:this={input}
-					required
-					minlength="3"
-					maxlength="16"
-					pattern={hiveRegex.toString()}
-					id="hive-username-login"
-					type="text"
-					size="17"
-					autocomplete="username"
-					placeholder="hiveio"
-				/>
-			</div>
-			<br />
-			<div class="error">{errorTxt}</div>
-			<SegmentedControl
-				name="Authentication Service"
-				items={[
-					{ label: 'Hive Keychain', value: 'keychain' },
-					{ label: 'Hive Signer', value: 'hivesigner' },
-					{ label: 'Hive Auth', value: 'hiveauth' },
-					{ label: 'Hive Ledger', value: 'ledger' },
-					{ label: 'Peak Vault', value: 'peakvault' }
-				]}
-				bind:value={authProvider}
-			></SegmentedControl>
-			<PillButton
-				onclick={() => {
-					// explicitly doesn't do anything;
-					// instead relies on parent form's submit event
-				}}
-				type="submit">Login</PillButton
-			>
-		</form>
+		{#if qrData && !hasError}
+			<span class="back-button">
+				<PillButton
+					styleType="icon"
+					onclick={() => {
+						qrData = undefined;
+					}}
+					><ArrowLeft></ArrowLeft>
+				</PillButton>
+			</span>
+			<p>Tap or scan the QR Code below to open the HiveAuth app</p>
+			<a href={qrData}>
+				<Qr data={qrData}></Qr>
+			</a>
+		{:else}
+			<form onsubmit={loginOnSubmit} oninvalidcapture={loginOnSubmit}>
+				<div class="error">{authServiceErrorText}</div>
+				<label for="hive-username-login"> Username: </label>
+				<div class="input-parent">
+					<span>@</span>
+					<input
+						bind:this={input}
+						required
+						minlength="3"
+						maxlength="16"
+						pattern={hiveRegex.toString()}
+						id="hive-username-login"
+						type="text"
+						size="17"
+						autocomplete="username"
+						placeholder="hiveio"
+					/>
+				</div>
+				<br />
+				<label class="error" for="hive-username-login">{usernameErrorText}</label>
+				<SegmentedControl
+					id="hive-auth-method-login"
+					name="Authentication Service"
+					items={[
+						{ label: 'Hive Keychain', value: 'keychain' },
+						{ label: 'Hive Signer', value: 'hivesigner' },
+						{ label: 'Hive Auth', value: 'hiveauth' },
+						{ label: 'Hive Ledger', value: 'ledger' },
+						{ label: 'Peak Vault', value: 'peakvault' }
+					]}
+					bind:value={authProvider}
+				></SegmentedControl>
+				<label class="error" for="hive-auth-method-login">{authServiceErrorText}</label>
+				<PillButton
+					onclick={() => {
+						// explicitly doesn't do anything;
+						// instead relies on parent form's submit event
+					}}
+					type="submit">Login</PillButton
+				>
+			</form>
+		{/if}
 	{/snippet}
 </Dialog>
 
 <style lang="scss">
+	a {
+		display: contents;
+	}
 	form {
 		display: flex;
 		flex-wrap: wrap;
@@ -121,6 +158,12 @@
 		span:has(+ input:focus-visible) {
 			color: var(--secondary-fg-mid);
 		}
+	}
+	.back-button {
+		display: inline-block;
+		position: absolute;
+		top: 0.5rem;
+		left: 1rem;
 	}
 	input {
 		flex-shrink: 1;

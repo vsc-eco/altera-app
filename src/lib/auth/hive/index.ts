@@ -53,10 +53,12 @@ if (browser) {
  *
  * @param username
  * @param provider one of: Keychain, HiveSigner, HiveAuth, Ledger, PeakVault, Custom
+ * @param displayQr
  */
 export async function login(
 	username: string,
-	provider: 'keychain' | 'hivesigner' | 'hiveauth' | 'ledger' | 'peakvault' | 'custom'
+	provider: 'keychain' | 'hivesigner' | 'hiveauth' | 'ledger' | 'peakvault' | 'custom',
+	displayQr: (data: string) => void
 ) {
 	let aiohaProvider: Providers;
 	switch (provider) {
@@ -82,7 +84,8 @@ export async function login(
 		msg: 'Sign into Altera',
 		hiveauth: {
 			cbWait: (payload, evt) => {
-				console.log('HERE');
+				console.log(payload, evt);
+				displayQr(payload);
 				// TODO: display HiveAuth QR code using payload as data
 			}
 		},

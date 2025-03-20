@@ -4,13 +4,14 @@
 	import { getUniqueId } from './idgen';
 	export type Item = { label: string; value: string };
 	type Props = {
+		id?: string;
 		items: Item[];
 		name: string;
 		value?: string | null;
 	};
-	let { name, items, value = $bindable() }: Props = $props();
+	let { id, name, items, value = $bindable() }: Props = $props();
 	const service = useMachine(radio.machine, {
-		id: getUniqueId(),
+		id: id ?? getUniqueId(),
 		name,
 		orientation: 'horizontal'
 	});
@@ -34,10 +35,6 @@
 </div>
 
 <style>
-	[data-part='radio'][data-state='checked|unchecked'] {
-		/* styles for radio checked or unchecked state */
-	}
-
 	[data-part='item'] {
 		padding: 0.25rem 0.75rem;
 		height: 32px;
@@ -48,6 +45,14 @@
 		border-radius: 0.5rem;
 		cursor: pointer;
 		/* styles for radio checked or unchecked state */
+	}
+	[data-part='item'][data-focus] {
+		/* styles for radio checked or unchecked state */
+		outline: 2px solid var(--primary-fg-mid);
+		outline-offset: 2px;
+		z-index: 1;
+		background-color: var(--neutral-bg-accent);
+		border: 1px solid var(--neutral-bg-accent-shifted);
 	}
 
 	[data-part='item'][data-state='checked'] {

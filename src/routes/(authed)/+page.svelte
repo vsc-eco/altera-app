@@ -79,7 +79,7 @@
 			color 0.5s ease-in;
 	}
 	.name.loaded {
-		/* width: fit-content; */
+		width: fit-content;
 		color: currentColor;
 		background-color: transparent;
 	}

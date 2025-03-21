@@ -70,7 +70,7 @@
 	header {
 		display: flex;
 		justify-content: left;
-		gap: 0.5rem;
+		gap: 0.25rem;
 		align-items: center;
 		max-width: 800px;
 		margin: auto;
@@ -78,6 +78,11 @@
 	@media screen and (min-width: 560px) {
 		button.transparent-icon {
 			display: none;
+		}
+	}
+	@media screen and (max-width: 420px) {
+		header {
+			justify-content: space-between;
 		}
 	}
 	.icon {

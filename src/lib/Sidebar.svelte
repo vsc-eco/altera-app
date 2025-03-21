@@ -9,10 +9,16 @@
 			visible = false;
 		}
 	});
-	let navWidth = $state(0);
-	let bodyWidth = $state(1000);
+	let navWidth = $state(100);
+	let bodyWidth = $state(0);
 	let { visible = $bindable(false) } = $props();
 	let actuallyVisible = $derived(visible || bodyWidth >= 560);
+	let preload = $state(true);
+	$effect(() => {
+		setTimeout(() => {
+			preload = false;
+		}, 1000);
+	});
 	const paths = [
 		{
 			name: 'Home',
@@ -37,8 +43,8 @@
 {#if actuallyVisible}
 	<nav
 		bind:clientWidth={navWidth}
-		transition:fly={{ x: -navWidth, opacity: 1 }}
-		class={{ visible }}
+		transition:fly={{ x: -navWidth, opacity: 1, duration: preload ? 0 : undefined }}
+		class={{ visible, preload }}
 	>
 		<button
 			class="transparent-icon"
@@ -60,6 +66,7 @@
 
 <style>
 	nav {
+		display: none;
 		position: fixed;
 		top: 0px;
 		font-weight: 400;
@@ -71,11 +78,13 @@
 		box-sizing: border-box;
 		padding: 0.5rem;
 		z-index: 10;
-		transition: transform 0.2s;
-	}
-	nav.visible {
+		transition: transform 0s;
 		display: flex;
 		left: 0;
+		/* animation: 1s 0.5s fade-in both; */
+	}
+	.preload {
+		transition-duration: 0.0001s !important;
 	}
 	@media screen and (min-width: 560px) {
 		nav {

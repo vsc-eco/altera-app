@@ -1,5 +1,6 @@
 /* Defines spacing, fonts, and sizes */
-@import './fonts/plex/plex.css';
+@use './fonts/plex/plex.css';
+@use './scrollbar.scss';
 :root {
 	font-family: 'IBM Plex Sans', system-ui, sans-serif;
 	font-optical-sizing: auto;
@@ -15,6 +16,39 @@
 	--text-4xl: 1.6rem;
 	--text-5xl: 1.8rem;
 	--text-6xl: 2.03rem;
+}
+form:has(input:focus) {
+	key {
+		display: none;
+	}
+}
+@keyframes fade-in {
+	0% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+key {
+	font-family: 'Noto Sans Mono Variable', monospace;
+	background-color: var(--neutral-bg-accent);
+	font-size: var(--text-xs);
+	height: 16px;
+	position: relative;
+	top: -0.5px;
+	padding: 0 0.125rem;
+	margin: 0 0.0625rem;
+	border-radius: 0.25rem;
+	border: none;
+	height: 16px;
+	box-sizing: border-box;
+	aspect-ratio: 1;
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+	color: var(--neutral-fg-mid);
+	box-shadow: 0.25px 0.5px 0px 1px var(--neutral-bg-accent-shifted);
 }
 
 h1,

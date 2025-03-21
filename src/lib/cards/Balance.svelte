@@ -105,7 +105,7 @@
 	.root {
 		display: block;
 		max-width: 512px;
-		min-width: 300px;
+		min-width: min(300px, 100%);
 	}
 	.caption {
 		font-size: var(--text-sm);
@@ -136,7 +136,7 @@
 		}
 	}
 	.lc-wrapper {
-		margin: 0 -0.55rem;
+		margin: 0 -0.5rem;
 		overflow-x: auto;
 	}
 </style>

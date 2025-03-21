@@ -1,4 +1,4 @@
-import { initAioha, KeyTypes, Providers, Aioha } from '@aioha/aioha';
+import { initAioha, KeyTypes, Providers, type Aioha } from '@aioha/aioha';
 import { VERCEL_URL } from '$env/static/public';
 import { browser } from '$app/environment';
 import { _hiveAuthStore } from '../store';

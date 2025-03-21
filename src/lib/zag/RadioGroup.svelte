@@ -41,18 +41,18 @@
 		display: flex;
 		align-items: center;
 		justify-content: left;
-		border: 1px solid var(--neutral-bg-accent);
+		border: 1px solid var(--neutral-bg-accent-shifted);
 		border-radius: 0.5rem;
 		cursor: pointer;
 		/* styles for radio checked or unchecked state */
 	}
 	[data-part='item'][data-focus] {
 		/* styles for radio checked or unchecked state */
-		outline: 2px solid var(--primary-fg-mid);
-		outline-offset: 2px;
+		/* outline: 2px solid var(--primary-fg-mid);
+		outline-offset: 2px; */
 		z-index: 1;
 		background-color: var(--neutral-bg-accent);
-		border: 1px solid var(--neutral-bg-accent-shifted);
+		border: 1px solid var(--neutral-bg-mid);
 	}
 
 	[data-part='item'][data-state='checked'] {

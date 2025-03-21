@@ -29,9 +29,10 @@
 
 	[data-part='frame'] {
 		display: block;
-		margin: auto;
 		width: var(--qrcode-width);
+		background-color: var(--gray-98);
 		aspect-ratio: 1;
+		margin: 1rem auto;
 		/* Styles for the svg part */
 	}
 

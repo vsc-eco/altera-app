@@ -123,13 +123,13 @@ input {
 	font: inherit;
 	margin: 0.5rem 0.125rem;
 	height: 32px;
-	border: 1px solid var(--neutral-bg-accent);
+	border: 1px solid var(--neutral-bg-accent-shifted);
 	background-color: var(--neutral-bg);
 	border-radius: 0.5rem;
 }
 
 input:focus-visible {
-	box-shadow: 0 -2px inset var(--secondary-bg-mid);
+	box-shadow: 0 -2px inset var(--primary-bg-mid);
 	outline: none;
 	border-radius: 0.5rem 0.5rem 0 0;
 }

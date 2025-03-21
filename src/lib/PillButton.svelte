@@ -72,6 +72,13 @@
 			background-color: var(--bg-accent-shifted);
 			color: var(--fg-accent);
 		}
+		&:disabled {
+			color: var(--fg-mid);
+			&:active,
+			&:hover {
+				color: var(--fg-mid);
+			}
+		}
 		&:active {
 			background-color: var(--bg-accent-shifted);
 			color: var(--fg);

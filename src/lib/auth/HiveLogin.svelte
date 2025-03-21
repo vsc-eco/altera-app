@@ -18,37 +18,48 @@
 		| 'peakvault'
 		| 'custom'
 		| undefined = $state();
-	let usernameErrorText = $state('');
-	let authServiceErrorText = $state('');
-	let aiohaErrorText = $state('');
+	let BLANK = '\n';
+	let usernameErrorText = $state(BLANK);
+	let authServiceErrorText = $state(BLANK);
+	let aiohaErrorText = $state(BLANK);
 	let errorArr = $derived([usernameErrorText, authServiceErrorText, aiohaErrorText]);
 	function clearErrors() {
 		for (let i = 0; i < errorArr.length; i++) {
-			errorArr[i] = '';
+			errorArr[i] = BLANK;
 		}
 	}
-	let hasError = $derived(errorArr.some((err) => err != ''));
+	let hasError = $derived(errorArr.some((err) => err != BLANK));
 	let qrData: string | undefined = $state();
 	function displayQr(data: string) {
 		qrData = data;
 	}
 	async function loginOnSubmit(event: Event) {
+		clearErrors();
 		event.preventDefault(); // disables refresh on onsubmit & tooltip oninvalid
 		if (!input!.validity.valid) {
 			usernameErrorText = input!.validationMessage;
 			return;
+		} else {
+			usernameErrorText = BLANK;
 		}
 		let username = input!.value;
 		console.log(authProvider);
 		if (authProvider == undefined) {
 			authServiceErrorText = 'Authentication Service required.';
 			return;
+		} else {
+			authServiceErrorText = BLANK;
 		}
+		let submitBtn = (event.currentTarget as HTMLFormElement).querySelector('button');
+		submitBtn!.disabled = true;
 		let res = await login(username, authProvider, displayQr);
 		if (!res.success) {
 			aiohaErrorText = res.error;
+			submitBtn!.disabled = false;
+			return;
 		}
 		clearErrors();
+		submitBtn!.disabled = false;
 		close();
 		return;
 	}
@@ -77,7 +88,7 @@
 			</a>
 		{:else}
 			<form onsubmit={loginOnSubmit} oninvalidcapture={loginOnSubmit}>
-				<div class="error">{authServiceErrorText}</div>
+				<div class="error">{aiohaErrorText}</div>
 				<label for="hive-username-login"> Username: </label>
 				<div class="input-parent">
 					<span>@</span>
@@ -98,7 +109,7 @@
 				<label class="error" for="hive-username-login">{usernameErrorText}</label>
 				<SegmentedControl
 					id="hive-auth-method-login"
-					name="Authentication Service"
+					name="Sign in with:"
 					items={[
 						{ label: 'Hive Keychain', value: 'keychain' },
 						{ label: 'Hive Signer', value: 'hivesigner' },
@@ -114,7 +125,9 @@
 						// explicitly doesn't do anything;
 						// instead relies on parent form's submit event
 					}}
-					type="submit">Login</PillButton
+					type="submit"
+					theme="primary"
+					styleType="invert">Login</PillButton
 				>
 			</form>
 		{/if}
@@ -156,6 +169,9 @@
 			left: 0.5rem;
 		}
 		span:has(+ input:focus-visible) {
+			color: var(--primary-fg-mid);
+		}
+		span:has(+ input:user-invalid) {
 			color: var(--secondary-fg-mid);
 		}
 	}

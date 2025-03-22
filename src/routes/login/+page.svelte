@@ -45,6 +45,14 @@
 		display: flex;
 		align-items: stretch;
 		flex-direction: column;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+	}
+
+	main {
+		height: 100%;
 	}
 
 	hr {

@@ -116,7 +116,7 @@
 					name="Sign in with:"
 					items={[
 						{ label: 'Hive Keychain', value: 'keychain' },
-						{ label: 'Hive Signer', value: 'hivesigner' },
+						// { label: 'Hive Signer', value: 'hivesigner' },
 						{ label: 'Hive Auth', value: 'hiveauth' },
 						{ label: 'Hive Ledger', value: 'ledger' },
 						{ label: 'Peak Vault', value: 'peakvault' }

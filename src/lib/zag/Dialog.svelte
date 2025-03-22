@@ -59,20 +59,23 @@
 		/* styles for the backdrop element */
 	}
 
+	[data-part='content'] {
+		border: none;
+		outline: none;
+	}
+
 	[data-part='positioner'] {
 		border-radius: 0.5rem;
 		position: absolute;
 		padding: 0.5rem;
-		--top-offset: min(2rem, 1%);
-		top: var(--top-offset);
 		max-width: 75vw;
 		width: max-content;
 		left: 50%;
+		top: 50%;
 		z-index: 10;
 		overflow: hidden;
-		height: 100%;
 		max-height: calc(100svh - var(--top-offset, 0) * 8);
-		transform: translateX(-50%);
+		transform: translate(-50%, -50%);
 
 		/* styles for the positioner element */
 	}

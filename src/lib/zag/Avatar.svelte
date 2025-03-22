@@ -16,8 +16,9 @@
 	[data-scope='avatar'][data-part='root'] {
 		/* Styles for the root part */
 		border-radius: 100%;
-		width: 32px;
-		height: 32px;
+		width: 2.5rem;
+		height: 2.5rem;
+		box-sizing: border-box;
 		margin: 0.5rem 0.1rem;
 		aspect-ratio: 1;
 		display: flex;

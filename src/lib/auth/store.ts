@@ -1,11 +1,15 @@
+import type { Aioha } from '@aioha/aioha';
 import { readable, writable } from 'svelte/store';
 
-type Auth = {
+export type Auth = {
 	status: 'none' | 'pending' | 'authenticated';
 	value?: unknown & {
 		username?: string;
 		address?: string;
 		logout: () => Promise<void>;
+		provider: 'aioha' | 'reown';
+		openSettings: () => void;
+		aioha?: Aioha;
 	};
 };
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });

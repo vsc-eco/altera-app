@@ -104,7 +104,6 @@ button.transparent-icon {
 	border: none;
 	border-radius: 100%;
 	width: 32px;
-	height: 32px;
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -121,8 +120,7 @@ button.transparent-icon {
 input {
 	color: inherit;
 	font: inherit;
-	margin: 0.5rem 0.125rem;
-	height: 32px;
+	height: 2.5rem;
 	border: 1px solid var(--neutral-bg-accent-shifted);
 	background-color: var(--neutral-bg);
 	border-radius: 0.5rem;
@@ -135,4 +133,8 @@ input:focus-visible {
 }
 input:user-invalid {
 	color: var(--secondary-mid);
+}
+
+input:disabled {
+	background-color: var(--neutral-bg-accent);
 }

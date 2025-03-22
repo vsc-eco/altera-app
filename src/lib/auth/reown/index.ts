@@ -34,14 +34,20 @@ export const modal = createAppKit({
 });
 
 modal.subscribeAccount((value) => {
+	console.log(value);
 	if (value.isConnected) {
-		console.log(value);
 		_reownAuthStore.set({
 			status: 'authenticated',
 			value: {
 				address: value.address,
-				logout: modal.disconnect
+				logout: modal.disconnect,
+				provider: 'reown',
+				openSettings: () => modal.open()
 			}
+		});
+	} else if (value.status == 'connecting') {
+		_reownAuthStore.set({
+			status: 'pending'
 		});
 	} else {
 		_reownAuthStore.set({

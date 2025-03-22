@@ -34,6 +34,7 @@
 		border-radius: 0.25rem;
 		padding: 0.5rem 0.75rem;
 		display: flex;
+		min-height: 32px;
 		align-items: center;
 		justify-content: space-between;
 		cursor: pointer;

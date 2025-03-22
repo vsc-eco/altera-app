@@ -41,6 +41,16 @@
 <svelte:body bind:clientWidth={bodyWidth} />
 
 {#if actuallyVisible}
+	<div
+		onclick={(e) => {
+			if (!visible) return;
+			if (e.currentTarget == e.target) {
+				visible = false;
+			}
+		}}
+		aria-hidden="true"
+		class={['popover', { hidden: !visible }]}
+	></div>
 	<nav
 		bind:clientWidth={navWidth}
 		transition:fly={{ x: -navWidth, opacity: 1, duration: preload ? 0 : undefined }}
@@ -65,6 +75,15 @@
 {/if}
 
 <style>
+	.popover {
+		position: fixed;
+		z-index: 9;
+		width: 100%;
+		height: 100%;
+	}
+	.popover.hidden {
+		display: none;
+	}
 	nav {
 		display: none;
 		position: fixed;
@@ -100,7 +119,8 @@
 	}
 	a {
 		display: flex;
-		height: 32px;
+		height: 2.5rem;
+		box-sizing: border-box;
 		align-items: center;
 		margin: 0.25rem;
 		padding: 0.25rem;

@@ -37,7 +37,9 @@
 <style>
 	[data-part='item'] {
 		padding: 0.25rem 0.75rem;
-		height: 32px;
+		margin: 0;
+		height: 2.5rem;
+		box-sizing: border-box;
 		display: flex;
 		align-items: center;
 		justify-content: left;
@@ -70,9 +72,11 @@
 
 	[data-part='radio-label'][data-state='checked|unchecked'] {
 		/* styles for radio checked or unchecked state */
-		padding: 0.25rem 0.75rem;
+		padding: 0;
 	}
 	h3 {
 		font-size: var(--text-sm);
+		margin-top: 0.5rem;
+		margin-bottom: 0.25rem;
 	}
 </style>

@@ -2,6 +2,7 @@ import { initAioha, KeyTypes, Providers, type Aioha } from '@aioha/aioha';
 import { VERCEL_URL } from '$env/static/public';
 import { browser } from '$app/environment';
 import { _hiveAuthStore } from '../store';
+import { goto } from '$app/navigation';
 let aioha: Aioha;
 
 if (browser) {
@@ -24,7 +25,10 @@ if (browser) {
 			status: 'authenticated',
 			value: {
 				username: aioha.getCurrentUser(),
-				logout: logout
+				logout: logout,
+				provider: 'aioha',
+				openSettings: () => goto('/hive-account'),
+				aioha
 			}
 		});
 	} else {
@@ -38,7 +42,10 @@ if (browser) {
 				status: 'authenticated' as const,
 				value: {
 					username: user,
-					logout: logout
+					logout: logout,
+					provider: 'aioha' as const,
+					openSettings: () => goto('/hive-account'),
+					aioha
 				}
 			};
 		} else {
@@ -96,7 +103,10 @@ export async function login(
 			status: 'authenticated',
 			value: {
 				username: aioha.getCurrentUser(),
-				logout
+				logout,
+				provider: 'aioha',
+				openSettings: () => goto('/hive-account'),
+				aioha
 			}
 		});
 	}

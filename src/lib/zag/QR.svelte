@@ -33,6 +33,7 @@
 		background-color: var(--gray-98);
 		aspect-ratio: 1;
 		margin: 1rem auto;
+		max-width: 100%;
 		/* Styles for the svg part */
 	}
 

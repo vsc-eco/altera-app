@@ -18,27 +18,31 @@
 		| 'peakvault'
 		| 'custom'
 		| undefined = $state();
-	let BLANK = '\n';
+	let BLANK = '';
 	let usernameErrorText = $state(BLANK);
 	let authServiceErrorText = $state(BLANK);
 	let aiohaErrorText = $state(BLANK);
 	let errorArr = $derived([usernameErrorText, authServiceErrorText, aiohaErrorText]);
-	function clearErrors() {
-		for (let i = 0; i < errorArr.length; i++) {
-			errorArr[i] = BLANK;
-		}
-	}
 	let hasError = $derived(errorArr.some((err) => err != BLANK));
+
+	function clearErrors() {
+		usernameErrorText = '';
+		authServiceErrorText = '';
+		aiohaErrorText = '';
+	}
+
 	let qrData: string | undefined = $state();
 	function displayQr(data: string) {
+		console.log(hasError, errorArr);
 		qrData = data;
 	}
 	async function loginOnSubmit(event: Event) {
 		clearErrors();
 		event.preventDefault(); // disables refresh on onsubmit & tooltip oninvalid
+		let isValid = true;
 		if (!input!.validity.valid) {
 			usernameErrorText = input!.validationMessage;
-			return;
+			isValid = false;
 		} else {
 			usernameErrorText = BLANK;
 		}
@@ -46,14 +50,18 @@
 		console.log(authProvider);
 		if (authProvider == undefined) {
 			authServiceErrorText = 'Authentication Service required.';
-			return;
+			isValid = false;
 		} else {
 			authServiceErrorText = BLANK;
 		}
 		let submitBtn = (event.currentTarget as HTMLFormElement).querySelector('button');
+		if (isValid == false) {
+			return;
+		}
 		submitBtn!.disabled = true;
-		let res = await login(username, authProvider, displayQr);
+		let res = await login(username, authProvider!, displayQr);
 		if (!res.success) {
+			console.log(res);
 			aiohaErrorText = res.error;
 			submitBtn!.disabled = false;
 			return;
@@ -82,7 +90,7 @@
 					><ArrowLeft></ArrowLeft>
 				</PillButton>
 			</span>
-			<p>Tap or scan the QR Code below to open the HiveAuth app</p>
+			<p>Tap or scan the QR Code below to open the HiveAuth app.</p>
 			<a href={qrData}>
 				<Qr data={qrData}></Qr>
 			</a>
@@ -105,7 +113,6 @@
 						placeholder="hiveio"
 					/>
 				</div>
-				<br />
 				<label class="error" for="hive-username-login">{usernameErrorText}</label>
 				<SegmentedControl
 					id="hive-auth-method-login"
@@ -138,23 +145,20 @@
 	a {
 		display: contents;
 	}
-	form {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		max-width: 300px;
-	}
-	label {
+	form :global(label) {
 		margin-top: 0.5rem;
+		margin-bottom: 0.25rem;
 		display: flex;
 		width: max-content;
 		align-items: center;
 	}
-	label * {
-		flex-basis: max-content;
+	label {
+		color: var(--primary-fg-mid);
 	}
 	.error {
 		color: var(--secondary-mid);
+		min-height: 1em;
+		margin-top: 0.25rem;
 	}
 	.input-parent {
 		font-family: 'Noto Sans Mono Variable', monospace;

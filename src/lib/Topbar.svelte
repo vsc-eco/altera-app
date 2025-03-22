@@ -10,11 +10,14 @@
 	let { onMenuToggle } = $props();
 	let username: string = $state('  ');
 	let logout: () => Promise<void> = async () => {};
+	let openSettings: () => void = () => {};
 	$effect(() => {
 		authStore.subscribe((v) => {
 			if (!v.value) return;
 			username = v.value.username || v.value.address?.slice(2) || '**';
 			logout = v.value.logout;
+			console.log(v.value.openSettings);
+			openSettings = v.value.openSettings;
 		});
 	});
 </script>
@@ -46,16 +49,24 @@
 		}}
 	/>
 	<PillButton onclick={() => {}} styleType="icon"><Bell /></PillButton>
+	{#snippet prefs(name: string)}
+		{name}
+	{/snippet}
 	<Menu
 		label="Account Settings"
 		styleType="icon"
-		items={[{ label: 'logout', snippet: 'logout' }]}
+		items={[
+			{ label: 'prefs', snippet: prefs, snippetData: 'Account Preferences' },
+			{ label: 'logout', snippet: prefs, snippetData: 'Logout' }
+		]}
 		onSelect={async (e) => {
-			console.log(e);
 			switch (e.value) {
 				case 'logout':
 					await logout();
 					goto('/logout');
+					break;
+				case 'prefs':
+					openSettings();
 					break;
 				default:
 					console.warn('unknown action triggered in avatar dropdown');
@@ -72,7 +83,6 @@
 		justify-content: left;
 		gap: 0.25rem;
 		align-items: center;
-		max-width: 800px;
 		margin: auto;
 	}
 	@media screen and (min-width: 560px) {
@@ -83,6 +93,7 @@
 	@media screen and (max-width: 420px) {
 		header {
 			justify-content: space-between;
+			gap: 0.125rem;
 		}
 	}
 	.icon {

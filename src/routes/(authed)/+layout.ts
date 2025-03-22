@@ -1,15 +1,15 @@
 import { browser } from '$app/environment';
-import { authStore } from '$lib/auth/store.js';
+import { authStore, type Auth } from '$lib/auth/store';
 import { redirect } from '@sveltejs/kit';
 import '$lib/auth/reown';
 import '$lib/auth/hive';
 
-function isAuthenticated(): Promise<boolean> {
-	const out = new Promise<boolean>((resolve) => {
+function isAuthenticated(): Promise<Auth | false> {
+	const out = new Promise<Auth | false>((resolve) => {
 		authStore.subscribe((v) => {
 			if (v.status == 'authenticated' || !browser) {
 				console.log('authenticated with value ', v.value);
-				resolve(true);
+				resolve(v);
 			}
 			if (v.status == 'none') {
 				resolve(false);
@@ -21,8 +21,12 @@ function isAuthenticated(): Promise<boolean> {
 
 export async function load({ url }) {
 	const authed = await isAuthenticated();
-	if (browser && !authed) {
+	if (!browser) {
+		return { status: 'pending' };
+	}
+	if (!authed) {
 		localStorage.setItem('redirect_url', url.toString());
 		redirect(307, '/login');
 	}
+	return { auth: authed };
 }

@@ -48,7 +48,8 @@
 		display: inline-flex;
 		justify-content: center;
 		cursor: pointer;
-		--height: 32px;
+		--height: 2.5rem;
+		box-sizing: border-box;
 		height: var(--height);
 		border-radius: calc(var(--height) / 2);
 		color: inherit;
@@ -73,10 +74,16 @@
 			color: var(--fg-accent);
 		}
 		&:disabled {
+			cursor: default;
 			color: var(--fg-mid);
+			transform: scale(0.98);
+			background-color: var(--bg-accent);
 			&:active,
-			&:hover {
+			&:hover,
+			&:focus {
 				color: var(--fg-mid);
+				background-color: var(--bg-accent);
+				transform: scale(0.98);
 			}
 		}
 		&:active {
@@ -124,8 +131,8 @@
 		}
 		&.icon {
 			padding: 0.5rem;
-			width: 2rem;
-			height: 2rem;
+			width: 2.5rem;
+			height: 2.5rem;
 			box-sizing: border-box;
 			display: flex;
 			justify-content: center;

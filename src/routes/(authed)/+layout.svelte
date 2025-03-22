@@ -37,7 +37,7 @@
 	.main {
 		padding: 0rem 0.5rem;
 		flex: 1;
-		max-width: 800px;
+		max-width: 64rem;
 		margin-left: auto;
 		margin-right: auto;
 		flex-shrink: 1;

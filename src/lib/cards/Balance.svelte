@@ -115,7 +115,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		min-height: 48px;
+		min-height: 3.5rem;
 	}
 	.price {
 		vertical-align: text-top;

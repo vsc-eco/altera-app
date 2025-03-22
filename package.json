@@ -49,6 +49,7 @@
 		"@aninest/extensions": "^1.8.0",
 		"@fontsource-variable/dm-sans": "^5.1.1",
 		"@fontsource-variable/noto-sans-mono": "^5.1.1",
+		"@hiveio/hive-js": "^2.0.8",
 		"@lucide/svelte": "0.474.0-rc.0",
 		"@reown/appkit": "^1.6.8",
 		"@reown/appkit-adapter-wagmi": "^1.6.8",

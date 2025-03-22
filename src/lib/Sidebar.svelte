@@ -108,7 +108,8 @@
 	@media screen and (min-width: 560px) {
 		nav {
 			display: flex;
-			position: unset;
+			position: sticky;
+			top: 0;
 		}
 		button.transparent-icon {
 			display: none;

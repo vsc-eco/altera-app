@@ -22,6 +22,7 @@
 <style>
 	.flex {
 		display: flex;
+		overflow: auto;
 		height: 100%;
 	}
 	@media screen and (max-width: 560px) {

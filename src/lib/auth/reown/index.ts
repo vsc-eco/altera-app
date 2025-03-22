@@ -34,7 +34,6 @@ export const modal = createAppKit({
 });
 
 modal.subscribeAccount((value) => {
-	console.log(value);
 	if (value.isConnected) {
 		_reownAuthStore.set({
 			status: 'authenticated',

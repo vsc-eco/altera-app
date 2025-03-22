@@ -16,7 +16,6 @@
 			if (!v.value) return;
 			username = v.value.username || v.value.address?.slice(2) || '**';
 			logout = v.value.logout;
-			console.log(v.value.openSettings);
 			openSettings = v.value.openSettings;
 		});
 	});

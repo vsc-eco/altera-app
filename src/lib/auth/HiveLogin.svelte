@@ -33,7 +33,6 @@
 
 	let qrData: string | undefined = $state();
 	function displayQr(data: string) {
-		console.log(hasError, errorArr);
 		qrData = data;
 	}
 	async function loginOnSubmit(event: Event) {
@@ -47,7 +46,6 @@
 			usernameErrorText = BLANK;
 		}
 		let username = input!.value;
-		console.log(authProvider);
 		if (authProvider == undefined) {
 			authServiceErrorText = 'Authentication Service required.';
 			isValid = false;
@@ -61,7 +59,6 @@
 		submitBtn!.disabled = true;
 		let res = await login(username, authProvider!, displayQr);
 		if (!res.success) {
-			console.log(res);
 			aiohaErrorText = res.error;
 			submitBtn!.disabled = false;
 			return;

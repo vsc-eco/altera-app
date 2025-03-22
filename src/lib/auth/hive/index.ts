@@ -90,8 +90,7 @@ export async function login(
 	const login = await aioha.login(aiohaProvider, username, {
 		msg: 'Sign into Altera',
 		hiveauth: {
-			cbWait: (payload, evt) => {
-				console.log(payload, evt);
+			cbWait: (payload) => {
 				displayQr(payload);
 				// TODO: display HiveAuth QR code using payload as data
 			}

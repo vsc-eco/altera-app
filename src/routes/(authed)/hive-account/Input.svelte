@@ -11,7 +11,6 @@
 		type?: 'multiline' | 'text' | 'url';
 	} = $props();
 	let id = $derived('hive-' + label.toLocaleLowerCase().replace(' ', '-'));
-	console.log(type);
 </script>
 
 <label for={id}>{label}</label>

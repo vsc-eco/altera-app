@@ -71,7 +71,6 @@
 			const orig = originalPostingMeta![key];
 			const form = formData[key];
 			if (orig != form) {
-				console.log(orig, form);
 				changed = true;
 				if (form == '') {
 					delete old.profile[key];
@@ -85,7 +84,6 @@
 			return;
 		}
 		Object.assign(old.profile!, toUpdate);
-		console.log(old);
 		midSubmit = true;
 		let res = await aioha!.signAndBroadcastTx(
 			[
@@ -99,7 +97,6 @@
 			],
 			KeyTypes.Posting
 		);
-		console.log(res);
 		midSubmit = false;
 		if (res.success == false) {
 			errorText = res.error;

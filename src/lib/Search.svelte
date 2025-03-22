@@ -21,7 +21,8 @@
 
 <svelte:document
 	onkeydown={(e) => {
-		if (e.metaKey && e.key == 'k') {
+		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
+			e.stopPropagation();
 			input.focus();
 		}
 	}}

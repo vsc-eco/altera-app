@@ -21,9 +21,17 @@
 
 <svelte:document
 	onkeydown={(e) => {
-		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
+		if ((e.metaKey || e.ctrlKey) && e.key == 't') {
+			e.preventDefault();
 			e.stopPropagation();
-			input.focus();
+			return false;
+		}
+	}}
+	onkeyup={(e) => {
+		if ((e.metaKey || e.ctrlKey) && e.key == 't') {
+			e.preventDefault();
+			e.stopPropagation();
+			return false;
 		}
 	}}
 />

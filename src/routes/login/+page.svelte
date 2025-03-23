@@ -47,6 +47,8 @@
 			var(--salmon-60),
 			var(--teal-60)
 		);
+		/* background-image: url(/blue-waves.png);
+		background-size: cover; */
 		z-index: 100;
 	}
 

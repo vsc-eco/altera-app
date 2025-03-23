@@ -139,7 +139,7 @@
 		position: relative;
 		overflow: visible;
 		width: calc(100% - 2rem);
-		border: 1px solid var(--neutral-mid);
+		border: 0.5px solid var(--neutral-mid);
 	}
 
 	hr::after {

@@ -3,7 +3,8 @@
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
 	import { Check } from '@lucide/svelte';
-	export type Item = { label: string; value: string };
+	import type { Snippet } from 'svelte';
+	export type Item = { label: string | Snippet<[]>; value: string };
 	type Props = {
 		id?: string;
 		items: Item[];
@@ -27,7 +28,13 @@
 	<div class="items">
 		{#each items as opt}
 			<label {...api.getItemProps({ value: opt.value })}>
-				<span {...api.getItemTextProps({ value: opt.value })}>{opt.label}</span>
+				<span {...api.getItemTextProps({ value: opt.value })}>
+					{#if typeof opt.label == 'string'}
+						{opt.label}
+					{:else}
+						{@render opt.label()}
+					{/if}
+				</span>
 				<input {...api.getItemHiddenInputProps({ value: opt.value })} />
 				<div {...api.getItemControlProps({ value: opt.value })}>
 					<Check></Check>
@@ -51,6 +58,11 @@
 		cursor: pointer;
 		position: relative;
 		/* styles for radio checked or unchecked state */
+	}
+	[data-part='item-text'] {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: center;
 	}
 	[data-part='item'][data-focus] {
 		/* styles for radio checked or unchecked state */
@@ -112,5 +124,6 @@
 		font-weight: 450;
 		margin-top: 0.5rem;
 		margin-bottom: 0.25rem;
+		margin-left: 0.25rem;
 	}
 </style>

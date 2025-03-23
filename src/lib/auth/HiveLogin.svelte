@@ -5,6 +5,9 @@
 	import SegmentedControl from '$lib/zag/RadioGroup.svelte';
 	import { ArrowLeft } from '@lucide/svelte';
 	import { login } from './hive';
+	import HiveAuthIcon from './hive/HiveAuthIcon.svelte';
+	import LedgerIcon from './hive/LedgerIcon.svelte';
+	import PeakVaultIcon from './hive/PeakVaultIcon.svelte';
 	// credit for regex: https://github.com/Mintrawa/hive-username-regex/blob/main/src/index.ts
 	const hiveRegex =
 		'^(?=.{3,16}$)[a-z][0-9a-z\\-]{1,}[0-9a-z]([.][a-z][0-9a-z\\-]{1,}[0-9a-z]){0,}';
@@ -111,15 +114,30 @@
 					/>
 				</div>
 				<label class="error" for="hive-username-login">{usernameErrorText}</label>
+				{#snippet keychainLabel()}
+					<img src="/hive/keychain.png" width="16" alt="Keychain Icon" /> Hive Keychain
+				{/snippet}
+				{#snippet hiveAuthLabel()}
+					<HiveAuthIcon />
+					Hive Auth
+				{/snippet}
+				{#snippet hiveLedgerLabel()}
+					<LedgerIcon />
+					Hive Ledger
+				{/snippet}
+				{#snippet peakVaultLabel()}
+					<PeakVaultIcon />
+					Peak Vault
+				{/snippet}
 				<SegmentedControl
 					id="hive-auth-method-login"
 					name="Sign in with:"
 					items={[
-						{ label: 'Hive Keychain', value: 'keychain' },
+						{ label: keychainLabel, value: 'keychain' },
 						// { label: 'Hive Signer', value: 'hivesigner' },
-						{ label: 'Hive Auth', value: 'hiveauth' },
-						{ label: 'Hive Ledger', value: 'ledger' },
-						{ label: 'Peak Vault', value: 'peakvault' }
+						{ label: hiveAuthLabel, value: 'hiveauth' },
+						{ label: hiveLedgerLabel, value: 'ledger' },
+						{ label: peakVaultLabel, value: 'peakvault' }
 					]}
 					bind:value={authProvider}
 				></SegmentedControl>
@@ -150,10 +168,11 @@
 		align-items: center;
 	}
 	label {
+		margin-left: 0.25rem;
 		color: var(--primary-fg-mid);
 	}
 	.error {
-		color: var(--secondary-mid);
+		color: var(--secondary-fg-mid);
 		min-height: 1em;
 		margin-top: 0.25rem;
 	}

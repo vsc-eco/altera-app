@@ -21,7 +21,7 @@
 	};
 </script>
 
-<PillButton {...api.getTriggerProps()} onclick={api.getTriggerProps().onclick!} styleType="default">
+<PillButton {...api.getTriggerProps()} onclick={api.getTriggerProps().onclick!} styleType="outline">
 	{@render children()}
 </PillButton>
 {#if api.open}
@@ -32,7 +32,7 @@
 				<PillButton
 					{...api.getCloseTriggerProps()}
 					onclick={api.getTriggerProps().onclick!}
-					styleType="icon"
+					styleType="icon-outline"
 				>
 					<X></X>
 				</PillButton>
@@ -68,20 +68,26 @@
 		border-radius: 0.5rem;
 		position: absolute;
 		padding: 0.5rem;
-		max-width: 75vw;
+		max-width: 80vw;
 		width: max-content;
 		left: 50%;
 		top: 50%;
 		z-index: 10;
-		overflow: hidden;
 		max-height: calc(100svh - var(--top-offset, 0) * 8);
 		transform: translate(-50%, -50%);
 
 		/* styles for the positioner element */
 	}
 
+	[data-part='positioner'] > :global(div) {
+		border-radius: 0.5rem;
+		padding: 1rem 2rem;
+
+		/* styles for the positioner element */
+	}
+
 	[data-part='title'] {
-		font-size: var(--text-2xl);
+		font-size: var(--text-3xl);
 		margin: 0;
 		/* styles for the title element */
 	}

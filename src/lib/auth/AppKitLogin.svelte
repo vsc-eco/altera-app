@@ -5,6 +5,7 @@
 </script>
 
 <PillButton
+	styleType="outline"
 	onclick={(e) => {
 		_reownAuthStore.set({
 			status: 'pending'
@@ -18,5 +19,5 @@
 			}
 		});
 		modal.open();
-	}}>Social/Eth Login</PillButton
+	}}>Social/Eth Wallet</PillButton
 >

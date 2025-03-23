@@ -10,12 +10,14 @@
 		items: Item[];
 		name: string;
 		value?: string | null;
+		defaultValue?: string;
 	};
-	let { id, name, items, value = $bindable() }: Props = $props();
+	let { id, name, items, value = $bindable(), defaultValue }: Props = $props();
 	const service = useMachine(radio.machine, {
 		id: id ?? getUniqueId(),
 		name,
-		orientation: 'horizontal'
+		orientation: 'horizontal',
+		defaultValue
 	});
 	const api = $derived(radio.connect(service, normalizeProps));
 	$effect(() => {

@@ -22,6 +22,7 @@
 		| 'custom'
 		| undefined = $state();
 	let BLANK = '';
+	let defaultValue = localStorage.getItem('default-hive-login-method') ?? 'keychain';
 	let usernameErrorText = $state(BLANK);
 	let authServiceErrorText = $state(BLANK);
 	let aiohaErrorText = $state(BLANK);
@@ -68,6 +69,7 @@
 		}
 		clearErrors();
 		submitBtn!.disabled = false;
+		localStorage.setItem('default-hive-login-method', authProvider!);
 		close();
 		return;
 	}
@@ -139,6 +141,7 @@
 						{ label: hiveLedgerLabel, value: 'ledger' },
 						{ label: peakVaultLabel, value: 'peakvault' }
 					]}
+					{defaultValue}
 					bind:value={authProvider}
 				></SegmentedControl>
 				<label class="error" for="hive-auth-method-login">{authServiceErrorText}</label>

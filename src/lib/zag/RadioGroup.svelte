@@ -2,6 +2,7 @@
 	import * as radio from '@zag-js/radio-group';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
+	import { Check } from '@lucide/svelte';
 	export type Item = { label: string; value: string };
 	type Props = {
 		id?: string;
@@ -28,7 +29,9 @@
 			<label {...api.getItemProps({ value: opt.value })}>
 				<span {...api.getItemTextProps({ value: opt.value })}>{opt.label}</span>
 				<input {...api.getItemHiddenInputProps({ value: opt.value })} />
-				<div {...api.getItemControlProps({ value: opt.value })}></div>
+				<div {...api.getItemControlProps({ value: opt.value })}>
+					<Check></Check>
+				</div>
 			</label>
 		{/each}
 	</div>
@@ -46,6 +49,7 @@
 		border: 1px solid var(--neutral-bg-accent-shifted);
 		border-radius: 0.5rem;
 		cursor: pointer;
+		position: relative;
 		/* styles for radio checked or unchecked state */
 	}
 	[data-part='item'][data-focus] {
@@ -66,16 +70,46 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-start;
-		gap: 0.25rem;
+		gap: 0.75rem;
 		/* styles for radio checked or unchecked state */
 	}
 
-	[data-part='radio-label'][data-state='checked|unchecked'] {
+	[data-part='item'][data-state='checked'][data-focus] {
+		background-color: transparent;
+	}
+
+	[data-part='item-control'][data-state='checked'] {
 		/* styles for radio checked or unchecked state */
-		padding: 0;
+		position: absolute;
+		top: 0;
+		right: 0;
+		transform: translate(50%, -50%);
+		background-color: var(--primary-mid);
+		color: var(--neutral-bg);
+		border-radius: 50%;
+		padding: 0.125rem;
+		width: 1rem;
+		height: 1rem;
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 2;
+		border: 1px solid var(--primary-mid);
+		background-repeat: no-repeat;
+	}
+
+	[data-part='item-control'] :global(svg) {
+		stroke-width: 4px;
+	}
+
+	[data-part='item-control'][data-state='unchecked'] {
+		/* styles for radio checked or unchecked state */
+		display: none;
 	}
 	h3 {
-		font-size: var(--text-sm);
+		font-size: var(--text-base);
+		font-weight: 450;
 		margin-top: 0.5rem;
 		margin-bottom: 0.25rem;
 	}

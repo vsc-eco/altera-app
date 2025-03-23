@@ -204,7 +204,6 @@
 	input {
 		flex-shrink: 1;
 		flex-grow: 0;
-		font-size: var(--text-sm);
 		padding-left: 1.5rem;
 		position: relative;
 		background-color: transparent;

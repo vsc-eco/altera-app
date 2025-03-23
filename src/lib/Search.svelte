@@ -4,15 +4,6 @@
 	import { isMac } from './isMac';
 
 	let input: HTMLInputElement | undefined = $state();
-	$effect(() => {
-		if (input) {
-			let onInput = () => {
-				input!.blur();
-			};
-			input.addEventListener('input', onInput);
-			return () => input!.removeEventListener('input', onInput);
-		}
-	});
 </script>
 
 <svelte:document
@@ -39,6 +30,7 @@
 		e.preventDefault();
 		// TODO: Do something here with the submitted value
 		input!.value = '';
+		input!.blur();
 	}}
 >
 	<span class="overlay search-icon">

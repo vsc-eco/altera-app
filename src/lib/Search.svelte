@@ -1,20 +1,16 @@
-<script>
+<script lang="ts">
 	import { Search } from '@lucide/svelte';
 	import PillButton from './PillButton.svelte';
 	import { isMac } from './isMac';
 
-	let input = $state();
+	let input: HTMLInputElement | undefined = $state();
 	$effect(() => {
 		if (input) {
-			let abort = new AbortController();
-			input.addEventListener(
-				'search',
-				() => {
-					input.blur();
-				},
-				{ abort }
-			);
-			return () => abort.abort();
+			let onInput = () => {
+				input!.blur();
+			};
+			input.addEventListener('input', onInput);
+			return () => input!.removeEventListener('input', onInput);
 		}
 	});
 </script>
@@ -24,6 +20,7 @@
 		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
 			e.preventDefault();
 			e.stopPropagation();
+			input!.focus();
 			return false;
 		}
 	}}
@@ -31,6 +28,7 @@
 		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
 			e.preventDefault();
 			e.stopPropagation();
+			input!.focus();
 			return false;
 		}
 	}}
@@ -40,7 +38,7 @@
 	onsubmit={(e) => {
 		e.preventDefault();
 		// TODO: Do something here with the submitted value
-		input.value = '';
+		input!.value = '';
 	}}
 >
 	<span class="overlay search-icon">
@@ -62,7 +60,7 @@
 		bind:this={input}
 		onkeydown={(e) => {
 			if (e.key == 'Escape') {
-				input.blur();
+				input!.blur();
 			}
 		}}
 		type="search"

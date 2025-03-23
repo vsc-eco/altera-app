@@ -8,6 +8,7 @@
 	import HiveAuthIcon from './hive/HiveAuthIcon.svelte';
 	import LedgerIcon from './hive/LedgerIcon.svelte';
 	import PeakVaultIcon from './hive/PeakVaultIcon.svelte';
+	import { browser } from '$app/environment';
 	// credit for regex: https://github.com/Mintrawa/hive-username-regex/blob/main/src/index.ts
 	const hiveRegex =
 		'^(?=.{3,16}$)[a-z][0-9a-z\\-]{1,}[0-9a-z]([.][a-z][0-9a-z\\-]{1,}[0-9a-z]){0,}';
@@ -22,7 +23,10 @@
 		| 'custom'
 		| undefined = $state();
 	let BLANK = '';
-	let defaultValue = localStorage.getItem('default-hive-login-method') ?? 'keychain';
+	const DEFAULT_METHOD = 'keychain';
+	let defaultValue = browser
+		? (localStorage?.getItem('default-hive-login-method') ?? DEFAULT_METHOD)
+		: DEFAULT_METHOD;
 	let usernameErrorText = $state(BLANK);
 	let authServiceErrorText = $state(BLANK);
 	let aiohaErrorText = $state(BLANK);

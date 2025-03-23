@@ -21,14 +21,14 @@
 
 <svelte:document
 	onkeydown={(e) => {
-		if ((e.metaKey || e.ctrlKey) && e.key == 't') {
+		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
 			e.preventDefault();
 			e.stopPropagation();
 			return false;
 		}
 	}}
 	onkeyup={(e) => {
-		if ((e.metaKey || e.ctrlKey) && e.key == 't') {
+		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
 			e.preventDefault();
 			e.stopPropagation();
 			return false;

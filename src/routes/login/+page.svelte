@@ -47,8 +47,10 @@
 			var(--salmon-60),
 			var(--teal-60)
 		);
-		/* background-image: url(/blue-waves.png);
-		background-size: cover; */
+		/* background-image: url(/blue-waves-txt.png);
+		background-size: cover;
+		background-position: 50vw -25%;
+		background-repeat: no-repeat; */
 		z-index: 100;
 	}
 
@@ -58,6 +60,7 @@
 		min-width: 22rem;
 		padding: 4rem 5%;
 		margin: auto;
+		/* opacity: 0; */
 		display: flex;
 		justify-content: center;
 		align-items: center;
@@ -113,6 +116,7 @@
 			/* background: transparent; */
 			flex-direction: column-reverse;
 			justify-content: end;
+			background-position: 0 -50%;
 		}
 	}
 

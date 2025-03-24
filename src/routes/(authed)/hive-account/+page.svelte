@@ -11,6 +11,10 @@
 	});
 </script>
 
+<document:head>
+	<title>Hive Account Preferences</title>
+</document:head>
+
 <h1>Hive Account Preferences</h1>
 
 <svelte:head>

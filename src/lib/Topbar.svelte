@@ -62,7 +62,6 @@
 			switch (e.value) {
 				case 'logout':
 					await logout();
-					goto('/logout');
 					break;
 				case 'prefs':
 					openSettings();
@@ -83,11 +82,6 @@
 		gap: 0.25rem;
 		align-items: center;
 		margin: auto;
-	}
-	@media screen and (min-width: 560px) {
-		button.transparent-icon {
-			display: none;
-		}
 	}
 	@media screen and (max-width: 420px) {
 		header {

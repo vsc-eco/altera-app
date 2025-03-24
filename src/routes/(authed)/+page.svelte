@@ -21,6 +21,10 @@
 	});
 </script>
 
+<document:head>
+	<title>Home</title>
+</document:head>
+
 <h1>
 	Welcome,
 	<span class={['name', { loaded: !!username }]}>

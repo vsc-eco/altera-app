@@ -18,6 +18,10 @@
 	});
 </script>
 
+<document:head>
+	<title>Login</title>
+</document:head>
+
 <main>
 	<Card>
 		<h1>Altera Login</h1>
@@ -33,7 +37,6 @@
 	main {
 		margin: auto;
 		box-sizing: border-box;
-		min-width: 250px;
 		display: flex;
 		align-items: center;
 	}
@@ -94,6 +97,7 @@
 	@media screen and (max-width: 52rem) {
 		main > :global(div) {
 			max-width: unset;
+			min-width: unset;
 			width: 100%;
 			box-sizing: border-box;
 			flex-grow: 1;
@@ -105,12 +109,13 @@
 			justify-content: center;
 		}
 		main > img {
+			flex-grow: 0;
 			min-width: unset;
 			padding: 0;
 			padding-top: 4rem;
 			aspect-ratio: 1 / 1;
-			width: 256px;
-			height: 256px;
+			height: min(256px, 60vw);
+			width: min(256px, 60vw);
 		}
 		main {
 			/* background: transparent; */
@@ -129,6 +134,7 @@
 		margin-top: 0.25rem;
 		align-self: center;
 		margin-bottom: 2rem;
+		text-align: center;
 	}
 
 	main {
@@ -139,6 +145,8 @@
 		position: relative;
 		overflow: visible;
 		width: calc(100% - 2rem);
+		box-sizing: border-box;
+		flex-shrink: 1;
 		border: 0.5px solid var(--neutral-mid);
 	}
 

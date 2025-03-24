@@ -76,7 +76,7 @@
 			}).format(balance)}<span
 				><span>.</span>{new Intl.NumberFormat('en-US', {
 					style: 'decimal',
-					maximumSignificantDigits: 2,
+					maximumFractionDigits: 0,
 					minimumIntegerDigits: 2
 				}).format((balance * 100) % 100)}</span
 			>

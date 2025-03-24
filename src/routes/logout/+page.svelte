@@ -1,3 +1,7 @@
+<document:head>
+	<title>Logout</title>
+</document:head>
+
 <main>
 	<h1>Sorry to see you go!</h1>
 

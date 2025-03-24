@@ -1,9 +1,14 @@
 <script lang="ts">
+	import { authStore } from '$lib/auth/store';
+	import type { Auth } from '$lib/auth/store';
+	import { isMac } from '../isMac';
 	import { flattenedItems, getItemFromIndex, haystack } from '$lib/search/items';
 	import uFuzzy from '@leeoniya/ufuzzy';
 	import { Search } from '@lucide/svelte';
 	import * as combobox from '@zag-js/combobox';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
+	import { untrack } from 'svelte';
+	import PillButton from '$lib/PillButton.svelte';
 
 	const comboboxData = flattenedItems;
 
@@ -19,7 +24,7 @@
 		itemToString: (item) => item.label
 	});
 
-	const id = $props.id();
+	const id = 'search';
 	const service = useMachine(combobox.machine, {
 		id,
 		collection,
@@ -34,22 +39,72 @@
 			collection.setItems(newOptions);
 			options = newOptions;
 		},
+		inputBehavior: 'autohighlight',
 		positioning: {
 			placement: 'bottom-start',
 			gutter: 0,
 			flip: false,
-			shift: 0
+			shift: 0,
+			sameWidth: true
+		},
+		selectionBehavior: 'clear'
+	});
+	let input: HTMLInputElement | undefined = $state();
+	const api = $derived(combobox.connect(service, normalizeProps));
+	let selected = $derived(api.selectedItems[0]);
+	let auth: Auth | undefined = $state();
+	$effect(() => {
+		const unsub = authStore.subscribe((v) => {
+			auth = v;
+		});
+		return unsub;
+	});
+	$effect(() => {
+		const untrackedAuth: Auth | undefined = untrack(() => auth);
+		if (selected && untrackedAuth?.value) {
+			$inspect(selected);
+			selected.action({ auth: untrackedAuth });
 		}
 	});
-	const api = $derived(combobox.connect(service, normalizeProps));
 </script>
+
+<svelte:document
+	onkeydown={(e) => {
+		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
+			e.preventDefault();
+			e.stopPropagation();
+			input!.focus();
+			return false;
+		}
+	}}
+	onkeyup={(e) => {
+		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
+			e.preventDefault();
+			e.stopPropagation();
+			input!.focus();
+			return false;
+		}
+	}}
+/>
 
 <div {...api.getRootProps()}>
 	<label {...api.getLabelProps()}><Search aria-label="Search" /></label>
 	<div {...api.getControlProps()}>
-		<input {...api.getInputProps()} />
+		<input onfocus={() => api.setOpen(true)} bind:this={input} {...api.getInputProps()} />
 		<button {...api.getTriggerProps()}>▼</button>
 	</div>
+	<span class="overlay key-prompt">
+		<key>
+			{#if isMac == 'unk'}
+				&nbsp;
+			{:else if isMac}
+				⌘
+			{:else}
+				ctrl
+			{/if}
+		</key>
+		<key>K</key>
+	</span>
 </div>
 <div {...api.getPositionerProps()}>
 	{#if options.length > 0}
@@ -60,27 +115,31 @@
 		</ul>
 	{/if}
 </div>
+<span class="searchBtn">
+	<PillButton
+		onclick={() => {
+			// todo
+		}}
+		styleType="icon"><Search /></PillButton
+	>
+</span>
 
 <style lang="scss">
-	li {
-		padding: 0.5rem;
-	}
-
-	[data-part='input'] {
-		width: 100%;
-		box-sizing: border-box;
-		padding-left: calc(16px + 0.75rem);
-	}
-
-	[data-part='trigger'] {
+	.searchBtn {
 		display: none;
 	}
-
 	[data-part='root'] {
 		position: relative;
 		width: 100%;
 	}
-
+	.key-prompt {
+		position: absolute;
+		top: calc(50%);
+		transform: translateY(-50%);
+		right: 0.5rem;
+		display: inline-flex;
+		gap: 0.125rem;
+	}
 	[data-part='label'] {
 		color: var(--neutral-bg-mid);
 		left: 0.5rem;
@@ -94,6 +153,40 @@
 			width: 16px;
 			aspect-ratio: 1;
 		}
+	}
+	@media screen and (max-width: 420px) {
+		[data-part='root'] {
+			// display: none;
+			position: fixed;
+			background-color: var(--neutral-bg);
+			left: 0;
+			width: 100%;
+			box-sizing: border-box;
+			padding: 0.5rem;
+			z-index: 5;
+		}
+		.key-prompt {
+			display: none;
+		}
+		[data-part='label'] {
+			left: 1rem;
+		}
+		.searchBtn {
+			display: block;
+		}
+	}
+	li {
+		padding: 0.5rem;
+	}
+
+	[data-part='input'] {
+		width: 100%;
+		box-sizing: border-box;
+		padding-left: calc(16px + 0.75rem);
+	}
+
+	[data-part='trigger'] {
+		display: none;
 	}
 
 	[data-part='content'] {

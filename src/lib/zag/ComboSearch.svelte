@@ -39,7 +39,7 @@
 			gutter: 0,
 			flip: false,
 			shift: 0
-		},
+		}
 	});
 	const api = $derived(combobox.connect(service, normalizeProps));
 </script>
@@ -78,6 +78,7 @@
 
 	[data-part='root'] {
 		position: relative;
+		width: 100%;
 	}
 
 	[data-part='label'] {

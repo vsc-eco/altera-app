@@ -6,7 +6,7 @@
 	import Avatar from './zag/Avatar.svelte';
 	import { Bell, Component, MenuIcon } from '@lucide/svelte';
 	import { authStore } from './auth/store';
-	import ComboSearch from './zag/ComboSearch.svelte';
+	import ComboSearch from './zag/Search/ComboSearch.svelte';
 	let { onMenuToggle } = $props();
 	let username: string = $state('  ');
 	let logout: () => Promise<void> = async () => {};

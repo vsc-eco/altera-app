@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
 	import type { Auth } from '$lib/auth/store';
-	import { isMac } from '../isMac';
+	import { isMac } from '../../isMac';
 	import { flattenedItems, getItemFromIndex, haystack } from '$lib/search/items';
 	import uFuzzy from '@leeoniya/ufuzzy';
 	import { Search } from '@lucide/svelte';
@@ -25,6 +25,7 @@
 	});
 
 	const id = 'search';
+	let openSearch = $state(false);
 	const service = useMachine(combobox.machine, {
 		id,
 		collection,
@@ -47,7 +48,11 @@
 			shift: 0,
 			sameWidth: true
 		},
-		selectionBehavior: 'clear'
+		selectionBehavior: 'clear',
+		onValueChange({ value }) {
+			openSearch = false;
+			api.setOpen(false);
+		}
 	});
 	let input: HTMLInputElement | undefined = $state();
 	const api = $derived(combobox.connect(service, normalizeProps));
@@ -87,10 +92,17 @@
 	}}
 />
 
-<div {...api.getRootProps()}>
+<div {...api.getRootProps()} class={{ openSearch }}>
 	<label {...api.getLabelProps()}><Search aria-label="Search" /></label>
 	<div {...api.getControlProps()}>
-		<input onfocus={() => api.setOpen(true)} bind:this={input} {...api.getInputProps()} />
+		<input
+			onfocus={() => api.setOpen(true)}
+			bind:this={input}
+			onblur={() => {
+				openSearch = false;
+			}}
+			{...api.getInputProps()}
+		/>
 		<button {...api.getTriggerProps()}>▼</button>
 	</div>
 	<span class="overlay key-prompt">
@@ -118,7 +130,8 @@
 <span class="searchBtn">
 	<PillButton
 		onclick={() => {
-			// todo
+			openSearch = true;
+			api.setOpen(true);
 		}}
 		styleType="icon"><Search /></PillButton
 	>
@@ -164,6 +177,10 @@
 			box-sizing: border-box;
 			padding: 0.5rem;
 			z-index: 5;
+			display: none;
+		}
+		[data-part='root'].openSearch {
+			display: block;
 		}
 		.key-prompt {
 			display: none;

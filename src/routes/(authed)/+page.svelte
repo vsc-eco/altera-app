@@ -2,8 +2,10 @@
 	import { authStore } from '$lib/auth/store';
 	import Balance from '$lib/cards/Balance.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
+	import type { LayoutData } from './$types';
 	import { actions } from '../quickActions';
-	let username: string | undefined = $state();
+	let { auth }: LayoutData = $props();
+	let username: string | undefined = $state(auth?.value?.username ?? undefined);
 	authStore.subscribe((v) => {
 		if (v.status == 'authenticated') {
 			let u = v.value?.username || v.value?.address;

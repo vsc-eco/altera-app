@@ -1,9 +1,9 @@
 <script>
-	import { ScrollText, ArrowRightLeft, Home } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { PanelLeftCloseIcon } from '@lucide/svelte';
 	import { beforeNavigate } from '$app/navigation';
 	import { fly } from 'svelte/transition';
+	import { paths } from './paths';
 	beforeNavigate(() => {
 		if (visible) {
 			visible = false;
@@ -19,23 +19,6 @@
 			preload = false;
 		}, 1000);
 	});
-	const paths = [
-		{
-			name: 'Home',
-			icon: Home,
-			href: '/'
-		},
-		{
-			name: 'Transactions',
-			icon: ScrollText,
-			href: '/transactions'
-		},
-		{
-			name: 'Swap',
-			icon: ArrowRightLeft,
-			href: '/swap'
-		}
-	];
 </script>
 
 <svelte:body bind:clientWidth={bodyWidth} />

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { actions } from '../routes/quickActions';
 	import Menu from '$lib/zag/Menu.svelte';
-	import Search from './Search.svelte';
 	import { goto } from '$app/navigation';
 	import PillButton from './PillButton.svelte';
 	import Avatar from './zag/Avatar.svelte';
 	import { Bell, Component, MenuIcon } from '@lucide/svelte';
 	import { authStore } from './auth/store';
+	import ComboSearch from './zag/ComboSearch.svelte';
 	let { onMenuToggle } = $props();
 	let username: string = $state('  ');
 	let logout: () => Promise<void> = async () => {};
@@ -32,7 +32,7 @@
 	<!-- <img src="/vsc.png" alt="VSC Logo" width="48" />
 	<h2>DeFi</h2> -->
 	<button class="transparent-icon" onclick={onMenuToggle}> <MenuIcon></MenuIcon> </button>
-	<Search></Search>
+	<ComboSearch />
 	<Menu
 		items={actions.map((a) => {
 			return {

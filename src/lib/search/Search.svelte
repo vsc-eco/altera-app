@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { Search } from '@lucide/svelte';
-	import PillButton from './PillButton.svelte';
-	import { isMac } from './isMac';
+	import PillButton from '../PillButton.svelte';
+	import { isMac } from '../isMac';
+	import List from './List.svelte';
 
 	let input: HTMLInputElement | undefined = $state();
+	let value: string = $state('');
 </script>
 
 <svelte:document
@@ -50,6 +52,7 @@
 	</span>
 	<input
 		bind:this={input}
+		bind:value
 		onkeydown={(e) => {
 			if (e.key == 'Escape') {
 				input!.blur();
@@ -57,6 +60,9 @@
 		}}
 		type="search"
 	/>
+	<div class="list">
+		<List searchTerm={value}></List>
+	</div>
 </form>
 <span class="searchBtn">
 	<PillButton
@@ -68,6 +74,21 @@
 </span>
 
 <style>
+	.list {
+		position: absolute;
+		top: 100%;
+		width: 100%;
+		padding: 1rem;
+		box-sizing: border-box;
+		background-color: var(--neutral-bg);
+		border: 1px solid var(--neutral-bg-accent);
+		display: none;
+		z-index: 5;
+		border-radius: 0 0 0.5rem 0.5rem;
+	}
+	input:focus + .list {
+		display: block;
+	}
 	.overlay {
 		display: block;
 		position: absolute;

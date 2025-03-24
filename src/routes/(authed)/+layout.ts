@@ -22,7 +22,7 @@ function isAuthenticated(): Promise<Auth | false> {
 export async function load({ url }) {
 	const authed = await isAuthenticated();
 	if (!browser) {
-		return { auth: { status: 'pending' } };
+		return { auth: { status: 'pending' } as Auth };
 	}
 	if (!authed) {
 		localStorage.setItem('redirect_url', url.toString());

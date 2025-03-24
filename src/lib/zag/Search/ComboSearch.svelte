@@ -49,7 +49,7 @@
 			sameWidth: true
 		},
 		selectionBehavior: 'clear',
-		onValueChange({ value }) {
+		onValueChange() {
 			openSearch = false;
 			api.setOpen(false);
 		}
@@ -77,16 +77,19 @@
 	onkeydown={(e) => {
 		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
 			e.preventDefault();
+			openSearch = true;
 			e.stopPropagation();
-			input!.focus();
+			api.setOpen(true);
 			return false;
 		}
 	}}
 	onkeyup={(e) => {
 		if ((e.metaKey || e.ctrlKey) && e.key == 'k') {
 			e.preventDefault();
+			openSearch = true;
 			e.stopPropagation();
-			input!.focus();
+			api.setOpen(true);
+
 			return false;
 		}
 	}}

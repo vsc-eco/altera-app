@@ -53,6 +53,7 @@
 	textarea:focus-visible {
 		box-shadow: 0 -2px inset var(--primary-bg-mid);
 		border-radius: 0.5rem 0.5rem 0 0;
+		border-bottom: none;
 		outline: none;
 	}
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	let { children } = $props();
 	import Sidebar from '$lib/Sidebar.svelte';
-	import Topbar from '$lib/Topbar.svelte';
+	import Topbar from '$lib/Topbar/Topbar.svelte';
 	let showSidebar = $state(false);
 </script>
 

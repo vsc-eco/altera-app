@@ -2,7 +2,7 @@
 	import { authStore } from '$lib/auth/store';
 	import type { Auth } from '$lib/auth/store';
 	import { isMac } from '../../isMac';
-	import { flattenedItems, getItemFromIndex, haystack } from '$lib/search/items';
+	import { flattenedItems, getItemFromIndex, haystack } from '$lib/Topbar/search/items';
 	import uFuzzy from '@leeoniya/ufuzzy';
 	import { Search } from '@lucide/svelte';
 	import * as combobox from '@zag-js/combobox';
@@ -212,14 +212,17 @@
 	[data-part='content'] {
 		box-sizing: border-box;
 		background-color: var(--neutral-bg);
-		border: 1px solid var(--neutral-bg-accent);
+		border: 1px solid var(--neutral-bg-accent-shifted);
 		z-index: 5 !important;
 		padding: 0.5rem;
 		border-radius: 0 0 0.5rem 0.5rem;
+		max-height: var(--available-height);
+		max-width: var(--available-width);
+		overflow: auto;
+		border-top: none;
 	}
 	[data-part='item'] {
 		border-radius: 0.5rem;
-		margin-bottom: 0.5rem;
 		cursor: pointer;
 	}
 	[data-part='item'][data-highlighted] {

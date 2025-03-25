@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { actions } from '../routes/quickActions';
+	import { actions } from '../../routes/quickActions';
 	import Menu from '$lib/zag/Menu.svelte';
 	import { goto } from '$app/navigation';
-	import PillButton from './PillButton.svelte';
-	import Avatar from './zag/Avatar.svelte';
-	import { Bell, Component, MenuIcon } from '@lucide/svelte';
-	import { authStore } from './auth/store';
-	import ComboSearch from './zag/Search/ComboSearch.svelte';
+	import Notifications from './Notifications.svelte';
+	import Avatar from '../zag/Avatar.svelte';
+	import { Component, MenuIcon } from '@lucide/svelte';
+	import { authStore } from '../auth/store';
+	import ComboSearch from '../zag/Search/ComboSearch.svelte';
 	let { onMenuToggle } = $props();
 	let username: string = $state('  ');
 	let logout: () => Promise<void> = async () => {};
@@ -33,6 +33,7 @@
 	<h2>DeFi</h2> -->
 	<button class="transparent-icon" onclick={onMenuToggle}> <MenuIcon></MenuIcon> </button>
 	<ComboSearch />
+
 	<Menu
 		items={actions.map((a) => {
 			return {
@@ -47,7 +48,7 @@
 			goto(action.href);
 		}}
 	/>
-	<PillButton onclick={() => {}} styleType="icon"><Bell /></PillButton>
+	<Notifications />
 	{#snippet prefs(name: string)}
 		{name}
 	{/snippet}

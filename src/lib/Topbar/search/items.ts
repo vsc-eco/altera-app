@@ -2,7 +2,7 @@ import { goto } from '$app/navigation';
 import type { Auth } from '$lib/auth/store';
 import { paths } from '$lib/paths';
 
-import { actions } from '../../routes/quickActions';
+import { actions } from '../../../routes/quickActions';
 
 type ActionParams = {
 	auth: Auth;

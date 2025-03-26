@@ -1,0 +1,260 @@
+"""
+Indicates exactly one field must be supplied and this field must not be `null`.
+"""
+directive @oneOf on INPUT_OBJECT
+
+type AccountInfoResult {
+  rc_current: Int
+  rc_max: Int
+}
+
+type AccountNonceResult {
+  nonce: Int
+}
+
+type AnchorProducer {
+  nextSlot(account: String): JSON
+}
+
+type Auth {
+  value: String!
+}
+
+interface BalanceAccessCondition {
+  type: BalanceAccessConditionType
+  value: String
+}
+
+enum BalanceAccessConditionType {
+  HASH
+  TIME
+  WITHDRAW
+}
+
+interface BalanceController {
+  authority: String
+  conditions: [BalanceAccessCondition]
+  type: BalanceControllerType
+}
+
+enum BalanceControllerType {
+  CONTRACT
+  DID
+  HIVE
+}
+
+interface BlockRef {
+  block_ref: String
+  included_block: Int
+}
+
+type Contract {
+  code: String
+  creation_ts: String
+  id: String
+}
+
+type ContractDiff {
+  diff: JSON
+  previousContractStateId: String!
+}
+
+type ContractOutput {
+  anchored_block: String
+  anchored_height: Int
+  anchored_id: String
+  anchored_index: Int
+  contract_id: String
+  gas: Gas
+  id: String!
+  inputs: [String!]!
+  results: [JSON]!
+  side_effects: JSON
+  state_merkle: String
+}
+
+type ContractState {
+  id: String
+  state(key: String): JSON
+  stateKeys(key: String): JSON
+  stateQuery(key: String, query: JSON): JSON
+  state_merkle: String
+}
+
+interface DepositDrain {
+  amount: Float
+  deposit_id: String
+  owner: String
+  token: String
+}
+
+input FindContractOutputFilter {
+  byContract: String
+  byInput: String
+  byOutput: String
+  limit: Int
+}
+
+type FindContractOutputResult {
+  outputs: [ContractOutput]
+}
+
+type FindContractResult {
+  status: String
+}
+
+input FindTransactionFilter {
+  byAccount: String
+  byAction: String
+  byContract: String
+  byId: String
+  byOpCategory: String
+  byStatus: String
+  limit: Int
+}
+
+type FindTransactionResult {
+  txs: [Transaction]
+}
+
+type Gas {
+  IO: Int
+}
+
+type GetBalanceResult {
+  account: String
+  block_height: Int
+  tokens: GetBalanceTokens
+}
+
+type GetBalanceTokens {
+  HBD: Float
+  HIVE: Float
+}
+
+type Headers {
+  nonce: Int
+}
+
+type HiveKeys {
+  active: String
+  owner: String
+  posting: String
+}
+
+scalar JSON
+
+type JsonPatchOp {
+  op: String
+  path: String
+  value: JSON
+}
+
+type LedgerOp {
+  amount: Int!
+  block_height: Int!
+  from: String
+  id: String!
+  idx: Float!
+  memo: String
+  owner: String!
+  status: String!
+  t: String!
+  tk: String!
+}
+
+type LedgerResults {
+  txs: [LedgerOp!]
+}
+
+input LedgerTxFilter {
+  byToFrom: String
+  byTxId: String
+  limit: Int
+  offset: Int
+}
+
+type LocalNodeInfo {
+  did: String
+  peer_id: String
+}
+
+type Query {
+  activeWitnessNodes: JSON
+  anchorProducer: AnchorProducer
+  contractState(id: String): ContractState
+  contractStateDiff(id: String): ContractDiff
+  findContract(id: String): FindContractResult
+  findContractOutput(decodedFilter: JSON, filterOptions: FindContractOutputFilter): FindContractOutputResult
+  findLedgerTXs(filterOptions: LedgerTxFilter): LedgerResults
+  findTransaction(decodedFilter: JSON, filterOptions: FindTransactionFilter): FindTransactionResult
+  getAccountBalance(account: String): GetBalanceResult
+  getAccountNonce(keyGroup: [String]!): AccountNonceResult
+  localNodeInfo: LocalNodeInfo
+  mockGenerateElection: JSON
+  nextWitnessSlot(self: Boolean): JSON
+  submitTransactionV1(sig: String!, tx: String!): TransactionSubmitResult
+  witnessActiveScore(height: Int): JSON
+  witnessNodes(height: Int): [WitnessNode]
+  witnessSchedule(height: Int): JSON
+}
+
+type Transaction {
+  accessible: Boolean
+  anchored_block: String
+  anchored_height: Int
+  anchored_id: String
+  anchored_index: Int
+  anchored_op_index: Int
+  data: TransactionData
+  first_seen: String
+  headers: Headers
+  id: String!
+  local: Boolean
+  output: TransactionOutput
+  required_auths: [Auth!]
+  sig_hash: String
+  src: String
+  status: String!
+}
+
+type TransactionData {
+  action: String
+  contract_id: String
+  op: String!
+  payload: JSON
+}
+
+type TransactionOutput {
+  id: String
+  index: Int
+}
+
+enum TransactionStatus {
+  CONFIRMED
+  FAILED
+  INCLUDED
+  PROCESSED
+  UNCONFIRMED
+}
+
+type TransactionSubmitResult {
+  id: String
+}
+
+enum TransactionType {
+  CORE
+  INPUT
+  NULL
+  OUTPUT
+  VIRTUAL
+}
+
+type WitnessNode {
+  account: String
+  ipfs_peer_id: String
+  last_signed: Int
+  net_id: String
+  signing_keys: HiveKeys
+  version_id: String
+}

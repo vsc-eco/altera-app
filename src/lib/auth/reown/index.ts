@@ -41,6 +41,7 @@ modal.subscribeAccount((value) => {
 				address: value.address!,
 				logout: modal.disconnect,
 				provider: 'reown',
+				did: `did:pkh:eip155:1:${value.address!}`,
 				openSettings: () => modal.open()
 			}
 		});

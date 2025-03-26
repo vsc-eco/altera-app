@@ -8,6 +8,7 @@ export type Auth = {
 	value?: unknown & {
 		username?: string;
 		address: string;
+		did: string;
 		logout: () => Promise<void>;
 		provider: 'aioha' | 'reown';
 		openSettings: () => void;

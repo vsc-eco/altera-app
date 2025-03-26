@@ -4,21 +4,10 @@
 	import PillBtn from '$lib/PillButton.svelte';
 	import type { LayoutData } from './$types';
 	import { actions } from '../quickActions';
+	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	// let { auth }: LayoutData = $props();
 	let auth = $derived(getAuth()());
-	let username: string | undefined = $derived.by(() => {
-		if (auth.value == undefined) {
-			return undefined;
-		}
-		let u = auth.value.username || auth.value.address;
-		if (!u) {
-			return;
-		}
-		if (u.length > 16) {
-			return u.slice(0, 6) + '…' + u.slice(-4);
-		}
-		return u;
-	});
+	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
 </script>
 
 <document:head>

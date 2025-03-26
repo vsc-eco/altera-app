@@ -1,0 +1,16 @@
+query GetTransactions($did: String!, $limit: Int, $offset: Int) {
+	findLedgerTXs(filterOptions: { limit: $limit, byToFrom: $did, offset: $offset }) {
+		txs {
+			amount
+			block_height
+			from
+			id
+			idx
+			memo
+			status
+			owner
+			t
+			tk
+		}
+	}
+}

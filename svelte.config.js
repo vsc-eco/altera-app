@@ -9,8 +9,9 @@ const config = {
 
 	kit: {
 		alias: {
-			'@styles': 'src/styles'
-		},
+            '@styles': 'src/styles',
+            $houdini: ".houdini/"
+        },
 		adapter: adapter(),
 		env: {
 			publicPrefix: '',

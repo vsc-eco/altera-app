@@ -48,6 +48,7 @@ if (browser) {
 				address: aioha.getCurrentUser()!,
 				username: aioha.getCurrentUser(),
 				logout: logout,
+				did: `hive:${aioha.getCurrentUser()}`,
 				provider: 'aioha',
 				openSettings: () => goto('/hive-account'),
 				aioha
@@ -63,9 +64,10 @@ if (browser) {
 			authStore = {
 				status: 'authenticated' as const,
 				value: {
-					address: aioha.getCurrentUser()!,
+					address: user,
 					username: user,
 					logout: logout,
+					did: `hive:${user}`,
 					provider: 'aioha' as const,
 					openSettings: () => goto('/hive-account'),
 					aioha
@@ -126,6 +128,7 @@ export async function login(
 			value: {
 				address: aioha.getCurrentUser()!,
 				username: aioha.getCurrentUser(),
+				did: `hive:${aioha.getCurrentUser()!}`,
 				logout,
 				provider: 'aioha',
 				openSettings: () => goto('/hive-account'),

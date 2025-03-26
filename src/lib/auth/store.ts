@@ -16,8 +16,8 @@ export type Auth = {
 };
 
 export const getAuth = () => {
-	const fn = getContext<() => Auth>('auth');
-	return fn();
+	const auth = getContext<Auth>('auth');
+	return auth;
 };
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });
 export const _reownAuthStore = writable<Auth>({ status: 'pending' });

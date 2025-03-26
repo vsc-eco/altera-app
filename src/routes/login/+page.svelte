@@ -1,16 +1,18 @@
-<script>
+<script lang="ts">
 	import AppKitLogin from '$lib/auth/AppKitLogin.svelte';
 	import HiveLogin from '$lib/auth/HiveLogin.svelte';
 	import { goto } from '$app/navigation';
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth, type Auth } from '$lib/auth/store';
 	import { browser } from '$app/environment';
+	import { getContext } from 'svelte';
 	import Card from '$lib/cards/Card.svelte';
 	let auth = getAuth();
-
+	$inspect(auth);
 	$effect(() => {
-		console.log(auth);
+		console.log('LOLZ', $state.snapshot(auth));
 		if (auth?.status == 'authenticated' && browser) {
 			const to = localStorage.getItem('redirect_url') ?? '/';
+			console.log(to);
 			localStorage.removeItem('redirect_url');
 			goto(to);
 		}

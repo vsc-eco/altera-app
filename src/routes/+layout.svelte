@@ -10,6 +10,7 @@
 </script>
 
 <AuthInjector>
-	{@render children()}
+	<GraphQlInjector>
+		{@render children()}
+	</GraphQlInjector>
 </AuthInjector>
-<GraphQlInjector />

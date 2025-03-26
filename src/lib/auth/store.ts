@@ -1,5 +1,6 @@
 import { goto } from '$app/navigation';
 import type { Aioha } from '@aioha/aioha';
+import { getContext } from 'svelte';
 import { readable, writable } from 'svelte/store';
 
 export type Auth = {
@@ -12,6 +13,11 @@ export type Auth = {
 		openSettings: () => void;
 		aioha?: Aioha;
 	};
+};
+
+export const getAuth = () => {
+	const fn = getContext<() => Auth>('auth');
+	return fn();
 };
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });
 export const _reownAuthStore = writable<Auth>({ status: 'pending' });

@@ -3,5 +3,8 @@ import { defineConfig } from 'vite';
 import mkcert from 'vite-plugin-mkcert';
 
 export default defineConfig({
-	plugins: [sveltekit(), mkcert()]
+	plugins: [sveltekit(), mkcert()],
+	optimizeDeps: {
+		exclude: ['@urql/svelte']
+	}
 });

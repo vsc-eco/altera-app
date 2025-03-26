@@ -1,14 +1,9 @@
 <script lang="ts">
 	import type { Auth } from '$lib/auth/store';
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { getAccounts } from '@aioha/aioha/build/rpc';
 	import Form from './form.svelte';
-	let auth: Auth | undefined = undefined;
-	authStore.subscribe((v) => {
-		if (v.status == 'authenticated') {
-			auth = v;
-		}
-	});
+	let auth: Auth = getAuth();
 </script>
 
 <document:head>

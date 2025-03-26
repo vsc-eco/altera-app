@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { defaultData } from '$lib/defaultData';
+	import { defaultData } from '$lib/defaultLineData';
 	import LineChart, { type Point } from '$lib/LineChart.svelte';
 	import moment from 'moment';
 	import Card from './Card.svelte';

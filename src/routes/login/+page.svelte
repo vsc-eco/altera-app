@@ -2,19 +2,18 @@
 	import AppKitLogin from '$lib/auth/AppKitLogin.svelte';
 	import HiveLogin from '$lib/auth/HiveLogin.svelte';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { browser } from '$app/environment';
 	import Card from '$lib/cards/Card.svelte';
+	let auth = getAuth();
 
 	$effect(() => {
-		let unsub = authStore.subscribe((v) => {
-			if (v.status == 'authenticated' && browser) {
-				const to = localStorage.getItem('redirect_url') ?? '/';
-				localStorage.removeItem('redirect_url');
-				goto(to);
-			}
-		});
-		return unsub;
+		console.log(auth);
+		if (auth?.status == 'authenticated' && browser) {
+			const to = localStorage.getItem('redirect_url') ?? '/';
+			localStorage.removeItem('redirect_url');
+			goto(to);
+		}
 	});
 </script>
 

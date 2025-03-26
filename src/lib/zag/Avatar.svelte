@@ -25,13 +25,19 @@
 		align-items: center;
 		justify-content: center;
 		color: var(--neutral-off-fg);
+		overflow: hidden;
 
 		background: var(--neutral-bg-accent);
 	}
 
-	[data-scope='avatar'][data-part='image'] {
+	[data-part='fallback'] {
+		height: 1rem;
+	}
+
+	[data-part='image'],
+	[data-part='fallback'] {
 		/* Styles for the image part */
-		width: 32px;
+		width: 100%;
 		aspect-ratio: 1;
 	}
 

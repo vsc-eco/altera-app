@@ -47,6 +47,7 @@
 	"dependencies": {
 		"@aioha/aioha": "^1.5.6",
 		"@aninest/extensions": "^1.8.0",
+		"@apollo/client": "^3.13.5",
 		"@fontsource-variable/dm-sans": "^5.1.1",
 		"@fontsource-variable/noto-sans-mono": "^5.1.1",
 		"@hiveio/hive-js": "^2.0.8",
@@ -54,6 +55,7 @@
 		"@lucide/svelte": "0.474.0-rc.0",
 		"@reown/appkit": "^1.6.8",
 		"@reown/appkit-adapter-wagmi": "^1.6.8",
+		"@urql/svelte": "^4.2.3",
 		"@zag-js/avatar": "^1.6.0",
 		"@zag-js/combobox": "^1.6.0",
 		"@zag-js/dialog": "^1.6.0",
@@ -67,6 +69,7 @@
 		"d3-array": "^3.2.4",
 		"d3-scale": "^4.0.2",
 		"d3-shape": "^3.2.0",
+		"dids": "^5.0.3",
 		"moment": "^2.30.1",
 		"viem": "^2.23.2",
 		"wagmi": "^2.14.11"

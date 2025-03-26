@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
 	import Popover from '$lib/zag/Popover.svelte';
-	import { Bell, MoreHorizontal, X } from '@lucide/svelte';
+	import { Bell } from '@lucide/svelte';
 	import moment from 'moment';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	const notifications = [

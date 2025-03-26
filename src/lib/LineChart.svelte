@@ -19,7 +19,7 @@
 		NO_INTERP
 	} from 'aninest';
 	import { getUpdateLayer } from '@aninest/extensions';
-	import { defaultData } from './defaultData';
+	import { defaultData } from './defaultLineData';
 	import moment from 'moment';
 	const margin = { top: 8, right: 0, bottom: 0, left: 0 };
 	export type Point = {

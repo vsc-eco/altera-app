@@ -1,14 +1,15 @@
 <script lang="ts">
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import Balance from '$lib/cards/Balance.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
 	import type { LayoutData } from './$types';
 	import { actions } from '../quickActions';
-	let { auth }: LayoutData = $props();
+	// let { auth }: LayoutData = $props();
+	let auth = getAuth();
 	let username: string | undefined = $state(auth?.value?.username ?? undefined);
-	authStore.subscribe((v) => {
-		if (v.status == 'authenticated') {
-			let u = v.value?.username || v.value?.address;
+	$effect(() => {
+		if (auth.value != undefined) {
+			let u = auth.value.username || auth.value.address;
 			if (!u) {
 				return;
 			}

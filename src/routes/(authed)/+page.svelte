@@ -5,20 +5,19 @@
 	import type { LayoutData } from './$types';
 	import { actions } from '../quickActions';
 	// let { auth }: LayoutData = $props();
-	let auth = getAuth();
-	let username: string | undefined = $state(auth?.value?.username ?? undefined);
-	$effect(() => {
-		if (auth.value != undefined) {
-			let u = auth.value.username || auth.value.address;
-			if (!u) {
-				return;
-			}
-			if (u.length > 16) {
-				username = u.slice(0, 6) + '…' + u.slice(-4);
-			} else {
-				username = u;
-			}
+	let auth = $derived(getAuth()());
+	let username: string | undefined = $derived.by(() => {
+		if (auth.value == undefined) {
+			return undefined;
 		}
+		let u = auth.value.username || auth.value.address;
+		if (!u) {
+			return;
+		}
+		if (u.length > 16) {
+			return u.slice(0, 6) + '…' + u.slice(-4);
+		}
+		return u;
 	});
 </script>
 

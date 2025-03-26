@@ -6,13 +6,10 @@
 	import { browser } from '$app/environment';
 	import { getContext } from 'svelte';
 	import Card from '$lib/cards/Card.svelte';
-	let auth = getAuth();
-	$inspect(auth);
+	let auth = $derived(getAuth()());
 	$effect(() => {
-		console.log('LOLZ', $state.snapshot(auth));
 		if (auth?.status == 'authenticated' && browser) {
 			const to = localStorage.getItem('redirect_url') ?? '/';
-			console.log(to);
 			localStorage.removeItem('redirect_url');
 			goto(to);
 		}

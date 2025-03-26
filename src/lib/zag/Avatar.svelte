@@ -13,29 +13,34 @@
 </div>
 
 <style>
-	[data-scope='avatar'][data-part='root'] {
+	[data-part='root'] {
+		position: relative;
 		/* Styles for the root part */
 		border-radius: 100%;
 		width: 2.5rem;
-		height: 2.5rem;
+		padding: -0.5rem -0.5rem;
 		box-sizing: border-box;
 		margin: 0.5rem 0.1rem;
 		aspect-ratio: 1;
-		display: flex;
 		align-items: center;
 		justify-content: center;
 		color: var(--neutral-off-fg);
 		overflow: hidden;
-
-		background: var(--neutral-bg-accent);
 	}
 
 	[data-part='fallback'] {
-		height: 1rem;
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		aspect-ratio: 1;
 	}
 
 	[data-part='image'],
 	[data-part='fallback'] {
+		position: absolute;
+		top: 0;
+		left: 0;
 		/* Styles for the image part */
 		width: 100%;
 		aspect-ratio: 1;

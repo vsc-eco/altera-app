@@ -38,7 +38,7 @@ modal.subscribeAccount((value) => {
 		_reownAuthStore.set({
 			status: 'authenticated',
 			value: {
-				address: value.address,
+				address: value.address!,
 				logout: modal.disconnect,
 				provider: 'reown',
 				openSettings: () => modal.open()

@@ -16,6 +16,9 @@ const config = {
 			publicPrefix: '',
 			privatePrefix: 'PRIVATE'
 		}
+	},
+	compilerOptions: {
+		runes: true
 	}
 };
 

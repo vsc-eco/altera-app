@@ -7,16 +7,17 @@ export type Auth = {
 	status: 'none' | 'pending' | 'authenticated';
 	value?: unknown & {
 		username?: string;
-		address?: string;
+		address: string;
 		logout: () => Promise<void>;
 		provider: 'aioha' | 'reown';
 		openSettings: () => void;
+		profilePicUrl?: string | undefined;
 		aioha?: Aioha;
 	};
 };
 
 export const getAuth = () => {
-	const auth = getContext<Auth>('auth');
+	const auth = getContext<() => Auth>('auth');
 	return auth;
 };
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });

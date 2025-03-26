@@ -5,20 +5,24 @@
 	import Notifications from './Notifications.svelte';
 	import Avatar from '../zag/Avatar.svelte';
 	import { Component, MenuIcon } from '@lucide/svelte';
-	import { authStore } from '../auth/store';
+	import { getAuth } from '../auth/store';
 	import ComboSearch from '../zag/Search/ComboSearch.svelte';
 	let { onMenuToggle } = $props();
-	let username: string = $state('  ');
-	let logout: () => Promise<void> = async () => {};
-	let openSettings: () => void = () => {};
-	$effect(() => {
-		authStore.subscribe((v) => {
-			if (!v.value) return;
-			username = v.value.username || v.value.address?.slice(2) || '**';
-			logout = v.value.logout;
-			openSettings = v.value.openSettings;
-		});
+	let auth = $derived(getAuth()());
+	let username: string = $derived.by(() => {
+		if (!auth.value) return '  ';
+		let out = auth.value.username || auth.value.address?.slice(2) || '**';
+		return out;
 	});
+	let [logout, openSettings] = $derived.by(() => {
+		if (auth.value) {
+			return [auth.value.logout, auth.value.openSettings];
+		} else {
+			return [async () => {}, () => {}];
+		}
+	});
+	let src = $derived(auth.value?.profilePicUrl);
+	$inspect(src);
 </script>
 
 {#snippet option(a: { label: string; icon: typeof Component })}
@@ -72,7 +76,7 @@
 			}
 		}}
 	>
-		<Avatar fallback={username.slice(0, 2).toLocaleUpperCase()}></Avatar>
+		<Avatar {src} fallback={username.slice(0, 2).toLocaleUpperCase()}></Avatar>
 	</Menu>
 </header>
 

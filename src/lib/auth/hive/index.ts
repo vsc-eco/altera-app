@@ -3,7 +3,28 @@ import { VERCEL_URL } from '$env/static/public';
 import { browser } from '$app/environment';
 import { _hiveAuthStore } from '../store';
 import { goto } from '$app/navigation';
+import { getAccounts } from '@aioha/aioha/build/rpc';
+import {
+	postingMetadataFromString,
+	type Account
+} from '../../../routes/(authed)/hive-account/accountTypes';
+
+async function getProfilePicUrl(username: string) {
+	const res: Account = (await getAccounts([username])).result[0];
+	if (res) return postingMetadataFromString(res.posting_json_metadata).profile.profile_image;
+}
 let aioha: Aioha;
+_hiveAuthStore.subscribe((value) => {
+	if (value.value) {
+		getProfilePicUrl(value.value.address).then((pp) => {
+			if (value.value != undefined && pp && value.value.profilePicUrl == undefined) {
+				console.log('HERE');
+				value.value.profilePicUrl = pp;
+				_hiveAuthStore.set(value);
+			}
+		});
+	}
+});
 
 if (browser) {
 	aioha = initAioha({
@@ -24,6 +45,7 @@ if (browser) {
 		_hiveAuthStore.set({
 			status: 'authenticated',
 			value: {
+				address: aioha.getCurrentUser()!,
 				username: aioha.getCurrentUser(),
 				logout: logout,
 				provider: 'aioha',
@@ -41,6 +63,7 @@ if (browser) {
 			authStore = {
 				status: 'authenticated' as const,
 				value: {
+					address: aioha.getCurrentUser()!,
 					username: user,
 					logout: logout,
 					provider: 'aioha' as const,
@@ -101,6 +124,7 @@ export async function login(
 		_hiveAuthStore.set({
 			status: 'authenticated',
 			value: {
+				address: aioha.getCurrentUser()!,
 				username: aioha.getCurrentUser(),
 				logout,
 				provider: 'aioha',

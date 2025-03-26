@@ -130,7 +130,8 @@
 			}
 		}
 		&.icon {
-			padding: 0.5rem;
+			padding: 0.125rem;
+			aspect-ratio: 1;
 			width: 2.5rem;
 			height: 2.5rem;
 			box-sizing: border-box;

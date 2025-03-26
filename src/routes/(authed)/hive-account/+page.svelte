@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { Auth } from '$lib/auth/store';
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import { getAccounts } from '@aioha/aioha/build/rpc';
 	import Form from './form.svelte';
-	let auth: Auth = getAuth();
+	let auth: Auth = $derived(getAuth()());
 </script>
 
 <document:head>

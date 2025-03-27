@@ -26,8 +26,8 @@
 
 	const service = useMachine(select.machine, {
 		id: getUniqueId(),
+		defaultValue: initial ? [initial] : undefined,
 		collection,
-		value: initial ? [initial] : undefined,
 		onValueChange
 	});
 	const api = $derived(select.connect(service, normalizeProps));

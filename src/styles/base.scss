@@ -57,6 +57,17 @@ h3 {
 	font-weight: 600;
 }
 
+legend {
+	padding: 0 0.5rem;
+	color: var(--neutral-fg-mid);
+}
+
+fieldset {
+	border: 1px solid var(--neutral-mid);
+	border-radius: 0.5rem;
+	padding: 0.5rem;
+}
+
 h1,
 h2,
 h3,

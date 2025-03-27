@@ -11,6 +11,8 @@
 <document:head>
 	<title>Transactions</title>
 </document:head>
+
+<h1>Transactions</h1>
 {#if did}
 	<Table {did}></Table>
 {/if}

@@ -1,37 +1,111 @@
 <script lang="ts">
 	import RadioGroup from './zag/RadioGroup.svelte';
-	let fromCoin: string | undefined = $state();
-	let fromNetwork: string | undefined = $state();
+	let fromCoinValue: string | undefined = $state();
+
+	let fromNetworkValue: string | undefined = $state();
+	let toCoinValue: string | undefined = $state();
+	let toNetworkValue: string | undefined = $state();
 	// let fromNetwork: string | undefined = $state();
 	import swapOptions from './swapOptions';
-	const fromCoinItems = swapOptions.from.coins.map((v) => {
-		return {
-			icon: v.coin.icon,
-			value: v.coin.value,
-			label: v.coin.label,
-			snippet: radioLabel
-		};
-	});
-	let fromNetworks = $derived(
-		swapOptions.from.coins.find((v) => v.coin.value == fromCoin)?.networks
+	let fromCoin = $derived(swapOptions.from.coins.find((v) => v.coin.value == fromCoinValue));
+	let fromNetworks = $derived(fromCoin?.networks);
+	let fromNetwork = $derived(fromCoin?.networks.find((v) => v.value == fromNetworkValue));
+	let toCoin = $derived(swapOptions.to.coins.find((v) => v.coin.value == toCoinValue));
+	let toNetworks = $derived(toCoin?.networks);
+	let toNetwork = $derived(toCoin?.networks.find((v) => v.value == toNetworkValue));
+	const fromCoinItems = $derived(
+		swapOptions.from.coins.map((v) => {
+			return {
+				icon: v.coin.icon,
+				value: v.coin.value,
+				label: v.coin.label,
+				snippet: radioLabel,
+				disabled: !v.coin.enabled(
+					'from',
+					{ coin: fromCoin?.coin, network: fromNetwork },
+					{ coin: toCoin?.coin, network: toNetwork }
+				)
+			};
+		})
 	);
-	let fromNetworkItems = fromNetworks?.map((v) => {
-		return {
-			icon: v.icon,
-			value: v.value,
-			label: v.label,
-			snippet: radioLabel
-		};
-	});
+	let fromNetworkItems = $derived(
+		fromNetworks?.map((v) => {
+			return {
+				icon: v.icon,
+				value: v.value,
+				label: v.label,
+				snippet: radioLabel,
+				disabled: !v.enabled(
+					'from',
+					{ coin: fromCoin?.coin, network: fromNetwork },
+					{ coin: toCoin?.coin, network: toNetwork }
+				)
+			};
+		})
+	);
+	const toCoinItems = $derived(
+		swapOptions.to.coins.map((v) => {
+			return {
+				icon: v.coin.icon,
+				value: v.coin.value,
+				label: v.coin.label,
+				snippet: radioLabel,
+				disabled: !v.coin.enabled(
+					'to',
+					{ coin: fromCoin?.coin, network: fromNetwork },
+					{ coin: toCoin?.coin, network: toNetwork }
+				)
+			};
+		})
+	);
+	let toNetworkItems = $derived(
+		toNetworks?.map((v) => {
+			return {
+				icon: v.icon,
+				value: v.value,
+				label: v.label,
+				snippet: radioLabel,
+				disabled: !v.enabled(
+					'to',
+					{ coin: fromCoin?.coin, network: fromNetwork },
+					{ coin: toCoin?.coin, network: toNetwork }
+				)
+			};
+		})
+	);
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
 	<img width="16" src={info.icon} alt="" />
 	{info.label}
 {/snippet}
-
-<h2>From:</h2>
-<RadioGroup name="Coin:" bind:value={fromCoin} items={fromCoinItems}></RadioGroup>
-{#if fromNetworks}
-	<RadioGroup name="Network:" bind:value={fromNetwork} items={fromNetworkItems}></RadioGroup>
-{/if}
+<fieldset>
+	<legend>From:</legend>
+	<RadioGroup name="Coin:" bind:value={fromCoinValue} items={fromCoinItems}></RadioGroup>
+	{#if fromNetworkItems}
+		{#key fromCoin}
+			<RadioGroup
+				id={`swap-from-${fromCoinValue}`}
+				name="Network:"
+				bind:value={fromNetworkValue}
+				items={fromNetworkItems}
+				defaultValue={fromCoin?.default?.value}
+			></RadioGroup>
+		{/key}
+	{/if}
+</fieldset>
+<fieldset>
+	<legend>To:</legend>
+	<RadioGroup name="Coin:" bind:value={toCoinValue} items={toCoinItems}></RadioGroup>
+	{#if toNetworkItems}
+		{#key toCoin}
+			<RadioGroup
+				id={`swap-to-${fromCoinValue}`}
+				name="Network:"
+				bind:value={toNetworkValue}
+				items={toNetworkItems}
+				defaultValue={toCoin?.default?.value}
+			></RadioGroup>
+		{/key}
+	{/if}
+</fieldset>

@@ -1,6 +1,6 @@
 <script
 	lang="ts"
-	generics="Item extends {label?: string, snippet?: Snippet<[Item]>; value: string }"
+	generics="Item extends {label?: string, snippet?: Snippet<[Item]>; value: string, disabled?: boolean }"
 >
 	import * as radio from '@zag-js/radio-group';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
@@ -25,6 +25,9 @@
 	const api = $derived(radio.connect(service, normalizeProps));
 	$effect(() => {
 		value = api.value;
+		if (value != null && items.find((item) => item.value == value)?.disabled === true) {
+			api.clearValue();
+		}
 	});
 </script>
 
@@ -32,16 +35,36 @@
 	<h3 {...api.getLabelProps()}>{name}</h3>
 	<div class="items">
 		{#each items as opt}
-			<label {...api.getItemProps({ value: opt.value })}>
-				<span {...api.getItemTextProps({ value: opt.value })}>
+			<label
+				{...api.getItemProps({
+					value: opt.value,
+					disabled: opt.disabled === undefined ? false : opt.disabled
+				})}
+			>
+				<span
+					{...api.getItemTextProps({
+						value: opt.value,
+						disabled: opt.disabled === undefined ? false : opt.disabled
+					})}
+				>
 					{#if opt.snippet}
 						{@render opt.snippet(opt)}
 					{:else}
 						{opt.label}
 					{/if}
 				</span>
-				<input {...api.getItemHiddenInputProps({ value: opt.value })} />
-				<div {...api.getItemControlProps({ value: opt.value })}>
+				<input
+					{...api.getItemHiddenInputProps({
+						value: opt.value,
+						disabled: opt.disabled === undefined ? false : opt.disabled
+					})}
+				/>
+				<div
+					{...api.getItemControlProps({
+						value: opt.value,
+						disabled: opt.disabled === undefined ? false : opt.disabled
+					})}
+				>
 					<Check></Check>
 				</div>
 			</label>
@@ -49,7 +72,7 @@
 	</div>
 </div>
 
-<style>
+<style lang="scss">
 	[data-part='item'] {
 		padding: 0.25rem 0.75rem;
 		margin: 0;
@@ -67,7 +90,8 @@
 	[data-part='item-text'] {
 		display: flex;
 		gap: 0.5rem;
-		justify-content: center;
+		width: 100%;
+		justify-content: flex-start;
 	}
 	[data-part='item'][data-focus] {
 		/* styles for radio checked or unchecked state */
@@ -86,9 +110,24 @@
 	.items {
 		display: flex;
 		flex-wrap: wrap;
+		width: 100%;
 		justify-content: flex-start;
 		gap: 0.75rem;
 		/* styles for radio checked or unchecked state */
+	}
+
+	.items > * {
+		flex-grow: 1;
+		min-width: max-content;
+		width: 20%;
+	}
+	[data-part='item'][data-disabled] {
+		background-color: var(--neutral-bg-accent);
+		color: var(--neutral-fg-mid);
+		cursor: default;
+		:global(img) {
+			filter: grayscale(1);
+		}
 	}
 
 	[data-part='item'][data-state='checked'][data-focus] {

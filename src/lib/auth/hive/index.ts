@@ -4,10 +4,7 @@ import { browser } from '$app/environment';
 import { _hiveAuthStore } from '../store';
 import { goto } from '$app/navigation';
 import { getAccounts } from '@aioha/aioha/build/rpc';
-import {
-	postingMetadataFromString,
-	type Account
-} from '../../../routes/(authed)/hive-account/accountTypes';
+import { postingMetadataFromString, type Account } from './accountTypes';
 
 async function getProfilePicUrl(username: string) {
 	const res: Account = (await getAccounts([username])).result[0];
@@ -18,7 +15,6 @@ _hiveAuthStore.subscribe((value) => {
 	if (value.value) {
 		getProfilePicUrl(value.value.address).then((pp) => {
 			if (value.value != undefined && pp && value.value.profilePicUrl == undefined) {
-				console.log('HERE');
 				value.value.profilePicUrl = pp;
 				_hiveAuthStore.set(value);
 			}

@@ -1,5 +1,5 @@
-query GetTransactions($did: String!, $limit: Int, $offset: Int) {
-	findLedgerTXs(filterOptions: { limit: $limit, byToFrom: $did, offset: $offset }) {
+query GetTransactions($did: String, $limit: Int, $offset: Int) {
+	findLedgerTXs(filterOptions: { limit: $limit, offset: $offset, byToFrom: $did }) @paginate {
 		txs {
 			amount
 			block_height

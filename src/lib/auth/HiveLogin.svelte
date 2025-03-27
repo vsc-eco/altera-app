@@ -2,7 +2,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import Qr from '$lib/zag/QR.svelte';
-	import SegmentedControl from '$lib/zag/RadioGroup.svelte';
+	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 	import { ArrowLeft } from '@lucide/svelte';
 	import { login } from './hive';
 	import HiveAuthIcon from './hive/HiveAuthIcon.svelte';
@@ -135,19 +135,19 @@
 					<PeakVaultIcon />
 					Peak Vault
 				{/snippet}
-				<SegmentedControl
+				<RadioGroup
 					id="hive-auth-method-login"
 					name="Sign in with:"
 					items={[
-						{ label: keychainLabel, value: 'keychain' },
+						{ snippet: keychainLabel, value: 'keychain' },
 						// { label: 'Hive Signer', value: 'hivesigner' },
-						{ label: hiveAuthLabel, value: 'hiveauth' },
-						{ label: hiveLedgerLabel, value: 'ledger' },
-						{ label: peakVaultLabel, value: 'peakvault' }
+						{ snippet: hiveAuthLabel, value: 'hiveauth' },
+						{ snippet: hiveLedgerLabel, value: 'ledger' },
+						{ snippet: peakVaultLabel, value: 'peakvault' }
 					]}
 					{defaultValue}
 					bind:value={authProvider}
-				></SegmentedControl>
+				></RadioGroup>
 				<label class="error" for="hive-auth-method-login">{authServiceErrorText}</label>
 				<PillButton
 					onclick={() => {

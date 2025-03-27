@@ -85,7 +85,6 @@ a {
 
 body {
 	display: block;
-	height: 100%;
 }
 :root {
 	background-color: var(--neutral-bg);
@@ -96,6 +95,11 @@ body {
 	outline: 2px solid var(--primary-fg-mid);
 	outline-offset: 2px;
 	z-index: 1;
+}
+
+hr {
+	border: none;
+	border-bottom: 1px solid var(--neutral-mid);
 }
 
 button.transparent-icon {

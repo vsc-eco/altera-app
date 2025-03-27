@@ -70,6 +70,7 @@
 		border: 1px solid var(--neutral-bg-accent);
 		padding: 0.5rem;
 		padding-top: 0;
+		z-index: 2;
 		border-radius: 0.5rem;
 	}
 </style>

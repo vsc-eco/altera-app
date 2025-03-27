@@ -76,7 +76,7 @@
 		flex-direction: column;
 		background-color: var(--neutral-off-bg);
 		border-right: 1px solid var(--neutral-bg-accent);
-		min-height: 100vh;
+		height: 100svh;
 		box-sizing: border-box;
 		padding: 0.5rem;
 		z-index: 10;

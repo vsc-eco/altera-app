@@ -14,7 +14,10 @@
 		children?: Snippet;
 	};
 	let { label, items, onSelect, styleType, children }: Props = $props();
-	const service = useMachine(menu.machine, { id: getUniqueId(), onSelect });
+	const service = useMachine(menu.machine, {
+		id: getUniqueId(),
+		onSelect
+	});
 
 	const api = $derived(menu.connect(service, normalizeProps));
 </script>

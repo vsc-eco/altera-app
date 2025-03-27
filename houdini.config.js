@@ -8,10 +8,13 @@ const config = {
 	runtimeDir: '.houdini',
 	plugins: {
 		'houdini-svelte': {
-			forceRunesMode: true
+			forceRunesMode: true,
+			static: true
 		}
 	},
-	forceRunesMode: true
+
+	forceRunesMode: true,
+	defaultPaginateMode: 'Infinite'
 };
 
 export default config;

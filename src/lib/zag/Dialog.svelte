@@ -61,6 +61,7 @@
 
 	[data-part='content'] {
 		border: none;
+		z-index: 2;
 		outline: none;
 	}
 

@@ -87,6 +87,7 @@
 		gap: 0.25rem;
 		align-items: center;
 		margin: auto;
+		z-index: 10;
 	}
 	@media screen and (max-width: 420px) {
 		header {

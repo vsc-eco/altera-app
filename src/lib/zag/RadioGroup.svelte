@@ -1,10 +1,13 @@
-<script lang="ts">
+<script
+	lang="ts"
+	generics="Item extends {label?: string, snippet?: Snippet<[Item]>; value: string }"
+>
 	import * as radio from '@zag-js/radio-group';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
 	import { Check } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
-	export type Item = { label: string | Snippet<[]>; value: string };
+
 	type Props = {
 		id?: string;
 		items: Item[];
@@ -31,10 +34,10 @@
 		{#each items as opt}
 			<label {...api.getItemProps({ value: opt.value })}>
 				<span {...api.getItemTextProps({ value: opt.value })}>
-					{#if typeof opt.label == 'string'}
-						{opt.label}
+					{#if opt.snippet}
+						{@render opt.snippet(opt)}
 					{:else}
-						{@render opt.label()}
+						{opt.label}
 					{/if}
 				</span>
 				<input {...api.getItemHiddenInputProps({ value: opt.value })} />
@@ -125,7 +128,7 @@
 		font-size: var(--text-base);
 		font-weight: 450;
 		margin-top: 0.5rem;
-		margin-bottom: 0.25rem;
+		margin-bottom: 0.5rem;
 		margin-left: 0.25rem;
 	}
 </style>

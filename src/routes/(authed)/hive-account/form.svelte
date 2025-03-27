@@ -2,7 +2,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { KeyTypes, type Aioha } from '@aioha/aioha';
 	import Input from './Input.svelte';
-	import { postingMetadataFromString, type Account, type PostingMetadata } from './accountTypes';
+	import { postingMetadataFromString, type Account, type PostingMetadata } from '../../../lib/auth/hive/accountTypes';
 
 	let { accountInfo, aioha }: { accountInfo?: Account; aioha?: Aioha } = $props();
 	let originalPostingMeta = $derived(

@@ -99,7 +99,10 @@
 	<label {...api.getLabelProps()}><Search aria-label="Search" /></label>
 	<div {...api.getControlProps()}>
 		<input
-			onfocus={() => api.setOpen(true)}
+			onfocus={(e) => {
+				api.setOpen(true);
+				window.scrollTo({ top: 0 });
+			}}
 			bind:this={input}
 			onblur={() => {
 				openSearch = false;
@@ -213,7 +216,7 @@
 		box-sizing: border-box;
 		background-color: var(--neutral-bg);
 		border: 1px solid var(--neutral-bg-accent-shifted);
-		z-index: 5 !important;
+		z-index: 5;
 		padding: 0.5rem;
 		border-radius: 0 0 0.5rem 0.5rem;
 		max-height: var(--available-height);

@@ -2,9 +2,23 @@
 	import * as avatar from '@zag-js/avatar';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
-	let { src, fallback }: { src?: string | null | undefined; fallback: string } = $props();
+	import { getProfilePicUrl } from '$lib/auth/hive/getProfilePicUrl';
+	let { src, did, fallback }: { src?: string; did?: string; fallback?: string } = $props();
 	const service = useMachine(avatar.machine, { id: getUniqueId() });
 	const api = $derived(avatar.connect(service, normalizeProps));
+	$effect(() => {
+		if (did == undefined) return;
+		if (!did.startsWith('did:pkh:eip155:1')) {
+			const username = did.split(':').at(-1)!;
+			fallback = username?.slice(0, 2);
+			getProfilePicUrl(did.split(':').at(-1)!).then((url) => {
+				src = url;
+			});
+		} else {
+			const addr = did.split(':').at(-1)!;
+			fallback = addr.slice(2, 4);
+		}
+	});
 </script>
 
 <div {...api.getRootProps()}>
@@ -18,13 +32,14 @@
 		/* Styles for the root part */
 		border-radius: 100%;
 		width: 2.5rem;
+		flex-shrink: 0;
 		padding: -0.5rem -0.5rem;
 		box-sizing: border-box;
+		background-color: var(--neutral-bg-accent);
 		margin: 0.5rem 0.1rem;
 		aspect-ratio: 1;
 		align-items: center;
 		justify-content: center;
-		color: var(--neutral-off-fg);
 		overflow: hidden;
 	}
 

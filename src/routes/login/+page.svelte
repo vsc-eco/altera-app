@@ -2,9 +2,8 @@
 	import AppKitLogin from '$lib/auth/AppKitLogin.svelte';
 	import HiveLogin from '$lib/auth/HiveLogin.svelte';
 	import { goto } from '$app/navigation';
-	import { getAuth, type Auth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import { browser } from '$app/environment';
-	import { getContext } from 'svelte';
 	import Card from '$lib/cards/Card.svelte';
 	let auth = $derived(getAuth()());
 	$effect(() => {
@@ -48,6 +47,7 @@
 			var(--salmon-60),
 			var(--teal-60)
 		);
+		height: 100dvh;
 		/* background-image: url(/blue-waves-txt.png);
 		background-size: cover;
 		background-position: 50vw -25%;
@@ -71,7 +71,6 @@
 
 	/* targeting div in Card */
 	main :global(div) {
-		display: flex;
 		max-width: 48rem;
 		min-width: 24rem;
 		align-items: stretch;
@@ -79,14 +78,11 @@
 
 		flex-direction: column;
 		background-color: var(--neutral-bg);
-	}
-
-	main > :global(div) {
+		height: 100%;
 		width: 100%;
 		box-sizing: border-box;
 		padding-top: 1rem;
 		overflow: hidden;
-		height: 100%;
 		display: flex;
 		border-radius: 0;
 		align-items: center;
@@ -119,6 +115,7 @@
 			/* background: transparent; */
 			flex-direction: column-reverse;
 			justify-content: end;
+			height: 100dvh;
 			background-position: 0 -50%;
 		}
 	}
@@ -133,10 +130,6 @@
 		align-self: center;
 		margin-bottom: 2rem;
 		text-align: center;
-	}
-
-	main {
-		height: 100%;
 	}
 
 	hr {

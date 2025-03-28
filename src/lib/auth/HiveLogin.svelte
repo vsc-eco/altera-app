@@ -9,6 +9,7 @@
 	import LedgerIcon from './hive/LedgerIcon.svelte';
 	import PeakVaultIcon from './hive/PeakVaultIcon.svelte';
 	import { browser } from '$app/environment';
+	import HiveUsername from './Username.svelte';
 	// credit for regex: https://github.com/Mintrawa/hive-username-regex/blob/main/src/index.ts
 	const hiveRegex =
 		'^(?=.{3,16}$)[a-z][0-9a-z\\-]{1,}[0-9a-z]([.][a-z][0-9a-z\\-]{1,}[0-9a-z]){0,}';
@@ -103,7 +104,7 @@
 		{:else}
 			<form onsubmit={loginOnSubmit} oninvalidcapture={loginOnSubmit}>
 				<div class="error">{aiohaErrorText}</div>
-				<label for="hive-username-login"> Username: </label>
+				<!-- <label for="hive-username-login"> Username: </label>
 				<div class="input-parent">
 					<span>@</span>
 					<input
@@ -118,7 +119,19 @@
 						autocomplete="username"
 						placeholder="hiveio"
 					/>
-				</div>
+				</div> -->
+				<HiveUsername
+					bind:input
+					required
+					minlength={3}
+					maxlength={16}
+					pattern={hiveRegex.toString()}
+					id="hive-username-login"
+					type="text"
+					size={17}
+					autocomplete="username"
+					placeholder="hiveio"
+				/>
 				<label class="error" for="hive-username-login">{usernameErrorText}</label>
 				{#snippet keychainLabel()}
 					<img src="/hive/keychain.png" width="16" alt="Keychain Icon" /> Hive Keychain

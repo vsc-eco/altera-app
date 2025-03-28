@@ -1,12 +1,15 @@
 <script lang="ts">
-	import RadioGroup from './zag/RadioGroup.svelte';
+	import RadioGroup from '../zag/RadioGroup.svelte';
 	let fromCoinValue: string | undefined = $state();
 
 	let fromNetworkValue: string | undefined = $state();
 	let toCoinValue: string | undefined = $state();
 	let toNetworkValue: string | undefined = $state();
 	// let fromNetwork: string | undefined = $state();
-	import swapOptions from './swapOptions';
+	import swapOptions, { Network } from './swapOptions';
+	import HiveUsername from '$lib/auth/Username.svelte';
+	import { getAuth } from '$lib/auth/store';
+	let auth = $derived(getAuth()());
 	let fromCoin = $derived(swapOptions.from.coins.find((v) => v.coin.value == fromCoinValue));
 	let fromNetworks = $derived(fromCoin?.networks);
 	let fromNetwork = $derived(fromCoin?.networks.find((v) => v.value == fromNetworkValue));
@@ -23,7 +26,8 @@
 				disabled: !v.coin.enabled(
 					'from',
 					{ coin: fromCoin?.coin, network: fromNetwork },
-					{ coin: toCoin?.coin, network: toNetwork }
+					{ coin: toCoin?.coin, network: toNetwork },
+					auth
 				)
 			};
 		})
@@ -38,7 +42,8 @@
 				disabled: !v.enabled(
 					'from',
 					{ coin: fromCoin?.coin, network: fromNetwork },
-					{ coin: toCoin?.coin, network: toNetwork }
+					{ coin: toCoin?.coin, network: toNetwork },
+					auth
 				)
 			};
 		})
@@ -53,7 +58,8 @@
 				disabled: !v.coin.enabled(
 					'to',
 					{ coin: fromCoin?.coin, network: fromNetwork },
-					{ coin: toCoin?.coin, network: toNetwork }
+					{ coin: toCoin?.coin, network: toNetwork },
+					auth
 				)
 			};
 		})
@@ -68,7 +74,8 @@
 				disabled: !v.enabled(
 					'to',
 					{ coin: fromCoin?.coin, network: fromNetwork },
-					{ coin: toCoin?.coin, network: toNetwork }
+					{ coin: toCoin?.coin, network: toNetwork },
+					auth
 				)
 			};
 		})
@@ -107,5 +114,8 @@
 				defaultValue={toCoin?.default?.value}
 			></RadioGroup>
 		{/key}
+	{/if}
+	{#if toNetwork && [Network.vsc, Network.hiveMainnet].includes(toNetwork)}
+		<HiveUsername style="width: 100%" label={toNetwork.label.split(' ')[0]} />
 	{/if}
 </fieldset>

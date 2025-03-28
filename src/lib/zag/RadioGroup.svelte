@@ -1,12 +1,17 @@
 <script
 	lang="ts"
-	generics="Item extends {label?: string, snippet?: Snippet<[Item]>; value: string, disabled?: boolean }"
+	generics="Item extends {
+			label?: string, 
+			snippet?: Snippet<[Item]>; 
+			value: string, 
+			disabled?: boolean 
+		}"
 >
 	import * as radio from '@zag-js/radio-group';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
 	import { Check } from '@lucide/svelte';
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 
 	type Props = {
 		id?: string;
@@ -15,14 +20,24 @@
 		value?: string | null;
 		defaultValue?: string;
 	};
-	let { id, name, items, value = $bindable(), defaultValue }: Props = $props();
+	let generatedId = getUniqueId();
+	let { id, name, items, value = $bindable(), defaultValue: propDefault }: Props = $props();
+	let enabled = $derived(items.filter((item) => !item.disabled));
+	let defaultValue = $derived(enabled.length == 1 ? enabled[0].value : propDefault);
+
 	const service = useMachine(radio.machine, {
-		id: id ?? getUniqueId(),
+		id: id ?? generatedId,
 		name,
 		orientation: 'horizontal',
-		defaultValue
+		// svelte-ignore state_referenced_locally
+		defaultValue: defaultValue
 	});
 	const api = $derived(radio.connect(service, normalizeProps));
+	$effect(() => {
+		if (enabled.length == 1) {
+			api.setValue(enabled[0].value);
+		}
+	});
 	$effect(() => {
 		value = api.value;
 		if (value != null && items.find((item) => item.value == value)?.disabled === true) {
@@ -113,6 +128,8 @@
 		width: 100%;
 		justify-content: flex-start;
 		gap: 0.75rem;
+		padding-right: 0.5rem;
+		box-sizing: border-box;
 		/* styles for radio checked or unchecked state */
 	}
 
@@ -132,6 +149,11 @@
 
 	[data-part='item'][data-state='checked'][data-focus] {
 		background-color: transparent;
+	}
+
+	[data-part='item'][data-focus] {
+		outline: 2px solid var(--primary-mid);
+		outline-offset: 2px;
 	}
 
 	[data-part='item-control'][data-state='checked'] {

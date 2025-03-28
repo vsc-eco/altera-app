@@ -1,3 +1,5 @@
+import type { Auth } from '../auth/store';
+
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
@@ -15,29 +17,32 @@ const coinIsOneOf = (source: Source | undefined, arr: Coin[]) => {
 	return !(source?.coin && !arr.includes(source.coin));
 };
 
-const hive: Coin = { value: 'hive', label: 'Hive', icon: '/hive/hive.svg', enabled: always };
-const hbd: Coin = { value: 'hbd', label: 'HBD', icon: '/hive/hbd.svg', enabled: always };
+const hive: Coin = {
+	value: 'hive',
+	label: 'Hive',
+	icon: '/hive/hive.svg',
+	enabled: (going) => {
+		return going == 'to';
+	}
+};
+const hbd: Coin = {
+	value: 'hbd',
+	label: 'HBD',
+	icon: '/hive/hbd.svg',
+	enabled: (going) => {
+		return going == 'to';
+	}
+};
 const btc: Coin = {
 	value: 'btc',
 	label: 'BTC',
 	icon: '/btc/btc.svg',
 	enabled: (going, from, to) => {
-		if (going == 'from') {
-			if (to?.network == vsc) {
-				return false;
-			}
-			return to?.network != vsc;
-		} else {
-			// (going == 'to')
-			if (from?.network == vsc) {
-				return false;
-			}
-		}
-		return true;
+		return going == 'from';
 	}
 };
 
-const Coin = {
+export const Coin = {
 	hive,
 	hbd,
 	btc
@@ -51,8 +56,9 @@ type Coin = {
 };
 type Enabled = (
 	going: 'to' | 'from',
-	from?: { coin?: Coin; network?: Network },
-	to?: { coin?: Coin; network?: Network }
+	from: { coin?: Coin; network?: Network } | undefined,
+	to: { coin?: Coin; network?: Network } | undefined,
+	auth: Auth
 ) => boolean;
 
 const vsc: Network = {
@@ -60,26 +66,16 @@ const vsc: Network = {
 	label: 'VSC',
 	icon: '/vsc.png',
 	enabled: (going, from, to) => {
-		if (from?.coin == btc || to?.coin == btc) {
-			return false;
-		}
-		if (going == 'to') {
-			return from?.network != lightning;
-		} else {
-			//  (going == 'from')
-			return to?.network != lightning;
-		}
+		return true;
 	}
 };
 const hiveMainnet: Network = {
 	value: 'hive_mainnet',
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
-	enabled: (going, from, to) => {
-		return true;
-	}
+	enabled: always
 };
-type Network = Coin;
+export type Network = Coin;
 
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
@@ -91,14 +87,14 @@ const lightning: Network = {
 	value: 'lightning',
 	label: 'Lightning',
 	icon: '/btc/lightning.svg',
-	enabled: (going, from, to) => {
-		if (going == 'to') {
-			return from?.network != vsc;
-		} else {
-			//  (going == 'from')
-			return to?.network != vsc;
-		}
-	}
+	enabled: always
+};
+
+export const Network = {
+	btcMainnet,
+	lightning,
+	hiveMainnet,
+	vsc
 };
 
 const swapOptions: {

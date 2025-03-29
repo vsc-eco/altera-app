@@ -1,5 +1,5 @@
 import type { Auth } from '../auth/store';
-
+import { readonly, type Readable } from 'svelte/store';
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
@@ -7,13 +7,16 @@ const nothingSelected: Enabled = (from, to) => {
 	return from == undefined && to == undefined;
 };
 
-type Source = { coin?: Coin; network?: Network };
-
-const eitherNetworkEquals = (from: Source | undefined, to: Source | undefined, value: Network) => {
+export type CoinOnNetwork = { coin: Coin; network: Network };
+const eitherNetworkEquals = (
+	from: CoinOnNetwork | undefined,
+	to: CoinOnNetwork | undefined,
+	value: Network
+) => {
 	return from?.network == value || to?.network == value;
 };
 
-const coinIsOneOf = (source: Source | undefined, arr: Coin[]) => {
+const coinIsOneOf = (source: CoinOnNetwork | undefined, arr: Coin[]) => {
 	return !(source?.coin && !arr.includes(source.coin));
 };
 
@@ -21,15 +24,19 @@ const hive: Coin = {
 	value: 'hive',
 	label: 'Hive',
 	icon: '/hive/hive.svg',
+	unit: 'Hive',
 	enabled: (going) => {
-		return going == 'to';
+		// return going == 'to';
+		return true;
 	}
 };
 const hbd: Coin = {
 	value: 'hbd',
 	label: 'HBD',
 	icon: '/hive/hbd.svg',
+	unit: 'HBD',
 	enabled: (going) => {
+		return true;
 		return going == 'to';
 	}
 };
@@ -37,6 +44,7 @@ const btc: Coin = {
 	value: 'btc',
 	label: 'BTC',
 	icon: '/btc/btc.svg',
+	unit: 'BTC',
 	enabled: (going, from, to) => {
 		return going == 'from';
 	}
@@ -48,16 +56,18 @@ export const Coin = {
 	btc
 };
 
-type Coin = {
+export type Coin = {
 	value: string;
 	label: string;
 	icon: string;
+	unit: string;
 	enabled: Enabled;
 };
+
 type Enabled = (
 	going: 'to' | 'from',
-	from: { coin?: Coin; network?: Network } | undefined,
-	to: { coin?: Coin; network?: Network } | undefined,
+	from: Partial<CoinOnNetwork> | undefined,
+	to: Partial<CoinOnNetwork> | undefined,
 	auth: Auth
 ) => boolean;
 
@@ -73,9 +83,19 @@ const hiveMainnet: Network = {
 	value: 'hive_mainnet',
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
-	enabled: always
+	enabled: (going, from, to, auth) => {
+		if (auth.value?.username != undefined) {
+			return true;
+		}
+		return going != 'to';
+	}
 };
-export type Network = Coin;
+export type Network = {
+	value: string;
+	label: string;
+	icon: string;
+	enabled: Enabled;
+};
 
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
@@ -101,7 +121,7 @@ const swapOptions: {
 	from: {
 		coins: {
 			coin: Coin;
-			networks: Coin[];
+			networks: Network[];
 			default?: Coin;
 		}[];
 	};

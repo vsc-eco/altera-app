@@ -27,8 +27,8 @@
 {#if api.open}
 	<div use:portal {...api.getBackdropProps()}></div>
 	<div use:portal {...api.getPositionerProps()}>
-		<Card>
-			<div {...api.getContentProps()}>
+		<div {...api.getContentProps()}>
+			<Card>
 				<PillButton
 					{...api.getCloseTriggerProps()}
 					onclick={api.getTriggerProps().onclick!}
@@ -43,8 +43,8 @@
 					</div>
 				{/if}
 				{@render content()}
-			</div>
-		</Card>
+			</Card>
+		</div>
 	</div>
 {/if}
 

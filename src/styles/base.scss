@@ -22,6 +22,15 @@ form:has(input:focus) {
 		display: none;
 	}
 }
+label {
+	margin-top: 0.5rem;
+	margin-bottom: 0.5rem;
+	display: flex;
+	width: max-content;
+	align-items: center;
+	margin-left: 0.25rem;
+	color: var(--primary-fg-mid);
+}
 @keyframes fade-in {
 	0% {
 		opacity: 0;
@@ -141,11 +150,12 @@ input {
 	background-color: var(--neutral-bg);
 	border-radius: 0.5rem;
 	cursor: text;
+	background-color: transparent;
 }
 
 input:focus-visible {
-	box-shadow: 0 -2px inset var(--primary-bg-mid);
-	border-bottom-color: transparent;
+	box-shadow: 0 -1px inset var(--primary-bg-mid);
+	border-bottom-color: var(--primary-bg-mid);
 	outline: none;
 	border-radius: 0.5rem 0.5rem 0 0;
 }

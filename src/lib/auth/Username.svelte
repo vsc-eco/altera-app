@@ -3,16 +3,16 @@
 	let {
 		input = $bindable(),
 		label,
+		value = $bindable(),
+		id,
 		...props
-	}: HTMLInputAttributes & { input?: HTMLInputElement; label?: string } = $props();
+	}: HTMLInputAttributes & { input?: HTMLInputElement; label?: string; id: string } = $props();
 </script>
 
-<label for={props.id}>{label} Username: </label>
+<label for={id}>{label} Username: </label>
 <div class="input-parent">
-	<span>
-		@
-	</span>
-	<input bind:this={input} {...props} />
+	<span> @ </span>
+	<input bind:this={input} bind:value {id} {...props} />
 </div>
 
 <style lang="scss">
@@ -34,15 +34,6 @@
 		span:has(+ input:user-invalid) {
 			color: var(--secondary-fg-mid);
 		}
-	}
-	label {
-		margin-top: 0.5rem;
-		margin-bottom: 0.25rem;
-		display: flex;
-		width: max-content;
-		align-items: center;
-		margin-left: 0.25rem;
-		color: var(--primary-fg-mid);
 	}
 	input {
 		flex-shrink: 1;

@@ -10,9 +10,10 @@
 	type Props = {
 		items: Option[];
 		initial?: string;
+		styleType?: 'default' | 'text';
 		onValueChange?: (value: ValueChangeDetails<unknown>) => void;
 	};
-	let { items: options, initial, onValueChange }: Props = $props();
+	let { items: options, initial, onValueChange, styleType }: Props = $props();
 	const selectData = $derived(options);
 
 	const collection = select.collection({

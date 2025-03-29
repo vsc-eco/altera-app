@@ -1,5 +1,5 @@
 import type { Auth } from '$lib/auth/store';
-import { Network } from '$lib/swap/swapOptions';
+import { Network } from '$lib/send/sendOptions';
 const V4VAPP_API = 'https://api.v4v.app';
 type Token = 'hive' | 'hbd';
 const initFromLightning = async (

@@ -231,4 +231,8 @@
 	[data-part='item'][data-highlighted] {
 		background-color: var(--bg-accent);
 	}
+
+	label {
+		margin: 0;
+	}
 </style>

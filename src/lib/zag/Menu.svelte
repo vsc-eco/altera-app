@@ -32,3 +32,9 @@
 		<List {api} selectData={items}></List>
 	</div>
 </div>
+
+<style>
+	[data-part='positioner'] {
+		z-index: 2 !important;
+	}
+</style>

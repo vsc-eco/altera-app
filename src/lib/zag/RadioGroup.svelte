@@ -20,8 +20,9 @@
 		value?: string | null;
 		defaultValue?: string;
 	};
-	let generatedId = getUniqueId();
 	let { id, name, items, value = $bindable(), defaultValue: propDefault }: Props = $props();
+	let generatedId = getUniqueId();
+	console.log(generatedId);
 	let enabled = $derived(items.filter((item) => !item.disabled));
 	let defaultValue = $derived(enabled.length == 1 ? enabled[0].value : propDefault);
 
@@ -100,6 +101,7 @@
 		border-radius: 0.5rem;
 		cursor: pointer;
 		position: relative;
+		color: var(--neutral-fg);
 		/* styles for radio checked or unchecked state */
 	}
 	[data-part='item-text'] {

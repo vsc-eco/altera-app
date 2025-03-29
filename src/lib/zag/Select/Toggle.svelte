@@ -13,7 +13,7 @@
 </script>
 
 <div {...api.getControlProps()}>
-	<PillButton {...triggerProps} style="text">
+	<PillButton {...triggerProps} styleType="text">
 		{api.valueAsString || def || 'Select option'}
 		{#if open}
 			<ChevronUp></ChevronUp>

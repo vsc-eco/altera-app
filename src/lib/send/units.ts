@@ -24,6 +24,10 @@ type FeeCalculator<From extends CoinOnNetwork, To extends CoinOnNetwork> = {
 export function satsToBtc(sats: number): number {
 	return sats * 0.00000001;
 }
+
+export function btcToSats(sats: number): number {
+	return sats * 100_000_000;
+}
 export function getLightningFeeCalculator(): FeeCalculator<
 	{
 		coin: Coin;

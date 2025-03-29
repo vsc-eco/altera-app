@@ -11,6 +11,9 @@
 	import { getAuth } from '$lib/auth/store';
 	import PillButton from '$lib/PillButton.svelte';
 	import Amount from './Amount.svelte';
+	import { getIntermediaryNetwork } from './getNetwork';
+	import { sleep } from 'aninest';
+	import V4VPopup from './V4VPopup.svelte';
 	let auth = $derived(getAuth()());
 	let fromCoin = $derived(swapOptions.from.coins.find((v) => v.coin.value == fromCoinValue));
 	let fromNetworks = $derived(fromCoin?.networks);
@@ -21,7 +24,36 @@
 	let toNetwork = $derived(toCoin?.networks.find((v) => v.value == toNetworkValue));
 	let toUsername = $state();
 	let toAmount: string | undefined = $state('0');
-	function initSwap() {}
+	let showV4VModal = $state.raw(false);
+	function openV4V() {
+		showV4VModal = false;
+		sleep(0).then(() => {
+			showV4VModal = true;
+		});
+	}
+	function initSwap(e: Event) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (!fromCoin) {
+			return 'No From Coin Selected';
+		}
+		if (!fromNetwork) {
+			return 'No From Network Selected';
+		}
+		if (!toCoin) {
+			return 'No To Coin Selected';
+		}
+		if (!toNetwork) {
+			return 'No To Network Selected';
+		}
+		let intermediary = getIntermediaryNetwork(
+			{ coin: fromCoin.coin, network: fromNetwork },
+			{ coin: toCoin.coin, network: toNetwork }
+		);
+		if (intermediary == Network.lightning) {
+			openV4V();
+		}
+	}
 	const fromCoinItems = $derived(
 		swapOptions.from.coins.map((v) => {
 			return {
@@ -156,14 +188,30 @@
 			{/if}
 		</fieldset>
 	{/if}
+	<p>
+		{#if fromAmount && fromCoin && toAmount && toCoin && toUsername}
+			Send {fromAmount}
+			{fromCoin?.coin.unit}
 
-	<PillButton onclick={initSwap} styleType="outline">
-		Send {fromAmount}
-		{fromCoin?.coin.unit}
-		{#if toUsername}to {toUsername}
+			to {toUsername}
+
+			as {toAmount}
+			{toCoin?.coin.unit}?
+		{:else}
+			&nbsp;
 		{/if}
-	</PillButton>
+	</p>
+	<PillButton onclick={initSwap} styleType="outline">Send</PillButton>
 </form>
+
+{#if showV4VModal && toCoin && toNetwork && toAmount}
+	<V4VPopup
+		from={{ coin: Coin.sats, network: Network.lightning }}
+		to={{ coin: toCoin.coin, network: toNetwork }}
+		{toAmount}
+		{auth}
+	/>
+{/if}
 
 <style lang="scss">
 	form :global(button) {

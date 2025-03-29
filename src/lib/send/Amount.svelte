@@ -29,7 +29,7 @@
 			<img width="24" src={coin.icon} alt={coin.label} />
 			<img width="12" src={network.icon} alt={network.label} />
 		</span>
-		<input name={label} {id} type="number" step=".01" bind:value={amount} inputmode="numeric" />
+		<input name={label} {id} type="number" step="any" bind:value={amount} inputmode="numeric" />
 		<hr />
 		<Select
 			items={[
@@ -75,6 +75,7 @@
 			border-right-width: 0;
 			padding: 0.25rem;
 			height: 3rem;
+			padding-left: 0.5rem;
 			width: 2.25rem;
 			box-sizing: border-box;
 			display: inline-flex;
@@ -96,6 +97,11 @@
 			border-right: 1px solid var(--neutral-bg-accent-shifted);
 		}
 
+		input:focus-visible + hr {
+			border-color: var(--primary-bg-mid);
+			border-width: 1.5px;
+		}
+
 		input {
 			border: none;
 			height: 48px;
@@ -103,28 +109,6 @@
 			min-width: 5rem;
 			width: 2rem;
 			flex-grow: 1;
-		}
-		.unit {
-			border-left-width: 0;
-			padding: 0.25rem;
-			height: 3rem;
-			position: relative;
-			box-sizing: border-box;
-			display: inline-flex;
-			border-radius: 0 0.5rem 0.5rem 0;
-
-			background-image: linear-gradient(
-				rgba(255, 255, 255, 0) 33%,
-				var(--neutral-bg-accent-shifted) 33%,
-				var(--neutral-bg-accent-shifted) 66%,
-				rgba(255, 255, 255, 0) 66%
-			);
-			background-position: left;
-			background-size: 1px 50px;
-			background-repeat: repeat-y;
-
-			justify-content: center;
-			align-items: center;
 		}
 		input:focus-visible {
 			box-shadow: none;

@@ -2,7 +2,7 @@ import type { Auth } from '$lib/auth/store';
 import { Network } from '$lib/send/sendOptions';
 const V4VAPP_API = 'https://api.v4v.app';
 type Token = 'hive' | 'hbd';
-const initFromLightning = async (
+export const createLightningInvoice = async (
 	amount: string,
 	of: Token,
 	into: Token,
@@ -12,7 +12,7 @@ const initFromLightning = async (
 	| string
 	| {
 			invoice_id: string;
-			qr_code: string;
+			qr_data: string;
 			amount: string;
 	  }
 > => {
@@ -27,29 +27,37 @@ const initFromLightning = async (
 	const searchParams = {
 		hive_accname: mainnet_account,
 		amount,
-		currency: of.toUpperCase(),
-		receive_currency: into,
-		usd_hbd: 'false',
+		currency: into.toUpperCase(),
+		receive_currency: into.toLowerCase(),
+		// usd_hbd: 'false',
 		app_name: 'altera.app',
 		expiry: '600',
-		message: `to:${auth.value.address}`,
-		qr_code: 'base64_png'
+		message: `to:${auth.value.address}`
 	};
 	for (const [key, value] of Object.entries(searchParams)) {
 		url.searchParams.append(key, value);
 	}
 	console.log(url);
-	const ret = await (await fetch(url)).json();
+	const ret = await fetch(url);
 
 	console.log(ret);
-	return {
-		invoice_id: ret.data.payment_hash,
-		qr_code: `data:image/png;base64,${ret.data.qr_code_base64}`,
-		amount: ret.data.amount
-	};
+	if (ret.ok) {
+		const data = await ret.json();
+		return {
+			invoice_id: data.payment_hash,
+			qr_data: `lightning:${data.payment_request}`,
+			amount: data.amount
+		};
+	} else {
+		const data = await ret.json();
+		return data.detail;
+	}
 };
 
-const checkSuccess = async (invoice_id: string, options?: { signal?: AbortSignal }) => {
+export const checkLightningSuccess = async (
+	invoice_id: string,
+	options?: { signal?: AbortSignal }
+) => {
 	let out = 'Error: checking for the invoice was aborted due to timeout.';
 	while (options?.signal?.aborted !== true) {
 		const checkBody = await (

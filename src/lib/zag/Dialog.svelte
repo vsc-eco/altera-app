@@ -9,21 +9,38 @@
 	type Props = {
 		content: Snippet;
 		title: Snippet;
-		children: Snippet;
+		children?: Snippet;
 		description?: Snippet;
-		close?: () => void;
+		toggle?: (open?: boolean) => void;
+		defaultOpen?: boolean;
 	};
-	let { content, title, children, description, close = $bindable() }: Props = $props();
-	let service = useMachine(dialog.machine, { id: getUniqueId() });
+	let {
+		content,
+		title,
+		children,
+		description,
+		toggle: toggle = $bindable(),
+		defaultOpen
+	}: Props = $props();
+	let service = useMachine(dialog.machine, { id: getUniqueId(), defaultOpen });
 	const api = $derived(dialog.connect(service, normalizeProps));
-	close = () => {
-		api.setOpen(false);
+	toggle = (open: boolean = false) => {
+		console.log('HERE');
+		api.setOpen(open);
+		console.log(api.open);
 	};
+	$inspect(api.open);
 </script>
 
-<PillButton {...api.getTriggerProps()} onclick={api.getTriggerProps().onclick!} styleType="outline">
-	{@render children()}
-</PillButton>
+{#if children}
+	<PillButton
+		{...api.getTriggerProps()}
+		onclick={api.getTriggerProps().onclick!}
+		styleType="outline"
+	>
+		{@render children()}
+	</PillButton>
+{/if}
 {#if api.open}
 	<div use:portal {...api.getBackdropProps()}></div>
 	<div use:portal {...api.getPositionerProps()}>
@@ -80,9 +97,9 @@
 		/* styles for the positioner element */
 	}
 
-	[data-part='positioner'] > :global(div) {
+	[data-part='content'] > :global(div) {
 		border-radius: 0.5rem;
-		padding: 1rem 2rem;
+		padding: 1rem;
 
 		/* styles for the positioner element */
 	}

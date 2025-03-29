@@ -80,7 +80,7 @@
 	}
 </script>
 
-<Dialog bind:close>
+<Dialog bind:toggle={close}>
 	Hive Login
 	{#snippet title()}
 		Hive Login
@@ -218,8 +218,8 @@
 	.back-button {
 		display: inline-block;
 		position: absolute;
-		top: 0.5rem;
-		left: 1rem;
+		top: 1rem;
+		left: 1.5rem;
 	}
 	input {
 		flex-shrink: 1;

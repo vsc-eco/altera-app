@@ -26,8 +26,7 @@ const hive: Coin = {
 	icon: '/hive/hive.svg',
 	unit: 'Hive',
 	enabled: (going) => {
-		// return going == 'to';
-		return true;
+		return going == 'to';
 	}
 };
 const hbd: Coin = {
@@ -36,7 +35,6 @@ const hbd: Coin = {
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
 	enabled: (going) => {
-		return true;
 		return going == 'to';
 	}
 };
@@ -50,10 +48,21 @@ const btc: Coin = {
 	}
 };
 
+const sats: Coin = {
+	value: 'SATS',
+	label: 'BTC',
+	icon: '/btc/btc.svg',
+	unit: 'sats',
+	enabled: (going, from, to) => {
+		return going == 'from';
+	}
+};
+
 export const Coin = {
 	hive,
 	hbd,
-	btc
+	btc,
+	sats
 };
 
 export type Coin = {
@@ -78,6 +87,12 @@ const vsc: Network = {
 	enabled: (going, from, to) => {
 		return true;
 	}
+};
+const unknown: Network = {
+	value: 'unk',
+	label: 'Unknown',
+	icon: '/unk.png',
+	enabled: never
 };
 const hiveMainnet: Network = {
 	value: 'hive_mainnet',
@@ -114,7 +129,8 @@ export const Network = {
 	btcMainnet,
 	lightning,
 	hiveMainnet,
-	vsc
+	vsc,
+	unknown
 };
 
 const swapOptions: {

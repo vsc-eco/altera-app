@@ -13,7 +13,7 @@
 		description?: Snippet;
 		toggle?: (open?: boolean) => void;
 		defaultOpen?: boolean;
-		open: boolean;
+		open?: boolean;
 	};
 	let {
 		content,

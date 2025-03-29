@@ -90,6 +90,7 @@
 	}
 	@media screen and (min-width: 560px) {
 		nav {
+			z-index: 0;
 			display: flex;
 			position: sticky;
 			top: 0;

@@ -13,6 +13,7 @@
 		description?: Snippet;
 		toggle?: (open?: boolean) => void;
 		defaultOpen?: boolean;
+		open: boolean;
 	};
 	let {
 		content,
@@ -20,7 +21,8 @@
 		children,
 		description,
 		toggle: toggle = $bindable(),
-		defaultOpen
+		defaultOpen,
+		open = $bindable()
 	}: Props = $props();
 	let service = useMachine(dialog.machine, { id: getUniqueId(), defaultOpen });
 	const api = $derived(dialog.connect(service, normalizeProps));
@@ -29,6 +31,9 @@
 		api.setOpen(open);
 		console.log(api.open);
 	};
+	$effect(() => {
+		open = api.open;
+	});
 	$inspect(api.open);
 </script>
 

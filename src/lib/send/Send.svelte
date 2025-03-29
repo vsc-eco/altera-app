@@ -14,6 +14,8 @@
 	import { getIntermediaryNetwork } from './getNetwork';
 	import { sleep } from 'aninest';
 	import V4VPopup from './V4VPopup.svelte';
+	let formError = $state();
+
 	let auth = $derived(getAuth()());
 	let fromCoin = $derived(swapOptions.from.coins.find((v) => v.coin.value == fromCoinValue));
 	let fromNetworks = $derived(fromCoin?.networks);
@@ -126,6 +128,13 @@
 {/snippet}
 
 <form>
+	<p class="error">
+		{#if formError}
+			{formError}
+		{:else}
+			&nbsp;
+		{/if}
+	</p>
 	<fieldset>
 		<legend>From:</legend>
 		<RadioGroup name="From Coin:" id="to-coin" bind:value={fromCoinValue} items={fromCoinItems}
@@ -210,6 +219,13 @@
 		to={{ coin: toCoin.coin, network: toNetwork }}
 		{toAmount}
 		{auth}
+		onerror={(v) => {
+			formError = v;
+			showV4VModal = false;
+		}}
+		onsuccess={() => {
+			formError = '';
+		}}
 	/>
 {/if}
 
@@ -222,5 +238,8 @@
 		flex-wrap: wrap;
 		justify-content: space-between;
 		gap: 1rem;
+	}
+	.error {
+		color: var(--secondary-bg-mid);
 	}
 </style>

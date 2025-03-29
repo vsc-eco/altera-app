@@ -121,6 +121,7 @@
 		margin: 0;
 	}
 	input[type='number'] {
+		appearance: textfield;
 		-moz-appearance: textfield;
 	}
 </style>

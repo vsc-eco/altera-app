@@ -1,5 +1,6 @@
 import type { Auth } from '$lib/auth/store';
 import { Network } from '$lib/send/sendOptions';
+import { sleep } from 'aninest';
 const V4VAPP_API = 'https://api.v4v.app';
 type Token = 'hive' | 'hbd';
 export const createLightningInvoice = async (
@@ -57,18 +58,26 @@ export const createLightningInvoice = async (
 export const checkLightningSuccess = async (
 	invoice_id: string,
 	options?: { signal?: AbortSignal }
-) => {
-	let out = 'Error: checking for the invoice was aborted due to timeout.';
+): Promise<string> => {
+	let out = 'Error: Lightning dialog closed before transaction could succeed.';
 	while (options?.signal?.aborted !== true) {
-		const checkBody = await (
-			await fetch(`${V4VAPP_API}/v1/check_invoice/${invoice_id}`, { signal: options?.signal })
-		).json();
+		const checkBody = await fetch(`${V4VAPP_API}/v1/check_invoice/${invoice_id}`, {
+			signal: options?.signal
+		});
+		const data = await checkBody.json();
+		if (!checkBody.ok) {
+			return data.detail;
+		}
 
-		if (checkBody.data.paid === true) {
+		if (data.paid === true) {
 			out = 'success';
 			break;
 		}
-		await sleep(1000);
+		if (data.expired === true) {
+			out = 'The invoice expired. Try creating a new one.';
+			break;
+		}
+		await sleep(1);
 	}
 	return out;
 };

@@ -196,36 +196,10 @@
 		min-height: 1em;
 		margin-top: 0.25rem;
 	}
-	.input-parent {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		position: relative;
-		display: flex;
-		align-items: baseline;
-		span {
-			// @ symbol
-			position: absolute;
-			top: 50%;
-			transform: translateY(-50%);
-			left: 0.5rem;
-		}
-		span:has(+ input:focus-visible) {
-			color: var(--primary-fg-mid);
-		}
-		span:has(+ input:user-invalid) {
-			color: var(--secondary-fg-mid);
-		}
-	}
 	.back-button {
 		display: inline-block;
 		position: absolute;
 		top: 1rem;
 		left: 1.5rem;
-	}
-	input {
-		flex-shrink: 1;
-		flex-grow: 0;
-		padding-left: 1.5rem;
-		position: relative;
-		background-color: transparent;
 	}
 </style>

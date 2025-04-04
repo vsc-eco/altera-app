@@ -6,15 +6,15 @@ export const paths = [
 		icon: Home,
 		href: '/'
 	},
-	{
-		name: 'Transactions',
-		icon: ScrollText,
-		href: '/transactions'
-	},
-	{
-		name: 'Send',
-		icon: ArrowRightLeft,
-		href: '/send'
-	},
+	// {
+	// 	name: 'Transactions',
+	// 	icon: ScrollText,
+	// 	href: '/transactions'
+	// },
+	// {
+	// 	name: 'Send',
+	// 	icon: ArrowRightLeft,
+	// 	href: '/send'
+	// },
 	{ name: 'Witness Assistant', icon: Eye, href: '/witness-assistant' }
 ];

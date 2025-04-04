@@ -5,6 +5,7 @@
 	import type { LayoutData } from './$types';
 	import { actions } from '../quickActions';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
+	import DepositModal from './witness-assistant/DepositModal.svelte';
 	// let { auth }: LayoutData = $props();
 	let auth = $derived(getAuth()());
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
@@ -22,15 +23,16 @@
 </h1>
 
 <div class="action-bar">
-	{#each actions as action}
+	<!-- {#each actions as action}
 		<PillBtn {...'styling' in action ? action.styling : {}} href={action.href}>
 			{@const Icon = action.icon}
 			<Icon />
 			{action.label}
 		</PillBtn>
-	{/each}
+	{/each} -->
 </div>
-<Balance></Balance>
+<!-- <Balance></Balance> -->
+<DepositModal />
 
 <style>
 	h1 {

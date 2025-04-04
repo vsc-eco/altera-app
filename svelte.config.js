@@ -8,10 +8,13 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
+		prerender: {
+			handleHttpError: 'warn'
+		},
 		alias: {
-            '@styles': 'src/styles',
-            $houdini: ".houdini/"
-        },
+			'@styles': 'src/styles',
+			$houdini: '.houdini/'
+		},
 		adapter: adapter(),
 		env: {
 			publicPrefix: '',

@@ -152,7 +152,7 @@
 	</div>
 	{#if amountOfOriginalCoin != ''}
 		<span class="approx-usd">
-			Approx. USD value: {inUsd}
+			Approx. USD value: ${inUsd}
 		</span>
 	{/if}
 </label>

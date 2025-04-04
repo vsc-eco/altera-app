@@ -1,6 +1,7 @@
 {
 	"extends": "./.svelte-kit/tsconfig.json",
 	"include": ["src", "src/types", ".svelte-kit/ambient.d.ts", "!*.ts"],
+	"exclude": ["src/lib/transactions"],
 	"compilerOptions": {
 		"allowJs": true,
 		"checkJs": true,

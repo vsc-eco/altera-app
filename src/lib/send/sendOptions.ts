@@ -22,12 +22,13 @@ const coinIsOneOf = (source: CoinOnNetwork | undefined, arr: Coin[]) => {
 
 const hive: Coin = {
 	value: 'hive',
-	label: 'Hive',
+	label: 'HIVE',
 	icon: '/hive/hive.svg',
-	unit: 'Hive',
+	unit: 'HIVE',
 	enabled: (going) => {
 		return going == 'to';
-	}
+	},
+	convertTo: []
 };
 const hbd: Coin = {
 	value: 'hbd',
@@ -36,7 +37,8 @@ const hbd: Coin = {
 	unit: 'HBD',
 	enabled: (going) => {
 		return going == 'to';
-	}
+	},
+	convertTo: []
 };
 const btc: Coin = {
 	value: 'btc',
@@ -45,24 +47,38 @@ const btc: Coin = {
 	unit: 'BTC',
 	enabled: (going, from, to) => {
 		return going == 'from';
-	}
+	},
+	convertTo: []
+};
+
+const usd: Coin = {
+	value: 'usd',
+	label: 'USD',
+	icon: '/btc/btc.svg',
+	unit: 'USD',
+	enabled: never,
+	convertTo: []
 };
 
 const sats: Coin = {
 	value: 'SATS',
-	label: 'BTC',
+	label: 'SATS',
 	icon: '/btc/btc.svg',
-	unit: 'sats',
+	unit: 'SATS',
 	enabled: (going, from, to) => {
 		return going == 'from';
-	}
+	},
+	convertTo: []
 };
+
+hive.convertTo = [hbd];
 
 export const Coin = {
 	hive,
 	hbd,
 	btc,
-	sats
+	sats,
+	usd
 };
 
 export type Coin = {
@@ -71,6 +87,7 @@ export type Coin = {
 	icon: string;
 	unit: string;
 	enabled: Enabled;
+	convertTo: Coin[];
 };
 
 type Enabled = (

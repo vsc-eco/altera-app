@@ -11,6 +11,10 @@ export const getAccountNameFromAuth = (auth: Auth) => {
 	return shortenUsername(u);
 };
 
+export const accountNameFromAddress = (addr: string) => {
+	return shortenUsername(addr);
+};
+
 function shortenUsername(u: string) {
 	if (u.length > 16) {
 		return u.slice(0, 6) + '…' + u.slice(-4);

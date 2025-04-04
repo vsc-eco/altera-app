@@ -4,8 +4,8 @@
 	import { Bell } from '@lucide/svelte';
 	import moment from 'moment';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
-	const notifications = [
-		{ title: 'Completed sending 20 HBD to Alice!', at: new Date(Date.now() - 1000 * 60) }
+	const notifications: { title: string; at: Date }[] = [
+		// { title: 'Completed sending 20 HBD to Alice!', at: new Date(Date.now() - 1000 * 60) }
 	];
 </script>
 
@@ -15,7 +15,7 @@
 
 <Popover {trigger} title="Notifications">
 	{#if notifications.length == 0}
-		No notifications
+		No notifications currently.
 	{:else}
 		{#each notifications as notification}
 			<div class="notif">

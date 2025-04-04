@@ -23,7 +23,7 @@
 	.flex {
 		display: flex;
 	}
-	@media screen and (max-width: 560px) {
+	@media screen and (max-width: 620px) {
 		.main {
 			opacity: 1;
 			transition: opacity 0.2s;

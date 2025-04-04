@@ -11,7 +11,7 @@
 		items: Option[];
 		initial?: string;
 		styleType?: 'default' | 'text';
-		onValueChange?: (value: ValueChangeDetails<unknown>) => void;
+		onValueChange?: (value: ValueChangeDetails<Option>) => void;
 	};
 	let { items: options, initial, onValueChange, styleType }: Props = $props();
 
@@ -28,10 +28,15 @@
 		onValueChange
 	});
 	const api = $derived(select.connect(service, normalizeProps));
+	$inspect(initial);
 	$effect(() => {
-		const untrackedApi = untrack(() => api);
-		if (initial) untrackedApi.selectValue(initial);
-		else untrackedApi.clearValue();
+		if (initial) {
+			untrack(() => {
+				api.selectValue(initial);
+			});
+		} else {
+			untrack(() => api.clearValue());
+		}
 	});
 </script>
 

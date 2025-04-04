@@ -24,7 +24,6 @@ export async function load({ url }) {
 	if (!browser) {
 		return { auth: { status: 'pending' } as Auth };
 	}
-	console.log(url.pathname);
 	if (!authed && url.pathname != '/login') {
 		localStorage.setItem('redirect_url', url.toString());
 		redirect(307, '/login');

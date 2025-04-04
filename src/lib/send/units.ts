@@ -26,7 +26,7 @@ export function satsToBtc(sats: number): number {
 }
 
 export function btcToSats(sats: number): number {
-	return sats * 100_000_000;
+	return Math.round(sats * 100_000_000);
 }
 export function getLightningFeeCalculator(): FeeCalculator<
 	{

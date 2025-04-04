@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Home, ScrollText } from '@lucide/svelte';
+import { ArrowRightLeft, Eye, Home, ScrollText } from '@lucide/svelte';
 
 export const paths = [
 	{
@@ -12,8 +12,9 @@ export const paths = [
 		href: '/transactions'
 	},
 	{
-		name: 'Swap',
+		name: 'Send',
 		icon: ArrowRightLeft,
-		href: '/swap'
-	}
+		href: '/send'
+	},
+	{ name: 'Witness Assistant', icon: Eye, href: '/witness-assistant' }
 ];

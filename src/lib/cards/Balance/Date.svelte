@@ -17,7 +17,7 @@
 	<Select
 		onValueChange={(v) => {
 			initial = v.value[0];
-			onRangeChange(v.items[0] as DateRange);
+			onRangeChange(v.items[0]);
 		}}
 		{initial}
 		items={dateRanges}

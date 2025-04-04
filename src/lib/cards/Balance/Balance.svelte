@@ -2,9 +2,9 @@
 	import { defaultData } from '$lib/defaultLineData';
 	import LineChart, { type Point } from '$lib/LineChart.svelte';
 	import moment from 'moment';
-	import Card from './Card.svelte';
-	import Diff from './Balance/Diff.svelte';
-	import Date from './Balance/Date.svelte';
+	import Card from '../Card.svelte';
+	import Diff from './Diff.svelte';
+	import Date from './Date.svelte';
 	let data: Point[] = $state(defaultData);
 	function calcTotalChange(data: { value: number }[]) {
 		let up = 0;

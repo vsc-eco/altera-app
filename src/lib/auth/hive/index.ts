@@ -31,10 +31,9 @@ if (browser) {
 		},
 		hivesigner: {
 			app: 'altera.app',
-			callbackURL:
-				(VERCEL_URL.includes('localhost') ? `https://${VERCEL_URL}` : `https://${VERCEL_URL}`) +
-				'/hivesigner',
-			scope: ['login']
+			callbackURL: `https://${VERCEL_URL}/hivesigner`,
+			scope: ['login'],
+			apiURL: 'https://hive-api.web3telekom.xyz/'
 		}
 	});
 	if (aioha.isLoggedIn()) {
@@ -109,7 +108,7 @@ export async function login(
 			aiohaProvider = Providers.Custom;
 	}
 	const login = await aioha.login(aiohaProvider, username, {
-		msg: 'Sign into Altera',
+		msg: `Sign into Altera`,
 		hiveauth: {
 			cbWait: (payload) => {
 				displayQr(payload);

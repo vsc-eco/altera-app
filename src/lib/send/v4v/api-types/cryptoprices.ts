@@ -60,6 +60,36 @@ export type Cryptoprices = {
 	};
 };
 
+let cached: Cryptoprices | undefined = undefined;
+let cachedAt = 0;
+
 export async function getCryptoPrices(options?: { signal?: AbortSignal }): Promise<Cryptoprices> {
-	return await (await fetch('https://api.v4v.app/v1/cryptoprices/', options)).json();
+	let now = Date.now();
+	if (cachedAt > now - 30 * 1000 && cached != undefined) {
+		return cached;
+	}
+	let req = fetch('https://api.v4v.app/v1/cryptoprices/', {
+		signal: options?.signal
+	});
+	if (cached) {
+		req.then(async (res) => {
+			if (res.ok) {
+				let out = await res.json();
+				cached = out;
+				cachedAt = now;
+				return out;
+			}
+		});
+		// return stale cache for this req,
+		// fetch fresh data for the next one
+		return cached;
+	}
+	let res = await req;
+	if (res.ok) {
+		let out = await res.json();
+		cached = out;
+		cachedAt = now;
+		return out;
+	}
+	throw new Error('Fetch failed.');
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { authStore, getAuth } from '$lib/auth/store';
-	import Balance from '$lib/cards/Balance.svelte';
+	import Balance from '$lib/cards/Balance/Balance.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
 	import type { LayoutData } from './$types';
 	import { actions } from '../quickActions';

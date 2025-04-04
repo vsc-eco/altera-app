@@ -6,11 +6,12 @@
 	import { browser } from '$app/environment';
 	import Card from '$lib/cards/Card.svelte';
 	let auth = $derived(getAuth()());
+	let redirectTo =
+		browser && new URL(localStorage.getItem('redirect_url') ?? window.location.origin);
 	$effect(() => {
 		if (auth?.status == 'authenticated' && browser) {
-			const to = localStorage.getItem('redirect_url') ?? '/';
 			localStorage.removeItem('redirect_url');
-			goto(to);
+			if (redirectTo) goto(redirectTo);
 		}
 	});
 </script>
@@ -22,7 +23,11 @@
 <main>
 	<Card>
 		<h1>Altera Login</h1>
-
+		{#if redirectTo && redirectTo.pathname != '/'}
+			<p class="continue">
+				Login to continue to <span class="redirect">{redirectTo.pathname}</span>
+			</p>
+		{/if}
 		<AppKitLogin />
 		<hr />
 		<HiveLogin />
@@ -31,6 +36,15 @@
 </main>
 
 <style>
+	.continue {
+		margin-bottom: 1.5rem;
+		margin-top: -1rem;
+	}
+	.redirect {
+		font-family: 'Noto Sans Mono Variable', monospace;
+		color: var(--primary-bg-mid);
+		text-decoration: underline;
+	}
 	main {
 		margin: auto;
 		box-sizing: border-box;

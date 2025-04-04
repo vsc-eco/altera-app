@@ -76,15 +76,15 @@
 		}
 		&:disabled {
 			cursor: default;
-			color: var(--fg-mid);
-			transform: scale(0.98);
-			background-color: var(--bg-accent);
+			color: var(--fg-mid) !important;
+			transform: scale(0.98) !important;
+			background-color: var(--bg-accent) !important;
 			&:active,
 			&:hover,
 			&:focus {
-				color: var(--fg-mid);
-				background-color: var(--bg-accent);
-				transform: scale(0.98);
+				color: var(--fg-mid) !important;
+				background-color: var(--bg-accent) !important;
+				transform: scale(0.98) !important;
 			}
 		}
 		&:active {

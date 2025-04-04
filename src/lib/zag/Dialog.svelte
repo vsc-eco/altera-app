@@ -27,7 +27,6 @@
 	let service = useMachine(dialog.machine, { id: getUniqueId(), defaultOpen });
 	const api = $derived(dialog.connect(service, normalizeProps));
 	toggle = (open: boolean = false) => {
-		console.log('HERE');
 		api.setOpen(open);
 		console.log(api.open);
 	};
@@ -89,9 +88,11 @@
 
 	[data-part='positioner'] {
 		border-radius: 0.5rem;
-		position: absolute;
+		position: fixed;
 		padding: 0.5rem;
-		max-width: 80vw;
+		width: max(80vw, 25rem);
+		box-sizing: border-box;
+		max-width: calc(100% - 0.5rem);
 		width: max-content;
 		left: 50%;
 		top: 50%;

@@ -14,23 +14,30 @@
 	import { untrack, type Snippet } from 'svelte';
 
 	type Props = {
+		required?: boolean;
 		id?: string;
 		items: Item[];
 		name: string;
 		value?: string | null;
 		defaultValue?: string;
 	};
-	let { id, name, items, value = $bindable(), defaultValue: propDefault }: Props = $props();
+	let {
+		id,
+		name,
+		items,
+		value = $bindable(),
+		defaultValue: propDefault,
+		required
+	}: Props = $props();
 	let generatedId = getUniqueId();
 	console.log(generatedId);
-	let enabled = $derived(items.filter((item) => !item.disabled));
-	let defaultValue = $derived(enabled.length == 1 ? enabled[0].value : propDefault);
-
+	let enabled = items.filter((item) => !item.disabled);
+	let defaultValue = enabled.length == 1 ? enabled[0].value : propDefault;
+	let error = $state('');
 	const service = useMachine(radio.machine, {
 		id: id ?? generatedId,
 		name,
 		orientation: 'horizontal',
-		// svelte-ignore state_referenced_locally
 		defaultValue: defaultValue
 	});
 	const api = $derived(radio.connect(service, normalizeProps));
@@ -70,6 +77,14 @@
 					{/if}
 				</span>
 				<input
+					oninvalid={(e) => {
+						e.preventDefault();
+						error = e.currentTarget.validationMessage;
+					}}
+					oninput={() => {
+						error = '';
+					}}
+					{required}
 					{...api.getItemHiddenInputProps({
 						value: opt.value,
 						disabled: opt.disabled === undefined ? false : opt.disabled
@@ -86,6 +101,13 @@
 			</label>
 		{/each}
 	</div>
+	<label class="error" for={id}>
+		{#if error}
+			{error}
+		{:else}
+			&nbsp;
+		{/if}
+	</label>
 </div>
 
 <style lang="scss">

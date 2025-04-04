@@ -104,22 +104,6 @@
 		{:else}
 			<form onsubmit={loginOnSubmit} oninvalidcapture={loginOnSubmit}>
 				<div class="error">{aiohaErrorText}</div>
-				<!-- <label for="hive-username-login"> Username: </label>
-				<div class="input-parent">
-					<span>@</span>
-					<input
-						bind:this={input}
-						required
-						minlength="3"
-						maxlength="16"
-						pattern={hiveRegex.toString()}
-						id="hive-username-login"
-						type="text"
-						size="17"
-						autocomplete="username"
-						placeholder="hiveio"
-					/>
-				</div> -->
 				<HiveUsername
 					bind:input
 					required
@@ -128,11 +112,9 @@
 					pattern={hiveRegex.toString()}
 					id="hive-username-login"
 					type="text"
-					size={17}
 					autocomplete="username"
 					placeholder="hiveio"
 				/>
-				<label class="error" for="hive-username-login">{usernameErrorText}</label>
 				{#snippet keychainLabel()}
 					<img src="/hive/keychain.png" width="16" alt="Keychain Icon" /> Hive Keychain
 				{/snippet}
@@ -192,7 +174,6 @@
 		color: var(--primary-fg-mid);
 	}
 	.error {
-		color: var(--secondary-fg-mid);
 		min-height: 1em;
 		margin-top: 0.25rem;
 	}

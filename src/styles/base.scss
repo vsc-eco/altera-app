@@ -97,6 +97,14 @@ h6 {
 	}
 }
 
+.error {
+	color: var(--secondary-bg-mid);
+}
+
+.status {
+	color: var(--primary-bg-mid);
+}
+
 a {
 	color: var(--primary-mid);
 }
@@ -137,7 +145,7 @@ button.transparent-icon {
 	&:active {
 		transform: scale(0.98);
 	}
-	@media screen and (min-width: 560px) {
+	@media screen and (min-width: 620px) {
 		display: none;
 	}
 }
@@ -161,6 +169,18 @@ input:focus-visible {
 }
 input:user-invalid {
 	color: var(--secondary-fg-mid);
+}
+
+// to hide the arrows on the number input
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+input[type='number'] {
+	appearance: textfield;
+	padding-right: 1rem;
+	-moz-appearance: textfield;
 }
 
 input:disabled {

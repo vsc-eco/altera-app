@@ -2,7 +2,11 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { KeyTypes, type Aioha } from '@aioha/aioha';
 	import Input from './Input.svelte';
-	import { postingMetadataFromString, type Account, type PostingMetadata } from '../../../lib/auth/hive/accountTypes';
+	import {
+		postingMetadataFromString,
+		type Account,
+		type PostingMetadata
+	} from '../../../lib/auth/hive/accountTypes';
 
 	let { accountInfo, aioha }: { accountInfo?: Account; aioha?: Aioha } = $props();
 	let originalPostingMeta = $derived(
@@ -10,6 +14,7 @@
 	);
 	let midSubmit = $state(false);
 	let errorText = $state('');
+	let status = $state('');
 	let formData = $derived(
 		originalPostingMeta ? JSON.parse(JSON.stringify(originalPostingMeta)) : undefined
 	);
@@ -53,6 +58,7 @@
 <form
 	onsubmit={async (e) => {
 		e.preventDefault();
+		errorText = '';
 		if (
 			accountInfo == undefined ||
 			aioha == undefined ||
@@ -80,23 +86,26 @@
 			}
 		}
 		if (!changed) {
-			errorText = 'All the fields below are unedited. Edit';
+			errorText = 'All the fields below are unedited.';
 			return;
 		}
 		Object.assign(old.profile!, toUpdate);
 		midSubmit = true;
+		status = 'Awaiting transaction approval…';
 		let res = await aioha!.signAndBroadcastTx(
 			[
 				[
 					'account_update2',
 					{
 						account: aioha!.getCurrentUser(),
-						posting_json_metadata: JSON.stringify(old)
+						posting_json_metadata: JSON.stringify(old),
+						json_metadata: ''
 					}
 				]
 			],
 			KeyTypes.Posting
 		);
+		status = '';
 		midSubmit = false;
 		if (res.success == false) {
 			errorText = res.error;
@@ -120,11 +129,15 @@
 		{/if}
 	{/each}
 	<br />
-	<PillButton theme="primary" styleType="invert" onclick={() => {}}>Update</PillButton>
+	<PillButton theme="primary" styleType="invert" onclick={() => {}} disabled={!!status}
+		>Update</PillButton
+	>
+	<span class="status">{status}</span>
 </form>
 
 <style>
-	.error {
-		color: var(--secondary-fg-mid);
+
+	.status {
+		color: var(--primary-fg-mid);
 	}
 </style>

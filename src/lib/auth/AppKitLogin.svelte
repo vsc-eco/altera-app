@@ -19,5 +19,5 @@
 			}
 		});
 		modal.open();
-	}}>Social/Eth Wallet</PillButton
+	}}>Social/EVM Wallet</PillButton
 >

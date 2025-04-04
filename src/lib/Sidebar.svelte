@@ -12,7 +12,7 @@
 	let navWidth = $state(100);
 	let bodyWidth = $state(0);
 	let { visible = $bindable(false) } = $props();
-	let actuallyVisible = $derived(visible || bodyWidth >= 560);
+	let actuallyVisible = $derived(visible || bodyWidth >= 620);
 	let preload = $state(true);
 	$effect(() => {
 		setTimeout(() => {
@@ -88,7 +88,7 @@
 	.preload {
 		transition-duration: 0.0001s !important;
 	}
-	@media screen and (min-width: 560px) {
+	@media screen and (min-width: 620px) {
 		nav {
 			z-index: 0;
 			display: flex;
@@ -103,12 +103,13 @@
 		align-self: flex-end;
 	}
 	a {
+		text-wrap: nowrap;
 		display: flex;
 		height: 2.5rem;
 		box-sizing: border-box;
 		align-items: center;
 		margin: 0.25rem;
-		padding: 0.25rem;
+		padding: 1rem;
 		box-sizing: border-box;
 		border-radius: 0.25rem;
 		color: var(--neutral-fg);

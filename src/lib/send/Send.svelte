@@ -10,22 +10,26 @@
 	import HiveUsername from '$lib/auth/Username.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import PillButton from '$lib/PillButton.svelte';
-	import Amount from './Amount.svelte';
+	import Amount from '../currency/Amount.svelte';
 	import { getIntermediaryNetwork } from './getNetwork';
 	import { sleep } from 'aninest';
 	import V4VPopup from './V4VPopup.svelte';
+	import { accountNameFromAddress } from '$lib/getAccountName';
+	import { convert } from '$lib/currency/convert';
+	import { untrack } from 'svelte';
+	import Amounts from './Amounts.svelte';
 	let formError = $state();
 
 	let auth = $derived(getAuth()());
 	let fromCoin = $derived(swapOptions.from.coins.find((v) => v.coin.value == fromCoinValue));
 	let fromNetworks = $derived(fromCoin?.networks);
 	let fromNetwork = $derived(fromCoin?.networks.find((v) => v.value == fromNetworkValue));
-	let fromAmount: string | undefined = $state('0');
+	let fromAmount: string = $state('0');
 	let toCoin = $derived(swapOptions.to.coins.find((v) => v.coin.value == toCoinValue));
 	let toNetworks = $derived(toCoin?.networks);
 	let toNetwork = $derived(toCoin?.networks.find((v) => v.value == toNetworkValue));
-	let toUsername = $state();
-	let toAmount: string | undefined = $state('0');
+	let toUsername: string | undefined = $state();
+	let toAmount: string = $state('0');
 	let showV4VModal = $state.raw(false);
 	function openV4V() {
 		showV4VModal = false;
@@ -36,6 +40,7 @@
 	function initSwap(e: Event) {
 		e.preventDefault();
 		e.stopPropagation();
+		formError = undefined;
 		if (!fromCoin) {
 			return 'No From Coin Selected';
 		}
@@ -127,7 +132,7 @@
 	{info.label}
 {/snippet}
 
-<form>
+<form onsubmit={initSwap}>
 	<p class="error">
 		{#if formError}
 			{formError}
@@ -137,11 +142,17 @@
 	</p>
 	<fieldset>
 		<legend>From:</legend>
-		<RadioGroup name="From Coin:" id="to-coin" bind:value={fromCoinValue} items={fromCoinItems}
+		<RadioGroup
+			required
+			name="From Coin:"
+			id="to-coin"
+			bind:value={fromCoinValue}
+			items={fromCoinItems}
 		></RadioGroup>
 		{#if fromNetworkItems}
 			{#key fromCoin}
 				<RadioGroup
+					required
 					id={`to-network`}
 					name="From Network:"
 					bind:value={fromNetworkValue}
@@ -153,10 +164,16 @@
 	</fieldset>
 	<fieldset>
 		<legend>To:</legend>
-		<RadioGroup name="To Coin:" id="swap-to-coin" bind:value={toCoinValue} items={toCoinItems}
+		<RadioGroup
+			required
+			name="To Coin:"
+			id="swap-to-coin"
+			bind:value={toCoinValue}
+			items={toCoinItems}
 		></RadioGroup>
 		{#if toNetworkItems}
 			<RadioGroup
+				required
 				id={`from-network`}
 				name="To Network:"
 				bind:value={toNetworkValue}
@@ -166,6 +183,7 @@
 		{/if}
 		{#if toNetwork && [Network.vsc, Network.hiveMainnet].includes(toNetwork)}
 			<HiveUsername
+				required
 				id="to-username"
 				style="width: 100%"
 				label={toNetwork.label.split(' ')[0]}
@@ -175,34 +193,21 @@
 		{/if}
 	</fieldset>
 	{#if fromNetwork && toNetwork && fromCoin && toCoin}
-		<fieldset class="amounts">
-			<legend>Amount:</legend>
-			<Amount
-				id="from-amount"
-				bind:amount={fromAmount}
-				coin={fromCoin!.coin}
-				network={fromNetwork}
-				label="From Amount:"
-				defaultUnit={fromCoin.coin.unit}
-			/>
-			{#if toCoin && toNetwork}
-				<Amount
-					id="to-amount"
-					bind:amount={toAmount}
-					coin={toCoin.coin}
-					network={toNetwork}
-					label="To Amount:"
-					defaultUnit={toCoin.coin.unit}
-				/>
-			{/if}
-		</fieldset>
+		<Amounts
+			bind:toAmount
+			bind:fromAmount
+			fromCoin={fromCoin.coin}
+			toCoin={toCoin.coin}
+			{fromNetwork}
+			{toNetwork}
+		/>
 	{/if}
 	<p>
 		{#if fromAmount && fromCoin && toAmount && toCoin && toUsername}
 			Send {fromAmount}
 			{fromCoin?.coin.unit}
 
-			to {toUsername}
+			to {accountNameFromAddress(toUsername)}
 
 			as {toAmount}
 			{toCoin?.coin.unit}?
@@ -210,7 +215,9 @@
 			&nbsp;
 		{/if}
 	</p>
-	<PillButton onclick={initSwap} styleType="outline">Send</PillButton>
+	<PillButton onclick={() => {}} disabled={showV4VModal} styleType="invert" theme="primary"
+		>Send</PillButton
+	>
 </form>
 
 {#if showV4VModal && toCoin && toNetwork && toAmount}
@@ -225,21 +232,17 @@
 		}}
 		onsuccess={() => {
 			formError = '';
+			showV4VModal = false;
 		}}
 	/>
 {/if}
 
 <style lang="scss">
+	form {
+		max-width: 34.5rem;
+		box-sizing: border-box;
+	}
 	form :global(button) {
 		width: 100%;
-	}
-	.amounts {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-	.error {
-		color: var(--secondary-bg-mid);
 	}
 </style>

@@ -51,8 +51,9 @@
 	$inspect(dialogOpen);
 	$effect(() => {
 		if (!dialogOpen) {
-			if (onerror) onerror('Error: Lightning dialog closed before transaction could succeed.');
-			lightningAbort.abort('Error: Lightning dialog closed before transaction could succeed.');
+			if (onerror && validateRes != 'success')
+				onerror('Error: Lightning dialog closed before invoice was scanned and processed.');
+			lightningAbort.abort('Lightning dialog closed.');
 		}
 	});
 	$effect(() => {
@@ -67,7 +68,7 @@
 			if (validateRes == 'success' && onsuccess) onsuccess();
 			if (validateRes != 'success' && onerror) onerror(res!);
 		});
-		return lightningAbort.abort;
+		return () => lightningAbort.abort;
 	});
 	let toggle: (open?: boolean) => void = $state(() => {});
 </script>
@@ -86,7 +87,7 @@
 					<QR data={res.qr_data}></QR>
 				{/if}
 			{:else if validateRes == 'success'}
-				<p>Success!</p>
+				<p>The transfer of {toAmount} {to.coin} was successful!</p>
 			{:else}
 				<p class="error">Error: {validateRes}.</p>
 			{/if}
@@ -99,7 +100,5 @@
 		margin-top: var(--text-base);
 		margin-bottom: var(--text-base);
 	}
-	.error {
-		color: var(--secondary-bg-mid);
-	}
+
 </style>

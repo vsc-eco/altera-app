@@ -34,11 +34,11 @@
 				required_posting_auths: [],
 				id: 'vsc.consensus_stake',
 				json: JSON.stringify({
-					from: username,
+					from: `hive:${username}`,
 					to: `hive:${nodeRunnerAccount}`,
-					asset: 'HIVE',
+					asset: 'hive',
 					net_id: 'vsc-mainnet',
-					amount: Asset.from(Number(amount), 'HIVE').toString()
+					amount: Asset.from(Number(amount), 'HIVE').toString().split(' ')[0]
 				})
 			}
 		] satisfies CustomJsonOperation;

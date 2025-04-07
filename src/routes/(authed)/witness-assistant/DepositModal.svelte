@@ -32,7 +32,7 @@
 						from: username,
 						to: 'vsc.gateway',
 						amount: Asset.from(Number(amount), 'HIVE').toString(),
-						memo: `to=${nodeRunnerAccount}`
+						memo: `to=${username}`
 					}
 				] satisfies TransferOperation,
 				[

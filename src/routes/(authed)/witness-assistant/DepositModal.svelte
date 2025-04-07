@@ -33,9 +33,10 @@
 				id: 'vsc.consensus_stake',
 				json: JSON.stringify({
 					from: username,
-					to: nodeRunnerAccount,
+					to: `hive:${nodeRunnerAccount}`,
 					asset: 'HIVE',
-					netId: 'vsc-mainnet'
+					net_id: 'vsc-mainnet',
+					amount: Asset.from(Number(amount), 'HIVE').toString()
 				})
 			}
 		] satisfies CustomJsonOperation;

@@ -4,6 +4,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import Amount from '$lib/currency/Amount.svelte';
 	import { Coin, Network } from '$lib/send/sendOptions';
+	import { sleep } from 'aninest';
 	import {
 		createClient,
 		getDepositTransaction,
@@ -53,39 +54,13 @@
 		let tx = [];
 		if (shouldDeposit) tx.push(depositOp);
 		tx.push(stakeOp);
-		let res = await auth.value.aioha.signAndBroadcastTx(
-			[
-				[
-					'transfer',
-					{
-						from: username,
-						to: 'vsc.gateway',
-						amount: Asset.from(Number(amount), 'HIVE').toString(),
-						memo: `to=${username}`
-					}
-				] satisfies TransferOperation,
-				[
-					'custom_json',
-					{
-						required_auths: [username],
-						required_posting_auths: [],
-						id: 'vsc.consensus_stake',
-						json: JSON.stringify({
-							from: username,
-							to: nodeRunnerAccount,
-							asset: 'HIVE',
-							netId: 'vsc-mainnet'
-						})
-					}
-				] satisfies CustomJsonOperation
-			],
-			KeyTypes.Active
-		);
+		let res = await auth.value.aioha.signAndBroadcastTx(tx, KeyTypes.Active);
 		status = '';
 		if (res.success) {
 			console.log(res.result);
+			return;
 		} else {
-			error = res.error;
+			return res.error;
 		}
 	};
 </script>
@@ -94,7 +69,13 @@
 	<form
 		onsubmit={(e) => {
 			e.preventDefault();
-			sendTransaction(amount!, nodeRunnerAccount!);
+			sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
+				error = err ?? '';
+				status = 'Transaction broadcasted successfully!';
+				await sleep(1);
+				amount = '';
+				status = '';
+			});
 		}}
 	>
 		<h2>Consensus Staking</h2>
@@ -148,5 +129,8 @@
 	}
 	.status {
 		color: var(--primary-fg-mid);
+	}
+	p {
+		margin-bottom: 0.5rem;
 	}
 </style>

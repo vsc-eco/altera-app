@@ -38,7 +38,7 @@
 	<button class="transparent-icon" onclick={onMenuToggle}> <MenuIcon></MenuIcon> </button>
 	<ComboSearch />
 
-	<Menu
+	<!-- <Menu
 		items={actions.map((a) => {
 			return {
 				label: a.label,
@@ -51,8 +51,8 @@
 			let action = actions.find((v) => v.label == e.value)!;
 			goto(action.href);
 		}}
-	/>
-	<Notifications />
+	/> -->
+	<!-- <Notifications /> -->
 	{#snippet prefs(name: string)}
 		{name}
 	{/snippet}

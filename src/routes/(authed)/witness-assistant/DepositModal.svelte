@@ -18,12 +18,39 @@
 	let amount: string | undefined = $state('');
 	let status = $state('');
 	let error = $state('');
+	let shouldDeposit = $state(true);
 	$effect(() => {
 		nodeRunnerAccount = username;
 	});
 	const sendTransaction = async (amount: string, nodeRunnerAccount: string) => {
 		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
 		status = 'Awaiting transaction approval…';
+		let stakeOp = [
+			'custom_json',
+			{
+				required_auths: [username],
+				required_posting_auths: [],
+				id: 'vsc.consensus_stake',
+				json: JSON.stringify({
+					from: username,
+					to: nodeRunnerAccount,
+					asset: 'HIVE',
+					netId: 'vsc-mainnet'
+				})
+			}
+		] satisfies CustomJsonOperation;
+		let depositOp = [
+			'transfer',
+			{
+				from: username,
+				to: 'vsc.gateway',
+				amount: Asset.from(Number(amount), 'HIVE').toString(),
+				memo: `to=${nodeRunnerAccount}`
+			}
+		] satisfies TransferOperation;
+		let tx = [];
+		if (shouldDeposit) tx.push(depositOp);
+		tx.push(stakeOp);
 		let res = await auth.value.aioha.signAndBroadcastTx(
 			[
 				[
@@ -69,21 +96,26 @@
 		}}
 	>
 		<h2>Consensus Staking</h2>
+		<p>Be sure to be signed in with the account you'd like to deposit and stake hive from.</p>
 		<p class="error">{error}</p>
 		<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
 		<div class="amount-flex">
 			<Amount
 				selectItems={[Coin.hive]}
 				id="stake-amount"
-				label="Stake Amount:"
+				label="Deposit and Stake Amount:"
 				coin={Coin.hive}
 				network={Network.hiveMainnet}
 				bind:originalAmount={amount}
 				required
 			/>
 		</div>
+		<label for="deposit-checkbox">
+			<input type="checkbox" id="deposit-checkbox" bind:checked={shouldDeposit} />
+			First Deposit HIVE into VSC
+		</label>
 		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-			>Stake {amount} Hive</PillButton
+			>{#if shouldDeposit}Deposit and{/if} Stake</PillButton
 		>
 		<span class="status">{status}</span>
 	</form>
@@ -95,6 +127,12 @@
 {/if}
 
 <style>
+	input[type='checkbox'] {
+		width: 1rem;
+		height: 1rem;
+		accent-color: var(--primary-mid);
+		cursor: pointer;
+	}
 	form {
 		border: 1px solid var(--neutral-bg-accent);
 		padding: 1rem;

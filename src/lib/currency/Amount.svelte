@@ -43,7 +43,8 @@
 		).then((amount) => {
 			inUsd = new Intl.NumberFormat('en-US', {
 				style: 'decimal',
-				maximumFractionDigits: 8
+				maximumFractionDigits: 2,
+				minimumFractionDigits: 2
 			})
 				.format(amount)
 				.replaceAll(',', '');

@@ -25,6 +25,7 @@
 	const sendTransaction = async (amount: string, nodeRunnerAccount: string) => {
 		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
 		status = 'Awaiting transaction approval…';
+		if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
 		let stakeOp = [
 			'custom_json',
 			{

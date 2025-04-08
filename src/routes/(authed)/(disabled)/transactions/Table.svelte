@@ -12,19 +12,33 @@
 	}: {
 		did: string;
 	} = $props();
-	let store = $derived(new GetTransactionsStore());
-	let data = $derived($store.data);
-	$inspect($store.data);
-	$effect(() => {
-		if (!browser) return;
-		store.fetch({
-			variables: {
-				// limit: 5, // FIXME: add back once server properly supports pagination
-				did
-			}
-		});
-	});
-	let currStoreLen = $derived($store.data?.findLedgerTXs?.txs?.length);
+	// let store = $derived(new GetTransactionsStore());
+	// let data = $derived($store.data);
+	let data = [
+		{
+			amount: '5.20',
+			block_height: 2000000,
+			from: 'hive:vaultec',
+			id: '',
+			idx: '',
+			memo: 'For Coffee',
+			status: '',
+			owner: 'hive:zphrs',
+			t: 'Transfer',
+			tk: 'HBD'
+		}
+	];
+	// $inspect($store.data);
+	// $effect(() => {
+	// 	if (!browser) return;
+	// 	store.fetch({
+	// 		variables: {
+	// 			// limit: 5, // FIXME: add back once server properly supports pagination
+	// 			did
+	// 		}
+	// 	});
+	// });
+	// let currStoreLen = $derived($store.data?.findLedgerTXs?.txs?.length);
 	const auth = $derived(getAuth()());
 	$inspect(auth.value?.did);
 	const START_BLOCK = 88079516;
@@ -63,7 +77,8 @@
 	</thead>
 	{#if data}
 		<tbody>
-			{#each data.findLedgerTXs!.txs! as { amount, block_height, from, id, idx, status, owner, t, tk }}
+			{#each data as { amount, block_height, from, id, idx, status, owner, t, tk }}
+				<!-- {#each data.findLedgerTXs!.txs! as { amount, block_height, from, id, idx, status, owner, t, tk }} -->
 				{@const [otherAccount, fromOrTo] = owner == did ? [from!, 'From'] : [owner!, 'To']}
 				<tr>
 					<td>
@@ -106,7 +121,7 @@
 	}
 	th {
 		text-align: left;
-		padding: 0.5rem 0;
+		padding: 0.5rem min(1rem, 2%);
 	}
 	td {
 		vertical-align: middle;

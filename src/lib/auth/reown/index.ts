@@ -19,7 +19,7 @@ const wagmiAdapter = new WagmiAdapter({
 const metadata = {
 	name: 'VSC Frontend',
 	description: '',
-	url: VERCEL_URL.includes('localhost') ? `http://${VERCEL_URL}` : `http://${VERCEL_URL}`, // origin must match your domain & subdomain
+	url: `https://${VERCEL_URL}`, // origin must match your domain & subdomain
 	icons: ['https://avatars.githubusercontent.com/u/133249767']
 };
 

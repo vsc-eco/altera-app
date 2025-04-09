@@ -1,5 +1,5 @@
 import { initAioha, KeyTypes, Providers, type Aioha } from '@aioha/aioha';
-import { VERCEL_URL } from '$env/static/public';
+import { DOMAIN } from '../url';
 import { browser } from '$app/environment';
 import { _hiveAuthStore } from '../store';
 import { goto } from '$app/navigation';
@@ -31,7 +31,7 @@ if (browser) {
 		},
 		hivesigner: {
 			app: 'altera.app',
-			callbackURL: `https://${VERCEL_URL}/hivesigner`,
+			callbackURL: `https://${DOMAIN}/hivesigner`,
 			scope: ['login'],
 			apiURL: 'https://hive-api.web3telekom.xyz/'
 		}

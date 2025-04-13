@@ -71,7 +71,8 @@
 			e.preventDefault();
 			sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
 				error = err ?? '';
-				if (error == '') status = 'Transaction broadcasted successfully!';
+				if (error != '') return;
+				status = 'Transaction broadcasted successfully!';
 				await sleep(1);
 				amount = '';
 				status = '';

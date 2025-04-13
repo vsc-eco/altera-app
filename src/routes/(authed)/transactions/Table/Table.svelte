@@ -6,10 +6,15 @@
 	import moment from 'moment';
 	import { getAccountNameFromDid } from '$lib/getAccountName';
 	import { browser } from '$app/environment';
-	import mainnetSampleData from './mainnetSampleData';
+	import mainnetSampleData from '../mainnetSampleData';
 	import { Asset, type AssetSymbol } from '@hiveio/dhive';
-	import getSampleData from './getSampleData';
+	import getSampleData from '../getSampleData';
 	import { ArrowLeft, ArrowRight } from '@lucide/svelte';
+	import Date from './tds/Date.svelte';
+	import ToFrom from './tds/ToFrom.svelte';
+	import Amount from './tds/Amount.svelte';
+	import Token from './tds/Token.svelte';
+	import Type from './tds/Type.svelte';
 
 	let {
 		did
@@ -61,7 +66,7 @@
 		<thead>
 			<tr>
 				<th>Date</th>
-				<th>To/From</th>
+				<th class="to-from-header">To/From</th>
 				<th class="amount-header">Amount</th>
 				<th class="token-header">Token</th>
 				<th>Type</th>
@@ -73,74 +78,24 @@
 					<!-- {#each data.findLedgerTXs!.txs! as { amount, block_height, from, id, idx, status, owner, t, tk }} -->
 					{@const [otherAccount, fromOrTo] =
 						to == from
-							? [from!, t.includes('unstake') ? 'to' : 'from']
+							? t.includes('unstake')
+								? [from!, 'from']
+								: [to!, 'to']
 							: to == did
 								? [from!, 'from']
 								: [to!, 'to']}
 					<tr>
-						<td class="date">
-							{getDateFromBlockHeight(Number.parseInt(block_height)).format('MMM D')}
-						</td>
-						<td>
-							<span class="to-from">
-								<Avatar did={otherAccount} fallback=""></Avatar>
-								{getAccountNameFromDid(otherAccount)}
-							</span>
-						</td>
-						<td>
-							<span
-								class={[
-									'amount',
-									{
-										transfer: t == 'transfer',
-										primary: fromOrTo == 'from',
-										secondary: fromOrTo == 'to'
-									}
-								]}
-							>
-								{#if Number.parseFloat(amount)}
-									{#if fromOrTo == 'from'}
-										+
-									{:else if fromOrTo == 'to'}
-										-
-									{/if}{new Intl.NumberFormat().format(Number.parseFloat(amount))}
-								{:else}
-									invalid
-								{/if}
-							</span>
-						</td>
-						<td>
-							<span
-								class={[
-									'token',
-									{
-										primary: fromOrTo == 'from',
-										secondary: fromOrTo == 'to'
-									}
-								]}
-							>
-								{#if Number.parseFloat(amount)}
-									{tk.toUpperCase()}
-								{/if}
-							</span></td
-						>
-						<td>
-							<span class="type">
-								{#if fromOrTo == 'from'}
-									<ArrowRight />
-								{:else}
-									<ArrowLeft></ArrowLeft>
-								{/if}
-
-								{t}
-							</span>
-						</td>
+						<Date {block_height} />
+						<ToFrom {otherAccount} />
+						<Amount {fromOrTo} {amount} />
+						<Token {fromOrTo} {amount} {tk} />
+						<Type {fromOrTo} {t} />
 					</tr>
 				{/each}
 			</tbody>
 		{:else}
 			<tbody>
-				<tr><td colspan="10" class="loading">Loading..</td></tr>
+				<tr><td colspan="100" class="loading">Loading..</td></tr>
 			</tbody>
 		{/if}
 	</table>
@@ -148,12 +103,9 @@
 
 <style>
 	.scroll {
-		overflow-x: auto;
-		overflow-y: auto;
-		height: calc(100% - 7.5rem);
-		position: absolute;
-		width: calc(100% - 0.5rem);
-		display: block;
+		overflow: auto;
+		width: 100%;
+		flex-grow: 1;
 	}
 	table {
 		width: 100%;
@@ -171,48 +123,23 @@
 		text-align: left;
 		padding: 0.5rem min(1rem, 2%);
 	}
-	td {
+	table :global(td) {
 		vertical-align: middle;
 		padding: 1rem min(1rem, 2%);
 		width: max-content;
 
 		border-bottom: 1px solid var(--neutral-bg-accent);
 	}
-	.amount,
-	.token {
-		color: var(--fg-mid);
-	}
-	.amount,
-	.token {
-		font-family: 'Noto Sans Mono Variable', monospace;
-	}
-	td:has(.amount) {
-		padding-right: 0.5rem;
-		text-align: right;
-	}
 
-	td:has(.token) {
-		padding-left: 0;
-	}
 	.token-header {
 		padding-left: 0;
 	}
 	.amount-header {
 		text-align: right;
-		padding-right: 0.5rem;
+		padding-right: 1rem;
 	}
 
-	.date {
-		width: 4rem;
-	}
-
-	.to-from,
-	.type,
-	.amount {
-		display: inline-flex;
-
-		justify-content: left;
-		gap: 0.25rem;
-		align-items: center;
+	.to-from-header {
+		padding-left: 3rem;
 	}
 </style>

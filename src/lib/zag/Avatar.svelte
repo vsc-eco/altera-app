@@ -23,7 +23,7 @@
 
 <div {...api.getRootProps()}>
 	<span {...api.getFallbackProps()}>{fallback}</span>
-	<img alt="PA" {src} {...api.getImageProps()} />
+	<img alt={`${did ?? ''} PFP`} {src} {...api.getImageProps()} />
 </div>
 
 <style>

@@ -181,6 +181,7 @@
 		:global(button) {
 			margin: 0;
 		}
+		margin-right: 0.25rem;
 		border: 1px solid var(--neutral-bg-accent-shifted);
 		color: var(--neutral-fg);
 		border-radius: 0.5rem;

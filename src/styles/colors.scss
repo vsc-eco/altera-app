@@ -4,15 +4,15 @@
 @use './color-mixins';
 :root {
 	--salmon-hue: 19;
-	--salmon: oklch(0 0.2 var(--salmon-hue));
+	--salmon: oklch(0 0.2 19);
 	--pink-hue: 321;
-	--pink: oklch(1 0.08 var(--pink-hue));
+	--pink: oklch(1 0.08 321);
 	background-repeat: no-repeat;
 	min-height: 100%;
 	--blue-hue: 253;
-	--blue: oklch(0.72 0.08 var(--blue-hue));
+	--blue: oklch(0.72 0.08 253);
 	--teal-hue: 206;
-	--teal: oklch(0.72 0.08 var(--teal-hue));
+	--teal: oklch(0.72 0.08 206);
 	--gray: oklch(0.92 0.03 305.19);
 }
 $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 98, 99;

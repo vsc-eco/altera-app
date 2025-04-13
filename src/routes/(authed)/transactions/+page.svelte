@@ -1,4 +1,5 @@
 <script>
+	import { getAccountNameFromDid } from '$lib/getAccountName';
 	import Table from './Table.svelte';
 	// TODO: comment out the following lines:
 	// import { getAuth } from '$lib/auth/store';
@@ -12,7 +13,7 @@
 	<title>Transactions</title>
 </document:head>
 
-<h1>Transactions</h1>
+<h1>Transactions involving {getAccountNameFromDid(did)}</h1>
 {#if did}
 	<Table {did}></Table>
 {/if}

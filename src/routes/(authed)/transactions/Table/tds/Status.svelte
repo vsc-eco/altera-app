@@ -2,15 +2,21 @@
 	let { status }: { status: string } = $props();
 </script>
 
-<td class={{ failed: status == 'FAILED', confirmed: status == 'CONFIRMED' }}>
-	{status.toLowerCase()}
+<td
+	class={{
+		secondary: status == 'FAILED',
+		primary: status == 'CONFIRMED',
+		neutral: !['FAILED', 'CONFIRMED'].includes(status)
+	}}
+>
+	<span>{status.toLowerCase()}</span>
 </td>
 
 <style>
-	.failed {
-		color: var(--secondary-fg-mid);
-	}
-	.confirmed {
-		color: var(--primary-fg-mid);
+	span {
+		color: var(--fg-accent-shifted);
+		background-color: var(--bg-accent);
+		padding: 0.25rem 0.5rem;
+		border-radius: 1rem;
 	}
 </style>

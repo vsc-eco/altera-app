@@ -14,7 +14,9 @@
 </script>
 
 <div {...api.getRootProps()}>
-	<label {...api.getLabelProps()}>{label}</label>
+	{#if label}
+		<label {...api.getLabelProps()}>{label}</label>
+	{/if}
 	<div {...api.getControlProps()}>
 		<input {...api.getInputProps()} />
 		<PillButton
@@ -39,7 +41,8 @@
 	}
 	input {
 		text-overflow: ellipsis;
-		width: 12ch;
+		min-width: 12ch;
+		width: 100%;
 		font-family: 'Noto Sans Mono Variable', monospace;
 	}
 	[data-part='label'] {

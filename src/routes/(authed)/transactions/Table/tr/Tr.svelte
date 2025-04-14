@@ -116,7 +116,6 @@
 				</div>
 
 				<StatusView {memo} {from} {to} {first_seen} {status} {fromOrTo} {block_height} />
-				<Clipboard value={id} label="Transaction Id" />
 				<div class="sections">
 					{#if memo}
 						<div class="memo section">
@@ -124,6 +123,10 @@
 							<p>{memo}</p>
 						</div>
 					{/if}
+					<div class="tx-id section">
+						<h3>Transaction Id</h3>
+						<Clipboard value={id} label="" />
+					</div>
 					<div class="links section">
 						<h3>External Links</h3>
 						<div class="links">
@@ -234,7 +237,9 @@
 		left: 0.5rem;
 	}
 	.memo p {
-		min-height: 1.5rem;
+		min-height: 3rem;
+		display: flex;
+		padding-top: 0.5rem;
 	}
 	.misc.section {
 		display: flex;
@@ -248,13 +253,14 @@
 		border-radius: 0.5rem;
 		position: relative;
 		flex-grow: 1;
+		flex-basis: 10%;
 		width: max-content;
 	}
 	.sections {
 		display: flex;
 		gap: 1rem;
-		align-items: flex-start;
-		margin-top: 1rem;
+		align-items: stretch;
+		margin-top: 0.5rem;
 		flex-wrap: wrap;
 	}
 

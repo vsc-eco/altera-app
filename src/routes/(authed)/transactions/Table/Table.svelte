@@ -80,7 +80,19 @@
 			<tbody>
 				{#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen } }}
 					<!-- {#each data.findLedgerTXs!.txs! as { amount, block_height, from, id, idx, status, owner, t, tk }} -->
-					<Tr {from} {to} {amount} {tk} {memo} {t} {block_height} {status} {did} {first_seen} />
+					<Tr
+						{from}
+						{to}
+						{amount}
+						{tk}
+						{memo}
+						{t}
+						{block_height}
+						{status}
+						{did}
+						{first_seen}
+						{id}
+					/>
 				{/each}
 			</tbody>
 		{:else}

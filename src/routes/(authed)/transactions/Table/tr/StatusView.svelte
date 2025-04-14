@@ -10,6 +10,7 @@
 		memo,
 		first_seen
 	}: { from: string; to: string; memo: string | undefined; first_seen: string } = $props();
+	// TODO: support additional status once we have the graphQL endpoint to query
 </script>
 
 <div>

@@ -10,7 +10,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { getUniqueId } from '$lib/zag/idgen';
 	import Card from '$lib/cards/Card.svelte';
-	import { X } from '@lucide/svelte';
+	import { ExternalLink, X } from '@lucide/svelte';
 	import StatusView from './StatusView.svelte';
 	import { convert } from '$lib/currency/convert';
 	import { Coin, Network } from '$lib/send/sendOptions';
@@ -25,9 +25,11 @@
 		first_seen: string;
 		tk: string;
 		t: string;
+		id: string;
 		status: string;
 	};
-	let { to, from, did, block_height, memo, amount, tk, t, status, first_seen }: Props = $props();
+	let { to, from, did, block_height, memo, amount, tk, t, status, first_seen, id }: Props =
+		$props();
 	const [otherAccount, fromOrTo] =
 		to == from
 			? t.includes('unstake')
@@ -95,12 +97,31 @@
 					</span>
 				</div>
 				<StatusView {memo} {from} {to} {first_seen} />
-				{#if memo}
-					<div class="memo">
-						<h3>Memo</h3>
-						<p>{memo}</p>
+				<div class="sections">
+					{#if memo}
+						<div class="memo section">
+							<h3>Memo</h3>
+							<p>{memo}</p>
+						</div>
+					{/if}
+					<div class="links section">
+						<h3>External Links</h3>
+						<div class="links">
+							<a href={'https://vsc.techcoderx.com/tx/' + id} target="_blank">
+								VSC Block Explorer<ExternalLink /></a
+							>
+							<a href={'https://www.hiveblockexplorer.com/tx/' + id} target="_blank">
+								Hive Block Explorer<ExternalLink /></a
+							>
+						</div>
 					</div>
-				{/if}
+					<div class="misc section">
+						<h3>Additional Info</h3>
+						<div>
+							Block Height: {block_height}
+						</div>
+					</div>
+				</div>
 			</Card>
 		</div>
 	</div>
@@ -160,11 +181,19 @@
 
 		/* styles for the positioner element */
 	}
+	a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+	a :global(svg) {
+		width: 16px;
+	}
 
 	[data-part='content'] > :global(div) {
 		border-radius: 0.5rem;
 		padding: 1rem;
-		width: 20rem;
+		width: max(20rem, max-width);
 		max-width: calc(100% - 2rem);
 
 		/* styles for the positioner element */
@@ -178,22 +207,29 @@
 		/* styles for the title element */
 	}
 
-	h3 {
+	.section h3 {
 		font-size: var(--text-sm);
 		font-weight: 600;
 		margin-top: 0;
 		position: absolute;
-		top: 0.25rem;
-		left: 0.25rem;
+		top: 0.5rem;
+		left: 0.5rem;
 	}
-	.memo {
-		background-color: var(--neutral-bg-accent);
-		border: 1px solid var(--neutral-bg-mid);
+	.section {
+		border: 1px solid var(--neutral-bg-accent-shifted);
 		padding: 0.5rem;
-		padding-top: 1.5rem;
+		padding-top: 1.75rem;
 		border-radius: 0.5rem;
 		position: relative;
+		flex-grow: 1;
+		width: max-content;
+	}
+	.sections {
+		display: flex;
+		gap: 1rem;
+
 		margin-top: 1rem;
+		flex-wrap: wrap;
 	}
 
 	[data-part='positioner'] :global([data-part='close-trigger']) {
@@ -203,5 +239,10 @@
 		display: flex;
 		overflow: hidden;
 		/* styles for the close trigger element */
+	}
+	.links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
 	}
 </style>

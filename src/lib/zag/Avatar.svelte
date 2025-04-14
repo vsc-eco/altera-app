@@ -36,7 +36,7 @@
 		padding: -0.5rem -0.5rem;
 		box-sizing: border-box;
 		background-color: var(--neutral-bg-accent);
-		margin: 0.5rem 0.1rem;
+		margin: 0 0.1rem;
 		aspect-ratio: 1;
 		align-items: center;
 		justify-content: center;

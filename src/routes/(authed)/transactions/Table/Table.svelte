@@ -15,6 +15,8 @@
 	import Amount from './tds/Amount.svelte';
 	import Token from './tds/Token.svelte';
 	import Type from './tds/Type.svelte';
+	import Memo from './tds/Memo.svelte';
+	import Status from './tds/Status.svelte';
 
 	let {
 		did
@@ -70,6 +72,7 @@
 				<th class="amount-header">Amount</th>
 				<th class="token-header">Token</th>
 				<th>Type</th>
+				<th>Status</th>
 			</tr>
 		</thead>
 		{#if data}
@@ -80,16 +83,19 @@
 						to == from
 							? t.includes('unstake')
 								? [from!, 'from']
-								: [to!, 'to']
+								: t.includes('stake')
+									? [to!, 'to']
+									: [to!, 'na']
 							: to == did
 								? [from!, 'from']
 								: [to!, 'to']}
 					<tr>
 						<Date {block_height} />
-						<ToFrom {otherAccount} />
+						<ToFrom {otherAccount} {memo} />
 						<Amount {fromOrTo} {amount} />
 						<Token {fromOrTo} {amount} {tk} />
 						<Type {fromOrTo} {t} />
+						<Status {status} />
 					</tr>
 				{/each}
 			</tbody>
@@ -121,7 +127,10 @@
 	}
 	th {
 		text-align: left;
+		min-width: max-content;
+		box-sizing: content-box;
 		padding: 0.5rem min(1rem, 2%);
+		overflow: hidden;
 	}
 	table :global(td) {
 		vertical-align: middle;

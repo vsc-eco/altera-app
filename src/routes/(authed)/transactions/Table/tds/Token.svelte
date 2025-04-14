@@ -13,7 +13,7 @@
 			'token',
 			{
 				primary: fromOrTo == 'from',
-				secondary: fromOrTo == 'to'
+				neutral: fromOrTo == 'to'
 			}
 		]}
 	>

@@ -9,15 +9,15 @@
 			'amount',
 			{
 				primary: fromOrTo == 'from',
-				secondary: fromOrTo == 'to'
+				neutral: fromOrTo == 'to'
 			}
 		]}
 	>
 		{#if Number.parseFloat(amount)}
-			{#if fromOrTo == 'from'}
-				+
-			{:else if fromOrTo == 'to'}
+			{#if fromOrTo == 'to'}
 				-
+			{:else}
+				&nbsp;
 			{/if}{new Intl.NumberFormat().format(Number.parseFloat(amount))}
 		{:else}
 			invalid

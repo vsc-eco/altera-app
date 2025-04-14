@@ -5,7 +5,7 @@
 	// import { getAuth } from '$lib/auth/store';
 	// let auth = $derived(getAuth()());
 	// let did = $derived(auth.value?.did);
-	let did = 'hive:vaultec';
+	let did = 'hive:tibfox.vsc';
 	// let transactions = getTransactions(client, auth.did);
 </script>
 

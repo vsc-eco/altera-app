@@ -11,8 +11,9 @@
 		first_seen: string;
 		status: string;
 		fromOrTo: string;
+		block_height: string;
 	};
-	let { from, to, first_seen, status, fromOrTo }: Props = $props();
+	let { from, to, first_seen, status, block_height }: Props = $props();
 	// TODO: support additional status once we have the graphQL endpoint to query
 </script>
 
@@ -56,7 +57,7 @@
 				{status.toLowerCase()}
 			</div>
 		{/if}
-		<div class="to-ts ts">{moment(first_seen).format('MMM DD [at] h:mmA')}</div>
+		<div class="to-ts ts">{moment(first_seen).format('MMM DD [at] h:mmA')} (#{block_height})</div>
 	</div>
 </div>
 

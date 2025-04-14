@@ -65,13 +65,16 @@ let cachedAt = 0;
 
 export async function getCryptoPrices(options?: { signal?: AbortSignal }): Promise<Cryptoprices> {
 	let now = Date.now();
-	if (cachedAt > now - 30 * 1000 && cached != undefined) {
+	if (cached != undefined) {
 		return cached;
 	}
+	// if (cachedAt > now - 30 * 1000 && cached != undefined) {
+	// 	return cached;
+	// }
 	let req = fetch('https://api.v4v.app/v1/cryptoprices/', {
 		signal: options?.signal
 	});
-	if (cached) {
+	if (cached != undefined) {
 		req.then(async (res) => {
 			if (res.ok) {
 				let out = await res.json();

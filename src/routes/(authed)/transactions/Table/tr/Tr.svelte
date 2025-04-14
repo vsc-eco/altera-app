@@ -57,19 +57,18 @@
 	let service = useMachine(dialog.machine, { id: getUniqueId() });
 	const api = $derived(dialog.connect(service, normalizeProps));
 	let inUsd = $state('');
-	$effect(() => {
-		convert(Number(amount), Coin[tk as keyof typeof Coin], Coin.usd, Network.lightning).then(
-			(amount) => {
-				inUsd = new Intl.NumberFormat('en-US', {
-					style: 'decimal',
-					maximumFractionDigits: 2,
-					minimumFractionDigits: 2
-				})
-					.format(amount)
-					.replaceAll(',', '');
-			}
-		);
-	});
+
+	convert(Number(amount), Coin[tk as keyof typeof Coin], Coin.usd, Network.lightning).then(
+		(amount) => {
+			inUsd = new Intl.NumberFormat('en-US', {
+				style: 'decimal',
+				maximumFractionDigits: 2,
+				minimumFractionDigits: 2
+			})
+				.format(amount)
+				.replaceAll(',', '');
+		}
+	);
 </script>
 
 <tr
@@ -108,11 +107,6 @@
 							(text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
 						)}
 				</h2>
-				{#if status != 'CONFIRMED'}
-					<div class="status">
-						<StatusBadge {status} />
-					</div>
-				{/if}
 				<div class="amount">
 					{new Intl.NumberFormat().format(Number.parseFloat(amount))}
 					{tk.toUpperCase()}
@@ -121,8 +115,8 @@
 					</span>
 				</div>
 
-				<StatusView {memo} {from} {to} {first_seen} {status} {fromOrTo} />
-
+				<StatusView {memo} {from} {to} {first_seen} {status} {fromOrTo} {block_height} />
+				<Clipboard value={id} label="Transaction Id" />
 				<div class="sections">
 					{#if memo}
 						<div class="memo section">
@@ -144,12 +138,6 @@
 								Hive Block Explorer<ExternalLink /></a
 							>
 						</div>
-					</div>
-					<div class="misc section">
-						<h3>Additional Info</h3>
-						<Clipboard value={block_height} label="Block Height" />
-						<Clipboard value={block_id} label="Block Id" />
-						<Clipboard value={id} label="Transaction Id" />
 					</div>
 				</div>
 			</Card>
@@ -245,6 +233,9 @@
 		top: 0.5rem;
 		left: 0.5rem;
 	}
+	.memo p {
+		min-height: 1.5rem;
+	}
 	.misc.section {
 		display: flex;
 		flex-wrap: wrap;
@@ -273,6 +264,9 @@
 		margin-right: 0;
 		display: flex;
 		overflow: hidden;
+		position: absolute;
+		top: 1rem;
+		right: 1rem;
 		/* styles for the close trigger element */
 	}
 	.links {

@@ -8,7 +8,7 @@
 	export type SharedProps = {
 		children?: Snippet;
 		theme?: string;
-		styleType?: 'invert' | 'text' | 'outline' | 'default' | 'icon' | 'icon-outline';
+		styleType?: 'invert' | 'text' | 'outline' | 'default' | 'icon' | 'icon-outline' | 'icon-text';
 	};
 	export type AnchorProps = { href: string; onclick?: undefined } & HTMLAnchorAttributes;
 	export type ButtonAttributes = {
@@ -18,9 +18,9 @@
 	export type Props = SharedProps & (AnchorProps | ButtonAttributes);
 	let { children, theme = 'neutral', styleType: type, ...rest }: Props = $props();
 	let invertStyle = $derived(type == 'invert');
-	let textStyle = $derived(type == 'text');
+	let textStyle = $derived(type == 'text' || type == 'icon-text');
 	let outlineStyle = $derived(type == 'outline' || type == 'icon-outline');
-	let iconStyle = $derived(type == 'icon' || type == 'icon-outline');
+	let iconStyle = $derived(type == 'icon' || type == 'icon-outline' || type == 'icon-text');
 	let className = $derived([
 		theme,
 		{ invert: invertStyle, text: textStyle, outline: outlineStyle, icon: iconStyle }
@@ -105,18 +105,6 @@
 				color: var(--bg);
 			}
 		}
-		&.text {
-			background-color: transparent;
-			color: var(--fg);
-			&:hover {
-				background-color: var(--bg-accent);
-				color: var(--fg);
-			}
-			&:active {
-				background-color: var(--bg-accent);
-				color: var(--fg);
-			}
-		}
 		&.outline {
 			background-color: transparent;
 			color: var(--fg);
@@ -139,10 +127,23 @@
 			display: flex;
 			justify-content: center;
 			align-items: center;
+			&:hover {
+				color: var(--primary-fg-mid);
+				border-color: var(--primary-mid);
+			}
 		}
-		&.icon:hover {
-			color: var(--primary-fg-mid);
-			border-color: var(--primary-mid);
+		&.text {
+			background-color: transparent;
+			color: var(--fg);
+			border: none;
+			&:hover {
+				background-color: var(--bg-accent);
+				color: var(--fg);
+			}
+			&:active {
+				background-color: var(--bg-accent);
+				color: var(--fg);
+			}
 		}
 	}
 </style>

@@ -20,7 +20,7 @@
 		<PillButton
 			{...api.getTriggerProps()}
 			onclick={api.getTriggerProps().onclick!}
-			styleType="icon-outline"
+			styleType="icon-text"
 		>
 			{#if api.copied}
 				<ClipboardCheck />
@@ -39,6 +39,8 @@
 	}
 	input {
 		text-overflow: ellipsis;
+		width: 12ch;
+		font-family: 'Noto Sans Mono Variable', monospace;
 	}
 	[data-part='label'] {
 		margin-bottom: 0;

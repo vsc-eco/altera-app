@@ -31,6 +31,9 @@
 		font-size: var(--text-sm);
 		color: var(--fg-mid);
 	}
+	.amount.neutral {
+		color: var(--fg-accent);
+	}
 	td:has(.amount) {
 		padding-right: 0.5rem;
 		text-align: right;

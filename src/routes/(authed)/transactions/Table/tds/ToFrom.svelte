@@ -54,7 +54,9 @@
 		align-self: baseline;
 		font-weight: 400;
 		color: var(--neutral-fg-mid);
+		font-size: var(--text-sm);
 	}
+
 	.toFrom {
 		grid-area: toFrom;
 	}

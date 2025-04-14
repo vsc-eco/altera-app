@@ -30,6 +30,10 @@
 		font-size: var(--text-sm);
 	}
 
+	.token.neutral {
+		color: var(--fg-accent);
+	}
+
 	td:has(.token) {
 		padding-left: 0;
 	}

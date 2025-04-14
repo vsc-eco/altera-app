@@ -17,6 +17,7 @@
 	import Type from './tds/Type.svelte';
 	import Memo from './tds/Memo.svelte';
 	import Status from './tds/Status.svelte';
+	import Tr from './tr/Tr.svelte';
 
 	let {
 		did
@@ -77,26 +78,9 @@
 		</thead>
 		{#if data}
 			<tbody>
-				{#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner] }}
+				{#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen } }}
 					<!-- {#each data.findLedgerTXs!.txs! as { amount, block_height, from, id, idx, status, owner, t, tk }} -->
-					{@const [otherAccount, fromOrTo] =
-						to == from
-							? t.includes('unstake')
-								? [from!, 'from']
-								: t.includes('stake')
-									? [to!, 'to']
-									: [to!, 'na']
-							: to == did
-								? [from!, 'from']
-								: [to!, 'to']}
-					<tr>
-						<Date {block_height} />
-						<ToFrom {otherAccount} {memo} />
-						<Amount {fromOrTo} {amount} />
-						<Token {fromOrTo} {amount} {tk} />
-						<Type {fromOrTo} {t} />
-						<Status {status} />
-					</tr>
+					<Tr {from} {to} {amount} {tk} {memo} {t} {block_height} {status} {did} {first_seen} />
 				{/each}
 			</tbody>
 		{:else}
@@ -115,6 +99,8 @@
 	}
 	table {
 		width: 100%;
+		border-spacing: 1rem 0.5rem;
+		border-collapse: collapse;
 	}
 	.loading {
 		background-color: var(--neutral-bg-accent);
@@ -134,9 +120,7 @@
 	}
 	table :global(td) {
 		vertical-align: middle;
-		padding: 1rem min(1rem, 2%);
 		width: max-content;
-
 		border-bottom: 1px solid var(--neutral-bg-accent);
 	}
 

@@ -33,7 +33,6 @@
 	$effect(() => {
 		open = api.open;
 	});
-	$inspect(api.open);
 </script>
 
 {#if children}

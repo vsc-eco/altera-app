@@ -3,8 +3,10 @@ import { postingMetadataFromString, type Account, type PostingMetadata } from '.
 
 const pending: { [username: string]: ((value: Account) => void)[] } = {};
 let pendingReqId: NodeJS.Timeout | undefined = undefined;
+const cached: { [username: string]: string } = {};
 export async function getProfilePicUrl(username: string): Promise<string | undefined> {
 	if (username.length > 16) return; // to avoid querying for eth addresses
+	if (username in cached) return cached[username];
 	let resolve: (value: Account) => void;
 	const out = new Promise<Account>((res) => (resolve = res));
 	if (pending[username]) {
@@ -18,6 +20,12 @@ export async function getProfilePicUrl(username: string): Promise<string | undef
 		clearTimeout(pendingReqId);
 	}
 	pendingReqId = setTimeout(async () => {
+		for (const key in pending) {
+			if (key in cached) {
+				delete pending[key];
+				return cached[key];
+			}
+		}
 		const accs = await getAccounts(Object.keys(pending).toSorted());
 		accs.result.map((acc: Account) => {
 			console.log(acc, pending);
@@ -29,7 +37,9 @@ export async function getProfilePicUrl(username: string): Promise<string | undef
 	if (!res.posting_json_metadata) return;
 	try {
 		console.log('out:', postingMetadataFromString(res.posting_json_metadata).profile.profile_image);
-		return postingMetadataFromString(res.posting_json_metadata).profile.profile_image;
+		const out = await postingMetadataFromString(res.posting_json_metadata).profile.profile_image;
+		if (out) cached[username] = out;
+		return out;
 	} catch (e) {
 		console.log('HERE', res, username);
 		console.error(e);

@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { getAccountNameFromDid } from '$lib/getAccountName';
 	import Avatar from '$lib/zag/Avatar.svelte';
+	import StatusBadge from '../StatusBadge.svelte';
 
-	let { otherAccount, memo }: { otherAccount: string; memo: string | undefined } = $props();
+	let {
+		otherAccount,
+		memo,
+		status
+	}: { otherAccount: string; memo: string | undefined; status: string } = $props();
 </script>
 
 <td>
@@ -19,6 +24,11 @@
 				{memo}
 			</span>
 		{/if}
+		{#if status != 'CONFIRMED'}
+			<span class="status">
+				<StatusBadge {status} />
+			</span>
+		{/if}
 	</span>
 </td>
 
@@ -32,8 +42,8 @@
 
 		display: grid;
 		grid-template:
-			'pfp     toFrom'
-			'm-label memo';
+			'pfp     toFrom status'
+			'm-label memo status';
 		justify-content: left;
 		column-gap: 0.25rem;
 		align-items: center;
@@ -48,6 +58,9 @@
 	}
 	.m-label {
 		grid-area: m-label;
+	}
+	.status {
+		grid-area: status;
 	}
 	.memo,
 	.m-label {

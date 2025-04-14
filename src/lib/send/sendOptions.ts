@@ -25,11 +25,8 @@ const hive: Coin = {
 	label: 'HIVE',
 	icon: '/hive/hive.svg',
 	unit: 'HIVE',
-	enabled: (going, { from, to }) => {
-		if (going == 'from') return true;
-		if (from?.network == Network.lightning) return true;
-		if (from?.coin == Coin.hive) return true;
-		return false;
+	enabled: (going, info) => {
+		return true;
 	},
 	convertTo: []
 };
@@ -38,11 +35,8 @@ const hbd: Coin = {
 	label: 'HBD',
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
-	enabled: (going, { from, to }) => {
-		if (going == 'from') return true;
-		if (from?.network == Network.lightning) return true;
-		if (from?.coin == Coin.hbd) return true;
-		return false;
+	enabled: (going, info) => {
+		return true;
 	},
 	convertTo: []
 };
@@ -109,8 +103,11 @@ const vsc: Network = {
 	value: 'vsc',
 	label: 'VSC',
 	icon: '/vsc.png',
-	enabled: (going, from, to) => {
-		return true;
+	enabled: (going, { from, to }) => {
+		if (from?.coin == undefined || to?.coin == undefined) return true;
+		if (from?.coin == to?.coin) return true;
+		if (from?.network == Network.lightning) return true;
+		return false;
 	}
 };
 const unknown: Network = {
@@ -124,10 +121,11 @@ const hiveMainnet: Network = {
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
 	enabled: (going, { from, to }, auth) => {
-		if (auth.value?.username != undefined) {
-			return true;
-		}
-		return going != 'to';
+		if (auth.value?.aioha == undefined) return false;
+		if (from?.coin == undefined || to?.coin == undefined) return true;
+		if (from?.coin == to?.coin) return true;
+		if (from?.network == Network.lightning) return true;
+		return false;
 	}
 };
 export type Network = {

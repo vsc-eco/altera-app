@@ -83,11 +83,10 @@
 	}}
 >
 	<Date {block_height} />
-	<ToFrom {otherAccount} {memo} />
+	<ToFrom {otherAccount} {memo} {status} />
 	<Amount {fromOrTo} {amount} />
 	<Token {fromOrTo} {amount} {tk} />
 	<Type {fromOrTo} {t} />
-	<Status {status} />
 </tr>
 {#if api.open}
 	<div use:portal {...api.getBackdropProps()}></div>
@@ -109,9 +108,11 @@
 							(text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
 						)}
 				</h2>
-				<div class="status">
-					<StatusBadge {status} />
-				</div>
+				{#if status != 'CONFIRMED'}
+					<div class="status">
+						<StatusBadge {status} />
+					</div>
+				{/if}
 				<div class="amount">
 					{new Intl.NumberFormat().format(Number.parseFloat(amount))}
 					{tk.toUpperCase()}
@@ -119,7 +120,9 @@
 						Approx. ${inUsd} USD
 					</span>
 				</div>
-				<StatusView {memo} {from} {to} {first_seen} />
+
+				<StatusView {memo} {from} {to} {first_seen} {status} {fromOrTo} />
+
 				<div class="sections">
 					{#if memo}
 						<div class="memo section">

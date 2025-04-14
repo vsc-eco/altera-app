@@ -1,21 +1,28 @@
 <script lang="ts">
-	let { status }: { status: string } = $props();
+	let { status: rawStatus }: { status: string } = $props();
+	const status = $derived.by(() => {
+		if (rawStatus == 'INCLUDED') {
+			return 'unconfirmed';
+		}
+		return rawStatus.toLowerCase();
+	});
 </script>
 
 <span
 	class={{
-		secondary: status == 'FAILED',
-		primary: status == 'CONFIRMED',
-		neutral: !['FAILED', 'CONFIRMED'].includes(status)
-	}}>{status.toLowerCase()}</span
+		secondary: status == 'failed',
+		primary: status == 'confirmed',
+		neutral: !['failed', 'confirmed'].includes(status)
+	}}>{status}</span
 >
 
 <style>
 	span {
-		color: var(--off-fg);
-		border: 1px solid var(--bg-mid);
-		background-color: var(--bg-accent);
+		color: var(--fg-accent);
+		border: 1px solid var(--fg-accent);
+		/* background-color: var(--bg-accent); */
 		padding: 0.25rem 0.5rem;
-		border-radius: 1rem;
+		border-radius: 0.5rem;
+		margin: 0 0.25rem;
 	}
 </style>

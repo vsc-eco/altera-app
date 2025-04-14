@@ -20,7 +20,7 @@
 		<PillButton
 			{...api.getTriggerProps()}
 			onclick={api.getTriggerProps().onclick!}
-			styleType="icon"
+			styleType="icon-outline"
 		>
 			{#if api.copied}
 				<ClipboardCheck />

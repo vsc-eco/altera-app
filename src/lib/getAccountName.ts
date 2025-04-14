@@ -26,3 +26,10 @@ export const getAccountNameFromDid = (did: string) => {
 	const u = did.split(':').at(-1)!;
 	return shortenUsername(u);
 };
+
+export const getDidFromUsername = (username: string) => {
+	if (username.length <= 16) {
+		return `hive:${username}`
+	}
+	return ``
+}

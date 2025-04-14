@@ -73,7 +73,6 @@
 				<th class="amount-header">Amount</th>
 				<th class="token-header">Token</th>
 				<th>Type</th>
-				<th>Status</th>
 			</tr>
 		</thead>
 		{#if data}

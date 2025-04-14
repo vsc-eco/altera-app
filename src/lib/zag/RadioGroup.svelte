@@ -31,14 +31,12 @@
 	}: Props = $props();
 	let generatedId = getUniqueId();
 	console.log(generatedId);
-	let enabled = items.filter((item) => !item.disabled);
-	let defaultValue = enabled.length == 1 ? enabled[0].value : propDefault;
+	let enabled = $derived(items.filter((item) => !item.disabled));
 	let error = $state('');
 	const service = useMachine(radio.machine, {
 		id: id ?? generatedId,
 		name,
-		orientation: 'horizontal',
-		defaultValue: defaultValue
+		orientation: 'horizontal'
 	});
 	const api = $derived(radio.connect(service, normalizeProps));
 	$effect(() => {

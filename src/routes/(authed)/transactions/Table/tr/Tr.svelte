@@ -253,7 +253,7 @@
 		border-radius: 0.5rem;
 		position: relative;
 		flex-grow: 1;
-		flex-basis: 20%;
+		flex-basis: 30%;
 		width: max-content;
 	}
 	.sections {

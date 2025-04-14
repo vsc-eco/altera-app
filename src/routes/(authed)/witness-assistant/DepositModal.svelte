@@ -71,11 +71,14 @@
 			e.preventDefault();
 			sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
 				error = err ?? '';
-				if (error != '') return;
+				if (error != '') {
+					status = '';
+					return;
+				}
 				status = 'Transaction broadcasted successfully!';
 				await sleep(1);
-				amount = '';
 				status = '';
+				amount = '';
 			});
 		}}
 	>

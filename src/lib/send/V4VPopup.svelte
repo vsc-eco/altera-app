@@ -76,14 +76,19 @@
 {#await invoiceReq then res}
 	<Dialog bind:toggle bind:open={dialogOpen} defaultOpen={true}>
 		{#snippet title()}
-			Lightning Transfer (via <a href="https://v4v.app">V4V.app</a>)
+			Lightning Transfer (via <a href="https://v4v.app" target="_blank" rel="noreferrer">V4V.app</a
+			>)
 		{/snippet}
 		{#snippet content()}
 			{#if validateRes == undefined}
 				{#if typeof res == 'string'}
 					<p class="error">Error: {res}</p>
 				{:else}
-					<p>Scan the QR code below to send {satsToBtc(Number(res.amount))} BTC to V4V</p>
+					<p>
+						Scan the QR code below to send {new Intl.NumberFormat('en-US', {
+							maximumFractionDigits: 10
+						}).format(satsToBtc(Number(res.amount)))} BTC to V4V
+					</p>
 					<QR data={res.qr_data}></QR>
 				{/if}
 			{:else if validateRes == 'success'}
@@ -100,5 +105,4 @@
 		margin-top: var(--text-base);
 		margin-bottom: var(--text-base);
 	}
-
 </style>

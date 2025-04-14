@@ -15,6 +15,7 @@
 	import { convert } from '$lib/currency/convert';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import StatusBadge from '../StatusBadge.svelte';
+	import Clipboard from '$lib/zag/Clipboard.svelte';
 	type Props = {
 		to: string;
 		from: string;
@@ -27,9 +28,22 @@
 		t: string;
 		id: string;
 		status: string;
+		block_id: string;
 	};
-	let { to, from, did, block_height, memo, amount, tk, t, status, first_seen, id }: Props =
-		$props();
+	let {
+		to,
+		from,
+		did,
+		block_height,
+		memo,
+		amount,
+		tk,
+		t,
+		status,
+		first_seen,
+		id,
+		block_id
+	}: Props = $props();
 	const [otherAccount, fromOrTo] =
 		to == from
 			? t.includes('unstake')
@@ -58,7 +72,16 @@
 	});
 </script>
 
-<tr {...api.getTriggerProps() as any}>
+<tr
+	{...api.getTriggerProps() as any}
+	tabindex="0"
+	onkeydown={(e) => {
+		if (e.key == ' ' || e.key == 'Enter') {
+			api.getTriggerProps().onclick!(e as any);
+			e.preventDefault();
+		}
+	}}
+>
 	<Date {block_height} />
 	<ToFrom {otherAccount} {memo} />
 	<Amount {fromOrTo} {amount} />
@@ -107,19 +130,23 @@
 					<div class="links section">
 						<h3>External Links</h3>
 						<div class="links">
-							<a href={'https://vsc.techcoderx.com/tx/' + id} target="_blank">
+							<a href={'https://vsc.techcoderx.com/tx/' + id} target="_blank" rel="noreferrer">
 								VSC Block Explorer<ExternalLink /></a
 							>
-							<a href={'https://www.hiveblockexplorer.com/tx/' + id} target="_blank">
+							<a
+								href={'https://www.hiveblockexplorer.com/tx/' + id}
+								target="_blank"
+								rel="noreferrer"
+							>
 								Hive Block Explorer<ExternalLink /></a
 							>
 						</div>
 					</div>
 					<div class="misc section">
 						<h3>Additional Info</h3>
-						<div>
-							Block Height: {block_height}
-						</div>
+						<Clipboard value={block_height} label="Block Height" />
+						<Clipboard value={block_id} label="Block Id" />
+						<Clipboard value={id} label="Transaction Id" />
 					</div>
 				</div>
 			</Card>
@@ -215,6 +242,11 @@
 		top: 0.5rem;
 		left: 0.5rem;
 	}
+	.misc.section {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
 	.section {
 		border: 1px solid var(--neutral-bg-accent-shifted);
 		padding: 0.5rem;
@@ -227,7 +259,7 @@
 	.sections {
 		display: flex;
 		gap: 1rem;
-
+		align-items: flex-start;
 		margin-top: 1rem;
 		flex-wrap: wrap;
 	}

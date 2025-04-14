@@ -22,7 +22,7 @@
 </script>
 
 <div {...api.getRootProps()}>
-	<span {...api.getFallbackProps()}>{fallback}</span>
+	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}>{fallback}</span>
 	<img alt={`${did ?? ''} PFP`} {src} {...api.getImageProps()} />
 </div>
 

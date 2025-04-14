@@ -25,8 +25,11 @@ const hive: Coin = {
 	label: 'HIVE',
 	icon: '/hive/hive.svg',
 	unit: 'HIVE',
-	enabled: (going) => {
-		return going == 'to';
+	enabled: (going, { from, to }) => {
+		if (going == 'from') return true;
+		if (from?.network == Network.lightning) return true;
+		if (from?.coin == Coin.hive) return true;
+		return false;
 	},
 	convertTo: []
 };
@@ -35,8 +38,11 @@ const hbd: Coin = {
 	label: 'HBD',
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
-	enabled: (going) => {
-		return going == 'to';
+	enabled: (going, { from, to }) => {
+		if (going == 'from') return true;
+		if (from?.network == Network.lightning) return true;
+		if (from?.coin == Coin.hbd) return true;
+		return false;
 	},
 	convertTo: []
 };
@@ -92,8 +98,10 @@ export type Coin = {
 
 type Enabled = (
 	going: 'to' | 'from',
-	from: Partial<CoinOnNetwork> | undefined,
-	to: Partial<CoinOnNetwork> | undefined,
+	info: {
+		from?: Partial<CoinOnNetwork> | undefined;
+		to?: Partial<CoinOnNetwork> | undefined;
+	},
 	auth: Auth
 ) => boolean;
 
@@ -115,7 +123,7 @@ const hiveMainnet: Network = {
 	value: 'hive_mainnet',
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
-	enabled: (going, from, to, auth) => {
+	enabled: (going, { from, to }, auth) => {
 		if (auth.value?.username != undefined) {
 			return true;
 		}
@@ -150,21 +158,17 @@ export const Network = {
 	unknown
 };
 
+export type CoinOptions = {
+	coins: {
+		coin: Coin;
+		networks: Network[];
+		default?: Coin;
+	}[];
+};
+
 const swapOptions: {
-	from: {
-		coins: {
-			coin: Coin;
-			networks: Network[];
-			default?: Coin;
-		}[];
-	};
-	to: {
-		coins: {
-			coin: Coin;
-			networks: Network[];
-			default?: Network;
-		}[];
-	};
+	from: CoinOptions;
+	to: CoinOptions;
 } = {
 	from: {
 		coins: [

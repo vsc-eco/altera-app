@@ -78,7 +78,7 @@
 		</thead>
 		{#if data}
 			<tbody>
-				{#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen } }}
+				{#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }}
 					<!-- {#each data.findLedgerTXs!.txs! as { amount, block_height, from, id, idx, status, owner, t, tk }} -->
 					<Tr
 						{from}
@@ -92,6 +92,7 @@
 						{did}
 						{first_seen}
 						{id}
+						{block_id}
 					/>
 				{/each}
 			</tbody>
@@ -128,7 +129,6 @@
 		min-width: max-content;
 		box-sizing: content-box;
 		padding: 0.5rem min(1rem, 2%);
-		overflow: hidden;
 	}
 	table :global(td) {
 		vertical-align: middle;

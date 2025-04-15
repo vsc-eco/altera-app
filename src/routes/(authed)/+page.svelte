@@ -37,7 +37,7 @@
 <div class="masonry">
 	<Balance></Balance>
 	<Card>
-		<Send />
+		<Send widgetView />
 	</Card>
 	<DepositModal />
 	<div class="txs">

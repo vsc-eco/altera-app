@@ -1,4 +1,15 @@
 """
+Directs the executor to defer this fragment when the `if` argument is true or undefined.
+"""
+directive @defer(
+  """Deferred when true or undefined."""
+  if: Boolean = true
+
+  """Unique name"""
+  label: String
+) on FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+"""
 Indicates exactly one field must be supplied and this field must not be `null`.
 """
 directive @oneOf on INPUT_OBJECT
@@ -41,6 +52,18 @@ enum BalanceControllerType {
   CONTRACT
   DID
   HIVE
+}
+
+type BalanceRecord {
+  account: String
+  block_height: Uint64!
+  hbd: Int64!
+  hbd_avg: Int64!
+  hbd_claim: Uint64!
+  hbd_modify: Uint64!
+  hbd_savings: Int64!
+  hive: Int64!
+  hive_consensus: Int64!
 }
 
 interface BlockRef {
@@ -88,6 +111,25 @@ interface DepositDrain {
   token: String
 }
 
+type ElectionMember {
+  account: String!
+  key: String!
+}
+
+type ElectionResult {
+  block_height: Uint64!
+  data: String!
+  epoch: Uint64!
+  members: [ElectionMember!]!
+  net_id: String!
+  proposer: String!
+  protocol_version: Uint64!
+  total_weight: Uint64!
+  tx_id: String!
+  type: String!
+  weights: [Uint64!]!
+}
+
 input FindContractOutputFilter {
   byContract: String
   byInput: String
@@ -121,26 +163,11 @@ type Gas {
   IO: Int
 }
 
-type GetBalanceResult {
-  account: String
-  block_height: Int
-  tokens: GetBalanceTokens
-}
-
-type GetBalanceTokens {
-  HBD: Float
-  HIVE: Float
-}
-
 type Headers {
   nonce: Int
 }
 
-type HiveKeys {
-  active: String
-  owner: String
-  posting: String
-}
+scalar Int64
 
 scalar JSON
 
@@ -179,6 +206,16 @@ type LocalNodeInfo {
   peer_id: String
 }
 
+type Mutation {
+  incrementNumber: TestResult
+}
+
+type PostingJsonKeys {
+  ct: String
+  key: String
+  t: String
+}
+
 type Query {
   activeWitnessNodes: JSON
   anchorProducer: AnchorProducer
@@ -188,15 +225,23 @@ type Query {
   findContractOutput(decodedFilter: JSON, filterOptions: FindContractOutputFilter): FindContractOutputResult
   findLedgerTXs(filterOptions: LedgerTxFilter): LedgerResults
   findTransaction(decodedFilter: JSON, filterOptions: FindTransactionFilter): FindTransactionResult
-  getAccountBalance(account: String): GetBalanceResult
+  getAccountBalance(account: String!, height: Uint64): BalanceRecord
   getAccountNonce(keyGroup: [String]!): AccountNonceResult
+  getCurrentNumber: TestResult
+  getDagByCID(cidString: String!): JSON!
+  getElection(epoch: Uint64!): ElectionResult
   localNodeInfo: LocalNodeInfo
   mockGenerateElection: JSON
   nextWitnessSlot(self: Boolean): JSON
   submitTransactionV1(sig: String!, tx: String!): TransactionSubmitResult
   witnessActiveScore(height: Int): JSON
-  witnessNodes(height: Int): [WitnessNode]
-  witnessSchedule(height: Int): JSON
+  witnessNodes(height: Uint64!): [Witness!]!
+  witnessSchedule(height: Uint64!): [WitnessSlot!]!
+  witnessStake(account: String!): Uint64!
+}
+
+type TestResult {
+  currentNumber: Int
 }
 
 type Transaction {
@@ -250,11 +295,24 @@ enum TransactionType {
   VIRTUAL
 }
 
-type WitnessNode {
+scalar Uint64
+
+type Witness {
   account: String
-  ipfs_peer_id: String
-  last_signed: Int
+  did_keys: [PostingJsonKeys!]!
+  enabled: Boolean
+  gateway_key: String
+  git_commit: String
+  height: Uint64!
   net_id: String
-  signing_keys: HiveKeys
+  peer_id: String
+  protocol_version: Uint64!
+  ts: String
+  tx_id: String
   version_id: String
+}
+
+type WitnessSlot {
+  account: String
+  bn: Uint64!
 }

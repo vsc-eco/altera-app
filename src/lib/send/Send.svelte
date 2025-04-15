@@ -1,4 +1,6 @@
 <script lang="ts">
+	// TODO: use https://zagjs.com/components/svelte/steps
+	// to have better ux on desktop
 	import RadioGroup from '../zag/RadioGroup.svelte';
 	let fromCoinValue: string | undefined = $state();
 
@@ -18,7 +20,7 @@
 	import Amounts from './Amounts.svelte';
 	import CurrencySelect from './CurrencySelect.svelte';
 	let formError = $state();
-
+	let { widgetView }: { widgetView?: boolean } = $props();
 	let auth = $derived(getAuth()());
 	let fromCoin: CoinOptions['coins'][number] | undefined = $state.raw();
 	let fromNetwork: Network | undefined = $state.raw();
@@ -119,11 +121,13 @@
 {/snippet}
 
 <form
-	class={{ complete: fromCoin && fromNetwork && toCoin && toNetwork }}
+	class={{ complete: fromCoin && fromNetwork && toCoin && toNetwork, widgetView }}
 	onsubmit={initSwap}
 	id="send"
 >
-	<h2>Send</h2>
+	{#if widgetView}
+		<h2>Send</h2>
+	{/if}
 	<CurrencySelect
 		options={swapOptions.from}
 		bind:coin={fromCoin}
@@ -162,7 +166,7 @@
 				to {accountNameFromAddress(toUsername)}
 				{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
 					as {toAmount}
-					{toCoin.coin.unit} on {fromNetwork?.label}{/if}?
+					{toCoin.coin.unit} on {toNetwork?.label}{/if}?
 			</h3>
 			{#if formError}
 				<p class="error">
@@ -195,7 +199,6 @@
 
 <style lang="scss">
 	form {
-		height: 25rem;
 		box-sizing: border-box;
 		overflow-x: auto;
 		display: flex;
@@ -206,6 +209,17 @@
 		box-sizing: border-box;
 		scroll-snap-type: x proximity;
 		position: relative;
+		flex-wrap: wrap;
+		max-width: 42rem;
+		margin: auto;
+		&.widgetView {
+			flex-wrap: nowrap;
+			height: 25rem;
+			:global(fieldset) {
+				min-height: calc(100% - 2rem);
+				margin-top: 1rem;
+			}
+		}
 	}
 	h2 {
 		position: sticky;
@@ -243,9 +257,8 @@
 	}
 	form > :global(fieldset) {
 		scroll-snap-align: center;
-	}
-	form.complete > :global(fieldset:nth-last-of-type(1)) {
-		margin-bottom: 1rem;
+		height: 20rem;
+		box-sizing: border-box;
 	}
 	form fieldset > :global(button) {
 		scroll-snap-stop: always;

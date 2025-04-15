@@ -160,7 +160,8 @@
 	label {
 		display: block;
 		margin-left: 0;
-		flex-basis: 40%;
+		flex-grow: 1;
+		flex-basis: 30%;
 		> span {
 			display: inline-block;
 			margin: 0.5rem;

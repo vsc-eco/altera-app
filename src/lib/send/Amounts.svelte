@@ -104,12 +104,3 @@
 		label="To Amount:"
 	/>
 {/if}
-
-<style>
-	.amounts {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: space-between;
-		column-gap: 1rem;
-	}
-</style>

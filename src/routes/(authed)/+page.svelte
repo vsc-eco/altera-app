@@ -40,7 +40,7 @@
 		<Send />
 	</Card>
 	<DepositModal />
-	<div>
+	<div class="txs">
 		<h3>Transactions</h3>
 		{#if auth.value}
 			<Table did={'hive:tibfox.vsc'} />
@@ -54,6 +54,9 @@
 		flex-wrap: wrap;
 		gap: 1rem;
 		align-items: stretch;
+	}
+	.masonry > .txs {
+		flex-basis: 100%;
 	}
 	.masonry > :global(*) {
 		flex-grow: 1;

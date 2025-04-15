@@ -7,15 +7,15 @@ export const actions: {
 	icon: typeof Component;
 	styling?: SharedProps;
 }[] = [
-	// {
-	// 	label: 'Send',
-	// 	href: '/send',
-	// 	icon: Send,
-	// 	styling: {
-	// 		theme: 'primary',
-	// 		styleType: 'invert'
-	// 	}
-	// },
+	{
+		label: 'Send',
+		href: '/send',
+		icon: Send,
+		styling: {
+			theme: 'primary',
+			styleType: 'invert'
+		}
+	}
 	// {
 	// 	label: 'Receive',
 	// 	href: '/receive',

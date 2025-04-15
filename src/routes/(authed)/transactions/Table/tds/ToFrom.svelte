@@ -19,9 +19,8 @@
 			{getAccountNameFromDid(otherAccount)}
 		</span>
 		{#if memo}
-			<span class="m-label">memo:</span>
 			<span class="memo">
-				{memo}
+				"{memo}"
 			</span>
 		{/if}
 		{#if status != 'CONFIRMED'}
@@ -41,14 +40,20 @@
 		width: 100%;
 
 		display: grid;
-		grid-template:
-			'pfp     toFrom status'
-			'm-label memo status';
+		grid-template: 'pfp toFrom memo status';
 		justify-content: left;
 		column-gap: 0.25rem;
 		align-items: center;
 		align-content: center;
 		height: 4.5rem;
+	}
+	@media screen and (max-width: 450px) {
+		.to-from {
+			grid-template: 'pfp toFrom status';
+		}
+		.memo {
+			display: none;
+		}
 	}
 	.pfp {
 		grid-area: pfp;
@@ -56,15 +61,11 @@
 	.memo {
 		grid-area: memo;
 	}
-	.m-label {
-		grid-area: m-label;
-	}
 	.status {
 		grid-area: status;
 	}
-	.memo,
-	.m-label {
-		align-self: baseline;
+	.memo {
+		/* align-self: baseline; */
 		font-weight: 400;
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-sm);

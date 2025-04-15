@@ -43,5 +43,6 @@
 		width: 100%;
 		box-sizing: border-box;
 		flex-basis: 0;
+		overflow: hidden;
 	}
 </style>

@@ -17,7 +17,6 @@
 		initialPending = initialPending == false ? false : authState.status == 'pending';
 	});
 	let { children } = $props();
-	$inspect(authState.status);
 </script>
 
 <div class={{ pending: initialPending }}>

@@ -22,7 +22,6 @@
 			error = '';
 		}}
 		oninvalid={(e) => {
-			console.log(e);
 			if (e.currentTarget.validity.valid == true) {
 				error = '';
 			} else {

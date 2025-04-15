@@ -18,7 +18,6 @@
 	let formData = $derived(
 		originalPostingMeta ? JSON.parse(JSON.stringify(originalPostingMeta)) : undefined
 	);
-	$inspect(formData);
 	const fields: {
 		label: string;
 		type?: 'multiline' | 'text' | 'url';

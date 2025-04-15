@@ -25,7 +25,6 @@
 		theme,
 		{ invert: invertStyle, text: textStyle, outline: outlineStyle, icon: iconStyle }
 	]);
-	$inspect(type);
 </script>
 
 {#snippet inner()}

@@ -28,7 +28,6 @@
 		onValueChange
 	});
 	const api = $derived(select.connect(service, normalizeProps));
-	$inspect(initial);
 	$effect(() => {
 		if (initial) {
 			untrack(() => {

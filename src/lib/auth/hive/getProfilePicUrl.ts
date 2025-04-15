@@ -28,7 +28,6 @@ export async function getProfilePicUrl(username: string): Promise<string | undef
 		}
 		const accs = await getAccounts(Object.keys(pending).toSorted());
 		accs.result.map((acc: Account) => {
-			console.log(acc, pending);
 			if (pending[acc.name]) pending[acc.name].forEach((fn) => fn(acc));
 			delete pending[acc.name];
 		});
@@ -36,12 +35,10 @@ export async function getProfilePicUrl(username: string): Promise<string | undef
 	let res = await out;
 	if (!res.posting_json_metadata) return;
 	try {
-		console.log('out:', postingMetadataFromString(res.posting_json_metadata).profile.profile_image);
 		const out = await postingMetadataFromString(res.posting_json_metadata).profile.profile_image;
 		if (out) cached[username] = out;
 		return out;
 	} catch (e) {
-		console.log('HERE', res, username);
 		console.error(e);
 	}
 }

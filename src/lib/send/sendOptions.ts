@@ -26,7 +26,11 @@ const hive: Coin = {
 	icon: '/hive/hive.svg',
 	unit: 'HIVE',
 	enabled: (going, info) => {
-		return true;
+		if (info.from?.network == Network.lightning) return true;
+		if (info.from?.coin == undefined) return true;
+		if (going == 'from') return true;
+		if (info.from?.coin == Coin.hive) return true;
+		return false;
 	},
 	convertTo: []
 };
@@ -36,7 +40,11 @@ const hbd: Coin = {
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
 	enabled: (going, info) => {
-		return true;
+		if (info.from?.network == Network.lightning) return true;
+		if (info.from?.coin == undefined) return true;
+		if (going == 'from') return true;
+		if (info.from?.coin == Coin.hbd) return true;
+		return false;
 	},
 	convertTo: []
 };
@@ -193,11 +201,11 @@ const swapOptions: {
 			{
 				coin: hbd,
 				networks: [vsc, hiveMainnet]
-			},
-			{
-				coin: btc,
-				networks: [lightning, btcMainnet]
 			}
+			// {
+			// 	coin: btc,
+			// 	networks: [lightning, btcMainnet]
+			// }
 		]
 	}
 };

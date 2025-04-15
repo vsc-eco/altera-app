@@ -48,7 +48,6 @@
 	let validateRes = $state();
 	let lightningAbort = new AbortController();
 	let dialogOpen = $state(true);
-	$inspect(dialogOpen);
 	$effect(() => {
 		if (!dialogOpen) {
 			if (onerror && validateRes != 'success')

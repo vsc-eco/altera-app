@@ -28,7 +28,6 @@
 	const api = $derived(dialog.connect(service, normalizeProps));
 	toggle = (open: boolean = false) => {
 		api.setOpen(open);
-		console.log(api.open);
 	};
 	$effect(() => {
 		open = api.open;

@@ -67,7 +67,6 @@ export async function convert(
 	via: Network
 ): Promise<number> {
 	if (from.unit == into.unit) return fromAmount;
-	console.warn(`converting from ${from.unit} to ${into.unit}`);
 	if (via == Network.lightning) {
 		let rates = await getLightningExchangeRates(from);
 		return fromAmount * rates[into.unit as keyof typeof rates];

@@ -104,8 +104,11 @@
 <style>
 	.root {
 		display: block;
-		max-width: 512px;
 		min-width: min(300px, 100%);
+		flex-basis: 450px;
+	}
+	.root > :global(div) {
+		height: 25rem;
 	}
 	.caption {
 		font-size: var(--text-sm);

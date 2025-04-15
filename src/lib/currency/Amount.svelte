@@ -52,7 +52,6 @@
 	});
 
 	let boundAmount = $state('');
-	$inspect(amountOfOriginalCoin);
 	$effect(() => {
 		convert(
 			Number(amountOfOriginalCoin),
@@ -60,7 +59,6 @@
 			value,
 			Network.lightning
 		).then((amount) => {
-			console.log('HERERESWI', amount);
 			boundAmount = new Intl.NumberFormat('en-US', {
 				style: 'decimal',
 				maximumFractionDigits: 8
@@ -81,19 +79,15 @@
 			<img width="24" src={originalCoin.icon} alt={originalCoin.label} />
 			<img width="12" src={network.icon} alt={network.label} />
 		</span>
-
 		<input
 			oninput={(e) => {
-				console.log('AMOUNT CHANGED');
 				convert(Number(boundAmount), value, originalCoin, Network.lightning).then((newVal) => {
-					console.log('NEW VALUE ', newVal);
 					amountOfOriginalCoin = new Intl.NumberFormat('en-US', {
 						style: 'decimal',
 						maximumFractionDigits: 8
 					})
 						.format(newVal)
 						.replaceAll(',', '');
-					console.log('EHRE');
 					if (oninput) oninput(e);
 				});
 			}}
@@ -135,7 +129,6 @@
 						return;
 					}
 					if (v.items[0].unit == value.unit) return;
-					console.log(`Converting from ${value.unit} to ${v.items[0].unit}`);
 					if (boundAmount != undefined) {
 						convert(Number(boundAmount), value, v.items[0], Network.lightning).then((amount) => {
 							boundAmount = new Intl.NumberFormat('en-US', {
@@ -167,7 +160,6 @@
 	label {
 		display: block;
 		margin-left: 0;
-		flex-grow: 1;
 		flex-basis: 40%;
 		> span {
 			display: inline-block;

@@ -12,7 +12,6 @@
 	import { getUniqueId } from './idgen';
 	import { Check } from '@lucide/svelte';
 	import { untrack, type Snippet } from 'svelte';
-
 	type Props = {
 		required?: boolean;
 		id?: string;
@@ -30,7 +29,6 @@
 		required
 	}: Props = $props();
 	let generatedId = getUniqueId();
-	console.log(generatedId);
 	let enabled = $derived(items.filter((item) => !item.disabled));
 	let error = $state('');
 	const service = useMachine(radio.machine, {

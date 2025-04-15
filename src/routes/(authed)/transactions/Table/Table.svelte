@@ -39,7 +39,6 @@
 	// });
 	// let currStoreLen = $derived($store.data?.findLedgerTXs?.txs?.length);
 	const auth = $derived(getAuth()());
-	$inspect(auth.value?.did);
 	const START_BLOCK = 88079516;
 	const START_BLOCK_TIME = moment('2024-08-16T02:46:48Z');
 

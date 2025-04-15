@@ -22,7 +22,6 @@
 		}
 	});
 	let src = $derived(auth.value?.profilePicUrl);
-	$inspect(src);
 </script>
 
 {#snippet option(a: { label: string; icon: typeof Component })}

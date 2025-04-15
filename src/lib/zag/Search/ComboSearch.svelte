@@ -67,7 +67,6 @@
 	$effect(() => {
 		const untrackedAuth: Auth | undefined = untrack(() => auth);
 		if (selected && untrackedAuth?.value) {
-			$inspect(selected);
 			selected.action({ auth: untrackedAuth });
 		}
 	});

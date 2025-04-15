@@ -39,10 +39,8 @@ export const createLightningInvoice = async (
 	for (const [key, value] of Object.entries(searchParams)) {
 		url.searchParams.append(key, value);
 	}
-	console.log(url);
 	const ret = await fetch(url);
 
-	console.log(ret);
 	if (ret.ok) {
 		const data = await ret.json();
 		return {
@@ -52,9 +50,7 @@ export const createLightningInvoice = async (
 		};
 	} else {
 		const data = await ret.json();
-		console.log(data.detail);
 		let splitError = (data.detail as string).split('\n');
-		console.log(splitError);
 		if (splitError.length < 2) {
 			return splitError[0];
 		} else {
@@ -74,7 +70,7 @@ export const checkLightningSuccess = async (
 		});
 		const data = await checkBody.json();
 		if (!checkBody.ok) {
-			console.log(data.detail);
+
 			return data.detail.slice('[')[0];
 		}
 
@@ -103,8 +99,6 @@ const fromLightning = async function* (amount: string, of: Token, into: Token, a
 			`${V4VAPP_API}/v1/new_invoice_hive?hive_accname=vsc.gateway&amount=${amount}&currency=${of.toUpperCase()}&receive_currency=${into}&usd_hbd=false&app_name=vsc.network&expiry=600&message=to%3D${address}&qr_code=base64_png`
 		)
 	).json();
-
-	console.log(ret);
 
 	let details = {
 		invoice_id: ret.data.payment_hash,

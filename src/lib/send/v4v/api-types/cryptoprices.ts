@@ -62,15 +62,25 @@ export type Cryptoprices = {
 
 let cached: Cryptoprices | undefined = undefined;
 let cachedAt = 0;
+let isFetching = false;
+let awaitingCache: ((value: Cryptoprices | PromiseLike<Cryptoprices>) => void)[] = [];
 
 export async function getCryptoPrices(options?: { signal?: AbortSignal }): Promise<Cryptoprices> {
 	let now = Date.now();
 	if (cached != undefined) {
 		return cached;
 	}
-	// if (cachedAt > now - 30 * 1000 && cached != undefined) {
-	// 	return cached;
-	// }
+	if (cachedAt > now - 30 * 1000 && cached != undefined) {
+		return cached;
+	}
+
+	if (isFetching) {
+		return new Promise((resolve) => {
+			awaitingCache.push(resolve);
+		});
+	}
+
+	isFetching = true;
 	let req = fetch('https://api.v4v.app/v1/cryptoprices/', {
 		signal: options?.signal
 	});
@@ -80,7 +90,9 @@ export async function getCryptoPrices(options?: { signal?: AbortSignal }): Promi
 				let out = await res.json();
 				cached = out;
 				cachedAt = now;
-				return out;
+				for (const res of awaitingCache) {
+					res(out);
+				}
 			}
 		});
 		// return stale cache for this req,
@@ -92,6 +104,9 @@ export async function getCryptoPrices(options?: { signal?: AbortSignal }): Promi
 		let out = await res.json();
 		cached = out;
 		cachedAt = now;
+		for (const res of awaitingCache) {
+			res(out);
+		}
 		return out;
 	}
 	throw new Error('Fetch failed.');

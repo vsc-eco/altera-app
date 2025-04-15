@@ -53,12 +53,10 @@
 			};
 		})
 	);
-	$inspect(label, coinItems);
-	$inspect(label, networkItems);
+
 	$effect(() => {
 		network = coin?.networks.find((v) => v.value == networkValue);
 	});
-	$inspect(username);
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
@@ -87,12 +85,12 @@
 			></RadioGroup>
 		{/key}
 	{/if}
-	{#if label == 'To' && network && [Network.vsc, Network.hiveMainnet].includes(network)}
+	{#if label == 'To' && auth.value}
 		<Username
 			required
 			id="to-username"
 			style="width: 100%"
-			label={network.label.split(' ')[0]}
+			label={network?.label.split(' ')[0]}
 			defaultValue={auth.value?.address}
 			bind:value={username}
 		/>

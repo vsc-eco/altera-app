@@ -6,6 +6,9 @@
 	import { actions } from '../quickActions';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import DepositModal from './witness-assistant/DepositModal.svelte';
+	import Send from '$lib/send/Send.svelte';
+	import Card from '$lib/cards/Card.svelte';
+	import Table from './transactions/Table/Table.svelte';
 	// let { auth }: LayoutData = $props();
 	let auth = $derived(getAuth()());
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
@@ -23,18 +26,39 @@
 </h1>
 
 <div class="action-bar">
-	<!-- {#each actions as action}
+	{#each actions as action}
 		<PillBtn {...'styling' in action ? action.styling : {}} href={action.href}>
 			{@const Icon = action.icon}
 			<Icon />
 			{action.label}
 		</PillBtn>
-	{/each} -->
+	{/each}
 </div>
-<!-- <Balance></Balance> -->
-<DepositModal />
+<div class="masonry">
+	<Balance></Balance>
+	<Card>
+		<Send />
+	</Card>
+	<DepositModal />
+	<div>
+		<h3>Transactions</h3>
+		{#if auth.value}
+			<Table did={'hive:tibfox.vsc'} />
+		{/if}
+	</div>
+</div>
 
 <style>
+	.masonry {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		align-items: stretch;
+	}
+	.masonry > :global(*) {
+		flex-grow: 1;
+		flex-basis: 300px;
+	}
 	h1 {
 		font-size: var(--text-4xl);
 		margin: calc(var(--text-4xl) / 2) 0;

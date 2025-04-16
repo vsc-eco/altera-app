@@ -51,7 +51,7 @@
 			goto(action.href);
 		}}
 	/>
-	<!-- <Notifications /> -->
+	<Notifications />
 	{#snippet prefs(name: string)}
 		{name}
 	{/snippet}
@@ -67,6 +67,7 @@
 				case 'logout':
 					await logout();
 					break;
+
 				case 'prefs':
 					openSettings();
 					break;

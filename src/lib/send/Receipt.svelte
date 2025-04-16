@@ -67,7 +67,7 @@
 	table {
 		width: 100%;
 	}
-	@container table-row (width > 300px) {
+	@container table-row (width > 260px) {
 		td {
 			position: absolute;
 			right: 0;

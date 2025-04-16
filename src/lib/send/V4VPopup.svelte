@@ -70,7 +70,7 @@
 			if (validateRes == 'success' && onsuccess) onsuccess();
 			if (validateRes != 'success' && onerror) onerror(res!);
 		});
-		return () => lightningAbort.abort();
+		return () => lightningAbort.abort('Lightning dialog closed.');
 	});
 	let toggle: (open?: boolean) => void = $state(() => {});
 </script>
@@ -94,7 +94,10 @@
 					<QR data={res.qr_data}></QR>
 				{/if}
 			{:else if validateRes == 'success'}
-				<p>The transfer of {toAmount} {to.coin} was successful!</p>
+				<p class="status">
+					You successfully sent {toAmount}
+					{to.coin.unit} to {toUsername}!
+				</p>
 			{:else}
 				<p class="error">Error: {validateRes}.</p>
 			{/if}

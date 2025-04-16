@@ -169,7 +169,7 @@ const lightning: IntermediaryNetwork = {
 
 		return await convert(
 			(await convert(amount, inputCoin, Coin.sats, Network.lightning)) *
-				meta.config.conv_fee_percent +
+				(meta.config.conv_fee_percent + meta.config.hive_return_fee) +
 				meta.config.conv_fee_sats,
 			Coin.sats,
 			outputCoin,

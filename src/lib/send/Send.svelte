@@ -275,7 +275,10 @@
 		}}
 		onsuccess={() => {
 			error = '';
-			showV4VModal = false;
+			// TODO: after success notify via a notification
+			setTimeout(() => {
+				showV4VModal = false;
+			}, 10000);
 		}}
 	/>
 {/if}

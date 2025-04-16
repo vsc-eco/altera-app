@@ -10,11 +10,13 @@
 		toAmount,
 		auth,
 		onerror,
-		onsuccess
+		onsuccess,
+		toUsername
 	}: {
 		from: CoinOnNetwork;
 		to: CoinOnNetwork;
 		toAmount: string;
+		toUsername: string;
 		auth: Auth;
 		onerror?: (error: string) => void;
 		onsuccess?: () => void;
@@ -25,7 +27,8 @@
 			to.coin.label as 'hive' | 'hbd',
 			to.coin.label as 'hive' | 'hbd',
 			to.network,
-			auth
+			auth,
+			toUsername
 		)
 	);
 	let invoice:

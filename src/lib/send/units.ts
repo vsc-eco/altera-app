@@ -14,7 +14,6 @@ export type Unit = {
 		};
 	};
 };
-let btc: Unit = { coin: Coin.btc, on: {} };
 
 type FeeCalculator<From extends CoinOnNetwork, To extends CoinOnNetwork> = {
 	getMultiplier(from: From, to: To): Promise<Readable<number>>;
@@ -44,6 +43,7 @@ export function getLightningFeeCalculator(): FeeCalculator<
 			fromCoin.label;
 			let fee = readable(0, (set) => {
 				let { signal, abort } = new AbortController();
+				initialPrices
 			});
 			return fee;
 		},

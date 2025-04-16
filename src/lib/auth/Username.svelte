@@ -5,6 +5,7 @@
 		label,
 		value = $bindable(),
 		id,
+		defaultValue,
 		...props
 	}: HTMLInputAttributes & { input?: HTMLInputElement; label?: string; id: string } = $props();
 	let error = $state('');
@@ -33,6 +34,7 @@
 		bind:this={input}
 		bind:value
 		{id}
+		{defaultValue}
 		pattern={props.pattern ?? combinedRegex}
 		{...props}
 	/>

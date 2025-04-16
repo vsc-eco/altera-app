@@ -96,7 +96,7 @@
 			</div>
 		</div>
 		<div class="lc-wrapper">
-			<LineChart data={filteredData} bind:hoveredPoint bind:hoveredIndex height={300} />
+			<LineChart data={filteredData} bind:hoveredPoint bind:hoveredIndex height={310} />
 		</div>
 	</Card>
 </div>
@@ -108,7 +108,8 @@
 		flex-basis: 450px;
 	}
 	.root > :global(div) {
-		height: 25rem;
+		height: 100%;
+		box-sizing: border-box;
 	}
 	.caption {
 		font-size: var(--text-sm);

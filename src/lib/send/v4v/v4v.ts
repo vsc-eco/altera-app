@@ -8,7 +8,8 @@ export const createLightningInvoice = async (
 	of: Token,
 	into: Token,
 	on: Network,
-	auth: Auth
+	auth: Auth,
+	username: string
 ): Promise<
 	| string
 	| {
@@ -21,9 +22,9 @@ export const createLightningInvoice = async (
 		return 'Unauthorized. Please sign in to continue.';
 	}
 	// if (Number(amount) < 2) return `Not enough. Must be at least 2 ${of}.`;
-	const mainnet_account = on == Network.vsc ? 'vsc.gateway' : auth.value?.username;
-	if (mainnet_account == undefined) {
-		return 'Cannot deposit onto the Hive Mainnet if using an EVM wallet';
+	const mainnet_account = on == Network.vsc ? 'vsc.gateway' : username;
+	if (mainnet_account.length > 16) {
+		return 'Invalid hive username.';
 	}
 	const url = new URL(`${V4VAPP_API}/v1/new_invoice_hive`);
 	const searchParams = {
@@ -70,7 +71,6 @@ export const checkLightningSuccess = async (
 		});
 		const data = await checkBody.json();
 		if (!checkBody.ok) {
-
 			return data.detail.slice('[')[0];
 		}
 

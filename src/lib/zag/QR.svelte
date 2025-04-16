@@ -6,7 +6,7 @@
 	const service = useMachine(qrCode.machine, {
 		id: getUniqueId(),
 		value: data,
-		encoding: { ecc: 'L' },
+		encoding: { ecc: 'Q' },
 		pixelSize: 5
 	});
 	const api = $derived(qrCode.connect(service, normalizeProps));
@@ -17,7 +17,7 @@
 		<path {...api.getPatternProps()}></path>
 	</svg>
 	<div {...api.getOverlayProps()}>
-		<img src="https://avatars.githubusercontent.com/u/54212428?s=88&v=4" alt="" />
+		<img src="https://avatars.githubusercontent.com/u/133249767" alt="" />
 	</div>
 </div>
 
@@ -25,6 +25,7 @@
 	[data-part='root'] {
 		width: 100%;
 		/* Styles for the root part */
+		position: relative;
 	}
 
 	[data-part='frame'] {
@@ -38,7 +39,12 @@
 	}
 
 	[data-part='overlay'] {
-		display: none;
-		/* Styles for the logo */
+		width: 25%;
+		aspect-ratio: 1;
+		border-radius: 50%;
+		overflow: hidden;
+	}
+	img {
+		width: 100%;
 	}
 </style>

@@ -19,7 +19,20 @@
 	let fromAmount: string = $state('0');
 	let toCoin: CoinOptions['coins'][number] | undefined = $state.raw();
 	let toNetwork: Network | undefined = $state.raw();
-	let toUsername: string | undefined = $state();
+	let toUsername: string = $state('');
+	$effect(() => {
+		if (toUsername.length > 16 && toNetwork == Network.hiveMainnet) {
+			toUsername = '';
+		}
+		if (toUsername != '') return;
+		console.log('HERE');
+		if (toNetwork == Network.vsc && auth.value?.did) {
+			toUsername = auth.value.did.split(':').at(-1)!;
+		}
+		if (toNetwork == Network.hiveMainnet && auth.value?.aioha && auth.value.username) {
+			toUsername = auth.value.username;
+		}
+	});
 	let toAmount: string = $state('0');
 	let error = $state('');
 	let showV4VModal = $state.raw(false);
@@ -255,6 +268,7 @@
 		to={{ coin: toCoin.coin, network: toNetwork }}
 		{toAmount}
 		{auth}
+		{toUsername}
 		onerror={(v) => {
 			error = v;
 			showV4VModal = false;
@@ -267,6 +281,12 @@
 {/if}
 
 <style lang="scss">
+	.submit .error {
+		margin-top: auto;
+	}
+	.submit .nav-buttons {
+		margin-top: unset;
+	}
 	.nav-buttons {
 		margin-top: auto;
 

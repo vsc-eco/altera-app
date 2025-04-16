@@ -1,3 +1,4 @@
+import { convert } from '$lib/currency/convert';
 import type { Auth } from '../auth/store';
 import { readonly, type Readable } from 'svelte/store';
 const always: Enabled = () => true;
@@ -129,7 +130,7 @@ const hiveMainnet: Network = {
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
 	enabled: (going, { from, to }, auth) => {
-		if (auth.value?.aioha == undefined) return false;
+		if (auth.value?.aioha == undefined && going == 'from') return false;
 		if (from?.coin == undefined || to?.coin == undefined) return true;
 		if (from?.coin == to?.coin) return true;
 		if (from?.network == Network.lightning) return true;
@@ -141,6 +142,7 @@ export type Network = {
 	label: string;
 	icon: string;
 	enabled: Enabled;
+	feeCalculation?: (amount: number, coin: Coin) => Promise<number>;
 };
 
 const btcMainnet: Network = {
@@ -153,7 +155,15 @@ const lightning: Network = {
 	value: 'lightning',
 	label: 'Lightning',
 	icon: '/btc/lightning.svg',
-	enabled: always
+	enabled: always,
+	feeCalculation: async (amount: number, coin: Coin) => {
+		return await convert(
+			(await convert(amount, coin, Coin.sats, Network.lightning)) * 1.1 + 50,
+			Coin.sats,
+			coin,
+			Network.lightning
+		);
+	}
 };
 
 export const Network = {

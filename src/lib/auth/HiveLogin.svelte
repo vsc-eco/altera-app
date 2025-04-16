@@ -28,6 +28,7 @@
 	let defaultValue = browser
 		? (localStorage?.getItem('default-hive-login-method') ?? DEFAULT_METHOD)
 		: DEFAULT_METHOD;
+	let defaultUsername = browser ? (localStorage?.getItem('default-hive-login-username') ?? '') : '';
 	let usernameErrorText = $state(BLANK);
 	let authServiceErrorText = $state(BLANK);
 	let aiohaErrorText = $state(BLANK);
@@ -75,6 +76,7 @@
 		clearErrors();
 		submitBtn!.disabled = false;
 		localStorage.setItem('default-hive-login-method', authProvider!);
+		localStorage.setItem('default-hive-login-username', username);
 		close();
 		return;
 	}
@@ -106,6 +108,7 @@
 				<div class="error">{aiohaErrorText}</div>
 				<HiveUsername
 					bind:input
+					defaultValue={defaultUsername}
 					required
 					minlength={3}
 					maxlength={16}

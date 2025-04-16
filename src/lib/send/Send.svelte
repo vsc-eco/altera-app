@@ -1,16 +1,11 @@
 <script lang="ts">
 	// TODO: use https://zagjs.com/components/svelte/steps
 	// to have better ux on desktop
-	import RadioGroup from '../zag/RadioGroup.svelte';
-	let fromCoinValue: string | undefined = $state();
-
-	let fromNetworkValue: string | undefined = $state();
-	let toCoinValue: string | undefined = $state();
-	let toNetworkValue: string | undefined = $state();
 	import swapOptions, { Coin, Network, type CoinOptions } from './sendOptions';
 	import { getAuth } from '$lib/auth/store';
 	import PillButton from '$lib/PillButton.svelte';
 	import Amount from '../currency/Amount.svelte';
+
 	import { getIntermediaryNetwork } from './getNetwork';
 	import { sleep } from 'aninest';
 	import V4VPopup from './V4VPopup.svelte';
@@ -20,6 +15,7 @@
 	import Amounts from './Amounts.svelte';
 	import CurrencySelect from './CurrencySelect.svelte';
 	import { transactions } from '../../routes/(authed)/transactions/sampleData';
+	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	let formError = $state();
 	let { widgetView }: { widgetView?: boolean } = $props();
 	let auth = $derived(getAuth()());
@@ -65,9 +61,14 @@
 		from: { coin: fromCoin?.coin, network: fromNetwork },
 		to: { coin: toCoin?.coin, network: toNetwork }
 	});
+	function getStep(step: number): HTMLFieldSetElement | undefined {
+		return document.querySelector(`form#send > fieldset:nth-of-type(${step})`) as
+			| HTMLFieldSetElement
+			| undefined;
+	}
 	function scrollToStep(step: number) {
 		console.log('Scrolling to step', step);
-		document.querySelector(`form#send > fieldset:nth-of-type(${step})`)?.scrollIntoView({
+		getStep(step)?.scrollIntoView({
 			behavior: 'smooth',
 			block: 'nearest'
 		});
@@ -85,33 +86,36 @@
 					scrollToStep(4);
 				}, 0);
 			}
-			const amountFieldset = document.querySelector('form#send > fieldset:nth-of-type(3)');
+			const amountFieldset = getStep(3);
 			if (!amountFieldset) return;
 			const inputs = amountFieldset.querySelectorAll('input');
 			for (const input of inputs) {
-				input.removeEventListener('blur', onBlur);
+				input.removeEventListener('focusout', onBlur);
 			}
 		};
-		if (toCoin && toNetwork) {
+		if (fromCoin && fromNetwork && toCoin && toNetwork) {
 			setTimeout(() => {
-				const amountFieldset = document.querySelector('form#send > fieldset:nth-of-type(3)');
-				if (!amountFieldset) return;
-				amountFieldset.scrollIntoView({
-					block: 'nearest',
-					behavior: 'smooth'
-				});
-				const inputs = amountFieldset.querySelectorAll('input');
-				for (const input of inputs) {
-					input.addEventListener('blur', onBlur);
+				// need double if statement because
+				// coin selection can be updated on effect
+				// i.e. coin selection might get queued on the event loop
+				// and run before running this setTimeout
+				if (fromCoin && fromNetwork && toCoin && toNetwork) {
+					const amountFieldset = getStep(3);
+					if (!amountFieldset) return;
+					scrollToStep(3);
+					const inputs = amountFieldset.querySelectorAll('input');
+					for (const input of inputs) {
+						input.addEventListener('focusout', onBlur);
+					}
 				}
-			});
+			}, 0);
 		}
 		return () => {
 			const amountFieldset = document.querySelector('form#send > fieldset:nth-of-type(3)');
 			if (!amountFieldset) return;
 			const inputs = amountFieldset.querySelectorAll('input');
 			for (const input of inputs) {
-				input.removeEventListener('blur', onBlur);
+				input.removeEventListener('focusout', onBlur);
 			}
 		};
 	});
@@ -185,13 +189,11 @@
 		<legend>Submit</legend>
 		{#if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount != '0'}
 			<h3>
-				Send {fromAmount}
-				{fromCoin.coin.unit} from {fromNetwork?.label}
-
-				to {accountNameFromAddress(toUsername)}
-				{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
-					as {toAmount}
-					{toCoin.coin.unit} on {toNetwork?.label}{/if}?
+				Send <Amount coin={fromCoin.coin} network={fromNetwork} amount={fromAmount}></Amount>
+				to {accountNameFromAddress(
+					toUsername
+				)}{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
+					&nbsp;as <Amount coin={toCoin.coin} network={toNetwork} amount={toAmount}></Amount>{/if}?
 			</h3>
 			{#if formError}
 				<p class="error">
@@ -219,7 +221,7 @@
 				{#if networksInvalid}
 					networks{/if}{#if coinsInvalid && networksInvalid},{/if}
 				and
-			{/if} amounts before submitting this transaction.
+			{/if} amounts before submitting a transaction.
 		{/if}
 	</fieldset>
 </form>
@@ -247,8 +249,6 @@
 		overflow-x: auto;
 		display: flex;
 		gap: 1rem;
-		padding: 1rem;
-		padding-left: 0;
 		width: 100%;
 		box-sizing: border-box;
 		scroll-snap-type: x proximity;
@@ -257,11 +257,14 @@
 		max-width: 42rem;
 		margin: auto;
 		&.widgetView {
+			padding: 1rem;
+			padding-left: 0;
 			flex-wrap: nowrap;
 			height: 25rem;
 			:global(fieldset) {
 				min-height: calc(100% - 2rem);
 				margin-top: 1rem;
+				flex-basis: 300px;
 			}
 		}
 	}
@@ -292,7 +295,8 @@
 		box-sizing: border-box;
 		width: 100%;
 		flex-shrink: 0;
-		flex-basis: 300px;
+		flex-basis: 280px;
+		flex-grow: 1;
 	}
 	form {
 		/* invisible scrollbar */
@@ -301,7 +305,7 @@
 	}
 	form > :global(fieldset) {
 		scroll-snap-align: center;
-		height: 20rem;
+		min-height: 20rem;
 		box-sizing: border-box;
 	}
 	form fieldset > :global(button) {

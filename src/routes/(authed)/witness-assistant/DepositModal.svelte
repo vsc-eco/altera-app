@@ -2,7 +2,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import Username from '$lib/auth/Username.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import Amount from '$lib/currency/Amount.svelte';
+	import Amount from '$lib/currency/AmountInput.svelte';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
 	import {

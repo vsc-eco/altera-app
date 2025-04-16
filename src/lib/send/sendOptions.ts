@@ -126,7 +126,7 @@ const unknown: Network = {
 };
 const hiveMainnet: Network = {
 	value: 'hive_mainnet',
-	label: 'The Hive Mainnet',
+	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
 	enabled: (going, { from, to }, auth) => {
 		if (auth.value?.aioha == undefined) return false;

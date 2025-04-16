@@ -64,35 +64,32 @@
 	{info.label}
 {/snippet}
 
-<fieldset>
-	<legend>{label}:</legend>
-	<RadioGroup
-		required
-		name={label + ' Coin:'}
-		id={label + '-coin'}
-		bind:value={coinValue}
-		items={coinItems}
-	></RadioGroup>
-	{#if networkItems}
-		{#key coin}
-			<RadioGroup
-				required
-				id={label + `-network`}
-				name={label + ' Network:'}
-				bind:value={networkValue}
-				items={networkItems}
-				defaultValue={coin?.default?.value}
-			></RadioGroup>
-		{/key}
-	{/if}
-	{#if label == 'To' && auth.value}
-		<Username
+<RadioGroup
+	required
+	name={label + ' Coin:'}
+	id={label + '-coin'}
+	bind:value={coinValue}
+	items={coinItems}
+></RadioGroup>
+{#if networkItems}
+	{#key coin}
+		<RadioGroup
 			required
-			id="to-username"
-			style="width: 100%"
-			label={network?.label.split(' ')[0]}
-			defaultValue={auth.value?.address}
-			bind:value={username}
-		/>
-	{/if}
-</fieldset>
+			id={label + `-network`}
+			name={label + ' Network:'}
+			bind:value={networkValue}
+			items={networkItems}
+			defaultValue={coin?.default?.value}
+		></RadioGroup>
+	{/key}
+{/if}
+{#if label == 'To' && auth.value}
+	<Username
+		required
+		id="to-username"
+		style="width: 100%"
+		label={network?.label.split(' ')[0]}
+		defaultValue={auth.value?.address}
+		bind:value={username}
+	/>
+{/if}

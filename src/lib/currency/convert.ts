@@ -65,6 +65,7 @@ export async function convert(
 	into: Coin,
 	via: Network
 ): Promise<number> {
+	if (from.label == Coin.unk.label || into.label == Coin.unk.label) return fromAmount;
 	if ([from, into].map((c) => c.label).includes(Coin.unk.label))
 		throw Error(`${Coin.unk.label} coin not supported`);
 	if (from.unit == into.unit) return fromAmount;

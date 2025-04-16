@@ -25,7 +25,21 @@
 	$effect(() => {
 		if (newFromCoin == undefined) return;
 		if (untrack(() => fromCoin.label) == Coin.unk.label) {
-			fromCoin = newFromCoin;
+			console.log('HERE TO COIN TO NEW FROM COIN');
+			convert(
+				untrack(() => Number(toAmount || '0')),
+				untrack(() => toCoin),
+				newFromCoin,
+				Network.lightning
+			).then((amount) => {
+				fromAmount = new Intl.NumberFormat('en-US', {
+					style: 'decimal',
+					maximumFractionDigits: 8
+				})
+					.format(amount)
+					.replaceAll(',', '');
+				fromCoin = newFromCoin;
+			});
 			return;
 		}
 		convert(
@@ -47,7 +61,21 @@
 	$effect(() => {
 		if (newToCoin == undefined) return;
 		if (untrack(() => toCoin.label) == Coin.unk.label) {
-			toCoin = newToCoin;
+			console.log('HERE FROM COIN TO NEW TO COIN');
+			convert(
+				untrack(() => Number(fromAmount || '0')),
+				untrack(() => fromCoin),
+				newToCoin,
+				Network.lightning
+			).then((amount) => {
+				toAmount = new Intl.NumberFormat('en-US', {
+					style: 'decimal',
+					maximumFractionDigits: 8
+				})
+					.format(amount)
+					.replaceAll(',', '');
+				toCoin = newToCoin;
+			});
 			return;
 		}
 		convert(

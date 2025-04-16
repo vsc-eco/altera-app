@@ -19,6 +19,7 @@
 		name: string;
 		value?: string | null;
 		defaultValue?: string;
+		hideError?: boolean;
 	};
 	let {
 		id,
@@ -26,7 +27,8 @@
 		items,
 		value = $bindable(),
 		defaultValue: propDefault,
-		required
+		required,
+		hideError
 	}: Props = $props();
 	let generatedId = getUniqueId();
 	let enabled = $derived(items.filter((item) => !item.disabled));
@@ -76,6 +78,14 @@
 					oninvalid={(e) => {
 						e.preventDefault();
 						error = e.currentTarget.validationMessage;
+						const target = e.currentTarget;
+						setTimeout(() => {
+							target.scrollIntoView({
+								behavior: 'smooth',
+								block: 'nearest',
+								inline: 'center'
+							});
+						}, 50);
 					}}
 					oninput={() => {
 						error = '';
@@ -97,6 +107,7 @@
 			</label>
 		{/each}
 	</div>
+
 	<label class="error" for={id}>
 		{#if error}
 			{error}

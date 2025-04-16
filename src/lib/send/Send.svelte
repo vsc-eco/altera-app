@@ -10,13 +10,8 @@
 	import { sleep } from 'aninest';
 	import V4VPopup from './V4VPopup.svelte';
 	import { accountNameFromAddress } from '$lib/getAccountName';
-	import { convert } from '$lib/currency/convert';
-	import { untrack } from 'svelte';
 	import Amounts from './Amounts.svelte';
 	import CurrencySelect from './CurrencySelect.svelte';
-	import { transactions } from '../../routes/(authed)/transactions/sampleData';
-	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
-	let formError = $state();
 	let { widgetView }: { widgetView?: boolean } = $props();
 	let auth = $derived(getAuth()());
 	let fromCoin: CoinOptions['coins'][number] | undefined = $state.raw();
@@ -26,6 +21,7 @@
 	let toNetwork: Network | undefined = $state.raw();
 	let toUsername: string | undefined = $state();
 	let toAmount: string = $state('0');
+	let error = $state('');
 	let showV4VModal = $state.raw(false);
 	function openV4V() {
 		showV4VModal = false;
@@ -36,7 +32,11 @@
 	function initSwap(e: Event) {
 		e.preventDefault();
 		e.stopPropagation();
-		formError = undefined;
+		let next = getFirstUnfinishedStep();
+		if (next != 4) {
+			scrollToStep(next);
+		}
+		error = '';
 		if (!fromCoin) {
 			return 'No From Coin Selected';
 		}
@@ -49,13 +49,18 @@
 		if (!toNetwork) {
 			return 'No To Network Selected';
 		}
+		if (toAmount == '0') {
+			return 'Send amount cannot be zero.';
+		}
 		let intermediary = getIntermediaryNetwork(
 			{ coin: fromCoin.coin, network: fromNetwork },
 			{ coin: toCoin.coin, network: toNetwork }
 		);
 		if (intermediary == Network.lightning) {
 			openV4V();
+			return '';
 		}
+		return 'Unexpected Error: Unsupported transaction.';
 	}
 	const enabledOptions = $derived({
 		from: { coin: fromCoin?.coin, network: fromNetwork },
@@ -73,94 +78,92 @@
 			block: 'nearest'
 		});
 	}
-	$effect(() => {
-		if (fromCoin && fromNetwork && (!toCoin || !toNetwork)) {
-			scrollToStep(2);
-		}
-	});
 
-	$effect(() => {
-		const onBlur = () => {
-			if (toAmount != '0') {
-				setTimeout(() => {
-					scrollToStep(4);
-				}, 0);
-			}
-			const amountFieldset = getStep(3);
-			if (!amountFieldset) return;
-			const inputs = amountFieldset.querySelectorAll('input');
-			for (const input of inputs) {
-				input.removeEventListener('focusout', onBlur);
-			}
+	const fromCoinIsDerived = $derived(fromCoin != undefined);
+	const fromNetworkIsDerived = $derived(fromNetwork != undefined);
+	const toCoinIsDerived = $derived(toCoin != undefined);
+	const toNetworkIsDerived = $derived(toNetwork != undefined);
+	const toAmountIsDerived = $derived(toAmount && toAmount != '0');
+
+	function getFirstUnfinishedStep(): number {
+		const { fromCoin, fromNetwork, toCoin, toNetwork, toAmount } = {
+			fromCoin: fromCoinIsDerived,
+			fromNetwork: fromNetworkIsDerived,
+			toCoin: toCoinIsDerived,
+			toNetwork: toNetworkIsDerived,
+			toAmount: toAmountIsDerived
 		};
-		if (fromCoin && fromNetwork && toCoin && toNetwork) {
-			setTimeout(() => {
-				// need double if statement because
-				// coin selection can be updated on effect
-				// i.e. coin selection might get queued on the event loop
-				// and run before running this setTimeout
-				if (fromCoin && fromNetwork && toCoin && toNetwork) {
-					const amountFieldset = getStep(3);
-					if (!amountFieldset) return;
-					scrollToStep(3);
-					const inputs = amountFieldset.querySelectorAll('input');
-					for (const input of inputs) {
-						input.addEventListener('focusout', onBlur);
-					}
-				}
-			}, 0);
-		}
-		return () => {
-			const amountFieldset = document.querySelector('form#send > fieldset:nth-of-type(3)');
-			if (!amountFieldset) return;
-			const inputs = amountFieldset.querySelectorAll('input');
-			for (const input of inputs) {
-				input.removeEventListener('focusout', onBlur);
-			}
-		};
-	});
-	const typeButton = {
-		type: 'button',
-		onclick: (e: MouseEvent) => {
-			console.log('HERE');
-			e.preventDefault();
-			e.stopPropagation();
-			scrollToStep(3);
-		}
-	} as const;
+		if (!fromCoin || !fromNetwork) return 1;
+		if (!toCoin || !toNetwork || !toUsername) return 2;
+		if (!toAmount) return 3;
+		return 4;
+	}
 </script>
 
-{#snippet radioLabel(info: { icon: string; label: string })}
-	<img width="16" src={info.icon} alt="" />
-	{info.label}
+{#snippet prevNext(stepNum: number)}
+	{#if widgetView}
+		<div class="nav-buttons">
+			<PillButton
+				styleType="outline"
+				{...{
+					onclick: () => {
+						scrollToStep(stepNum - 1);
+					},
+					type: 'button'
+				}}
+				disabled={stepNum == 1}>Previous</PillButton
+			>
+			<PillButton
+				theme="primary"
+				styleType="outline"
+				{...{
+					onclick: () => {
+						scrollToStep(stepNum + 1);
+					},
+					type: 'button'
+				}}
+				disabled={stepNum == 4}>Next</PillButton
+			>
+		</div>
+	{/if}
 {/snippet}
 
 <form
 	class={{ complete: fromCoin && fromNetwork && toCoin && toNetwork, widgetView }}
-	onsubmit={initSwap}
+	onsubmit={(e) => {
+		error = initSwap(e);
+	}}
 	id="send"
 >
 	{#if widgetView}
 		<h2>Send</h2>
 	{/if}
-	<CurrencySelect
-		options={swapOptions.from}
-		bind:coin={fromCoin}
-		bind:network={fromNetwork}
-		label={'From'}
-		{enabledOptions}
-	/>
-	<CurrencySelect
-		options={swapOptions.to}
-		bind:coin={toCoin}
-		bind:network={toNetwork}
-		label={'To'}
-		{enabledOptions}
-		bind:username={toUsername}
-	/>
+	<fieldset>
+		<legend>From:</legend>
+		<CurrencySelect
+			options={swapOptions.from}
+			bind:coin={fromCoin}
+			bind:network={fromNetwork}
+			label={'From'}
+			{enabledOptions}
+		/>
+		{@render prevNext(1)}
+	</fieldset>
+	<fieldset>
+		<legend>To:</legend>
+		<CurrencySelect
+			options={swapOptions.to}
+			bind:coin={toCoin}
+			bind:network={toNetwork}
+			label={'To'}
+			{enabledOptions}
+			bind:username={toUsername}
+		/>
+		{@render prevNext(2)}
+	</fieldset>
 	<fieldset class="amounts">
 		<legend>Amount:</legend>
-		{#if !(fromNetwork && toNetwork && fromCoin && toCoin)}
+		<!-- {#if !(fromNetwork && toNetwork && fromCoin && toCoin)}
 			{@const networksInvalid = !fromNetwork || !toNetwork}
 			{@const coinsInvalid = !fromCoin || !toCoin}
 			Must select
@@ -174,9 +177,8 @@
 				networks
 			{/if}
 			first before selecting amounts.
-		{/if}
+		{/if} -->
 		<Amounts
-			disabled={!(fromNetwork && toNetwork && fromCoin && toCoin)}
 			bind:toAmount
 			bind:fromAmount
 			fromCoin={fromCoin?.coin}
@@ -184,45 +186,43 @@
 			{fromNetwork}
 			{toNetwork}
 		/>
+		{@render prevNext(3)}
 	</fieldset>
 	<fieldset class="submit">
 		<legend>Submit</legend>
 		{#if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount != '0'}
 			<h3>
 				Send <Amount coin={fromCoin.coin} network={fromNetwork} amount={fromAmount}></Amount>
-				to {accountNameFromAddress(
-					toUsername
-				)}{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
+				to
+				<span class="mono">{accountNameFromAddress(toUsername)}</span
+				>{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
 					&nbsp;as <Amount coin={toCoin.coin} network={toNetwork} amount={toAmount}></Amount>{/if}?
 			</h3>
-			{#if formError}
-				<p class="error">
-					{formError}
-				</p>
-			{/if}
-			<PillButton onclick={() => {}} disabled={showV4VModal} styleType="invert" theme="primary"
-				>Send</PillButton
-			>
 		{:else if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount == '0'}
-			<span>
-				Send amount cannot be zero. Please <PillButton
-					styleType="text"
-					theme="primary"
-					{...typeButton}>select some positive amount</PillButton
-				> to send.
-			</span>
+			<h3>Send</h3>
 		{:else}
+			<!-- {@const coinsInvalid = !toCoin || !fromCoin}
+			{@const networksInvalid = !toNetwork || !fromNetwork}
 			Must select
-			{#if !toCoin || !fromCoin || !toNetwork || !fromNetwork}
-				{@const coinsInvalid = !toCoin || !fromCoin}
-				{@const networksInvalid = !toNetwork || !fromNetwork}
+			{#if coinsInvalid || networksInvalid}
 				{#if coinsInvalid}
 					currencies{/if}{#if coinsInvalid && networksInvalid},{/if}
 				{#if networksInvalid}
 					networks{/if}{#if coinsInvalid && networksInvalid},{/if}
 				and
-			{/if} amounts before submitting a transaction.
+			{/if} amounts before submitting a transaction. -->
+			<h3>Send</h3>
 		{/if}
+		<p class="error">
+			{#if error != ''}
+				{error}
+			{:else}
+				&nbsp;
+			{/if}
+		</p>
+		<PillButton onclick={() => {}} disabled={showV4VModal} styleType="invert" theme="primary">
+			Send
+		</PillButton>
 	</fieldset>
 </form>
 
@@ -233,17 +233,28 @@
 		{toAmount}
 		{auth}
 		onerror={(v) => {
-			formError = v;
+			error = v;
 			showV4VModal = false;
 		}}
 		onsuccess={() => {
-			formError = '';
+			error = '';
 			showV4VModal = false;
 		}}
 	/>
 {/if}
 
 <style lang="scss">
+	.nav-buttons {
+		margin-top: auto;
+
+		display: flex;
+		gap: 0.5rem;
+		bottom: 0.5rem;
+		:global(button) {
+			flex-grow: 1;
+			flex-basis: 40%;
+		}
+	}
 	form {
 		box-sizing: border-box;
 		overflow-x: auto;
@@ -260,11 +271,11 @@
 			padding: 1rem;
 			padding-left: 0;
 			flex-wrap: nowrap;
-			height: 25rem;
+			height: 28.125rem;
 			:global(fieldset) {
 				min-height: calc(100% - 2rem);
 				margin-top: 1rem;
-				flex-basis: 300px;
+				width: 300px;
 			}
 		}
 	}
@@ -278,15 +289,13 @@
 		width: 0;
 		overflow: visible;
 	}
-	.submit {
-		display: flex;
-		flex-direction: column;
-		justify-content: space-between;
+	h3 {
+		font-weight: 600;
+		font-size: var(--text-2xl);
 	}
 
 	.amounts {
 		display: flex;
-		flex-wrap: wrap;
 		justify-content: space-between;
 		column-gap: 1rem;
 	}
@@ -297,26 +306,20 @@
 		flex-shrink: 0;
 		flex-basis: 280px;
 		flex-grow: 1;
+		display: flex;
+		flex-direction: column;
+		position: relative;
 	}
 	form {
 		/* invisible scrollbar */
 		scrollbar-width: thin !important;
 		scrollbar-color: var(--primary-bg-accent);
 	}
-	form > :global(fieldset) {
+	form > fieldset {
 		scroll-snap-align: center;
-		min-height: 20rem;
 		box-sizing: border-box;
 	}
-	form fieldset > :global(button) {
-		scroll-snap-stop: always;
-		margin: 0;
-		display: none;
-		width: 100%;
-	}
-	form.complete fieldset > :global(button) {
-		display: unset;
-	}
+
 	p {
 		margin-top: auto;
 		margin-bottom: 0.5rem;

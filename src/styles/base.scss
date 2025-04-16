@@ -186,3 +186,8 @@ input:disabled {
 	background-color: var(--neutral-bg-accent);
 	color: var(--neutral-fg-mid);
 }
+
+.mono {
+	font-family: 'Noto Sans Mono Variable', monospace;
+	font-weight: 400;
+}

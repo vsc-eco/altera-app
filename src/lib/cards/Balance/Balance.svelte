@@ -96,7 +96,7 @@
 			</div>
 		</div>
 		<div class="lc-wrapper">
-			<LineChart data={filteredData} bind:hoveredPoint bind:hoveredIndex height={250} />
+			<LineChart data={filteredData} bind:hoveredPoint bind:hoveredIndex height={300} />
 		</div>
 	</Card>
 </div>

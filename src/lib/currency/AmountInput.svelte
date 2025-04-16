@@ -38,28 +38,25 @@
 		inputDisabled = disabled;
 	});
 	let inUsd = $state('');
+	let error = $state('');
 	let coinIsUnknown = $derived(originalCoin.value == Coin.unk.value);
 	$effect(() => {
-		if (coinIsUnknown) return;
-		convert(
-			Number(amountOfOriginalCoin),
-			untrack(() => originalCoin),
-			Coin.usd,
-			Network.lightning
-		).then((amount) => {
-			inUsd = new Intl.NumberFormat('en-US', {
-				style: 'decimal',
-				maximumFractionDigits: 2,
-				minimumFractionDigits: 2
-			})
-				.format(amount)
-				.replaceAll(',', '');
-		});
+		convert(Number(amountOfOriginalCoin), originalCoin, Coin.usd, Network.lightning).then(
+			(amount) => {
+				inUsd = new Intl.NumberFormat('en-US', {
+					style: 'decimal',
+					maximumFractionDigits: 2,
+					minimumFractionDigits: 2
+				})
+					.format(amount)
+					.replaceAll(',', '');
+			}
+		);
+		error = '';
 	});
 
 	let boundAmount = $state('');
 	$effect(() => {
-		if (coinIsUnknown) return;
 		convert(
 			Number(amountOfOriginalCoin),
 			untrack(() => originalCoin),
@@ -68,11 +65,12 @@
 		).then((amount) => {
 			boundAmount = new Intl.NumberFormat('en-US', {
 				style: 'decimal',
-				maximumFractionDigits: 8
+				maximumFractionDigits: value.value == Coin.usd.value ? 2 : 8
 			})
 				.format(amount)
 				.replaceAll(',', '');
 		});
+		error = '';
 	});
 	$effect(() => {
 		if (coinIsUnknown) boundAmount = '';
@@ -87,7 +85,19 @@
 	<div class={['amount-input', { disabled }]}>
 		<CoinNetworkIcon coin={originalCoin} {network} />
 		<input
+			min="0.000000001"
+			oninvalid={(e) => {
+				e.preventDefault();
+				error = 'Amount must be greater than zero.';
+				const target = e.currentTarget;
+				target.scrollIntoView({
+					behavior: 'smooth',
+					block: 'nearest',
+					inline: 'center'
+				});
+			}}
 			oninput={(e) => {
+				error = '';
 				convert(Number(boundAmount), value, originalCoin, Network.lightning).then((newVal) => {
 					amountOfOriginalCoin = new Intl.NumberFormat('en-US', {
 						style: 'decimal',
@@ -99,6 +109,7 @@
 				});
 			}}
 			onchange={() => {
+				console.log('HERE CHANGED');
 				const amount =
 					amountOfOriginalCoin == ''
 						? undefined
@@ -108,7 +119,7 @@
 				amount.then((amount) => {
 					boundAmount = new Intl.NumberFormat('en-US', {
 						style: 'decimal',
-						maximumFractionDigits: 8
+						maximumFractionDigits: value.value == Coin.usd.value ? 2 : 8
 					})
 						.format(amount)
 						.replaceAll(',', '');
@@ -144,7 +155,7 @@
 						convert(Number(boundAmount), value, v.items[0], Network.lightning).then((amount) => {
 							boundAmount = new Intl.NumberFormat('en-US', {
 								style: 'decimal',
-								maximumFractionDigits: 8
+								maximumFractionDigits: value.value == Coin.usd.value ? 2 : 8
 							})
 								.format(amount)
 								.replaceAll(',', '');
@@ -157,7 +168,17 @@
 	</div>
 	{#if amountOfOriginalCoin != ''}
 		<span class="approx-usd">
-			Approx. USD value: ${inUsd}
+			Approx. USD value:
+			{#if originalCoin.value != Coin.unk.value}
+				${inUsd}
+			{:else}
+				Unk
+			{/if}
+		</span>
+	{/if}
+	{#if error != ''}
+		<span class="error">
+			{error}
 		</span>
 	{/if}
 </label>
@@ -167,6 +188,7 @@
 		text-wrap: wrap;
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-sm);
+		margin-bottom: 0;
 	}
 	.disabled {
 		--bg: var(--neutral-bg-accent);
@@ -177,6 +199,7 @@
 		display: block;
 		margin-left: 0;
 		flex-grow: 1;
+		width: 100%;
 		flex-basis: 30%;
 		> span {
 			display: inline-block;

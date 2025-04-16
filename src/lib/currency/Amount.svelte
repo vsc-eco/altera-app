@@ -24,8 +24,4 @@
 	.nobreak {
 		white-space: nowrap;
 	}
-	.mono {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		font-weight: 500;
-	}
 </style>

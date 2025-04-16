@@ -57,7 +57,7 @@
 <div {...api.getRootProps()}>
 	<Toggle {api} def={initial || 'Select option'} {disabled}></Toggle>
 
-	<div use:portal {...api.getPositionerProps()}>
+	<div {...api.getPositionerProps()}>
 		<List {api} selectData={api.collection.items}></List>
 	</div>
 </div>
@@ -65,6 +65,7 @@
 <style lang="scss">
 	.dropdown {
 		background-color: var(--bg-accent);
+		z-index: 5;
 	}
 	div {
 		position: relative;

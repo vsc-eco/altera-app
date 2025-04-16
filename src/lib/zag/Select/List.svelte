@@ -29,6 +29,7 @@
 		border: 1px solid var(--neutral-bg-accent);
 		// width: 160px;
 		padding: 0.25rem;
+		z-index: 5;
 	}
 	li {
 		border-radius: 0.25rem;

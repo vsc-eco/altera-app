@@ -12,6 +12,8 @@
 	import { accountNameFromAddress } from '$lib/getAccountName';
 	import Amounts from './Amounts.svelte';
 	import CurrencySelect from './CurrencySelect.svelte';
+	import { untrack } from 'svelte';
+	import Receipt from './Receipt.svelte';
 	let { widgetView }: { widgetView?: boolean } = $props();
 	let auth = $derived(getAuth()());
 	let fromCoin: CoinOptions['coins'][number] | undefined = $state.raw();
@@ -21,11 +23,13 @@
 	let toNetwork: Network | undefined = $state.raw();
 	let toUsername: string = $state('');
 	$effect(() => {
-		if (toUsername.length > 16 && toNetwork == Network.hiveMainnet) {
+		let username = untrack(() => toUsername);
+		if (username.length > 16 && toNetwork == Network.hiveMainnet) {
 			toUsername = '';
 		}
-		if (toUsername != '') return;
-		console.log('HERE');
+
+		username = untrack(() => toUsername);
+		if (username != '') return;
 		if (toNetwork == Network.vsc && auth.value?.did) {
 			toUsername = auth.value.did.split(':').at(-1)!;
 		}
@@ -212,19 +216,15 @@
 				>{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
 					&nbsp;as <Amount coin={toCoin.coin} network={toNetwork} amount={toAmount}></Amount>{/if}?
 			</h3>
-		{:else if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount == '0'}
-			<h3>Send</h3>
+			<Receipt
+				fromCoin={fromCoin.coin}
+				{fromNetwork}
+				toCoin={toCoin.coin}
+				{toNetwork}
+				{fromAmount}
+				{toAmount}
+			/>
 		{:else}
-			<!-- {@const coinsInvalid = !toCoin || !fromCoin}
-			{@const networksInvalid = !toNetwork || !fromNetwork}
-			Must select
-			{#if coinsInvalid || networksInvalid}
-				{#if coinsInvalid}
-					currencies{/if}{#if coinsInvalid && networksInvalid},{/if}
-				{#if networksInvalid}
-					networks{/if}{#if coinsInvalid && networksInvalid},{/if}
-				and
-			{/if} amounts before submitting a transaction. -->
 			<h3>Send</h3>
 		{/if}
 		<p class="error">

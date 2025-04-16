@@ -70,7 +70,7 @@
 			if (validateRes == 'success' && onsuccess) onsuccess();
 			if (validateRes != 'success' && onerror) onerror(res!);
 		});
-		return () => lightningAbort.abort;
+		return () => lightningAbort.abort();
 	});
 	let toggle: (open?: boolean) => void = $state(() => {});
 </script>
@@ -87,7 +87,7 @@
 					<p class="error">Error: {res}</p>
 				{:else}
 					<p>
-						Scan the QR code below to send {new Intl.NumberFormat('en-US', {
+						Tap or scan the QR code below to send {new Intl.NumberFormat('en-US', {
 							maximumFractionDigits: 10
 						}).format(satsToBtc(Number(res.amount)))} BTC to V4V
 					</p>

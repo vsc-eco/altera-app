@@ -12,14 +12,14 @@
 	const api = $derived(qrCode.connect(service, normalizeProps));
 </script>
 
-<div {...api.getRootProps()}>
+<a href={data} {...api.getRootProps()}>
 	<svg {...api.getFrameProps()}>
 		<path {...api.getPatternProps()}></path>
 	</svg>
 	<div {...api.getOverlayProps()}>
 		<img src="https://avatars.githubusercontent.com/u/133249767" alt="" />
 	</div>
-</div>
+</a>
 
 <style>
 	[data-part='root'] {

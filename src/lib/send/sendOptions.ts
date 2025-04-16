@@ -1,6 +1,7 @@
 import { convert } from '$lib/currency/convert';
 import type { Auth } from '../auth/store';
 import { readonly, type Readable } from 'svelte/store';
+import { getV4VMetadata } from './v4v/api-types/metadata';
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
@@ -119,11 +120,14 @@ const vsc: Network = {
 		return false;
 	}
 };
-const unknown: Network = {
+const unknown: IntermediaryNetwork = {
 	value: 'unk',
 	label: 'Unknown',
 	icon: '/unk.svg',
-	enabled: never
+	enabled: never,
+	feeCalculation: () => {
+		throw new Error('cannot calculate fees for an unknown intermediary network.');
+	}
 };
 const hiveMainnet: Network = {
 	value: 'hive_mainnet',
@@ -137,13 +141,17 @@ const hiveMainnet: Network = {
 		return false;
 	}
 };
+
+type FeeCalculation = (fromAmount: number, inputCoin: Coin, outputCoin: Coin) => Promise<number>;
 export type Network = {
 	value: string;
 	label: string;
 	icon: string;
 	enabled: Enabled;
-	feeCalculation?: (amount: number, coin: Coin) => Promise<number>;
+	feeCalculation?: FeeCalculation;
 };
+
+export type IntermediaryNetwork = Network & { feeCalculation: FeeCalculation };
 
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
@@ -151,16 +159,20 @@ const btcMainnet: Network = {
 	icon: '/btc/btc.svg',
 	enabled: never
 };
-const lightning: Network = {
+const lightning: IntermediaryNetwork = {
 	value: 'lightning',
 	label: 'Lightning',
 	icon: '/btc/lightning.svg',
 	enabled: always,
-	feeCalculation: async (amount: number, coin: Coin) => {
+	feeCalculation: async (amount: number, inputCoin: Coin, outputCoin: Coin) => {
+		const meta = await getV4VMetadata();
+
 		return await convert(
-			(await convert(amount, coin, Coin.sats, Network.lightning)) * 1.1 + 50,
+			(await convert(amount, inputCoin, Coin.sats, Network.lightning)) *
+				meta.config.conv_fee_percent +
+				meta.config.conv_fee_sats,
 			Coin.sats,
-			coin,
+			outputCoin,
 			Network.lightning
 		);
 	}

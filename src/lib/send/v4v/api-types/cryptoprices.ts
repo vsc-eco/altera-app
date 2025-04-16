@@ -1,3 +1,5 @@
+import { getQuerier } from './query';
+
 export type Cryptoprices = {
 	bitcoin: {
 		btc: number;
@@ -60,54 +62,5 @@ export type Cryptoprices = {
 	};
 };
 
-let cached: Cryptoprices | undefined = undefined;
-let cachedAt = 0;
-let isFetching = false;
-let awaitingCache: ((value: Cryptoprices | PromiseLike<Cryptoprices>) => void)[] = [];
-
-export async function getCryptoPrices(options?: { signal?: AbortSignal }): Promise<Cryptoprices> {
-	let now = Date.now();
-	if (cached != undefined) {
-		return cached;
-	}
-	if (cachedAt > now - 30 * 1000 && cached != undefined) {
-		return cached;
-	}
-
-	if (isFetching) {
-		return new Promise((resolve) => {
-			awaitingCache.push(resolve);
-		});
-	}
-
-	isFetching = true;
-	let req = fetch('https://api.v4v.app/v1/cryptoprices/', {
-		signal: options?.signal
-	});
-	if (cached != undefined) {
-		req.then(async (res) => {
-			if (res.ok) {
-				let out = await res.json();
-				cached = out;
-				cachedAt = now;
-				for (const res of awaitingCache) {
-					res(out);
-				}
-			}
-		});
-		// return stale cache for this req,
-		// fetch fresh data for the next one
-		return cached;
-	}
-	let res = await req;
-	if (res.ok) {
-		let out = await res.json();
-		cached = out;
-		cachedAt = now;
-		for (const res of awaitingCache) {
-			res(out);
-		}
-		return out;
-	}
-	throw new Error('Fetch failed.');
-}
+const url = 'https://api.v4v.app/v1/cryptoprices/';
+export const getCryptoPrices = getQuerier<Cryptoprices>(url);

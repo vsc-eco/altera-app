@@ -100,9 +100,8 @@
 				</PillButton>
 			</span>
 			<p>Tap or scan the QR Code below to open the HiveAuth app.</p>
-			<a href={qrData}>
-				<Qr data={qrData}></Qr>
-			</a>
+
+			<Qr data={qrData}></Qr>
 		{:else}
 			<form onsubmit={loginOnSubmit} oninvalidcapture={loginOnSubmit}>
 				<div class="error">{aiohaErrorText}</div>

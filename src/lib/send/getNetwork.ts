@@ -1,6 +1,9 @@
-import { type CoinOnNetwork, Network } from './sendOptions';
+import { type CoinOnNetwork, type IntermediaryNetwork, Network } from './sendOptions';
 
-export function getIntermediaryNetwork(from: CoinOnNetwork, to: CoinOnNetwork): Network {
+export function getIntermediaryNetwork(
+	from: CoinOnNetwork,
+	to: CoinOnNetwork
+): IntermediaryNetwork {
 	if (throughLightning(from, to)) {
 		return Network.lightning;
 	}

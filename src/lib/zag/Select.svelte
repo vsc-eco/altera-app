@@ -11,23 +11,38 @@
 		items: Option[];
 		initial?: string;
 		styleType?: 'default' | 'text';
+		disabled?: boolean;
 		onValueChange?: (value: ValueChangeDetails<Option>) => void;
 	};
-	let { items: options, initial, onValueChange, styleType }: Props = $props();
+	let { items: options, initial, onValueChange, styleType, disabled }: Props = $props();
 
 	const collection = select.collection({
 		items: options as Option[],
 		itemToString: (item) => item.label,
 		itemToValue: (item) => item.label
 	});
-
-	const service = useMachine(select.machine, {
+	const userProps = $derived({
 		id: getUniqueId(),
 		defaultValue: initial ? [initial] : undefined,
 		collection,
 		onValueChange
 	});
+	const service = useMachine(
+		untrack(() => select.machine),
+		{
+			id: getUniqueId(),
+			defaultValue: initial ? [initial] : undefined,
+			// svelte-ignore state_referenced_locally
+			collection,
+			onValueChange
+		}
+	);
 	const api = $derived(select.connect(service, normalizeProps));
+	$inspect(options);
+	$effect(() => {
+		// api.collection.setItems(options);
+		api.collection.items = options;
+	});
 	$effect(() => {
 		if (initial) {
 			untrack(() => {
@@ -40,10 +55,10 @@
 </script>
 
 <div {...api.getRootProps()}>
-	<Toggle {api} def={initial || 'Select option'}></Toggle>
+	<Toggle {api} def={initial || 'Select option'} {disabled}></Toggle>
 
 	<div use:portal {...api.getPositionerProps()}>
-		<List {api} selectData={options}></List>
+		<List {api} selectData={api.collection.items}></List>
 	</div>
 </div>
 

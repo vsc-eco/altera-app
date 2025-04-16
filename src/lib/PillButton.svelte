@@ -16,15 +16,18 @@
 		onclick: MouseEventHandler<HTMLButtonElement>;
 	} & HTMLButtonAttributes;
 	export type Props = SharedProps & (AnchorProps | ButtonAttributes);
-	let { children, theme = 'neutral', styleType: type, ...rest }: Props = $props();
-	let invertStyle = $derived(type == 'invert');
-	let textStyle = $derived(type == 'text' || type == 'icon-text');
-	let outlineStyle = $derived(type == 'outline' || type == 'icon-outline');
-	let iconStyle = $derived(type == 'icon' || type == 'icon-outline' || type == 'icon-text');
+	let { children, theme = 'neutral', styleType: styleType, ...rest }: Props = $props();
+	let invertStyle = $derived(styleType == 'invert');
+	let textStyle = $derived(styleType == 'text' || styleType == 'icon-text');
+	let outlineStyle = $derived(styleType == 'outline' || styleType == 'icon-outline');
+	let iconStyle = $derived(
+		styleType == 'icon' || styleType == 'icon-outline' || styleType == 'icon-text'
+	);
 	let className = $derived([
 		theme,
 		{ invert: invertStyle, text: textStyle, outline: outlineStyle, icon: iconStyle }
 	]);
+	if (theme == 'primary') $inspect({ theme, styleType, rest });
 </script>
 
 {#snippet inner()}
@@ -133,9 +136,16 @@
 		}
 		&.text {
 			background-color: transparent;
-			color: var(--fg);
+			color: var(--fg-mid);
 			border: none;
+			&.neutral {
+				&:hover {
+					text-decoration: none;
+				}
+				color: var(--fg);
+			}
 			&:hover {
+				text-decoration: underline;
 				background-color: var(--bg-accent);
 				color: var(--fg);
 			}

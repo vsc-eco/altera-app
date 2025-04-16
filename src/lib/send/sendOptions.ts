@@ -31,8 +31,7 @@ const hive: Coin = {
 		if (going == 'from') return true;
 		if (info.from?.coin == Coin.hive) return true;
 		return false;
-	},
-	convertTo: []
+	}
 };
 const hbd: Coin = {
 	value: 'hbd',
@@ -45,8 +44,7 @@ const hbd: Coin = {
 		if (going == 'from') return true;
 		if (info.from?.coin == Coin.hbd) return true;
 		return false;
-	},
-	convertTo: []
+	}
 };
 const btc: Coin = {
 	value: 'btc',
@@ -55,8 +53,7 @@ const btc: Coin = {
 	unit: 'BTC',
 	enabled: (going, from, to) => {
 		return going == 'from';
-	},
-	convertTo: []
+	}
 };
 
 const usd: Coin = {
@@ -64,8 +61,7 @@ const usd: Coin = {
 	label: 'USD',
 	icon: '/btc/btc.svg',
 	unit: 'USD',
-	enabled: never,
-	convertTo: []
+	enabled: never
 };
 
 const sats: Coin = {
@@ -75,18 +71,23 @@ const sats: Coin = {
 	unit: 'SATS',
 	enabled: (going, from, to) => {
 		return going == 'from';
-	},
-	convertTo: []
+	}
 };
-
-hive.convertTo = [hbd];
+const unk: Coin = {
+	value: 'UNK',
+	label: 'UNK',
+	icon: '/unk.svg',
+	unit: 'UNK',
+	enabled: never
+};
 
 export const Coin = {
 	hive,
 	hbd,
 	btc,
 	sats,
-	usd
+	usd,
+	unk
 };
 
 export type Coin = {
@@ -95,7 +96,6 @@ export type Coin = {
 	icon: string;
 	unit: string;
 	enabled: Enabled;
-	convertTo: Coin[];
 };
 
 type Enabled = (
@@ -121,12 +121,12 @@ const vsc: Network = {
 const unknown: Network = {
 	value: 'unk',
 	label: 'Unknown',
-	icon: '/unk.png',
+	icon: '/unk.svg',
 	enabled: never
 };
 const hiveMainnet: Network = {
 	value: 'hive_mainnet',
-	label: 'Hive Mainnet',
+	label: 'The Hive Mainnet',
 	icon: '/hive/hive.svg',
 	enabled: (going, { from, to }, auth) => {
 		if (auth.value?.aioha == undefined) return false;
@@ -145,7 +145,7 @@ export type Network = {
 
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
-	label: 'BTC Mainnet',
+	label: 'The BTC Mainnet',
 	icon: '/btc/btc.svg',
 	enabled: never
 };

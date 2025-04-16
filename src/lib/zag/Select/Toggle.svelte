@@ -6,14 +6,15 @@
 	type Props = {
 		api: Api<PropTypes, unknown>;
 		def: string;
+		disabled?: boolean;
 	};
-	let { api, def }: Props = $props();
+	let { api, def, disabled }: Props = $props();
 	const triggerProps: ButtonAttributes = $derived(api.getTriggerProps()) as ButtonAttributes;
 	let open = $derived(api.open);
 </script>
 
 <div {...api.getControlProps()}>
-	<PillButton {...triggerProps} styleType="text">
+	<PillButton {...triggerProps} styleType="text" {disabled}>
 		{api.valueAsString || def || 'Select option'}
 		{#if open}
 			<ChevronUp></ChevronUp>

@@ -9,19 +9,22 @@
 		fromNetwork,
 		toAmount = $bindable(''),
 		toCoin: newToCoin,
-		toNetwork
+		toNetwork,
+		disabled
 	}: {
 		fromAmount: string;
-		fromCoin: Coin;
-		fromNetwork: Network;
+		fromCoin?: Coin;
+		fromNetwork?: Network;
 		toAmount: string;
-		toCoin: Coin;
-		toNetwork: Network;
+		toCoin?: Coin;
+		toNetwork?: Network;
+		disabled?: boolean;
 	} = $props();
-	let fromCoin: Coin = $state(undefined)!;
-	let toCoin: Coin = $state(undefined)!;
+	let fromCoin: Coin = $state(Coin.unk);
+	let toCoin: Coin = $state(Coin.unk);
 	$effect(() => {
-		if (untrack(() => fromCoin) == undefined) {
+		if (newFromCoin == undefined) return;
+		if (untrack(() => fromCoin.label) == Coin.unk.label) {
 			fromCoin = newFromCoin;
 			return;
 		}
@@ -42,7 +45,8 @@
 	});
 
 	$effect(() => {
-		if (untrack(() => toCoin) == undefined) {
+		if (newToCoin == undefined) return;
+		if (untrack(() => toCoin.label) == Coin.unk.label) {
 			toCoin = newToCoin;
 			return;
 		}
@@ -75,12 +79,13 @@
 					.replaceAll(',', '');
 			});
 		}}
+		{disabled}
 		required
 		selectItems={fromCoin.unit == 'BTC' ? [fromCoin, Coin.sats, Coin.usd] : [fromCoin, Coin.usd]}
 		id="from-amount"
 		bind:originalAmount={fromAmount}
 		coin={fromCoin}
-		network={fromNetwork}
+		network={fromNetwork ?? Network.unknown}
 		label="From Amount:"
 	/>
 
@@ -95,13 +100,13 @@
 					.replaceAll(',', '');
 			});
 		}}
+		{disabled}
 		required
 		selectItems={[toCoin]}
 		id="to-amount"
 		bind:originalAmount={toAmount}
 		coin={toCoin}
-		network={toNetwork}
+		network={toNetwork ?? Network.unknown}
 		label="To Amount:"
 	/>
 {/if}
-

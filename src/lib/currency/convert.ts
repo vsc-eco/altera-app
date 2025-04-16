@@ -21,7 +21,6 @@ function parseToRootedFormat(base: Coin, prices: Cryptoprices) {
 				SATS: prices.v4vapp.sats_Hive
 			};
 		case 'HBD':
-
 			return {
 				HIVE: 1 / prices.v4vapp.Hive_HBD,
 				HBD: 1,
@@ -66,6 +65,8 @@ export async function convert(
 	into: Coin,
 	via: Network
 ): Promise<number> {
+	if ([from, into].map((c) => c.label).includes(Coin.unk.label))
+		throw Error(`${Coin.unk.label} coin not supported`);
 	if (from.unit == into.unit) return fromAmount;
 	if (via == Network.lightning) {
 		let rates = await getLightningExchangeRates(from);

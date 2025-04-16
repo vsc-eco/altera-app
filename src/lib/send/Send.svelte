@@ -19,6 +19,7 @@
 	import { untrack } from 'svelte';
 	import Amounts from './Amounts.svelte';
 	import CurrencySelect from './CurrencySelect.svelte';
+	import { transactions } from '../../routes/(authed)/transactions/sampleData';
 	let formError = $state();
 	let { widgetView }: { widgetView?: boolean } = $props();
 	let auth = $derived(getAuth()());
@@ -64,12 +65,16 @@
 		from: { coin: fromCoin?.coin, network: fromNetwork },
 		to: { coin: toCoin?.coin, network: toNetwork }
 	});
+	function scrollToStep(step: number) {
+		console.log('Scrolling to step', step);
+		document.querySelector(`form#send > fieldset:nth-of-type(${step})`)?.scrollIntoView({
+			behavior: 'smooth',
+			block: 'nearest'
+		});
+	}
 	$effect(() => {
 		if (fromCoin && fromNetwork && (!toCoin || !toNetwork)) {
-			document.querySelector('form#send > fieldset:nth-of-type(2)')?.scrollIntoView({
-				behavior: 'smooth',
-				block: 'nearest'
-			});
+			scrollToStep(2);
 		}
 	});
 
@@ -77,10 +82,7 @@
 		const onBlur = () => {
 			if (toAmount != '0') {
 				setTimeout(() => {
-					document.querySelector('form#send > fieldset:nth-of-type(4)')?.scrollIntoView({
-						block: 'nearest',
-						behavior: 'smooth'
-					});
+					scrollToStep(4);
 				}, 0);
 			}
 			const amountFieldset = document.querySelector('form#send > fieldset:nth-of-type(3)');
@@ -113,6 +115,15 @@
 			}
 		};
 	});
+	const typeButton = {
+		type: 'button',
+		onclick: (e: MouseEvent) => {
+			console.log('HERE');
+			e.preventDefault();
+			e.stopPropagation();
+			scrollToStep(3);
+		}
+	} as const;
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
@@ -143,25 +154,39 @@
 		{enabledOptions}
 		bind:username={toUsername}
 	/>
-	{#if fromNetwork && toNetwork && fromCoin && toCoin}
-		<fieldset class="amounts">
-			<legend>Amount:</legend>
-			<Amounts
-				bind:toAmount
-				bind:fromAmount
-				fromCoin={fromCoin.coin}
-				toCoin={toCoin.coin}
-				{fromNetwork}
-				{toNetwork}
-			/>
-		</fieldset>
-	{/if}
-	{#if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount != '0'}
-		<fieldset class="submit">
-			<legend>Submit</legend>
+	<fieldset class="amounts">
+		<legend>Amount:</legend>
+		{#if !(fromNetwork && toNetwork && fromCoin && toCoin)}
+			{@const networksInvalid = !fromNetwork || !toNetwork}
+			{@const coinsInvalid = !fromCoin || !toCoin}
+			Must select
+			{#if coinsInvalid}
+				currencies
+			{/if}
+			{#if coinsInvalid && networksInvalid}
+				and
+			{/if}
+			{#if networksInvalid}
+				networks
+			{/if}
+			first before selecting amounts.
+		{/if}
+		<Amounts
+			disabled={!(fromNetwork && toNetwork && fromCoin && toCoin)}
+			bind:toAmount
+			bind:fromAmount
+			fromCoin={fromCoin?.coin}
+			toCoin={toCoin?.coin}
+			{fromNetwork}
+			{toNetwork}
+		/>
+	</fieldset>
+	<fieldset class="submit">
+		<legend>Submit</legend>
+		{#if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount != '0'}
 			<h3>
 				Send {fromAmount}
-				{fromCoin.coin.unit} on {fromNetwork?.label}
+				{fromCoin.coin.unit} from {fromNetwork?.label}
 
 				to {accountNameFromAddress(toUsername)}
 				{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
@@ -176,8 +201,27 @@
 			<PillButton onclick={() => {}} disabled={showV4VModal} styleType="invert" theme="primary"
 				>Send</PillButton
 			>
-		</fieldset>
-	{/if}
+		{:else if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount == '0'}
+			<span>
+				Send amount cannot be zero. Please <PillButton
+					styleType="text"
+					theme="primary"
+					{...typeButton}>select some positive amount</PillButton
+				> to send.
+			</span>
+		{:else}
+			Must select
+			{#if !toCoin || !fromCoin || !toNetwork || !fromNetwork}
+				{@const coinsInvalid = !toCoin || !fromCoin}
+				{@const networksInvalid = !toNetwork || !fromNetwork}
+				{#if coinsInvalid}
+					currencies{/if}{#if coinsInvalid && networksInvalid},{/if}
+				{#if networksInvalid}
+					networks{/if}{#if coinsInvalid && networksInvalid},{/if}
+				and
+			{/if} amounts before submitting this transaction.
+		{/if}
+	</fieldset>
 </form>
 
 {#if showV4VModal && toCoin && toNetwork && toAmount}

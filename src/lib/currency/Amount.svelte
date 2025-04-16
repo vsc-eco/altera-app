@@ -6,6 +6,7 @@
 	import { convert } from './convert';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import { itemGroupLabelProps } from '@zag-js/menu';
+	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 
 	let {
 		coin: originalCoin,
@@ -33,8 +34,13 @@
 		value = originalCoin;
 	});
 	let inputDisabled = $state(disabled);
-	let inUsd = $state('');
 	$effect(() => {
+		inputDisabled = disabled;
+	});
+	let inUsd = $state('');
+	let coinIsUnknown = $derived(originalCoin.value == Coin.unk.value);
+	$effect(() => {
+		if (coinIsUnknown) return;
 		convert(
 			Number(amountOfOriginalCoin),
 			untrack(() => originalCoin),
@@ -53,6 +59,7 @@
 
 	let boundAmount = $state('');
 	$effect(() => {
+		if (coinIsUnknown) return;
 		convert(
 			Number(amountOfOriginalCoin),
 			untrack(() => originalCoin),
@@ -67,6 +74,9 @@
 				.replaceAll(',', '');
 		});
 	});
+	$effect(() => {
+		if (coinIsUnknown) boundAmount = '';
+	});
 </script>
 
 <label for={id}>
@@ -74,11 +84,8 @@
 		{label}
 	</span>
 
-	<div class="amount-input">
-		<span class="icons">
-			<img width="24" src={originalCoin.icon} alt={originalCoin.label} />
-			<img width="12" src={network.icon} alt={network.label} />
-		</span>
+	<div class={['amount-input', { disabled }]}>
+		<CoinNetworkIcon coin={originalCoin} {network} />
 		<input
 			oninput={(e) => {
 				convert(Number(boundAmount), value, originalCoin, Network.lightning).then((newVal) => {
@@ -120,15 +127,17 @@
 		<hr />
 		<div class="currency-select">
 			<Select
+				{disabled}
 				items={selectItems}
 				initial={originalCoin.label}
 				onValueChange={(v) => {
+					console.log(v);
 					if (v.items[0] == undefined) return;
 					if (value == undefined) {
 						value = v.items[0];
 						return;
 					}
-					if (v.items[0].unit == value.unit) return;
+					if (v.items[0].value == value.value) return;
 					if (boundAmount != undefined) {
 						convert(Number(boundAmount), value, v.items[0], Network.lightning).then((amount) => {
 							boundAmount = new Intl.NumberFormat('en-US', {
@@ -157,7 +166,12 @@
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-sm);
 	}
+	.disabled {
+		--bg: var(--neutral-bg-accent);
+		background-color: var(--neutral-bg-accent);
+	}
 	label {
+		--bg: var(--neutral-off-bg);
 		display: block;
 		margin-left: 0;
 		flex-grow: 1;
@@ -188,29 +202,6 @@
 			border-bottom-color: var(--primary-bg-mid);
 			outline: none;
 			border-radius: 0.5rem 0.5rem 0 0;
-		}
-
-		.icons {
-			align-items: center;
-			border-radius: 0.5rem 0 0 0.5rem;
-			border-right-width: 0;
-			padding: 0.25rem;
-			height: 3rem;
-			padding-left: 0.5rem;
-			width: 2.25rem;
-			box-sizing: border-box;
-			display: inline-flex;
-			position: relative;
-			justify-content: left;
-			align-items: center;
-			img:last-child {
-				background-color: var(--neutral-off-bg);
-				position: absolute;
-				border: 2px solid var(--neutral-off-bg);
-				border-radius: 50%;
-				bottom: 0.5rem;
-				left: 16px;
-			}
 		}
 
 		hr {

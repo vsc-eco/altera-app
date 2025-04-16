@@ -109,8 +109,9 @@
 		</form>
 	{:else}
 		<p class="error">
-			Staking with an EVM wallet is currently unsupported. Please <a href="/logout">logout</a> and login
-			with a hive account instead.
+			Consensus staking with an EVM wallet is currently unsupported. Please <a href="/logout"
+				>logout</a
+			> and login with a hive account instead.
 		</p>
 	{/if}
 </Card>

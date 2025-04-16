@@ -75,7 +75,8 @@
 		console.log('Scrolling to step', step);
 		getStep(step)?.scrollIntoView({
 			behavior: 'smooth',
-			block: 'nearest'
+			block: 'nearest',
+			inline: 'center'
 		});
 	}
 
@@ -111,7 +112,7 @@
 					},
 					type: 'button'
 				}}
-				disabled={stepNum == 1}>Previous</PillButton
+				disabled={stepNum == 1}>Back</PillButton
 			>
 			<PillButton
 				theme="primary"
@@ -220,9 +221,31 @@
 				&nbsp;
 			{/if}
 		</p>
-		<PillButton onclick={() => {}} disabled={showV4VModal} styleType="invert" theme="primary">
-			Send
-		</PillButton>
+		{#if widgetView}
+			<div class="nav-buttons">
+				<PillButton
+					styleType="outline"
+					{...{
+						onclick: () => {
+							scrollToStep(3);
+						},
+						type: 'button'
+					}}>Back</PillButton
+				>
+				<PillButton
+					theme="primary"
+					styleType="invert"
+					onclick={() => {
+						error = '';
+					}}
+					disabled={showV4VModal}>Send</PillButton
+				>
+			</div>
+		{:else}
+			<PillButton onclick={() => {}} disabled={showV4VModal} styleType="invert" theme="primary">
+				Send
+			</PillButton>
+		{/if}
 	</fieldset>
 </form>
 
@@ -295,9 +318,13 @@
 	}
 
 	.amounts {
-		display: flex;
 		justify-content: space-between;
+		flex-direction: row;
+		flex-wrap: wrap;
 		column-gap: 1rem;
+	}
+	.widgetView .amounts {
+		flex-direction: column;
 	}
 
 	form > :global(fieldset) {

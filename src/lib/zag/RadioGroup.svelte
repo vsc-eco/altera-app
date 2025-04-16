@@ -36,7 +36,8 @@
 	const service = useMachine(radio.machine, {
 		id: id ?? generatedId,
 		name,
-		orientation: 'horizontal'
+		orientation: 'horizontal',
+		defaultValue: propDefault
 	});
 	const api = $derived(radio.connect(service, normalizeProps));
 	$effect(() => {

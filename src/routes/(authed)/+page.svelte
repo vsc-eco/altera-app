@@ -39,7 +39,9 @@
 	<Card>
 		<Send widgetView />
 	</Card>
-	<DepositModal />
+	{#if auth.value == undefined || auth.value.username != undefined}
+		<DepositModal />
+	{/if}
 	<div class="txs">
 		<h3>Transactions</h3>
 		{#if auth.value}

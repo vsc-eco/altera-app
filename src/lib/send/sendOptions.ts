@@ -145,7 +145,7 @@ export type Network = {
 
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
-	label: 'The BTC Mainnet',
+	label: 'BTC Mainnet',
 	icon: '/btc/btc.svg',
 	enabled: never
 };

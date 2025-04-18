@@ -1,11 +1,11 @@
-import { Token, Type } from './token.js'
-import { assertEnoughData, decodeErrPrefix } from './common.js'
-import * as uint from './0uint.js'
-import { compare, fromString, slice } from './byte-utils.js'
+import { Token, Type } from './token.js';
+import { assertEnoughData, decodeErrPrefix } from './common.js';
+import * as uint from './0uint.js';
+import { compare, fromString, slice } from './byte-utils.js';
 
 /**
  * @typedef {import('./bl.js').Bl} Bl
- * @typedef {import('../interface').DecodeOptions} DecodeOptions
+ * @typedef {import('../interface.js').DecodeOptions} DecodeOptions
  */
 
 /**
@@ -16,9 +16,9 @@ import { compare, fromString, slice } from './byte-utils.js'
  * @returns {Token}
  */
 function toToken(data, pos, prefix, length) {
-  assertEnoughData(data, pos, prefix + length)
-  const buf = slice(data, pos + prefix, pos + prefix + length)
-  return new Token(Type.bytes, buf, prefix + length)
+	assertEnoughData(data, pos, prefix + length);
+	const buf = slice(data, pos + prefix, pos + prefix + length);
+	return new Token(Type.bytes, buf, prefix + length);
 }
 
 /**
@@ -29,7 +29,7 @@ function toToken(data, pos, prefix, length) {
  * @returns {Token}
  */
 export function decodeBytesCompact(data, pos, minor, _options) {
-  return toToken(data, pos, 1, minor)
+	return toToken(data, pos, 1, minor);
 }
 
 /**
@@ -40,7 +40,7 @@ export function decodeBytesCompact(data, pos, minor, _options) {
  * @returns {Token}
  */
 export function decodeBytes8(data, pos, _minor, options) {
-  return toToken(data, pos, 2, uint.readUint8(data, pos + 1, options))
+	return toToken(data, pos, 2, uint.readUint8(data, pos + 1, options));
 }
 
 /**
@@ -51,7 +51,7 @@ export function decodeBytes8(data, pos, _minor, options) {
  * @returns {Token}
  */
 export function decodeBytes16(data, pos, _minor, options) {
-  return toToken(data, pos, 3, uint.readUint16(data, pos + 1, options))
+	return toToken(data, pos, 3, uint.readUint16(data, pos + 1, options));
 }
 
 /**
@@ -62,7 +62,7 @@ export function decodeBytes16(data, pos, _minor, options) {
  * @returns {Token}
  */
 export function decodeBytes32(data, pos, _minor, options) {
-  return toToken(data, pos, 5, uint.readUint32(data, pos + 1, options))
+	return toToken(data, pos, 5, uint.readUint32(data, pos + 1, options));
 }
 
 // TODO: maybe we shouldn't support this ..
@@ -74,13 +74,11 @@ export function decodeBytes32(data, pos, _minor, options) {
  * @returns {Token}
  */
 export function decodeBytes64(data, pos, _minor, options) {
-  const l = uint.readUint64(data, pos + 1, options)
-  if (typeof l === 'bigint') {
-    throw new Error(
-      `${decodeErrPrefix} 64-bit integer bytes lengths not supported`,
-    )
-  }
-  return toToken(data, pos, 9, l)
+	const l = uint.readUint64(data, pos + 1, options);
+	if (typeof l === 'bigint') {
+		throw new Error(`${decodeErrPrefix} 64-bit integer bytes lengths not supported`);
+	}
+	return toToken(data, pos, 9, l);
 }
 
 /**
@@ -90,12 +88,11 @@ export function decodeBytes64(data, pos, _minor, options) {
  * @returns {Uint8Array}
  */
 function tokenBytes(token) {
-  if (token.encodedBytes === undefined) {
-    token.encodedBytes =
-      token.type === Type.string ? fromString(token.value) : token.value
-  }
-  // @ts-ignore c'mon
-  return token.encodedBytes
+	if (token.encodedBytes === undefined) {
+		token.encodedBytes = token.type === Type.string ? fromString(token.value) : token.value;
+	}
+	// @ts-ignore c'mon
+	return token.encodedBytes;
 }
 
 /**
@@ -103,9 +100,9 @@ function tokenBytes(token) {
  * @param {Token} token
  */
 export function encodeBytes(buf, token) {
-  const bytes = tokenBytes(token)
-  uint.encodeUintValue(buf, token.type.majorEncoded, bytes.length)
-  buf.push(bytes)
+	const bytes = tokenBytes(token);
+	uint.encodeUintValue(buf, token.type.majorEncoded, bytes.length);
+	buf.push(bytes);
 }
 
 /**
@@ -113,9 +110,9 @@ export function encodeBytes(buf, token) {
  * @returns {number}
  */
 encodeBytes.encodedSize = function encodedSize(token) {
-  const bytes = tokenBytes(token)
-  return uint.encodeUintValue.encodedSize(bytes.length) + bytes.length
-}
+	const bytes = tokenBytes(token);
+	return uint.encodeUintValue.encodedSize(bytes.length) + bytes.length;
+};
 
 /**
  * @param {Token} tok1
@@ -123,8 +120,8 @@ encodeBytes.encodedSize = function encodedSize(token) {
  * @returns {number}
  */
 encodeBytes.compareTokens = function compareTokens(tok1, tok2) {
-  return compareBytes(tokenBytes(tok1), tokenBytes(tok2))
-}
+	return compareBytes(tokenBytes(tok1), tokenBytes(tok2));
+};
 
 /**
  * @param {Uint8Array} b1
@@ -132,9 +129,5 @@ encodeBytes.compareTokens = function compareTokens(tok1, tok2) {
  * @returns {number}
  */
 export function compareBytes(b1, b2) {
-  return b1.length < b2.length
-    ? -1
-    : b1.length > b2.length
-      ? 1
-      : compare(b1, b2)
+	return b1.length < b2.length ? -1 : b1.length > b2.length ? 1 : compare(b1, b2);
 }

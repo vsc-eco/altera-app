@@ -1,0 +1,16 @@
+/* TEAM */
+	Frontend Developer: Zephiris Evergreen
+	Site: zephiris.me
+	Pronouns: they/them
+	Contact: z [at] zephiris.me
+	GitHub: zphrs
+	Location: Bay Area, Califonia, United States
+
+	CTO: Vaultec
+	Site: https://peakd.com/@vaultec
+	Twitter: vaultec81
+	GitHub: vaultec81
+
+/* THANKS */
+
+Name: Geo https://peakd.com/@geo52rey

@@ -9,8 +9,8 @@
 		createClient,
 		getDepositTransaction,
 		signAndBrodcastTransactionToHive
-	} from '$lib/transactions/vscClient/client';
-	import { aiohaSigner } from '$lib/transactions/vscClient/hive/aioha';
+	} from '$lib/vscTransactions/oldVscClient/client';
+	import { aiohaSigner } from '$lib/vscTransactions/oldVscClient/hive/aioha';
 	import { KeyTypes } from '@aioha/aioha';
 	import { Asset, type CustomJsonOperation, type TransferOperation } from '@hiveio/dhive';
 	import Card from '$lib/cards/Card.svelte';

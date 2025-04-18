@@ -1,10 +1,10 @@
-import { Token, Type } from './token.js'
-import * as uint from './0uint.js'
-import { decodeErrPrefix } from './common.js'
+import { Token, Type } from './token.js';
+import * as uint from './0uint.js';
+import { decodeErrPrefix } from './common.js';
 
 /**
  * @typedef {import('./bl.js').Bl} Bl
- * @typedef {import('../interface').DecodeOptions} DecodeOptions
+ * @typedef {import('../interface.js').DecodeOptions} DecodeOptions
  */
 
 /**
@@ -15,7 +15,7 @@ import { decodeErrPrefix } from './common.js'
  * @returns {Token}
  */
 function toToken(_data, _pos, prefix, length) {
-  return new Token(Type.array, length, prefix)
+	return new Token(Type.array, length, prefix);
 }
 
 /**
@@ -26,7 +26,7 @@ function toToken(_data, _pos, prefix, length) {
  * @returns {Token}
  */
 export function decodeArrayCompact(data, pos, minor, _options) {
-  return toToken(data, pos, 1, minor)
+	return toToken(data, pos, 1, minor);
 }
 
 /**
@@ -37,7 +37,7 @@ export function decodeArrayCompact(data, pos, minor, _options) {
  * @returns {Token}
  */
 export function decodeArray8(data, pos, _minor, options) {
-  return toToken(data, pos, 2, uint.readUint8(data, pos + 1, options))
+	return toToken(data, pos, 2, uint.readUint8(data, pos + 1, options));
 }
 
 /**
@@ -48,7 +48,7 @@ export function decodeArray8(data, pos, _minor, options) {
  * @returns {Token}
  */
 export function decodeArray16(data, pos, _minor, options) {
-  return toToken(data, pos, 3, uint.readUint16(data, pos + 1, options))
+	return toToken(data, pos, 3, uint.readUint16(data, pos + 1, options));
 }
 
 /**
@@ -59,7 +59,7 @@ export function decodeArray16(data, pos, _minor, options) {
  * @returns {Token}
  */
 export function decodeArray32(data, pos, _minor, options) {
-  return toToken(data, pos, 5, uint.readUint32(data, pos + 1, options))
+	return toToken(data, pos, 5, uint.readUint32(data, pos + 1, options));
 }
 
 // TODO: maybe we shouldn't support this ..
@@ -71,13 +71,11 @@ export function decodeArray32(data, pos, _minor, options) {
  * @returns {Token}
  */
 export function decodeArray64(data, pos, _minor, options) {
-  const l = uint.readUint64(data, pos + 1, options)
-  if (typeof l === 'bigint') {
-    throw new Error(
-      `${decodeErrPrefix} 64-bit integer array lengths not supported`,
-    )
-  }
-  return toToken(data, pos, 9, l)
+	const l = uint.readUint64(data, pos + 1, options);
+	if (typeof l === 'bigint') {
+		throw new Error(`${decodeErrPrefix} 64-bit integer array lengths not supported`);
+	}
+	return toToken(data, pos, 9, l);
 }
 
 /**
@@ -88,10 +86,10 @@ export function decodeArray64(data, pos, _minor, options) {
  * @returns {Token}
  */
 export function decodeArrayIndefinite(data, pos, _minor, options) {
-  if (options.allowIndefinite === false) {
-    throw new Error(`${decodeErrPrefix} indefinite length items not allowed`)
-  }
-  return toToken(data, pos, 1, Infinity)
+	if (options.allowIndefinite === false) {
+		throw new Error(`${decodeErrPrefix} indefinite length items not allowed`);
+	}
+	return toToken(data, pos, 1, Infinity);
 }
 
 /**
@@ -99,17 +97,17 @@ export function decodeArrayIndefinite(data, pos, _minor, options) {
  * @param {Token} token
  */
 export function encodeArray(buf, token) {
-  uint.encodeUintValue(buf, Type.array.majorEncoded, token.value)
+	uint.encodeUintValue(buf, Type.array.majorEncoded, token.value);
 }
 
 // using an array as a map key, are you sure about this? we can only sort
 // by map length here, it's up to the encoder to decide to look deeper
-encodeArray.compareTokens = uint.encodeUint.compareTokens
+encodeArray.compareTokens = uint.encodeUint.compareTokens;
 
 /**
  * @param {Token} token
  * @returns {number}
  */
 encodeArray.encodedSize = function encodedSize(token) {
-  return uint.encodeUintValue.encodedSize(token.value)
-}
+	return uint.encodeUintValue.encodedSize(token.value);
+};

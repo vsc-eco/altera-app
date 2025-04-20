@@ -3,6 +3,7 @@
 	import { convert } from '$lib/currency/convert';
 	import { untrack } from 'svelte';
 	import { Coin, Network } from './sendOptions';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	let {
 		fromAmount = $bindable(''),
 		fromCoin: newFromCoin,
@@ -26,86 +27,63 @@
 		if (newFromCoin == undefined) return;
 		if (untrack(() => fromCoin.label) == Coin.unk.label) {
 			console.log('HERE TO COIN TO NEW FROM COIN');
-			convert(
+			new CoinAmount(
 				untrack(() => Number(toAmount || '0')),
-				untrack(() => toCoin),
-				newFromCoin,
-				Network.lightning
-			).then((amount) => {
-				fromAmount = new Intl.NumberFormat('en-US', {
-					style: 'decimal',
-					maximumFractionDigits: 8
-				})
-					.format(amount)
-					.replaceAll(',', '');
-				fromCoin = newFromCoin;
-			});
+				untrack(() => toCoin)
+			)
+				.convertTo(newFromCoin, Network.lightning)
+				.then((amount) => {
+					fromAmount = amount.amountToString();
+					fromCoin = newFromCoin;
+				});
 			return;
 		}
-		convert(
+		new CoinAmount(
 			untrack(() => Number(fromAmount)),
-			untrack(() => fromCoin!),
-			newFromCoin,
-			Network.lightning
-		).then((amount) => {
-			fromAmount = new Intl.NumberFormat('en-US', {
-				style: 'decimal',
-				maximumFractionDigits: 8
-			})
-				.format(amount)
-				.replaceAll(',', '');
-			fromCoin = newFromCoin;
-		});
+			untrack(() => fromCoin!)
+		)
+			.convertTo(newFromCoin, Network.lightning)
+			.then((amount) => {
+				fromAmount = amount.amountToString();
+				fromCoin = newFromCoin;
+			});
 	});
 
 	$effect(() => {
 		if (newToCoin == undefined) return;
 		if (untrack(() => toCoin.label) == Coin.unk.label) {
 			console.log('HERE FROM COIN TO NEW TO COIN');
-			convert(
+			new CoinAmount(
 				untrack(() => Number(fromAmount || '0')),
-				untrack(() => fromCoin),
-				newToCoin,
-				Network.lightning
-			).then((amount) => {
-				toAmount = new Intl.NumberFormat('en-US', {
-					style: 'decimal',
-					maximumFractionDigits: 8
-				})
-					.format(amount)
-					.replaceAll(',', '');
-				toCoin = newToCoin;
-			});
+				untrack(() => fromCoin)
+			)
+				.convertTo(newToCoin, Network.lightning)
+				.then((amount) => {
+					toAmount = amount.amountToString();
+					toCoin = newToCoin;
+				});
 			return;
 		}
-		convert(
+		new CoinAmount(
 			untrack(() => Number(toAmount)),
-			untrack(() => toCoin!),
-			newToCoin,
-			Network.lightning
-		).then((amount) => {
-			toAmount = new Intl.NumberFormat('en-US', {
-				style: 'decimal',
-				maximumFractionDigits: 8
-			})
-				.format(amount)
-				.replaceAll(',', '');
-			toCoin = newToCoin;
-		});
+			untrack(() => toCoin!)
+		)
+			.convertTo(newToCoin, Network.lightning)
+			.then((amount) => {
+				toAmount = amount.amountToString();
+				toCoin = newToCoin;
+			});
 	});
 </script>
 
 {#if fromCoin && toCoin}
 	<Amount
 		oninput={(v) => {
-			convert(Number(fromAmount), fromCoin, toCoin, Network.lightning).then((value) => {
-				toAmount = new Intl.NumberFormat('en-US', {
-					style: 'decimal',
-					maximumFractionDigits: 8
-				})
-					.format(value)
-					.replaceAll(',', '');
-			});
+			new CoinAmount(Number(fromAmount), fromCoin)
+				.convertTo(toCoin, Network.lightning)
+				.then((value) => {
+					toAmount = value.amountToString();
+				});
 		}}
 		{disabled}
 		required
@@ -119,14 +97,11 @@
 
 	<Amount
 		oninput={(v) => {
-			convert(Number(toAmount), toCoin, fromCoin, Network.lightning).then((value) => {
-				fromAmount = new Intl.NumberFormat('en-US', {
-					style: 'decimal',
-					maximumFractionDigits: 8
-				})
-					.format(value)
-					.replaceAll(',', '');
-			});
+			new CoinAmount(Number(toAmount), toCoin)
+				.convertTo(fromCoin, Network.lightning)
+				.then((value) => {
+					fromAmount = value.amountToString();
+				});
 		}}
 		{disabled}
 		required

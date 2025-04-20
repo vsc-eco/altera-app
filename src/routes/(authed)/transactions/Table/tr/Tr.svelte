@@ -16,6 +16,7 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import StatusBadge from '../StatusBadge.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	type Props = {
 		to: string;
 		from: string;
@@ -58,17 +59,11 @@
 	const api = $derived(dialog.connect(service, normalizeProps));
 	let inUsd = $state('');
 
-	convert(Number(amount), Coin[tk as keyof typeof Coin], Coin.usd, Network.lightning).then(
-		(amount) => {
-			inUsd = new Intl.NumberFormat('en-US', {
-				style: 'decimal',
-				maximumFractionDigits: 2,
-				minimumFractionDigits: 2
-			})
-				.format(amount)
-				.replaceAll(',', '');
-		}
-	);
+	new CoinAmount(Number(amount), Coin[tk as keyof typeof Coin])
+		.convertTo(Coin.usd, Network.lightning)
+		.then((amount) => {
+			inUsd = amount.amountToString();
+		});
 </script>
 
 <tr

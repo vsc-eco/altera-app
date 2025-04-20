@@ -19,8 +19,18 @@ type AccountInfoResult {
   rc_max: Int
 }
 
-type AccountNonceResult {
-  nonce: Int
+type ActionRecord {
+  action_id: String!
+  amount: Int64!
+  asset: String!
+  block_height: Uint64!
+  id: String!
+  memo: String!
+  params: Map
+  status: String!
+  timestamp: String!
+  to: String!
+  type: String!
 }
 
 type AnchorProducer {
@@ -104,6 +114,8 @@ type ContractState {
   state_merkle: String
 }
 
+scalar DateTime
+
 interface DepositDrain {
   amount: Float
   deposit_id: String
@@ -145,20 +157,6 @@ type FindContractResult {
   status: String
 }
 
-input FindTransactionFilter {
-  byAccount: String
-  byAction: String
-  byContract: String
-  byId: String
-  byOpCategory: String
-  byStatus: String
-  limit: Int
-}
-
-type FindTransactionResult {
-  txs: [Transaction]
-}
-
 type Gas {
   IO: Int
 }
@@ -177,28 +175,38 @@ type JsonPatchOp {
   value: JSON
 }
 
-type LedgerOp {
-  amount: Int!
-  block_height: Int!
-  from: String
-  id: String!
-  idx: Float!
-  memo: String
-  owner: String!
-  status: String!
-  t: String!
-  tk: String!
+input LedgerActionsFilter {
+  byAccount: String
+  byActionId: String
+  byStatus: String
+  byTxId: String
+  byTypes: [String!]
+  fromBlock: Uint64
+  limit: Int
+  offset: Int
+  toBlock: Uint64
 }
 
-type LedgerResults {
-  txs: [LedgerOp!]
+type LedgerRecord {
+  amount: Int64!
+  asset: String!
+  block_height: Uint64!
+  from: String!
+  id: String!
+  owner: String!
+  timestamp: String!
+  tx_id: String!
+  type: String!
 }
 
 input LedgerTxFilter {
   byToFrom: String
   byTxId: String
+  byTypes: [String!]
+  fromBlock: Uint64
   limit: Int
   offset: Int
+  toBlock: Uint64
 }
 
 type LocalNodeInfo {
@@ -206,8 +214,25 @@ type LocalNodeInfo {
   peer_id: String
 }
 
+scalar Map
+
 type Mutation {
   incrementNumber: TestResult
+}
+
+type NonceRecord {
+  account: String!
+  nonce: Uint64!
+}
+
+type OpLogEvent {
+  amount: Int64!
+  asset: String!
+  from: String!
+  memo: String
+  params: Map
+  to: String!
+  type: String!
 }
 
 type PostingJsonKeys {
@@ -223,10 +248,12 @@ type Query {
   contractStateDiff(id: String): ContractDiff
   findContract(id: String): FindContractResult
   findContractOutput(decodedFilter: JSON, filterOptions: FindContractOutputFilter): FindContractOutputResult
-  findLedgerTXs(filterOptions: LedgerTxFilter): LedgerResults
-  findTransaction(decodedFilter: JSON, filterOptions: FindTransactionFilter): FindTransactionResult
+  findLedgerActions(filterOptions: LedgerActionsFilter): [ActionRecord!]
+  findLedgerTXs(filterOptions: LedgerTxFilter): [LedgerRecord!]
+  findTransaction(filterOptions: TransactionFilter): [TransactionRecord!]
   getAccountBalance(account: String!, height: Uint64): BalanceRecord
-  getAccountNonce(keyGroup: [String]!): AccountNonceResult
+  getAccountNonce(account: String!): NonceRecord
+  getAccountRC(account: String!, height: Uint64): RcRecord
   getCurrentNumber: TestResult
   getDagByCID(cidString: String!): JSON!
   getElection(epoch: Uint64!): ElectionResult
@@ -240,27 +267,14 @@ type Query {
   witnessStake(account: String!): Uint64!
 }
 
-type TestResult {
-  currentNumber: Int
+type RcRecord {
+  account: String!
+  amount: Int64!
+  block_height: Uint64!
 }
 
-type Transaction {
-  accessible: Boolean
-  anchored_block: String
-  anchored_height: Int
-  anchored_id: String
-  anchored_index: Int
-  anchored_op_index: Int
-  data: TransactionData
-  first_seen: String
-  headers: Headers
-  id: String!
-  local: Boolean
-  output: TransactionOutput
-  required_auths: [Auth!]
-  sig_hash: String
-  src: String
-  status: String!
+type TestResult {
+  currentNumber: Int
 }
 
 type TransactionData {
@@ -270,9 +284,37 @@ type TransactionData {
   payload: JSON
 }
 
+input TransactionFilter {
+  byAccount: String
+  byContract: String
+  byId: String
+  byLedgerToFrom: String
+  byLedgerTypes: [String!]
+  byStatus: String
+  byType: String
+  limit: Int
+  offset: Int
+}
+
 type TransactionOutput {
   id: String
   index: Int
+}
+
+type TransactionRecord {
+  anchr_height: Uint64!
+  anchr_index: Uint64!
+  anchr_opidx: Uint64!
+  anchr_ts: String!
+  data: Map
+  first_seen: DateTime!
+  id: String!
+  ledger: [OpLogEvent!]
+  nonce: Uint64!
+  rc_limit: Uint64!
+  required_auths: [String!]
+  status: String!
+  type: String!
 }
 
 enum TransactionStatus {

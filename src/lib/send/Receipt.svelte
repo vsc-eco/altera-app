@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getIntermediaryNetwork } from './getNetwork';
 	import type { Coin, Network } from './sendOptions';
 	type Props = {
@@ -12,7 +13,7 @@
 	let { fromCoin, fromNetwork, toCoin, toNetwork, fromAmount, toAmount }: Props = $props();
 </script>
 
-{#await getIntermediaryNetwork({ coin: fromCoin, network: fromNetwork }, { coin: toCoin, network: toNetwork }).feeCalculation(Number(toAmount), toCoin, fromCoin)}
+{#await getIntermediaryNetwork({ coin: fromCoin, network: fromNetwork }, { coin: toCoin, network: toNetwork }).feeCalculation(new CoinAmount(Number(toAmount), toCoin), fromCoin)}
 	loading fees...
 {:then fee}
 	<table>
@@ -23,25 +24,11 @@
 			</tr>
 			<tr class="section-end">
 				<th>Fee</th>
-				<td>
-					~{new Intl.NumberFormat('en-US', {
-						style: 'decimal',
-						minimumFractionDigits: 8,
-						maximumFractionDigits: 8
-					}).format(fee)}
-					{fromCoin.unit}</td
-				>
+				<td> ~{fee.toString()}</td>
 			</tr>
 			<tr>
 				<th>Send Total</th>
-				<td>
-					~{new Intl.NumberFormat('en-US', {
-						style: 'decimal',
-						minimumFractionDigits: 8,
-						maximumFractionDigits: 8
-					}).format(Number(fromAmount) + Number(fee))}
-					{fromCoin.unit}</td
-				>
+				<td> ~{fee.add(Number(fromAmount)).toString()}</td>
 			</tr>
 			<tr>
 				<th>Recv. Total</th>

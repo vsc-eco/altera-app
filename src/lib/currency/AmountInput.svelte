@@ -7,6 +7,7 @@
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import { itemGroupLabelProps } from '@zag-js/menu';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
+	import { CoinAmount } from './CoinAmount';
 
 	let {
 		coin: originalCoin,
@@ -41,35 +42,24 @@
 	let error = $state('');
 	let coinIsUnknown = $derived(originalCoin.value == Coin.unk.value);
 	$effect(() => {
-		convert(Number(amountOfOriginalCoin), originalCoin, Coin.usd, Network.lightning).then(
-			(amount) => {
-				inUsd = new Intl.NumberFormat('en-US', {
-					style: 'decimal',
-					maximumFractionDigits: 2,
-					minimumFractionDigits: 2
-				})
-					.format(amount)
-					.replaceAll(',', '');
-			}
-		);
+		new CoinAmount(amountOfOriginalCoin ?? '0', originalCoin)
+			.convertTo(Coin.usd, Network.lightning)
+			.then((amount) => {
+				inUsd = amount.amountToString();
+			});
 		error = '';
 	});
 
 	let boundAmount = $state('');
 	$effect(() => {
-		convert(
+		new CoinAmount(
 			Number(amountOfOriginalCoin),
-			untrack(() => originalCoin),
-			value,
-			Network.lightning
-		).then((amount) => {
-			boundAmount = new Intl.NumberFormat('en-US', {
-				style: 'decimal',
-				maximumFractionDigits: value.value == Coin.usd.value ? 2 : 8
-			})
-				.format(amount)
-				.replaceAll(',', '');
-		});
+			untrack(() => originalCoin)
+		)
+			.convertTo(value, Network.lightning)
+			.then((amount) => {
+				boundAmount = amount.amountToString();
+			});
 		error = '';
 	});
 	$effect(() => {
@@ -98,31 +88,26 @@
 			}}
 			oninput={(e) => {
 				error = '';
-				convert(Number(boundAmount), value, originalCoin, Network.lightning).then((newVal) => {
-					amountOfOriginalCoin = new Intl.NumberFormat('en-US', {
-						style: 'decimal',
-						maximumFractionDigits: 8
-					})
-						.format(newVal)
-						.replaceAll(',', '');
-					if (oninput) oninput(e);
-				});
+				new CoinAmount(Number(boundAmount), value)
+					.convertTo(originalCoin, Network.lightning)
+					.then((newVal) => {
+						amountOfOriginalCoin = newVal.amountToString();
+						if (oninput) oninput(e);
+					});
 			}}
 			onchange={() => {
 				console.log('HERE CHANGED');
 				const amount =
 					amountOfOriginalCoin == ''
 						? undefined
-						: convert(Number(amountOfOriginalCoin), originalCoin, value, Network.lightning);
+						: new CoinAmount(Number(amountOfOriginalCoin), originalCoin).convertTo(
+								value,
+								Network.lightning
+							);
 				inputDisabled = true;
 				if (amount == undefined) return;
 				amount.then((amount) => {
-					boundAmount = new Intl.NumberFormat('en-US', {
-						style: 'decimal',
-						maximumFractionDigits: value.value == Coin.usd.value ? 2 : 8
-					})
-						.format(amount)
-						.replaceAll(',', '');
+					boundAmount = amount.amountToString();
 					inputDisabled = disabled;
 				});
 			}}
@@ -152,15 +137,12 @@
 					}
 					if (v.items[0].value == value.value) return;
 					if (boundAmount != undefined) {
-						convert(Number(boundAmount), value, v.items[0], Network.lightning).then((amount) => {
-							boundAmount = new Intl.NumberFormat('en-US', {
-								style: 'decimal',
-								maximumFractionDigits: value.value == Coin.usd.value ? 2 : 8
-							})
-								.format(amount)
-								.replaceAll(',', '');
-							value = v.items[0];
-						});
+						new CoinAmount(Number(boundAmount), value)
+							.convertTo(v.items[0], Network.lightning)
+							.then((amount) => {
+								boundAmount = amount.amountToString();
+								value = v.items[0];
+							});
 					} else value = v.items[0];
 				}}
 			/>

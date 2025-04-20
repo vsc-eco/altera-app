@@ -2,6 +2,7 @@ import { convert } from '$lib/currency/convert';
 import type { Auth } from '../auth/store';
 import { readonly, type Readable } from 'svelte/store';
 import { getV4VMetadata } from './v4v/api-types/metadata';
+import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
@@ -33,7 +34,8 @@ const hive: Coin = {
 		if (going == 'from') return true;
 		if (info.from?.coin == Coin.hive) return true;
 		return false;
-	}
+	},
+	decimalPlaces: 3
 };
 const hbd: Coin = {
 	value: 'hbd',
@@ -46,7 +48,8 @@ const hbd: Coin = {
 		if (going == 'from') return true;
 		if (info.from?.coin == Coin.hbd) return true;
 		return false;
-	}
+	},
+	decimalPlaces: 3
 };
 const btc: Coin = {
 	value: 'btc',
@@ -55,7 +58,8 @@ const btc: Coin = {
 	unit: 'BTC',
 	enabled: (going, from, to) => {
 		return going == 'from';
-	}
+	},
+	decimalPlaces: 8
 };
 
 const usd: Coin = {
@@ -63,7 +67,8 @@ const usd: Coin = {
 	label: 'USD',
 	icon: '/btc/btc.svg',
 	unit: 'USD',
-	enabled: never
+	enabled: never,
+	decimalPlaces: 2
 };
 
 const sats: Coin = {
@@ -73,14 +78,16 @@ const sats: Coin = {
 	unit: 'SATS',
 	enabled: (going, from, to) => {
 		return going == 'from';
-	}
+	},
+	decimalPlaces: 0
 };
 const unk: Coin = {
 	value: 'UNK',
 	label: 'UNK',
 	icon: '/unk.svg',
 	unit: 'UNK',
-	enabled: never
+	enabled: never,
+	decimalPlaces: 8
 };
 
 export const Coin = {
@@ -93,11 +100,31 @@ export const Coin = {
 };
 
 export type Coin = {
+	/**
+	 * The value for a form submission
+	 */
 	value: string;
+	/**
+	 * The label to display in a form field (ex. radio group)
+	 */
 	label: string;
+	/**
+	 * A href for the icon of the coin
+	 */
 	icon: string;
+	/**
+	 * The text to display next to a currency (usually 3-4 letters for the currency)
+	 */
 	unit: string;
+	/**
+	 * A function which returns whether a currency is available to trade to/from
+	 * based on the network and currency it's going to/from
+	 */
 	enabled: Enabled;
+	/**
+	 * Number of decimal places to use for arithmetic and display
+	 */
+	decimalPlaces: number;
 };
 
 type Enabled = (
@@ -125,7 +152,10 @@ const unknown: IntermediaryNetwork = {
 	label: 'Unknown',
 	icon: '/unk.svg',
 	enabled: never,
-	feeCalculation: () => {
+	feeCalculation: async (from: UnkCoinAmount, outputCoin: Coin) => {
+		if (from.coin.value == outputCoin.value) {
+			return new CoinAmount(0, from.coin); // no fee if going between same currency type
+		}
 		throw new Error('cannot calculate fees for an unknown intermediary network.');
 	}
 };
@@ -142,16 +172,19 @@ const hiveMainnet: Network = {
 	}
 };
 
-type FeeCalculation = (fromAmount: number, inputCoin: Coin, outputCoin: Coin) => Promise<number>;
+type FeeCalculation<FromCoinAmount extends UnkCoinAmount, ToCoin extends Coin> = (
+	from: FromCoinAmount,
+	outputCoin: ToCoin
+) => Promise<CoinAmount<ToCoin>>;
 export type Network = {
 	value: string;
 	label: string;
 	icon: string;
 	enabled: Enabled;
-	feeCalculation?: FeeCalculation;
+	feeCalculation?: FeeCalculation<UnkCoinAmount, Coin>;
 };
 
-export type IntermediaryNetwork = Network & { feeCalculation: FeeCalculation };
+export type IntermediaryNetwork = Network & { feeCalculation: FeeCalculation<UnkCoinAmount, Coin> };
 
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
@@ -164,17 +197,12 @@ const lightning: IntermediaryNetwork = {
 	label: 'Lightning',
 	icon: '/btc/lightning.svg',
 	enabled: always,
-	feeCalculation: async (amount: number, inputCoin: Coin, outputCoin: Coin) => {
+	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		const meta = await getV4VMetadata();
-
-		return await convert(
-			(await convert(amount, inputCoin, Coin.sats, Network.lightning)) *
-				(meta.config.conv_fee_percent + meta.config.hive_return_fee) +
-				meta.config.conv_fee_sats,
-			Coin.sats,
-			outputCoin,
-			Network.lightning
-		);
+		return (await input.convertTo(Coin.sats, Network.lightning))
+			.add(meta.config.conv_fee_sats)
+			.mul(meta.config.conv_fee_percent + meta.config.hive_return_fee)
+			.convertTo(outputCoin, Network.lightning);
 	}
 };
 
@@ -233,3 +261,5 @@ const swapOptions: {
 };
 
 export default swapOptions;
+
+globalThis.coins = Coin;

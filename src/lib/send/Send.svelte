@@ -339,6 +339,10 @@
 		font-weight: 600;
 		font-size: var(--text-2xl);
 	}
+	h3 > :global(span),
+	h3 {
+		line-height: 0.5rem;
+	}
 
 	.amounts {
 		justify-content: space-between;

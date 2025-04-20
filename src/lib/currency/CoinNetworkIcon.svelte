@@ -14,7 +14,7 @@
 		align-items: center;
 		border-radius: 0.5rem 0 0 0.5rem;
 		border-right-width: 0;
-		height: 3rem;
+		height: 2rem;
 		width: 2rem;
 		box-sizing: border-box;
 		justify-content: center;
@@ -30,7 +30,7 @@
 			position: absolute;
 			border: 2px solid var(--bg);
 			border-radius: 50%;
-			bottom: 0.5rem;
+			bottom: 0rem;
 			left: 16px;
 		}
 	}

@@ -16,25 +16,26 @@
 {#await getIntermediaryNetwork({ coin: fromCoin, network: fromNetwork }, { coin: toCoin, network: toNetwork }).feeCalculation(new CoinAmount(Number(toAmount), toCoin), fromCoin)}
 	loading fees...
 {:then fee}
+	{@const from = new CoinAmount(fromAmount, fromCoin)}
+	{@const to = new CoinAmount(toAmount, toCoin)}
 	<table>
 		<tbody>
 			<tr>
 				<th>Subtotal</th>
-				<td>{fromAmount} {fromCoin.unit}</td>
+				<td>{from.toPrettyString()}</td>
 			</tr>
 			<tr class="section-end">
 				<th>Fee</th>
-				<td> ~{fee.toString()}</td>
+				<td> ~{fee.toPrettyString()}</td>
 			</tr>
 			<tr>
 				<th>Send Total</th>
-				<td> ~{fee.add(Number(fromAmount)).toString()}</td>
+				<td> ~{fee.add(from).toPrettyString()}</td>
 			</tr>
 			<tr>
 				<th>Recv. Total</th>
 				<td>
-					{toAmount}
-					{toCoin.unit}</td
+					{to.toPrettyString()}</td
 				>
 			</tr>
 		</tbody>

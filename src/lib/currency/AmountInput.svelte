@@ -45,7 +45,7 @@
 		new CoinAmount(amountOfOriginalCoin ?? '0', originalCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
-				inUsd = amount.amountToString();
+				inUsd = amount.toAmountString();
 			});
 		error = '';
 	});
@@ -58,7 +58,7 @@
 		)
 			.convertTo(value, Network.lightning)
 			.then((amount) => {
-				boundAmount = amount.amountToString();
+				boundAmount = amount.toAmountString();
 			});
 		error = '';
 	});
@@ -91,7 +91,7 @@
 				new CoinAmount(Number(boundAmount), value)
 					.convertTo(originalCoin, Network.lightning)
 					.then((newVal) => {
-						amountOfOriginalCoin = newVal.amountToString();
+						amountOfOriginalCoin = newVal.toAmountString();
 						if (oninput) oninput(e);
 					});
 			}}
@@ -107,7 +107,7 @@
 				inputDisabled = true;
 				if (amount == undefined) return;
 				amount.then((amount) => {
-					boundAmount = amount.amountToString();
+					boundAmount = amount.toAmountString();
 					inputDisabled = disabled;
 				});
 			}}
@@ -140,7 +140,7 @@
 						new CoinAmount(Number(boundAmount), value)
 							.convertTo(v.items[0], Network.lightning)
 							.then((amount) => {
-								boundAmount = amount.amountToString();
+								boundAmount = amount.toAmountString();
 								value = v.items[0];
 							});
 					} else value = v.items[0];

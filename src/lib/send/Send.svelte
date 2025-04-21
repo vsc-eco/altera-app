@@ -9,11 +9,14 @@
 	import { getIntermediaryNetwork } from './getNetwork';
 	import { sleep } from 'aninest';
 	import V4VPopup from './V4VPopup.svelte';
-	import { accountNameFromAddress } from '$lib/getAccountName';
+	import { accountNameFromAddress, getDidFromUsername } from '$lib/getAccountName';
 	import Amounts from './Amounts.svelte';
 	import CurrencySelect from './CurrencySelect.svelte';
 	import { untrack } from 'svelte';
 	import Receipt from './Receipt.svelte';
+	import { executeTx, getSendOpGenerator } from '$lib/vscTransactions/hive';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import type { TransferOperation } from '@hiveio/dhive';
 	let { widgetView }: { widgetView?: boolean } = $props();
 	let auth = $derived(getAuth()());
 	let fromCoin: CoinOptions['coins'][number] | undefined = $state.raw();
@@ -22,6 +25,13 @@
 	let toCoin: CoinOptions['coins'][number] | undefined = $state.raw();
 	let toNetwork: Network | undefined = $state.raw();
 	let toUsername: string = $state('');
+	let error = $state('');
+	let status = $state('');
+	$effect(() => {
+		if (error != '') {
+			status = '';
+		}
+	});
 	$effect(() => {
 		let username = untrack(() => toUsername);
 		if (username.length > 16 && toNetwork == Network.hiveMainnet) {
@@ -38,7 +48,6 @@
 		}
 	});
 	let toAmount: string = $state('0');
-	let error = $state('');
 	let showV4VModal = $state.raw(false);
 	function openV4V() {
 		showV4VModal = false;
@@ -75,6 +84,52 @@
 		);
 		if (intermediary == Network.lightning) {
 			openV4V();
+			return '';
+		}
+		if (intermediary == Network.vsc) {
+			if (!auth.value?.aioha)
+				throw new Error("VSC Transactions via an EVM wallet isn't supported yet.");
+			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork);
+			status = 'Waiting for Hive wallet approval…';
+			// note that fromCoin and toCoin should be the same
+			const sendOp = getSendOp(
+				auth.value?.username!,
+				getDidFromUsername(toUsername),
+				new CoinAmount(toAmount, toCoin.coin)
+			);
+			executeTx(auth.value.aioha, [sendOp]).then(async (err) => {
+				if (!err) {
+					status = `Successfully sent ${new CoinAmount(toAmount, toCoin!.coin).toPrettyString()} to ${accountNameFromAddress(toUsername)}!`;
+					error = '';
+					return;
+				}
+				error = err;
+			});
+			return '';
+		}
+		if (intermediary == Network.hiveMainnet) {
+			if (!auth.value?.aioha)
+				throw new Error("Hive Mainnet Transactions via an EVM wallet isn't supported yet.");
+			status = 'Waiting for Hive wallet approval…';
+			const toCoinAmount = new CoinAmount(toAmount, toCoin!.coin);
+			executeTx(auth.value?.aioha, [
+				[
+					'transfer',
+					{
+						from: auth.value.username!,
+						to: toUsername,
+						amount: toCoinAmount.toPrettyString(),
+						memo: ''
+					}
+				] satisfies TransferOperation
+			]).then((err) => {
+				if (!err) {
+					status = `Successfully sent ${new CoinAmount(toAmount, toCoin!.coin).toPrettyString()} to ${accountNameFromAddress(toUsername)}!`;
+					error = '';
+					return;
+				}
+				error = err;
+			});
 			return '';
 		}
 		return 'Unexpected Error: Unsupported transaction.';
@@ -227,9 +282,11 @@
 		{:else}
 			<h3>Send</h3>
 		{/if}
-		<p class="error">
+		<p class={{ error, status }}>
 			{#if error != ''}
 				{error}
+			{:else if status}
+				{status}
 			{:else}
 				&nbsp;
 			{/if}

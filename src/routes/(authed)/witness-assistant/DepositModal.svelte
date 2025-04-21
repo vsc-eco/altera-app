@@ -14,6 +14,7 @@
 	import { KeyTypes } from '@aioha/aioha';
 	import { Asset, type CustomJsonOperation, type TransferOperation } from '@hiveio/dhive';
 	import Card from '$lib/cards/Card.svelte';
+	import { consensusTx } from '$lib/vscTransactions/hive';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
@@ -28,40 +29,15 @@
 		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
 		status = 'Awaiting transaction approval…';
 		if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
-		let stakeOp = [
-			'custom_json',
-			{
-				required_auths: [username],
-				required_posting_auths: [],
-				id: 'vsc.consensus_stake',
-				json: JSON.stringify({
-					from: `hive:${username}`,
-					to: `hive:${nodeRunnerAccount}`,
-					asset: 'hive',
-					net_id: 'vsc-mainnet',
-					amount: Asset.from(Number(amount), 'HIVE').toString().split(' ')[0]
-				})
-			}
-		] satisfies CustomJsonOperation;
-		let depositOp = [
-			'transfer',
-			{
-				from: username,
-				to: 'vsc.gateway',
-				amount: Asset.from(Number(amount), 'HIVE').toString(),
-				memo: `to=${nodeRunnerAccount}`
-			}
-		] satisfies TransferOperation;
-		let tx = [];
-		if (shouldDeposit) tx.push(depositOp);
-		tx.push(stakeOp);
-		let res = await auth.value.aioha.signAndBroadcastTx(tx, KeyTypes.Active);
+		const res = await consensusTx(
+			amount,
+			nodeRunnerAccount,
+			username,
+			shouldDeposit,
+			auth.value.aioha
+		);
 		status = '';
-		if (res.success) {
-			return;
-		} else {
-			return res.error;
-		}
+		return res;
 	};
 </script>
 

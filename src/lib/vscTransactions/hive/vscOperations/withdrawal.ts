@@ -1,0 +1,31 @@
+import type { CustomJsonOperation } from '@hiveio/dhive';
+import { Coin } from '$lib/send/sendOptions';
+import { CoinAmount } from '$lib/currency/CoinAmount';
+/**
+ *
+ * @param from Ex. "vaultec"
+ * @param toDid a DID; Ex. "hive:vaultec"
+ * @param hiveAmount
+ * @returns
+ */
+export function getHiveWithdrawalOp(
+	from: string,
+	toDid: string,
+	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>
+): CustomJsonOperation {
+	return [
+		'custom_json',
+		{
+			required_auths: [from],
+			required_posting_auths: [],
+			id: 'vsc.withdraw',
+			json: JSON.stringify({
+				from: `hive:${from}`,
+				to: toDid,
+				asset: amount.coin.unit.toLowerCase(),
+				net_id: 'vsc-mainnet',
+				amount: amount.toPrettyAmountString()
+			})
+		}
+	];
+}

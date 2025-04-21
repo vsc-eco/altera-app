@@ -29,22 +29,9 @@
 		t: string;
 		id: string;
 		status: string;
-		block_id: string;
 	};
-	let {
-		to,
-		from,
-		did,
-		block_height,
-		memo,
-		amount,
-		tk,
-		t,
-		status,
-		first_seen,
-		id,
-		block_id
-	}: Props = $props();
+	let { to, from, did, block_height, memo, amount, tk, t, status, first_seen, id }: Props =
+		$props();
 	const [otherAccount, fromOrTo] =
 		to == from
 			? t.includes('unstake')
@@ -62,7 +49,7 @@
 	new CoinAmount(Number(amount), Coin[tk as keyof typeof Coin])
 		.convertTo(Coin.usd, Network.lightning)
 		.then((amount) => {
-			inUsd = amount.amountToString();
+			inUsd = amount.toAmountString();
 		});
 </script>
 

@@ -6,11 +6,11 @@ export class CoinAmount<C extends Coin> {
 	coin: C;
 	amount: number;
 
-	constructor(num: string | number, coin: C, integerNum?: boolean) {
+	constructor(num: string | number, coin: C, preshiftedInt?: boolean) {
 		let amount: number;
 		if (num == '' || Number.isNaN(num)) num = '0';
 		if (typeof num == 'number') {
-			amount = Math.round(num * (integerNum ? 1 : 10 ** coin.decimalPlaces));
+			amount = Math.round(num * (preshiftedInt ? 1 : 10 ** coin.decimalPlaces));
 		} else {
 			let decIdx = num.indexOf('.');
 			console.log(num, decIdx);
@@ -27,30 +27,42 @@ export class CoinAmount<C extends Coin> {
 		this.amount = amount;
 	}
 
-	amountToString() {
+	/**
+	 * Same as `toAmountString` but with trailing zeroes
+	 */
+	toPrettyAmountString() {
+		return this.toAmountString(true);
+	}
+
+	toAmountString(keepTrailingZeroes?: boolean) {
 		if (this.amount == 0) return this.amount.toString();
 		const amountStr = this.amount.toString().padStart(this.coin.decimalPlaces, '0');
 		const decLoc = amountStr.length - this.coin.decimalPlaces;
 		const integer = amountStr.slice(0, decLoc);
 		let decimal = amountStr.slice(decLoc);
-		const zeroes = /0*$/m.exec(decimal)![0];
-		if (zeroes.length != 0) decimal = decimal.slice(0, -zeroes.length);
-		if (decimal.length == 0) return integer;
+		if (!keepTrailingZeroes) {
+			const zeroes = /0*$/m.exec(decimal)![0];
+			if (zeroes.length != 0) decimal = decimal.slice(0, -zeroes.length);
+			if (decimal.length == 0) return integer;
+		}
 		const out = `${integer || '0'}.${decimal}`;
 		return out;
 	}
 	toString() {
-		return `${this.amountToString()} ${this.coin.unit}`;
+		return `${this.toAmountString()} ${this.coin.unit}`;
+	}
+	toPrettyString() {
+		return `${this.toPrettyAmountString()} ${this.coin.unit}`;
 	}
 	async convertTo<OtherCoin extends Coin>(
 		coin: OtherCoin,
 		via: IntermediaryNetwork
 	): Promise<CoinAmount<OtherCoin>> {
-		console.log(this.amountToString(), coin, via);
+		console.log(this.toAmountString(), coin, via);
 		// if going either to or from unknown coin then the conversion is 1
 		// for all networks
 		if (coin.value == Coin.unk.value || this.coin.value == Coin.unk.value)
-			return new CoinAmount(this.amountToString(), coin);
+			return new CoinAmount(this.toAmountString(), coin);
 		if (this.coin.value == coin.value) return this as unknown as CoinAmount<OtherCoin>;
 		const rates = await getExchangeRates(via, this.coin);
 		const myRate = rates[coin.unit as keyof typeof rates];
@@ -61,11 +73,8 @@ export class CoinAmount<C extends Coin> {
 		);
 		return this.mulTo(myRate, coin);
 	}
-	add(amount: number): CoinAmount<C> {
-		return new CoinAmount(
-			this.amount + Math.round(amount * 10 ** this.coin.decimalPlaces),
-			this.coin
-		);
+	add(amount: UnkCoinAmount): CoinAmount<C> {
+		return new CoinAmount(this.amount + amount.mulTo(1, this.coin).amount, this.coin, true);
 	}
 	mul(multip: number): CoinAmount<C> {
 		return new CoinAmount(Math.round(this.amount * multip), this.coin, true);

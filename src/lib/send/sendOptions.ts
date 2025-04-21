@@ -136,7 +136,7 @@ type Enabled = (
 	auth: Auth
 ) => boolean;
 
-const vsc: Network = {
+const vsc: IntermediaryNetwork = {
 	value: 'vsc',
 	label: 'VSC',
 	icon: '/vsc.png',
@@ -145,6 +145,9 @@ const vsc: Network = {
 		if (from?.coin == to?.coin) return true;
 		if (from?.network == Network.lightning) return true;
 		return false;
+	},
+	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
+		return new CoinAmount(0, outputCoin);
 	}
 };
 const unknown: IntermediaryNetwork = {
@@ -159,7 +162,7 @@ const unknown: IntermediaryNetwork = {
 		throw new Error('cannot calculate fees for an unknown intermediary network.');
 	}
 };
-const hiveMainnet: Network = {
+const hiveMainnet: IntermediaryNetwork = {
 	value: 'hive_mainnet',
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
@@ -169,6 +172,9 @@ const hiveMainnet: Network = {
 		if (from?.coin == to?.coin) return true;
 		if (from?.network == Network.lightning) return true;
 		return false;
+	},
+	feeCalculation: async (from, outputCoin) => {
+		return new CoinAmount(0, outputCoin);
 	}
 };
 
@@ -200,8 +206,11 @@ const lightning: IntermediaryNetwork = {
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		const meta = await getV4VMetadata();
 		return (await input.convertTo(Coin.sats, Network.lightning))
-			.add(meta.config.conv_fee_sats)
-			.mul(meta.config.conv_fee_percent + meta.config.hive_return_fee)
+			.mul(
+				// meta.config.conv_fee_percent +
+				meta.config.v4v_fees_streaming_sats_to_hive_percent
+			)
+			.add(new CoinAmount(meta.config.conv_fee_sats, Coin.sats))
 			.convertTo(outputCoin, Network.lightning);
 	}
 };

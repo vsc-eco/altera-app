@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { HTMLInputAttributes } from 'svelte/elements';
+	import { hiveRegex } from './validateHiveUsername';
 	let {
 		input = $bindable(),
 		label,
@@ -8,11 +9,10 @@
 		defaultValue,
 		...props
 	}: HTMLInputAttributes & { input?: HTMLInputElement; label?: string; id: string } = $props();
+
 	let error = $state('');
-	const hiveRegex =
-		'^(?=.{3,16}$)[a-z][0-9a-z\\-]{1,}[0-9a-z]([.][a-z][0-9a-z\\-]{1,}[0-9a-z]){0,}';
 	const evmRegex = '^0x[a-fA-F0-9]{40}$';
-	const combinedRegex = `(${hiveRegex})|(${evmRegex})`;
+	const combinedRegex = $derived(label == 'Hive' ? hiveRegex : `(${hiveRegex})|(${evmRegex})`);
 </script>
 
 <label for={id}>{label} Username: </label>

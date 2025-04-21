@@ -33,7 +33,7 @@
 			)
 				.convertTo(newFromCoin, Network.lightning)
 				.then((amount) => {
-					fromAmount = amount.amountToString();
+					fromAmount = amount.toAmountString();
 					fromCoin = newFromCoin;
 				});
 			return;
@@ -44,7 +44,7 @@
 		)
 			.convertTo(newFromCoin, Network.lightning)
 			.then((amount) => {
-				fromAmount = amount.amountToString();
+				fromAmount = amount.toAmountString();
 				fromCoin = newFromCoin;
 			});
 	});
@@ -59,7 +59,7 @@
 			)
 				.convertTo(newToCoin, Network.lightning)
 				.then((amount) => {
-					toAmount = amount.amountToString();
+					toAmount = amount.toAmountString();
 					toCoin = newToCoin;
 				});
 			return;
@@ -70,7 +70,7 @@
 		)
 			.convertTo(newToCoin, Network.lightning)
 			.then((amount) => {
-				toAmount = amount.amountToString();
+				toAmount = amount.toAmountString();
 				toCoin = newToCoin;
 			});
 	});
@@ -82,7 +82,7 @@
 			new CoinAmount(Number(fromAmount), fromCoin)
 				.convertTo(toCoin, Network.lightning)
 				.then((value) => {
-					toAmount = value.amountToString();
+					toAmount = value.toAmountString();
 				});
 		}}
 		{disabled}
@@ -100,7 +100,7 @@
 			new CoinAmount(Number(toAmount), toCoin)
 				.convertTo(fromCoin, Network.lightning)
 				.then((value) => {
-					fromAmount = value.amountToString();
+					fromAmount = value.toAmountString();
 				});
 		}}
 		{disabled}

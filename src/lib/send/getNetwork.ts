@@ -7,9 +7,27 @@ export function getIntermediaryNetwork(
 	if (throughLightning(from, to)) {
 		return Network.lightning;
 	}
+	if (throughHive(from, to)) {
+		return Network.hiveMainnet;
+	}
+	if (throughVsc(from, to)) {
+		return Network.vsc;
+	}
 	return Network.unknown;
 }
 
 function throughLightning(from: CoinOnNetwork, to: CoinOnNetwork) {
 	return from.network == Network.lightning || to.network == Network.lightning;
+}
+
+function throughHive(from: CoinOnNetwork, to: CoinOnNetwork) {
+	return from.network == Network.hiveMainnet && to.network == Network.hiveMainnet;
+}
+
+function throughVsc(from: CoinOnNetwork, to: CoinOnNetwork) {
+	if (throughHive(from, to)) {
+		return false;
+	}
+	const vscSupportedNetworks: Network[] = [Network.vsc, Network.hiveMainnet];
+	return vscSupportedNetworks.includes(from.network) && vscSupportedNetworks.includes(to.network);
 }

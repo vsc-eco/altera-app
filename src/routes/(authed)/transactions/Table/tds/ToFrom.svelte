@@ -7,7 +7,7 @@
 		otherAccount,
 		memo,
 		status
-	}: { otherAccount: string; memo: string | undefined; status: string } = $props();
+	}: { otherAccount: string; memo?: string | undefined; status?: string } = $props();
 </script>
 
 <td>
@@ -23,7 +23,7 @@
 				"{memo}"
 			</span>
 		{/if}
-		{#if status != 'CONFIRMED'}
+		{#if status && status != 'CONFIRMED'}
 			<span class="status">
 				<StatusBadge {status} />
 			</span>

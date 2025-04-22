@@ -9,7 +9,7 @@
 		to: string;
 		memo: string | undefined;
 		first_seen: string;
-		status: string;
+		status?: string;
 		fromOrTo: string;
 		block_height: string;
 	};
@@ -30,8 +30,8 @@
 		<span
 			class={[
 				'to-icon',
-				status.toLowerCase(),
-				{
+				status && status.toLowerCase(),
+				status && {
 					secondary: status == 'FAILED',
 					primary: status == 'CONFIRMED',
 					neutral: !['FAILED', 'CONFIRMED'].includes(status)
@@ -43,14 +43,14 @@
 			To
 			{getAccountNameFromDid(to)}
 		</span>
-		{#if status != 'CONFIRMED'}
+		{#if status && status != 'CONFIRMED'}
 			<div
 				class={[
 					'status',
 					{
-						secondary: status == 'FAILED',
-						primary: status == 'CONFIRMED',
-						neutral: !['FAILED', 'CONFIRMED'].includes(status)
+						secondary: status && status == 'FAILED',
+						primary: status && status == 'CONFIRMED',
+						neutral: status && !['FAILED', 'CONFIRMED'].includes(status)
 					}
 				]}
 			>

@@ -22,16 +22,20 @@
 		from: string;
 		did: string;
 		block_height: string;
-		memo: string | undefined;
+		memo?: string | undefined;
 		amount: string;
 		first_seen: string;
 		tk: string;
 		t: string;
 		id: string;
-		status: string;
+		status?: string;
 	};
 	let { to, from, did, block_height, memo, amount, tk, t, status, first_seen, id }: Props =
 		$props();
+	if (!from) from = to;
+	console.log(amount);
+	if (amount.indexOf('-') != -1) amount = amount.slice(1);
+	tk = tk.split('_')[0];
 	const [otherAccount, fromOrTo] =
 		to == from
 			? t.includes('unstake')
@@ -45,8 +49,8 @@
 	let service = useMachine(dialog.machine, { id: getUniqueId() });
 	const api = $derived(dialog.connect(service, normalizeProps));
 	let inUsd = $state('');
-
-	new CoinAmount(Number(amount), Coin[tk as keyof typeof Coin])
+	console.log('HERE', amount, tk, to, from);
+	new CoinAmount(amount, Coin[tk.split('_')[0] as keyof typeof Coin])
 		.convertTo(Coin.usd, Network.lightning)
 		.then((amount) => {
 			inUsd = amount.toAmountString();

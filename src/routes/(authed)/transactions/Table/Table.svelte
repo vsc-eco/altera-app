@@ -24,19 +24,19 @@
 	}: {
 		did: string;
 	} = $props();
-	// let store = $derived(new GetTransactionsStore());
-	// let data = $derived($store.data);
-	let data = getSampleData(did);
-	// $inspect($store.data);
-	// $effect(() => {
-	// 	if (!browser) return;
-	// 	store.fetch({
-	// 		variables: {
-	// 			// limit: 5, // FIXME: add back once server properly supports pagination
-	// 			did
-	// 		}
-	// 	});
-	// });
+	let store = $derived(new GetTransactionsStore());
+	let data = $derived($store.data);
+	// let data = getSampleData(did);
+	$inspect($store.data);
+	$effect(() => {
+		if (!browser) return;
+		store.fetch({
+			variables: {
+				limit: 5, // FIXME: add back once server properly supports pagination
+				did
+			}
+		});
+	});
 	// let currStoreLen = $derived($store.data?.findLedgerTXs?.txs?.length);
 	const auth = $derived(getAuth()());
 	const START_BLOCK = 88079516;
@@ -74,23 +74,13 @@
 				<th>Type</th>
 			</tr>
 		</thead>
-		{#if data}
+		{#if data?.findLedgerTXs}
 			<tbody>
-				{#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }}
-					<!-- {#each data.findLedgerTXs as { from, to, amount, asset: tk, memo, type: t, block_height, id, status, owner, timestamp: first_seen }} -->
-					<Tr
-						{from}
-						{to}
-						{amount}
-						{tk}
-						{memo}
-						{t}
-						{block_height}
-						{status}
-						{did}
-						{first_seen}
-						{id}
-					/>
+				<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
+				<!-- Missing memo and status !! -->
+				{#each data.findLedgerTXs as { from, owner: to, amount, asset: tk, type: t, block_height, id, timestamp: first_seen }}
+					{@const amountStr = amount.toString()}
+					<Tr {from} {to} amount={amountStr} {tk} {t} {block_height} {did} {first_seen} {id} />
 				{/each}
 			</tbody>
 		{:else}

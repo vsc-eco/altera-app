@@ -71,6 +71,7 @@
 	onscroll={(e) => {
 		const me = e.currentTarget;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
+			loading = true;
 			store
 				.fetch({
 					variables: {

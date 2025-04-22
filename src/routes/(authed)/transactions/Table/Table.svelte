@@ -18,27 +18,42 @@
 	import Memo from './tds/Memo.svelte';
 	import Status from './tds/Status.svelte';
 	import Tr from './tr/Tr.svelte';
-
+	import { untrack } from 'svelte';
 	let {
 		did
 	}: {
 		did: string;
 	} = $props();
 	let store = $derived(new GetTransactionsStore());
-	let data = $derived($store.data);
+	let txs: {
+		readonly id: string;
+		readonly amount: any;
+		readonly block_height: any;
+		readonly timestamp: string;
+		readonly from: string;
+		readonly owner: string;
+		readonly type: string;
+		readonly asset: string;
+		readonly tx_id: string;
+	}[] = $state([]);
+	let loading = $state(true);
 	// let data = getSampleData(did);
 	$inspect($store.data);
 	$effect(() => {
-		if (!browser) return;
-		store.fetch({
-			variables: {
-				limit: 5, // FIXME: add back once server properly supports pagination
-				did
-			}
-		});
+		untrack(() => store)
+			.fetch({
+				variables: {
+					limit: 12, // FIXME: add back once server properly supports pagination
+					did
+				}
+			})
+			.then((posts) => {
+				loading = false;
+				if (!posts.data?.findLedgerTXs) return;
+				txs = untrack(() => txs).concat(posts.data?.findLedgerTXs);
+			});
 	});
-	// let currStoreLen = $derived($store.data?.findLedgerTXs?.txs?.length);
-	const auth = $derived(getAuth()());
+	let currStoreLen = $derived(txs.length);
 	const START_BLOCK = 88079516;
 	const START_BLOCK_TIME = moment('2024-08-16T02:46:48Z');
 
@@ -51,19 +66,27 @@
 	}
 </script>
 
-<svelte:window
-	onscroll={() => {
-		if (
-			document.documentElement.scrollHeight -
-				document.documentElement.scrollTop -
-				document.documentElement.clientHeight <
-			1
-		) {
-			// store.loadNextPage() // FIXME: uncomment once backend properly supports pagination
+<div
+	class="scroll"
+	onscroll={(e) => {
+		const me = e.currentTarget;
+		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
+			store
+				.fetch({
+					variables: {
+						limit: 12, // FIXME: add back once server properly supports pagination
+						did,
+						offset: currStoreLen
+					}
+				})
+				.then((posts) => {
+					loading = false;
+					if (!posts.data?.findLedgerTXs) return;
+					txs = untrack(() => txs).concat(posts.data?.findLedgerTXs);
+				});
 		}
 	}}
-/>
-<div class="scroll">
+>
 	<table>
 		<thead>
 			<tr>
@@ -74,20 +97,18 @@
 				<th>Type</th>
 			</tr>
 		</thead>
-		{#if data?.findLedgerTXs}
-			<tbody>
-				<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
-				<!-- Missing memo and status !! -->
-				{#each data.findLedgerTXs as { from, owner: to, amount, asset: tk, type: t, block_height, id, timestamp: first_seen }}
-					{@const amountStr = amount.toString()}
-					<Tr {from} {to} amount={amountStr} {tk} {t} {block_height} {did} {first_seen} {id} />
-				{/each}
-			</tbody>
-		{:else}
-			<tbody>
+
+		<tbody>
+			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
+			<!-- Missing memo and status !! -->
+			{#each txs as { from, owner: to, amount, asset: tk, type: t, block_height, id, timestamp: first_seen }}
+				{@const amountStr = amount.toString()}
+				<Tr {from} {to} amount={amountStr} {tk} {t} {block_height} {did} {first_seen} {id} />
+			{/each}
+			{#if loading}
 				<tr><td colspan="100" class="loading">Loading..</td></tr>
-			</tbody>
-		{/if}
+			{/if}
+		</tbody>
 	</table>
 </div>
 

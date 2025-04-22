@@ -1,6 +1,9 @@
 <script lang="ts">
-	type Props = { fromOrTo: 'from' | 'to' | string; amount: string };
+	import type { UnkCoinAmount } from '$lib/currency/CoinAmount';
+
+	type Props = { fromOrTo: 'from' | 'to' | string; amount: UnkCoinAmount };
 	let { fromOrTo, amount }: Props = $props();
+	console.log(fromOrTo, amount);
 </script>
 
 <td>
@@ -8,17 +11,17 @@
 		class={[
 			'amount',
 			{
-				primary: fromOrTo == 'from',
-				neutral: fromOrTo == 'to'
+				primary: fromOrTo == 'from' || amount.amount > 0,
+				neutral: fromOrTo == 'to' || amount.amount < 0
 			}
 		]}
 	>
-		{#if Number.parseFloat(amount)}
+		{#if amount}
 			{#if fromOrTo == 'to'}
 				-
 			{:else}
 				&nbsp;
-			{/if}{new Intl.NumberFormat().format(Number.parseFloat(amount))}
+			{/if}{amount.toPrettyAmountString()}
 		{:else}
 			invalid
 		{/if}

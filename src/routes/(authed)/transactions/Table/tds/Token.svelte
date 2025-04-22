@@ -1,10 +1,11 @@
 <script lang="ts">
+	import type { UnkCoinAmount } from '$lib/currency/CoinAmount';
+
 	type Props = {
 		fromOrTo: string;
-		tk: string;
-		amount: string;
+		amount: UnkCoinAmount;
 	};
-	let { fromOrTo, tk, amount }: Props = $props();
+	let { fromOrTo, amount }: Props = $props();
 </script>
 
 <td>
@@ -12,13 +13,13 @@
 		class={[
 			'token',
 			{
-				primary: fromOrTo == 'from',
-				neutral: fromOrTo == 'to'
+				primary: fromOrTo == 'from' || amount.amount > 0,
+				neutral: fromOrTo == 'to' || amount.amount < 0
 			}
 		]}
 	>
-		{#if Number.parseFloat(amount)}
-			{tk.toUpperCase()}
+		{#if amount}
+			{amount.coin.unit}
 		{/if}
 	</span>
 </td>

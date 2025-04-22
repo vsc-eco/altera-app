@@ -19,6 +19,8 @@
 	import Status from './tds/Status.svelte';
 	import Tr from './tr/Tr.svelte';
 	import { untrack } from 'svelte';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { Coin } from '$lib/send/sendOptions';
 	let {
 		did
 	}: {
@@ -103,8 +105,16 @@
 			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
 			<!-- Missing memo and status !! -->
 			{#each txs as { from, owner: to, amount, asset: tk, type: t, block_height, id, timestamp: first_seen }}
-				{@const amountStr = amount.toString()}
-				<Tr {from} {to} amount={amountStr} {tk} {t} {block_height} {did} {first_seen} {id} />
+				<Tr
+					{from}
+					{to}
+					amount={new CoinAmount(amount, Coin[tk.split('_')[0] as keyof typeof Coin], true)}
+					{t}
+					{block_height}
+					{did}
+					{first_seen}
+					{id}
+				/>
 			{/each}
 			{#if loading}
 				<tr><td colspan="100" class="loading">Loading..</td></tr>

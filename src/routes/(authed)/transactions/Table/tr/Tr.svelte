@@ -16,26 +16,22 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import StatusBadge from '../StatusBadge.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 	type Props = {
 		to: string;
 		from: string;
 		did: string;
 		block_height: string;
 		memo?: string | undefined;
-		amount: string;
+		amount: UnkCoinAmount;
 		first_seen: string;
-		tk: string;
 		t: string;
 		id: string;
 		status?: string;
 	};
-	let { to, from, did, block_height, memo, amount, tk, t, status, first_seen, id }: Props =
-		$props();
+	let { to, from, did, block_height, memo, amount, t, status, first_seen, id }: Props = $props();
 	if (!from) from = to;
 	console.log(amount);
-	if (amount.indexOf('-') != -1) amount = amount.slice(1);
-	tk = tk.split('_')[0];
 	const [otherAccount, fromOrTo] =
 		to == from
 			? t.includes('unstake')
@@ -49,12 +45,9 @@
 	let service = useMachine(dialog.machine, { id: getUniqueId() });
 	const api = $derived(dialog.connect(service, normalizeProps));
 	let inUsd = $state('');
-	console.log('HERE', amount, tk, to, from);
-	new CoinAmount(amount, Coin[tk.split('_')[0] as keyof typeof Coin])
-		.convertTo(Coin.usd, Network.lightning)
-		.then((amount) => {
-			inUsd = amount.toAmountString();
-		});
+	amount.convertTo(Coin.usd, Network.lightning).then((amount) => {
+		inUsd = amount.toAmountString();
+	});
 </script>
 
 <tr
@@ -70,7 +63,7 @@
 	<Date {block_height} />
 	<ToFrom {otherAccount} {memo} {status} />
 	<Amount {fromOrTo} {amount} />
-	<Token {fromOrTo} {amount} {tk} />
+	<Token {fromOrTo} {amount} />
 	<Type {fromOrTo} {t} />
 </tr>
 {#if api.open}
@@ -94,8 +87,7 @@
 						)}
 				</h2>
 				<div class="amount">
-					{new Intl.NumberFormat().format(Number.parseFloat(amount))}
-					{tk.toUpperCase()}
+					{amount.toPrettyString()}
 					<span class="approx-usd">
 						Approx. ${inUsd} USD
 					</span>

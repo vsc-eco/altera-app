@@ -7,7 +7,7 @@
 		otherAccount,
 		memo,
 		status
-	}: { otherAccount: string; memo?: string | undefined; status?: string } = $props();
+	}: { otherAccount: string; memo?: string | undefined; status: string } = $props();
 </script>
 
 <td>

@@ -13,23 +13,71 @@
 	import StatusView from './StatusView.svelte';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
-	import { type UnkCoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+	import { GetTransactionStore, type GetTransactions$result } from '$houdini';
+	import { untrack } from 'svelte';
+	import { getAuth } from '$lib/auth/store';
 	type Props = {
-		to: string;
-		from: string;
-		did: string;
-		anchor_ts: string;
-		block_height: number;
-		memo?: string | undefined;
-		amount: UnkCoinAmount;
-		t: string;
-		id: string;
-		status?: string;
+		tx: NonNullable<GetTransactions$result['findTransaction']>[number];
+		ledgerIndex?: number;
 	};
-	let { to, from, did, block_height, memo, amount, t, status, id, anchor_ts }: Props = $props();
-	if (!from) from = to;
-	console.log(amount);
-	const otherAccount =
+	let { tx, ledgerIndex }: Props = $props();
+	const did = $derived(getAuth()().value!.did);
+	const { ledger, data, anchr_height: block_height, anchr_ts, id, status } = $derived(tx);
+	const anchor_ts = $derived(anchr_ts + 'Z');
+	const {
+		from,
+		to,
+		coinAmount: amount,
+		type: t,
+		memo
+	}: NonNullable<typeof ledger>[number] & { coinAmount: UnkCoinAmount } = $derived.by(() => {
+		if (ledger == null || ledgerIndex == undefined) {
+			return {
+				...data,
+				coinAmount: new CoinAmount(
+					data.amount,
+					Coin[data.asset.split('_')[0] as keyof typeof Coin] || Coin.unk,
+					false
+				)
+			};
+		} else {
+			const out = ledger[ledgerIndex];
+			return {
+				...out,
+				coinAmount: new CoinAmount(
+					out.amount,
+					Coin[out.asset.split('_')[0] as keyof typeof Coin],
+					true
+				)
+			};
+		}
+	});
+	$inspect(status);
+	$effect(() => {
+		const intervalId = setInterval(() => {
+			if (!['CONFIRMED', 'FAILED'].includes(untrack(() => status))) {
+				new GetTransactionStore()
+					.fetch({
+						variables: {
+							txId: id
+						},
+						policy: 'NetworkOnly'
+					})
+					.then((result) => {
+						console.log('FETCH SUCCEEDED', result);
+						const refreshed = result.data?.findTransaction?.find((tx) => tx.id == id);
+						if (refreshed) tx = refreshed;
+					});
+			} else {
+				clearInterval(intervalId);
+			}
+		}, 5000);
+		return () => {
+			clearInterval(intervalId);
+		};
+	});
+	const otherAccount = $derived(
 		to == from
 			? t.includes('unstake')
 				? from!
@@ -38,12 +86,15 @@
 					: to!
 			: to == did
 				? from!
-				: to!;
+				: to!
+	);
 	let service = useMachine(dialog.machine, { id: getUniqueId() });
 	const api = $derived(dialog.connect(service, normalizeProps));
 	let inUsd = $state('');
-	amount.convertTo(Coin.usd, Network.lightning).then((amount) => {
-		inUsd = amount.toAmountString();
+	$effect(() => {
+		amount.convertTo(Coin.usd, Network.lightning).then((amount) => {
+			inUsd = amount.toAmountString();
+		});
 	});
 </script>
 
@@ -58,7 +109,7 @@
 	}}
 >
 	<Date {block_height} />
-	<ToFrom {otherAccount} {memo} {status} />
+	<ToFrom {otherAccount} memo={memo || undefined} {status} />
 	<Amount {amount} />
 	<Token {amount} />
 	<Type isIncoming={!amount.isNegative()} {t} />
@@ -90,7 +141,7 @@
 					</span>
 				</div>
 
-				<StatusView {anchor_ts} {memo} {from} {to} {status} {block_height} />
+				<StatusView {anchor_ts} memo={memo || undefined} {from} {to} {status} {block_height} />
 				<div class="sections">
 					{#if memo}
 						<div class="memo section">

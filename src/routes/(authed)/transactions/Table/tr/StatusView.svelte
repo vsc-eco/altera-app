@@ -56,6 +56,7 @@
 		position: relative;
 		top: -0.25rem;
 		left: -0.5px;
+		height: 100%;
 		background-color: var(--neutral-bg-mid);
 	}
 	.vertical-line::after {

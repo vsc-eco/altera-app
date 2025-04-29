@@ -16,12 +16,12 @@ export class CoinAmount<C extends Coin> {
 			let decIdx = num.indexOf('.');
 			console.log(num, decIdx);
 			if (decIdx == -1) {
-				amount = Number(num.padEnd(coin.decimalPlaces + num.length, '0'));
+				amount = Number.parseInt(num.padEnd(coin.decimalPlaces + num.length, '0'));
 			} else {
 				let integer = num.slice(0, decIdx);
 				let decimal = num.slice(decIdx + 1, coin.decimalPlaces + decIdx + 1);
 				decimal = decimal.padEnd(coin.decimalPlaces, '0');
-				amount = Number(integer.concat(decimal));
+				amount = Number.parseInt(integer.concat(decimal));
 			}
 		}
 		this.coin = coin;

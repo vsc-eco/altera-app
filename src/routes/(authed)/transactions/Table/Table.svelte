@@ -20,7 +20,7 @@
 		untrack(() => store)
 			.fetch({
 				variables: {
-					limit: 12, // FIXME: add back once server properly supports pagination
+					limit: 12,
 					did
 				}
 			})
@@ -30,17 +30,29 @@
 				txs = untrack(() => txs).concat(posts.data?.findTransaction);
 			});
 	});
+	$effect(() => {
+		const intervalId = setInterval(() => {
+			new GetTransactionsStore()
+				.fetch({
+					variables: {
+						limit: 10,
+						did
+					},
+					policy: 'NetworkOnly'
+				})
+				.then((post) => {
+					loading = false;
+					if (!post.data?.findTransaction) return;
+					if (post.data?.findTransaction[0].id == txs[0].id) return; // nothing to update
+					const prevUpdate = post.data.findTransaction.findIndex((v) => v.id == txs[0].id);
+					txs = post.data?.findTransaction.slice(0, prevUpdate).concat(txs);
+				});
+		}, 2000);
+		return () => clearInterval(intervalId);
+	});
 	let currStoreLen = $derived(txs.length);
 	const START_BLOCK = 88079516;
 	const START_BLOCK_TIME = moment('2024-08-16T02:46:48Z');
-
-	function getDateFromBlockHeight(blockHeight: number) {
-		const date =
-			(blockHeight - START_BLOCK) * 3 < 0
-				? START_BLOCK_TIME.clone().subtract(-(blockHeight - START_BLOCK) * 3, 'seconds')
-				: START_BLOCK_TIME.clone().add((blockHeight - START_BLOCK) * 3, 'seconds');
-		return date;
-	}
 </script>
 
 <div
@@ -79,35 +91,15 @@
 		<tbody>
 			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
 			{#if txs && txs.length != 0}
-				{#each txs as { ledger, data, anchr_height: block_height, anchr_ts: anchor_ts, id }}
+				{#each txs as tx}
+					{@const { ledger, data, anchr_height: block_height, anchr_ts, id, status } = tx}
+					{@const anchor_ts = anchr_ts + 'Z'}
 					{#if ledger?.length != 0}
-						{#each ledger! as { from, to, amount, asset: tk, type: t }}
-							<Tr
-								{anchor_ts}
-								{from}
-								{to}
-								amount={new CoinAmount(amount, Coin[tk.split('_')[0] as keyof typeof Coin], true)}
-								{t}
-								{block_height}
-								{did}
-								{id}
-							/>
+						{#each ledger! as _, i}
+							<Tr {tx} ledgerIndex={i} />
 						{/each}
 					{:else if new Set( ['from', 'to', 'type', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-						<Tr
-							{anchor_ts}
-							from={data.from}
-							to={data.to}
-							amount={new CoinAmount(
-								data.amount,
-								Coin[data.asset.split('_')[0] as keyof typeof Coin],
-								false
-							)}
-							t={data.type}
-							{block_height}
-							{did}
-							{id}
-						/>
+						<Tr {tx} />
 					{:else}
 						<tr
 							><td colspan="100">Transaction with id {id} and type {data.type} is unsupported.</td

@@ -20,9 +20,11 @@
 	span {
 		color: var(--fg-accent);
 		border: 1px solid var(--fg-accent);
-		/* background-color: var(--bg-accent); */
 		padding: 0.25rem 0.5rem;
 		border-radius: 0.5rem;
-		margin: 0 0.25rem;
+		width: max-content;
+		display: inline-flex;
+		height: 1.25rem;
+		align-items: center;
 	}
 </style>

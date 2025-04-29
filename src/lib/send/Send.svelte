@@ -87,8 +87,7 @@
 			return '';
 		}
 		if (intermediary == Network.vsc) {
-			if (!auth.value?.aioha)
-				throw new Error("VSC Transactions via an EVM wallet isn't supported yet.");
+			if (!auth.value?.aioha) return "VSC Transactions via an EVM wallet isn't supported yet.";
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork);
 			status = 'Waiting for Hive wallet approval…';
 			// note that fromCoin and toCoin should be the same
@@ -109,7 +108,7 @@
 		}
 		if (intermediary == Network.hiveMainnet) {
 			if (!auth.value?.aioha)
-				throw new Error("Hive Mainnet Transactions via an EVM wallet isn't supported yet.");
+				return "Hive Mainnet Transactions via an EVM wallet isn't supported yet.";
 			status = 'Waiting for Hive wallet approval…';
 			const toCoinAmount = new CoinAmount(toAmount, toCoin!.coin);
 			executeTx(auth.value?.aioha, [

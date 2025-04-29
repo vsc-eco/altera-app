@@ -45,7 +45,7 @@
 	<div class="txs">
 		<h3>Transactions</h3>
 		{#if auth.value}
-			<Table did={'hive:tibfox.vsc'} />
+			<Table did={auth.value.did} />
 		{/if}
 	</div>
 </div>

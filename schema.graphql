@@ -37,6 +37,13 @@ type AnchorProducer {
   nextSlot(account: String): JSON
 }
 
+enum Asset {
+  hbd
+  hbd_savings
+  hive
+  hive_consensus
+}
+
 type Auth {
   value: String!
 }
@@ -178,6 +185,7 @@ type JsonPatchOp {
 input LedgerActionsFilter {
   byAccount: String
   byActionId: String
+  byAsset: Asset
   byStatus: String
   byTxId: String
   byTypes: [String!]
@@ -200,6 +208,7 @@ type LedgerRecord {
 }
 
 input LedgerTxFilter {
+  byAsset: Asset
   byToFrom: String
   byTxId: String
   byTypes: [String!]
@@ -290,7 +299,7 @@ input TransactionFilter {
   byId: String
   byLedgerToFrom: String
   byLedgerTypes: [String!]
-  byStatus: String
+  byStatus: TransactionStatus
   byType: String
   limit: Int
   offset: Int

@@ -11,17 +11,13 @@
 		class={[
 			'amount',
 			{
-				primary: fromOrTo == 'from' || amount.amount > 0,
-				neutral: fromOrTo == 'to' || amount.amount < 0
+				primary: !amount.isNegative(),
+				neutral: amount.isNegative()
 			}
 		]}
 	>
 		{#if amount}
-			{#if fromOrTo == 'to'}
-				-
-			{:else}
-				&nbsp;
-			{/if}{amount.toPrettyAmountString()}
+			{amount.toPrettyAmountString()}
 		{:else}
 			invalid
 		{/if}

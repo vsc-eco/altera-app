@@ -7,6 +7,7 @@ export class CoinAmount<C extends Coin> {
 	amount: number;
 
 	constructor(num: string | number, coin: C, preshiftedInt?: boolean) {
+		console.log('Creating number with ', num, coin);
 		let amount: number;
 		if (num == '' || Number.isNaN(num)) num = '0';
 		if (typeof num == 'number') {
@@ -25,6 +26,7 @@ export class CoinAmount<C extends Coin> {
 		}
 		this.coin = coin;
 		this.amount = amount;
+		console.log('Created:', this.toPrettyString(), this);
 	}
 
 	/**
@@ -34,9 +36,17 @@ export class CoinAmount<C extends Coin> {
 		return this.toAmountString(true);
 	}
 
+	isNegative() {
+		return this.amount < 0;
+	}
+
 	toAmountString(keepTrailingZeroes?: boolean) {
 		if (this.amount == 0) return this.amount.toString();
-		const amountStr = this.amount.toString().padStart(this.coin.decimalPlaces, '0');
+		let isNegative = this.isNegative();
+		const amountStr = this.amount
+			.toString()
+			.slice(isNegative ? 1 : 0)
+			.padStart(this.coin.decimalPlaces, '0');
 		const decLoc = amountStr.length - this.coin.decimalPlaces;
 		const integer = amountStr.slice(0, decLoc);
 		let decimal = amountStr.slice(decLoc);
@@ -45,7 +55,7 @@ export class CoinAmount<C extends Coin> {
 			if (zeroes.length != 0) decimal = decimal.slice(0, -zeroes.length);
 			if (decimal.length == 0) return integer;
 		}
-		const out = `${integer || '0'}.${decimal}`;
+		const out = `${isNegative ? '-' : ''}${integer || '0'}.${decimal}`;
 		return out;
 	}
 	toString() {

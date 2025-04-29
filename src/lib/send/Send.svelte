@@ -265,11 +265,13 @@
 		<legend>Submit</legend>
 		{#if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount != '0'}
 			<h3>
-				Send <Amount coin={fromCoin.coin} network={fromNetwork} amount={fromAmount}></Amount>
+				Send <Amount network={fromNetwork} amount={new CoinAmount(fromAmount, fromCoin.coin)}
+				></Amount>
 				to
 				<span class="mono">{accountNameFromAddress(toUsername)}</span
 				>{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
-					&nbsp;as <Amount coin={toCoin.coin} network={toNetwork} amount={toAmount}></Amount>{/if}?
+					&nbsp;as <Amount network={toNetwork} amount={new CoinAmount(toAmount, toCoin.coin)}
+					></Amount>{/if}?
 			</h3>
 			<Receipt
 				fromCoin={fromCoin.coin}

@@ -1,23 +1,17 @@
 <script lang="ts">
-	import type { CoinOnNetwork } from '$lib/send/sendOptions';
+	import type { Network } from '$lib/send/sendOptions';
+	import type { UnkCoinAmount } from './CoinAmount';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 
-	type Props = CoinOnNetwork & { amount: number | string };
-	let { amount, network, coin }: Props = $props();
-	let renderedAmount = $derived(
-		typeof amount == 'string'
-			? amount
-			: new Intl.NumberFormat('en-US', {
-					style: 'decimal',
-					maximumFractionDigits: 8
-				}).format(amount)
-	);
+	type Props = { network: Network } & { amount: UnkCoinAmount };
+	let { amount, network }: Props = $props();
+	let renderedAmount = $derived(amount.toPrettyAmountString());
 </script>
 
 <span class="nobreak"
-	><CoinNetworkIcon {network} {coin} />&nbsp;<span class="mono">{amount}</span>&nbsp;<span
-		class="mono">{coin.unit}</span
-	></span
+	><CoinNetworkIcon {network} coin={amount.coin} />&nbsp;<span class="mono"
+		>{amount.toPrettyAmountString()}</span
+	>&nbsp;<span class="mono">{amount.coin.unit}</span></span
 >
 
 <style>

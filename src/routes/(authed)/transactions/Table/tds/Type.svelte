@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { ArrowRight, ArrowLeft } from '@lucide/svelte';
-	let { fromOrTo, t }: { fromOrTo: string, t: string } = $props();
+	let { isIncoming, t }: { isIncoming: boolean; t: string } = $props();
 </script>
 
 <td>
 	<span class="type">
-		{#if fromOrTo == 'from'}
+		{#if isIncoming}
 			<ArrowRight />
 		{:else}
 			<ArrowLeft></ArrowLeft>

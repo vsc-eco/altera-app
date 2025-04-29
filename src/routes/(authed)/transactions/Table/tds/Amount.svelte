@@ -1,9 +1,8 @@
 <script lang="ts">
 	import type { UnkCoinAmount } from '$lib/currency/CoinAmount';
 
-	type Props = { fromOrTo: 'from' | 'to' | string; amount: UnkCoinAmount };
-	let { fromOrTo, amount }: Props = $props();
-	console.log(fromOrTo, amount);
+	type Props = { amount: UnkCoinAmount };
+	let { amount }: Props = $props();
 </script>
 
 <td>

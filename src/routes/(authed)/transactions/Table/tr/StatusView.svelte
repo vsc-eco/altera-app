@@ -10,7 +10,6 @@
 		memo: string | undefined;
 		first_seen: string;
 		status?: string;
-		fromOrTo: string;
 		block_height: string;
 	};
 	let { from, to, first_seen, status, block_height }: Props = $props();

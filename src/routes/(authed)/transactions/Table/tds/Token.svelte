@@ -2,10 +2,9 @@
 	import type { UnkCoinAmount } from '$lib/currency/CoinAmount';
 
 	type Props = {
-		fromOrTo: string;
 		amount: UnkCoinAmount;
 	};
-	let { fromOrTo, amount }: Props = $props();
+	let { amount }: Props = $props();
 </script>
 
 <td>

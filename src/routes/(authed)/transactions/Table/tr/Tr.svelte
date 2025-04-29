@@ -4,7 +4,6 @@
 	import Amount from '../tds/Amount.svelte';
 	import Token from '../tds/Token.svelte';
 	import Type from '../tds/Type.svelte';
-	import Status from '../tds/Status.svelte';
 	import * as dialog from '@zag-js/dialog';
 	import { portal, normalizeProps, useMachine } from '@zag-js/svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -12,11 +11,9 @@
 	import Card from '$lib/cards/Card.svelte';
 	import { ExternalLink, X } from '@lucide/svelte';
 	import StatusView from './StatusView.svelte';
-	import { convert } from '$lib/currency/convert';
 	import { Coin, Network } from '$lib/send/sendOptions';
-	import StatusBadge from '../StatusBadge.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
-	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+	import { type UnkCoinAmount } from '$lib/currency/CoinAmount';
 	type Props = {
 		to: string;
 		from: string;
@@ -32,16 +29,16 @@
 	let { to, from, did, block_height, memo, amount, t, status, first_seen, id }: Props = $props();
 	if (!from) from = to;
 	console.log(amount);
-	const [otherAccount, fromOrTo] =
+	const otherAccount =
 		to == from
 			? t.includes('unstake')
-				? [from!, 'from']
+				? from!
 				: t.includes('stake')
-					? [to!, 'to']
-					: [to!, 'na']
+					? to!
+					: to!
 			: to == did
-				? [from!, 'from']
-				: [to!, 'to'];
+				? from!
+				: to!;
 	let service = useMachine(dialog.machine, { id: getUniqueId() });
 	const api = $derived(dialog.connect(service, normalizeProps));
 	let inUsd = $state('');
@@ -62,9 +59,9 @@
 >
 	<Date {block_height} />
 	<ToFrom {otherAccount} {memo} {status} />
-	<Amount {fromOrTo} {amount} />
-	<Token {fromOrTo} {amount} />
-	<Type {fromOrTo} {t} />
+	<Amount {amount} />
+	<Token {amount} />
+	<Type isIncoming={!amount.isNegative()} {t} />
 </tr>
 {#if api.open}
 	<div use:portal {...api.getBackdropProps()}></div>
@@ -93,7 +90,7 @@
 					</span>
 				</div>
 
-				<StatusView {memo} {from} {to} {first_seen} {status} {fromOrTo} {block_height} />
+				<StatusView {memo} {from} {to} {first_seen} {status} {block_height} />
 				<div class="sections">
 					{#if memo}
 						<div class="memo section">

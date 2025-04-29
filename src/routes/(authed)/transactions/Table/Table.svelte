@@ -1,22 +1,7 @@
 <script lang="ts">
-	import Avatar from '$lib/zag/Avatar.svelte';
-	import { getAuth } from '$lib/auth/store';
 	import { GetTransactionsStore } from '$houdini';
 	// GetTransactions
 	import moment from 'moment';
-	import { getAccountNameFromDid } from '$lib/getAccountName';
-	import { browser } from '$app/environment';
-	import mainnetSampleData from '../mainnetSampleData';
-	import { Asset, type AssetSymbol } from '@hiveio/dhive';
-	import getSampleData from '../getSampleData';
-	import { ArrowLeft, ArrowRight } from '@lucide/svelte';
-	import Date from './tds/Date.svelte';
-	import ToFrom from './tds/ToFrom.svelte';
-	import Amount from './tds/Amount.svelte';
-	import Token from './tds/Token.svelte';
-	import Type from './tds/Type.svelte';
-	import Memo from './tds/Memo.svelte';
-	import Status from './tds/Status.svelte';
 	import Tr from './tr/Tr.svelte';
 	import { untrack } from 'svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';

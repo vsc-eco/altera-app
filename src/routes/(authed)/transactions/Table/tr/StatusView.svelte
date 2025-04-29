@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { getAccountNameFromDid } from '$lib/getAccountName';
-	import Avatar from '$lib/zag/Avatar.svelte';
-	import { ArrowDown, EllipsisVertical } from '@lucide/svelte';
 	import moment from 'moment';
-	import Status from '../tds/Status.svelte';
+	import StatusBadge from '../StatusBadge.svelte';
 	type Props = {
 		from: string;
 		to: string;
@@ -43,18 +41,7 @@
 			{getAccountNameFromDid(to)}
 		</span>
 		{#if status && status != 'CONFIRMED'}
-			<div
-				class={[
-					'status',
-					{
-						secondary: status && status == 'FAILED',
-						primary: status && status == 'CONFIRMED',
-						neutral: status && !['FAILED', 'CONFIRMED'].includes(status)
-					}
-				]}
-			>
-				{status.toLowerCase()}
-			</div>
+			<StatusBadge {status} />
 		{/if}
 		<div class="to-ts ts">{moment(first_seen).format('MMM DD [at] h:mmA')} (#{block_height})</div>
 	</div>

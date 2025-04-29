@@ -1,7 +1,6 @@
 <script>
 	import { getAccountNameFromDid } from '$lib/getAccountName';
 	import Table from './Table/Table.svelte';
-	// TODO: comment out the following lines:
 	import { getAuth } from '$lib/auth/store';
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);

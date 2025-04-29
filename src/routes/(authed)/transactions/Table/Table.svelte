@@ -16,11 +16,11 @@
 	let loading = $state(true);
 	// let data = getSampleData(did);
 	$inspect($store.data);
-	$effect(() => {
+	function fetchFromStore() {
 		untrack(() => store)
 			.fetch({
 				variables: {
-					limit: 12,
+					limit: 20,
 					did
 				}
 			})
@@ -29,13 +29,16 @@
 				if (!posts.data?.findTransaction) return;
 				txs = untrack(() => txs).concat(posts.data?.findTransaction);
 			});
+	}
+	$effect(() => {
+		fetchFromStore();
 	});
 	$effect(() => {
 		const intervalId = setInterval(() => {
 			new GetTransactionsStore()
 				.fetch({
 					variables: {
-						limit: 10,
+						limit: 20,
 						did
 					},
 					policy: 'NetworkOnly'
@@ -45,14 +48,17 @@
 					if (!post.data?.findTransaction) return;
 					if (post.data?.findTransaction[0].id == txs[0].id) return; // nothing to update
 					const prevUpdate = post.data.findTransaction.findIndex((v) => v.id == txs[0].id);
+					if (prevUpdate == -1) {
+						// more than 10 new txs
+						fetchFromStore();
+						return;
+					}
 					txs = post.data?.findTransaction.slice(0, prevUpdate).concat(txs);
 				});
 		}, 2000);
 		return () => clearInterval(intervalId);
 	});
 	let currStoreLen = $derived(txs.length);
-	const START_BLOCK = 88079516;
-	const START_BLOCK_TIME = moment('2024-08-16T02:46:48Z');
 </script>
 
 <div

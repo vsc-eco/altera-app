@@ -41,6 +41,9 @@ export class CoinAmount<C extends Coin> {
 	}
 
 	toAmountString(keepTrailingZeroes?: boolean) {
+		if (this.amount == 0 && !keepTrailingZeroes) {
+			return this.amount.toString();
+		}
 		let isNegative = this.isNegative();
 		const amountStr = this.amount
 			.toString()

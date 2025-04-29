@@ -18,15 +18,15 @@
 		to: string;
 		from: string;
 		did: string;
+		anchor_ts: string;
 		block_height: string;
 		memo?: string | undefined;
 		amount: UnkCoinAmount;
-		first_seen: string;
 		t: string;
 		id: string;
 		status?: string;
 	};
-	let { to, from, did, block_height, memo, amount, t, status, first_seen, id }: Props = $props();
+	let { to, from, did, block_height, memo, amount, t, status, id, anchor_ts }: Props = $props();
 	if (!from) from = to;
 	console.log(amount);
 	const otherAccount =
@@ -90,7 +90,7 @@
 					</span>
 				</div>
 
-				<StatusView {memo} {from} {to} {first_seen} {status} {block_height} />
+				<StatusView {anchor_ts} {memo} {from} {to} {status} {block_height} />
 				<div class="sections">
 					{#if memo}
 						<div class="memo section">

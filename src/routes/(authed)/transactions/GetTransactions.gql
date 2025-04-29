@@ -1,13 +1,18 @@
 query GetTransactions($did: String, $limit: Int, $offset: Int) {
-	findLedgerTXs(filterOptions: { limit: $limit, offset: $offset, byToFrom: $did }) @paginate {
+	findTransaction(filterOptions: { limit: $limit, offset: $offset, byLedgerToFrom: $did })
+		@paginate {
+		anchr_height
+		anchr_ts
+		status
 		id
-		amount
-		block_height
-		timestamp
-		from
-		owner
-		type
-		asset
-		tx_id
+		ledger {
+			memo
+			amount
+			asset
+			from
+			to
+			type
+		}
+		data
 	}
 }

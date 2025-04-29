@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { GetTransactionsStore } from '$houdini';
+	import { GetTransactionsStore, type GetTransactions$result } from '$houdini';
 	// GetTransactions
 	import moment from 'moment';
 	import Tr from './tr/Tr.svelte';
@@ -12,17 +12,7 @@
 		did: string;
 	} = $props();
 	let store = $derived(new GetTransactionsStore());
-	let txs: {
-		readonly id: string;
-		readonly amount: any;
-		readonly block_height: any;
-		readonly timestamp: string;
-		readonly from: string;
-		readonly owner: string;
-		readonly type: string;
-		readonly asset: string;
-		readonly tx_id: string;
-	}[] = $state([]);
+	let txs: NonNullable<GetTransactions$result['findTransaction']> = $state([]);
 	let loading = $state(true);
 	// let data = getSampleData(did);
 	$inspect($store.data);
@@ -36,8 +26,8 @@
 			})
 			.then((posts) => {
 				loading = false;
-				if (!posts.data?.findLedgerTXs) return;
-				txs = untrack(() => txs).concat(posts.data?.findLedgerTXs);
+				if (!posts.data?.findTransaction) return;
+				txs = untrack(() => txs).concat(posts.data?.findTransaction);
 			});
 	});
 	let currStoreLen = $derived(txs.length);
@@ -69,8 +59,8 @@
 				})
 				.then((posts) => {
 					loading = false;
-					if (!posts.data?.findLedgerTXs) return;
-					txs = untrack(() => txs).concat(posts.data?.findLedgerTXs);
+					if (!posts.data?.findTransaction) return;
+					txs = untrack(() => txs).concat(posts.data?.findTransaction);
 				});
 		}
 	}}
@@ -88,19 +78,46 @@
 
 		<tbody>
 			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
-			<!-- Missing memo and status !! -->
-			{#each txs as { from, owner: to, amount, asset: tk, type: t, block_height, id, timestamp: first_seen }}
-				<Tr
-					{from}
-					{to}
-					amount={new CoinAmount(amount, Coin[tk.split('_')[0] as keyof typeof Coin], true)}
-					{t}
-					{block_height}
-					{did}
-					{first_seen}
-					{id}
-				/>
-			{/each}
+			{#if txs && txs.length != 0}
+				{#each txs as { ledger, data, anchr_height: block_height, anchr_ts: anchor_ts, id }}
+					{#if ledger?.length != 0}
+						{#each ledger! as { from, to, amount, asset: tk, type: t }}
+							<Tr
+								{anchor_ts}
+								{from}
+								{to}
+								amount={new CoinAmount(amount, Coin[tk.split('_')[0] as keyof typeof Coin], true)}
+								{t}
+								{block_height}
+								{did}
+								{id}
+							/>
+						{/each}
+					{:else if new Set( ['from', 'to', 'type', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
+						<Tr
+							{anchor_ts}
+							from={data.from}
+							to={data.to}
+							amount={new CoinAmount(
+								data.amount,
+								Coin[data.asset.split('_')[0] as keyof typeof Coin],
+								false
+							)}
+							t={data.type}
+							{block_height}
+							{did}
+							{id}
+						/>
+					{:else}
+						<tr
+							><td colspan="100">Transaction with id {id} and type {data.type} is unsupported.</td
+							></tr
+						>
+					{/if}
+				{/each}
+			{:else}
+				<tr><td colspan="100">No Transactions found.</td></tr>
+			{/if}
 			{#if loading}
 				<tr><td colspan="100" class="loading">Loading..</td></tr>
 			{/if}

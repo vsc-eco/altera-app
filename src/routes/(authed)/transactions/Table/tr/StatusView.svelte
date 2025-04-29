@@ -6,11 +6,11 @@
 		from: string;
 		to: string;
 		memo: string | undefined;
-		first_seen: string;
+		anchor_ts: string;
 		status?: string;
 		block_height: string;
 	};
-	let { from, to, first_seen, status, block_height }: Props = $props();
+	let { from, to, anchor_ts, status, block_height }: Props = $props();
 	// TODO: support additional status once we have the graphQL endpoint to query
 </script>
 
@@ -21,7 +21,7 @@
 			From
 			{getAccountNameFromDid(from)}
 		</div>
-		<div class="from-ts ts">{moment(first_seen).format('MMM DD [at] h:mmA')}</div>
+		<div class="from-ts ts">{moment(anchor_ts).format('MMM DD [at] h:mmA')}</div>
 		<div class="vertical-line"></div>
 
 		<span
@@ -43,7 +43,7 @@
 		{#if status && status != 'CONFIRMED'}
 			<StatusBadge {status} />
 		{/if}
-		<div class="to-ts ts">{moment(first_seen).format('MMM DD [at] h:mmA')} (#{block_height})</div>
+		<div class="to-ts ts">{moment(anchor_ts).format('MMM DD [at] h:mmA')} (#{block_height})</div>
 	</div>
 </div>
 

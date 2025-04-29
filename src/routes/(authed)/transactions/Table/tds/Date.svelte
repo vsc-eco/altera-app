@@ -17,6 +17,6 @@
 		border-bottom: 1px solid var(--neutral-bg-accent);
 	}
 	.date {
-		width: 5rem;
+		min-width: 4rem;
 	}
 </style>

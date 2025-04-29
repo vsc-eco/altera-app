@@ -8,7 +8,7 @@
 		memo: string | undefined;
 		anchor_ts: string;
 		status?: string;
-		block_height: string;
+		block_height: number;
 	};
 	let { from, to, anchor_ts, status, block_height }: Props = $props();
 	// TODO: support additional status once we have the graphQL endpoint to query

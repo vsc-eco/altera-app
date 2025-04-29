@@ -19,7 +19,7 @@
 		from: string;
 		did: string;
 		anchor_ts: string;
-		block_height: string;
+		block_height: number;
 		memo?: string | undefined;
 		amount: UnkCoinAmount;
 		t: string;

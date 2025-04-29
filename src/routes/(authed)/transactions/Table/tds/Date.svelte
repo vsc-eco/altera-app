@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { getDateFromBlockHeight } from '../../getDateFromBlockHeight';
 
-	const { block_height }: { block_height: string } = $props();
+	const { block_height }: { block_height: number } = $props();
 </script>
 
 <td class="date">
-	{getDateFromBlockHeight(Number.parseInt(block_height)).format('MMM D')}
+	{getDateFromBlockHeight(block_height).format('MMM D')}
 </td>
 
 <style>

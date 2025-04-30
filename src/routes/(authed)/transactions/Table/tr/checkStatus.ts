@@ -18,7 +18,7 @@ function updateStatuses() {
 			console.log('FETCHED');
 			const statuses = res.data?.findTransaction;
 			if (!statuses) return;
-			for (const { status, tx_id, op_id } of statuses) {
+			for (const { status, tx_id, anchr_opidx: op_id } of statuses) {
 				const store = checkingStores[tx_id][op_id];
 				store.set(status);
 				if (['CONFIRMED', 'FAILED'].includes(status)) {

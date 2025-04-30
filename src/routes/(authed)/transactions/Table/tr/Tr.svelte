@@ -55,7 +55,7 @@
 		}
 	});
 	$inspect(status);
-	const statusStore = $derived(checkOpStatus(tx.tx_id, tx.op_id, tx.status));
+	const statusStore = $derived(checkOpStatus(tx.tx_id, tx.anchr_opidx, tx.status));
 	$effect(() => {
 		return untrack(() => statusStore).subscribe((status) => {
 			tx = { ...tx, status };

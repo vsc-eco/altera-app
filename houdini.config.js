@@ -1,7 +1,8 @@
 /// <references types="houdini-svelte">
 
 /** @type {import('houdini').ConfigFile} */
-const GQL_URL = 'http://127.0.0.1:8080';
+// const GQL_URL = 'http://127.0.0.1:8080'; // for running backend locally
+const GQL_URL = 'https://api.vsc.eco';
 
 const config = {
 	watchSchema: {

@@ -4,7 +4,7 @@ query GetTransactions($did: String, $limit: Int, $offset: Int) {
 		anchr_ts
 		status
 		id
-		op_id
+		anchr_opidx
 		tx_id
 		ledger {
 			memo

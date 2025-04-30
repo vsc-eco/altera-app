@@ -1,5 +1,6 @@
 import { HoudiniClient } from '$houdini';
-import { GQL_URL } from '$env/static/public';
+// const GQL_URL="http://localhost:8080" // for running backend locally
+const GQL_URL = 'https://api.vsc.eco';
 
 export default new HoudiniClient({
 	url: `${GQL_URL || 'https://api.vsc.eco'}/api/v1/graphql`

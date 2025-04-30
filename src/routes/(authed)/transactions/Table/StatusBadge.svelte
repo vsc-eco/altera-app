@@ -24,6 +24,7 @@
 		border-radius: 0.5rem;
 		width: max-content;
 		display: inline-flex;
+		margin-right: 0.5rem;
 		height: 1.25rem;
 		align-items: center;
 	}

@@ -13,9 +13,19 @@
 	} = $props();
 	let store = $derived(new GetTransactionsStore());
 	let txs: NonNullable<GetTransactions$result['findTransaction']> = $state([]);
+	// to make sure that all txs have a unique ID
+	let filteredTxs = $derived(
+		Object.values(
+			txs.reduce(
+				(prev, curr) => {
+					prev[curr.id] = curr;
+					return prev;
+				},
+				{} as { [id: string]: NonNullable<GetTransactions$result['findTransaction']>[number] }
+			)
+		)
+	);
 	let loading = $state(true);
-	// let data = getSampleData(did);
-	$inspect($store.data);
 	function fetchFromStore() {
 		untrack(() => store)
 			.fetch({
@@ -97,7 +107,7 @@
 		<tbody>
 			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
 			{#if txs && txs.length != 0}
-				{#each txs as tx (tx.id)}
+				{#each filteredTxs as tx (tx.id)}
 					{@const { ledger, data, id } = tx}
 					<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
 					<!-- {#if ledger?.length != 0}

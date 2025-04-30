@@ -14,9 +14,10 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-	import { GetStatusStore, type GetTransactions$result } from '$houdini';
+	import { type GetTransactions$result } from '$houdini';
 	import { untrack } from 'svelte';
 	import { getAuth } from '$lib/auth/store';
+	import { checkOpStatus } from './checkStatus';
 	type Props = {
 		tx: NonNullable<GetTransactions$result['findTransaction']>[number];
 		ledgerIndex?: number;
@@ -54,28 +55,11 @@
 		}
 	});
 	$inspect(status);
+	const statusStore = $derived(checkOpStatus(tx.tx_id, tx.op_id, tx.status));
 	$effect(() => {
-		const intervalId = setInterval(() => {
-			if (!['CONFIRMED', 'FAILED'].includes(untrack(() => status))) {
-				new GetStatusStore()
-					.fetch({
-						variables: {
-							txId: id
-						},
-						policy: 'NetworkOnly'
-					})
-					.then((result) => {
-						console.log('FETCH SUCCEEDED', result);
-						const refreshed = result.data?.findTransaction?.find((tx) => tx.id == id);
-						if (refreshed) (tx.status as any) = refreshed.status;
-					});
-			} else {
-				clearInterval(intervalId);
-			}
-		}, 5000);
-		return () => {
-			clearInterval(intervalId);
-		};
+		return untrack(() => statusStore).subscribe((status) => {
+			tx = { ...tx, status };
+		});
 	});
 	const otherAccount = $derived(
 		to == from

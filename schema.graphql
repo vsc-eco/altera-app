@@ -297,6 +297,7 @@ input TransactionFilter {
   byAccount: String
   byContract: String
   byId: String
+  byIds: [String!]
   byLedgerToFrom: String
   byLedgerTypes: [String!]
   byStatus: TransactionStatus
@@ -320,9 +321,11 @@ type TransactionRecord {
   id: String!
   ledger: [OpLogEvent!]
   nonce: Uint64!
+  op_id: Uint64!
   rc_limit: Uint64!
   required_auths: [String!]
   status: String!
+  tx_id: String!
   type: String!
 }
 

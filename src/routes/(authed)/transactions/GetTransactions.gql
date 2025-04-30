@@ -4,6 +4,8 @@ query GetTransactions($did: String, $limit: Int, $offset: Int) {
 		anchr_ts
 		status
 		id
+		op_id
+		tx_id
 		ledger {
 			memo
 			amount

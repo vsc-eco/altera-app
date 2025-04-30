@@ -1,9 +1,11 @@
 /// <references types="houdini-svelte">
 
 /** @type {import('houdini').ConfigFile} */
+const GQL_URL = 'http://127.0.0.1:8080';
+
 const config = {
 	watchSchema: {
-		url: 'https://api.vsc.eco/api/v1/graphql'
+		url: (GQL_URL || 'https://api.vsc.eco') + '/api/v1/graphql'
 	},
 	runtimeDir: '.houdini',
 	plugins: {
@@ -11,6 +13,9 @@ const config = {
 			forceRunesMode: true,
 			static: true
 		}
+	},
+	features: {
+		imperativeCache: false
 	},
 	scalars: {
 		/* in your case, something like */

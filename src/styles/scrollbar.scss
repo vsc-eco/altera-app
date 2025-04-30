@@ -2,7 +2,7 @@
 Not supports in Firefox and IE */
 @supports (scrollbar-color: auto) {
 	* {
-		scrollbar-width: none;
+		scrollbar-width: thin;
 		scrollbar-color: var(--primary-bg-accent) transparent;
 	}
 	*:hover {

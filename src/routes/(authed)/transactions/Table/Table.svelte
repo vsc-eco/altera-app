@@ -100,17 +100,14 @@
 				{#each txs as tx (tx.id)}
 					{@const { ledger, data, id } = tx}
 					<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
-					{#if ledger?.length != 0}
+					<!-- {#if ledger?.length != 0}
 						{#each ledger! as _, i}
 							<Tr {tx} ledgerIndex={i} />
-						{/each}
-					{:else if new Set( ['from', 'to', 'type', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
+						{/each} -->
+					{#if new Set( ['from', 'to', 'type', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 						<Tr {tx} />
 					{:else}
-						<tr
-							><td colspan="100">Transaction with id {id} and type {data.type} is unsupported.</td
-							></tr
-						>
+						<tr><td colspan="100">Transaction #{id} with type {data.type} is unsupported.</td></tr>
 					{/if}
 				{/each}
 			{:else}

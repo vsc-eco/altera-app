@@ -71,6 +71,27 @@
 	let currStoreLen = $derived(txs.length);
 </script>
 
+<svelte:document
+	onscroll={(e) => {
+		const me = document.documentElement;
+		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
+			loading = true;
+			store
+				.fetch({
+					variables: {
+						limit: 12, // FIXME: add back once server properly supports pagination
+						did,
+						offset: currStoreLen
+					}
+				})
+				.then((posts) => {
+					loading = false;
+					if (!posts.data?.findTransaction) return;
+					txs = untrack(() => txs).concat(posts.data?.findTransaction);
+				});
+		}
+	}}
+/>
 <div
 	class="scroll"
 	onscroll={(e) => {

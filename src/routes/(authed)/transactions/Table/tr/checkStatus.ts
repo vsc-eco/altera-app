@@ -19,7 +19,10 @@ function updateStatuses() {
 			const statuses = res.data?.findTransaction;
 			if (!statuses) return;
 			for (const { status, tx_id, anchr_opidx: op_id } of statuses) {
+				console.log(checkingStores[tx_id]);
 				const store = checkingStores[tx_id][op_id];
+				if (store == undefined) return; // specific op succeeded
+				// despite part of transaction being unconfirmed
 				store.set(status);
 				if (['CONFIRMED', 'FAILED'].includes(status)) {
 					removeFromChecks(tx_id, op_id);

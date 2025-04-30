@@ -15,20 +15,20 @@ export const actions: {
 			theme: 'primary',
 			styleType: 'invert'
 		}
-	},
-	{
-		label: 'Receive',
-		href: '/receive',
-		icon: HandCoins
-	},
-	{
-		label: 'Deposit',
-		href: '/deposit',
-		icon: PiggyBank
-	},
-	{
-		label: 'Swap',
-		href: '/swap',
-		icon: ArrowRightLeft
 	}
+	// {
+	// 	label: 'Receive',
+	// 	href: '/receive',
+	// 	icon: HandCoins
+	// },
+	// {
+	// 	label: 'Deposit',
+	// 	href: '/deposit',
+	// 	icon: PiggyBank
+	// },
+	// {
+	// 	label: 'Swap',
+	// 	href: '/swap',
+	// 	icon: ArrowRightLeft
+	// }
 ];

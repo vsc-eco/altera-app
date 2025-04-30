@@ -59,6 +59,7 @@
 	}
 	.masonry > .txs {
 		flex-basis: 100%;
+		width: 100%;
 	}
 	.masonry > :global(*) {
 		flex-grow: 1;

@@ -97,7 +97,7 @@
 		<tbody>
 			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
 			{#if txs && txs.length != 0}
-				{#each txs as tx}
+				{#each txs as tx (tx.id)}
 					{@const { ledger, data, id } = tx}
 					<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
 					{#if ledger?.length != 0}

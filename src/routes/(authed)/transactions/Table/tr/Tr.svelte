@@ -14,7 +14,7 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-	import { GetTransactionStore, type GetTransactions$result } from '$houdini';
+	import { GetStatusStore, type GetTransactions$result } from '$houdini';
 	import { untrack } from 'svelte';
 	import { getAuth } from '$lib/auth/store';
 	type Props = {
@@ -57,7 +57,7 @@
 	$effect(() => {
 		const intervalId = setInterval(() => {
 			if (!['CONFIRMED', 'FAILED'].includes(untrack(() => status))) {
-				new GetTransactionStore()
+				new GetStatusStore()
 					.fetch({
 						variables: {
 							txId: id
@@ -67,7 +67,7 @@
 					.then((result) => {
 						console.log('FETCH SUCCEEDED', result);
 						const refreshed = result.data?.findTransaction?.find((tx) => tx.id == id);
-						if (refreshed) tx = refreshed;
+						if (refreshed) (tx.status as any) = refreshed.status;
 					});
 			} else {
 				clearInterval(intervalId);

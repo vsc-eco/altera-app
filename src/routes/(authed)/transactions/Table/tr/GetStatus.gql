@@ -1,0 +1,17 @@
+query GetStatus($txId: String) {
+	findTransaction(filterOptions: { byId: $txId }) @paginate {
+		anchr_height
+		anchr_ts
+		status
+		id
+		ledger {
+			memo
+			amount
+			asset
+			from
+			to
+			type
+		}
+		data
+	}
+}

@@ -116,7 +116,7 @@
 			{id}
 			type="number"
 			step="any"
-			inputmode="numeric"
+			inputmode="decimal"
 			bind:value={boundAmount}
 			disabled={inputDisabled}
 		/>

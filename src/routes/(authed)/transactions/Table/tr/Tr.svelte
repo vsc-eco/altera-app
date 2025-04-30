@@ -179,6 +179,11 @@
 	tr[data-state='open'] {
 		background-color: var(--neutral-bg-accent);
 	}
+	tr {
+		transition: background-color 1s;
+		animation: highlight-in 1s both;
+	}
+
 	[data-part='backdrop'] {
 		background-color: rgb(0, 0, 0, 0.2);
 		position: fixed;

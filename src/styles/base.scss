@@ -1,6 +1,14 @@
 /* Defines spacing, fonts, and sizes */
 @use './fonts/plex/plex.css';
 @use './scrollbar.scss';
+@keyframes highlight-in {
+	0% {
+		background-color: var(--primary-bg-accent);
+	}
+	100% {
+		background-color: var(--neutral-bg);
+	}
+}
 :root {
 	font-family: 'IBM Plex Sans', system-ui, sans-serif;
 	font-optical-sizing: auto;

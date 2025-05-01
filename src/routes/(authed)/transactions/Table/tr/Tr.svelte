@@ -34,6 +34,16 @@
 		memo
 	}: NonNullable<typeof ledger>[number] & { coinAmount: UnkCoinAmount } = $derived.by(() => {
 		if (ledger == null || ledgerIndex == undefined) {
+			if (typeof data.amount == 'number') {
+				return {
+					...data,
+					coinAmount: new CoinAmount(
+						data.amount,
+						Coin[data.asset.split('_')[0] as keyof typeof Coin],
+						true
+					)
+				};
+			}
 			return {
 				...data,
 				coinAmount: new CoinAmount(
@@ -44,16 +54,6 @@
 			};
 		} else {
 			const out = ledger[ledgerIndex];
-			if (typeof out.amount == 'number') {
-				return {
-					...out,
-					coinAmount: new CoinAmount(
-						out.amount,
-						Coin[out.asset.split('_')[0] as keyof typeof Coin],
-						false
-					)
-				};
-			}
 			return {
 				...out,
 				coinAmount: new CoinAmount(

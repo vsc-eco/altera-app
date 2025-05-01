@@ -34,22 +34,12 @@
 		memo
 	}: NonNullable<typeof ledger>[number] & { coinAmount: UnkCoinAmount } = $derived.by(() => {
 		if (ledger == null || ledgerIndex == undefined) {
-			if (typeof data.amount == 'number') {
-				return {
-					...data,
-					coinAmount: new CoinAmount(
-						data.amount,
-						Coin[data.asset.split('_')[0] as keyof typeof Coin],
-						true
-					)
-				};
-			}
 			return {
 				...data,
 				coinAmount: new CoinAmount(
 					data.amount,
 					Coin[data.asset.split('_')[0] as keyof typeof Coin] || Coin.unk,
-					false
+					typeof data.amount == 'number' // whether the number is preshifted (i.e. int without decimal)
 				)
 			};
 		} else {

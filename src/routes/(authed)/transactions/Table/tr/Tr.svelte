@@ -44,6 +44,16 @@
 			};
 		} else {
 			const out = ledger[ledgerIndex];
+			if (typeof out.amount == 'number') {
+				return {
+					...out,
+					coinAmount: new CoinAmount(
+						out.amount,
+						Coin[out.asset.split('_')[0] as keyof typeof Coin],
+						false
+					)
+				};
+			}
 			return {
 				...out,
 				coinAmount: new CoinAmount(
@@ -135,16 +145,20 @@
 					{/if}
 					<div class="tx-id section">
 						<h3>Transaction Id</h3>
-						<Clipboard value={id} label="" />
+						<Clipboard value={tx.tx_id} label="" />
 					</div>
 					<div class="links section">
 						<h3>External Links</h3>
 						<div class="links">
-							<a href={'https://vsc.techcoderx.com/tx/' + id} target="_blank" rel="noreferrer">
+							<a
+								href={'https://vsc.techcoderx.com/tx/' + tx.tx_id}
+								target="_blank"
+								rel="noreferrer"
+							>
 								VSC Block Explorer<ExternalLink /></a
 							>
 							<a
-								href={'https://www.hiveblockexplorer.com/tx/' + id}
+								href={'https://www.hiveblockexplorer.com/tx/' + tx.tx_id}
 								target="_blank"
 								rel="noreferrer"
 							>

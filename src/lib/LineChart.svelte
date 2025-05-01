@@ -182,7 +182,7 @@
 
 <style>
 	figure {
-		touch-action: pinch-zoom;
+		touch-action: pinch-zoom pan-y;
 		transition: opacity 0.05s;
 		opacity: 1;
 	}

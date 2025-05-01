@@ -154,7 +154,7 @@
 			{#if originalCoin.value != Coin.unk.value}
 				${inUsd}
 			{:else}
-				Unk
+				Unknown
 			{/if}
 		</span>
 	{/if}

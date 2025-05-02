@@ -14,11 +14,6 @@ Indicates exactly one field must be supplied and this field must not be `null`.
 """
 directive @oneOf on INPUT_OBJECT
 
-type AccountInfoResult {
-  rc_current: Int
-  rc_max: Int
-}
-
 type ActionRecord {
   action_id: String!
   amount: Int64!
@@ -42,10 +37,6 @@ enum Asset {
   hbd_savings
   hive
   hive_consensus
-}
-
-type Auth {
-  value: String!
 }
 
 interface BalanceAccessCondition {
@@ -168,19 +159,9 @@ type Gas {
   IO: Int
 }
 
-type Headers {
-  nonce: Int
-}
-
 scalar Int64
 
 scalar JSON
-
-type JsonPatchOp {
-  op: String
-  path: String
-  value: JSON
-}
 
 input LedgerActionsFilter {
   byAccount: String
@@ -219,8 +200,10 @@ input LedgerTxFilter {
 }
 
 type LocalNodeInfo {
-  did: String
-  peer_id: String
+  epoch: Uint64!
+  git_commit: String!
+  last_processed_block: Uint64!
+  version_id: String!
 }
 
 scalar Map

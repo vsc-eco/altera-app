@@ -17,7 +17,7 @@
 	import { executeTx, getSendOpGenerator } from '$lib/vscTransactions/hive';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
-	let { widgetView }: { widgetView?: boolean } = $props();
+	let { widgetView, hideToUsername }: { widgetView?: boolean; hideToUsername?: boolean } = $props();
 	let auth = $derived(getAuth()());
 	let fromCoin: CoinOptions['coins'][number] | undefined = $state.raw();
 	let fromNetwork: Network | undefined = $state.raw();
@@ -156,6 +156,7 @@
 	const toCoinIsDerived = $derived(toCoin != undefined);
 	const toNetworkIsDerived = $derived(toNetwork != undefined);
 	const toAmountIsDerived = $derived(toAmount && toAmount != '0');
+	const mode = $derived(hideToUsername ? 'swap' : 'send');
 
 	function getFirstUnfinishedStep(): number {
 		const { fromCoin, fromNetwork, toCoin, toNetwork, toAmount } = {
@@ -218,6 +219,7 @@
 			bind:network={fromNetwork}
 			label={'From'}
 			{enabledOptions}
+			{mode}
 		/>
 		{@render prevNext(1)}
 	</fieldset>
@@ -230,26 +232,12 @@
 			label={'To'}
 			{enabledOptions}
 			bind:username={toUsername}
+			{mode}
 		/>
 		{@render prevNext(2)}
 	</fieldset>
 	<fieldset class="amounts">
 		<legend>Amount:</legend>
-		<!-- {#if !(fromNetwork && toNetwork && fromCoin && toCoin)}
-			{@const networksInvalid = !fromNetwork || !toNetwork}
-			{@const coinsInvalid = !fromCoin || !toCoin}
-			Must select
-			{#if coinsInvalid}
-				currencies
-			{/if}
-			{#if coinsInvalid && networksInvalid}
-				and
-			{/if}
-			{#if networksInvalid}
-				networks
-			{/if}
-			first before selecting amounts.
-		{/if} -->
 		<Amounts
 			bind:toAmount
 			bind:fromAmount

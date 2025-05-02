@@ -15,7 +15,7 @@ export const actions: {
 			theme: 'primary',
 			styleType: 'invert'
 		}
-	}
+	},
 	// {
 	// 	label: 'Receive',
 	// 	href: '/receive',
@@ -26,9 +26,9 @@ export const actions: {
 	// 	href: '/deposit',
 	// 	icon: PiggyBank
 	// },
-	// {
-	// 	label: 'Swap',
-	// 	href: '/swap',
-	// 	icon: ArrowRightLeft
-	// }
+	{
+		label: 'Swap',
+		href: '/swap',
+		icon: ArrowRightLeft
+	}
 ];

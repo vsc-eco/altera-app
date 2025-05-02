@@ -5,3 +5,5 @@
 <document:head>
 	<title>Swap</title>
 </document:head>
+<h1>Swap</h1>
+<Send hideToUsername></Send>

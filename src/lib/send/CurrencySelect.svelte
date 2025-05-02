@@ -11,6 +11,7 @@
 		label: 'To' | 'From';
 		username?: string | undefined;
 		enabledOptions: { from?: Partial<CoinOnNetwork>; to?: Partial<CoinOnNetwork> };
+		mode: 'send' | 'swap';
 	};
 	let {
 		coin = $bindable(),
@@ -18,6 +19,7 @@
 		label,
 		username = $bindable(),
 		options,
+		mode,
 		enabledOptions
 	}: Props = $props();
 	let auth = $derived(getAuth()());
@@ -36,7 +38,8 @@
 				disabled: !v.coin.enabled(
 					label.toLowerCase() as Lowercase<typeof label>,
 					enabledOptions,
-					auth
+					auth,
+					mode
 				)
 			};
 		})
@@ -49,7 +52,7 @@
 				value: v.value,
 				label: v.label,
 				snippet: radioLabel,
-				disabled: !v.enabled('to', enabledOptions, auth)
+				disabled: !v.enabled('to', enabledOptions, auth, mode)
 			};
 		})
 	);
@@ -83,7 +86,7 @@
 		></RadioGroup>
 	{/key}
 {/if}
-{#if label == 'To' && auth.value}
+{#if label == 'To' && auth.value && mode == 'send'}
 	<Username
 		required
 		id="to-username"

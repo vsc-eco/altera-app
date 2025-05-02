@@ -1,6 +1,4 @@
-import { convert } from '$lib/currency/convert';
 import type { Auth } from '../auth/store';
-import { readonly, type Readable } from 'svelte/store';
 import { getV4VMetadata } from './v4v/api-types/metadata';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 const always: Enabled = () => true;
@@ -28,7 +26,10 @@ const hive: Coin = {
 	label: 'HIVE',
 	icon: '/hive/hive.svg',
 	unit: 'HIVE',
-	enabled: (going, info) => {
+	enabled: (going, info, auth, mode) => {
+		// currently can't swap from hive to anything else
+		if (going == 'from' && mode == 'swap') return false;
+
 		if (info.from?.network == Network.lightning) return true;
 		if (info.from?.coin == undefined) return true;
 		if (going == 'from') return true;
@@ -42,7 +43,10 @@ const hbd: Coin = {
 	label: 'HBD',
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
-	enabled: (going, info) => {
+	enabled: (going, info, auth, mode) => {
+		// currently can't swap from HBD to anything else
+		if (going == 'from' && mode == 'swap') return false;
+
 		if (info.from?.network == Network.lightning) return true;
 		if (info.from?.coin == undefined) return true;
 		if (going == 'from') return true;
@@ -133,7 +137,8 @@ type Enabled = (
 		from?: Partial<CoinOnNetwork> | undefined;
 		to?: Partial<CoinOnNetwork> | undefined;
 	},
-	auth: Auth
+	auth: Auth,
+	mode: 'send' | 'swap'
 ) => boolean;
 
 const vsc: IntermediaryNetwork = {
@@ -147,6 +152,7 @@ const vsc: IntermediaryNetwork = {
 		return false;
 	},
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
+		// 0 fees (uses HP but HP usage isn't displayed)
 		return new CoinAmount(0, outputCoin);
 	}
 };
@@ -166,8 +172,9 @@ const hiveMainnet: IntermediaryNetwork = {
 	value: 'hive_mainnet',
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
-	enabled: (going, { from, to }, auth) => {
+	enabled: (going, { from, to }, auth, mode) => {
 		if (auth.value?.aioha == undefined && going == 'from') return false;
+		if (auth.value?.aioha == undefined && mode == 'swap') return false;
 		if (from?.coin == undefined || to?.coin == undefined) return true;
 		if (from?.coin == to?.coin) return true;
 		if (from?.network == Network.lightning) return true;

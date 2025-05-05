@@ -1,5 +1,5 @@
 <script>
-	import { getAccountNameFromDid } from '$lib/getAccountName';
+	import { getAccountNameFromAuth, getAccountNameFromDid } from '$lib/getAccountName';
 	import Table from './Table/Table.svelte';
 	import { getAuth } from '$lib/auth/store';
 	let auth = $derived(getAuth()());

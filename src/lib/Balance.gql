@@ -1,0 +1,8 @@
+query GetAccountBalance($account: String!) {
+  getAccountBalance(account: $account) {
+    hbd
+    hbd_savings
+    hive
+    hive_consensus
+  }
+}

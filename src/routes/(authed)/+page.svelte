@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import Balance from '$lib/cards/Balance/Balance.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
-	import type { LayoutData } from './$types';
 	import { actions } from '../quickActions';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import DepositModal from './witness-assistant/DepositModal.svelte';

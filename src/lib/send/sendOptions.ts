@@ -1,16 +1,15 @@
 import type { Auth } from '../auth/store';
 import { getV4VMetadata } from './v4v/api-types/metadata';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-import { List } from '@lucide/svelte';
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
-const nothingSelected: Enabled = (from, to) => {
+const _nothingSelected: Enabled = (from, to) => {
 	return from == undefined && to == undefined;
 };
 
 export type CoinOnNetwork = { coin: Coin; network: Network };
-const eitherNetworkEquals = (
+const _eitherNetworkEquals = (
 	from: CoinOnNetwork | undefined,
 	to: CoinOnNetwork | undefined,
 	value: Network
@@ -18,7 +17,7 @@ const eitherNetworkEquals = (
 	return from?.network == value || to?.network == value;
 };
 
-const coinIsOneOf = (source: CoinOnNetwork | undefined, arr: Coin[]) => {
+const _coinIsOneOf = (source: CoinOnNetwork | undefined, arr: Coin[]) => {
 	return !(source?.coin && !arr.includes(source.coin));
 };
 
@@ -61,7 +60,7 @@ const btc: Coin = {
 	label: 'BTC',
 	icon: '/btc/btc.svg',
 	unit: 'BTC',
-	enabled: (going, from, to) => {
+	enabled: (going) => {
 		return going == 'from';
 	},
 	decimalPlaces: 8
@@ -81,7 +80,7 @@ const sats: Coin = {
 	label: 'SATS',
 	icon: '/btc/btc.svg',
 	unit: 'SATS',
-	enabled: (going, from, to) => {
+	enabled: (going) => {
 		return going == 'from';
 	},
 	decimalPlaces: 0

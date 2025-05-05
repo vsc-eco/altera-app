@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowRightLeft, Eye, Home, Plane, ScrollText, Send } from '@lucide/svelte';
+import { ArrowRightLeft, Eye, Home, ScrollText, Send } from '@lucide/svelte';
 
 export const paths = [
 	{

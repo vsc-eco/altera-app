@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Select from '$lib/zag/Select.svelte';
 	import { getContext, untrack } from 'svelte';
-	import { Coin, Network } from '../send/sendOptions';
+	import { Coin, Network, type UnknownCoin } from '../send/sendOptions';
 	import Dinero, { type Currency } from 'dinero.js';
 	import { convert } from './convert';
 	import type { HTMLInputAttributes } from 'svelte/elements';
@@ -20,17 +20,17 @@
 		oninput,
 		disabled
 	}: {
-		coin: Coin;
+		coin: UnknownCoin;
 		network: Network;
 		originalAmount?: string;
 		id: string;
 		label: string;
 		required?: boolean;
-		selectItems: Coin[];
+		selectItems: UnknownCoin[];
 		oninput?: HTMLInputAttributes['oninput'];
 		disabled?: boolean;
 	} = $props();
-	let value: Coin = $state(originalCoin);
+	let value: UnknownCoin = $state(originalCoin);
 	$effect(() => {
 		value = originalCoin;
 	});

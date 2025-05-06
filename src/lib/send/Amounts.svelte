@@ -2,7 +2,7 @@
 	import Amount from '$lib/currency/AmountInput.svelte';
 	import { convert } from '$lib/currency/convert';
 	import { untrack } from 'svelte';
-	import { Coin, Network } from './sendOptions';
+	import { Coin, Network, type UnknownCoin } from './sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	let {
 		fromAmount = $bindable(''),
@@ -14,15 +14,15 @@
 		disabled
 	}: {
 		fromAmount: string;
-		fromCoin?: Coin;
+		fromCoin?: UnknownCoin;
 		fromNetwork?: Network;
 		toAmount: string;
-		toCoin?: Coin;
+		toCoin?: UnknownCoin;
 		toNetwork?: Network;
 		disabled?: boolean;
 	} = $props();
-	let fromCoin: Coin = $state(Coin.unk);
-	let toCoin: Coin = $state(Coin.unk);
+	let fromCoin: UnknownCoin = $state(Coin.unk);
+	let toCoin: UnknownCoin = $state(Coin.unk);
 	$effect(() => {
 		if (newFromCoin == undefined) return;
 		if (untrack(() => fromCoin.label) == Coin.unk.label) {

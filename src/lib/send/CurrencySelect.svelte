@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import RadioGroup from '$lib/zag/RadioGroup.svelte';
-	import { Coin, Network, type CoinOnNetwork, type CoinOptions } from './sendOptions';
+	import { Network, type CoinOnNetwork, type CoinOptions } from './sendOptions';
 	import Username from '$lib/auth/Username.svelte';
-	import type { Snippet } from 'svelte';
 	type Props = {
 		options: CoinOptions;
 		coin?: CoinOptions['coins'][number] | undefined;

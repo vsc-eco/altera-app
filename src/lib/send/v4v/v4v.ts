@@ -51,7 +51,7 @@ export const createLightningInvoice = async (
 		};
 	} else {
 		const data = await ret.json();
-		let splitError = (data.detail as string).split('\n');
+		const splitError = (data.detail as string).split('\n');
 		if (splitError.length < 2) {
 			return splitError[0];
 		} else {
@@ -100,7 +100,7 @@ const fromLightning = async function* (amount: string, of: Token, into: Token, a
 		)
 	).json();
 
-	let details = {
+	const details = {
 		invoice_id: ret.data.payment_hash,
 		qr_code: `data:image/png;base64,${ret.data.qr_code_base64}`,
 		amount: ret.data.amount
@@ -108,7 +108,7 @@ const fromLightning = async function* (amount: string, of: Token, into: Token, a
 
 	yield 'waiting';
 
-	let pid = setInterval(async () => {
+	const pid = setInterval(async () => {
 		const checkBody = await (
 			await fetch(`${V4VAPP_API}/v1/check_invoice/${ret.data.payment_hash}`)
 		).json();

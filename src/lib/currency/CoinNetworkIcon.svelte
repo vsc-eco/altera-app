@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { Coin, Network } from '$lib/send/sendOptions';
+	import type { Coin, Network, UnknownCoin } from '$lib/send/sendOptions';
 
-	let { coin, network }: { coin: Coin; network: Network } = $props();
+	let { coin, network }: { coin: UnknownCoin; network: Network } = $props();
 </script>
 
 <span class="icons" role="img" aria-label={`${coin.label} on ${network.label}`}>

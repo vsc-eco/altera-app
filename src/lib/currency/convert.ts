@@ -1,17 +1,17 @@
 import Dinero from 'dinero.js';
 import { getCryptoPrices, type Cryptoprices } from '$lib/send/v4v/api-types/cryptoprices';
-import { Network, Coin, type IntermediaryNetwork } from '$lib/send/sendOptions';
+import { Network, Coin, type IntermediaryNetwork, type UnknownCoin } from '$lib/send/sendOptions';
 import { btcToSats, satsToBtc } from '$lib/send/units';
 import type { CoinAmount, UnkCoinAmount } from './CoinAmount';
 Dinero.defaultPrecision = 10;
-const getLightningExchangeRates = async (base: Coin) => {
+const getLightningExchangeRates = async (base: UnknownCoin) => {
 	const prices = await getCryptoPrices();
 
 	const out = parseToRootedFormat(base, prices);
 	return out;
 };
 
-function parseToRootedFormat(base: Coin, prices: Cryptoprices) {
+function parseToRootedFormat(base: UnknownCoin, prices: Cryptoprices) {
 	switch (base.unit) {
 		case 'HIVE':
 			return {
@@ -60,12 +60,12 @@ function parseToRootedFormat(base: Coin, prices: Cryptoprices) {
 	}
 }
 
-export async function getExchangeRates(via: IntermediaryNetwork, base: Coin) {
+export async function getExchangeRates(via: IntermediaryNetwork, base: UnknownCoin) {
 	if (via == Network.lightning) return await getLightningExchangeRates(base);
 	throw new Error(`${via.label} network not supported.`);
 }
 
-export async function convert<FromCoinAmount extends UnkCoinAmount, ToCoin extends Coin>(
+export async function convert<FromCoinAmount extends UnkCoinAmount, ToCoin extends UnknownCoin>(
 	from: FromCoinAmount,
 	into: ToCoin,
 	via: IntermediaryNetwork

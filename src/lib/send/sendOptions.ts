@@ -289,6 +289,48 @@ const boltzLightning: IntermediaryNetwork = {
 	}
 };
 
+const boltzLightning: IntermediaryNetwork = {
+	value: 'boltz',
+	label: 'Boltz',
+	icon: '/btc/boltz.svg',
+	enabled: always,
+	feeCalculation: async <FromCoinAmount extends UnkCoinAmount, ToCoin extends UnknownCoin>(
+		input: FromCoinAmount,
+		outputCoin: ToCoin
+	) => {
+		type Root = {
+			BTC: {
+				BTC: {
+					hash: string;
+					rate: number;
+					limits: {
+						maximal: number;
+						minimal: number;
+						maximalZeroConf: number;
+					};
+					fees: {
+						percentage: number;
+						minerFees: number;
+					};
+				};
+			};
+		};
+
+		const {
+			BTC: {
+				BTC: { fees }
+			}
+		}: Root = await (await fetch('https://api.boltz.exchange/v2/swap/submarine')).json();
+		const convertedInput = await input.convertTo(outputCoin, Network.lightning);
+		const boltzFees = (
+			await new CoinAmount(fees.minerFees, Coin.sats).convertTo(outputCoin, Network.lightning)
+		).add(convertedInput.mul(fees.percentage));
+		return boltzFees.add(
+			await Network.lightning.feeCalculation(convertedInput.sub(boltzFees), outputCoin)
+		);
+	}
+};
+
 export const Network = {
 	btcMainnet,
 	lightning,

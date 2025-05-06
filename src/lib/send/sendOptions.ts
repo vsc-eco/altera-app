@@ -234,6 +234,24 @@ const lightning: IntermediaryNetwork = {
 			.convertTo(outputCoin, Network.lightning);
 	}
 };
+type BoltzExchangeRates = {
+	BTC: {
+		BTC: {
+			hash: string;
+			rate: number;
+			limits: {
+				maximal: number;
+				minimal: number;
+				maximalZeroConf: number;
+			};
+			fees: {
+				percentage: number;
+				minerFees: number;
+			};
+		};
+	};
+};
+let boltzExchangeRates: BoltzExchangeRates | undefined;
 
 const boltzLightning: IntermediaryNetwork = {
 	value: 'boltz',
@@ -244,29 +262,23 @@ const boltzLightning: IntermediaryNetwork = {
 		input: FromCoinAmount,
 		outputCoin: ToCoin
 	) => {
-		type Root = {
-			BTC: {
-				BTC: {
-					hash: string;
-					rate: number;
-					limits: {
-						maximal: number;
-						minimal: number;
-						maximalZeroConf: number;
-					};
-					fees: {
-						percentage: number;
-						minerFees: number;
-					};
-				};
-			};
-		};
-
+		if (boltzExchangeRates == undefined) {
+			boltzExchangeRates = await (
+				await fetch('https://api.boltz.exchange/v2/swap/submarine', {
+					cache: 'default'
+				})
+			).json();
+		} else {
+			// refresh the cache for next time - nonblocking
+			fetch('https://api.boltz.exchange/v2/swap/submarine', {
+				cache: 'default'
+			});
+		}
 		const {
 			BTC: {
 				BTC: { fees }
 			}
-		}: Root = await (await fetch('https://api.boltz.exchange/v2/swap/submarine')).json();
+		} = boltzExchangeRates!;
 		const convertedInput = await input.convertTo(outputCoin, Network.lightning);
 		const boltzFees = (
 			await new CoinAmount(fees.minerFees, Coin.sats).convertTo(outputCoin, Network.lightning)

@@ -77,7 +77,7 @@
 
 {#if fromCoin && toCoin}
 	<Amount
-		oninput={(_v) => {
+		oninput={() => {
 			new CoinAmount(Number(fromAmount), fromCoin)
 				.convertTo(toCoin, Network.lightning)
 				.then((value) => {
@@ -95,7 +95,7 @@
 	/>
 
 	<Amount
-		oninput={(_v) => {
+		oninput={() => {
 			new CoinAmount(Number(toAmount), toCoin)
 				.convertTo(fromCoin, Network.lightning)
 				.then((value) => {

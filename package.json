@@ -44,7 +44,13 @@
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
-			"esbuild"
+			"@parcel/watcher",
+			"bufferutil",
+			"core-js",
+			"esbuild",
+			"keccak",
+			"secp256k1",
+			"utf-8-validate"
 		]
 	},
 	"dependencies": {

@@ -1,6 +1,6 @@
 import Dinero from 'dinero.js';
 import { getCryptoPrices, type Cryptoprices } from '$lib/send/v4v/api-types/cryptoprices';
-import { Network, Coin, type IntermediaryNetwork, type UnknownCoin } from '$lib/send/sendOptions';
+import { Network, type IntermediaryNetwork, type UnknownCoin } from '$lib/send/sendOptions';
 import { btcToSats, satsToBtc } from '$lib/send/units';
 import type { CoinAmount, UnkCoinAmount } from './CoinAmount';
 Dinero.defaultPrecision = 10;

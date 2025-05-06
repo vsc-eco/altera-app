@@ -1,6 +1,5 @@
-import { browser } from '$app/environment';
 import { Coin, type IntermediaryNetwork } from '$lib/send/sendOptions';
-import { convert, getExchangeRates } from './convert';
+import { getExchangeRates } from './convert';
 export type UnkCoinAmount = CoinAmount<Coin>;
 export class CoinAmount<C extends Coin> {
 	coin: C;

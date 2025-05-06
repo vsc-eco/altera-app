@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Amount from '$lib/currency/AmountInput.svelte';
-	import { convert } from '$lib/currency/convert';
 	import { untrack } from 'svelte';
 	import { Coin, Network } from './sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -78,7 +77,7 @@
 
 {#if fromCoin && toCoin}
 	<Amount
-		oninput={(v) => {
+		oninput={() => {
 			new CoinAmount(Number(fromAmount), fromCoin)
 				.convertTo(toCoin, Network.lightning)
 				.then((value) => {
@@ -96,7 +95,7 @@
 	/>
 
 	<Amount
-		oninput={(v) => {
+		oninput={() => {
 			new CoinAmount(Number(toAmount), toCoin)
 				.convertTo(fromCoin, Network.lightning)
 				.then((value) => {

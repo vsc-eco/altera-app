@@ -5,9 +5,9 @@ import { btcToSats, satsToBtc } from '$lib/send/units';
 import type { CoinAmount, UnkCoinAmount } from './CoinAmount';
 Dinero.defaultPrecision = 10;
 const getLightningExchangeRates = async (base: Coin) => {
-	let prices = await getCryptoPrices();
+	const prices = await getCryptoPrices();
 
-	let out = parseToRootedFormat(base, prices);
+	const out = parseToRootedFormat(base, prices);
 	return out;
 };
 

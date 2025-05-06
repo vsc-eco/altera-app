@@ -24,7 +24,7 @@
 	};
 	let { tx, ledgerIndex }: Props = $props();
 	const did = $derived(getAuth()().value!.did);
-	const { ledger, data, anchr_height: block_height, anchr_ts, id, status } = $derived(tx);
+	const { ledger, data, anchr_height: block_height, anchr_ts, status } = $derived(tx);
 	const anchor_ts = $derived(anchr_ts + 'Z');
 	const {
 		from,
@@ -83,10 +83,11 @@
 </script>
 
 <tr
-	{...api.getTriggerProps() as any}
+	{...api.getTriggerProps() as object}
 	tabindex="0"
 	onkeydown={(e) => {
 		if (e.key == ' ' || e.key == 'Enter') {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			api.getTriggerProps().onclick!(e as any);
 			e.preventDefault();
 		}

@@ -92,7 +92,7 @@
 			status = 'Waiting for Hive wallet approval…';
 			// note that fromCoin and toCoin should be the same
 			const sendOp = getSendOp(
-				auth.value?.username!,
+				auth.value.username!,
 				getDidFromUsername(toUsername),
 				new CoinAmount(toAmount, toCoin.coin)
 			);

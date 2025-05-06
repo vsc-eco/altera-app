@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { GetTransactionsStore, type GetTransactions$result } from '$houdini';
-	// GetTransactions
-	import moment from 'moment';
 	import Tr from './tr/Tr.svelte';
 	import { untrack } from 'svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { Coin } from '$lib/send/sendOptions';
 	let {
 		did
 	}: {
@@ -72,7 +68,7 @@
 </script>
 
 <svelte:document
-	onscroll={(e) => {
+	onscroll={(_e) => {
 		const me = document.documentElement;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
 			loading = true;
@@ -129,7 +125,7 @@
 			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
 			{#if txs && txs.length != 0}
 				{#each filteredTxs as tx (tx.id)}
-					{@const { ledger, data, id } = tx}
+					{@const { data, id } = tx}
 					<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
 					<!-- {#if ledger?.length != 0}
 						{#each ledger! as _, i}

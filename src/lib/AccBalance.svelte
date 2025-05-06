@@ -9,48 +9,42 @@
 	}
 	let { did }:Props = $props();
 
-	let hbd = $state(0);
-	let hbd_savings = $state(0);
-	let hive = $state(0);
-	let hive_consensus = $state(0);
-
 	let api = $derived(new GetAccountBalanceStore());
+	let balances = $derived($api.data?.getAccountBalance ?? {
+		hbd: 0,
+		hbd_savings: 0,
+		hive: 0,
+		hive_consensus: 0
+	})
 	$effect(() => {
 		let intervalId = setInterval(() => {
 			untrack(() => api)
 				.fetch({ variables: { account: did } })
 		}, 1000);
-		if ($api.data && $api.data.getAccountBalance) {
-			hbd = $api.data.getAccountBalance.hbd;
-			hbd_savings = $api.data.getAccountBalance.hbd_savings;
-			hive = $api.data.getAccountBalance.hive;
-			hive_consensus = $api.data.getAccountBalance.hive_consensus;
-		}
-
 		return () => {
 			clearInterval(intervalId);
 		};
 	});
 </script>
 
-<h2>Account Balance</h2>
+<h2>VSC Balance</h2>
 <table>
 	<tbody>
 		<tr>
 			<th>HBD</th>
-			<td>{new CoinAmount(hbd, Coin.hbd, true)}</td>
+			<td>{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}</td>
 		</tr>
 		<tr>
 			<th>HBD Savings</th>
-			<td>{new CoinAmount(hbd_savings, Coin.hbd, true)}</td>
+			<td>{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}</td>
 		</tr>
 		<tr>
 			<th>Hive</th>
-			<td>{new CoinAmount(hive, Coin.hive, true)}</td>
+			<td>{new CoinAmount(balances.hive, Coin.hive, true).toPrettyString()}</td>
 		</tr>
 		<tr>
 			<th>Hive Consensus</th>
-			<td>{new CoinAmount(hive_consensus, Coin.hive, true)}</td>
+			<td>{new CoinAmount(balances.hive_consensus, Coin.hive, true).toPrettyString()}</td>
 		</tr>
 	</tbody>
 </table>

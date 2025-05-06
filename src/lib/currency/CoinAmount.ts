@@ -1,7 +1,7 @@
-import { Coin, type IntermediaryNetwork } from '$lib/send/sendOptions';
+import { Coin, type IntermediaryNetwork, type UnknownCoin } from '$lib/send/sendOptions';
 import { getExchangeRates } from './convert';
-export type UnkCoinAmount = CoinAmount<Coin>;
-export class CoinAmount<C extends Coin> {
+export type UnkCoinAmount = CoinAmount<UnknownCoin>;
+export class CoinAmount<C extends UnknownCoin> {
 	coin: C;
 	amount: number;
 
@@ -65,7 +65,7 @@ export class CoinAmount<C extends Coin> {
 	toPrettyString() {
 		return `${this.toPrettyAmountString()} ${this.coin.unit}`;
 	}
-	async convertTo<OtherCoin extends Coin>(
+	async convertTo<OtherCoin extends UnknownCoin>(
 		coin: OtherCoin,
 		via: IntermediaryNetwork
 	): Promise<CoinAmount<OtherCoin>> {
@@ -84,13 +84,16 @@ export class CoinAmount<C extends Coin> {
 		);
 		return this.mulTo(myRate, coin);
 	}
-	add(amount: UnkCoinAmount): CoinAmount<C> {
+	add(amount: CoinAmount<C>): CoinAmount<C> {
 		return new CoinAmount(this.amount + amount.mulTo(1, this.coin).amount, this.coin, true);
+	}
+	sub(amount: CoinAmount<C>): CoinAmount<C> {
+		return new CoinAmount(this.amount - amount.mulTo(1, this.coin).amount, this.coin, true);
 	}
 	mul(multip: number): CoinAmount<C> {
 		return new CoinAmount(Math.round(this.amount * multip), this.coin, true);
 	}
-	mulTo<ToCoin extends Coin>(multip: number, into: ToCoin): CoinAmount<ToCoin> {
+	mulTo<ToCoin extends UnknownCoin>(multip: number, into: ToCoin): CoinAmount<ToCoin> {
 		console.log(multip * 10 ** (into.decimalPlaces - this.coin.decimalPlaces));
 		return new CoinAmount(
 			Math.round(this.amount * (multip * 10 ** (into.decimalPlaces - this.coin.decimalPlaces))),

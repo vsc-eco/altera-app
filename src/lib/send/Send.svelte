@@ -94,7 +94,7 @@
 			const sendOp = getSendOp(
 				auth.value.username!,
 				getDidFromUsername(toUsername),
-				new CoinAmount(toAmount, toCoin.coin)
+				new CoinAmount(toAmount, toCoin.coin as typeof Coin.hive | typeof Coin.hbd)
 			);
 			executeTx(auth.value.aioha, [sendOp]).then(async (err) => {
 				if (!err) {
@@ -252,11 +252,17 @@
 		<legend>Submit</legend>
 		{#if fromAmount && fromCoin && fromNetwork && toNetwork && toAmount && toCoin && toUsername && toAmount != '0'}
 			<h3>
-				Send <Amount network={fromNetwork} amount={new CoinAmount(fromAmount, fromCoin.coin)}
-				></Amount>
-				to
-				<span class="mono">{accountNameFromAddress(toUsername)}</span
-				>{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
+				{#if hideToUsername}
+					Swap
+				{:else}
+					Send
+				{/if}
+				<Amount network={fromNetwork} amount={new CoinAmount(fromAmount, fromCoin.coin)}></Amount>
+				{#if !hideToUsername}
+					to
+					<span class="mono">{accountNameFromAddress(toUsername)}</span>
+				{/if}
+				{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
 					&nbsp;as <Amount network={toNetwork} amount={new CoinAmount(toAmount, toCoin.coin)}
 					></Amount>{/if}?
 			</h3>
@@ -269,7 +275,13 @@
 				{toAmount}
 			/>
 		{:else}
-			<h3>Send</h3>
+			<h3>
+				{#if hideToUsername}
+					Swap
+				{:else}
+					Send
+				{/if}
+			</h3>
 		{/if}
 		<p class={{ error, status }}>
 			{#if error != ''}
@@ -297,12 +309,22 @@
 					onclick={() => {
 						error = '';
 					}}
-					disabled={showV4VModal}>Send</PillButton
+					disabled={showV4VModal}
 				>
+					{#if hideToUsername}
+						Swap
+					{:else}
+						Send
+					{/if}
+				</PillButton>
 			</div>
 		{:else}
 			<PillButton onclick={() => {}} disabled={showV4VModal} styleType="invert" theme="primary">
-				Send
+				{#if hideToUsername}
+					Swap
+				{:else}
+					Send
+				{/if}
 			</PillButton>
 		{/if}
 	</fieldset>

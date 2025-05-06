@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getIntermediaryNetwork } from './getNetwork';
-	import type { Coin, Network } from './sendOptions';
+	import type { Network, UnknownCoin } from './sendOptions';
 	type Props = {
-		fromCoin: Coin;
+		fromCoin: UnknownCoin;
 		fromNetwork: Network;
-		toCoin: Coin;
+		toCoin: UnknownCoin;
 		toNetwork: Network;
 		fromAmount: string;
 		toAmount: string;
@@ -34,9 +34,7 @@
 			</tr>
 			<tr>
 				<th>Recv. Total</th>
-				<td>
-					{to.toPrettyString()}</td
-				>
+				<td> {to.toPrettyString()}</td>
 			</tr>
 		</tbody>
 	</table>

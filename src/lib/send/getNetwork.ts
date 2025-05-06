@@ -4,6 +4,9 @@ export function getIntermediaryNetwork(
 	from: CoinOnNetwork,
 	to: CoinOnNetwork
 ): IntermediaryNetwork {
+	if (throughBoltz(from, to)) {
+		return Network.boltzLightning;
+	}
 	if (throughLightning(from, to)) {
 		return Network.lightning;
 	}
@@ -15,7 +18,9 @@ export function getIntermediaryNetwork(
 	}
 	return Network.unknown;
 }
-
+function throughBoltz(from: CoinOnNetwork, _to: CoinOnNetwork) {
+	return from.network == Network.btcMainnet;
+}
 function throughLightning(from: CoinOnNetwork, to: CoinOnNetwork) {
 	return from.network == Network.lightning || to.network == Network.lightning;
 }

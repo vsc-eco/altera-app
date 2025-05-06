@@ -8,7 +8,7 @@ const _nothingSelected: Enabled = (from, to) => {
 	return from == undefined && to == undefined;
 };
 
-export type CoinOnNetwork = { coin: Coin; network: Network };
+export type CoinOnNetwork = { coin: UnknownCoin; network: Network };
 const _eitherNetworkEquals = (
 	from: CoinOnNetwork | undefined,
 	to: CoinOnNetwork | undefined,
@@ -17,11 +17,11 @@ const _eitherNetworkEquals = (
 	return from?.network == value || to?.network == value;
 };
 
-const _coinIsOneOf = (source: CoinOnNetwork | undefined, arr: Coin[]) => {
+const _coinIsOneOf = (source: CoinOnNetwork | undefined, arr: UnknownCoin[]) => {
 	return !(source?.coin && !arr.includes(source.coin));
 };
 
-const hive: Coin = {
+const hive: Coin<'hive'> = {
 	value: 'hive',
 	label: 'HIVE',
 	icon: '/hive/hive.svg',
@@ -29,8 +29,7 @@ const hive: Coin = {
 	enabled: (going, info, auth, mode) => {
 		// currently can't swap from hive to anything else
 		if (going == 'from' && mode == 'swap') return false;
-
-		if (info.from?.network == Network.lightning) return true;
+		if (info.from?.coin == Coin.btc) return true;
 		if (info.from?.coin == undefined) return true;
 		if (going == 'from') return true;
 		if (info.from?.coin == Coin.hive) return true;
@@ -38,7 +37,7 @@ const hive: Coin = {
 	},
 	decimalPlaces: 3
 };
-const hbd: Coin = {
+const hbd: Coin<'hbd'> = {
 	value: 'hbd',
 	label: 'HBD',
 	icon: '/hive/hbd.svg',
@@ -47,15 +46,16 @@ const hbd: Coin = {
 		// currently can't swap from HBD to anything else
 		if (going == 'from' && mode == 'swap') return false;
 
-		if (info.from?.network == Network.lightning) return true;
+		if (info.from?.coin == Coin.btc) return true;
 		if (info.from?.coin == undefined) return true;
 		if (going == 'from') return true;
 		if (info.from?.coin == Coin.hbd) return true;
+
 		return false;
 	},
 	decimalPlaces: 3
 };
-const btc: Coin = {
+const btc: Coin<'btc'> = {
 	value: 'btc',
 	label: 'BTC',
 	icon: '/btc/btc.svg',
@@ -66,7 +66,7 @@ const btc: Coin = {
 	decimalPlaces: 8
 };
 
-const usd: Coin = {
+const usd: Coin<'usd'> = {
 	value: 'usd',
 	label: 'USD',
 	icon: '/btc/btc.svg',
@@ -75,8 +75,8 @@ const usd: Coin = {
 	decimalPlaces: 2
 };
 
-const sats: Coin = {
-	value: 'SATS',
+const sats: Coin<'sats'> = {
+	value: 'sats',
 	label: 'SATS',
 	icon: '/btc/btc.svg',
 	unit: 'SATS',
@@ -85,8 +85,8 @@ const sats: Coin = {
 	},
 	decimalPlaces: 0
 };
-const unk: Coin = {
-	value: 'UNK',
+const unk: Coin<'unk'> = {
+	value: 'unk',
 	label: 'UNK',
 	icon: '/unk.svg',
 	unit: 'UNK',
@@ -103,11 +103,11 @@ export const Coin = {
 	unk
 };
 
-export type Coin = {
+export type Coin<Value extends string> = {
 	/**
 	 * The value for a form submission
 	 */
-	value: string;
+	value: Value;
 	/**
 	 * The label to display in a form field (ex. radio group)
 	 */
@@ -131,6 +131,8 @@ export type Coin = {
 	decimalPlaces: number;
 };
 
+export type UnknownCoin = Coin<string>;
+
 type Enabled = (
 	going: 'to' | 'from',
 	info: {
@@ -148,10 +150,13 @@ const vsc: IntermediaryNetwork = {
 	enabled: (going, { from, to }) => {
 		if (from?.coin == undefined || to?.coin == undefined) return true;
 		if (from?.coin == to?.coin) return true;
-		if (from?.network == Network.lightning) return true;
+		if (from?.coin == Coin.btc) return true;
 		return false;
 	},
-	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
+	feeCalculation: async <FromCoinAmount extends UnkCoinAmount, ToCoin extends UnknownCoin>(
+		input: FromCoinAmount,
+		outputCoin: ToCoin
+	) => {
 		// 0 fees (uses HP but HP usage isn't displayed)
 		return new CoinAmount(0, outputCoin);
 	}
@@ -161,9 +166,12 @@ const unknown: IntermediaryNetwork = {
 	label: 'Unknown',
 	icon: '/unk.svg',
 	enabled: never,
-	feeCalculation: async (from: UnkCoinAmount, outputCoin: Coin) => {
+	feeCalculation: async <FromCoinAmount extends UnkCoinAmount, ToCoin extends UnknownCoin>(
+		from: FromCoinAmount,
+		outputCoin: ToCoin
+	) => {
 		if (from.coin.value == outputCoin.value) {
-			return new CoinAmount(0, from.coin); // no fee if going between same currency type
+			return new CoinAmount(0, outputCoin); // no fee if going between same currency type
 		}
 		throw new Error('cannot calculate fees for an unknown intermediary network.');
 	}
@@ -177,7 +185,7 @@ const hiveMainnet: IntermediaryNetwork = {
 		if (auth.value?.aioha == undefined && mode == 'swap') return false;
 		if (from?.coin == undefined || to?.coin == undefined) return true;
 		if (from?.coin == to?.coin) return true;
-		if (from?.network == Network.lightning) return true;
+		if (from?.coin == Coin.btc) return true;
 		return false;
 	},
 	feeCalculation: async (from, outputCoin) => {
@@ -185,7 +193,7 @@ const hiveMainnet: IntermediaryNetwork = {
 	}
 };
 
-type FeeCalculation<FromCoinAmount extends UnkCoinAmount, ToCoin extends Coin> = (
+type FeeCalculation = <FromCoinAmount extends UnkCoinAmount, ToCoin extends UnknownCoin>(
 	from: FromCoinAmount,
 	outputCoin: ToCoin
 ) => Promise<CoinAmount<ToCoin>>;
@@ -194,23 +202,28 @@ export type Network = {
 	label: string;
 	icon: string;
 	enabled: Enabled;
-	feeCalculation?: FeeCalculation<UnkCoinAmount, Coin>;
+	feeCalculation?: FeeCalculation;
 };
 
-export type IntermediaryNetwork = Network & { feeCalculation: FeeCalculation<UnkCoinAmount, Coin> };
+export type IntermediaryNetwork = Network & {
+	feeCalculation: FeeCalculation;
+};
 
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
 	label: 'BTC Mainnet',
 	icon: '/btc/btc.svg',
-	enabled: never
+	enabled: always
 };
 const lightning: IntermediaryNetwork = {
 	value: 'lightning',
 	label: 'Lightning',
 	icon: '/btc/lightning.svg',
 	enabled: always,
-	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
+	feeCalculation: async <FromCoinAmount extends UnkCoinAmount, ToCoin extends UnknownCoin>(
+		input: FromCoinAmount,
+		outputCoin: ToCoin
+	) => {
 		const meta = await getV4VMetadata();
 		return (await input.convertTo(Coin.sats, Network.lightning))
 			.mul(
@@ -222,19 +235,62 @@ const lightning: IntermediaryNetwork = {
 	}
 };
 
+const boltzLightning: IntermediaryNetwork = {
+	value: 'boltz',
+	label: 'Boltz',
+	icon: '/btc/boltz.svg',
+	enabled: always,
+	feeCalculation: async <FromCoinAmount extends UnkCoinAmount, ToCoin extends UnknownCoin>(
+		input: FromCoinAmount,
+		outputCoin: ToCoin
+	) => {
+		type Root = {
+			BTC: {
+				BTC: {
+					hash: string;
+					rate: number;
+					limits: {
+						maximal: number;
+						minimal: number;
+						maximalZeroConf: number;
+					};
+					fees: {
+						percentage: number;
+						minerFees: number;
+					};
+				};
+			};
+		};
+
+		const {
+			BTC: {
+				BTC: { fees }
+			}
+		}: Root = await (await fetch('https://api.boltz.exchange/v2/swap/submarine')).json();
+		const convertedInput = await input.convertTo(outputCoin, Network.lightning);
+		const boltzFees = (
+			await new CoinAmount(fees.minerFees, Coin.sats).convertTo(outputCoin, Network.lightning)
+		).add(convertedInput.mul(fees.percentage));
+		return boltzFees.add(
+			await Network.lightning.feeCalculation(convertedInput.sub(boltzFees), outputCoin)
+		);
+	}
+};
+
 export const Network = {
 	btcMainnet,
 	lightning,
 	hiveMainnet,
 	vsc,
-	unknown
+	unknown,
+	boltzLightning
 };
 
 export type CoinOptions = {
 	coins: {
-		coin: Coin;
+		coin: UnknownCoin;
 		networks: Network[];
-		default?: Coin;
+		default?: UnknownCoin;
 	}[];
 };
 

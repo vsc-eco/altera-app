@@ -81,6 +81,7 @@
 		"@zag-js/tabs": "1.9.3",
 		"aninest": "^4.11.0",
 		"axios": "^1.8.4",
+		"boltz-core": "^3.0.0",
 		"d3-array": "^3.2.4",
 		"d3-scale": "^4.0.2",
 		"d3-shape": "^3.2.0",

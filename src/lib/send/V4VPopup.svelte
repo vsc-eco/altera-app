@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { Auth } from '$lib/auth/store';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import QR from '$lib/zag/QR.svelte';
-	import type { CoinOnNetwork } from './sendOptions';
+	import { Coin, type CoinOnNetwork } from './sendOptions';
 	import { satsToBtc } from './units';
 	import { checkLightningSuccess, createLightningInvoice } from './v4v/v4v';
 	let {
@@ -87,9 +88,10 @@
 					<p class="error">Error: {res}</p>
 				{:else}
 					<p>
-						Tap or scan the QR code below to send {new Intl.NumberFormat('en-US', {
-							maximumFractionDigits: 10
-						}).format(satsToBtc(Number(res.amount)))} BTC to V4V
+						Tap or scan the QR code below to send {new CoinAmount(
+							satsToBtc(Number(res.amount)),
+							Coin.btc
+						).toPrettyString()} to V4V
 					</p>
 					<QR data={res.qr_data}></QR>
 				{/if}

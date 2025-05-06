@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { GetTransactionsStore, type GetTransactions$result } from '$houdini';
+	// GetTransactions
 	import Tr from './tr/Tr.svelte';
 	import { untrack } from 'svelte';
 	let {

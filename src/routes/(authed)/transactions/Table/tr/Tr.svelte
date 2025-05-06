@@ -87,6 +87,7 @@
 	});
 </script>
 
+<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
 <tr
 	{...api.getTriggerProps() as object}
 	tabindex="0"

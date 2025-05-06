@@ -37,7 +37,9 @@
 <div class="masonry">
 	<Balance></Balance>
 	{#if auth.value}
-		<AccBalance did={auth.value.did}></AccBalance>
+		<Card>
+			<AccBalance did={auth.value.did}></AccBalance>
+		</Card>
 	{/if}
 	<Card>
 		<Send widgetView />

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Coin, Network, UnknownCoin } from '$lib/send/sendOptions';
+	import type { Network, UnknownCoin } from '$lib/send/sendOptions';
 
 	let { coin, network }: { coin: UnknownCoin; network: Network } = $props();
 </script>

@@ -8,7 +8,7 @@
 	import Send from '$lib/send/Send.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Table from './transactions/Table/Table.svelte';
-	import AccBalance from '$lib/AccBalance.svelte'
+	import AccBalance from '$lib/AccBalance.svelte';
 	// let { auth }: LayoutData = $props();
 	let auth = $derived(getAuth()());
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));

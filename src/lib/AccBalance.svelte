@@ -6,20 +6,21 @@
 
 	type Props = {
 		did: string;
-	}
-	let { did }:Props = $props();
+	};
+	let { did }: Props = $props();
 
 	let api = $derived(new GetAccountBalanceStore());
-	let balances = $derived($api.data?.getAccountBalance ?? {
-		hbd: 0,
-		hbd_savings: 0,
-		hive: 0,
-		hive_consensus: 0
-	})
+	let balances = $derived(
+		$api.data?.getAccountBalance ?? {
+			hbd: 0,
+			hbd_savings: 0,
+			hive: 0,
+			hive_consensus: 0
+		}
+	);
 	$effect(() => {
 		let intervalId = setInterval(() => {
-			untrack(() => api)
-				.fetch({ variables: { account: did } })
+			untrack(() => api).fetch({ variables: { account: did }, policy: 'NetworkOnly' });
 		}, 1000);
 		return () => {
 			clearInterval(intervalId);
@@ -32,35 +33,41 @@
 	<table>
 		<tbody>
 			<tr>
-				<td><img src = "{Coin.hbd.icon}" alt = ""></td>
-				<td class = "coin-cell">HBD</td>
-				<td class = "amount-cell">{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}&nbsp;</td>
+				<td><img src={Coin.hbd.icon} alt="" /></td>
+				<td class="coin-cell">HBD</td>
+				<td class="amount-cell"
+					>{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}&nbsp;</td
+				>
 			</tr>
 			<tr>
-				<th>
-				<td><img src = "{Coin.hbd.icon}" alt = ""></td>
-				<td class = "coin-cell">HBD Savings</td>
-				<td class = "amount-cell">{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}&nbsp;</td>
+				<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
+				<td class="coin-cell">HBD Savings</td>
+				<td class="amount-cell"
+					>{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}&nbsp;</td
+				>
 			</tr>
 			<tr>
-				<td><img src = "{Coin.hive.icon}" alt = ""></td>
-				<td class = "coin-cell">Hive</td>
-				<td class = "amount-cell">{new CoinAmount(balances.hive, Coin.hive, true).toPrettyString()}</td>
+				<td><img src={Coin.hive.icon} alt="" /></td>
+				<td class="coin-cell">Hive</td>
+				<td class="amount-cell"
+					>{new CoinAmount(balances.hive, Coin.hive, true).toPrettyString()}</td
+				>
 			</tr>
 			<tr>
-				<td class = "image-cell"><img src = "{Coin.hive.icon}" alt = ""></td>
-				<td class = "coin-cell">Hive Consensus</td>
-				<td class = "amount-cell">{new CoinAmount(balances.hive_consensus, Coin.hive, true).toPrettyString()}</td>
+				<td class="image-cell"><img src={Coin.hive.icon} alt="" /></td>
+				<td class="coin-cell">Hive Consensus</td>
+				<td class="amount-cell"
+					>{new CoinAmount(balances.hive_consensus, Coin.hive, true).toPrettyString()}</td
+				>
 			</tr>
 		</tbody>
 	</table>
 </div>
 
-
 <style>
 	img {
 		width: 1.25rem;
-		height: 1.25rem;	
+		height: 1.25rem;
 	}
 	td {
 		width: fit-content;
@@ -80,7 +87,7 @@
 		min-width: 200px;
 	}
 	.coin-cell {
-		width: fit-content;	
+		width: fit-content;
 		font-weight: 500;
 		text-align: left;
 		padding-left: 0.5rem;

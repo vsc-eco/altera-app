@@ -34,13 +34,13 @@
 			<tr>
 				<td><img src = "{Coin.hbd.icon}" alt = ""></td>
 				<td class = "coin-cell">HBD</td>
-				<td class = "amount-cell">{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}&nbsp</td>
+				<td class = "amount-cell">{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}&nbsp;</td>
 			</tr>
 			<tr>
 				<th>
 				<td><img src = "{Coin.hbd.icon}" alt = ""></td>
 				<td class = "coin-cell">HBD Savings</td>
-				<td class = "amount-cell">{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}&nbsp</td>
+				<td class = "amount-cell">{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}&nbsp;</td>
 			</tr>
 			<tr>
 				<td><img src = "{Coin.hive.icon}" alt = ""></td>

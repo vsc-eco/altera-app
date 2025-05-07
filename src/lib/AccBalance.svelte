@@ -34,13 +34,13 @@
 			<tr>
 				<td><img src = "{Coin.hbd.icon}" alt = ""></td>
 				<td class = "coin-cell">HBD</td>
-				<td class = "amount-cell">{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}</td>
+				<td class = "amount-cell">{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}&nbsp</td>
 			</tr>
 			<tr>
 				<th>
 				<td><img src = "{Coin.hbd.icon}" alt = ""></td>
 				<td class = "coin-cell">HBD Savings</td>
-				<td class = "amount-cell">{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}</td>
+				<td class = "amount-cell">{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}&nbsp</td>
 			</tr>
 			<tr>
 				<td><img src = "{Coin.hive.icon}" alt = ""></td>
@@ -64,7 +64,6 @@
 	}
 	td {
 		width: fit-content;
-		font-weight: 400;
 		white-space: nowrap;
 		vertical-align: middle;
 	}
@@ -74,7 +73,7 @@
 	tr {
 		container-type: inline-size;
 		container-name: table-row;
-		display: block;
+		display: flex;
 		padding: 1rem 0.5rem;
 		margin: 0rem 0.5rem;
 		border-bottom: 1px solid var(--neutral-bg-mid);
@@ -82,12 +81,14 @@
 	}
 	.coin-cell {
 		width: fit-content;	
-		font-weight: bold;
+		font-weight: 500;
 		text-align: left;
 		padding-left: 0.5rem;
 		min-width: 120px;
 	}
-	.amount-cell {		
+	.amount-cell {
+		font-family: 'Noto Sans Mono Variable', monospace;
+		font-weight: 400;
 		width: 100%;
 		text-align: right;
 	}

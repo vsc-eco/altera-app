@@ -1,6 +1,5 @@
-import { browser } from '$app/environment';
 import { Coin, type IntermediaryNetwork } from '$lib/send/sendOptions';
-import { convert, getExchangeRates } from './convert';
+import { getExchangeRates } from './convert';
 export type UnkCoinAmount = CoinAmount<Coin>;
 export class CoinAmount<C extends Coin> {
 	coin: C;
@@ -13,12 +12,12 @@ export class CoinAmount<C extends Coin> {
 		if (typeof num == 'number') {
 			amount = Math.round(num * (preshiftedInt ? 1 : 10 ** coin.decimalPlaces));
 		} else {
-			let decIdx = num.indexOf('.');
+			const decIdx = num.indexOf('.');
 			console.log(num, decIdx);
 			if (decIdx == -1) {
 				amount = Number.parseInt(num.padEnd(coin.decimalPlaces + num.length, '0'));
 			} else {
-				let integer = num.slice(0, decIdx);
+				const integer = num.slice(0, decIdx);
 				let decimal = num.slice(decIdx + 1, coin.decimalPlaces + decIdx + 1);
 				decimal = decimal.padEnd(coin.decimalPlaces, '0');
 				amount = Number.parseInt(integer.concat(decimal));
@@ -44,7 +43,7 @@ export class CoinAmount<C extends Coin> {
 		if (this.amount == 0 && !keepTrailingZeroes) {
 			return this.amount.toString();
 		}
-		let isNegative = this.isNegative();
+		const isNegative = this.isNegative();
 		const amountStr = this.amount
 			.toString()
 			.slice(isNegative ? 1 : 0)
@@ -102,7 +101,9 @@ export class CoinAmount<C extends Coin> {
 }
 
 declare global {
+	// eslint-disable-next-line no-var
 	var ca: typeof CoinAmount;
+	// eslint-disable-next-line no-var
 	var coins: typeof Coin;
 }
 globalThis.ca = CoinAmount;

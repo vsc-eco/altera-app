@@ -41,7 +41,7 @@
 	$effect(() => {
 		invoiceReq.then((v) => {
 			if (typeof v == 'string') {
-				onerror && onerror(v);
+				if (onerror) onerror(v);
 				toggle(false);
 			} else {
 				invoice = v;

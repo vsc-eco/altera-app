@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { GetTransactionsStore, type GetTransactions$result } from '$houdini';
-	// GetTransactions
 	import Tr from './tr/Tr.svelte';
 	import { untrack } from 'svelte';
 	let {
@@ -127,6 +126,11 @@
 			{#if txs && txs.length != 0}
 				{#each filteredTxs as tx (tx.id)}
 					{@const { data, id } = tx}
+					<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
+					<!-- {#if ledger?.length != 0}
+						{#each ledger! as _, i}
+							<Tr {tx} ledgerIndex={i} />
+						{/each} -->
 					{#if new Set( ['from', 'to', 'type', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 						<Tr {tx} />
 					{:else}

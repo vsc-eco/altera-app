@@ -161,9 +161,6 @@
 </Dialog>
 
 <style lang="scss">
-	a {
-		display: contents;
-	}
 	form :global(label) {
 		margin-top: 0.5rem;
 		margin-bottom: 0.25rem;

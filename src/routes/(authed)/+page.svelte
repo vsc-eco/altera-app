@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import Balance from '$lib/cards/Balance/Balance.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
-	import type { LayoutData } from './$types';
 	import { actions } from '../quickActions';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import DepositModal from './witness-assistant/DepositModal.svelte';
 	import Send from '$lib/send/Send.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Table from './transactions/Table/Table.svelte';
+	import AccBalance from '$lib/AccBalance.svelte';
 	// let { auth }: LayoutData = $props();
 	let auth = $derived(getAuth()());
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
@@ -36,6 +36,11 @@
 </div>
 <div class="masonry">
 	<Balance></Balance>
+	{#if auth.value}
+		<Card>
+			<AccBalance did={auth.value.did}></AccBalance>
+		</Card>
+	{/if}
 	<Card>
 		<Send widgetView />
 	</Card>

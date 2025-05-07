@@ -53,7 +53,7 @@ export const checkOpStatus = (tx_id: string, op_id: number, currStatus: string) 
 	if (checkingStores[tx_id]?.[op_id] != undefined) {
 		return checkingStores[tx_id][op_id];
 	}
-	let out = writable(currStatus, () => {
+	const out = writable(currStatus, () => {
 		if (timeout == undefined) {
 			timeout = setInterval(updateStatuses, 1000);
 		}

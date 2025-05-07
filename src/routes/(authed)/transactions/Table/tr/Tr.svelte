@@ -169,6 +169,7 @@
 		background-color: var(--neutral-bg-accent);
 	}
 	tr {
+		cursor: pointer;
 		transition: background-color 1s;
 		animation: highlight-in 1s both;
 	}

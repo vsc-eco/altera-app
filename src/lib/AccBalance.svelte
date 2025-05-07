@@ -28,64 +28,71 @@
 </script>
 
 <h2>VSC Balance</h2>
-<table>
-	<tbody>
-		<tr>
-			<th>HBD</th>
-			<td>{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}</td>
-		</tr>
-		<tr>
-			<th>HBD Savings</th>
-			<td>{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}</td>
-		</tr>
-		<tr>
-			<th>Hive</th>
-			<td>{new CoinAmount(balances.hive, Coin.hive, true).toPrettyString()}</td>
-		</tr>
-		<tr>
-			<th>Hive Consensus</th>
-			<td>{new CoinAmount(balances.hive_consensus, Coin.hive, true).toPrettyString()}</td>
-		</tr>
-	</tbody>
-</table>
+<div class="box">
+	<table>
+		<tbody>
+			<tr>
+				<td><img src = "{Coin.hbd.icon}" alt = ""></td>
+				<td class = "coin-cell">HBD</td>
+				<td class = "amount-cell">{new CoinAmount(balances.hbd, Coin.hbd, true).toPrettyString()}</td>
+			</tr>
+			<tr>
+				<th>
+				<td><img src = "{Coin.hbd.icon}" alt = ""></td>
+				<td class = "coin-cell">HBD Savings</td>
+				<td class = "amount-cell">{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}</td>
+			</tr>
+			<tr>
+				<td><img src = "{Coin.hive.icon}" alt = ""></td>
+				<td class = "coin-cell">Hive</td>
+				<td class = "amount-cell">{new CoinAmount(balances.hive, Coin.hive, true).toPrettyString()}</td>
+			</tr>
+			<tr>
+				<td class = "image-cell"><img src = "{Coin.hive.icon}" alt = ""></td>
+				<td class = "coin-cell">Hive Consensus</td>
+				<td class = "amount-cell">{new CoinAmount(balances.hive_consensus, Coin.hive, true).toPrettyString()}</td>
+			</tr>
+		</tbody>
+	</table>
+</div>
 
 
 <style>
+	img {
+		width: 1.25rem;
+		height: 1.25rem;	
+	}
 	td {
-		display: block;
-		font-family: 'Noto Sans Mono Variable', monospace;
+		width: fit-content;
 		font-weight: 400;
 		white-space: nowrap;
-		text-align: right;
-		padding-left: 0.25rem;
-		padding-top: 0.5rem;
+		vertical-align: middle;
 	}
 	table {
 		width: 100%;
-	}
-	@container table-row (width > 260px) {
-		td {
-			position: absolute;
-			right: 0;
-			bottom: 0.5rem;
-		}
 	}
 	tr {
 		container-type: inline-size;
 		container-name: table-row;
 		display: block;
-		position: relative;
-		padding: 0.5rem 0;
+		padding: 1rem 0.5rem;
+		margin: 0rem 0.5rem;
 		border-bottom: 1px solid var(--neutral-bg-mid);
+		min-width: 200px;
+	}
+	.coin-cell {
+		width: fit-content;	
+		font-weight: bold;
+		text-align: left;
+		padding-left: 0.5rem;
+		min-width: 120px;
+	}
+	.amount-cell {		
+		width: 100%;
+		text-align: right;
 	}
 	tr:last-child {
 		border-bottom: none;
-	}
-	th {
-		display: block;
-		font-weight: bold;
-		text-align: left;
-		padding-right: 0.25rem;
 	}
 	h2 {
 		position: sticky;

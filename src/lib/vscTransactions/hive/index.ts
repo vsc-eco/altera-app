@@ -6,7 +6,7 @@ import {
 	type TransferOperation,
 	type CustomJsonOperation
 } from '@hiveio/dhive';
-import { getHiveConsensusStakeOp } from './vscOperations/consensus';
+import { getHiveConsensusStakeOp, getHiveConsensusUnstakeOp } from './vscOperations/consensus';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/send/sendOptions';
 import { getHiveDepositOp } from './vscOperations/deposit';
@@ -31,6 +31,31 @@ export const consensusTx = async (
 	let ops: Operation[] = [];
 	if (shouldDeposit) ops.push(depositOp);
 	ops.push(stakeOp);
+	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
+	if (res.success) {
+		return;
+	} else {
+		return res.error;
+	}
+};
+
+export const consensusUnstakeTx = async (
+	amount: string,
+	nodeRunnerAccount: string,
+	username: string,
+	shouldDeposit: boolean,
+	aioha: Aioha
+) => {
+	if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
+	let unstakeOp = getHiveConsensusUnstakeOp(
+		username,
+		nodeRunnerAccount,
+		new CoinAmount(amount, Coin.hive)
+	);
+	let depositOp = getHiveWithdrawalOp(username, username, new CoinAmount(amount, Coin.hive));
+	let ops: Operation[] = [];
+	if (shouldDeposit) ops.push(depositOp);
+	ops.push(unstakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
 	if (res.success) {
 		return;

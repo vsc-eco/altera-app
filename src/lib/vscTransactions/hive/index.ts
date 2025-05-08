@@ -43,7 +43,6 @@ export const consensusUnstakeTx = async (
 	amount: string,
 	nodeRunnerAccount: string,
 	username: string,
-	shouldDeposit: boolean,
 	aioha: Aioha
 ) => {
 	if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
@@ -52,9 +51,7 @@ export const consensusUnstakeTx = async (
 		nodeRunnerAccount,
 		new CoinAmount(amount, Coin.hive)
 	);
-	let depositOp = getHiveWithdrawalOp(username, username, new CoinAmount(amount, Coin.hive));
 	let ops: Operation[] = [];
-	if (shouldDeposit) ops.push(depositOp);
 	ops.push(unstakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
 	if (res.success) {

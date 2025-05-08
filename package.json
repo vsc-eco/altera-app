@@ -78,7 +78,7 @@
 		"@zag-js/radio-group": "^1.9.3",
 		"@zag-js/select": "^1.9.3",
 		"@zag-js/svelte": "^1.9.3",
-		"@zag-js/tabs": "^1.12.0",
+		"@zag-js/tabs": "1.9.3",
 		"aninest": "^4.11.0",
 		"axios": "^1.8.4",
 		"d3-array": "^3.2.4",
@@ -92,6 +92,7 @@
 		"houdini-svelte": "^2.1.10",
 		"moment": "^2.30.1",
 		"queries": "link:@vsc.eco/client/dist/queries",
+		"tabs:1.9.3": "link:@zag-js/tabs:1.9.3",
 		"utils": "link:@vsc.eco/client/dist/utils",
 		"viem": "^2.23.2",
 		"wagmi": "^2.14.11"

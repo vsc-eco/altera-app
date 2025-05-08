@@ -6,14 +6,13 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
 	import Card from '$lib/cards/Card.svelte';
-	import { consensusTx, consensusUnstakeTx } from '$lib/vscTransactions/hive';
+	import { consensusUnstakeTx } from '$lib/vscTransactions/hive';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
 	let amount: string | undefined = $state('');
 	let status = $state('');
 	let error = $state('');
-	let shouldWithdraw = $state(true);
 	$effect(() => {
 		nodeRunnerAccount = username;
 	});
@@ -21,13 +20,7 @@
 		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
 		status = 'Awaiting transaction approval…';
 		if (Number(amount) == 0) return 'Error: cannot unstake 0 HIVE.';
-		const res = await consensusUnstakeTx(
-			amount,
-			nodeRunnerAccount,
-			username,
-			shouldWithdraw,
-			auth.value.aioha
-		);
+		const res = await consensusUnstakeTx(amount, nodeRunnerAccount, username, auth.value.aioha);
 		status = '';
 		return res;
 	};
@@ -52,13 +45,14 @@
 			}}
 		>
 			<h2>Consensus Unstaking</h2>
-			<p>Be sure to be signed in with the account you'd like to deposit and unstake hive from.</p>
+			<p>Be sure to be signed in with the account you'd like to withdraw and unstake hive from.</p>
+			<p><b>Note:</b> Unstaked coins will be made available after an unbonding period.</p>
 			<p class="error">{error}</p>
 			<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
 			<div class="amount-flex">
 				<Amount
 					selectItems={[Coin.hive]}
-					id="stake-amount"
+					id="unstake-amount"
 					label="Withdraw and Unstake Amount:"
 					coin={Coin.hive}
 					network={Network.hiveMainnet}
@@ -66,12 +60,8 @@
 					required
 				/>
 			</div>
-			<label for="deposit-checkbox">
-				<input type="checkbox" id="deposit-checkbox" bind:checked={shouldWithdraw} />
-				First Withdraw HIVE from VSC
-			</label>
 			<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-				>{#if shouldWithdraw}Withdraw and {/if}Unstake</PillButton
+				>Intialize Unstake</PillButton
 			>
 			<span class="status">{status}</span>
 		</form>
@@ -85,12 +75,6 @@
 </Card>
 
 <style>
-	input[type='checkbox'] {
-		width: 1rem;
-		height: 1rem;
-		accent-color: var(--primary-mid);
-		cursor: pointer;
-	}
 	form {
 		box-sizing: border-box;
 		padding-top: 0;
@@ -103,5 +87,9 @@
 	}
 	p {
 		margin-bottom: 0.5rem;
+	}
+	b {
+		color: var(--secondary-fg-accent-shifted);
+		font-weight: 500;
 	}
 </style>

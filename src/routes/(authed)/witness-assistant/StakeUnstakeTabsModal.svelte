@@ -23,9 +23,12 @@
 <div {...api.getRootProps()}>
 	<div {...api.getListProps()}>
 		{#each data as item}
-			<button {...api.getTriggerProps({ value: item.value })}>
-				<p>{item.label}</p>
-			</button>
+            <button {...api.getTriggerProps({ value: item.value })}>
+                <span>
+                    <p>{item.label}</p>
+                </span>
+                
+            </button>
 		{/each}
 		<div {...api.getIndicatorProps()}></div>
 	</div>
@@ -47,33 +50,45 @@
 	}
 
 	[data-part='trigger'] {
-		display: inline-flex;
-		justify-content: center;
-		cursor: pointer;
-		--height: 2.5rem;
-		box-sizing: border-box;
-		height: var(--height);
-		font: inherit;
-		border: none;
-		padding: 0.25rem 0.75rem;
-		align-items: center;
-		transition: transform 0.05s;
+        background: none;
+        border: none;
+        font: inherit;
+        padding: 0;
+        margin: 0rem 0.25rem;
 
-		background: none;
-		color: var(--fg-accent-shifted);
-		&:hover {
-			background: linear-gradient(
-				to top,
-				color-mix(in srgb, var(--primary-fg-mid), transparent 70%),
-				transparent 80%
-			);
-			color: var(--fg-accent);
-			border-bottom: 0.25rem solid color-mix(in srgb, var(--primary-fg-mid), transparent 70%);
-		}
+        span {
+            text-wrap: nowrap;
+            display: flex;
+            height: 2.5rem;
+            box-sizing: border-box;
+            align-items: center;
+            margin-bottom: 0.25rem;
+            padding: 1rem;
+            box-sizing: border-box;
+            border-radius: 0.25rem;
+            color: var(--neutral-fg);
+            text-decoration: none;
+            transition: transform 0.05s;
+            cursor: pointer;
 
-		&[data-selected] {
-			border-bottom: 0.25rem solid var(--primary-fg-mid);
-			color: var(--primary-fg-mid);
-		}
+            &:hover {
+                background-color: var(--neutral-bg-accent);
+                color: var(--primary-fg-accent);
+            }
+            &:active {
+                background-color: var(--neutral-bg-accent);
+		        color: var(--primary-fg-accent-shifted);
+		        transform: scale(0.99);
+            }
+        }
+        
+
+        &[data-selected] {
+            span {
+                background-color: var(--neutral-bg-accent);
+                color: var(--primary-fg-accent-shifted);
+            }        
+            border-bottom: 0.2rem solid var(--primary-fg-mid);
+        }
 	}
 </style>

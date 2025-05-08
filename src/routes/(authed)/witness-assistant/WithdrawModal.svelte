@@ -46,7 +46,7 @@
 		>
 			<h2>Consensus Unstaking</h2>
 			<p>Be sure to be signed in with the account you'd like to withdraw and unstake hive from.</p>
-			<p><b>Note:</b> Unstaked coins will be made available after an unbonding period.</p>
+			<p><b>Note:</b> Unstaked coins will be made available after an unbonding period of five elections (about a day).</p>
 			<p class="error">{error}</p>
 			<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
 			<div class="amount-flex">

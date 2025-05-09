@@ -20,32 +20,37 @@
 	const api = $derived(tabs.connect(service, normalizeProps));
 </script>
 
-<div {...api.getRootProps()}>
-	<div {...api.getListProps()}>
-		{#each data as item}
-			<button {...api.getTriggerProps({ value: item.value })}>
-				<span>
-					<p>{item.label}</p>
-				</span>
-			</button>
-		{/each}
-		<div {...api.getIndicatorProps()}></div>
-	</div>
-	{#each data as item}
-		<div {...api.getContentProps({ value: item.value })}>
-			{#if item.value === 'stake'}
-				<DepositModal />
-			{:else if item.value === 'unstake'}
-				<WithdrawModal />
-			{/if}
-		</div>
-	{/each}
-</div>
+<Card>
+    <div {...api.getRootProps()}>
+        <div {...api.getListProps()}>
+            {#each data as item}
+                <button {...api.getTriggerProps({ value: item.value })}>
+                    <span>
+                        <p>{item.label}</p>
+                    </span>
+                </button>
+            {/each}
+            <div {...api.getIndicatorProps()}></div>
+        </div>
+        {#each data as item}
+            <div {...api.getContentProps({ value: item.value })}>
+                {#if item.value === 'stake'}
+                    <DepositModal />
+                {:else if item.value === 'unstake'}
+                    <WithdrawModal />
+                {/if}
+            </div>
+        {/each}
+    </div>
+</Card>
 
 <style lang="scss">
 	[data-part='list'] {
-		padding-left: 0.5rem;
+		// padding-left: 0.5rem;
+        margin-top: 0.25rem;
+        transform: translate(0, -0.5rem);
 		display: flex;
+        border-bottom: 1px solid var(--neutral-bg-accent);
 	}
 
 	[data-part='trigger'] {
@@ -54,18 +59,17 @@
 		font: inherit;
 		padding: 0;
 		margin: 0rem 0.25rem;
-		border-bottom: 0.2rem solid transparent;
+		border-bottom: 1.5px solid transparent;
 
 		span {
 			text-wrap: nowrap;
 			display: flex;
-			height: 2.5rem;
 			box-sizing: border-box;
 			align-items: center;
-			margin-bottom: 0.25rem;
-			padding: 1rem;
+			margin-bottom: 0.35rem;
+			padding: .5rem 1rem;
 			box-sizing: border-box;
-			border-radius: 0.25rem;
+			border-radius: 0.5rem;
 			color: var(--neutral-fg);
 			text-decoration: none;
 			transition: transform 0.05s;
@@ -89,5 +93,9 @@
 			}
 			border-color: var(--primary-fg-mid);
 		}
+
+        &:hover{
+            border-color: var(--primary-fg-accent);
+        }
 	}
 </style>

@@ -5,7 +5,6 @@
 	import Amount from '$lib/currency/AmountInput.svelte';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
-	import Card from '$lib/cards/Card.svelte';
 	import { consensusUnstakeTx } from '$lib/vscTransactions/hive';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
@@ -26,53 +25,51 @@
 	};
 </script>
 
-<Card>
-	{#if auth.value == undefined || auth.value!.username != undefined}
-		<form
-			onsubmit={(e) => {
-				e.preventDefault();
-				sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
-					error = err ?? '';
-					if (error != '') {
-						status = '';
-						return;
-					}
-					status = 'Transaction broadcasted successfully!';
-					await sleep(1);
+{#if auth.value == undefined || auth.value!.username != undefined}
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
+				error = err ?? '';
+				if (error != '') {
 					status = '';
-					amount = '';
-				});
-			}}
+					return;
+				}
+				status = 'Transaction broadcasted successfully!';
+				await sleep(1);
+				status = '';
+				amount = '';
+			});
+		}}
+	>
+		<h2>Consensus Unstaking</h2>
+		<p>Be sure to be signed in with the account you'd like to withdraw and unstake hive from.</p>
+		<p><b>Note:</b> Unstaked coins will be made available after an unbonding period of five elections (about a day).</p>
+		<p class="error">{error}</p>
+		<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
+		<div class="amount-flex">
+			<Amount
+				selectItems={[Coin.hive]}
+				id="unstake-amount"
+				label="Withdraw and Unstake Amount:"
+				coin={Coin.hive}
+				network={Network.hiveMainnet}
+				bind:originalAmount={amount}
+				required
+			/>
+		</div>
+		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
+			>Intialize Unstake</PillButton
 		>
-			<h2>Consensus Unstaking</h2>
-			<p>Be sure to be signed in with the account you'd like to withdraw and unstake hive from.</p>
-			<p><b>Note:</b> Unstaked coins will be made available after an unbonding period of five elections (about a day).</p>
-			<p class="error">{error}</p>
-			<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
-			<div class="amount-flex">
-				<Amount
-					selectItems={[Coin.hive]}
-					id="unstake-amount"
-					label="Withdraw and Unstake Amount:"
-					coin={Coin.hive}
-					network={Network.hiveMainnet}
-					bind:originalAmount={amount}
-					required
-				/>
-			</div>
-			<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-				>Intialize Unstake</PillButton
-			>
-			<span class="status">{status}</span>
-		</form>
-	{:else}
-		<p class="error">
-			Consensus staking with an EVM wallet is currently unsupported. Please <a href="/logout"
-				>logout</a
-			> and login with a hive account instead.
-		</p>
-	{/if}
-</Card>
+		<span class="status">{status}</span>
+	</form>
+{:else}
+	<p class="error">
+		Consensus staking with an EVM wallet is currently unsupported. Please <a href="/logout"
+			>logout</a
+		> and login with a hive account instead.
+	</p>
+{/if}
 
 <style>
 	form {

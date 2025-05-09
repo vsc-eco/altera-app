@@ -5,6 +5,14 @@
 	import Amount from '$lib/currency/AmountInput.svelte';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
+	import {
+		createClient,
+		getDepositTransaction,
+		signAndBrodcastTransactionToHive
+	} from '$lib/vscTransactions/oldVscClient/client';
+	import { aiohaSigner } from '$lib/vscTransactions/oldVscClient/hive/aioha';
+	import { KeyTypes } from '@aioha/aioha';
+	import { Asset, type CustomJsonOperation, type TransferOperation } from '@hiveio/dhive';
 	import Card from '$lib/cards/Card.svelte';
 	import { consensusTx } from '$lib/vscTransactions/hive';
 	let auth = $derived(getAuth()());
@@ -33,56 +41,54 @@
 	};
 </script>
 
-<Card>
-	{#if auth.value == undefined || auth.value!.username != undefined}
-		<form
-			onsubmit={(e) => {
-				e.preventDefault();
-				sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
-					error = err ?? '';
-					if (error != '') {
-						status = '';
-						return;
-					}
-					status = 'Transaction broadcasted successfully!';
-					await sleep(1);
+{#if auth.value == undefined || auth.value!.username != undefined}
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
+				error = err ?? '';
+				if (error != '') {
 					status = '';
-					amount = '';
-				});
-			}}
+					return;
+				}
+				status = 'Transaction broadcasted successfully!';
+				await sleep(1);
+				status = '';
+				amount = '';
+			});
+		}}
+	>
+		<h2>Consensus Staking</h2>
+		<p>Be sure to be signed in with the account you'd like to deposit and stake hive from.</p>
+		<p class="error">{error}</p>
+		<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
+		<div class="amount-flex">
+			<Amount
+				selectItems={[Coin.hive]}
+				id="stake-amount"
+				label="Deposit and Stake Amount:"
+				coin={Coin.hive}
+				network={Network.hiveMainnet}
+				bind:originalAmount={amount}
+				required
+			/>
+		</div>
+		<label for="deposit-checkbox">
+			<input type="checkbox" id="deposit-checkbox" bind:checked={shouldDeposit} />
+			First Deposit HIVE into VSC
+		</label>
+		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
+			>{#if shouldDeposit}Deposit and{/if} Stake</PillButton
 		>
-			<h2>Consensus Staking</h2>
-			<p>Be sure to be signed in with the account you'd like to deposit and stake hive from.</p>
-			<p class="error">{error}</p>
-			<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
-			<div class="amount-flex">
-				<Amount
-					selectItems={[Coin.hive]}
-					id="stake-amount"
-					label="Deposit and Stake Amount:"
-					coin={Coin.hive}
-					network={Network.hiveMainnet}
-					bind:originalAmount={amount}
-					required
-				/>
-			</div>
-			<label for="deposit-checkbox">
-				<input type="checkbox" id="deposit-checkbox" bind:checked={shouldDeposit} />
-				First Deposit HIVE into VSC
-			</label>
-			<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-				>{#if shouldDeposit}Deposit and{/if} Stake</PillButton
-			>
-			<span class="status">{status}</span>
-		</form>
-	{:else}
-		<p class="error">
-			Consensus staking with an EVM wallet is currently unsupported. Please <a href="/logout"
-				>logout</a
-			> and login with a hive account instead.
-		</p>
-	{/if}
-</Card>
+		<span class="status">{status}</span>
+	</form>
+{:else}
+	<p class="error">
+		Consensus staking with an EVM wallet is currently unsupported. Please <a href="/logout"
+			>logout</a
+		> and login with a hive account instead.
+	</p>
+{/if}
 
 <style>
 	input[type='checkbox'] {

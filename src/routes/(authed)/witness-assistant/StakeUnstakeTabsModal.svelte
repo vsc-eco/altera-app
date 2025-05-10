@@ -5,10 +5,11 @@
 	import WithdrawModal from './WithdrawModal.svelte';
 	import DepositModal from './DepositModal.svelte';
 	import Card from '$lib/cards/Card.svelte';
+	import Tabs from '$lib/zag/Tabs.svelte';
 
 	const data = [
-		{ value: 'stake', label: 'Stake', content: `<DepositModal/>` },
-		{ value: 'unstake', label: 'Unstake', component: `<WithdrawModal/>` }
+		{ value: 'stake', label: 'Stake', content: deposit },
+		{ value: 'unstake', label: 'Unstake', content: withdraw }
 	];
 
 	const id = $props.id();
@@ -20,37 +21,45 @@
 	const api = $derived(tabs.connect(service, normalizeProps));
 </script>
 
+{#snippet deposit()}
+	<DepositModal></DepositModal>
+{/snippet}
+{#snippet withdraw()}
+	<WithdrawModal></WithdrawModal>
+{/snippet}
+
 <Card>
-    <div {...api.getRootProps()}>
-        <div {...api.getListProps()}>
-            {#each data as item}
-                <button {...api.getTriggerProps({ value: item.value })}>
-                    <span>
-                        <p>{item.label}</p>
-                    </span>
-                </button>
-            {/each}
-            <div {...api.getIndicatorProps()}></div>
-        </div>
-        {#each data as item}
-            <div {...api.getContentProps({ value: item.value })}>
-                {#if item.value === 'stake'}
-                    <DepositModal />
-                {:else if item.value === 'unstake'}
-                    <WithdrawModal />
-                {/if}
-            </div>
-        {/each}
-    </div>
+	<Tabs items={data}></Tabs>
+	<!-- <div {...api.getRootProps()}>
+		<div {...api.getListProps()}>
+			{#each data as item}
+				<button {...api.getTriggerProps({ value: item.value })}>
+					<span>
+						<p>{item.label}</p>
+					</span>
+				</button>
+			{/each}
+			<div {...api.getIndicatorProps()}></div>
+		</div>
+		{#each data as item}
+			<div {...api.getContentProps({ value: item.value })}>
+				{#if item.value === 'stake'}
+					<DepositModal />
+				{:else if item.value === 'unstake'}
+					<WithdrawModal />
+				{/if}
+			</div>
+		{/each}
+	</div> -->
 </Card>
 
 <style lang="scss">
 	[data-part='list'] {
 		// padding-left: 0.5rem;
-        margin-top: 0.25rem;
-        transform: translate(0, -0.5rem);
+		margin-top: 0.25rem;
+		transform: translate(0, -0.5rem);
 		display: flex;
-        border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--neutral-bg-accent);
 	}
 
 	[data-part='trigger'] {
@@ -67,7 +76,7 @@
 			box-sizing: border-box;
 			align-items: center;
 			margin-bottom: 0.35rem;
-			padding: .5rem 1rem;
+			padding: 0.5rem 1rem;
 			box-sizing: border-box;
 			border-radius: 0.5rem;
 			color: var(--neutral-fg);
@@ -94,8 +103,8 @@
 			border-color: var(--primary-fg-mid);
 		}
 
-        &:hover{
-            border-color: var(--primary-fg-accent);
-        }
+		&:hover {
+			border-color: var(--primary-fg-accent);
+		}
 	}
 </style>

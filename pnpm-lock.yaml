@@ -80,6 +80,9 @@ importers:
       '@zag-js/svelte':
         specifier: ^1.9.3
         version: 1.9.3(svelte@5.20.0)
+      '@zag-js/tabs':
+        specifier: 1.9.3
+        version: 1.9.3
       aninest:
         specifier: ^4.11.0
         version: 4.11.0
@@ -119,6 +122,9 @@ importers:
       queries:
         specifier: link:@vsc.eco/client/dist/queries
         version: link:@vsc.eco/client/dist/queries
+      tabs:1.9.3:
+        specifier: link:@zag-js/tabs:1.9.3
+        version: link:@zag-js/tabs:1.9.3
       utils:
         specifier: link:@vsc.eco/client/dist/utils
         version: link:@vsc.eco/client/dist/utils
@@ -1829,6 +1835,9 @@ packages:
     resolution: {integrity: sha512-0TIjLbzLuXg6fBN59FoGINcJZX4bfXhlMdw6CChtcHVZoj23t5C3F9pWJC0PUwDcKu8xSXI553hLG6bGruPP2w==}
     peerDependencies:
       svelte: ^5.0.0-next.1
+
+  '@zag-js/tabs@1.9.3':
+    resolution: {integrity: sha512-/JNTALS2qIRsy+vErU+Zr2F2y3qsHxOZduCNKz0+qr7pRBeRbz62eyD5+Dgn8M/kUzxx6L589KZWUWe88R+3JA==}
 
   '@zag-js/types@1.9.3':
     resolution: {integrity: sha512-WEvGqDF0C8u3tIUUD9rtqxx8mOO19Om18AoGwNcWfJ0CEHMNKrcFs6KibU2Xcc5SLJIAIPcPUrhjjTX2XquBXw==}
@@ -7001,6 +7010,14 @@ snapshots:
       '@zag-js/types': 1.9.3
       '@zag-js/utils': 1.9.3
       svelte: 5.20.0
+
+  '@zag-js/tabs@1.9.3':
+    dependencies:
+      '@zag-js/anatomy': 1.9.3
+      '@zag-js/core': 1.9.3
+      '@zag-js/dom-query': 1.9.3
+      '@zag-js/types': 1.9.3
+      '@zag-js/utils': 1.9.3
 
   '@zag-js/types@1.9.3':
     dependencies:

@@ -38,12 +38,12 @@ export function getHiveConsensusUnstakeOp(
 	return [
 		'custom_json',
 		{
-			required_auths: [nodeRunnerAccount],
+			required_auths: [username],
 			required_posting_auths: [],
 			id: 'vsc.consensus_unstake',
 			json: JSON.stringify({
-				from: `hive:${nodeRunnerAccount}`,
-				to: `hive:${username}`,
+				from: `hive:${username}`,
+				to: `hive:${nodeRunnerAccount}`,
 				asset: 'hive',
 				net_id: 'vsc-mainnet',
 				amount: hiveAmount.toPrettyAmountString()

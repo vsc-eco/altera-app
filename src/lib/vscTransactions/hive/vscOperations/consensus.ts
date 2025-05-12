@@ -38,7 +38,7 @@ export function getHiveConsensusUnstakeOp(
 	return [
 		'custom_json',
 		{
-			required_auths: [username],
+			required_auths: [nodeRunnerAccount],
 			required_posting_auths: [],
 			id: 'vsc.consensus_unstake',
 			json: JSON.stringify({

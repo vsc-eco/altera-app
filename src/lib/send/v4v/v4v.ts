@@ -34,7 +34,7 @@ export const createLightningInvoice = async (
 		receive_currency: into.toLowerCase(),
 		// usd_hbd: 'false',
 		app_name: 'altera.app',
-		expiry: '600',
+		expiry: '1800',
 		message: `to=${auth.value.address}`
 	};
 	for (const [key, value] of Object.entries(searchParams)) {

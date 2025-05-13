@@ -86,6 +86,9 @@
 			openV4V();
 			return '';
 		}
+		if (intermediary == Network.boltzLightning) {
+			openV4V();
+		}
 		if (intermediary == Network.vsc) {
 			if (!auth.value?.aioha) return "VSC Transactions via an EVM wallet isn't supported yet.";
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork);
@@ -344,7 +347,8 @@
 		onsuccess={() => {
 			error = '';
 			// TODO: after success notify via a notification
-			setTimeout(() => {
+			status = 'V4V Deposit successful!';
+			setTimeout(() => { 
 				showV4VModal = false;
 			}, 10000);
 		}}

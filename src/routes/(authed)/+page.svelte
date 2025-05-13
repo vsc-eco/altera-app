@@ -69,6 +69,7 @@
 	.masonry > :global(*) {
 		flex-grow: 1;
 		flex-basis: 300px;
+		box-sizing: border-box;
 	}
 	h1 {
 		font-size: var(--text-4xl);

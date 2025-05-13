@@ -43,11 +43,12 @@ async function toLightning(
 > {
 	const lightningInvoice = await createLightningInvoice(amount, of, into, on, auth, username);
 	if (typeof lightningInvoice == 'string') return lightningInvoice;
-	const invoice = lightningInvoice.qr_data.slice(10 /* 'lightning:'.length */);
+	const invoice = lightningInvoice.qr_data.slice('lightning:'.length);
 	const req = {
 		to: 'BTC',
 		from: 'BTC',
 		invoice,
+		// a simple constant; see boltz.exchange
 		pairHash: '7cc881191e868c3f8c80428298fb9309263fb482d76a8c6d34f03021fd991d5d'
 		// refundPublicKey: '03afe0b5cbb7719d725c1a802e13cb1c65e2bc7f568615e3e2dd03467932fad7ed',
 	};
@@ -60,4 +61,10 @@ async function toLightning(
 	} else {
 		return (await res.json()).error;
 	}
+}
+
+
+async function getBoltzStatus(txId: string) {
+	// ex: https://api.boltz.exchange/v2/swap/GtxEDNIN34IX
+	// or via websockets:  
 }

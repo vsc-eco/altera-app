@@ -65,8 +65,9 @@
 	);
 </script>
 
-<div class={['root', { hovered: hoveredIndex }]}>
-	<Card>
+<Card>
+	<div class={['root', { hovered: hoveredIndex }]}>
+	
 		<span class="caption">VSC Balance</span>
 		<div class="price">
 			{new Intl.NumberFormat('en-US', {
@@ -98,8 +99,9 @@
 		<div class="lc-wrapper">
 			<LineChart data={filteredData} bind:hoveredPoint bind:hoveredIndex height={310} />
 		</div>
-	</Card>
-</div>
+
+	</div>
+</Card>
 
 <style>
 	.root {

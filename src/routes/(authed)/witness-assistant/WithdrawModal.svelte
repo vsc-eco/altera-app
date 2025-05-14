@@ -5,37 +5,21 @@
 	import Amount from '$lib/currency/AmountInput.svelte';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
-	import {
-		createClient,
-		getDepositTransaction,
-		signAndBrodcastTransactionToHive
-	} from '$lib/vscTransactions/oldVscClient/client';
-	import { aiohaSigner } from '$lib/vscTransactions/oldVscClient/hive/aioha';
-	import { KeyTypes } from '@aioha/aioha';
-	import { Asset, type CustomJsonOperation, type TransferOperation } from '@hiveio/dhive';
-	import Card from '$lib/cards/Card.svelte';
-	import { consensusTx } from '$lib/vscTransactions/hive';
+	import { consensusUnstakeTx } from '$lib/vscTransactions/hive';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
 	let amount: string | undefined = $state('');
 	let status = $state('');
 	let error = $state('');
-	let shouldDeposit = $state(true);
 	$effect(() => {
 		nodeRunnerAccount = username;
 	});
 	const sendTransaction = async (amount: string, nodeRunnerAccount: string) => {
 		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
 		status = 'Awaiting transaction approval…';
-		if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
-		const res = await consensusTx(
-			amount,
-			nodeRunnerAccount,
-			username,
-			shouldDeposit,
-			auth.value.aioha
-		);
+		if (Number(amount) == 0) return 'Error: cannot unstake 0 HIVE.';
+		const res = await consensusUnstakeTx(amount, nodeRunnerAccount, username, auth.value.aioha);
 		status = '';
 		return res;
 	};
@@ -58,27 +42,24 @@
 			});
 		}}
 	>
-		<h2>Consensus Staking</h2>
-		<p>Be sure to be signed in with the account you'd like to deposit and stake hive from.</p>
+		<h2>Consensus Unstaking</h2>
+		<p>Be sure to be signed in with the account you'd like to unstake hive from.</p>
+		<p><b>Note:</b> Unstaked coins will be made available after an unbonding period of five elections (about a day).</p>
 		<p class="error">{error}</p>
 		<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
 		<div class="amount-flex">
 			<Amount
 				selectItems={[Coin.hive]}
-				id="stake-amount"
-				label="Deposit and Stake Amount:"
+				id="unstake-amount"
+				label="Unstake Amount:"
 				coin={Coin.hive}
 				network={Network.hiveMainnet}
 				bind:originalAmount={amount}
 				required
 			/>
 		</div>
-		<label for="deposit-checkbox">
-			<input type="checkbox" id="deposit-checkbox" bind:checked={shouldDeposit} />
-			First Deposit HIVE into VSC
-		</label>
 		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-			>{#if shouldDeposit}Deposit and{/if} Stake</PillButton
+			>Intialize Unstake</PillButton
 		>
 		<span class="status">{status}</span>
 	</form>
@@ -91,12 +72,6 @@
 {/if}
 
 <style>
-	input[type='checkbox'] {
-		width: 1rem;
-		height: 1rem;
-		accent-color: var(--primary-mid);
-		cursor: pointer;
-	}
 	form {
 		box-sizing: border-box;
 		padding-top: 0;
@@ -109,5 +84,9 @@
 	}
 	p {
 		margin-bottom: 0.5rem;
+	}
+	b {
+		color: var(--secondary-fg-accent-shifted);
+		font-weight: 500;
 	}
 </style>

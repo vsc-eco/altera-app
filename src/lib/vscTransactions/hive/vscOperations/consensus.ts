@@ -29,3 +29,25 @@ export function getHiveConsensusStakeOp(
 		}
 	];
 }
+
+export function getHiveConsensusUnstakeOp(
+	username: string,
+	nodeRunnerAccount: string,
+	hiveAmount: CoinAmount<typeof Coin.hive>
+): CustomJsonOperation {
+	return [
+		'custom_json',
+		{
+			required_auths: [username],
+			required_posting_auths: [],
+			id: 'vsc.consensus_unstake',
+			json: JSON.stringify({
+				from: `hive:${username}`,
+				to: `hive:${nodeRunnerAccount}`,
+				asset: 'hive',
+				net_id: 'vsc-mainnet',
+				amount: hiveAmount.toPrettyAmountString()
+			})
+		}
+	];
+}

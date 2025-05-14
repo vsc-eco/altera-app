@@ -4,7 +4,7 @@
 	import PillBtn from '$lib/PillButton.svelte';
 	import { actions } from '../quickActions';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
-	import DepositModal from './witness-assistant/DepositModal.svelte';
+	import StakeUnstakeTabsModal from './witness-assistant/StakeUnstakeTabsModal.svelte';
 	import Send from '$lib/send/Send.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Table from './transactions/Table/Table.svelte';
@@ -45,7 +45,7 @@
 		<Send widgetView />
 	</Card>
 	{#if auth.value == undefined || auth.value.username != undefined}
-		<DepositModal />
+		<StakeUnstakeTabsModal />
 	{/if}
 	<div class="txs">
 		<h3>Transactions</h3>

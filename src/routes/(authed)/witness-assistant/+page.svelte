@@ -1,5 +1,6 @@
 <script>
 	import DepositModal from './DepositModal.svelte';
+	import WithdrawModal from './WithdrawModal.svelte';
 </script>
 
 <document:head>
@@ -8,4 +9,14 @@
 
 <h1>Witness Assistant</h1>
 
-<DepositModal />
+<div>
+	<DepositModal />
+	<WithdrawModal />
+</div>
+
+<style>
+	div {
+		display: grid;
+		gap: 1rem;
+	}
+</style>

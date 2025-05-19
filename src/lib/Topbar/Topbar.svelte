@@ -14,11 +14,23 @@
 		let out = auth.value.username || auth.value.address?.slice(2) || '**';
 		return out;
 	});
-	let [logout, openSettings] = $derived.by(() => {
+	let [logout, openSettings, gotoPreferences] = $derived.by(() => {
 		if (auth.value) {
-			return [auth.value.logout, auth.value.openSettings];
+			return [
+				auth.value.logout,
+				auth.value.openSettings,
+				() => {
+					goto('/preferences');
+				}
+			];
 		} else {
-			return [async () => {}, () => {}];
+			return [
+				async () => {},
+				() => {},
+				() => {
+					goto('/preferences');
+				}
+			];
 		}
 	});
 	let src = $derived(auth.value?.profilePicUrl);
@@ -59,7 +71,8 @@
 		label="Account Settings"
 		styleType="icon"
 		items={[
-			{ label: 'prefs', snippet: prefs, snippetData: 'Account Preferences' },
+			{ label: 'acc-prefs', snippet: prefs, snippetData: 'Account Preferences' },
+			{ label: 'app-prefs', snippet: prefs, snippetData: 'App Preferences' },
 			{ label: 'logout', snippet: prefs, snippetData: 'Logout' }
 		]}
 		onSelect={async (e) => {
@@ -68,8 +81,11 @@
 					await logout();
 					break;
 
-				case 'prefs':
+				case 'acc-prefs':
 					openSettings();
+					break;
+				case 'app-prefs':
+					gotoPreferences();
 					break;
 				default:
 					console.warn('unknown action triggered in avatar dropdown');

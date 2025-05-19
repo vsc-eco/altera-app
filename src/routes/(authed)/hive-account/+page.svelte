@@ -17,10 +17,15 @@
 </svelte:head>
 
 {#if auth?.value?.username}
-	{#await getAccounts([auth.value.username])}
+	{#await getAccounts(['louis88.vsc'])}
 		<Form accountInfo={undefined} />
 	{:then accountInfo}
-		<Form accountInfo={accountInfo.result[0]!} aioha={auth.value.aioha} />
+		{@debug accountInfo}
+
+		<Form
+			accountInfo={accountInfo.result[0] ?? { posting_json_metadata: `{"profile": {}}` }}
+			aioha={auth.value.aioha}
+		/>
 	{/await}
 {:else}
 	<Form accountInfo={undefined} />

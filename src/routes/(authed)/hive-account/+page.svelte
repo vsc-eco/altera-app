@@ -20,8 +20,6 @@
 	{#await getAccounts([auth.value.username])}
 		<Form accountInfo={undefined} />
 	{:then accountInfo}
-		{@debug accountInfo}
-
 		<Form
 			accountInfo={accountInfo.result[0] ?? { posting_json_metadata: `{"profile": {}}` }}
 			aioha={auth.value.aioha}

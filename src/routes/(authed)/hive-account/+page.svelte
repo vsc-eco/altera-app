@@ -17,7 +17,7 @@
 </svelte:head>
 
 {#if auth?.value?.username}
-	{#await getAccounts(['louis88.vsc'])}
+	{#await getAccounts([auth.value.username])}
 		<Form accountInfo={undefined} />
 	{:then accountInfo}
 		{@debug accountInfo}

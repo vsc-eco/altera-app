@@ -17,6 +17,11 @@
 	import { executeTx, getSendOpGenerator } from '$lib/vscTransactions/hive';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
+	import { addLocalTransaction } from './localStorageTransactions';
+	import type { PendingTx } from './localStorageTransactions';
+	import { idchain } from 'viem/chains';
+	import { uuid } from 'uuidv4';
+
 	let { widgetView, hideToUsername }: { widgetView?: boolean; hideToUsername?: boolean } = $props();
 	let auth = $derived(getAuth()());
 	let fromCoin: CoinOptions['coins'][number] | undefined = $state.raw();
@@ -98,7 +103,22 @@
 			);
 			executeTx(auth.value.aioha, [sendOp]).then(async (err) => {
 				if (!err) {
-					status = `Successfully sent ${new CoinAmount(toAmount, toCoin!.coin).toPrettyString()} to ${accountNameFromAddress(toUsername)}!`;
+					status = `Transaction submitted. You will be notified when your transaction is finished.`;
+					// Using optional chaining and nullish coalescing
+					const id = uuid();
+					const memo = sendOp[0] === 'transfer' ? sendOp[1]?.memo ?? "" : "";
+					addLocalTransaction({
+						data: {
+							amount: new CoinAmount(toAmount, toCoin!.coin),
+							asset: toCoin!.coin.unit.toLowerCase(),
+							from: auth.value!.username!,
+							to: toUsername,
+							memo: memo + memo.length > 0 ? "&" : "" + `altera_id=${id}`,
+							type: "transfer",
+						},
+						timestamp: new Date(),
+						id: id,
+					})
 					error = '';
 					return;
 				}
@@ -123,7 +143,20 @@
 				] satisfies TransferOperation
 			]).then((err) => {
 				if (!err) {
-					status = `Successfully sent ${new CoinAmount(toAmount, toCoin!.coin).toPrettyString()} to ${accountNameFromAddress(toUsername)}!`;
+					status = `Transaction submitted. You will be notified when your transaction is finished.`;
+					const id = uuid();
+					addLocalTransaction({
+						data: {
+							amount: new CoinAmount(toAmount, toCoin!.coin),
+							asset: toCoin!.coin.unit.toLowerCase(),
+							from: auth.value!.username!,
+							to: toUsername,
+							memo: `altera_id=${id}`,
+							type: "transfer",
+						},
+						timestamp: new Date(),
+						id: id,
+					})
 					error = '';
 					return;
 				}
@@ -322,6 +355,20 @@
 		onsuccess={() => {
 			error = '';
 			// TODO: after success notify via a notification
+			// store transaction as pending in local storage
+			const id = uuid();
+			addLocalTransaction({
+				data: {
+					amount: new CoinAmount(toAmount, toCoin!.coin),
+					asset: toCoin!.coin.unit.toLowerCase(),
+					from: auth.value!.username!,
+					to: toUsername,
+					memo: `altera_id=${id}`,
+					type: "transfer",
+				},
+				timestamp: new Date(),
+				id: id,
+			})
 			setTimeout(() => {
 				showV4VModal = false;
 			}, 10000);

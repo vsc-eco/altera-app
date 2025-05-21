@@ -28,10 +28,6 @@ type ActionRecord {
   type: String!
 }
 
-type AnchorProducer {
-  nextSlot(account: String): JSON
-}
-
 enum Asset {
   hbd
   hbd_savings
@@ -39,32 +35,10 @@ enum Asset {
   hive_consensus
 }
 
-interface BalanceAccessCondition {
-  type: BalanceAccessConditionType
-  value: String
-}
-
-enum BalanceAccessConditionType {
-  HASH
-  TIME
-  WITHDRAW
-}
-
-interface BalanceController {
-  authority: String
-  conditions: [BalanceAccessCondition]
-  type: BalanceControllerType
-}
-
-enum BalanceControllerType {
-  CONTRACT
-  DID
-  HIVE
-}
-
 type BalanceRecord {
   account: String
   block_height: Uint64!
+  consensus_unstaking: Int64!
   hbd: Int64!
   hbd_avg: Int64!
   hbd_claim: Uint64!
@@ -74,15 +48,17 @@ type BalanceRecord {
   hive_consensus: Int64!
 }
 
-interface BlockRef {
-  block_ref: String
-  included_block: Int
-}
-
 type Contract {
   code: String
-  creation_ts: String
-  id: String
+  creation_height: Uint64!
+  creation_ts: String!
+  creator: String
+  description: String
+  id: String!
+  name: String
+  owner: String
+  runtime: String!
+  tx_id: String
 }
 
 type ContractDiff {
@@ -114,13 +90,6 @@ type ContractState {
 
 scalar DateTime
 
-interface DepositDrain {
-  amount: Float
-  deposit_id: String
-  owner: String
-  token: String
-}
-
 type ElectionMember {
   account: String!
   key: String!
@@ -140,6 +109,13 @@ type ElectionResult {
   weights: [Uint64!]!
 }
 
+input FindContractFilter {
+  byCode: String
+  byId: String
+  limit: Int
+  offset: Int
+}
+
 input FindContractOutputFilter {
   byContract: String
   byInput: String
@@ -149,10 +125,6 @@ input FindContractOutputFilter {
 
 type FindContractOutputResult {
   outputs: [ContractOutput]
-}
-
-type FindContractResult {
-  status: String
 }
 
 type Gas {
@@ -208,10 +180,6 @@ type LocalNodeInfo {
 
 scalar Map
 
-type Mutation {
-  incrementNumber: TestResult
-}
-
 type NonceRecord {
   account: String!
   nonce: Uint64!
@@ -234,11 +202,10 @@ type PostingJsonKeys {
 }
 
 type Query {
-  activeWitnessNodes: JSON
-  anchorProducer: AnchorProducer
   contractState(id: String): ContractState
   contractStateDiff(id: String): ContractDiff
-  findContract(id: String): FindContractResult
+  electionByBlockHeight(blockHeight: Uint64): ElectionResult!
+  findContract(filterOptions: FindContractFilter): [Contract!]
   findContractOutput(decodedFilter: JSON, filterOptions: FindContractOutputFilter): FindContractOutputResult
   findLedgerActions(filterOptions: LedgerActionsFilter): [ActionRecord!]
   findLedgerTXs(filterOptions: LedgerTxFilter): [LedgerRecord!]
@@ -246,14 +213,11 @@ type Query {
   getAccountBalance(account: String!, height: Uint64): BalanceRecord
   getAccountNonce(account: String!): NonceRecord
   getAccountRC(account: String!, height: Uint64): RcRecord
-  getCurrentNumber: TestResult
   getDagByCID(cidString: String!): JSON!
   getElection(epoch: Uint64!): ElectionResult
+  getWitness(account: String!, height: Uint64): Witness
   localNodeInfo: LocalNodeInfo
-  mockGenerateElection: JSON
-  nextWitnessSlot(self: Boolean): JSON
   submitTransactionV1(sig: String!, tx: String!): TransactionSubmitResult
-  witnessActiveScore(height: Int): JSON
   witnessNodes(height: Uint64!): [Witness!]!
   witnessSchedule(height: Uint64!): [WitnessSlot!]!
   witnessStake(account: String!): Uint64!
@@ -263,10 +227,6 @@ type RcRecord {
   account: String!
   amount: Int64!
   block_height: Uint64!
-}
-
-type TestResult {
-  currentNumber: Int
 }
 
 type TransactionData {
@@ -321,14 +281,6 @@ enum TransactionStatus {
 
 type TransactionSubmitResult {
   id: String
-}
-
-enum TransactionType {
-  CORE
-  INPUT
-  NULL
-  OUTPUT
-  VIRTUAL
 }
 
 scalar Uint64

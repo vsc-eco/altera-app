@@ -2,6 +2,7 @@
 	import { GetTransactionsStore, type GetTransactions$result } from '$houdini';
 	import Tr from './tr/Tr.svelte';
 	import { untrack } from 'svelte';
+	import { allTransactionsStore, vscTxsStore } from '../txStores';
 	let {
 		did
 	}: {
@@ -10,17 +11,17 @@
 	let store = $derived(new GetTransactionsStore());
 	let txs: NonNullable<GetTransactions$result['findTransaction']> = $state([]);
 	// to make sure that all txs have a unique ID
-	let filteredTxs = $derived(
-		Object.values(
-			txs.reduce(
-				(prev, curr) => {
-					prev[curr.id] = curr;
-					return prev;
-				},
-				{} as { [id: string]: NonNullable<GetTransactions$result['findTransaction']>[number] }
-			)
-		)
-	);
+	// let filteredTxs = $derived(
+	// 	Object.values(
+	// 		txs.reduce(
+	// 			(prev, curr) => {
+	// 				prev[curr.id] = curr;
+	// 				return prev;
+	// 			},
+	// 			{} as { [id: string]: NonNullable<GetTransactions$result['findTransaction']>[number] }
+	// 		)
+	// 	)
+	// );
 	let loading = $state(true);
 	function fetchFromStore() {
 		untrack(() => store)
@@ -31,9 +32,11 @@
 				}
 			})
 			.then((posts) => {
-				loading = false;
-				if (!posts.data?.findTransaction) return;
-				txs = untrack(() => txs).concat(posts.data?.findTransaction);
+				const newTxs = posts.data?.findTransaction;
+				if (!newTxs) return;
+
+				// Append to the current store value
+				vscTxsStore.set(newTxs);
 			});
 	}
 	$effect(() => {
@@ -51,15 +54,26 @@
 				})
 				.then((post) => {
 					loading = false;
+					// console.log("!post.data?.findTransaction", !post.data?.findTransaction)
 					if (!post.data?.findTransaction) return;
-					if (post.data?.findTransaction[0].id == txs[0].id) return; // nothing to update
-					const prevUpdate = post.data.findTransaction.findIndex((v) => v.id == txs[0].id);
-					if (prevUpdate == -1) {
-						// more than 10 new txs
-						fetchFromStore();
-						return;
-					}
-					txs = post.data?.findTransaction.slice(0, prevUpdate).concat(txs);
+					// console.log("post.data?.findTransaction[0].id == $allTransactionsStore[0].id", post.data?.findTransaction[0].id == $allTransactionsStore[0].id)
+					if (post.data?.findTransaction[0].id == $allTransactionsStore[0].id) return; // nothing to update
+
+					vscTxsStore.update((currentTxs) => {
+						if (txs.length > 0 && post.data!.findTransaction![0].id === $allTransactionsStore[0].id) 
+							return currentTxs; // No changes needed
+							
+						const prevUpdate = post.data!.findTransaction!.findIndex(v => v.id === currentTxs[0]?.id);
+						
+						if (prevUpdate === -1) {
+							// Too many new transactions, replace entirely
+							fetchFromStore();
+							return currentTxs;
+						}
+						
+						// Prepend only new transactions
+						return [...post.data!.findTransaction!.slice(0, prevUpdate), ...currentTxs];
+					});
 				});
 		}, 2000);
 		return () => clearInterval(intervalId);
@@ -124,7 +138,7 @@
 		<tbody>
 			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
 			{#if txs && txs.length != 0}
-				{#each filteredTxs as tx (tx.id)}
+				{#each $allTransactionsStore as tx (tx.id)}
 					{@const { data, id } = tx}
 					<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
 					<!-- {#if ledger?.length != 0}

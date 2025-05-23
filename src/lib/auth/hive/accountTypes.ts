@@ -24,7 +24,7 @@ export type Beneficiaries = {
 }[];
 
 export function postingMetadataFromString(str: PostingJsonMetadataString): PostingMetadata {
-	return JSON.parse(str);
+	return str ? JSON.parse(str) : {profile: {}};
 }
 export type PostingMetadata = {
 	beneficiaries?: Beneficiaries;

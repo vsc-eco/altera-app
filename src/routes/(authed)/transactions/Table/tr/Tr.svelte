@@ -14,24 +14,28 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-	import { type GetTransactions$result } from '$houdini';
 	import { untrack } from 'svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
+	import { type TransactionInter, toTransactionInter, vscTxsStore } from '../../txStores';
+	import { isPending } from '$houdini';
 	type Props = {
-		tx: NonNullable<GetTransactions$result['findTransaction']>[number];
+		tx: TransactionInter;
 		ledgerIndex?: number;
 	};
 	let { tx, ledgerIndex }: Props = $props();
+	
 	const did = $derived(getAuth()().value!.did);
+
 	const { ledger, data, anchr_height: block_height, anchr_ts, status } = $derived(tx);
+	
 	const anchor_ts = $derived(anchr_ts + 'Z');
 	const {
 		from,
 		to,
 		coinAmount: amount,
 		type: t,
-		memo
+		memo,
 	}: NonNullable<typeof ledger>[number] & { coinAmount: UnkCoinAmount } = $derived.by(() => {
 		if (ledger == null || ledgerIndex == undefined) {
 			return {
@@ -40,7 +44,7 @@
 					data.amount,
 					Coin[data.asset.split('_')[0] as keyof typeof Coin] || Coin.unk,
 					typeof data.amount == 'number' // whether the number is preshifted (i.e. int without decimal)
-				)
+				),
 			};
 		} else {
 			const out = ledger[ledgerIndex];
@@ -55,10 +59,16 @@
 		}
 	});
 	$inspect(status);
-	const statusStore = $derived(checkOpStatus(tx.tx_id, tx.anchr_opidx, tx.status));
+	const statusStore = $derived(tx.isPending ? null : checkOpStatus(tx.tx_id, tx.anchr_opidx, tx.status));
+
+	// console.log("isPending, memo", tx.isPending, memo);
+
 	$effect(() => {
+		if (!statusStore) return;
 		return untrack(() => statusStore).subscribe((status) => {
-			tx = { ...tx, status };
+			if (tx.status != status) {
+				tx = { ...tx, status };
+			}
 		});
 	});
 	const otherAccount = $derived(
@@ -93,8 +103,12 @@
 		}
 	}}
 >
-	<Date {block_height} />
-	<ToFrom {otherAccount} memo={memo || undefined} {status} />
+	{#if tx.isPending}
+		<td class="date">{new (globalThis.Date)(anchr_ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
+	{:else}
+		<Date {block_height} />
+	{/if}
+	<ToFrom {otherAccount} memo={memo ? memo.replace(/&?altera_id=[a-z0-9-]+/, '') : undefined} {status} />
 	<Amount {amount} />
 	<Token {amount} />
 	<Type isIncoming={!amount.isNegative()} {t} />
@@ -300,5 +314,13 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
+	}
+
+	.date {
+		vertical-align: middle;
+		padding: 1rem min(1rem, 2%);
+		width: max-content;
+		border-bottom: 1px solid var(--neutral-bg-accent);
+		min-width: 4rem;
 	}
 </style>

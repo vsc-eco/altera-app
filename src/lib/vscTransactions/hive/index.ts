@@ -76,7 +76,8 @@ export const getSendOpGenerator = (
 ): ((
 	from: string,
 	toDid: string,
-	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>
+	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+	memo?: string,
 ) => Operation) => {
 	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
 		return getHiveTransferOp;

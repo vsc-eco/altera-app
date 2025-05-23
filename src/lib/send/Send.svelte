@@ -18,7 +18,6 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
 	import { addLocalTransaction } from './localStorageTransactions';
-	import type { PendingTx } from './localStorageTransactions';
 	import { idchain } from 'viem/chains';
 	import { uuid } from 'uuidv4';
 
@@ -96,24 +95,24 @@
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork);
 			status = 'Waiting for Hive wallet approval…';
 			// note that fromCoin and toCoin should be the same
+			const id = uuid();
 			const sendOp = getSendOp(
 				auth.value.username!,
 				getDidFromUsername(toUsername),
-				new CoinAmount(toAmount, toCoin.coin)
+				new CoinAmount(toAmount, toCoin.coin),
+				`altera_id=${id}`,
 			);
 			executeTx(auth.value.aioha, [sendOp]).then(async (err) => {
 				if (!err) {
 					status = `Transaction submitted. You will be notified when your transaction is finished.`;
 					// Using optional chaining and nullish coalescing
-					const id = uuid();
-					const memo = sendOp[0] === 'transfer' ? sendOp[1]?.memo ?? "" : "";
 					addLocalTransaction({
 						data: {
 							amount: new CoinAmount(toAmount, toCoin!.coin),
 							asset: toCoin!.coin.unit.toLowerCase(),
 							from: auth.value!.username!,
 							to: toUsername,
-							memo: memo + memo.length > 0 ? "&" : "" + `altera_id=${id}`,
+							memo: sendOp[1]?.memo ?? "",
 							type: "transfer",
 						},
 						timestamp: new Date(),
@@ -131,6 +130,7 @@
 				return "Hive Mainnet Transactions via an EVM wallet isn't supported yet.";
 			status = 'Waiting for Hive wallet approval…';
 			const toCoinAmount = new CoinAmount(toAmount, toCoin!.coin);
+			const id = uuid();
 			executeTx(auth.value?.aioha, [
 				[
 					'transfer',
@@ -138,13 +138,12 @@
 						from: auth.value.username!,
 						to: toUsername,
 						amount: toCoinAmount.toPrettyString(),
-						memo: ''
+						memo: `altera_id=${id}`
 					}
 				] satisfies TransferOperation
 			]).then((err) => {
 				if (!err) {
 					status = `Transaction submitted. You will be notified when your transaction is finished.`;
-					const id = uuid();
 					addLocalTransaction({
 						data: {
 							amount: new CoinAmount(toAmount, toCoin!.coin),

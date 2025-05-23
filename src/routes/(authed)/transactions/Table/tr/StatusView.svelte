@@ -43,7 +43,12 @@
 		{#if status && status != 'CONFIRMED'}
 			<StatusBadge {status} />
 		{/if}
-		<div class="to-ts ts">{moment(anchor_ts).format('MMM DD [at] h:mmA')} (#{block_height})</div>
+		<div class="to-ts ts">
+			{moment(anchor_ts).format('MMM DD [at] h:mmA')}
+			{#if block_height != 0}
+				(#{block_height})
+			{/if}
+		</div>
 	</div>
 </div>
 

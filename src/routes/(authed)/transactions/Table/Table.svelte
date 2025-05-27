@@ -22,7 +22,6 @@
 				loading = false;
 				if (!posts.data?.findTransaction) return;
 				// set the store since this is a complete fetch
-				console.log("all txs", toTransactionInter(posts.data?.findTransaction));
 				vscTxsStore.set(toTransactionInter(posts.data?.findTransaction));
 			}).catch((e) => {
 				if (e.name !== 'AbortError') {

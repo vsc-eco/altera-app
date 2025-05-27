@@ -67,11 +67,13 @@ export const allTransactionsStore = derived(
 		const uniqueTransactions = deduplicate(combined);
 
 		// Sort by timestamp (descending)
-		return uniqueTransactions.sort((a, b) => {
+		const ret = uniqueTransactions.sort((a, b) => {
 			const timeA = new Date(a.first_seen).getTime();
 			const timeB = new Date(b.first_seen).getTime();
 			return timeB - timeA;
 		});
+		console.log("ret", ret);
+		return ret;
 	}
 );
 

@@ -19,15 +19,17 @@ export const consensusTx = async (
 	nodeRunnerAccount: string,
 	username: string,
 	shouldDeposit: boolean,
-	aioha: Aioha
+	aioha: Aioha,
+	memo?: string,
 ) => {
 	if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
 	let stakeOp = getHiveConsensusStakeOp(
 		username,
 		nodeRunnerAccount,
-		new CoinAmount(amount, Coin.hive)
+		new CoinAmount(amount, Coin.hive),
+		memo
 	);
-	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hive));
+	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hive), memo);
 	let ops: Operation[] = [];
 	if (shouldDeposit) ops.push(depositOp);
 	ops.push(stakeOp);
@@ -43,13 +45,15 @@ export const consensusUnstakeTx = async (
 	amount: string,
 	nodeRunnerAccount: string,
 	username: string,
-	aioha: Aioha
+	aioha: Aioha,
+	memo?: string,
 ) => {
 	if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
 	let unstakeOp = getHiveConsensusUnstakeOp(
 		username,
 		nodeRunnerAccount,
-		new CoinAmount(amount, Coin.hive)
+		new CoinAmount(amount, Coin.hive),
+		memo
 	);
 	let ops: Operation[] = [];
 	ops.push(unstakeOp);

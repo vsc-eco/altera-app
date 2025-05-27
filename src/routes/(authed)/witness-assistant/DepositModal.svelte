@@ -15,6 +15,9 @@
 	import { Asset, type CustomJsonOperation, type TransferOperation } from '@hiveio/dhive';
 	import Card from '$lib/cards/Card.svelte';
 	import { consensusTx } from '$lib/vscTransactions/hive';
+	import { addLocalTransaction } from '$lib/send/localStorageTransactions';
+	import { uuid } from 'uuidv4';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
@@ -29,13 +32,44 @@
 		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
 		status = 'Awaiting transaction approval…';
 		if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
+		const id = uuid();
 		const res = await consensusTx(
 			amount,
 			nodeRunnerAccount,
 			username,
 			shouldDeposit,
-			auth.value.aioha
+			auth.value.aioha,
+			`altera_id=${id}`,
 		);
+		if (!res) {
+			addLocalTransaction({
+				data: {
+					amount: new CoinAmount(amount, Coin.hive),
+					asset: Coin.hive.unit.toLowerCase(),
+					from: username,
+					to: nodeRunnerAccount,
+					memo: `altera_id=${id}`,
+					type: "consensus stake",
+				},
+				timestamp: new Date(),
+				id: id,
+			})
+			addLocalTransaction({
+				data: {
+					amount: new CoinAmount(amount, Coin.hive),
+					asset: Coin.hive.unit.toLowerCase(),
+					from: username,
+					to: nodeRunnerAccount,
+					memo: `altera_id=${id}`,
+					type: "deposit",
+				},
+				timestamp: new Date(),
+				id: id,
+			})
+			if (shouldDeposit) {
+
+			}
+		}
 		status = '';
 		return res;
 	};

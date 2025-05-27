@@ -150,11 +150,11 @@
 					{/if}
 					<div class="tx-id section">
 						<h3>Transaction Id</h3>
-						<Clipboard value={tx.tx_id} label="" />
+						<Clipboard value={tx.tx_id} label="" disabled={tx.isPending}/>
 					</div>
 					<div class="links section">
 						<h3>External Links</h3>
-						<div class="links">
+						<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
 							<a
 								href={'https://vsc.techcoderx.com/tx/' + tx.tx_id}
 								target="_blank"
@@ -314,6 +314,13 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
+	}
+
+	.links-disabled a {
+		pointer-events: none;
+		color: var(--neutral-mid) !important;
+		text-decoration: none !important;
+		filter: grayscale(50%);
 	}
 
 	.date {

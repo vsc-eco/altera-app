@@ -1,7 +1,8 @@
 import { writable, derived } from 'svelte/store';
-import type { GetTransactions$result } from '$houdini';
+import { isPending, type GetTransactions$result } from '$houdini';
 import { getLocalTransactions, removeLocalTransaction } from '$lib/send/localStorageTransactions';
 import { idchain } from 'viem/chains';
+import type { Transaction } from 'viem';
 
 type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 
@@ -33,19 +34,24 @@ function deduplicate(txs: TransactionInter[]) {
 		)
 	);
 
-	const noAltearID: TransactionInter[] = [];
-	const byAlteraID: Record<string, TransactionInter> = {}
+	const noAlteraID: TransactionInter[] = [];
+	const byAlteraID: Record<string, TransactionInter> = {};
 	let deleted = false;
 
 	for (const tx of noSameNormalId) {
 		const alteraId = getAlteraID(tx);
+		if (tx.isPending && ((new Date()).getTime() - tx.first_seen.getTime() > 24 * 60 * 60 * 1000)) {
+			removeLocalTransaction(alteraId);
+			deleted = true;
+			continue;
+		}
 		if (!alteraId) {
-			noAltearID.push(tx)
+			noAlteraID.push(tx);
 			continue
 		}
-		const exists = byAlteraID[alteraId];
-		if (exists) {
+		if (byAlteraID[alteraId] || (tx.isPending && noAlteraID.some(tempTx => tempTx.tx_id === tx.tx_id))) {
 			removeLocalTransaction(alteraId);
+			deleted = true;
 			if (tx.isPending) {
 				continue;
 			}
@@ -54,7 +60,7 @@ function deduplicate(txs: TransactionInter[]) {
 	}
 
 	if (deleted) updateTxsFromLocalStorage();
-	return [ ...Object.values(byAlteraID), ...noAltearID ]
+	return [ ...Object.values(byAlteraID), ...Object.values(noAlteraID) ]
 }
 
 // Create a derived store that combines and sorts transactions
@@ -67,13 +73,11 @@ export const allTransactionsStore = derived(
 		const uniqueTransactions = deduplicate(combined);
 
 		// Sort by timestamp (descending)
-		const ret = uniqueTransactions.sort((a, b) => {
+		return uniqueTransactions.sort((a, b) => {
 			const timeA = new Date(a.first_seen).getTime();
 			const timeB = new Date(b.first_seen).getTime();
 			return timeB - timeA;
 		});
-		console.log("ret", ret);
-		return ret;
 	}
 );
 

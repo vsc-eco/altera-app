@@ -13,6 +13,7 @@ import { getHiveDepositOp } from './vscOperations/deposit';
 import { getHiveTransferOp } from './vscOperations/transfer';
 import { getDepositTransaction } from '../oldVscClient/client';
 import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
+import { type OperationResult } from '@aioha/aioha/build/types';
 
 export const consensusTx = async (
 	amount: string,
@@ -21,8 +22,12 @@ export const consensusTx = async (
 	shouldDeposit: boolean,
 	aioha: Aioha,
 	memo?: string,
-) => {
-	if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
+): Promise<OperationResult> => {
+	if (Number(amount) == 0) return {
+		success: false,
+		error: 'Error: cannot stake 0 HIVE.',
+		errorCode: 0,
+	};
 	let stakeOp = getHiveConsensusStakeOp(
 		username,
 		nodeRunnerAccount,
@@ -34,11 +39,8 @@ export const consensusTx = async (
 	if (shouldDeposit) ops.push(depositOp);
 	ops.push(stakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
-	if (res.success) {
-		return;
-	} else {
-		return res.error;
-	}
+	console.log("stake res:", res)
+	return res;
 };
 
 export const consensusUnstakeTx = async (
@@ -47,8 +49,12 @@ export const consensusUnstakeTx = async (
 	username: string,
 	aioha: Aioha,
 	memo?: string,
-) => {
-	if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
+): Promise<OperationResult> => {
+	if (Number(amount) == 0) return {
+		success: false,
+		error: 'Error: cannot unstake 0 HIVE.',
+		errorCode: 0,
+	};
 	let unstakeOp = getHiveConsensusUnstakeOp(
 		username,
 		nodeRunnerAccount,
@@ -58,20 +64,12 @@ export const consensusUnstakeTx = async (
 	let ops: Operation[] = [];
 	ops.push(unstakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
-	if (res.success) {
-		return;
-	} else {
-		return res.error;
-	}
+	return res;
 };
 
 export const executeTx = async (aioha: Aioha, ops: Operation[]) => {
 	const res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
-	if (res.success) {
-		return;
-	} else {
-		return res.error;
-	}
+	return res;
 };
 
 export const getSendOpGenerator = (

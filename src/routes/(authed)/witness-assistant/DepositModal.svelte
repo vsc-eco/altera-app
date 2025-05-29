@@ -32,46 +32,46 @@
 		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
 		status = 'Awaiting transaction approval…';
 		if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
-		const id = uuid();
 		const res = await consensusTx(
 			amount,
 			nodeRunnerAccount,
 			username,
 			shouldDeposit,
 			auth.value.aioha,
-			`altera_id=${id}`,
 		);
-		if (!res) {
+		if (res.success) {
 			addLocalTransaction({
 				data: {
 					amount: new CoinAmount(amount, Coin.hive),
 					asset: Coin.hive.unit.toLowerCase(),
 					from: username,
 					to: nodeRunnerAccount,
-					memo: `altera_id=${id}`,
+					memo: '',
 					type: "consensus stake",
 				},
 				timestamp: new Date(),
-				id: id,
-			})
-			addLocalTransaction({
-				data: {
-					amount: new CoinAmount(amount, Coin.hive),
-					asset: Coin.hive.unit.toLowerCase(),
-					from: username,
-					to: nodeRunnerAccount,
-					memo: `altera_id=${id}`,
-					type: "deposit",
-				},
-				timestamp: new Date(),
-				id: id,
+				id: "consensus_stake_" + res.result,
+				tx_id: res.result,
 			})
 			if (shouldDeposit) {
-
+				addLocalTransaction({
+					data: {
+						amount: new CoinAmount(amount, Coin.hive),
+						asset: Coin.hive.unit.toLowerCase(),
+						from: username,
+						to: nodeRunnerAccount,
+						memo: '',
+						type: "deposit",
+					},
+					timestamp: new Date(),
+					id: "deposit_" + res.result,
+					tx_id: res.result,
+				})
 			}
+			return;
 		}
 		status = '';
-		return res;
+		return res.error;
 	};
 </script>
 
@@ -79,8 +79,8 @@
 	<form
 		onsubmit={(e) => {
 			e.preventDefault();
-			sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
-				error = err ?? '';
+			sendTransaction(amount!, nodeRunnerAccount!).then(async (res) => {
+				error = res ?? '';
 				if (error != '') {
 					status = '';
 					return;

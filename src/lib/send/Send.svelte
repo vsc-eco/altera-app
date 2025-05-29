@@ -95,15 +95,13 @@
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork);
 			status = 'Waiting for Hive wallet approval…';
 			// note that fromCoin and toCoin should be the same
-			const id = uuid();
 			const sendOp = getSendOp(
 				auth.value.username!,
 				getDidFromUsername(toUsername),
 				new CoinAmount(toAmount, toCoin.coin),
-				`altera_id=${id}`,
 			);
-			executeTx(auth.value.aioha, [sendOp]).then(async (err) => {
-				if (!err) {
+			executeTx(auth.value.aioha, [sendOp]).then(async (res) => {
+				if (res.success) {
 					status = `Transaction submitted. You will be notified when your transaction is finished.`;
 					// Using optional chaining and nullish coalescing
 					addLocalTransaction({
@@ -116,12 +114,13 @@
 							type: "transfer",
 						},
 						timestamp: new Date(),
-						id: id,
+						id: res.result,
+						tx_id: res.result,
 					})
 					error = '';
 					return;
 				}
-				error = err;
+				error = res.error;
 			});
 			return '';
 		}
@@ -130,7 +129,6 @@
 				return "Hive Mainnet Transactions via an EVM wallet isn't supported yet.";
 			status = 'Waiting for Hive wallet approval…';
 			const toCoinAmount = new CoinAmount(toAmount, toCoin!.coin);
-			const id = uuid();
 			executeTx(auth.value?.aioha, [
 				[
 					'transfer',
@@ -138,11 +136,11 @@
 						from: auth.value.username!,
 						to: toUsername,
 						amount: toCoinAmount.toPrettyString(),
-						memo: `altera_id=${id}`
+						memo: ''
 					}
 				] satisfies TransferOperation
-			]).then((err) => {
-				if (!err) {
+			]).then((res) => {
+				if (res.success) {
 					status = `Transaction submitted. You will be notified when your transaction is finished.`;
 					addLocalTransaction({
 						data: {
@@ -150,16 +148,17 @@
 							asset: toCoin!.coin.unit.toLowerCase(),
 							from: auth.value!.username!,
 							to: toUsername,
-							memo: `altera_id=${id}`,
+							memo: '',
 							type: "transfer",
 						},
 						timestamp: new Date(),
-						id: id,
+						id: res.result,
+						tx_id: res.result,
 					})
 					error = '';
 					return;
 				}
-				error = err;
+				error = res.error;
 			});
 			return '';
 		}

@@ -13,6 +13,7 @@ type PendingTx = {
     }
     id: string,
     timestamp: Date,
+    tx_id?: string,
 }
 
 function toTransactionInter(ptx: PendingTx): TransactionInter {
@@ -23,7 +24,7 @@ function toTransactionInter(ptx: PendingTx): TransactionInter {
         status: "pending",
         id: ptx.id,
         anchr_opidx: 0,
-        tx_id: "UNK",
+        tx_id: ptx.tx_id ? ptx.tx_id : "UNK",
         first_seen: ptx.timestamp.toISOString(),
         ledger: null,
         data: { ...ptx.data, amount: ptx.data.amount.amount},

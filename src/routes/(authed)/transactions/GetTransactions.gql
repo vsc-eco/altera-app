@@ -6,6 +6,7 @@ query GetTransactions($did: String, $limit: Int, $offset: Int) {
 		id
 		anchr_opidx
 		tx_id
+		first_seen
 		ledger {
 			memo
 			amount

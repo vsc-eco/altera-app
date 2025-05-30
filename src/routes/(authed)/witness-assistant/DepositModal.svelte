@@ -15,6 +15,9 @@
 	import { Asset, type CustomJsonOperation, type TransferOperation } from '@hiveio/dhive';
 	import Card from '$lib/cards/Card.svelte';
 	import { consensusTx } from '$lib/vscTransactions/hive';
+	import { addLocalTransaction } from '$lib/send/localStorageTransactions';
+	import { uuid } from 'uuidv4';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
@@ -34,10 +37,41 @@
 			nodeRunnerAccount,
 			username,
 			shouldDeposit,
-			auth.value.aioha
+			auth.value.aioha,
 		);
+		if (res.success) {
+			addLocalTransaction({
+				data: {
+					amount: new CoinAmount(amount, Coin.hive),
+					asset: Coin.hive.unit.toLowerCase(),
+					from: username,
+					to: nodeRunnerAccount,
+					memo: '',
+					type: "consensus stake",
+				},
+				timestamp: new Date(),
+				id: "consensus_stake_" + res.result,
+				tx_id: res.result,
+			})
+			if (shouldDeposit) {
+				addLocalTransaction({
+					data: {
+						amount: new CoinAmount(amount, Coin.hive),
+						asset: Coin.hive.unit.toLowerCase(),
+						from: username,
+						to: nodeRunnerAccount,
+						memo: '',
+						type: "deposit",
+					},
+					timestamp: new Date(),
+					id: "deposit_" + res.result,
+					tx_id: res.result,
+				})
+			}
+			return;
+		}
 		status = '';
-		return res;
+		return res.error;
 	};
 </script>
 
@@ -45,8 +79,8 @@
 	<form
 		onsubmit={(e) => {
 			e.preventDefault();
-			sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
-				error = err ?? '';
+			sendTransaction(amount!, nodeRunnerAccount!).then(async (res) => {
+				error = res ?? '';
 				if (error != '') {
 					status = '';
 					return;

@@ -150,7 +150,7 @@
 					{/if}
 					<div class="tx-id section">
 						<h3>Transaction Id</h3>
-						<Clipboard value={tx.tx_id} label="" disabled={tx.isPending}/>
+						<Clipboard value={tx.tx_id} label="" disabled={tx.isPending && tx.tx_id == "UNK"}/>
 					</div>
 					<div class="links section">
 						<h3>External Links</h3>

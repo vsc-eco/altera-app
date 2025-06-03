@@ -125,17 +125,25 @@
 			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
 			{#if txs && txs.length != 0}
 				{#each filteredTxs as tx (tx.id)}
-					{@const { data, id } = tx}
-					<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
-					<!-- {#if ledger?.length != 0}
+					{@const { ops, id } = tx}
+					{#each ops! as op}
+						{#if op}
+							{@const { data } = op}
+							<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
+							<!-- {#if ledger?.length != 0}
 						{#each ledger! as _, i}
 							<Tr {tx} ledgerIndex={i} />
 						{/each} -->
-					{#if new Set( ['from', 'to', 'type', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-						<Tr {tx} />
-					{:else}
-						<tr><td colspan="100">Transaction #{id} with type {data.type} is unsupported.</td></tr>
-					{/if}
+							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
+								<Tr {tx} {op} />
+							{:else}
+								<tr
+									><td colspan="100">Transaction #{id} with type {data.type} is unsupported.</td
+									></tr
+								>
+							{/if}
+						{/if}
+					{/each}
 				{/each}
 			{:else}
 				<tr><td colspan="100">No Transactions found.</td></tr>

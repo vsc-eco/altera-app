@@ -2,18 +2,22 @@ query GetTransactions($did: String, $limit: Int, $offset: Int) {
 	findTransaction(filterOptions: { limit: $limit, offset: $offset, byAccount: $did }) @paginate {
 		anchr_height
 		anchr_ts
-		status
+		first_seen
 		id
-		anchr_opidx
-		tx_id
 		ledger {
-			memo
 			amount
 			asset
 			from
+			memo
 			to
 			type
 		}
-		data
+		ops {
+			data
+			index
+			type
+		}
+		status
+		type
 	}
 }

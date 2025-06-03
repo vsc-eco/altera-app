@@ -135,6 +135,17 @@ scalar Int64
 
 scalar JSON
 
+type LedgerAction {
+  amount: Uint64
+  asset: String
+  data: Map
+  id: String
+  memo: String
+  status: String
+  to: String
+  type: String
+}
+
 input LedgerActionsFilter {
   byAccount: String
   byActionId: String
@@ -244,9 +255,16 @@ input TransactionFilter {
   byLedgerToFrom: String
   byLedgerTypes: [String!]
   byStatus: TransactionStatus
-  byType: String
+  byType: [String!]
   limit: Int
   offset: Int
+}
+
+type TransactionOperation {
+  data: Map
+  index: Uint64!
+  required_auths: [String!]
+  type: String
 }
 
 type TransactionOutput {
@@ -257,17 +275,17 @@ type TransactionOutput {
 type TransactionRecord {
   anchr_height: Uint64!
   anchr_index: Uint64!
-  anchr_opidx: Uint64!
   anchr_ts: String!
-  data: Map
   first_seen: DateTime!
   id: String!
   ledger: [OpLogEvent!]
+  ledger_actions: [LedgerAction]
   nonce: Uint64!
+  op_types: [String!]
+  ops: [TransactionOperation]
   rc_limit: Uint64!
   required_auths: [String!]
   status: String!
-  tx_id: String!
   type: String!
 }
 

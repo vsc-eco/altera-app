@@ -1,7 +1,6 @@
 query GetStatuses($txIds: [String!]) {
 	findTransaction(filterOptions: { byIds: $txIds }) {
 		status
-		tx_id
-		anchr_opidx
+		id
 	}
 }

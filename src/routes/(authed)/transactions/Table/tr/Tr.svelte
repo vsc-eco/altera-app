@@ -20,11 +20,13 @@
 	import { checkOpStatus } from './checkStatus';
 	type Props = {
 		tx: NonNullable<GetTransactions$result['findTransaction']>[number];
+		op: NonNullable<NonNullable<NonNullable<GetTransactions$result['findTransaction']>[number]['ops']>[number]>;
 		ledgerIndex?: number;
 	};
-	let { tx, ledgerIndex }: Props = $props();
+	let { tx, op, ledgerIndex }: Props = $props();
 	const did = $derived(getAuth()().value!.did);
-	const { ledger, data, anchr_height: block_height, anchr_ts, status } = $derived(tx);
+	const { ledger, anchr_height: block_height, anchr_ts, status } = $derived(tx);
+	const { data, index, type } = $derived(op);
 	const anchor_ts = $derived(anchr_ts + 'Z');
 	const {
 		from,
@@ -40,7 +42,8 @@
 					data.amount,
 					Coin[data.asset.split('_')[0] as keyof typeof Coin] || Coin.unk,
 					typeof data.amount == 'number' // whether the number is preshifted (i.e. int without decimal)
-				)
+				),
+				type: op.type,
 			};
 		} else {
 			const out = ledger[ledgerIndex];
@@ -55,7 +58,7 @@
 		}
 	});
 	$inspect(status);
-	const statusStore = $derived(checkOpStatus(tx.tx_id, tx.anchr_opidx, tx.status));
+	const statusStore = $derived(checkOpStatus(tx.id, op.index, tx.status));
 	$effect(() => {
 		return untrack(() => statusStore).subscribe((status) => {
 			tx = { ...tx, status };
@@ -136,20 +139,20 @@
 					{/if}
 					<div class="tx-id section">
 						<h3>Transaction Id</h3>
-						<Clipboard value={tx.tx_id} label="" />
+						<Clipboard value={tx.id} label="" />
 					</div>
 					<div class="links section">
 						<h3>External Links</h3>
 						<div class="links">
 							<a
-								href={'https://vsc.techcoderx.com/tx/' + tx.tx_id}
+								href={'https://vsc.techcoderx.com/tx/' + tx.id}
 								target="_blank"
 								rel="noreferrer"
 							>
 								VSC Block Explorer<ExternalLink /></a
 							>
 							<a
-								href={'https://www.hiveblockexplorer.com/tx/' + tx.tx_id}
+								href={'https://www.hiveblockexplorer.com/tx/' + tx.id}
 								target="_blank"
 								rel="noreferrer"
 							>

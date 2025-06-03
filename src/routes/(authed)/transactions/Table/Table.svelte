@@ -126,18 +126,21 @@
 			{#if txs && txs.length != 0}
 				{#each filteredTxs as tx (tx.id)}
 					{@const { ops, id } = tx}
-						{#each ops! as op}
+					{#each ops! as op}
 						{#if op}
-							{@const {data} = op}
-					<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
-					<!-- {#if ledger?.length != 0}
+							{@const { data } = op}
+							<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
+							<!-- {#if ledger?.length != 0}
 						{#each ledger! as _, i}
 							<Tr {tx} ledgerIndex={i} />
 						{/each} -->
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} {op} />
 							{:else}
-								<tr><td colspan="100">Transaction #{id} with type {data.type} is unsupported.</td></tr>
+								<tr
+									><td colspan="100">Transaction #{id} with type {data.type} is unsupported.</td
+									></tr
+								>
 							{/if}
 						{/if}
 					{/each}

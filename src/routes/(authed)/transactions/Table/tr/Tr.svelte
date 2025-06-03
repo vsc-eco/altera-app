@@ -20,7 +20,9 @@
 	import { checkOpStatus } from './checkStatus';
 	type Props = {
 		tx: NonNullable<GetTransactions$result['findTransaction']>[number];
-		op: NonNullable<NonNullable<NonNullable<GetTransactions$result['findTransaction']>[number]['ops']>[number]>;
+		op: NonNullable<
+			NonNullable<NonNullable<GetTransactions$result['findTransaction']>[number]['ops']>[number]
+		>;
 		ledgerIndex?: number;
 	};
 	let { tx, op, ledgerIndex }: Props = $props();
@@ -43,7 +45,7 @@
 					Coin[data.asset.split('_')[0] as keyof typeof Coin] || Coin.unk,
 					typeof data.amount == 'number' // whether the number is preshifted (i.e. int without decimal)
 				),
-				type: op.type,
+				type: op.type
 			};
 		} else {
 			const out = ledger[ledgerIndex];
@@ -144,11 +146,7 @@
 					<div class="links section">
 						<h3>External Links</h3>
 						<div class="links">
-							<a
-								href={'https://vsc.techcoderx.com/tx/' + tx.id}
-								target="_blank"
-								rel="noreferrer"
-							>
+							<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
 								VSC Block Explorer<ExternalLink /></a
 							>
 							<a

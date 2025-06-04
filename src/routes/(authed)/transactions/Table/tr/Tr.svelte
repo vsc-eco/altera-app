@@ -14,15 +14,14 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-	import { type GetTransactions$result } from '$houdini';
 	import { untrack } from 'svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
+	import { type TransactionInter, toTransactionInter, vscTxsStore } from '../../txStores';
+
 	type Props = {
-		tx: NonNullable<GetTransactions$result['findTransaction']>[number];
-		op: NonNullable<
-			NonNullable<NonNullable<GetTransactions$result['findTransaction']>[number]['ops']>[number]
-		>;
+		tx: TransactionInter;
+		op: NonNullable<NonNullable<TransactionInter['ops']>[number]>;
 		ledgerIndex?: number;
 	};
 	let { tx, op, ledgerIndex }: Props = $props();
@@ -35,7 +34,7 @@
 		to,
 		coinAmount: amount,
 		type: t,
-		memo
+		memo,
 	}: NonNullable<typeof ledger>[number] & { coinAmount: UnkCoinAmount } = $derived.by(() => {
 		if (ledger == null || ledgerIndex == undefined) {
 			return {
@@ -60,10 +59,16 @@
 		}
 	});
 	$inspect(status);
-	const statusStore = $derived(checkOpStatus(tx.id, op.index, tx.status));
+	const statusStore = $derived(tx.isPending ? null : checkOpStatus(tx.id, op.index, tx.status));
+
+	// console.log("isPending, memo", tx.isPending, memo);
+
 	$effect(() => {
+		if (!statusStore) return;
 		return untrack(() => statusStore).subscribe((status) => {
-			tx = { ...tx, status };
+			if (tx.status != status) {
+				tx = { ...tx, status };
+			}
 		});
 	});
 	const otherAccount = $derived(
@@ -98,8 +103,13 @@
 		}
 	}}
 >
-	<Date {block_height} />
-	<ToFrom {otherAccount} memo={memo || undefined} {status} />
+	{#if tx.isPending}
+		<td class="date">{new (globalThis.Date)(anchr_ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
+	{:else}
+		<Date {block_height} />
+	{/if}
+	<!-- <td class="date">{new (globalThis.Date)(anchr_ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td> -->
+	<ToFrom {otherAccount} memo={memo ? memo.replace(/&?altera_id=[a-z0-9-]+/, '') : undefined} {status} />
 	<Amount {amount} />
 	<Token {amount} />
 	<Type isIncoming={!amount.isNegative()} {t} />
@@ -141,12 +151,16 @@
 					{/if}
 					<div class="tx-id section">
 						<h3>Transaction Id</h3>
-						<Clipboard value={tx.id} label="" />
+						<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == "UNK"}/>
 					</div>
 					<div class="links section">
 						<h3>External Links</h3>
-						<div class="links">
-							<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
+						<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
+							<a
+								href={'https://vsc.techcoderx.com/tx/' + tx.id}
+								target="_blank"
+								rel="noreferrer"
+							>
 								VSC Block Explorer<ExternalLink /></a
 							>
 							<a
@@ -301,5 +315,20 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
+	}
+
+	.links-disabled a {
+		pointer-events: none;
+		color: var(--neutral-mid) !important;
+		text-decoration: none !important;
+		filter: grayscale(50%);
+	}
+
+	.date {
+		vertical-align: middle;
+		padding: 1rem min(1rem, 2%);
+		width: max-content;
+		border-bottom: 1px solid var(--neutral-bg-accent);
+		min-width: 4rem;
 	}
 </style>

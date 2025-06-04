@@ -15,7 +15,7 @@ function updateStatuses() {
 			policy: 'NetworkOnly'
 		})
 		.then((res) => {
-			console.log('FETCHED');
+			// console.log('FETCHED');
 			const statuses = res.data?.findTransaction;
 			if (!statuses) return;
 			for (const { status, tx_id, anchr_opidx: op_id } of statuses) {

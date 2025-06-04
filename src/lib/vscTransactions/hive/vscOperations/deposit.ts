@@ -11,15 +11,17 @@ import type { CustomJsonOperation, TransferOperation } from '@hiveio/dhive';
 export function getHiveDepositOp(
 	from: string,
 	toDid: string,
-	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>
+	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+	memo?: string,
 ): TransferOperation {
+	const defaultMemo = `to=${toDid.split(':').at(-1)}`;
 	return [
 		'transfer',
 		{
 			from,
 			to: 'vsc.gateway',
 			amount: amount.toPrettyString(),
-			memo: `to=${toDid.split(':').at(-1)}`
+			memo: memo ? `${defaultMemo}&${memo}` : defaultMemo,
 		}
 	];
 }

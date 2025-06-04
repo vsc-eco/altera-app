@@ -6,14 +6,14 @@ export class CoinAmount<C extends Coin> {
 	amount: number;
 
 	constructor(num: string | number, coin: C, preshiftedInt?: boolean) {
-		console.log('Creating number with ', num, coin);
+		// console.log('Creating number with ', num, coin);
 		let amount: number;
 		if (num == '' || Number.isNaN(num)) num = '0';
 		if (typeof num == 'number') {
 			amount = Math.round(num * (preshiftedInt ? 1 : 10 ** coin.decimalPlaces));
 		} else {
 			const decIdx = num.indexOf('.');
-			console.log(num, decIdx);
+			// console.log(num, decIdx);
 			if (decIdx == -1) {
 				amount = Number.parseInt(num.padEnd(coin.decimalPlaces + num.length, '0'));
 			} else {
@@ -25,7 +25,7 @@ export class CoinAmount<C extends Coin> {
 		}
 		this.coin = coin;
 		this.amount = amount;
-		console.log('Created:', this.toPrettyString(), this);
+		// console.log('Created:', this.toPrettyString(), this);
 	}
 
 	/**

@@ -14,9 +14,13 @@
 	import CurrencySelect from './CurrencySelect.svelte';
 	import { untrack } from 'svelte';
 	import Receipt from './Receipt.svelte';
-	import { executeTx, getSendOpGenerator } from '$lib/vscTransactions/hive';
+	import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
+	import { addLocalTransaction } from './localStorageTransactions';
+	import { idchain } from 'viem/chains';
+	import { uuid } from 'uuidv4';
+
 	let { widgetView, hideToUsername }: { widgetView?: boolean; hideToUsername?: boolean } = $props();
 	let auth = $derived(getAuth()());
 	let fromCoin: CoinOptions['coins'][number] | undefined = $state.raw();
@@ -89,6 +93,7 @@
 		if (intermediary == Network.vsc) {
 			if (!auth.value?.aioha) return "VSC Transactions via an EVM wallet isn't supported yet.";
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork);
+			const opType = getSendOpType(fromNetwork, toNetwork);
 			status = 'Waiting for Hive wallet approval…';
 			// note that fromCoin and toCoin should be the same
 			const sendOp = getSendOp(
@@ -96,13 +101,33 @@
 				getDidFromUsername(toUsername),
 				new CoinAmount(toAmount, toCoin.coin)
 			);
-			executeTx(auth.value.aioha, [sendOp]).then(async (err) => {
-				if (!err) {
-					status = `Successfully sent ${new CoinAmount(toAmount, toCoin!.coin).toPrettyString()} to ${accountNameFromAddress(toUsername)}!`;
+			executeTx(auth.value.aioha, [sendOp]).then(async (res) => {
+				if (res.success) {
+					status = `Transaction submitted. You will be notified when your transaction is finished.`;
+					// Using optional chaining and nullish coalescing
+					addLocalTransaction({
+						ops: [
+							{
+								data: {
+									amount: new CoinAmount(toAmount, toCoin!.coin),
+									asset: toCoin!.coin.unit.toLowerCase(),
+									from: auth.value!.username!,
+									to: toUsername,
+									memo: sendOp[1]?.memo ?? '',
+									type: 'transfer'
+								},
+								type: opType!,
+								index: 0
+							}
+						],
+						timestamp: new Date(),
+						id: res.result,
+						type: 'hive'
+					});
 					error = '';
 					return;
 				}
-				error = err;
+				error = res.error;
 			});
 			return '';
 		}
@@ -121,13 +146,32 @@
 						memo: ''
 					}
 				] satisfies TransferOperation
-			]).then((err) => {
-				if (!err) {
-					status = `Successfully sent ${new CoinAmount(toAmount, toCoin!.coin).toPrettyString()} to ${accountNameFromAddress(toUsername)}!`;
+			]).then((res) => {
+				if (res.success) {
+					status = `Transaction submitted. You will be notified when your transaction is finished.`;
+					addLocalTransaction({
+						ops: [
+							{
+								data: {
+									amount: new CoinAmount(toAmount, toCoin!.coin),
+									asset: toCoin!.coin.unit.toLowerCase(),
+									from: auth.value!.username!,
+									to: toUsername,
+									memo: '',
+									type: 'transfer'
+								},
+								type: 'transfer',
+								index: 0
+							}
+						],
+						timestamp: new Date(),
+						id: res.result,
+						type: 'hive'
+					});
 					error = '';
 					return;
 				}
-				error = err;
+				error = res.error;
 			});
 			return '';
 		}
@@ -322,6 +366,27 @@
 		onsuccess={() => {
 			error = '';
 			// TODO: after success notify via a notification
+			// store transaction as pending in local storage
+			const id = uuid();
+			addLocalTransaction({
+				ops: [
+					{
+						data: {
+							amount: new CoinAmount(toAmount, toCoin!.coin),
+							asset: toCoin!.coin.unit.toLowerCase(),
+							from: auth.value!.username!,
+							to: toUsername,
+							memo: `altera_id=${id}`,
+							type: 'transfer'
+						},
+						type: 'transfer',
+						index: 0
+					}
+				],
+				timestamp: new Date(),
+				id: id,
+				type: 'v4v'
+			});
 			setTimeout(() => {
 				showV4VModal = false;
 			}, 10000);

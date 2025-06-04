@@ -13,62 +13,79 @@ import { getHiveDepositOp } from './vscOperations/deposit';
 import { getHiveTransferOp } from './vscOperations/transfer';
 import { getDepositTransaction } from '../oldVscClient/client';
 import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
+import { type OperationResult } from '@aioha/aioha/build/types';
 
 export const consensusTx = async (
 	amount: string,
 	nodeRunnerAccount: string,
 	username: string,
 	shouldDeposit: boolean,
-	aioha: Aioha
-) => {
-	if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
+	aioha: Aioha,
+	memo?: string,
+): Promise<OperationResult> => {
+	if (Number(amount) == 0) return {
+		success: false,
+		error: 'Error: cannot stake 0 HIVE.',
+		errorCode: 0,
+	};
 	let stakeOp = getHiveConsensusStakeOp(
 		username,
 		nodeRunnerAccount,
-		new CoinAmount(amount, Coin.hive)
+		new CoinAmount(amount, Coin.hive),
+		memo
 	);
-	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hive));
+	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hive), memo);
 	let ops: Operation[] = [];
 	if (shouldDeposit) ops.push(depositOp);
 	ops.push(stakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
-	if (res.success) {
-		return;
-	} else {
-		return res.error;
-	}
+	console.log("stake res:", res)
+	return res;
 };
 
 export const consensusUnstakeTx = async (
 	amount: string,
 	nodeRunnerAccount: string,
 	username: string,
-	aioha: Aioha
-) => {
-	if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
+	aioha: Aioha,
+	memo?: string,
+): Promise<OperationResult> => {
+	if (Number(amount) == 0) return {
+		success: false,
+		error: 'Error: cannot unstake 0 HIVE.',
+		errorCode: 0,
+	};
 	let unstakeOp = getHiveConsensusUnstakeOp(
 		username,
 		nodeRunnerAccount,
-		new CoinAmount(amount, Coin.hive)
+		new CoinAmount(amount, Coin.hive),
+		memo
 	);
 	let ops: Operation[] = [];
 	ops.push(unstakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
-	if (res.success) {
-		return;
-	} else {
-		return res.error;
-	}
+	return res;
 };
 
 export const executeTx = async (aioha: Aioha, ops: Operation[]) => {
 	const res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
-	if (res.success) {
-		return;
-	} else {
-		return res.error;
-	}
+	return res;
 };
+
+export function getSendOpType(
+	fromNetwork: Network,
+	toNetwork: Network
+) {
+	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
+		return "transfer";
+	}
+	if (fromNetwork == Network.hiveMainnet && toNetwork == Network.vsc) {
+		return "deposit";
+	}
+	if (fromNetwork == Network.vsc && toNetwork == Network.hiveMainnet) {
+		return "withdrawal";
+	}
+}
 
 export const getSendOpGenerator = (
 	fromNetwork: Network,
@@ -76,7 +93,8 @@ export const getSendOpGenerator = (
 ): ((
 	from: string,
 	toDid: string,
-	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>
+	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+	memo?: string,
 ) => Operation) => {
 	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
 		return getHiveTransferOp;

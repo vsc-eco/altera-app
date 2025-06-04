@@ -94,6 +94,7 @@
 		"queries": "link:@vsc.eco/client/dist/queries",
 		"tabs:1.9.3": "link:@zag-js/tabs:1.9.3",
 		"utils": "link:@vsc.eco/client/dist/utils",
+		"uuidv4": "^6.2.13",
 		"viem": "^2.23.2",
 		"wagmi": "^2.14.11"
 	}

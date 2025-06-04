@@ -6,6 +6,8 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
 	import { consensusUnstakeTx } from '$lib/vscTransactions/hive';
+	import { addLocalTransaction } from '$lib/send/localStorageTransactions';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
@@ -20,8 +22,29 @@
 		status = 'Awaiting transaction approval…';
 		if (Number(amount) == 0) return 'Error: cannot unstake 0 HIVE.';
 		const res = await consensusUnstakeTx(amount, nodeRunnerAccount, username, auth.value.aioha);
+		if (res.success) {
+			addLocalTransaction({
+				ops: [
+					{
+						data: {
+							amount: new CoinAmount(amount, Coin.hive),
+							asset: Coin.hive.unit.toLowerCase(),
+							from: username,
+							to: nodeRunnerAccount,
+							type: 'consensus_stake'
+						},
+						type: 'consensus_stake',
+						index: 0
+					}
+				],
+				timestamp: new Date(),
+				id: res.result,
+				type: 'hive'
+			});
+			return;
+		}
 		status = '';
-		return res;
+		return res.error;
 	};
 </script>
 
@@ -29,8 +52,8 @@
 	<form
 		onsubmit={(e) => {
 			e.preventDefault();
-			sendTransaction(amount!, nodeRunnerAccount!).then(async (err) => {
-				error = err ?? '';
+			sendTransaction(amount!, nodeRunnerAccount!).then(async (res) => {
+				error = res ?? '';
 				if (error != '') {
 					status = '';
 					return;
@@ -44,7 +67,10 @@
 	>
 		<h2>Consensus Unstaking</h2>
 		<p>Be sure to be signed in with the account you'd like to unstake hive from.</p>
-		<p><b>Note:</b> Unstaked coins will be made available after an unbonding period of five elections (about a day).</p>
+		<p>
+			<b>Note:</b> Unstaked coins will be made available after an unbonding period of five elections
+			(about a day).
+		</p>
 		<p class="error">{error}</p>
 		<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
 		<div class="amount-flex">

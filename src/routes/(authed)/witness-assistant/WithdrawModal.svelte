@@ -27,7 +27,7 @@
 				ops: [
 					{
 						data: {
-							amount: new CoinAmount(amount, Coin.hive),
+							amount: (new CoinAmount(amount, Coin.hive)).toAmountString(),
 							asset: Coin.hive.unit.toLowerCase(),
 							from: username,
 							to: nodeRunnerAccount,

@@ -1,26 +1,14 @@
 <script lang="ts">
-	import { GetTransactionsStore, type GetTransactions$result } from '$houdini';
+	import { GetTransactionsStore } from '$houdini';
 	import Tr from './tr/Tr.svelte';
 	import { untrack } from 'svelte';
+	import { allTransactionsStore, vscTxsStore, toTransactionInter, updateTxsFromLocalStorage } from '../txStores';
 	let {
 		did
 	}: {
 		did: string;
 	} = $props();
 	let store = $derived(new GetTransactionsStore());
-	let txs: NonNullable<GetTransactions$result['findTransaction']> = $state([]);
-	// to make sure that all txs have a unique ID
-	let filteredTxs = $derived(
-		Object.values(
-			txs.reduce(
-				(prev, curr) => {
-					prev[curr.id] = curr;
-					return prev;
-				},
-				{} as { [id: string]: NonNullable<GetTransactions$result['findTransaction']>[number] }
-			)
-		)
-	);
 	let loading = $state(true);
 	function fetchFromStore() {
 		untrack(() => store)
@@ -33,9 +21,17 @@
 			.then((posts) => {
 				loading = false;
 				if (!posts.data?.findTransaction) return;
-				txs = untrack(() => txs).concat(posts.data?.findTransaction);
+				// set the store since this is a complete fetch
+				vscTxsStore.set(toTransactionInter(posts.data?.findTransaction));
+			}).catch((e) => {
+				if (e.name !== 'AbortError') {
+					console.error(e);
+				}
 			});
 	}
+	// this assumes that did doesn't change, and is not reactive to did
+	// just runs once when the page loads and again if too many new transactions
+	// are added (called explicitly below)
 	$effect(() => {
 		fetchFromStore();
 	});
@@ -52,19 +48,35 @@
 				.then((post) => {
 					loading = false;
 					if (!post.data?.findTransaction) return;
-					if (post.data?.findTransaction[0].id == txs[0].id) return; // nothing to update
-					const prevUpdate = post.data.findTransaction.findIndex((v) => v.id == txs[0].id);
-					if (prevUpdate == -1) {
-						// more than 10 new txs
-						fetchFromStore();
-						return;
+					if ($allTransactionsStore.length > 0 && post.data?.findTransaction[0].id == $allTransactionsStore[0].id) return; // nothing to update
+
+					vscTxsStore.update((currentTxs) => {
+						const fetchedTxs = toTransactionInter(post.data!.findTransaction!);
+
+						if ($allTransactionsStore.length > 0 && fetchedTxs[0].id === $allTransactionsStore[0].id)
+							return currentTxs; // No changes needed
+							
+						const prevUpdate = fetchedTxs.findIndex(v => v.id === currentTxs[0]?.id);
+						
+						if (prevUpdate === -1) {
+							// Too many new transactions, replace entirely
+							fetchFromStore();
+							return currentTxs;
+						}
+						
+						// Prepend only new transactions
+						return [...fetchedTxs.slice(0, prevUpdate), ...currentTxs];
+					});
+				}).catch((e) => {
+					if (e.name !== 'AbortError') {
+						console.error(e);
 					}
-					txs = post.data?.findTransaction.slice(0, prevUpdate).concat(txs);
 				});
+			updateTxsFromLocalStorage();
 		}, 2000);
 		return () => clearInterval(intervalId);
 	});
-	let currStoreLen = $derived(txs.length);
+	let currStoreLen = $derived($allTransactionsStore.length);
 </script>
 
 <svelte:document
@@ -83,8 +95,12 @@
 				.then((posts) => {
 					loading = false;
 					if (!posts.data?.findTransaction) return;
-					txs = untrack(() => txs).concat(posts.data?.findTransaction);
-				});
+					vscTxsStore.update(currentTxs => currentTxs.concat(toTransactionInter(posts.data?.findTransaction!)))
+				}).catch((e) => {
+					if (e.name !== 'AbortError') {
+						console.error(e);
+					}
+				});;
 		}
 	}}
 />
@@ -105,7 +121,7 @@
 				.then((posts) => {
 					loading = false;
 					if (!posts.data?.findTransaction) return;
-					txs = untrack(() => txs).concat(posts.data?.findTransaction);
+					vscTxsStore.update(currentTxs => currentTxs.concat(toTransactionInter(posts.data?.findTransaction!)))
 				});
 		}
 	}}
@@ -122,23 +138,22 @@
 		</thead>
 
 		<tbody>
-			<!-- {#each data as { data: { from, to, amount, asset: tk, memo, type: t }, anchr_height: { $numberLong: block_height }, id, status, required_auths: [owner], first_seen: { $date: first_seen }, anchr_block: block_id }} -->
-			{#if txs && txs.length != 0}
-				{#each filteredTxs as tx (tx.id)}
+			{#if $allTransactionsStore && $allTransactionsStore.length > 0}
+				{#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id } = tx}
 					{#each ops! as op}
 						{#if op}
 							{@const { data } = op}
 							<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
 							<!-- {#if ledger?.length != 0}
-						{#each ledger! as _, i}
-							<Tr {tx} ledgerIndex={i} />
-						{/each} -->
+							{#each ledger! as _, i}
+								<Tr {tx} ledgerIndex={i} />
+							{/each} -->
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} {op} />
 							{:else}
 								<tr
-									><td colspan="100">Transaction #{id} with type {data.type} is unsupported.</td
+									><td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td
 									></tr
 								>
 							{/if}

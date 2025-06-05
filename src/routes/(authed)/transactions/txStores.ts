@@ -17,53 +17,44 @@ export const localTxsStore = writable<TransactionInter[]>([]);
 
 function getAlteraID(tx: TransactionInter) {
 	if (tx.isPending) return tx.id;
-  if (!tx.ops) return null;
-  let altera_id = null;
-  for (const op of tx.ops) {
-    if (!op) continue;
-    if (op.data.memo) {
-      const params: URLSearchParams = new URLSearchParams(op.data.memo);
-      altera_id = params.get("altera_id");
-      if (altera_id) {
-        return altera_id;
-      }
-    }
-  }
-  return null;
+	if (!tx.ops) return null;
+	let altera_id = null;
+	for (const op of tx.ops) {
+		if (!op) continue;
+		if (op.data.memo) {
+			const params: URLSearchParams = new URLSearchParams(op.data.memo);
+			altera_id = params.get('altera_id');
+			if (altera_id) {
+				return altera_id;
+			}
+		}
+	}
+	return null;
 }
 
 function getTimestamp(tx: TransactionInter): string {
-  if (tx.type == "hive") {
-    return tx.anchr_ts;
-  }
-  return tx.first_seen;
+	if (tx.type == 'hive') {
+		return tx.anchr_ts;
+	}
+	return tx.first_seen;
 }
 
 function deduplicate(txs: TransactionInter[]) {
-	const noSameNormalId = Object.values(
-		txs.reduce(
-			(acc, curr) => {
-				// Use the transaction ID as the key to ensure uniqueness
-				acc[curr.id] = curr;
-				return acc;
-			},
-			{} as { [id: string]: TransactionInter }
-		)
-	);
-
 	const noAlteraID: TransactionInter[] = [];
 	const byAlteraID: Record<string, TransactionInter> = {};
 	let deleted = false;
 
-	for (const tx of noSameNormalId) {
-    // all pending transactions will have an altera ID
+	console.log('txs:', txs);
+
+	for (const tx of txs) {
+	  // all pending transactions will have an altera ID
 		const alteraId = getAlteraID(tx);
 		if (!alteraId) {
 			noAlteraID.push(tx);
 			continue
 		}
-    // removes pending transactions more than a day old
-    if (tx.isPending && ((new Date()).getTime() - (new Date(getTimestamp(tx))).getTime() > 24 * 60 * 60 * 1000)) {
+	  // removes pending transactions more than a day old
+	  if (tx.isPending && ((new Date()).getTime() - (new Date(getTimestamp(tx))).getTime() > 24 * 60 * 60 * 1000)) {
 			removeLocalTransaction(alteraId);
 			deleted = true;
 			continue;
@@ -79,7 +70,7 @@ function deduplicate(txs: TransactionInter[]) {
 	}
 
 	if (deleted) updateTxsFromLocalStorage();
-	return [ ...Object.values(byAlteraID), ...Object.values(noAlteraID) ]
+	return [...Object.values(byAlteraID), ...Object.values(noAlteraID)];
 }
 
 // Create a derived store that combines and sorts transactions

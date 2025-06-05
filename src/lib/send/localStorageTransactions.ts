@@ -4,7 +4,7 @@ import { updateTxsFromLocalStorage, type TransactionInter } from "../../routes/(
 export type PendingTx = {
     ops: ({
         data: {
-            amount: UnkCoinAmount,
+            amount: string,
             asset: string,
             from: string,
             to: string,

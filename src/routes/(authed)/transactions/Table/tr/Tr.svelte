@@ -18,6 +18,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
 	import { type TransactionInter, toTransactionInter, vscTxsStore } from '../../txStores';
+	import moment from 'moment';
 
 	type Props = {
 		tx: TransactionInter;
@@ -103,12 +104,12 @@
 		}
 	}}
 >
-	{#if tx.isPending}
+	<!-- {#if tx.isPending}
 		<td class="date">{new (globalThis.Date)(anchr_ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
 	{:else}
 		<Date {block_height} />
-	{/if}
-	<!-- <td class="date">{new (globalThis.Date)(anchr_ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td> -->
+	{/if} -->
+	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memo ? memo.replace(/&?altera_id=[a-z0-9-]+/, '') : undefined} {status} />
 	<Amount {amount} />
 	<Token {amount} />

@@ -44,7 +44,7 @@
 			const ops: PendingTx['ops'] = [
 				{
 					data: {
-						amount: new CoinAmount(amount, Coin.hive),
+						amount: (new CoinAmount(amount, Coin.hive)).toAmountString(),
 						asset: Coin.hive.unit.toLowerCase(),
 						from: username,
 						to: nodeRunnerAccount,
@@ -57,7 +57,7 @@
 			if (shouldDeposit) {
 				ops.push({
 					data: {
-						amount: new CoinAmount(amount, Coin.hive),
+						amount: (new CoinAmount(amount, Coin.hive)).toAmountString(),
 						asset: Coin.hive.unit.toLowerCase(),
 						from: username,
 						to: nodeRunnerAccount,

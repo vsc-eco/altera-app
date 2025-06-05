@@ -109,7 +109,7 @@
 						ops: [
 							{
 								data: {
-									amount: new CoinAmount(toAmount, toCoin!.coin),
+									amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
 									asset: toCoin!.coin.unit.toLowerCase(),
 									from: auth.value!.username!,
 									to: toUsername,
@@ -153,7 +153,7 @@
 						ops: [
 							{
 								data: {
-									amount: new CoinAmount(toAmount, toCoin!.coin),
+									amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
 									asset: toCoin!.coin.unit.toLowerCase(),
 									from: auth.value!.username!,
 									to: toUsername,
@@ -372,7 +372,7 @@
 				ops: [
 					{
 						data: {
-							amount: new CoinAmount(toAmount, toCoin!.coin),
+							amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
 							asset: toCoin!.coin.unit.toLowerCase(),
 							from: auth.value!.username!,
 							to: toUsername,

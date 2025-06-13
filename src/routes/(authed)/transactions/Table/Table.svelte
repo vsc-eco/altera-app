@@ -22,6 +22,7 @@
 				loading = false;
 				if (!posts.data?.findTransaction) return;
 				// set the store since this is a complete fetch
+				console.log("setting txs to: ", toTransactionInter(posts.data?.findTransaction));
 				vscTxsStore.set(toTransactionInter(posts.data?.findTransaction));
 			}).catch((e) => {
 				if (e.name !== 'AbortError') {
@@ -48,14 +49,10 @@
 				.then((post) => {
 					loading = false;
 					if (!post.data?.findTransaction) return;
-					if ($allTransactionsStore.length > 0 && post.data?.findTransaction[0].id == $allTransactionsStore[0].id) return; // nothing to update
+					if ($vscTxsStore.length > 0 && post.data?.findTransaction[0].id == $vscTxsStore[0].id) return; // nothing to update
 
 					vscTxsStore.update((currentTxs) => {
-						const fetchedTxs = toTransactionInter(post.data!.findTransaction!);
-
-						if ($allTransactionsStore.length > 0 && fetchedTxs[0].id === $allTransactionsStore[0].id)
-							return currentTxs; // No changes needed
-							
+						const fetchedTxs = toTransactionInter(post.data!.findTransaction!);							
 						const prevUpdate = fetchedTxs.findIndex(v => v.id === currentTxs[0]?.id);
 						
 						if (prevUpdate === -1) {
@@ -65,6 +62,7 @@
 						}
 						
 						// Prepend only new transactions
+						console.log("backend txs:", [...fetchedTxs.slice(0, prevUpdate), ...currentTxs])
 						return [...fetchedTxs.slice(0, prevUpdate), ...currentTxs];
 					});
 				}).catch((e) => {

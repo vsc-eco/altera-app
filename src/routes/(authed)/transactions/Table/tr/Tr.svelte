@@ -60,9 +60,15 @@
 		}
 	});
 	$inspect(status);
-	const statusStore = $derived(tx.isPending ? null : checkOpStatus(tx.id, op.index, tx.status));
 
-	// console.log("isPending, memo", tx.isPending, memo);
+	console.log("statusquery - tx", tx);
+	console.log("statusquery - condition", (!tx.isPending && !['CONFIRMED', 'FAILED'].includes(tx.status)));
+
+	const statusStore = $derived(
+		tx.isPending || ['CONFIRMED', 'FAILED'].includes(tx.status) 
+			? null 
+			: checkOpStatus(tx.id, tx.status)
+	);
 
 	$effect(() => {
 		if (!statusStore) return;
@@ -72,6 +78,10 @@
 			}
 		});
 	});
+
+	// console.log("isPending, memo", tx.isPending, memo);
+
+	
 	const otherAccount = $derived(
 		to == from
 			? t.includes('unstake')
@@ -104,11 +114,6 @@
 		}
 	}}
 >
-	<!-- {#if tx.isPending}
-		<td class="date">{new (globalThis.Date)(anchr_ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
-	{:else}
-		<Date {block_height} />
-	{/if} -->
 	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memo ? memo.replace(/&?altera_id=[a-z0-9-]+/, '') : undefined} {status} />
 	<Amount {amount} />

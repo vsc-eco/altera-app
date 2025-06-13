@@ -44,7 +44,7 @@ function deduplicate(txs: TransactionInter[]) {
 	const byAlteraID: Record<string, TransactionInter> = {};
 	let deleted = false;
 
-	console.log('txs:', txs);
+	// console.log("deduplicate, txs=", txs);
 
 	for (const tx of txs) {
 	  // all pending transactions will have an altera ID
@@ -68,6 +68,8 @@ function deduplicate(txs: TransactionInter[]) {
 		}
 		byAlteraID[alteraId] = tx;
 	}
+
+	// console.log("deduplicate, return val=", [...Object.values(byAlteraID), ...Object.values(noAlteraID)]);
 
 	if (deleted) updateTxsFromLocalStorage();
 	return [...Object.values(byAlteraID), ...Object.values(noAlteraID)];

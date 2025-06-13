@@ -25,7 +25,7 @@ function toPendingTransactionInter(ptx: PendingTx): TransactionInter {``
         isPending: true,
         anchr_height: 0,
         anchr_ts: ptx.timestamp.toISOString().slice(0, 19),
-        status: "pending",
+        status: "PENDING",
         first_seen: ptx.timestamp.toISOString(),
         ledger: null,
         ops: ptx.ops.map((tx) => ({...tx, index: 0}))

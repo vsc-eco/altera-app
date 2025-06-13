@@ -367,26 +367,26 @@
 			error = '';
 			// TODO: after success notify via a notification
 			// store transaction as pending in local storage
-			const id = uuid();
-			addLocalTransaction({
-				ops: [
-					{
-						data: {
-							amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
-							asset: toCoin!.coin.unit.toLowerCase(),
-							from: auth.value!.username!,
-							to: toUsername,
-							memo: `altera_id=${id}`,
-							type: 'transfer'
-						},
-						type: 'transfer',
-						index: 0
-					}
-				],
-				timestamp: new Date(),
-				id: id,
-				type: 'v4v'
-			});
+			// const id = uuid();
+			// addLocalTransaction({
+			// 	ops: [
+			// 		{
+			// 			data: {
+			// 				amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
+			// 				asset: toCoin!.coin.unit.toLowerCase(),
+			// 				from: auth.value!.username!,
+			// 				to: toUsername,
+			// 				memo: `altera_id=${id}`,
+			// 				type: 'transfer'
+			// 			},
+			// 			type: 'transfer',
+			// 			index: 0
+			// 		}
+			// 	],
+			// 	timestamp: new Date(),
+			// 	id: id,
+			// 	type: 'v4v'
+			// });
 			setTimeout(() => {
 				showV4VModal = false;
 			}, 10000);

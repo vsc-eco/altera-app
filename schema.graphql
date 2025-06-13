@@ -46,6 +46,7 @@ type BalanceRecord {
   hbd_savings: Int64!
   hive: Int64!
   hive_consensus: Int64!
+  pending_hbd_unstaking: Int64
 }
 
 type Contract {

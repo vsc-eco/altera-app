@@ -3,10 +3,11 @@ import { readonly, writable, type Writable } from 'svelte/store';
 
 const statusStore = new GetStatusesStore();
 
-const checkingStores: { [tx_id: string]: { [op_id: number]: Writable<string> } } = {};
+const checkingStores: { [tx_id: string]:  Writable<string> } = {};
 
 function updateStatuses() {
 	const idsToFetch = Object.keys(checkingStores);
+	console.log("keys to fetch", idsToFetch);
 	statusStore
 		.fetch({
 			variables: {
@@ -18,29 +19,24 @@ function updateStatuses() {
 			// console.log('FETCHED');
 			const statuses = res.data?.findTransaction;
 			if (!statuses) return;
-			for (const { status, tx_id, anchr_opidx: op_id } of statuses) {
-				console.log(checkingStores[tx_id]);
-				const store = checkingStores[tx_id][op_id];
-				if (store == undefined) return; // specific op succeeded
+			for (const { status, id } of statuses) {
+				console.log(checkingStores[id]);
+				const store = checkingStores[id];
+				if (!store) continue; // specific op succeeded
 				// despite part of transaction being unconfirmed
 				store.set(status);
 				if (['CONFIRMED', 'FAILED'].includes(status)) {
-					removeFromChecks(tx_id, op_id);
+					removeFromChecks(id);
 				}
 			}
 		});
 }
 
-function removeFromChecks(tx_id: string, op_id: number) {
-	delete checkingStores[tx_id]?.[op_id];
-	// make sure that checkingStores is empty before deleting the empty map
-	for (const _store in checkingStores[tx_id]) {
-		return;
-	}
+function removeFromChecks(tx_id: string) {
 	delete checkingStores[tx_id];
 	// make sure that checkingStores is empty before clearing interval
 	// if there are any keys left then it will exit early
-	for (const _opList in checkingStores) {
+	if (Object.keys(checkingStores).length > 0) {
 		return;
 	}
 	clearInterval(timeout);
@@ -49,25 +45,24 @@ function removeFromChecks(tx_id: string, op_id: number) {
 
 let timeout: NodeJS.Timeout | undefined = undefined;
 
-export const checkOpStatus = (tx_id: string, op_id: number, currStatus: string) => {
-	if (checkingStores[tx_id]?.[op_id] != undefined) {
-		return checkingStores[tx_id][op_id];
+export const checkOpStatus = (tx_id: string, currStatus: string) => {
+	console.log('statusquery - checkOpStatus called:', tx_id, currStatus);
+	if (checkingStores[tx_id]) {
+		return checkingStores[tx_id];
 	}
-	const out = writable(currStatus, () => {
+	const store = writable(currStatus, () => {
+		console.log('statusquery - Store subscribed, starting interval');
 		if (timeout == undefined) {
 			timeout = setInterval(updateStatuses, 1000);
 		}
 		return () => {
-			removeFromChecks(tx_id, op_id);
+			removeFromChecks(tx_id);
 		};
 	});
-	if (['CONFIRMED', 'FAILED'].includes(currStatus)) return out;
-	let store = checkingStores[tx_id];
-	if (!store) {
-		checkingStores[tx_id] = {};
-		store = checkingStores[tx_id];
-	}
+	if (['CONFIRMED', 'FAILED'].includes(currStatus)) return store;
+
 	console.log('WRITABLE');
-	store[op_id] = out;
-	return readonly(out);
+	checkingStores[tx_id] = store;
+	console.log('statusquery - Added to checkingStores:', tx_id, Object.keys(checkingStores));
+	return readonly(store);
 };

@@ -9,7 +9,8 @@ export const createLightningInvoice = async (
 	into: Token,
 	on: Network,
 	auth: Auth,
-	username: string
+	username: string,
+	altera_id?: string
 ): Promise<
 	| string
 	| {
@@ -27,6 +28,10 @@ export const createLightningInvoice = async (
 		return 'Invalid hive username.';
 	}
 	const url = new URL(`${V4VAPP_API}/v1/new_invoice_hive`);
+	let message = new URLSearchParams(`to=${auth.value.address}`);
+	if (altera_id) {
+		message.append("altera_id", altera_id);
+	}
 	const searchParams = {
 		hive_accname: mainnet_account,
 		amount,
@@ -35,11 +40,12 @@ export const createLightningInvoice = async (
 		// usd_hbd: 'false',
 		app_name: 'altera.app',
 		expiry: '600',
-		message: `to=${auth.value.address}`
+		message: message.toString()
 	};
 	for (const [key, value] of Object.entries(searchParams)) {
 		url.searchParams.append(key, value);
 	}
+	// makes a GET request by default
 	const ret = await fetch(url);
 
 	if (ret.ok) {

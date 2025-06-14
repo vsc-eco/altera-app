@@ -17,7 +17,7 @@
 	import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
-	import { addLocalTransaction } from './localStorageTransactions';
+	import { addLocalTransaction } from './localStorageTxs'
 	import { idchain } from 'viem/chains';
 	import { uuid } from 'uuidv4';
 
@@ -363,30 +363,29 @@
 			error = v;
 			showV4VModal = false;
 		}}
-		onsuccess={() => {
+		onsuccess={(id) => {
 			error = '';
 			// TODO: after success notify via a notification
 			// store transaction as pending in local storage
-			// const id = uuid();
-			// addLocalTransaction({
-			// 	ops: [
-			// 		{
-			// 			data: {
-			// 				amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
-			// 				asset: toCoin!.coin.unit.toLowerCase(),
-			// 				from: auth.value!.username!,
-			// 				to: toUsername,
-			// 				memo: `altera_id=${id}`,
-			// 				type: 'transfer'
-			// 			},
-			// 			type: 'transfer',
-			// 			index: 0
-			// 		}
-			// 	],
-			// 	timestamp: new Date(),
-			// 	id: id,
-			// 	type: 'v4v'
-			// });
+			addLocalTransaction({
+				ops: [
+					{
+						data: {
+							amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
+							asset: toCoin!.coin.unit.toLowerCase(),
+							from: `v4vapp`,
+							to: toUsername,
+							memo: `altera_id=${id}`,
+							type: 'transfer'
+						},
+						type: 'transfer',
+						index: 0
+					}
+				],
+				timestamp: new Date(),
+				id: id,
+				type: 'v4v'
+			});
 			setTimeout(() => {
 				showV4VModal = false;
 			}, 10000);

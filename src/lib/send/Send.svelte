@@ -17,7 +17,7 @@
 	import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
-	import { addLocalTransaction } from './localStorageTxs'
+	import { addLocalTransaction } from './localStorageTxs';
 	import { idchain } from 'viem/chains';
 	import { uuid } from 'uuidv4';
 
@@ -109,7 +109,7 @@
 						ops: [
 							{
 								data: {
-									amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
+									amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
 									asset: toCoin!.coin.unit.toLowerCase(),
 									from: auth.value!.username!,
 									to: toUsername,
@@ -153,7 +153,7 @@
 						ops: [
 							{
 								data: {
-									amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
+									amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
 									asset: toCoin!.coin.unit.toLowerCase(),
 									from: auth.value!.username!,
 									to: toUsername,
@@ -371,7 +371,7 @@
 				ops: [
 					{
 						data: {
-							amount: (new CoinAmount(toAmount, toCoin!.coin)).toAmountString(),
+							amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
 							asset: toCoin!.coin.unit.toLowerCase(),
 							from: `v4vapp`,
 							to: toUsername,

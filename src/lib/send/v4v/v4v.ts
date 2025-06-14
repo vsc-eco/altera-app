@@ -30,7 +30,7 @@ export const createLightningInvoice = async (
 	const url = new URL(`${V4VAPP_API}/v1/new_invoice_hive`);
 	let message = new URLSearchParams(`to=${auth.value.address}`);
 	if (altera_id) {
-		message.append("altera_id", altera_id);
+		message.append('altera_id', altera_id);
 	}
 	const searchParams = {
 		hive_accname: mainnet_account,

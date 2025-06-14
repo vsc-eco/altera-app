@@ -29,18 +29,23 @@
 	$effect(() => {
 		nodeRunnerAccount = username;
 	});
-	const sendTransaction = async (amount: string, nodeRunnerAccount: string): Promise<OperationResult> => {
-		if (!username || !auth.value?.aioha) return {
-			success: false,
-			error: 'Error: not authenticated.',
-			errorCode: 1,
-		};
+	const sendTransaction = async (
+		amount: string,
+		nodeRunnerAccount: string
+	): Promise<OperationResult> => {
+		if (!username || !auth.value?.aioha)
+			return {
+				success: false,
+				error: 'Error: not authenticated.',
+				errorCode: 1
+			};
 		status = 'Awaiting transaction approval…';
-		if (Number(amount) == 0) return {
-			success: false,
-			error: 'Error: cannot stake 0 HIVE.',
-			errorCode: 1,
-		};
+		if (Number(amount) == 0)
+			return {
+				success: false,
+				error: 'Error: cannot stake 0 HIVE.',
+				errorCode: 1
+			};
 		const res = await consensusTx(
 			amount,
 			nodeRunnerAccount,
@@ -52,7 +57,7 @@
 			const ops: PendingTx['ops'] = [
 				{
 					data: {
-						amount: (new CoinAmount(amount, Coin.hive)).toAmountString(),
+						amount: new CoinAmount(amount, Coin.hive).toAmountString(),
 						asset: Coin.hive.unit.toLowerCase(),
 						from: username,
 						to: nodeRunnerAccount,
@@ -65,7 +70,7 @@
 			if (shouldDeposit) {
 				ops.push({
 					data: {
-						amount: (new CoinAmount(amount, Coin.hive)).toAmountString(),
+						amount: new CoinAmount(amount, Coin.hive).toAmountString(),
 						asset: Coin.hive.unit.toLowerCase(),
 						from: username,
 						to: nodeRunnerAccount,

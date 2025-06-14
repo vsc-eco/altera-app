@@ -46,6 +46,7 @@ type BalanceRecord {
   hbd_savings: Int64!
   hive: Int64!
   hive_consensus: Int64!
+  pending_hbd_unstaking: Int64
 }
 
 type Contract {
@@ -67,17 +68,26 @@ type ContractDiff {
 }
 
 type ContractOutput {
-  anchored_block: String
-  anchored_height: Int
-  anchored_id: String
-  anchored_index: Int
-  contract_id: String
-  gas: Gas
+  block_height: Int64!
+  contract_id: String!
   id: String!
   inputs: [String!]!
-  results: [JSON]!
-  side_effects: JSON
-  state_merkle: String
+  results: [ContractOutputResult!]!
+  state_merkle: String!
+  timestamp: String!
+}
+
+input ContractOutputFilter {
+  byContract: String
+  byId: String
+  byInput: String
+  limit: Int
+  offset: Int
+}
+
+type ContractOutputResult {
+  ok: Boolean!
+  ret: String!
 }
 
 type ContractState {
@@ -114,17 +124,6 @@ input FindContractFilter {
   byId: String
   limit: Int
   offset: Int
-}
-
-input FindContractOutputFilter {
-  byContract: String
-  byInput: String
-  byOutput: String
-  limit: Int
-}
-
-type FindContractOutputResult {
-  outputs: [ContractOutput]
 }
 
 type Gas {
@@ -217,7 +216,7 @@ type Query {
   contractStateDiff(id: String): ContractDiff
   electionByBlockHeight(blockHeight: Uint64): ElectionResult!
   findContract(filterOptions: FindContractFilter): [Contract!]
-  findContractOutput(decodedFilter: JSON, filterOptions: FindContractOutputFilter): FindContractOutputResult
+  findContractOutput(filterOptions: ContractOutputFilter): [ContractOutput!]
   findLedgerActions(filterOptions: LedgerActionsFilter): [ActionRecord!]
   findLedgerTXs(filterOptions: LedgerTxFilter): [LedgerRecord!]
   findTransaction(filterOptions: TransactionFilter): [TransactionRecord!]
@@ -238,13 +237,6 @@ type RcRecord {
   account: String!
   amount: Int64!
   block_height: Uint64!
-}
-
-type TransactionData {
-  action: String
-  contract_id: String
-  op: String!
-  payload: JSON
 }
 
 input TransactionFilter {
@@ -268,8 +260,8 @@ type TransactionOperation {
 }
 
 type TransactionOutput {
-  id: String
-  index: Int
+  id: String!
+  index: Int64!
 }
 
 type TransactionRecord {
@@ -283,6 +275,7 @@ type TransactionRecord {
   nonce: Uint64!
   op_types: [String!]
   ops: [TransactionOperation]
+  output: TransactionOutput
   rc_limit: Uint64!
   required_auths: [String!]
   status: String!

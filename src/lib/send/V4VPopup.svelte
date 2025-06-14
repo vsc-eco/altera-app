@@ -2,6 +2,7 @@
 	import type { Auth } from '$lib/auth/store';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import QR from '$lib/zag/QR.svelte';
+	import { uuid } from 'uuidv4';
 	import type { CoinOnNetwork } from './sendOptions';
 	import { satsToBtc } from './units';
 	import { checkLightningSuccess, createLightningInvoice } from './v4v/v4v';
@@ -19,8 +20,9 @@
 		toUsername: string;
 		auth: Auth;
 		onerror?: (error: string) => void;
-		onsuccess?: () => void;
+		onsuccess?: (id: string) => void;
 	} = $props();
+	const altera_id = uuid();
 	let invoiceReq = $derived(
 		createLightningInvoice(
 			toAmount,
@@ -28,7 +30,8 @@
 			to.coin.label as 'hive' | 'hbd',
 			to.network,
 			auth,
-			toUsername
+			toUsername,
+			altera_id
 		)
 	);
 	let invoice:
@@ -67,7 +70,7 @@
 		});
 		validateReq.then((res) => {
 			if (res != undefined) validateRes = res;
-			if (validateRes == 'success' && onsuccess) onsuccess();
+			if (validateRes == 'success' && onsuccess) onsuccess(altera_id);
 			if (validateRes != 'success' && onerror) onerror(res!);
 		});
 		return () => lightningAbort.abort('Lightning dialog closed.');

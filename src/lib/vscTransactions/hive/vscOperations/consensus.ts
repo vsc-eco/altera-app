@@ -9,16 +9,16 @@ import { CoinAmount } from '$lib/currency/CoinAmount';
  * @returns
  */
 type stakeOrUnstakeOp = {
-	from: string,
-	to: string,
-	amount: string,
-	asset: string,
-	net_id: string,
-}
+	from: string;
+	to: string;
+	amount: string;
+	asset: string;
+	net_id: string;
+};
 export function getHiveConsensusStakeOp(
 	username: string,
 	nodeRunnerAccount: string,
-	hiveAmount: CoinAmount<typeof Coin.hive>,
+	hiveAmount: CoinAmount<typeof Coin.hive>
 ): CustomJsonOperation {
 	const jsonOutput: stakeOrUnstakeOp = {
 		from: `hive:${username}`,
@@ -26,7 +26,7 @@ export function getHiveConsensusStakeOp(
 		asset: 'hive',
 		net_id: 'vsc-mainnet',
 		amount: hiveAmount.toPrettyAmountString()
-	}
+	};
 
 	return [
 		'custom_json',
@@ -34,7 +34,7 @@ export function getHiveConsensusStakeOp(
 			required_auths: [username],
 			required_posting_auths: [],
 			id: 'vsc.consensus_stake',
-			json: JSON.stringify(jsonOutput),
+			json: JSON.stringify(jsonOutput)
 		}
 	];
 }
@@ -42,7 +42,7 @@ export function getHiveConsensusStakeOp(
 export function getHiveConsensusUnstakeOp(
 	username: string,
 	nodeRunnerAccount: string,
-	hiveAmount: CoinAmount<typeof Coin.hive>,
+	hiveAmount: CoinAmount<typeof Coin.hive>
 ): CustomJsonOperation {
 	const jsonOutput: stakeOrUnstakeOp = {
 		from: `hive:${username}`,
@@ -50,7 +50,7 @@ export function getHiveConsensusUnstakeOp(
 		asset: 'hive',
 		net_id: 'vsc-mainnet',
 		amount: hiveAmount.toPrettyAmountString()
-	}
+	};
 
 	return [
 		'custom_json',
@@ -58,7 +58,7 @@ export function getHiveConsensusUnstakeOp(
 			required_auths: [username],
 			required_posting_auths: [],
 			id: 'vsc.consensus_unstake',
-			json: JSON.stringify(jsonOutput),
+			json: JSON.stringify(jsonOutput)
 		}
 	];
 }

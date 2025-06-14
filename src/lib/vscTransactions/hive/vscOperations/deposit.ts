@@ -12,7 +12,7 @@ export function getHiveDepositOp(
 	from: string,
 	toDid: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
-	memo?: URLSearchParams,
+	memo?: URLSearchParams
 ): TransferOperation {
 	const defaultMemo = new URLSearchParams(`to=${toDid.split(':').at(-1)}`);
 	return [

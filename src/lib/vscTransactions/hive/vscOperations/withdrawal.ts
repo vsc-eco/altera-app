@@ -9,18 +9,18 @@ import { CoinAmount } from '$lib/currency/CoinAmount';
  * @returns
  */
 type withdrawOp = {
-	from: string,
-	to: string,
-	amount: string,
-	asset: string,
-	net_id: string,
-	memo?: string,
-}
+	from: string;
+	to: string;
+	amount: string;
+	asset: string;
+	net_id: string;
+	memo?: string;
+};
 export function getHiveWithdrawalOp(
 	from: string,
 	toDid: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
-	memo?: URLSearchParams,
+	memo?: URLSearchParams
 ): CustomJsonOperation {
 	const jsonOutput: withdrawOp = {
 		from: `hive:${from}`,
@@ -28,7 +28,7 @@ export function getHiveWithdrawalOp(
 		asset: amount.coin.unit.toLowerCase(),
 		net_id: 'vsc-mainnet',
 		amount: amount.toPrettyAmountString()
-	}
+	};
 	if (memo) {
 		jsonOutput.memo = memo.toString();
 	}

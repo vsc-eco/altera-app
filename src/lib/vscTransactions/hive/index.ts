@@ -21,7 +21,6 @@ export const consensusTx = async (
 	username: string,
 	shouldDeposit: boolean,
 	aioha: Aioha,
-	memo?: string,
 ): Promise<OperationResult> => {
 	if (Number(amount) == 0) return {
 		success: false,
@@ -32,9 +31,8 @@ export const consensusTx = async (
 		username,
 		nodeRunnerAccount,
 		new CoinAmount(amount, Coin.hive),
-		memo
 	);
-	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hive), memo);
+	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hive));
 	let ops: Operation[] = [];
 	if (shouldDeposit) ops.push(depositOp);
 	ops.push(stakeOp);
@@ -48,7 +46,6 @@ export const consensusUnstakeTx = async (
 	nodeRunnerAccount: string,
 	username: string,
 	aioha: Aioha,
-	memo?: string,
 ): Promise<OperationResult> => {
 	if (Number(amount) == 0) return {
 		success: false,
@@ -59,7 +56,6 @@ export const consensusUnstakeTx = async (
 		username,
 		nodeRunnerAccount,
 		new CoinAmount(amount, Coin.hive),
-		memo
 	);
 	let ops: Operation[] = [];
 	ops.push(unstakeOp);
@@ -94,7 +90,7 @@ export const getSendOpGenerator = (
 	from: string,
 	toDid: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
-	memo?: string,
+	memo?: URLSearchParams,
 ) => Operation) => {
 	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
 		return getHiveTransferOp;

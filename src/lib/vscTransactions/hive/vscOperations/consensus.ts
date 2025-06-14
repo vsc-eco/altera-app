@@ -8,21 +8,24 @@ import { CoinAmount } from '$lib/currency/CoinAmount';
  * @param amount A coin amount
  * @returns
  */
+type stakeOrUnstakeOp = {
+	from: string,
+	to: string,
+	amount: string,
+	asset: string,
+	net_id: string,
+}
 export function getHiveConsensusStakeOp(
 	username: string,
 	nodeRunnerAccount: string,
 	hiveAmount: CoinAmount<typeof Coin.hive>,
-	memo?: string,
 ): CustomJsonOperation {
-	const jsonOutput: Record<string, string> = {
+	const jsonOutput: stakeOrUnstakeOp = {
 		from: `hive:${username}`,
 		to: `hive:${nodeRunnerAccount}`,
 		asset: 'hive',
 		net_id: 'vsc-mainnet',
 		amount: hiveAmount.toPrettyAmountString()
-	}
-	if (memo) {
-		jsonOutput.memo = memo;
 	}
 
 	return [
@@ -40,17 +43,13 @@ export function getHiveConsensusUnstakeOp(
 	username: string,
 	nodeRunnerAccount: string,
 	hiveAmount: CoinAmount<typeof Coin.hive>,
-	memo?: string,
 ): CustomJsonOperation {
-	const jsonOutput: Record<string, string> = {
+	const jsonOutput: stakeOrUnstakeOp = {
 		from: `hive:${username}`,
 		to: `hive:${nodeRunnerAccount}`,
 		asset: 'hive',
 		net_id: 'vsc-mainnet',
 		amount: hiveAmount.toPrettyAmountString()
-	}
-	if (memo) {
-		jsonOutput.memo = memo;
 	}
 
 	return [

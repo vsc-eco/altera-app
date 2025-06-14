@@ -12,16 +12,16 @@ export function getHiveDepositOp(
 	from: string,
 	toDid: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
-	memo?: string,
+	memo?: URLSearchParams,
 ): TransferOperation {
-	const defaultMemo = `to=${toDid.split(':').at(-1)}`;
+	const defaultMemo = new URLSearchParams(`to=${toDid.split(':').at(-1)}`);
 	return [
 		'transfer',
 		{
 			from,
 			to: 'vsc.gateway',
 			amount: amount.toPrettyString(),
-			memo: memo ? `${defaultMemo}&${memo}` : defaultMemo,
+			memo: (memo ? new URLSearchParams([...defaultMemo, ...memo]) : defaultMemo).toString()
 		}
 	];
 }

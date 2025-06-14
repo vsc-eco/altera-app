@@ -18,6 +18,7 @@
 	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
 	import { uuid } from 'uuidv4';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { type OperationError, type OperationResult } from '@aioha/aioha/build/types';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
@@ -28,10 +29,18 @@
 	$effect(() => {
 		nodeRunnerAccount = username;
 	});
-	const sendTransaction = async (amount: string, nodeRunnerAccount: string) => {
-		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
+	const sendTransaction = async (amount: string, nodeRunnerAccount: string): Promise<OperationResult> => {
+		if (!username || !auth.value?.aioha) return {
+			success: false,
+			error: 'Error: not authenticated.',
+			errorCode: 1,
+		};
 		status = 'Awaiting transaction approval…';
-		if (Number(amount) == 0) return 'Error: cannot stake 0 HIVE.';
+		if (Number(amount) == 0) return {
+			success: false,
+			error: 'Error: cannot stake 0 HIVE.',
+			errorCode: 1,
+		};
 		const res = await consensusTx(
 			amount,
 			nodeRunnerAccount,
@@ -73,10 +82,8 @@
 				id: res.result,
 				type: 'hive'
 			});
-			return;
 		}
-		status = '';
-		return res.error;
+		return res;
 	};
 </script>
 
@@ -85,8 +92,7 @@
 		onsubmit={(e) => {
 			e.preventDefault();
 			sendTransaction(amount!, nodeRunnerAccount!).then(async (res) => {
-				error = res ?? '';
-				if (error != '') {
+				if (!res.success) {
 					status = '';
 					return;
 				}

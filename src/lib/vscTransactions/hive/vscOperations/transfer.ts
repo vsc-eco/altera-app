@@ -9,13 +9,21 @@ import { json } from '@sveltejs/kit';
  * @param hiveAmount
  * @returns
  */
+type transferOp = {
+	from: string,
+	to: string,
+	amount: string,
+	asset: string,
+	net_id: string,
+	memo?: string,
+}
 export function getHiveTransferOp(
 	from: string,
 	toDid: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
-	memo?: string,
+	memo?: URLSearchParams,
 ): CustomJsonOperation {
-	const jsonOutput: Record<string, string> = {
+	const jsonOutput: transferOp = {
 		from: `hive:${from}`,
 		to: toDid,
 		asset: amount.coin.unit.toLowerCase(),
@@ -23,7 +31,7 @@ export function getHiveTransferOp(
 		amount: amount.toPrettyAmountString(),
 	}
 	if (memo) {
-		jsonOutput.memo = memo;
+		jsonOutput.memo = memo.toString();
 	}
 
 	return [

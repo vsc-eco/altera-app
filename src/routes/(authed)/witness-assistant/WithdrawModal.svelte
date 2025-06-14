@@ -6,7 +6,7 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
 	import { consensusUnstakeTx } from '$lib/vscTransactions/hive';
-	import { addLocalTransaction } from '$lib/send/localStorageTransactions';
+	import { addLocalTransaction } from '$lib/send/localStorageTxs';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);

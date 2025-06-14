@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { type GetTransactions$result } from '$houdini';
-import { getLocalTransactions, removeLocalTransaction } from '$lib/send/localStorageTransactions';
+import { getLocalTransactions, removeLocalTransaction } from '$lib/send/localStorageTxs';
 
 type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 
@@ -47,18 +47,19 @@ function deduplicate(txs: TransactionInter[]) {
 	// console.log("deduplicate, txs=", txs);
 
 	for (const tx of txs) {
-	  // all pending transactions will have an altera ID
+	  	// all pending transactions will have an altera ID
 		const alteraId = getAlteraID(tx);
 		if (!alteraId) {
 			noAlteraID.push(tx);
 			continue
 		}
-	  // removes pending transactions more than a day old
-	  if (tx.isPending && ((new Date()).getTime() - (new Date(getTimestamp(tx))).getTime() > 24 * 60 * 60 * 1000)) {
+	  	// removes pending transactions more than a day old
+	  	if (tx.isPending && ((new Date()).getTime() - (new Date(getTimestamp(tx))).getTime() > 24 * 60 * 60 * 1000)) {
 			removeLocalTransaction(alteraId);
 			deleted = true;
 			continue;
 		}
+		// removes if there is a tx with the same altera id, or deduplicates based on regular id
 		if (byAlteraID[alteraId] || (tx.isPending && noAlteraID.some(tempTx => tempTx.id === tx.id))) {
 			removeLocalTransaction(alteraId);
 			deleted = true;

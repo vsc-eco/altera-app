@@ -99,6 +99,7 @@
 			sendTransaction(amount!, nodeRunnerAccount!).then(async (res) => {
 				if (!res.success) {
 					status = '';
+					error = res.error;
 					return;
 				}
 				status = 'Transaction broadcasted successfully!';

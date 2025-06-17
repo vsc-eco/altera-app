@@ -6,7 +6,7 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
 	import { consensusUnstakeTx } from '$lib/vscTransactions/hive';
-	import { addLocalTransaction } from '$lib/send/localStorageTxs';
+	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
@@ -18,9 +18,19 @@
 		nodeRunnerAccount = username;
 	});
 	const sendTransaction = async (amount: string, nodeRunnerAccount: string) => {
-		if (!username || !auth.value?.aioha) return 'Error: not authenticated.';
+		if (!username || !auth.value?.aioha) 
+			return {
+				success: false,
+				error: 'Error: not authenticated.',
+				errorCode: 1
+			};
 		status = 'Awaiting transaction approval…';
-		if (Number(amount) == 0) return 'Error: cannot unstake 0 HIVE.';
+		if (Number(amount) == 0) 
+			return {
+				success: false,
+				error: 'Error: cannot stake 0 HIVE.',
+				errorCode: 1
+			};
 		const res = await consensusUnstakeTx(amount, nodeRunnerAccount, username, auth.value.aioha);
 		if (res.success) {
 			addLocalTransaction({
@@ -31,9 +41,9 @@
 							asset: Coin.hive.unit.toLowerCase(),
 							from: username,
 							to: nodeRunnerAccount,
-							type: 'consensus_stake'
+							type: 'consensus_unstake'
 						},
-						type: 'consensus_stake',
+						type: 'consensus_unstake',
 						index: 0
 					}
 				],
@@ -41,10 +51,8 @@
 				id: res.result,
 				type: 'hive'
 			});
-			return;
 		}
-		status = '';
-		return res.error;
+		return res;
 	};
 </script>
 
@@ -53,9 +61,9 @@
 		onsubmit={(e) => {
 			e.preventDefault();
 			sendTransaction(amount!, nodeRunnerAccount!).then(async (res) => {
-				error = res ?? '';
-				if (error != '') {
+				if (!res.success) {
 					status = '';
+					error = res.error;
 					return;
 				}
 				status = 'Transaction broadcasted successfully!';

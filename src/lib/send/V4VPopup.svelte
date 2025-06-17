@@ -22,6 +22,7 @@
 		onerror?: (error: string) => void;
 		onsuccess?: (id: string) => void;
 	} = $props();
+	// TODO: make sure this is in the onClick handler instead
 	const altera_id = uuid();
 	let invoiceReq = $derived(
 		createLightningInvoice(

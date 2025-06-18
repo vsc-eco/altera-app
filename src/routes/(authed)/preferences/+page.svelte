@@ -3,6 +3,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import PillButton from '$lib/PillButton.svelte';
 	import { GQL_URL } from '../../../client';
+	import ToggleTheme from './ToggleTheme.svelte';
 	let vscGqlUrlInput = $state();
 </script>
 
@@ -44,3 +45,5 @@
 		}}>Save</PillButton
 	>
 </form>
+
+<ToggleTheme/>

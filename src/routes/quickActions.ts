@@ -1,13 +1,17 @@
 import type { SharedProps } from '$lib/PillButton.svelte';
 import { ArrowRightLeft, Component, Send } from '@lucide/svelte';
 
-export const actions: {
+export type NavigationAction = {
+	type: 'navigation'
 	label: string;
 	href: string;
 	icon: typeof Component;
 	styling?: SharedProps;
-}[] = [
+}
+
+export const actions: NavigationAction[] = [
 	{
+		type: 'navigation',
 		label: 'Send',
 		href: '/send',
 		icon: Send,
@@ -27,6 +31,7 @@ export const actions: {
 	// 	icon: PiggyBank
 	// },
 	{
+		type: 'navigation',
 		label: 'Swap',
 		href: '/swap',
 		icon: ArrowRightLeft

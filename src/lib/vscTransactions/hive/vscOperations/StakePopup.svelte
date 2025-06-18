@@ -25,9 +25,6 @@
 {/snippet}
 
 <Dialog bind:toggle bind:open={dialogOpen}>
-    <!-- {#snippet title()}
-        <h1>Stake HBD</h1>
-    {/snippet} -->
     {#snippet content()}
         <Tabs items={tabData}/>
     {/snippet}

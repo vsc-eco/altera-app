@@ -14,6 +14,7 @@ import { getHiveTransferOp } from './vscOperations/transfer';
 import { getDepositTransaction } from '../oldVscClient/client';
 import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
+import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 
 export const consensusTx = async (
 	amount: string,
@@ -37,7 +38,6 @@ export const consensusTx = async (
 	if (shouldDeposit) ops.push(depositOp);
 	ops.push(stakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
-	console.log("stake res:", res)
 	return res;
 };
 
@@ -59,6 +59,56 @@ export const consensusUnstakeTx = async (
 	);
 	let ops: Operation[] = [];
 	ops.push(unstakeOp);
+	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
+	return res;
+};
+
+export const hbdStakeTx = async (
+	amount: string,
+	recipient: string,
+	username: string,
+	shouldDeposit: boolean,
+	aioha: Aioha,
+): Promise<OperationResult> => {
+	if (Number(amount) == 0) return {
+		success: false,
+		error: 'Error: cannot stake 0 HBD.',
+		errorCode: 0,
+	};
+	let stakeOp = getHbdStakeOp(
+		username,
+		recipient,
+		new CoinAmount(amount, Coin.hbd),
+	);
+	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hbd));
+	let ops: Operation[] = [];
+	if (shouldDeposit) ops.push(depositOp);
+	ops.push(stakeOp);
+	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
+	return res;
+};
+
+export const hbdUnstakeTx = async (
+	amount: string,
+	recipient: string,
+	username: string,
+	shouldDeposit: boolean,
+	aioha: Aioha,
+): Promise<OperationResult> => {
+	if (Number(amount) == 0) return {
+		success: false,
+		error: 'Error: cannot stake 0 HBD.',
+		errorCode: 0,
+	};
+	let stakeOp = getHbdUnstakeOp(
+		username,
+		recipient,
+		new CoinAmount(amount, Coin.hbd),
+	);
+	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hbd));
+	let ops: Operation[] = [];
+	if (shouldDeposit) ops.push(depositOp);
+	ops.push(stakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
 	return res;
 };

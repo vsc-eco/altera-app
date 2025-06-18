@@ -119,7 +119,7 @@
 				id="stake-amount"
 				label="Deposit and Stake Amount:"
 				coin={Coin.hive}
-				network={Network.hiveMainnet}
+				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
 				bind:originalAmount={amount}
 				required
 			/>

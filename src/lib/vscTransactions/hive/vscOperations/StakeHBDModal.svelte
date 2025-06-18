@@ -107,11 +107,11 @@
 		</p>
         {/if}
 		<p class="error">{error}</p>
-		<Username label="Recipient" id="node-runner" bind:value={recipient} required />
+		<Username label="Recipient" id="hbd-stake-recipient" bind:value={recipient} required />
 		<div class="amount-flex">
 			<Amount
 				selectItems={[Coin.hbd]}
-				id="stake-amount"
+				id="hbd-stake-amount"
 				label="Deposit and Stake Amount:"
 				coin={Coin.hbd}
 				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}

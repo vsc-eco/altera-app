@@ -116,7 +116,7 @@
 		<div class="amount-flex">
 			<Amount
 				selectItems={[Coin.hive]}
-				id="stake-amount"
+				id="consensus-stake-amount"
 				label="Deposit and Stake Amount:"
 				coin={Coin.hive}
 				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}

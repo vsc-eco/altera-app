@@ -6,12 +6,11 @@ type ThemeValue = 'system' | 'light' | 'dark';
 type ThemeInfo = {
 	value: ThemeValue;
 	label: string;
-	icon: any;
 };
 export const THEMES: Record<ThemeValue, ThemeInfo> = {
-	system: { value: 'system', label: 'System Preference', icon: Laptop },
-	light: { value: 'light', label: 'Light', icon: Sun },
-	dark: { value: 'dark', label: 'Dark', icon: Moon }
+	system: { value: 'system', label: 'System Preference' },
+	light: { value: 'light', label: 'Light'},
+	dark: { value: 'dark', label: 'Dark' }
 };
 
 export function getInitialTheme(): ThemeValue {

@@ -14,8 +14,10 @@
 		$api.data?.getAccountBalance ?? {
 			hbd: 0,
 			hbd_savings: 0,
+			pending_hbd_unstaking: 0,
 			hive: 0,
-			hive_consensus: 0
+			hive_consensus: 0,
+			consensus_unstaking: 0,
 		}
 	);
 	$effect(() => {
@@ -46,6 +48,15 @@
 					>{new CoinAmount(balances.hbd_savings, Coin.hbd, true).toPrettyString()}&nbsp;</td
 				>
 			</tr>
+			{#if balances.pending_hbd_unstaking && balances.pending_hbd_unstaking !== 0}
+				<tr>
+					<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
+					<td class="coin-cell">HBD Unstaking</td>
+					<td class="amount-cell"
+						>{new CoinAmount(balances.pending_hbd_unstaking, Coin.hbd, true).toPrettyString()}&nbsp;</td
+					>
+				</tr>
+			{/if}
 			<tr>
 				<td><img src={Coin.hive.icon} alt="" /></td>
 				<td class="coin-cell">Hive</td>
@@ -60,6 +71,15 @@
 					>{new CoinAmount(balances.hive_consensus, Coin.hive, true).toPrettyString()}</td
 				>
 			</tr>
+			{#if balances.consensus_unstaking !== 0}
+				<tr>
+					<th> </th><td><img src={Coin.hive.icon} alt="" /></td>
+					<td class="coin-cell">Hive Unstaking</td>
+					<td class="amount-cell"
+						>{new CoinAmount(balances.consensus_unstaking, Coin.hbd, true).toPrettyString()}&nbsp;</td
+					>
+				</tr>
+			{/if}
 		</tbody>
 	</table>
 </div>

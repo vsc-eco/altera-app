@@ -87,7 +87,7 @@
 				id="unstake-amount"
 				label="Unstake Amount:"
 				coin={Coin.hive}
-				network={Network.hiveMainnet}
+				network={Network.vsc}
 				bind:originalAmount={amount}
 				required
 			/>

@@ -8,7 +8,7 @@
 	import Card from '$lib/cards/Card.svelte';
 	type Props = {
 		content: Snippet;
-		title: Snippet;
+		title?: Snippet;
 		children?: Snippet;
 		description?: Snippet;
 		toggle?: (open?: boolean) => void;
@@ -48,14 +48,19 @@
 	<div use:portal {...api.getPositionerProps()}>
 		<div {...api.getContentProps()}>
 			<Card>
-				<PillButton
-					{...api.getCloseTriggerProps()}
-					onclick={api.getTriggerProps().onclick!}
-					styleType="icon-outline"
-				>
-					<X></X>
-				</PillButton>
-				<h2 {...api.getTitleProps()}>{@render title()}</h2>
+				<div class="title-and-close" class:no-title={!title}>
+					{#if title}
+						<h2 {...api.getTitleProps()}>{@render title()}</h2>
+					{/if}
+					<PillButton
+						{...api.getCloseTriggerProps()}
+						onclick={api.getTriggerProps().onclick!}
+						styleType="icon-outline"
+					>
+						<X/>
+					</PillButton>
+				</div>
+				
 				{#if description}
 					<div {...api.getDescriptionProps()}>
 						{@render description()}
@@ -67,7 +72,7 @@
 	</div>
 {/if}
 
-<style>
+<style lang="scss">
 	[data-part='backdrop'] {
 		background-color: rgb(0, 0, 0, 0.2);
 		position: fixed;
@@ -112,6 +117,7 @@
 	[data-part='title'] {
 		font-size: var(--text-3xl);
 		margin: 0;
+		margin-top: auto;
 		/* styles for the title element */
 	}
 
@@ -122,5 +128,13 @@
 		display: flex;
 		overflow: hidden;
 		/* styles for the close trigger element */
+	}
+
+	.title-and-close {
+		display: flex;
+	}
+
+	.title-and-close.no-title {
+		height: 0.5em;
 	}
 </style>

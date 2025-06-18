@@ -127,7 +127,7 @@
 				items={selectItems}
 				initial={originalCoin.label}
 				onValueChange={(v) => {
-					console.log(v);
+					// console.log(v);
 
 					if (v.items[0] == undefined) return;
 					if (v.items[0].value == Coin.unk.value) return;

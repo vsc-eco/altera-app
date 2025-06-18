@@ -27,13 +27,26 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.colors('teal', primary, color-mixins.$color-light-shade-names);
 	@include color-mixins.colors('gray', neutral, color-mixins.$color-light-shade-names);
 }
+/* uses system preference if not user specified */
 @media (prefers-color-scheme: dark) {
-	:root {
+	:root:not(.light-theme):not(.dark-theme) {
 		@include color-mixins.colors('salmon', secondary, color-mixins.$color-dark-shade-names);
 		@include color-mixins.colors('teal', primary, color-mixins.$color-dark-shade-names);
 		@include color-mixins.colors('gray', neutral, color-mixins.$color-dark-shade-names);
 	}
 }
+/* if user specifies */
+:root.light-theme {
+    @include color-mixins.colors('salmon', secondary, color-mixins.$color-light-shade-names);
+    @include color-mixins.colors('teal', primary, color-mixins.$color-light-shade-names);
+    @include color-mixins.colors('gray', neutral, color-mixins.$color-light-shade-names);
+}
+:root.dark-theme {
+    @include color-mixins.colors('salmon', secondary, color-mixins.$color-dark-shade-names);
+    @include color-mixins.colors('teal', primary, color-mixins.$color-dark-shade-names);
+    @include color-mixins.colors('gray', neutral, color-mixins.$color-dark-shade-names);
+}
+
 .primary {
 	@include color-mixins.shade-class('primary');
 }

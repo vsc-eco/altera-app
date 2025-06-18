@@ -2,6 +2,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import Balance from '$lib/cards/Balance/Balance.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
+	import TopHomeMenu from './TopHomeMenu.svelte';
 	import { actions } from '../quickActions';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import StakeUnstakeTabsModal from './witness-assistant/StakeUnstakeTabsModal.svelte';
@@ -25,15 +26,7 @@
 	</span>
 </h1>
 
-<div class="action-bar">
-	{#each actions as action}
-		<PillBtn {...'styling' in action ? action.styling : {}} href={action.href}>
-			{@const Icon = action.icon}
-			<Icon />
-			{action.label}
-		</PillBtn>
-	{/each}
-</div>
+<TopHomeMenu {auth}/>
 <div class="masonry">
 	<Balance></Balance>
 	{#if auth.value}
@@ -77,24 +70,6 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
-	}
-	.action-bar {
-		max-width: 100%;
-		overflow-x: auto;
-		overflow-y: hidden;
-		height: 3.5rem;
-		white-space: nowrap;
-		position: relative;
-	}
-	.action-bar::after {
-		content: '';
-		position: sticky;
-		display: block;
-		left: calc(100% - 32px);
-		bottom: 0;
-		width: 32px;
-		height: 3rem;
-		background: linear-gradient(90deg, transparent, var(--neutral-bg));
 	}
 	.name {
 		width: 100%;

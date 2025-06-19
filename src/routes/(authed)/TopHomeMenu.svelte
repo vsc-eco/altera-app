@@ -2,7 +2,7 @@
     import type { SharedProps } from '$lib/PillButton.svelte';
     import PillBtn from '$lib/PillButton.svelte';
     import StakePopup from '$lib/vscTransactions/hive/vscOperations/StakePopup.svelte';
-    import { Component, PiggyBank } from '@lucide/svelte';
+    import { Component, LockKeyhole } from '@lucide/svelte';
     import { actions, type NavigationAction } from "../quickActions";
     import type { Auth } from '$lib/auth/store';
     let { auth } : {auth: Auth} = $props();
@@ -26,7 +26,7 @@
             type: 'popup',
             label: 'Staking',
             onclick: openPopup,
-            icon: PiggyBank
+            icon: LockKeyhole
         }
     ];
 </script>

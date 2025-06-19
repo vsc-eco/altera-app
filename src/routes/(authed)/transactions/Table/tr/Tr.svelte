@@ -19,6 +19,7 @@
 	import { checkOpStatus } from './checkStatus';
 	import { type TransactionInter, toTransactionInter, vscTxsStore } from '../../txStores';
 	import moment from 'moment';
+	import SidePopup from '$lib/sidePopup/SidePopup.svelte';
 
 	type Props = {
 		tx: TransactionInter;
@@ -60,6 +61,7 @@
 		}
 	});
 	$inspect(status);
+	let detailsOpen = $state(false);
 
 	console.log("statusquery - tx", tx);
 	console.log("statusquery - condition", (!tx.isPending && !['CONFIRMED', 'FAILED'].includes(tx.status)));
@@ -81,7 +83,6 @@
 
 	// console.log("isPending, memo", tx.isPending, memo);
 
-	
 	const otherAccount = $derived(
 		to == from
 			? t.includes('unstake')
@@ -101,6 +102,7 @@
 			inUsd = amount.toAmountString();
 		});
 	});
+	let toggle: (open?: boolean) => void = $state(() => {});
 </script>
 
 <tr
@@ -120,7 +122,68 @@
 	<Token {amount} />
 	<Type isIncoming={!amount.isNegative()} {t} />
 </tr>
-{#if api.open}
+
+<SidePopup bind:toggle bind:open={detailsOpen} defaultOpen={false}>
+	{#snippet content()}
+		<Card>
+			<PillButton
+				{...api.getCloseTriggerProps()}
+				onclick={api.getTriggerProps().onclick!}
+				styleType="icon-outline"
+			>
+				<X/>
+			</PillButton>
+			<h2 {...api.getTitleProps()}>
+				{t
+					.replace('_', ' ')
+					.replace(
+						/\w\S*/g,
+						(text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
+					)}
+			</h2>
+			<div class="amount">
+				{amount.toPrettyString()}
+				<span class="approx-usd">
+					Approx. ${inUsd} USD
+				</span>
+			</div>
+
+			<StatusView {anchor_ts} memo={memo || undefined} {from} {to} {status} {block_height} />
+			<div class="sections">
+				{#if memo}
+					<div class="memo section">
+						<h3>Memo</h3>
+						<p>{memo}</p>
+					</div>
+				{/if}
+				<div class="tx-id section">
+					<h3>Transaction Id</h3>
+					<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == "UNK"}/>
+				</div>
+				<div class="links section">
+					<h3>External Links</h3>
+					<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
+						<a
+							href={'https://vsc.techcoderx.com/tx/' + tx.id}
+							target="_blank"
+							rel="noreferrer"
+						>
+							VSC Block Explorer<ExternalLink /></a
+						>
+						<a
+							href={'https://www.hiveblockexplorer.com/tx/' + tx.id}
+							target="_blank"
+							rel="noreferrer"
+						>
+							Hive Block Explorer<ExternalLink /></a
+						>
+					</div>
+				</div>
+			</div>
+		</Card>
+	{/snippet}
+</SidePopup>
+<!-- {#if api.open}
 	<div use:portal {...api.getBackdropProps()}></div>
 	<div use:portal {...api.getPositionerProps()}>
 		<div {...api.getContentProps()}>
@@ -182,7 +245,7 @@
 			</Card>
 		</div>
 	</div>
-{/if}
+{/if} -->
 
 <style>
 	tr:hover,

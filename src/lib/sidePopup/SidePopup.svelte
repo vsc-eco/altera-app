@@ -31,11 +31,6 @@
 		height = 'auto'
 	}: Props = $props();
 
-	// Set up the toggle function
-	toggle = (newOpen?: boolean) => {
-		open = newOpen ?? !open;
-	};
-
 	// Handle escape key
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && open) {

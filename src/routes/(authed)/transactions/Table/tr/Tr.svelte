@@ -103,21 +103,27 @@
 		});
 	});
 	let toggle: (open?: boolean) => void = $state(() => {});
+	function handleTrigger() {
+		detailsOpen = true;
+		// toggle?.(true);
+	}
+	
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === ' ' || e.key === 'Enter') {
+			handleTrigger();
+			e.preventDefault();
+		}
+	}
 </script>
 
 <tr
-	{...api.getTriggerProps() as object}
 	tabindex="0"
-	onkeydown={(e) => {
-		if (e.key == ' ' || e.key == 'Enter') {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			api.getTriggerProps().onclick!(e as any);
-			e.preventDefault();
-		}
-	}}
+	onclick={handleTrigger}
+	onkeydown={handleKeydown}
+	class="clickable-row"
 >
 	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
-	<ToFrom {otherAccount} memo={memo ? memo.replace(/&?altera_id=[a-z0-9-]+/, '') : undefined} {status} />
+	<ToFrom {otherAccount} memo={memo ? memo.replace(/&?altera_id=[a-z0-]+/, '') : undefined} {status} />
 	<Amount {amount} />
 	<Token {amount} />
 	<Type isIncoming={!amount.isNegative()} {t} />
@@ -126,13 +132,6 @@
 <SidePopup bind:toggle bind:open={detailsOpen} defaultOpen={false}>
 	{#snippet content()}
 		<Card>
-			<PillButton
-				{...api.getCloseTriggerProps()}
-				onclick={api.getTriggerProps().onclick!}
-				styleType="icon-outline"
-			>
-				<X/>
-			</PillButton>
 			<h2 {...api.getTitleProps()}>
 				{t
 					.replace('_', ' ')

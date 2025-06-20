@@ -5,18 +5,8 @@
 	import Amount from '$lib/currency/AmountInput.svelte';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
-	import {
-		createClient,
-		getDepositTransaction,
-		signAndBrodcastTransactionToHive
-	} from '$lib/vscTransactions/oldVscClient/client';
-	import { aiohaSigner } from '$lib/vscTransactions/oldVscClient/hive/aioha';
-	import { KeyTypes } from '@aioha/aioha';
-	import { Asset, type CustomJsonOperation, type TransferOperation } from '@hiveio/dhive';
-	import Card from '$lib/cards/Card.svelte';
 	import { consensusTx } from '$lib/vscTransactions/hive';
 	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
-	import { uuid } from 'uuidv4';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type OperationError, type OperationResult } from '@aioha/aioha/build/types';
 	let auth = $derived(getAuth()());

@@ -9,17 +9,17 @@ type ThemeInfo = {
 };
 export const THEMES: Record<ThemeValue, ThemeInfo> = {
 	system: { value: 'system', label: 'System Preference' },
-	light: { value: 'light', label: 'Light'},
+	light: { value: 'light', label: 'Light' },
 	dark: { value: 'dark', label: 'Dark' }
 };
 
 export function getInitialTheme(): ThemeValue {
 	if (!browser) return 'system';
-    const fromStorage = localStorage.getItem('theme');
-    if (fromStorage && fromStorage in THEMES) {
-        return fromStorage as ThemeValue;
-    }
-    return "system";
+	const fromStorage = localStorage.getItem('theme');
+	if (fromStorage && fromStorage in THEMES) {
+		return fromStorage as ThemeValue;
+	}
+	return 'system';
 }
 
 export const theme = writable<ThemeInfo>(THEMES[getInitialTheme()]);

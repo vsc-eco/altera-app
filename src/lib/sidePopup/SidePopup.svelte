@@ -209,7 +209,7 @@
 	}
 
 	/* Responsive adjustments */
-	@media (max-width: 768px) {
+	@media screen and (max-width: 630px) {
 		.popup-container {
 			width: 100% !important;
 			max-width: 100% !important;

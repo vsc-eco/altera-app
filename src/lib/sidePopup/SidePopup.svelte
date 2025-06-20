@@ -1,9 +1,8 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
 	import { X } from '@lucide/svelte';
-	import { type Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import Card from '$lib/cards/Card.svelte';
 
 	type Props = {
 		content: Snippet;
@@ -30,6 +29,20 @@
 		width = '400px',
 		height = 'auto'
 	}: Props = $props();
+
+	let remValue = $state(0);
+	onMount(() => {
+		const rootStyle = getComputedStyle(document.documentElement);
+		remValue = parseFloat(rootStyle.fontSize);
+	});
+
+	let scrollY = $state(0);
+	let windowWidth = $state(0);
+	const visibleHeaderHeight = $derived(Math.max(0, 50 - scrollY));
+	// width of popup * 2 + 64rem (max content width) + width of left side panel
+	// if windowWidth is greater than this the popup fits to the right of header
+	const mustAvoidHeader = $derived(windowWidth < 400 * 2 + 64 * remValue + 205);
+	// console.log("mustAvoidHeader")
 
 	// Handle escape key
 	function handleKeydown(event: KeyboardEvent) {
@@ -58,7 +71,7 @@
 	function getPositionStyles() {
 		const baseStyles = {
 			position: 'fixed',
-			zIndex: 1000,
+			zIndex: 12,
 			width: position === 'left' || position === 'right' ? width : '100%',
 			height: position === 'top' || position === 'bottom' ? height : '100%',
 			maxHeight: '100vh',
@@ -67,9 +80,19 @@
 
 		switch (position) {
 			case 'left':
-				return { ...baseStyles, left: '0', top: '0', height: '100%' };
+				return {
+					...baseStyles,
+					left: '0',
+					top: mustAvoidHeader ? `${visibleHeaderHeight}px` : '0',
+					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px)` : '100%'
+				};
 			case 'right':
-				return { ...baseStyles, right: '0', top: '0', height: '100%' };
+				return {
+					...baseStyles,
+					right: '0',
+					top: mustAvoidHeader ? `${visibleHeaderHeight}px` : '0',
+					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px)` : '100%'
+				};
 			case 'top':
 				return { ...baseStyles, top: '0', left: '0', width: '100%' };
 			case 'bottom':
@@ -80,7 +103,15 @@
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window
+	on:keydown={handleKeydown}
+	bind:scrollY
+	bind:innerWidth={windowWidth}
+	on:resize={() => {
+		const rootStyle = getComputedStyle(document.documentElement);
+		remValue = parseFloat(rootStyle.fontSize);
+	}}
+/>
 
 {#if children}
 	<PillButton onclick={() => (open = true)} styleType="outline">
@@ -99,16 +130,16 @@
 		aria-modal="false"
 		tabindex="-1"
 	>
-		<Card>
+		<div class="background">
+			<div class="close-button">
+				<PillButton onclick={() => (open = false)} styleType="icon-outline">
+					<X />
+				</PillButton>
+			</div>
 			<div class="popup-content">
-				<div class="title-and-close" class:no-title={!title}>
-					{#if title}
-						<h2 class="popup-title">{@render title()}</h2>
-					{/if}
-					<PillButton onclick={() => (open = false)} styleType="icon-outline">
-						<X />
-					</PillButton>
-				</div>
+				{#if title}
+					<h2 class="popup-title">{@render title()}</h2>
+				{/if}
 
 				{#if description}
 					<div class="popup-description">
@@ -120,7 +151,7 @@
 					{@render content()}
 				</div>
 			</div>
-		</Card>
+		</div>
 	</div>
 {/if}
 
@@ -128,17 +159,33 @@
 	.popup-container {
 		/* Allows clicks to pass through to background */
 		pointer-events: auto;
-		
+
 		/* Smooth scrolling */
 		scroll-behavior: smooth;
-		
+
 		/* Ensure proper stacking */
 		isolation: isolate;
 	}
 
+	.background {
+		background-color: var(--neutral-off-bg);
+		border: 1px solid var(--neutral-bg-accent);
+		border-radius: 0.5rem;
+		padding: 0.5rem;
+		overflow: auto;
+		height: calc(100% - 1.1rem);
+		position: relative;
+	}
+
+	.close-button {
+		position: absolute;
+		top: 0.75rem;
+		right: 0.75rem;
+		height: fit-content;
+	}
+
 	.popup-content {
 		padding: 1rem;
-		height: 100%;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
@@ -148,19 +195,6 @@
 		font-size: var(--text-3xl);
 		margin: 0;
 		font-weight: 600;
-	}
-
-	.title-and-close {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		flex-shrink: 0;
-	}
-
-	.title-and-close.no-title {
-		justify-content: flex-end;
-		min-height: 2rem;
 	}
 
 	.popup-description {

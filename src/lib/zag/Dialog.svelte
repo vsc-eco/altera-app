@@ -135,6 +135,6 @@
 	}
 
 	.title-and-close.no-title {
-		height: 0.5em;
+		height: 0.5rem;
 	}
 </style>

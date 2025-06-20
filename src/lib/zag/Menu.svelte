@@ -35,6 +35,6 @@
 
 <style>
 	[data-part='positioner'] {
-		z-index: 2 !important;
+		z-index: 12 !important;
 	}
 </style>

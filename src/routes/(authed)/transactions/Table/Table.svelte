@@ -2,7 +2,12 @@
 	import { GetTransactionsStore } from '$houdini';
 	import Tr from './tr/Tr.svelte';
 	import { untrack } from 'svelte';
-	import { allTransactionsStore, vscTxsStore, toTransactionInter, updateTxsFromLocalStorage } from '../txStores';
+	import {
+		allTransactionsStore,
+		vscTxsStore,
+		toTransactionInter,
+		updateTxsFromLocalStorage
+	} from '../txStores';
 	let {
 		did
 	}: {
@@ -22,9 +27,10 @@
 				loading = false;
 				if (!posts.data?.findTransaction) return;
 				// set the store since this is a complete fetch
-				console.log("setting txs to: ", toTransactionInter(posts.data?.findTransaction));
+				console.log('setting txs to: ', toTransactionInter(posts.data?.findTransaction));
 				vscTxsStore.set(toTransactionInter(posts.data?.findTransaction));
-			}).catch((e) => {
+			})
+			.catch((e) => {
 				if (e.name !== 'AbortError') {
 					console.error(e);
 				}
@@ -49,23 +55,25 @@
 				.then((post) => {
 					loading = false;
 					if (!post.data?.findTransaction) return;
-					if ($vscTxsStore.length > 0 && post.data?.findTransaction[0].id == $vscTxsStore[0].id) return; // nothing to update
+					if ($vscTxsStore.length > 0 && post.data?.findTransaction[0].id == $vscTxsStore[0].id)
+						return; // nothing to update
 
 					vscTxsStore.update((currentTxs) => {
-						const fetchedTxs = toTransactionInter(post.data!.findTransaction!);							
-						const prevUpdate = fetchedTxs.findIndex(v => v.id === currentTxs[0]?.id);
-						
+						const fetchedTxs = toTransactionInter(post.data!.findTransaction!);
+						const prevUpdate = fetchedTxs.findIndex((v) => v.id === currentTxs[0]?.id);
+
 						if (prevUpdate === -1) {
 							// Too many new transactions, replace entirely
 							fetchFromStore();
 							return currentTxs;
 						}
-						
+
 						// Prepend only new transactions
-						console.log("backend txs:", [...fetchedTxs.slice(0, prevUpdate), ...currentTxs])
+						console.log('backend txs:', [...fetchedTxs.slice(0, prevUpdate), ...currentTxs]);
 						return [...fetchedTxs.slice(0, prevUpdate), ...currentTxs];
 					});
-				}).catch((e) => {
+				})
+				.catch((e) => {
 					if (e.name !== 'AbortError') {
 						console.error(e);
 					}
@@ -75,6 +83,10 @@
 		return () => clearInterval(intervalId);
 	});
 	let currStoreLen = $derived($allTransactionsStore.length);
+	let openOp: [string, number] | null = $state(null);
+	function openDetails(op: [string, number]) {
+		openOp = op;
+	}
 </script>
 
 <svelte:document
@@ -93,12 +105,15 @@
 				.then((posts) => {
 					loading = false;
 					if (!posts.data?.findTransaction) return;
-					vscTxsStore.update(currentTxs => currentTxs.concat(toTransactionInter(posts.data?.findTransaction!)))
-				}).catch((e) => {
+					vscTxsStore.update((currentTxs) =>
+						currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
+					);
+				})
+				.catch((e) => {
 					if (e.name !== 'AbortError') {
 						console.error(e);
 					}
-				});;
+				});
 		}
 	}}
 />
@@ -119,7 +134,9 @@
 				.then((posts) => {
 					loading = false;
 					if (!posts.data?.findTransaction) return;
-					vscTxsStore.update(currentTxs => currentTxs.concat(toTransactionInter(posts.data?.findTransaction!)))
+					vscTxsStore.update((currentTxs) =>
+						currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
+					);
 				});
 		}
 	}}
@@ -148,12 +165,11 @@
 								<Tr {tx} ledgerIndex={i} />
 							{/each} -->
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-								<Tr {tx} {op} />
+								<Tr {tx} {op} {openOp} onRowClick={openDetails}/>
 							{:else}
-								<tr
-									><td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td
-									></tr
-								>
+								<tr>
+									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
+								</tr>
 							{/if}
 						{/if}
 					{/each}

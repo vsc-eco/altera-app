@@ -6,17 +6,15 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
-	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type OperationResult } from '@aioha/aioha/build/types';
-	let { type }: { type: "stake" | "unstake" } = $props();
+	let { type }: { type: 'stake' | 'unstake' } = $props();
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let recipient: string | undefined = $state();
 	let amount: string | undefined = $state('');
 	let status = $state('');
 	let error = $state('');
-	let shouldDeposit = $state(type === "stake");
+	let shouldDeposit = $state(type === 'stake');
 	$effect(() => {
 		recipient = username;
 	});
@@ -34,11 +32,12 @@
 				error: 'Error: cannot stake 0 HBD.',
 				errorCode: 1
 			};
-		const res = type === "stake"
-            ? await hbdStakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha)
-			: await hbdUnstakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha);
+		const res =
+			type === 'stake'
+				? await hbdStakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha)
+				: await hbdUnstakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha);
 
-        // TODO: implement once backend is fixed
+		// TODO: implement once backend is fixed
 		// if (res.success) {
 		// 	const ops: PendingTx['ops'] = [
 		// 		{
@@ -95,17 +94,17 @@
 			});
 		}}
 	>
-        {#if type==="stake"}
-            <h2>Stake HBD</h2>
-        {:else}
-            <h2>Unstake HBD</h2>
-        {/if}
+		{#if type === 'stake'}
+			<h2>Stake HBD</h2>
+		{:else}
+			<h2>Unstake HBD</h2>
+		{/if}
 		<p>Be sure to be signed in with the account you'd like to deposit and stake HBD from.</p>
-        {#if type==="unstake"}
-        <p>
-			<b>Note:</b> Unstaked coins will be made available after about three days.
-		</p>
-        {/if}
+		{#if type === 'unstake'}
+			<p>
+				<b>Note:</b> Unstaked coins will be made available after about three days.
+			</p>
+		{/if}
 		<p class="error">{error}</p>
 		<Username label="Recipient" id="hbd-stake-recipient" bind:value={recipient} required />
 		<div class="amount-flex">
@@ -118,16 +117,17 @@
 				bind:originalAmount={amount}
 				required
 			/>
-        </div>
-        {#if type==="stake"}
-            <label for="hbd-stake-checkbox">
-                <input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
-                First Deposit HBD into VSC
-            </label>
-        {/if}
-        <PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-            >{#if shouldDeposit}Deposit and{/if} {#if type==="stake"}Stake{:else}Unstake{/if}</PillButton
-        >
+		</div>
+		{#if type === 'stake'}
+			<label for="hbd-stake-checkbox">
+				<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
+				First Deposit HBD into VSC
+			</label>
+		{/if}
+		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
+			>{#if shouldDeposit}Deposit and{/if}
+			{#if type === 'stake'}Stake{:else}Unstake{/if}</PillButton
+		>
 		<span class="status">{status}</span>
 	</form>
 {:else}
@@ -148,7 +148,7 @@
 	form {
 		box-sizing: border-box;
 		padding-top: 0;
-        min-height: 333px;
+		min-height: 333px;
 	}
 	.amount-flex {
 		display: flex;
@@ -159,7 +159,7 @@
 	p {
 		margin-bottom: 0.5rem;
 	}
-    b {
+	b {
 		color: var(--secondary-fg-accent-shifted);
 		font-weight: 500;
 	}

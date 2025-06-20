@@ -47,7 +47,7 @@
 		const source = ledger && ledgerIndex ? ledger[ledgerIndex] : data;
 		const memo = source.memo ? new URLSearchParams(data.memo) : null;
 		const memoNoId = memo ? new URLSearchParams(memo) : null;
-		memoNoId?.delete("altera_id");
+		memoNoId?.delete('altera_id');
 		if (ledger == null || ledgerIndex == undefined) {
 			return {
 				...data,
@@ -133,16 +133,12 @@
 		if (!openOp || openOp[0] !== tx.id || openOp[1] !== op.index) {
 			detailsOpen = false;
 		}
-	})
+	});
 </script>
 
 <tr tabindex="0" onclick={handleTrigger} onkeydown={handleKeydown} class="clickable-row">
 	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
-	<ToFrom
-		{otherAccount}
-		memo={memoNoId?.toString()}
-		{status}
-	/>
+	<ToFrom {otherAccount} memo={memoNoId?.toString()} {status} />
 	<Amount {amount} />
 	<Token {amount} />
 	<Type isIncoming={!amount.isNegative()} {t} />
@@ -165,7 +161,14 @@
 			</span>
 		</div>
 
-		<StatusView {anchor_ts} memo={memo?.toString() || undefined} {from} {to} {status} {block_height} />
+		<StatusView
+			{anchor_ts}
+			memo={memo?.toString() || undefined}
+			{from}
+			{to}
+			{status}
+			{block_height}
+		/>
 		<div class="sections">
 			{#if memo}
 				<div class="memo section">

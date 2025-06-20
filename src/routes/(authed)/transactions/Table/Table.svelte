@@ -165,7 +165,7 @@
 								<Tr {tx} ledgerIndex={i} />
 							{/each} -->
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-								<Tr {tx} {op} {openOp} onRowClick={openDetails}/>
+								<Tr {tx} {op} {openOp} onRowClick={openDetails} />
 							{:else}
 								<tr>
 									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>

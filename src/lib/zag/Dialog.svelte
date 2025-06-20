@@ -57,10 +57,10 @@
 						onclick={api.getTriggerProps().onclick!}
 						styleType="icon-outline"
 					>
-						<X/>
+						<X />
 					</PillButton>
 				</div>
-				
+
 				{#if description}
 					<div {...api.getDescriptionProps()}>
 						{@render description()}

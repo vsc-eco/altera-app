@@ -1,56 +1,52 @@
 <script lang="ts">
-    import type { SharedProps } from '$lib/PillButton.svelte';
-    import PillBtn from '$lib/PillButton.svelte';
-    import StakePopup from '$lib/vscTransactions/hive/vscOperations/StakePopup.svelte';
-    import { Component, LockKeyhole } from '@lucide/svelte';
-    import { actions, type NavigationAction } from "../quickActions";
-    import type { Auth } from '$lib/auth/store';
-    let { auth } : {auth: Auth} = $props();
-    type PopupAction = {
-        type: 'popup';
-        label: string;
-        onclick: () => void;
-        icon: typeof Component;
-        styling?: SharedProps;
-    }
-    let dialogOpen = $state(false);
-    let toggle = $state((open?: boolean) => {
-        dialogOpen = open !== undefined ? open : !dialogOpen;
-    });
-    function openPopup() {
-        toggle(true);
-    }
-    const menuActions: (NavigationAction | PopupAction)[] = [
-        ...actions,
-        {
-            type: 'popup',
-            label: 'Staking',
-            onclick: openPopup,
-            icon: LockKeyhole
-        }
-    ];
+	import type { SharedProps } from '$lib/PillButton.svelte';
+	import PillBtn from '$lib/PillButton.svelte';
+	import StakePopup from '$lib/vscTransactions/hive/vscOperations/StakePopup.svelte';
+	import { Component, LockKeyhole } from '@lucide/svelte';
+	import { actions, type NavigationAction } from '../quickActions';
+	import type { Auth } from '$lib/auth/store';
+	let { auth }: { auth: Auth } = $props();
+	type PopupAction = {
+		type: 'popup';
+		label: string;
+		onclick: () => void;
+		icon: typeof Component;
+		styling?: SharedProps;
+	};
+	let dialogOpen = $state(false);
+	let toggle = $state((open?: boolean) => {
+		dialogOpen = open !== undefined ? open : !dialogOpen;
+	});
+	function openPopup() {
+		toggle(true);
+	}
+	const menuActions: (NavigationAction | PopupAction)[] = [
+		...actions,
+		{
+			type: 'popup',
+			label: 'Staking',
+			onclick: openPopup,
+			icon: LockKeyhole
+		}
+	];
 </script>
 
 <div class="action-bar">
 	{#each menuActions as action}
-		<PillBtn 
-            {...'styling' in action ? action.styling : {}}
-            {...'href' in action ? { href: action.href } : { onclick: action.onclick }}
-        >
+		<PillBtn
+			{...'styling' in action ? action.styling : {}}
+			{...'href' in action ? { href: action.href } : { onclick: action.onclick }}
+		>
 			{@const Icon = action.icon}
 			<Icon />
 			{action.label}
 		</PillBtn>
 	{/each}
 </div>
-<StakePopup
-    auth = {auth}
-    bind:dialogOpen={dialogOpen}
-    bind:toggle={toggle}
-/>
+<StakePopup {auth} bind:dialogOpen bind:toggle />
 
 <style>
-    .action-bar {
+	.action-bar {
 		max-width: 100%;
 		overflow-x: auto;
 		overflow-y: hidden;

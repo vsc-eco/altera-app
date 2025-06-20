@@ -57,10 +57,10 @@
 						onclick={api.getTriggerProps().onclick!}
 						styleType="icon-outline"
 					>
-						<X/>
+						<X />
 					</PillButton>
 				</div>
-				
+
 				{#if description}
 					<div {...api.getDescriptionProps()}>
 						{@render description()}
@@ -135,6 +135,6 @@
 	}
 
 	.title-and-close.no-title {
-		height: 0.5em;
+		height: 0.5rem;
 	}
 </style>

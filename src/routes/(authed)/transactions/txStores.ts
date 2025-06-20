@@ -8,6 +8,8 @@ export interface TransactionInter extends VscTransaction {
 	isPending: boolean;
 }
 
+export type TransactionOpType = NonNullable<NonNullable<TransactionInter['ops']>[number]>;
+
 export function toTransactionInter(txs: VscTransaction[]): TransactionInter[] {
 	return txs.map((tx) => ({ ...tx, isPending: false }));
 }

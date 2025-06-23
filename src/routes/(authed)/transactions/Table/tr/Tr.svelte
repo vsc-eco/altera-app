@@ -119,7 +119,6 @@
 
 	let detailsOpen = $state(false);
 	function handleTrigger() {
-		detailsOpen = !detailsOpen;
 		onRowClick([tx.id, op.index]);
 	}
 	function handleKeydown(e: KeyboardEvent) {
@@ -130,13 +129,17 @@
 	}
 	let toggle: (open?: boolean) => void = $state(() => {});
 	$effect(() => {
-		if (!openOp || openOp[0] !== tx.id || openOp[1] !== op.index) {
-			detailsOpen = false;
-		}
+		detailsOpen = openOp !== null && openOp[0] === tx.id && openOp[1] === op.index;
 	});
 </script>
 
-<tr tabindex="0" onclick={handleTrigger} onkeydown={handleKeydown} class="clickable-row">
+<tr
+	data-tx-id={tx.id}
+	tabindex="0"
+	onclick={handleTrigger}
+	onkeydown={handleKeydown}
+	class="clickable-row"
+>
 	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memoNoId?.toString()} {status} />
 	<Amount {amount} />
@@ -207,21 +210,16 @@
 		animation: highlight-in 1s both;
 	}
 
-	.status {
-		position: absolute;
-		top: 2.5rem;
-		left: 1rem;
-	}
 	.amount {
 		font-size: var(--text-4xl);
-		margin-bottom: 1rem;
+		margin: 1rem 0;
 	}
 	.approx-usd {
 		display: block;
 		text-wrap: wrap;
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-sm);
-		margin-top: 0.25rem;
+		margin-top: 0.5rem;
 	}
 	a {
 		display: inline-flex;
@@ -240,42 +238,42 @@
 		font-size: var(--text-sm);
 		font-weight: 600;
 		margin-top: 0;
-		position: absolute;
-		top: 0.5rem;
-		left: 0.5rem;
 	}
 	.memo p {
-		min-height: 2rem;
+		/* min-height: 2rem; */
 		display: flex;
-		padding-top: 0.5rem;
+		padding-top: 0.25rem;
 	}
 	.misc.section {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: 1rem;
 	}
 	.section {
-		border: 1px solid var(--neutral-bg-accent-shifted);
 		padding: 0.5rem;
-		padding-top: 1.75rem;
 		border-radius: 0.5rem;
 		position: relative;
-		flex-grow: 1;
-		flex-basis: 30%;
+		flex-shrink: 0;
+		flex-basis: auto;
 		/* width: max-content; */
 	}
 	.sections {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		align-items: stretch;
-		margin-top: 0.5rem;
+		justify-content: space-between;
+		/* align-items: stretch; */
+		flex: 1;
+		gap: 0.5rem;
 	}
 
 	.links {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
+	}
+
+	.tx-id.section {
+		margin-top: auto;
 	}
 
 	.links-disabled a {

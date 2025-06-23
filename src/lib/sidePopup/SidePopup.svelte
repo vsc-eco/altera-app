@@ -75,7 +75,8 @@
 			width: position === 'left' || position === 'right' ? width : '100%',
 			height: position === 'top' || position === 'bottom' ? height : '100%',
 			maxHeight: '100vh',
-			overflow: 'auto'
+			overflow: 'auto',
+			margin: '0.5rem'
 		};
 
 		switch (position) {
@@ -173,8 +174,9 @@
 		border-radius: 0.5rem;
 		padding: 0.5rem;
 		overflow: auto;
-		height: calc(100% - 1.1rem);
 		position: relative;
+		height: calc(100% - 2.1rem);
+		display: flex;
 	}
 
 	.close-button {
@@ -189,6 +191,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
+		flex: 1;
 	}
 
 	.popup-title {
@@ -206,6 +209,8 @@
 	.popup-body {
 		flex: 1;
 		overflow: auto;
+		display: flex;
+		flex-direction: column;
 	}
 
 	/* Responsive adjustments */

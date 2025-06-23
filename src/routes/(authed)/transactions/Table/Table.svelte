@@ -8,10 +8,15 @@
 		toTransactionInter,
 		updateTxsFromLocalStorage
 	} from '../txStores';
+	import { goto } from '$app/navigation';
 	let {
-		did
+		did,
+		allowPopup = true,
+		initialOpen
 	}: {
 		did: string;
+		allowPopup?: boolean;
+		initialOpen?: [string, number];
 	} = $props();
 	let store = $derived(new GetTransactionsStore());
 	let loading = $state(true);
@@ -36,9 +41,84 @@
 				}
 			});
 	}
+	function fetchAdditionalFromStore(limit = 12) {
+		loading = true;
+		store
+			.fetch({
+				variables: {
+					limit: limit, // FIXME: add back once server properly supports pagination
+					did,
+					offset: currStoreLen
+				}
+			})
+			.then((posts) => {
+				loading = false;
+				if (!posts.data?.findTransaction) return;
+				vscTxsStore.update((currentTxs) =>
+					currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
+				);
+			})
+			.catch((e) => {
+				if (e.name !== 'AbortError') {
+					console.error(e);
+				}
+			});
+	}
 	// this assumes that did doesn't change, and is not reactive to did
 	// just runs once when the page loads and again if too many new transactions
 	// are added (called explicitly below)
+	let hasFoundAutoOpenTx = false;
+	async function loadUntilTxFound(targetTxId: string) {
+		if (!targetTxId || hasFoundAutoOpenTx) return;
+
+		while (!hasFoundAutoOpenTx && !loading) {
+			// Check if the transaction is already in the current store
+			const currentTxs = $vscTxsStore;
+			const foundTx = currentTxs.find((tx) => tx.id === targetTxId);
+
+			if (foundTx) {
+				hasFoundAutoOpenTx = true;
+				// Scroll to the transaction after a brief delay to ensure DOM is updated
+				setTimeout(() => {
+					const txElement = document.querySelector(`[data-tx-id="${targetTxId}"]`);
+					if (txElement) {
+						txElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					}
+				}, 100);
+				break;
+			}
+
+			loading = true;
+			try {
+				const posts = await store.fetch({
+					variables: {
+						limit: 12,
+						did,
+						offset: currStoreLen
+					}
+				});
+				loading = false;
+				if (!posts.data?.findTransaction || posts.data.findTransaction.length === 0) {
+					// No more transactions to load
+					break;
+				}
+				vscTxsStore.update((currentTxs) =>
+					currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
+				);
+			} catch (error) {
+				loading = false;
+				if (error instanceof Error && error.name !== 'AbortError') {
+					console.error(error);
+				}
+				break;
+			}
+		}
+	}
+	$effect(() => {
+		if (initialOpen && !hasFoundAutoOpenTx) {
+			loadUntilTxFound(initialOpen[0]);
+		}
+	});
 	$effect(() => {
 		fetchFromStore();
 	});
@@ -83,9 +163,19 @@
 		return () => clearInterval(intervalId);
 	});
 	let currStoreLen = $derived($allTransactionsStore.length);
-	let openOp: [string, number] | null = $state(null);
+	let openOp: [string, number] | null = $state(initialOpen ?? null);
 	function openDetails(op: [string, number]) {
-		openOp = op;
+		if (openOp && openOp[0] === op[0] && openOp[1] === op[1]) {
+			openOp = null;
+		} else {
+			openOp = op;
+		}
+	}
+	function openTxsPage(op: [string, number]) {
+		const openTxParams = new URLSearchParams();
+		openTxParams.set('tx', op[0]);
+		openTxParams.set('index', op[1].toString());
+		goto(`/transactions?${openTxParams.toString()}`);
 	}
 </script>
 
@@ -94,26 +184,7 @@
 		const me = document.documentElement;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
 			loading = true;
-			store
-				.fetch({
-					variables: {
-						limit: 12, // FIXME: add back once server properly supports pagination
-						did,
-						offset: currStoreLen
-					}
-				})
-				.then((posts) => {
-					loading = false;
-					if (!posts.data?.findTransaction) return;
-					vscTxsStore.update((currentTxs) =>
-						currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
-					);
-				})
-				.catch((e) => {
-					if (e.name !== 'AbortError') {
-						console.error(e);
-					}
-				});
+			fetchAdditionalFromStore();
 		}
 	}}
 />
@@ -122,22 +193,7 @@
 	onscroll={(e) => {
 		const me = e.currentTarget;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
-			loading = true;
-			store
-				.fetch({
-					variables: {
-						limit: 12, // FIXME: add back once server properly supports pagination
-						did,
-						offset: currStoreLen
-					}
-				})
-				.then((posts) => {
-					loading = false;
-					if (!posts.data?.findTransaction) return;
-					vscTxsStore.update((currentTxs) =>
-						currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
-					);
-				});
+			fetchAdditionalFromStore();
 		}
 	}}
 >
@@ -165,7 +221,7 @@
 								<Tr {tx} ledgerIndex={i} />
 							{/each} -->
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-								<Tr {tx} {op} {openOp} onRowClick={openDetails} />
+								<Tr {tx} {op} {openOp} onRowClick={allowPopup ? openDetails : openTxsPage} />
 							{:else}
 								<tr>
 									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>

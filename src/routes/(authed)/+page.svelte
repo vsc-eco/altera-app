@@ -26,7 +26,7 @@
 	</span>
 </h1>
 
-<TopHomeMenu {auth}/>
+<TopHomeMenu {auth} />
 <div class="masonry">
 	<Balance></Balance>
 	{#if auth.value}
@@ -43,7 +43,7 @@
 	<div class="txs">
 		<h3>Transactions</h3>
 		{#if auth.value}
-			<Table did={auth.value.did} />
+			<Table did={auth.value.did} allowPopup={false} />
 		{/if}
 	</div>
 </div>

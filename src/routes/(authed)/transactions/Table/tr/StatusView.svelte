@@ -17,11 +17,11 @@
 <div>
 	<div class="transfer">
 		<span class="from-icon"> </span>
-		<div class="from">
+		<div class="from msg">
 			From
 			{getAccountNameFromDid(from)}
 		</div>
-		<div class="from-ts ts">{moment(anchor_ts).format('MMM DD [at] h:mmA')}</div>
+		<div class="from-ts ts msg">{moment(anchor_ts).format('MMM DD [at] h:mmA')}</div>
 		<div class="vertical-line"></div>
 
 		<span
@@ -36,14 +36,16 @@
 			]}
 		>
 		</span>
-		<span class="to">
+		<span class="to msg">
 			To
 			{getAccountNameFromDid(to)}
 		</span>
 		{#if status && status != 'CONFIRMED'}
-			<StatusBadge {status} />
+			<span class="msg">
+				<StatusBadge {status} />
+			</span>
 		{/if}
-		<div class="to-ts ts">
+		<div class="to-ts ts msg">
 			{moment(anchor_ts).format('MMM DD [at] h:mmA')}
 			{#if block_height != 0}
 				(#{block_height})
@@ -73,6 +75,9 @@
 		position: absolute;
 		bottom: -0.5rem;
 		background-color: var(--neutral-bg-mid);
+	}
+	.msg {
+		margin-left: 0.5rem;
 	}
 	.transfer .from {
 		grid-area: from;
@@ -119,6 +124,10 @@
 	}
 	.from-ts {
 		grid-area: from-ts;
+		margin-bottom: 0.5rem;
+	}
+	.to {
+		margin-top: 0.5rem;
 	}
 	.to-ts {
 		grid-area: to-ts;
@@ -128,11 +137,12 @@
 		color: var(--fg-accent-shifted);
 	}
 	.ts {
+		padding-top: 0.25rem;
 		font-size: var(--text-sm);
 		color: var(--neutral-fg-mid);
 	}
 	.transfer {
-		margin-top: 0.5rem;
+		margin: 1rem 0;
 		display: grid;
 		max-width: max-content;
 		grid-template-areas:
@@ -140,7 +150,6 @@
 			'v-line		from-ts'
 			'v-line		.'
 			'to-icon	to'
-			'.			status'
 			'.			to-ts';
 		align-items: center;
 		gap: 0.25rem;

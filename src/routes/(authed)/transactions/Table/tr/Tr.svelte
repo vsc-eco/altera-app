@@ -76,12 +76,6 @@
 	});
 	$inspect(status);
 
-	console.log('statusquery - tx', tx);
-	console.log(
-		'statusquery - condition',
-		!tx.isPending && !['CONFIRMED', 'FAILED'].includes(tx.status)
-	);
-
 	const statusStore = $derived(
 		tx.isPending || ['CONFIRMED', 'FAILED'].includes(tx.status)
 			? null
@@ -96,8 +90,6 @@
 			}
 		});
 	});
-
-	// console.log("isPending, memo", tx.isPending, memo);
 
 	const otherAccount = $derived(
 		to == from

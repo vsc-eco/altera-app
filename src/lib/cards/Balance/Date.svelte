@@ -5,14 +5,19 @@
 	type Props = {
 		dateRanges?: DateRange[];
 		currDate?: Date;
+		hourly?: boolean;
 		onValueChange: (v: DateRange) => void;
 	};
-	let { dateRanges = [], currDate, onValueChange: onRangeChange }: Props = $props();
+	let { dateRanges = [], currDate, hourly, onValueChange: onRangeChange }: Props = $props();
 	let initial: string = $state(dateRanges[0].label);
 </script>
 
 {#if currDate}
-	{moment(currDate).format('MMMM D, YYYY')}
+	{#if hourly}
+		{moment(currDate).format('MMMM D, YYYY, h A')}
+	{:else}
+		{moment(currDate).format('MMMM D, YYYY')}
+	{/if}
 {:else}
 	<Select
 		onValueChange={(v) => {

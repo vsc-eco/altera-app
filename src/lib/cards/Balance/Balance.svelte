@@ -5,7 +5,11 @@
 	import Card from '../Card.svelte';
 	import Diff from './Diff.svelte';
 	import Date from './Date.svelte';
-	let data: Point[] = $state(defaultData);
+	import { getAuth } from '$lib/auth/store';
+	import { accountBalanceStore, fetchAndStoreAccountBalances } from '$lib/balanceGraphData';
+	let auth = $derived(getAuth()());
+	let did = $derived(auth.value?.did);
+	let loadingBalances = $state(true);
 	function calcTotalChange(data: { value: number }[]) {
 		let up = 0;
 		let down = 0;
@@ -22,10 +26,19 @@
 	}
 	let hoveredPoint: Point | undefined = $state();
 	let hoveredIndex: number | undefined = $state();
-	const active = $derived(hoveredPoint ?? data?.[data.length - 1]);
-	const balance = $derived(active.value);
+	const active = $derived(
+		hoveredPoint ??
+			($accountBalanceStore?.length > 0
+				? $accountBalanceStore[$accountBalanceStore.length - 1]
+				: null)
+	);
+	const balance = $derived(active?.value ?? 0);
 	const dateRanges = [
-		{ label: 'Last 7 Days', start: moment().subtract(7, 'days').toDate(), end: moment().toDate() },
+		{
+			label: 'Last 7 Days',
+			start: moment().subtract(7, 'days').toDate(),
+			end: moment().toDate()
+		},
 		{
 			label: 'Last 30 Days',
 			start: moment().subtract(30, 'days').toDate(),
@@ -40,19 +53,31 @@
 			label: 'Last 365 Days',
 			start: moment().subtract(365, 'days').toDate(),
 			end: moment().toDate()
+		},
+		{
+			label: 'This Month',
+			start: moment().startOf('month').toDate(),
+			end: moment().toDate()
+		},
+		{
+			label: 'Year to Date',
+			start: moment().startOf('year').toDate(),
+			end: moment().toDate()
 		}
 		// TODO: add month to date, quarter to date, year to date
 	];
 	let selectedDateRange = $state(dateRanges[0]);
+	let hourly = $derived(moment(selectedDateRange.end).diff(selectedDateRange.start, 'day') < 14);
+	let interval = $derived(hourly ? moment.duration(1, 'hour') : moment.duration(1, 'day'));
 	let filteredData = $derived(
-		data.filter((v) => {
+		$accountBalanceStore.filter((v) => {
 			return (
 				v.date.getTime() > selectedDateRange.start.getTime() &&
 				v.date.getTime() < selectedDateRange.end.getTime()
 			);
 		})
 	);
-	const date = $derived(hoveredPoint && active.date);
+	const date = $derived(hoveredPoint && active?.date);
 	const prev = $derived(hoveredIndex == undefined ? undefined : filteredData[hoveredIndex - 1]);
 	const priceDiff = $derived(
 		calcTotalChange(
@@ -63,25 +88,38 @@
 				: filteredData
 		)
 	);
+
+	$effect(() => {
+		if (did) {
+			loadingBalances = true;
+			fetchAndStoreAccountBalances(did, selectedDateRange.start, selectedDateRange.end, interval)
+				.then(() => {
+					loadingBalances = false;
+				})
+				.catch(() => {
+					loadingBalances = false;
+				});
+		}
+	});
 </script>
 
 <Card>
 	<div class={['root', { hovered: hoveredIndex }]}>
-	
 		<span class="caption">VSC Balance</span>
 		<div class="price">
-			{new Intl.NumberFormat('en-US', {
-				style: 'currency',
-				currency: 'USD',
-				maximumFractionDigits: 0
-			}).format(balance)}<span
-				><span>.</span>{new Intl.NumberFormat('en-US', {
-					style: 'decimal',
-					maximumFractionDigits: 0,
-					minimumIntegerDigits: 2
-				}).format((balance * 100) % 100)}</span
-			>
+			{#if loadingBalances}
+				<span class="loading">Loading...</span>
+			{:else}
+				${Math.floor(balance)}<span
+					><span>.</span>{new Intl.NumberFormat('en-US', {
+						style: 'decimal',
+						maximumFractionDigits: 0,
+						minimumIntegerDigits: 2
+					}).format((balance * 100) % 100)}</span
+				>
+			{/if}
 		</div>
+
 		<div class="date-change-bar">
 			<div class="date">
 				<Date
@@ -90,6 +128,7 @@
 					}}
 					{dateRanges}
 					currDate={date}
+					{hourly}
 				></Date>
 			</div>
 			<div class="change">
@@ -97,9 +136,14 @@
 			</div>
 		</div>
 		<div class="lc-wrapper">
-			<LineChart data={filteredData} bind:hoveredPoint bind:hoveredIndex height={310} />
+			<LineChart
+				data={filteredData}
+				bind:hoveredPoint
+				bind:hoveredIndex
+				height={310}
+				isLoading={loadingBalances}
+			/>
 		</div>
-
 	</div>
 </Card>
 

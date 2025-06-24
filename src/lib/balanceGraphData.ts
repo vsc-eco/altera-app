@@ -149,7 +149,6 @@ function getDefaultBalance(): AccountBalance {
 	};
 }
 
-// Convenience function that updates the store
 export async function fetchAndStoreAccountBalances(
 	account: string,
 	start: Date | moment.Moment,

@@ -131,9 +131,11 @@
 					{hourly}
 				></Date>
 			</div>
-			<div class="change">
-				<Diff up={priceDiff[0]} down={priceDiff[1]} compact={hoveredPoint == undefined} />
-			</div>
+			{#if !loadingBalances}
+				<div class="change">
+					<Diff up={priceDiff[0]} down={priceDiff[1]} compact={hoveredPoint == undefined} />
+				</div>
+			{/if}
 		</div>
 		<div class="lc-wrapper">
 			<LineChart

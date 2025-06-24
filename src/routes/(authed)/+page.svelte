@@ -4,7 +4,7 @@
 	import PillBtn from '$lib/PillButton.svelte';
 	import TopHomeMenu from './TopHomeMenu.svelte';
 	import { actions } from '../quickActions';
-	import { getAccountNameFromAuth } from '$lib/getAccountName';
+	import { getAccountNameFromAuth, getDidFromUsername } from '$lib/getAccountName';
 	import StakeUnstakeTabsModal from './witness-assistant/StakeUnstakeTabsModal.svelte';
 	import Send from '$lib/send/Send.svelte';
 	import Card from '$lib/cards/Card.svelte';

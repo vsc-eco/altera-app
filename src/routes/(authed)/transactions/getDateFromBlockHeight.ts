@@ -8,3 +8,10 @@ export function getDateFromBlockHeight(blockHeight: number) {
 			: START_BLOCK_TIME.clone().add((blockHeight - START_BLOCK) * 3, 'seconds');
 	return date;
 }
+
+export function getBlockHeightFromDate(date: Date | moment.Moment): number {
+	const targetDate = moment(date);
+	const diffInSeconds = targetDate.diff(START_BLOCK_TIME, 'seconds');
+	const blockHeight = START_BLOCK + Math.floor(diffInSeconds / 3);
+	return blockHeight;
+}

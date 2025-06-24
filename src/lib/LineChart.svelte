@@ -7,7 +7,7 @@
 	// - the mapping from mouse position to hoveredIndex
 	import { scaleLinear, scaleTime } from 'd3-scale';
 	import { extent, max } from 'd3-array';
-	import { area, curveCardinal } from 'd3-shape';
+	import { area, curveMonotoneX } from 'd3-shape';
 	import {
 		changeLocalInterpFunction,
 		createAnimation,
@@ -21,6 +21,7 @@
 	import { getUpdateLayer } from '@aninest/extensions';
 	import { defaultData } from './defaultLineData';
 	import moment from 'moment';
+	import { Loader } from '@lucide/svelte';
 	const margin = { top: 8, right: 0, bottom: 0, left: 0 };
 	export type Point = {
 		value: number;
@@ -32,6 +33,7 @@
 		height?: number;
 		data?: Point[];
 		theme?: string;
+		isLoading?: boolean;
 	};
 	let width = $state(0);
 	let {
@@ -39,7 +41,8 @@
 		hoveredIndex = $bindable(),
 		height = 100,
 		data = $bindable(defaultData),
-		theme = 'primary'
+		theme = 'primary',
+		isLoading = false
 	}: Props = $props();
 	const dateExtent = $derived(extent(data, (d) => new Date(d.date)) as [Date, Date]);
 	const xScale = $derived(
@@ -70,12 +73,12 @@
 	let lineGenerator = area<{ value: number; date: Date }>()
 		.y((d) => yScale(d.value))
 		.x((d) => xScale(d.date))
-		.curve(curveCardinal);
+		.curve(curveMonotoneX);
 	let areaGenerator = area<{ value: number; date: Date }>()
 		.y0(() => height)
 		.y1((d) => yScale(d.value))
 		.x((d) => xScale(d.date))
-		.curve(curveCardinal);
+		.curve(curveMonotoneX);
 	let areaPlot = $derived(areaGenerator(data));
 	let linePlot = $derived(lineGenerator(data));
 	let dotX: number = $state(0);
@@ -137,6 +140,12 @@
 </script>
 
 <figure class={[theme, { zero: width == 0 }]} bind:clientWidth={width} tabindex="-1">
+	{#if isLoading}
+		<div class="loading-overlay">
+			<Loader class="loader-icon" size={24} />
+			<span>Loading chart data...</span>
+		</div>
+	{/if}
 	<svg
 		{height}
 		onpointermove={setLinePos}
@@ -144,6 +153,7 @@
 		ontouchend={unsetLinePos}
 		onmouseleave={unsetLinePos}
 		role="figure"
+		class={{ loading: isLoading }}
 	>
 		<path d={areaPlot} stroke="none" stroke-width={0} fill="url(#MyGradient)"></path>
 		<path d={linePlot} stroke="var(--fg-mid)" stroke-width={1}></path>
@@ -182,9 +192,16 @@
 
 <style>
 	figure {
+		position: relative;
 		touch-action: pinch-zoom pan-y;
-		transition: opacity 0.05s;
+		transition:
+			opacity 0.05s,
+			filter 0.3s ease;
 		opacity: 1;
+	}
+	svg.loading {
+		filter: blur(2px) grayscale(0.5);
+		opacity: 0.6;
 	}
 	figcaption {
 		overflow: hidden;
@@ -210,5 +227,36 @@
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-xs);
 		white-space: nowrap;
+	}
+	.loading-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(var(--bg-rgb), 0.3);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		z-index: 10;
+		font-size: var(--text-sm);
+		color: var(--neutral-fg-mid);
+		backdrop-filter: blur(1px);
+	}
+
+	:global(.loader-icon) {
+		color: var(--accent-fg);
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
 	}
 </style>

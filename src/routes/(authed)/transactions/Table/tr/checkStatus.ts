@@ -3,11 +3,10 @@ import { readonly, writable, type Writable } from 'svelte/store';
 
 const statusStore = new GetStatusesStore();
 
-const checkingStores: { [tx_id: string]:  Writable<string> } = {};
+const checkingStores: { [tx_id: string]: Writable<string> } = {};
 
 function updateStatuses() {
 	const idsToFetch = Object.keys(checkingStores);
-	console.log("keys to fetch", idsToFetch);
 	statusStore
 		.fetch({
 			variables: {
@@ -20,7 +19,6 @@ function updateStatuses() {
 			const statuses = res.data?.findTransaction;
 			if (!statuses) return;
 			for (const { status, id } of statuses) {
-				console.log(checkingStores[id]);
 				const store = checkingStores[id];
 				if (!store) continue; // specific op succeeded
 				// despite part of transaction being unconfirmed
@@ -46,12 +44,12 @@ function removeFromChecks(tx_id: string) {
 let timeout: NodeJS.Timeout | undefined = undefined;
 
 export const checkOpStatus = (tx_id: string, currStatus: string) => {
-	console.log('statusquery - checkOpStatus called:', tx_id, currStatus);
+	// console.log('statusquery - checkOpStatus called:', tx_id, currStatus);
 	if (checkingStores[tx_id]) {
 		return checkingStores[tx_id];
 	}
 	const store = writable(currStatus, () => {
-		console.log('statusquery - Store subscribed, starting interval');
+		// console.log('statusquery - Store subscribed, starting interval');
 		if (timeout == undefined) {
 			timeout = setInterval(updateStatuses, 1000);
 		}
@@ -61,8 +59,8 @@ export const checkOpStatus = (tx_id: string, currStatus: string) => {
 	});
 	if (['CONFIRMED', 'FAILED'].includes(currStatus)) return store;
 
-	console.log('WRITABLE');
+	// console.log('WRITABLE');
 	checkingStores[tx_id] = store;
-	console.log('statusquery - Added to checkingStores:', tx_id, Object.keys(checkingStores));
+	// console.log('statusquery - Added to checkingStores:', tx_id, Object.keys(checkingStores));
 	return readonly(store);
 };

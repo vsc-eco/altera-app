@@ -65,11 +65,14 @@ export class CoinAmount<C extends Coin> {
 	toPrettyString() {
 		return `${this.toPrettyAmountString()} ${this.coin.unit}`;
 	}
+	toNumber() {
+		return this.amount / 10 ** this.coin.decimalPlaces;
+	}
 	async convertTo<OtherCoin extends Coin>(
 		coin: OtherCoin,
 		via: IntermediaryNetwork
 	): Promise<CoinAmount<OtherCoin>> {
-		console.log(this.toAmountString(), coin, via);
+		// console.log(this.toAmountString(), coin, via);
 		// if going either to or from unknown coin then the conversion is 1
 		// for all networks
 		if (coin.value == Coin.unk.value || this.coin.value == Coin.unk.value)
@@ -77,11 +80,11 @@ export class CoinAmount<C extends Coin> {
 		if (this.coin.value == coin.value) return this as unknown as CoinAmount<OtherCoin>;
 		const rates = await getExchangeRates(via, this.coin);
 		const myRate = rates[coin.unit as keyof typeof rates];
-		console.log(
-			`converted ${this} to ${coin.unit} with conv rate ${myRate} to`,
-			this.toString(),
-			this.mulTo(myRate, coin).toString()
-		);
+		// console.log(
+		// 	`converted ${this} to ${coin.unit} with conv rate ${myRate} to`,
+		// 	this.toString(),
+		// 	this.mulTo(myRate, coin).toString()
+		// );
 		return this.mulTo(myRate, coin);
 	}
 	add(amount: UnkCoinAmount): CoinAmount<C> {
@@ -91,7 +94,7 @@ export class CoinAmount<C extends Coin> {
 		return new CoinAmount(Math.round(this.amount * multip), this.coin, true);
 	}
 	mulTo<ToCoin extends Coin>(multip: number, into: ToCoin): CoinAmount<ToCoin> {
-		console.log(multip * 10 ** (into.decimalPlaces - this.coin.decimalPlaces));
+		// console.log(multip * 10 ** (into.decimalPlaces - this.coin.decimalPlaces));
 		return new CoinAmount(
 			Math.round(this.amount * (multip * 10 ** (into.decimalPlaces - this.coin.decimalPlaces))),
 			into,

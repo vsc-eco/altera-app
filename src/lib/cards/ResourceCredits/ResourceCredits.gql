@@ -1,0 +1,5 @@
+query GetAccountRC($account: String!) {
+  getAccountRC(account: $account) {
+    amount
+  }
+}

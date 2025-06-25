@@ -3,6 +3,13 @@
 	import { untrack } from 'svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from './send/sendOptions';
+	import {
+		accountBalanceHistory,
+		sumBalance,
+		type AccountBalance,
+		accountBalance
+	} from './balances';
+	import moment from 'moment';
 
 	type Props = {
 		did: string;
@@ -10,23 +17,47 @@
 	let { did }: Props = $props();
 
 	let api = $derived(new GetAccountBalanceStore());
-	let balances = $derived(
-		$api.data?.getAccountBalance ?? {
-			hbd: 0,
-			hbd_savings: 0,
-			pending_hbd_unstaking: 0,
-			hive: 0,
-			hive_consensus: 0,
-			consensus_unstaking: 0,
-		}
-	);
+	let balances: AccountBalance = $derived.by(() => {
+		const result = $api.data?.getAccountBalance;
+		return {
+			hbd: result?.hbd ?? 0,
+			hbd_savings: result?.hbd_savings ?? 0,
+			pending_hbd_unstaking: result?.pending_hbd_unstaking ?? 0,
+			hive: result?.hive ?? 0,
+			hive_consensus: result?.hive_consensus ?? 0,
+			consensus_unstaking: result?.consensus_unstaking ?? 0
+		};
+	});
 	$effect(() => {
 		let intervalId = setInterval(() => {
 			untrack(() => api).fetch({ variables: { account: did }, policy: 'NetworkOnly' });
 		}, 1000);
+		accountBalance.set(balances);
 		return () => {
 			clearInterval(intervalId);
 		};
+	});
+	$effect(() => {
+		(async () => {
+			const total = await sumBalance(balances);
+			const lastEntry = $accountBalanceHistory.at(-1);
+			if (lastEntry && (moment(lastEntry.date).minutes() === 0 || lastEntry.value !== total)) {
+				accountBalanceHistory.update((arr) => {
+					if (moment(lastEntry.date).minutes() === 0) {
+						arr.push({
+							date: moment().toDate(),
+							value: total
+						});
+					} else {
+						arr[arr.length - 1] = {
+							date: moment().toDate(),
+							value: total
+						};
+					}
+					return arr;
+				});
+			}
+		})();
 	});
 </script>
 
@@ -53,7 +84,11 @@
 					<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
 					<td class="coin-cell">HBD Unstaking</td>
 					<td class="amount-cell"
-						>{new CoinAmount(balances.pending_hbd_unstaking, Coin.hbd, true).toPrettyString()}&nbsp;</td
+						>{new CoinAmount(
+							balances.pending_hbd_unstaking,
+							Coin.hbd,
+							true
+						).toPrettyString()}&nbsp;</td
 					>
 				</tr>
 			{/if}
@@ -76,7 +111,11 @@
 					<th> </th><td><img src={Coin.hive.icon} alt="" /></td>
 					<td class="coin-cell">Hive Unstaking</td>
 					<td class="amount-cell"
-						>{new CoinAmount(balances.consensus_unstaking, Coin.hbd, true).toPrettyString()}&nbsp;</td
+						>{new CoinAmount(
+							balances.consensus_unstaking,
+							Coin.hbd,
+							true
+						).toPrettyString()}&nbsp;</td
 					>
 				</tr>
 			{/if}

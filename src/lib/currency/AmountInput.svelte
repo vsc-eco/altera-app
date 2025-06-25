@@ -1,13 +1,12 @@
 <script lang="ts">
 	import Select from '$lib/zag/Select.svelte';
-	import { getContext, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { Coin, Network } from '../send/sendOptions';
-	import Dinero, { type Currency } from 'dinero.js';
-	import { convert } from './convert';
 	import type { HTMLInputAttributes } from 'svelte/elements';
-	import { itemGroupLabelProps } from '@zag-js/menu';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
+	import { accountBalance, type BalanceOption } from '$lib/balances';
+	import PillButton from '$lib/PillButton.svelte';
 
 	let {
 		coin: originalCoin,
@@ -18,7 +17,8 @@
 		required,
 		selectItems,
 		oninput,
-		disabled
+		disabled,
+		maxField
 	}: {
 		coin: Coin;
 		network: Network;
@@ -29,6 +29,7 @@
 		selectItems: Coin[];
 		oninput?: HTMLInputAttributes['oninput'];
 		disabled?: boolean;
+		maxField?: BalanceOption;
 	} = $props();
 	let value: Coin = $state(originalCoin);
 	$effect(() => {
@@ -65,21 +66,74 @@
 	$effect(() => {
 		if (coinIsUnknown) boundAmount = '';
 	});
+	let maxCoin = $derived.by(() => {
+		if (maxField) {
+			if (['hbd', 'hbd_savings', 'pending_hbd_unstaking'].includes(maxField)) {
+				return Coin.hbd;
+			} else {
+				return Coin.hive;
+			}
+		}
+		return Coin.unk;
+	});
+	let maxBalance = $derived.by(() => {
+		if (maxField) {
+			return new CoinAmount($accountBalance[maxField], maxCoin, true).toAmountString();
+		}
+		return undefined;
+	});
+	let maxInputField = $derived.by(() => {
+		if (maxField) {
+			return new CoinAmount($accountBalance[maxField], value, true).toAmountString();
+		}
+		return undefined;
+	});
+
+	function setToMax() {
+		amountOfOriginalCoin = maxBalance ?? '0';
+		new CoinAmount(Number(maxBalance ?? '0'), originalCoin)
+			.convertTo(value, Network.lightning)
+			.then((amount) => {
+				boundAmount = amount.toAmountString();
+				// Call oninput if it exists (sets connected fields)
+				if (oninput) {
+					const inputElement = document.getElementById(id) as HTMLInputElement;
+					if (inputElement) {
+						const event = { currentTarget: inputElement } as any;
+						oninput(event);
+					}
+				}
+			});
+	}
 </script>
 
 <label for={id}>
 	<span>
-		{label}
+		{label}<wbr />
+		{#if maxField}
+			<span style="white-space: nowrap;">
+				(Balance:
+				<button type="button" class="balance-link" onclick={setToMax}
+					>{new CoinAmount($accountBalance[maxField], maxCoin, true).toPrettyString()}
+				</button>
+				)
+			</span>
+		{/if}
 	</span>
 
 	<div class={['amount-input', { disabled }]}>
 		<CoinNetworkIcon coin={originalCoin} {network} />
 		<input
 			min="0.000000001"
+			max={maxInputField}
 			oninvalid={(e) => {
 				e.preventDefault();
-				error = 'Amount must be greater than zero.';
 				const target = e.currentTarget;
+				if (target.validity.rangeUnderflow) {
+					error = 'Amount must be greater than zero.';
+				} else if (target.validity.rangeOverflow) {
+					error = 'Amount exceeds available balance.';
+				}
 				target.scrollIntoView({
 					behavior: 'smooth',
 					block: 'nearest',
@@ -88,6 +142,9 @@
 			}}
 			oninput={(e) => {
 				error = '';
+				if (maxField && Number(amountOfOriginalCoin) > $accountBalance[maxField]) {
+					error = 'Amount exceeds available balance.';
+				}
 				new CoinAmount(Number(boundAmount), value)
 					.convertTo(originalCoin, Network.lightning)
 					.then((newVal) => {
@@ -97,6 +154,9 @@
 			}}
 			onchange={() => {
 				console.log('HERE CHANGED');
+				if (maxField && Number(amountOfOriginalCoin) > $accountBalance[maxField]) {
+					error = 'Amount exceeds available balance.';
+				}
 				const amount =
 					amountOfOriginalCoin == ''
 						? undefined
@@ -120,32 +180,43 @@
 			bind:value={boundAmount}
 			disabled={inputDisabled}
 		/>
+		{#if maxField}
+			<div class="max-button-wrapper">
+				<PillButton type="button" onclick={setToMax}>Max</PillButton>
+			</div>
+		{/if}
 		<hr />
 		<div class="currency-select">
-			<Select
-				{disabled}
-				items={selectItems}
-				initial={originalCoin.label}
-				onValueChange={(v) => {
-					// console.log(v);
+			{#if selectItems.length > 1}
+				<Select
+					{disabled}
+					items={selectItems}
+					initial={originalCoin.label}
+					onValueChange={(v) => {
+						// console.log(v);
 
-					if (v.items[0] == undefined) return;
-					if (v.items[0].value == Coin.unk.value) return;
-					if (value == undefined || value.value == Coin.unk.value) {
-						value = v.items[0];
-						return;
-					}
-					if (v.items[0].value == value.value) return;
-					if (boundAmount != undefined) {
-						new CoinAmount(Number(boundAmount), value)
-							.convertTo(v.items[0], Network.lightning)
-							.then((amount) => {
-								boundAmount = amount.toAmountString();
-								value = v.items[0];
-							});
-					} else value = v.items[0];
-				}}
-			/>
+						if (v.items[0] == undefined) return;
+						if (v.items[0].value == Coin.unk.value) return;
+						if (value == undefined || value.value == Coin.unk.value) {
+							value = v.items[0];
+							return;
+						}
+						if (v.items[0].value == value.value) return;
+						if (boundAmount != undefined) {
+							new CoinAmount(Number(boundAmount), value)
+								.convertTo(v.items[0], Network.lightning)
+								.then((amount) => {
+									boundAmount = amount.toAmountString();
+									value = v.items[0];
+								});
+						} else value = v.items[0];
+					}}
+				/>
+			{:else}
+				<div class="single-coin">
+					{selectItems[0].label}
+				</div>
+			{/if}
 		</div>
 	</div>
 	{#if amountOfOriginalCoin != ''}
@@ -232,5 +303,28 @@
 		input:focus-visible {
 			box-shadow: none;
 		}
+		.max-button-wrapper {
+			margin-right: 0.25rem;
+			:global(button) {
+				font-size: var(--text-sm);
+				padding: 0.5rem 0.75rem;
+				height: fit-content;
+			}
+		}
+	}
+	.balance-link {
+		background: none;
+		border: none;
+		padding: 0;
+		color: var(--primary-mid);
+		cursor: pointer;
+		font: inherit;
+
+		&:hover {
+			color: var(--primary-bg-mid);
+		}
+	}
+	.single-coin {
+		padding: 0.75rem;
 	}
 </style>

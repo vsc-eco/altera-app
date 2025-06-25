@@ -6,7 +6,7 @@ import { Coin, Network } from './send/sendOptions';
 import config from '../../houdini.config';
 import { type Point } from './LineChart.svelte';
 
-type AccountBalance = {
+export type AccountBalance = {
 	hbd: number;
 	hbd_savings: number;
 	pending_hbd_unstaking: number;
@@ -15,16 +15,39 @@ type AccountBalance = {
 	consensus_unstaking: number;
 };
 
+export type BalanceOption =
+	| 'hbd'
+	| 'hbd_savings'
+	| 'pending_hbd_unstaking'
+	| 'hive'
+	| 'hive_consensus'
+	| 'consensus_unstaking';
+
+// specifically for the graph
 type BalanceDataPoint = {
 	blockHeight: number;
 	timestamp: moment.Moment;
-	amount: number; // Total amount in USD
+	amount: number; // total amount in USD (sum of converted balances)
 };
 
-// Svelte store for the balance data
-export const accountBalanceStore = writable<Point[]>([]);
+// svelte store for current balance (updated in AccBalance.svelte)
+export const accountBalance = writable<AccountBalance>(getDefaultBalance());
 
-async function sumBalance(accBal: AccountBalance): Promise<number> {
+// svelte store for the balance data
+export const accountBalanceHistory = writable<Point[]>([]);
+
+export function isValidBalanceField(value: string): value is BalanceOption {
+	return [
+		'hbd',
+		'hbd_savings',
+		'pending_hbd_unstaking',
+		'hive',
+		'hive_consensus',
+		'consensus_unstaking'
+	].includes(value as BalanceOption);
+}
+
+export async function sumBalance(accBal: AccountBalance): Promise<number> {
 	const amts = {
 		hive: new CoinAmount(accBal.hive, Coin.hive, true),
 		hiveConsensus: new CoinAmount(accBal.hive_consensus, Coin.hive, true),
@@ -47,7 +70,8 @@ function getBlockHeightSeries(
 	interval: moment.Duration
 ): { blockHeight: number; timestamp: moment.Moment }[] {
 	const momentStart = moment(start);
-	const momentEnd = moment(end);
+	const momentEnd =
+		interval.asHours() === 1 ? moment(end).startOf('hour') : moment(end).startOf('day');
 	if (!momentStart.isValid() || !momentEnd.isValid()) {
 		throw new Error('Invalid period or end time provided');
 	}
@@ -158,7 +182,7 @@ export async function fetchAndStoreAccountBalances(
 	try {
 		const data = await fetchBalancesHTTP(account, start, end, interval);
 
-		accountBalanceStore.set(
+		accountBalanceHistory.set(
 			data.map(
 				(dp): Point => ({
 					value: dp.amount,
@@ -168,6 +192,6 @@ export async function fetchAndStoreAccountBalances(
 		);
 	} catch (error) {
 		console.error('Failed to fetch and store balances:', error);
-		accountBalanceStore.set([]);
+		accountBalanceHistory.set([]);
 	}
 }

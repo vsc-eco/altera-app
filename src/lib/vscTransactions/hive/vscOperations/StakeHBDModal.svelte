@@ -116,6 +116,7 @@
 				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
 				bind:originalAmount={amount}
 				required
+				maxField={type === 'stake' ? (shouldDeposit ? undefined : 'hbd') : 'hbd_savings'}
 			/>
 		</div>
 		{#if type === 'stake'}
@@ -126,7 +127,7 @@
 		{/if}
 		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
 			>{#if shouldDeposit}Deposit and{/if}
-			{#if type === 'stake'}Stake{:else}Unstake{/if}</PillButton
+			{#if type === 'stake'}Stake{:else}Initialize Unstake{/if}</PillButton
 		>
 		<span class="status">{status}</span>
 	</form>

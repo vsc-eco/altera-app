@@ -6,7 +6,7 @@
 	import Diff from './Diff.svelte';
 	import Date from './Date.svelte';
 	import { getAuth } from '$lib/auth/store';
-	import { accountBalanceStore, fetchAndStoreAccountBalances } from '$lib/balanceGraphData';
+	import { accountBalanceHistory, fetchAndStoreAccountBalances } from '$lib/balances';
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);
 	let loadingBalances = $state(true);
@@ -28,8 +28,8 @@
 	let hoveredIndex: number | undefined = $state();
 	const active = $derived(
 		hoveredPoint ??
-			($accountBalanceStore?.length > 0
-				? $accountBalanceStore[$accountBalanceStore.length - 1]
+			($accountBalanceHistory?.length > 0
+				? $accountBalanceHistory[$accountBalanceHistory.length - 1]
 				: null)
 	);
 	const balance = $derived(active?.value ?? 0);
@@ -70,11 +70,8 @@
 	let hourly = $derived(moment(selectedDateRange.end).diff(selectedDateRange.start, 'day') < 14);
 	let interval = $derived(hourly ? moment.duration(1, 'hour') : moment.duration(1, 'day'));
 	let filteredData = $derived(
-		$accountBalanceStore.filter((v) => {
-			return (
-				v.date.getTime() > selectedDateRange.start.getTime() &&
-				v.date.getTime() < selectedDateRange.end.getTime()
-			);
+		$accountBalanceHistory.filter((v) => {
+			return v.date.getTime() > selectedDateRange.start.getTime();
 		})
 	);
 	const date = $derived(hoveredPoint && active?.date);
@@ -100,6 +97,9 @@
 					loadingBalances = false;
 				});
 		}
+	});
+	$effect(() => {
+		console.log('last element', filteredData[filteredData.length - 1]);
 	});
 </script>
 

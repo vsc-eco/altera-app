@@ -18,14 +18,14 @@
 		nodeRunnerAccount = username;
 	});
 	const sendTransaction = async (amount: string, nodeRunnerAccount: string) => {
-		if (!username || !auth.value?.aioha) 
+		if (!username || !auth.value?.aioha)
 			return {
 				success: false,
 				error: 'Error: not authenticated.',
 				errorCode: 1
 			};
 		status = 'Awaiting transaction approval…';
-		if (Number(amount) == 0) 
+		if (Number(amount) == 0)
 			return {
 				success: false,
 				error: 'Error: cannot stake 0 HIVE.',
@@ -37,7 +37,7 @@
 				ops: [
 					{
 						data: {
-							amount: (new CoinAmount(amount, Coin.hive)).toAmountString(),
+							amount: new CoinAmount(amount, Coin.hive).toAmountString(),
 							asset: Coin.hive.unit.toLowerCase(),
 							from: username,
 							to: nodeRunnerAccount,
@@ -90,6 +90,7 @@
 				network={Network.vsc}
 				bind:originalAmount={amount}
 				required
+				maxField={'hive_consensus'}
 			/>
 		</div>
 		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}

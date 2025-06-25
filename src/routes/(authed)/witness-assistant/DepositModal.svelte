@@ -112,6 +112,7 @@
 				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
 				bind:originalAmount={amount}
 				required
+				maxField={shouldDeposit ? undefined : 'hive'}
 			/>
 		</div>
 		<label for="deposit-checkbox">

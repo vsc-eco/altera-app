@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import { Coin, Network } from './sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { isValidBalanceField } from '$lib/balances';
 	let {
 		fromAmount = $bindable(''),
 		fromCoin: newFromCoin,
@@ -92,6 +93,9 @@
 		coin={fromCoin}
 		network={fromNetwork ?? Network.unknown}
 		label="From Amount:"
+		maxField={fromNetwork === Network.vsc && isValidBalanceField(fromCoin.value)
+			? fromCoin.value
+			: undefined}
 	/>
 
 	<Amount

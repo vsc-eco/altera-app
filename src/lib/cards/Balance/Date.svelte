@@ -13,8 +13,10 @@
 </script>
 
 {#if currDate}
-	{#if hourly}
-		{moment(currDate).format('MMMM D, YYYY, h A')}
+	{#if moment(currDate).minutes() !== 0}
+		Now
+	{:else if hourly}
+		{moment(currDate).format('MMMM D, YYYY, HH:mm')}
 	{:else}
 		{moment(currDate).format('MMMM D, YYYY')}
 	{/if}

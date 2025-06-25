@@ -10,6 +10,7 @@
 	import Card from '$lib/cards/Card.svelte';
 	import Table from './transactions/Table/Table.svelte';
 	import AccBalance from '$lib/AccBalance.svelte';
+	import ResourceCredits from '$lib/cards/ResourceCredits/ResourceCredits.svelte';
 	// let { auth }: LayoutData = $props();
 	let auth = $derived(getAuth()());
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
@@ -40,6 +41,7 @@
 	{#if auth.value == undefined || auth.value.username != undefined}
 		<StakeUnstakeTabsModal />
 	{/if}
+	<ResourceCredits/>
 	<div class="txs">
 		<h3>Transactions</h3>
 		{#if auth.value}

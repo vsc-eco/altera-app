@@ -66,19 +66,31 @@
 	$effect(() => {
 		if (coinIsUnknown) boundAmount = '';
 	});
-	let maxCoin = $derived.by(() => {
-		if (maxField) {
-			if (['hbd', 'hbd_savings', 'pending_hbd_unstaking'].includes(maxField)) {
-				return Coin.hbd;
-			} else {
-				return Coin.hive;
-			}
+	let showMax = $state(false);
+	$effect(() => {
+		// makes it reactive to boundAmount, which is only in a "then" otherwise
+		const _ = boundAmount;
+		if (!maxField) {
+			showMax = false;
+			return;
 		}
-		return Coin.unk;
+		const originalAmount = new CoinAmount($accountBalance[maxField], originalCoin, true);
+		if (value.value === originalCoin.value) {
+			showMax = Number(boundAmount) !== originalAmount.toNumber();
+			return;
+		}
+		originalAmount
+			.convertTo(value, Network.lightning)
+			.then((amount) => {
+				showMax = Number(boundAmount) !== amount.toNumber();
+			})
+			.catch(() => {
+				showMax = false;
+			});
 	});
 	let maxBalance = $derived.by(() => {
 		if (maxField) {
-			return new CoinAmount($accountBalance[maxField], maxCoin, true).toAmountString();
+			return new CoinAmount($accountBalance[maxField], originalCoin, true).toAmountString();
 		}
 		return undefined;
 	});
@@ -113,10 +125,9 @@
 		{#if maxField}
 			<span style="white-space: nowrap;">
 				(Balance:
-				<button type="button" class="balance-link" onclick={setToMax}
-					>{new CoinAmount($accountBalance[maxField], maxCoin, true).toPrettyString()}
-				</button>
-				)
+				<span class="balance-amount">
+					{new CoinAmount($accountBalance[maxField], originalCoin, true).toPrettyString()}
+				</span>)
 			</span>
 		{/if}
 	</span>
@@ -180,7 +191,7 @@
 			bind:value={boundAmount}
 			disabled={inputDisabled}
 		/>
-		{#if maxField}
+		{#if showMax}
 			<div class="max-button-wrapper">
 				<PillButton type="button" onclick={setToMax}>Max</PillButton>
 			</div>
@@ -259,6 +270,10 @@
 			margin: 0.5rem;
 		}
 	}
+	.balance-amount {
+		font-family: 'Noto Sans Mono Variable', monospace;
+		font-weight: 400;
+	}
 	.currency-select {
 		padding: 0 0.25rem;
 	}
@@ -310,18 +325,6 @@
 				padding: 0.5rem 0.75rem;
 				height: fit-content;
 			}
-		}
-	}
-	.balance-link {
-		background: none;
-		border: none;
-		padding: 0;
-		color: var(--primary-mid);
-		cursor: pointer;
-		font: inherit;
-
-		&:hover {
-			color: var(--primary-bg-mid);
 		}
 	}
 	.single-coin {

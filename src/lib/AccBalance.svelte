@@ -18,14 +18,16 @@
 
 	let api = $derived(new GetAccountBalanceStore());
 	let balances: AccountBalance = $derived.by(() => {
-		const result = $api.data?.getAccountBalance;
+		const resultBal = $api.data?.getAccountBalance;
+		const resultRC = $api.data?.getAccountRC;
 		return {
-			hbd: result?.hbd ?? 0,
-			hbd_savings: result?.hbd_savings ?? 0,
-			pending_hbd_unstaking: result?.pending_hbd_unstaking ?? 0,
-			hive: result?.hive ?? 0,
-			hive_consensus: result?.hive_consensus ?? 0,
-			consensus_unstaking: result?.consensus_unstaking ?? 0
+			hbd: resultBal?.hbd ?? 0,
+			hbd_savings: resultBal?.hbd_savings ?? 0,
+			pending_hbd_unstaking: resultBal?.pending_hbd_unstaking ?? 0,
+			hive: resultBal?.hive ?? 0,
+			hive_consensus: resultBal?.hive_consensus ?? 0,
+			consensus_unstaking: resultBal?.consensus_unstaking ?? 0,
+			resource_credits: resultRC?.amount ?? 0
 		};
 	});
 	$effect(() => {

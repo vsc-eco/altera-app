@@ -41,7 +41,9 @@
 	{#if auth.value == undefined || auth.value.username != undefined}
 		<StakeUnstakeTabsModal />
 	{/if}
-	<ResourceCredits/>
+	{#if auth.value}
+		<ResourceCredits/>
+	{/if}
 	<div class="txs">
 		<h3>Transactions</h3>
 		{#if auth.value}

@@ -13,6 +13,7 @@ export type AccountBalance = {
 	hive: number;
 	hive_consensus: number;
 	consensus_unstaking: number;
+	resource_credits: number,
 };
 
 export type BalanceOption =
@@ -169,7 +170,8 @@ function getDefaultBalance(): AccountBalance {
 		pending_hbd_unstaking: 0,
 		hive: 0,
 		hive_consensus: 0,
-		consensus_unstaking: 0
+		consensus_unstaking: 0,
+		resource_credits: 0
 	};
 }
 

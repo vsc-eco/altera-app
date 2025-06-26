@@ -7,4 +7,7 @@ query GetAccountBalance($account: String!) {
     hive_consensus
     hive
   }
+  getAccountRC(account: $account) {
+    amount
+  }
 }

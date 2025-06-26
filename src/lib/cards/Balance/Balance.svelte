@@ -98,9 +98,6 @@
 				});
 		}
 	});
-	$effect(() => {
-		console.log('last element', filteredData[filteredData.length - 1]);
-	});
 </script>
 
 <Card>

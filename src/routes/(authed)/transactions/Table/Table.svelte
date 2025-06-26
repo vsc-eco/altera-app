@@ -211,7 +211,10 @@
 			{#if $allTransactionsStore && $allTransactionsStore.length > 0}
 				{#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id } = tx}
-					{#each ops! as op}
+					{#each ops!.sort((a, b) => {
+						// put deposits below other ops in their transaction
+						return (a?.type === "deposit" ? 1 : 0) - (b?.type === "deposit" ? 1 : 0)
+					}) as op}
 						{#if op}
 							{@const { data } = op}
 							<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->

@@ -7,6 +7,8 @@
 	import { sleep } from 'aninest';
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
 	import { type OperationResult } from '@aioha/aioha/build/types';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
 	let { type }: { type: 'stake' | 'unstake' } = $props();
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
@@ -38,41 +40,41 @@
 				: await hbdUnstakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha);
 
 		// TODO: implement once backend is fixed
-		// if (res.success) {
-		// 	const ops: PendingTx['ops'] = [
-		// 		{
-		// 			data: {
-		// 				amount: new CoinAmount(amount, Coin.hbd).toAmountString(),
-		// 				asset: Coin.hbd.unit.toLowerCase(),
-		// 				from: username,
-		// 				to: recipient,
-		// 				type: 'unstake'
-		// 			},
-		// 			type: 'unstake',
-		// 			index: 0
-		// 		}
-		// 	];
-		// 	if (shouldDeposit) {
-		// 		ops.push({
-		// 			data: {
-		// 				amount: new CoinAmount(amount, Coin.hbd).toAmountString(),
-		// 				asset: Coin.hbd.unit.toLowerCase(),
-		// 				from: username,
-		// 				to: recipient,
-		// 				type: 'deposit',
-		// 				memo: ''
-		// 			},
-		// 			type: 'deposit',
-		// 			index: 1
-		// 		});
-		// 	}
-		// 	addLocalTransaction({
-		// 		ops: ops,
-		// 		timestamp: new Date(),
-		// 		id: res.result,
-		// 		type: 'hive'
-		// 	});
-		// }
+		if (res.success) {
+			const ops: PendingTx['ops'] = [
+				{
+					data: {
+						amount: new CoinAmount(amount, Coin.hbd).toAmountString(),
+						asset: Coin.hbd.unit.toLowerCase(),
+						from: username,
+						to: recipient,
+						type: type === 'stake' ? 'stake_hbd' : 'unstake_hbd'
+					},
+					type: type === 'stake' ? 'stake_hbd' : 'unstake_hbd',
+					index: 0
+				}
+			];
+			if (shouldDeposit) {
+				ops.push({
+					data: {
+						amount: new CoinAmount(amount, Coin.hbd).toAmountString(),
+						asset: Coin.hbd.unit.toLowerCase(),
+						from: username,
+						to: recipient,
+						type: 'deposit',
+						memo: ''
+					},
+					type: 'deposit',
+					index: 1
+				});
+			}
+			addLocalTransaction({
+				ops: ops,
+				timestamp: new Date(),
+				id: res.result,
+				type: 'hive'
+			});
+		}
 		return res;
 	};
 </script>

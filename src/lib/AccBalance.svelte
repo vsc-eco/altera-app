@@ -27,7 +27,8 @@
 			hive: resultBal?.hive ?? 0,
 			hive_consensus: resultBal?.hive_consensus ?? 0,
 			consensus_unstaking: resultBal?.consensus_unstaking ?? 0,
-			resource_credits: resultRC?.amount ?? 0
+			resource_credits: resultRC?.amount ?? 0,
+			last_tx_height: resultRC?.block_height ?? 0
 		};
 	});
 	$effect(() => {

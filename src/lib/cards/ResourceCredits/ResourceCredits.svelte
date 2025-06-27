@@ -36,9 +36,6 @@
 	});
 	// regen time in minutes
 	const HIVE_RC_REGEN_TIME_MINS = 5 * 24 * 60;
-	$effect(() => {
-		console.log('percent', rc?.percentage);
-	});
 	let hiveRegenTime = $derived.by(() => {
 		if (!rc) return null;
 		return moment.duration((1 - rc.percentage * 1e-4) * HIVE_RC_REGEN_TIME_MINS, 'minutes');
@@ -67,7 +64,6 @@
 </script>
 
 <Card>
-	<h2>Resource Credits</h2>
 	<div class="rc-wrapper">
 		<div class="vsc-credits">
 			<h5>VSC Resource Credits</h5>
@@ -130,28 +126,15 @@
 			</div>
 		{/if}
 	</div>
-	<!-- {#if rc}
-        Current: {rc.current_mana}
-        Max: {rc.max_mana}
-        %: {rc.percentage}
-    {/if} -->
 </Card>
 
 <style lang="scss">
-	h2 {
-		position: sticky;
-		font-size: var(--text-2xl);
-		font-weight: 400;
-		transform: translateY(-1rem);
-		left: 0rem;
-		overflow: visible;
-	}
 	.rc-wrapper {
 		margin: 0.75rem;
 		margin-top: 0rem;
 		display: flex;
 		flex-direction: column;
-		gap: 2rem;
+		gap: 1.5rem;
 		vertical-align: middle;
 		.bar-and-info {
 			display: flex;

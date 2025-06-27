@@ -117,11 +117,7 @@
 					<th> </th><td><img src={Coin.hive.icon} alt="" /></td>
 					<td class="coin-cell">Hive Unstaking</td>
 					<td class="amount-cell"
-						>{new CoinAmount(
-							balances.consensus_unstaking,
-							Coin.hbd,
-							true
-						).toPrettyString()}&nbsp;</td
+						>{new CoinAmount(balances.consensus_unstaking, Coin.hive, true).toPrettyString()}</td
 					>
 				</tr>
 			{/if}

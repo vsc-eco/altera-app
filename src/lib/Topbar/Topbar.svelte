@@ -103,6 +103,7 @@
 		gap: 0.25rem;
 		align-items: center;
 		margin: auto;
+		margin-top: calc(var(--text-4xl) / 2);
 		z-index: 10;
 	}
 	@media screen and (max-width: 420px) {

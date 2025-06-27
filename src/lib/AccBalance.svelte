@@ -32,9 +32,12 @@
 	});
 	$effect(() => {
 		let intervalId = setInterval(() => {
-			untrack(() => api).fetch({ variables: { account: did }, policy: 'NetworkOnly' });
+			untrack(() => api)
+				.fetch({ variables: { account: did }, policy: 'NetworkOnly' })
+				.then(() => {
+					accountBalance.set({ bal: balances, loading: false });
+				});
 		}, 1000);
-		accountBalance.set(balances);
 		return () => {
 			clearInterval(intervalId);
 		};

@@ -13,7 +13,7 @@ export type AccountBalance = {
 	hive: number;
 	hive_consensus: number;
 	consensus_unstaking: number;
-	resource_credits: number,
+	resource_credits: number;
 };
 
 export type BalanceOption =
@@ -32,7 +32,10 @@ type BalanceDataPoint = {
 };
 
 // svelte store for current balance (updated in AccBalance.svelte)
-export const accountBalance = writable<AccountBalance>(getDefaultBalance());
+export const accountBalance = writable<{ bal: AccountBalance; loading: boolean }>({
+	bal: getDefaultBalance(),
+	loading: true
+});
 
 // svelte store for the balance data
 export const accountBalanceHistory = writable<Point[]>([]);

@@ -74,7 +74,7 @@
 			showMax = false;
 			return;
 		}
-		const originalAmount = new CoinAmount($accountBalance[maxField], originalCoin, true);
+		const originalAmount = new CoinAmount($accountBalance.bal[maxField], originalCoin, true);
 		if (value.value === originalCoin.value) {
 			showMax = Number(boundAmount) !== originalAmount.toNumber();
 			return;
@@ -90,13 +90,13 @@
 	});
 	let maxBalance = $derived.by(() => {
 		if (maxField) {
-			return new CoinAmount($accountBalance[maxField], originalCoin, true).toAmountString();
+			return new CoinAmount($accountBalance.bal[maxField], originalCoin, true).toAmountString();
 		}
 		return undefined;
 	});
 	let maxInputField = $derived.by(() => {
 		if (maxField) {
-			return new CoinAmount($accountBalance[maxField], value, true).toAmountString();
+			return new CoinAmount($accountBalance.bal[maxField], value, true).toAmountString();
 		}
 		return undefined;
 	});
@@ -126,7 +126,7 @@
 			<span style="white-space: nowrap;">
 				(Balance:
 				<span class="balance-amount">
-					{new CoinAmount($accountBalance[maxField], originalCoin, true).toPrettyString()}
+					{new CoinAmount($accountBalance.bal[maxField], originalCoin, true).toPrettyString()}
 				</span>)
 			</span>
 		{/if}
@@ -153,7 +153,7 @@
 			}}
 			oninput={(e) => {
 				error = '';
-				if (maxField && Number(amountOfOriginalCoin) > $accountBalance[maxField]) {
+				if (maxField && Number(amountOfOriginalCoin) > $accountBalance.bal[maxField]) {
 					error = 'Amount exceeds available balance.';
 				}
 				new CoinAmount(Number(boundAmount), value)
@@ -165,7 +165,7 @@
 			}}
 			onchange={() => {
 				console.log('HERE CHANGED');
-				if (maxField && Number(amountOfOriginalCoin) > $accountBalance[maxField]) {
+				if (maxField && Number(amountOfOriginalCoin) > $accountBalance.bal[maxField]) {
 					error = 'Amount exceeds available balance.';
 				}
 				const amount =

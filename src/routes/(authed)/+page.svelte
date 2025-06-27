@@ -42,7 +42,7 @@
 		<StakeUnstakeTabsModal />
 	{/if}
 	{#if auth.value}
-		<ResourceCredits/>
+		<ResourceCredits {username} isHive={auth.value.did.slice(0, 4) === 'hive'} />
 	{/if}
 	<div class="txs">
 		<h3>Transactions</h3>

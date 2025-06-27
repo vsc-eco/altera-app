@@ -35,14 +35,14 @@
 			<AccBalance did={auth.value.did}></AccBalance>
 		</Card>
 	{/if}
+	{#if auth.value}
+		<ResourceCredits {username} isHive={auth.value.did.slice(0, 4) === 'hive'} />
+	{/if}
 	<Card>
 		<Send widgetView />
 	</Card>
 	{#if auth.value == undefined || auth.value.username != undefined}
 		<StakeUnstakeTabsModal />
-	{/if}
-	{#if auth.value}
-		<ResourceCredits {username} isHive={auth.value.did.slice(0, 4) === 'hive'} />
 	{/if}
 	<div class="txs">
 		<h3>Transactions</h3>

@@ -67,20 +67,49 @@
 </script>
 
 <Card>
+	<h2>Resource Credits</h2>
 	<div class="rc-wrapper">
-		<h2>Resource Credits</h2>
-		<div class="rc-display">
-			<div class="vsc-credits">
-				<h5>VSC Resource Credits</h5>
-				<!-- TODO: remove the 5000 and make the math right -->
+		<div class="vsc-credits">
+			<h5>VSC Resource Credits</h5>
+			<!-- TODO: remove the 5000 and make the math right -->
+			<div class="bar-and-info">
+				<div class="bar-wrapper">
+					<Progress
+						boundaries={{ min: 0, max: adjustedMax / 1000 }}
+						currentValue={$accountBalance.loading ? null : adjustedRcs / 1000}
+					/>
+					{#if vscRegenTime && adjustedRcs / adjustedMax < 0.85}
+						<div class="regeneration">Full in {durationToString(vscRegenTime)}</div>
+					{/if}
+				</div>
+				{#snippet trigger(attributes: HTMLButtonAttributes)}
+					<PillButton {...attributes} onclick={attributes.onclick!} styleType="icon-subtle">
+						<Info />
+					</PillButton>
+				{/snippet}
+				<span class="info-button">
+					<Popover {trigger}>
+						<p>
+							VSC Resource Credits are non-transferable credits that let you perform blockchain
+							actions. They regenerate over 5 days after use and are based on your deposited HBD.
+							Hive account holders receive an extra 5.000 credits.
+						</p>
+					</Popover></span
+				>
+			</div>
+		</div>
+		{#if isHive}
+			<div class="hive-credits">
+				<h5>Hive Resource Credits</h5>
 				<div class="bar-and-info">
 					<div class="bar-wrapper">
 						<Progress
-							boundaries={{ min: 0, max: adjustedMax / 1000 }}
-							currentValue={$accountBalance.loading ? null : adjustedRcs / 1000}
+							boundaries={{ min: 0, max: rc?.max_mana ?? 0 }}
+							currentValue={rc?.current_mana ?? null}
+							colorVar="--secondary-fg-mid"
 						/>
-						{#if vscRegenTime && adjustedRcs / adjustedMax < 0.85}
-							<div class="regeneration">Full in {durationToString(vscRegenTime)}</div>
+						{#if hiveRegenTime}
+							<div class="regeneration">Full in {durationToString(hiveRegenTime)}</div>
 						{/if}
 					</div>
 					{#snippet trigger(attributes: HTMLButtonAttributes)}
@@ -91,46 +120,15 @@
 					<span class="info-button">
 						<Popover {trigger}>
 							<p>
-								VSC Resource Credits are non-transferable credits that let you perform blockchain
-								actions. They regenerate over 5 days after use and are based on your deposited HBD.
-								Hive account holders receive an extra 5.000 credits.
+								Hive Resource Credits are non-transferable credits that are used to perform all
+								actions across the Hive blockchain. It takes 5 days to regenerate all of your
+								resource credits.
 							</p>
 						</Popover></span
 					>
 				</div>
 			</div>
-			{#if isHive}
-				<div class="hive-credits">
-					<h5>Hive Resource Credits</h5>
-					<div class="bar-and-info">
-						<div class="bar-wrapper">
-							<Progress
-								boundaries={{ min: 0, max: rc?.max_mana ?? 0 }}
-								currentValue={rc?.current_mana ?? null}
-								colorVar="--secondary-fg-mid"
-							/>
-							{#if hiveRegenTime}
-								<div class="regeneration">Full in {durationToString(hiveRegenTime)}</div>
-							{/if}
-						</div>
-						{#snippet trigger(attributes: HTMLButtonAttributes)}
-							<PillButton {...attributes} onclick={attributes.onclick!} styleType="icon-subtle">
-								<Info />
-							</PillButton>
-						{/snippet}
-						<span class="info-button">
-							<Popover {trigger}>
-								<p>
-									Hive Resource Credits are non-transferable credits that are used to perform all
-									actions across the Hive blockchain. It takes 5 days to regenerate all of your
-									resource credits.
-								</p>
-							</Popover></span
-						>
-					</div>
-				</div>
-			{/if}
-		</div>
+		{/if}
 	</div>
 	<!-- {#if rc}
         Current: {rc.current_mana}
@@ -140,10 +138,17 @@
 </Card>
 
 <style lang="scss">
-	.rc-wrapper {
-		margin: 1rem;
+	h2 {
+		position: sticky;
+		font-size: var(--text-2xl);
+		font-weight: 400;
+		transform: translateY(-1rem);
+		left: 0rem;
+		overflow: visible;
 	}
-	.rc-display {
+	.rc-wrapper {
+		margin: 0.75rem;
+		margin-top: 0rem;
 		display: flex;
 		flex-direction: column;
 		gap: 2rem;

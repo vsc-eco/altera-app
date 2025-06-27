@@ -147,7 +147,7 @@
 		container-name: table-row;
 		display: flex;
 		padding: 1rem 0.5rem;
-		margin: 0rem 0.5rem;
+		margin: 0rem 0.75rem;
 		border-bottom: 1px solid var(--neutral-bg-mid);
 		min-width: 200px;
 	}

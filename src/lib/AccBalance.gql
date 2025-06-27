@@ -9,5 +9,6 @@ query GetAccountBalance($account: String!) {
   }
   getAccountRC(account: $account) {
     amount
+    block_height
   }
 }

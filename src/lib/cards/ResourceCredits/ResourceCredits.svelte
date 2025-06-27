@@ -9,9 +9,12 @@
 	import { type HTMLButtonAttributes } from 'svelte/elements';
 	import { Info } from '@lucide/svelte';
 	import moment from 'moment';
+	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
 	let { username, isHive }: { username: string | undefined; isHive: boolean } = $props();
 
 	let rc: Manabar | null = $state(null);
+	let adjustedRcs = $derived($accountBalance.bal.resource_credits + 5000);
+	let adjustedMax = $derived($accountBalance.bal.hbd + 5000);
 
 	$effect(() => {
 		if (!username) return;
@@ -32,13 +35,24 @@
 		};
 	});
 	// regen time in minutes
-	const HIVE_RC_REGEN_TIME = 5 * 24 * 60;
+	const HIVE_RC_REGEN_TIME_MINS = 5 * 24 * 60;
 	$effect(() => {
 		console.log('percent', rc?.percentage);
 	});
 	let hiveRegenTime = $derived.by(() => {
 		if (!rc) return null;
-		return moment.duration((1 - rc.percentage * 1e-4) * HIVE_RC_REGEN_TIME, 'minutes');
+		return moment.duration((1 - rc.percentage * 1e-4) * HIVE_RC_REGEN_TIME_MINS, 'minutes');
+	});
+	let vscRegenTime = $derived.by(() => {
+		if (!rc) return null;
+		return moment.duration(
+			moment.duration(5, 'days').asSeconds() -
+				moment().diff(
+					moment(getDateFromBlockHeight($accountBalance.bal.last_tx_height)),
+					'seconds'
+				),
+			'seconds'
+		);
 	});
 	function durationToString(d: moment.Duration) {
 		let output = '';
@@ -60,12 +74,15 @@
 				<h5>VSC Resource Credits</h5>
 				<!-- TODO: remove the 5000 and make the math right -->
 				<div class="bar-and-info">
-					<Progress
-						boundaries={{ min: 0, max: ($accountBalance.bal.hbd + 5000) / 1000 }}
-						currentValue={$accountBalance.loading
-							? null
-							: ($accountBalance.bal.resource_credits + 5000) / 1000}
-					/>
+					<div class="bar-wrapper">
+						<Progress
+							boundaries={{ min: 0, max: adjustedMax / 1000 }}
+							currentValue={$accountBalance.loading ? null : adjustedRcs / 1000}
+						/>
+						{#if vscRegenTime && adjustedRcs / adjustedMax < 0.85}
+							<div class="regeneration">Full in {durationToString(vscRegenTime)}</div>
+						{/if}
+					</div>
 					{#snippet trigger(attributes: HTMLButtonAttributes)}
 						<PillButton {...attributes} onclick={attributes.onclick!} styleType="icon-subtle">
 							<Info />
@@ -86,7 +103,7 @@
 				<div class="hive-credits">
 					<h5>Hive Resource Credits</h5>
 					<div class="bar-and-info">
-						<div class="hive-bar-wrapper">
+						<div class="bar-wrapper">
 							<Progress
 								boundaries={{ min: 0, max: rc?.max_mana ?? 0 }}
 								currentValue={rc?.current_mana ?? null}
@@ -134,10 +151,7 @@
 		.bar-and-info {
 			display: flex;
 			gap: 0.5rem;
-			&:first-child {
-				flex-grow: 1;
-			}
-			.hive-bar-wrapper {
+			.bar-wrapper {
 				flex-grow: 1;
 			}
 			.info-button {

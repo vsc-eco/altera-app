@@ -29,21 +29,28 @@
 
 <TopHomeMenu {auth} />
 <div class="masonry">
-	<Balance></Balance>
-	{#if auth.value}
+	<div class="row large">
+		<Balance></Balance>
+		{#if auth.value}
+			<Card>
+				<AccBalance did={auth.value.did}></AccBalance>
+			</Card>
+		{/if}
+	</div>
+	<div class="row small">
+		{#if auth.value}
+			<ResourceCredits {username} isHive={auth.value.did.slice(0, 4) === 'hive'} />
+		{/if}
+	</div>
+	<div class="row large">
+		{#if auth.value == undefined || auth.value.username != undefined}
+			<StakeUnstakeTabsModal />
+		{/if}
 		<Card>
-			<AccBalance did={auth.value.did}></AccBalance>
+			<Send widgetView />
 		</Card>
-	{/if}
-	{#if auth.value}
-		<ResourceCredits {username} isHive={auth.value.did.slice(0, 4) === 'hive'} />
-	{/if}
-	<Card>
-		<Send widgetView />
-	</Card>
-	{#if auth.value == undefined || auth.value.username != undefined}
-		<StakeUnstakeTabsModal />
-	{/if}
+	</div>
+
 	<div class="txs">
 		<h3>Transactions</h3>
 		{#if auth.value}
@@ -55,18 +62,34 @@
 <style>
 	.masonry {
 		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+	.txs {
+		flex-basis: 100%;
+		width: 100%;
+	}
+	.row {
+		display: flex;
 		flex-wrap: wrap;
 		gap: 1rem;
 		align-items: stretch;
 	}
-	.masonry > .txs {
-		flex-basis: 100%;
-		width: 100%;
-	}
-	.masonry > :global(*) {
+	.row > :global(*) {
 		flex-grow: 1;
 		flex-basis: 300px;
 		box-sizing: border-box;
+	}
+	.row.small > :global(*) {
+		max-width: max(300px, min(calc(64rem / 3), (100% - 1rem) / 2));
+	}
+	/* This is the width others shrink to 1 col, but not ideal to hard code it */
+	@media (max-width: 848px) {
+		.row.small > :global(*) {
+			flex-grow: 1;
+			max-width: none;
+			flex-basis: 100%;
+		}
 	}
 	h1 {
 		font-size: var(--text-4xl);

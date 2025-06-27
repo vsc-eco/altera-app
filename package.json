@@ -81,6 +81,7 @@
 		"@zag-js/dialog": "^1.9.3",
 		"@zag-js/menu": "^1.9.3",
 		"@zag-js/popover": "^1.9.3",
+		"@zag-js/progress": "1.9.3",
 		"@zag-js/qr-code": "^1.9.3",
 		"@zag-js/radio-group": "^1.9.3",
 		"@zag-js/select": "^1.9.3",

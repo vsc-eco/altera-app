@@ -2,33 +2,59 @@
 	import * as progress from '@zag-js/progress';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
+	import { untrack } from 'svelte';
 	type Props = {
 		boundaries: { min: number; max: number };
-		currentValue: number;
+		currentValue: number | null;
+		colorVar?: string;
 	};
-	let { boundaries, currentValue }: Props = $props();
-	let displayValue = $derived(Math.max(currentValue, boundaries.min));
+	let { boundaries, currentValue, colorVar = '--primary-bg-mid' }: Props = $props();
+	let percentage = $derived(
+		currentValue
+			? Math.floor((Math.max(currentValue, boundaries.min) / boundaries.max) * 100)
+			: null
+	);
 
 	const id = getUniqueId();
-	const service = useMachine(progress.machine, {
-		id,
-		min: boundaries.min,
-		max: boundaries.max,
-	});
+	let service = $state(
+		useMachine(progress.machine, {
+			id,
+			min: 0,
+			max: 100
+		})
+	);
 	const api = $derived(progress.connect(service, normalizeProps));
 
 	$effect(() => {
-        api.setValue(displayValue)
+		api.setValue(percentage);
 	});
+	$effect(() => {
+		console.log('displayval', percentage);
+	});
+
+	function formatNumber(n: number): string {
+		if (n > 1e9) {
+			const billions = n / 1e9;
+			const floored = Math.floor(billions * 1000) / 1000;
+			return `${floored}b`;
+		}
+		return n.toString();
+	}
 </script>
 
-<div {...api.getRootProps()}>
+<div {...api.getRootProps()} style={`--bar-color: var(${colorVar})`}>
 	<div {...api.getLabelProps()}>
 		<span class="coin-amt current">
-			{currentValue * (10 ** -3)}
+			{#if currentValue}
+				{formatNumber(currentValue)}
+			{:else}
+				Loading...
+			{/if}
 		</span>
 		<span class="coin-amt max">
-			/ {boundaries.max * (10 ** -3)}
+			{#if currentValue}
+				/ {formatNumber(boundaries.max)}
+			{/if}
 		</span>
 	</div>
 	<div {...api.getTrackProps()}>
@@ -40,19 +66,19 @@
 			<span class="legend-icon"> </span>
 		</span>
 		<span class="percentage">
-			{#if currentValue < displayValue}
+			{#if currentValue && currentValue < boundaries.min}
 				&lt;
 			{/if}
-			{displayValue ? Math.round((displayValue / boundaries.max) * 100) : 0}%
+			{percentage ?? 0}%
 		</span>
 	</div>
 </div>
 
 <style lang="scss">
-    // [data-scope="progress"][data-part="root"] {
-        
-    // }
-	[data-scope="progress"][data-part="label"] {
+	// [data-scope="progress"][data-part="root"] {
+
+	// }
+	[data-scope='progress'][data-part='label'] {
 		display: flex;
 		flex-direction: row;
 		width: 100%;
@@ -76,13 +102,13 @@
 		border-radius: 0.5rem;
 		overflow: hidden;
 		position: relative;
-        margin-top: 1rem;
+		margin-top: 1rem;
 		margin-bottom: 0.5rem;
 	}
 
 	[data-scope='progress'][data-part='range'] {
 		height: 100%;
-		background-color: var(--primary-bg-mid);
+		background-color: var(--bar-color);
 		border-radius: 0.5rem;
 		transition: width 0.3s ease;
 		position: absolute;
@@ -90,10 +116,10 @@
 		left: 0;
 	}
 
-    [data-scope="progress"][data-part="value-text"] {
+	[data-scope='progress'][data-part='value-text'] {
 		display: flex;
 		flex-direction: row;
-        color: var(--neutral-fg-mid);
+		color: var(--neutral-fg-mid);
 		font-size: var(--text-sm);
 		.percentage {
 			width: 100%;
@@ -102,8 +128,7 @@
 		.legend {
 			display: grid;
 			max-width: max-content;
-			grid-template-areas:
-				'legend-label	legend-icon';
+			grid-template-areas: 'legend-label	legend-icon';
 			align-items: center;
 			gap: 0.25rem;
 		}
@@ -115,7 +140,30 @@
 			width: 0.5rem;
 			height: 0.5rem;
 			border-radius: 0.5rem;
-			background-color: var(--primary-bg-mid);
+			background-color: var(--bar-color);
 		}
-    }
+	}
+
+	[data-scope='progress'][data-part='range'][data-state='indeterminate'] {
+		background: linear-gradient(
+			90deg,
+			transparent 0%,
+			transparent 40%,
+			var(--bar-color) 50%,
+			transparent 60%,
+			transparent 100%
+		);
+		background-size: 300% 100%;
+		animation: loading-sweep 5s linear infinite;
+		width: 100% !important; /* Override zag-js width for loading state */
+	}
+
+	@keyframes loading-sweep {
+		0% {
+			background-position: 300% 0;
+		}
+		100% {
+			background-position: -300% 0;
+		}
+	}
 </style>

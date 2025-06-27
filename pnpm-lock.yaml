@@ -68,6 +68,9 @@ importers:
       '@zag-js/popover':
         specifier: ^1.9.3
         version: 1.9.3
+      '@zag-js/progress':
+        specifier: 1.9.3
+        version: 1.9.3
       '@zag-js/qr-code':
         specifier: ^1.9.3
         version: 1.9.3
@@ -1937,6 +1940,9 @@ packages:
 
   '@zag-js/popper@1.9.3':
     resolution: {integrity: sha512-gTeyKPcY3jWiPzRxn1z8FiYHeSF6/aLwgfz46NeqEaH4wkpJ0CmXl7Yq/EBzNHxK7oYTyJ72euiCmBTaRpXupw==}
+
+  '@zag-js/progress@1.9.3':
+    resolution: {integrity: sha512-z+Igt7aa/lYPvjNhf0TNUsQdJIjuPHCx/CN11IXX2JO19Mfg74N4h456kCWiXeX41jgj1h/ammI/5m/JTVf2WA==}
 
   '@zag-js/qr-code@1.9.3':
     resolution: {integrity: sha512-LTpWvBPGwZ0/gHODs1MpeGwI1zXx30DFwLlUu9Osl3bFcwYlTnVOOq0QbGZA1O8xuoHG7ylPiwK66J7pJVSEkg==}
@@ -5821,7 +5827,7 @@ snapshots:
     dependencies:
       '@ethereumjs/tx': 4.2.0
       '@types/debug': 4.1.12
-      debug: 4.4.0
+      debug: 4.4.1
       semver: 7.7.1
       superstruct: 1.0.4
     transitivePeerDependencies:
@@ -7500,6 +7506,14 @@ snapshots:
     dependencies:
       '@floating-ui/dom': 1.6.13
       '@zag-js/dom-query': 1.9.3
+      '@zag-js/utils': 1.9.3
+
+  '@zag-js/progress@1.9.3':
+    dependencies:
+      '@zag-js/anatomy': 1.9.3
+      '@zag-js/core': 1.9.3
+      '@zag-js/dom-query': 1.9.3
+      '@zag-js/types': 1.9.3
       '@zag-js/utils': 1.9.3
 
   '@zag-js/qr-code@1.9.3':

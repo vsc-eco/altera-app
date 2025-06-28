@@ -421,7 +421,6 @@
 		scroll-snap-type: x proximity;
 		position: relative;
 		flex-wrap: wrap;
-		max-width: 42rem;
 		margin: auto;
 		&.widgetView {
 			padding: 1rem;

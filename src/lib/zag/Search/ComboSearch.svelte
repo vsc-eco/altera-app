@@ -158,6 +158,11 @@
 		display: inline-flex;
 		gap: 0.125rem;
 	}
+	@-moz-document url-prefix() {
+		.key-prompt {
+			right: 1.5rem;
+		}
+	}
 	[data-part='label'] {
 		color: var(--neutral-bg-mid);
 		left: 0.5rem;

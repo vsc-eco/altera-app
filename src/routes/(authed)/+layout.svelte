@@ -3,6 +3,18 @@
 	import Sidebar from '$lib/Sidebar.svelte';
 	import Topbar from '$lib/Topbar/Topbar.svelte';
 	let showSidebar = $state(false);
+	import { getAuth } from '$lib/auth/store';
+	import { startAccountPolling, stopAccountPolling } from '$lib/stores/currentBalance';
+	import { onDestroy } from 'svelte';
+
+	let auth = $derived(getAuth()());
+	$effect(() => {
+		if (!auth.value) return;
+		startAccountPolling(auth.value.did);
+	});
+	onDestroy(() => {
+		stopAccountPolling();
+	});
 </script>
 
 <div class={['flex', { showSidebar }]}>

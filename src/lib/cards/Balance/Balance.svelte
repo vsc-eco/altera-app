@@ -6,7 +6,7 @@
 	import Diff from './Diff.svelte';
 	import Date from './Date.svelte';
 	import { getAuth } from '$lib/auth/store';
-	import { accountBalanceHistory, fetchAndStoreAccountBalances } from '$lib/balances';
+	import { accountBalanceHistory, fetchAndStoreAccountBalances } from '$lib/stores/balanceHistory';
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);
 	let loadingBalances = $state(true);
@@ -139,7 +139,7 @@
 				data={filteredData}
 				bind:hoveredPoint
 				bind:hoveredIndex
-				height={310}
+				height={220}
 				isLoading={loadingBalances}
 			/>
 		</div>

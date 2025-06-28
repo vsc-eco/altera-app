@@ -39,7 +39,10 @@
 	</div>
 	<div class="row small">
 		{#if auth.value}
-			<ResourceCredits {username} isHive={auth.value.did.slice(0, 4) === 'hive'} />
+			<ResourceCredits
+				{username}
+				isHive={auth.value == undefined || auth.value!.username != undefined}
+			/>
 		{/if}
 	</div>
 	<div class="row large">

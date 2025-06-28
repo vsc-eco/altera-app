@@ -7,13 +7,19 @@
 		boundaries: { min: number; max: number };
 		currentValue: number | null;
 		colorVar?: string;
+		timerLabel?: string;
 	};
-	let { boundaries, currentValue, colorVar = '--primary-bg-mid' }: Props = $props();
-	let percentage = $derived(
-		currentValue
-			? Math.floor((Math.max(currentValue, boundaries.min) / boundaries.max) * 100)
-			: null
-	);
+	let { boundaries, currentValue, colorVar = '--primary-bg-mid', timerLabel }: Props = $props();
+	let percentage = $derived.by(() => {
+		if (currentValue !== null) {
+			if (currentValue === 0) {
+				return 0;
+			} else {
+				return Math.floor((Math.max(currentValue, boundaries.min) / boundaries.max) * 100);
+			}
+		}
+		return null;
+	});
 
 	const id = getUniqueId();
 	let service = $state(
@@ -27,9 +33,6 @@
 
 	$effect(() => {
 		api.setValue(percentage);
-	});
-	$effect(() => {
-		console.log('displayval', percentage);
 	});
 
 	function formatNumber(n: number): string {
@@ -45,14 +48,14 @@
 <div {...api.getRootProps()} style={`--bar-color: var(${colorVar})`}>
 	<div {...api.getLabelProps()}>
 		<span class="coin-amt current">
-			{#if currentValue}
+			{#if currentValue !== null}
 				{formatNumber(currentValue)}
 			{:else}
 				Loading...
 			{/if}
 		</span>
 		<span class="coin-amt max">
-			{#if currentValue}
+			{#if currentValue !== null}
 				/ {formatNumber(boundaries.max)}
 			{/if}
 		</span>
@@ -66,6 +69,9 @@
 			<span class="legend-icon"> </span>
 		</span>
 		<span class="percentage">
+			{#if timerLabel}
+				{timerLabel} -
+			{/if}
 			{#if currentValue && currentValue < boundaries.min}
 				&lt;
 			{/if}

@@ -79,67 +79,59 @@
 	};
 </script>
 
-{#if auth.value == undefined || auth.value!.username != undefined}
-	<form
-		onsubmit={(e) => {
-			e.preventDefault();
-			sendTransaction(amount!, recipient!).then(async (res) => {
-				if (!res.success) {
-					status = '';
-					error = res.error;
-					return;
-				}
-				status = 'Transaction broadcasted successfully!';
-				await sleep(1);
+<form
+	onsubmit={(e) => {
+		e.preventDefault();
+		sendTransaction(amount!, recipient!).then(async (res) => {
+			if (!res.success) {
 				status = '';
-				amount = '';
-			});
-		}}
+				error = res.error;
+				return;
+			}
+			status = 'Transaction broadcasted successfully!';
+			await sleep(1);
+			status = '';
+			amount = '';
+		});
+	}}
+>
+	{#if type === 'stake'}
+		<h2>Stake HBD</h2>
+	{:else}
+		<h2>Unstake HBD</h2>
+	{/if}
+	<p>Be sure to be signed in with the account you'd like to deposit and stake HBD from.</p>
+	{#if type === 'unstake'}
+		<p>
+			<b>Note:</b> Unstaked coins will be made available after about three days.
+		</p>
+	{/if}
+	<p class="error">{error}</p>
+	<Username label="Recipient" id="hbd-stake-recipient" bind:value={recipient} required />
+	<div class="amount-flex">
+		<Amount
+			selectItems={[Coin.hbd]}
+			id="hbd-stake-amount"
+			label="Deposit and Stake Amount:"
+			coin={Coin.hbd}
+			network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
+			bind:originalAmount={amount}
+			required
+			maxField={type === 'stake' ? (shouldDeposit ? undefined : 'hbd') : 'hbd_savings'}
+		/>
+	</div>
+	{#if type === 'stake'}
+		<label for="hbd-stake-checkbox">
+			<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
+			First Deposit HBD into VSC
+		</label>
+	{/if}
+	<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
+		>{#if shouldDeposit}Deposit and{/if}
+		{#if type === 'stake'}Stake{:else}Initialize Unstake{/if}</PillButton
 	>
-		{#if type === 'stake'}
-			<h2>Stake HBD</h2>
-		{:else}
-			<h2>Unstake HBD</h2>
-		{/if}
-		<p>Be sure to be signed in with the account you'd like to deposit and stake HBD from.</p>
-		{#if type === 'unstake'}
-			<p>
-				<b>Note:</b> Unstaked coins will be made available after about three days.
-			</p>
-		{/if}
-		<p class="error">{error}</p>
-		<Username label="Recipient" id="hbd-stake-recipient" bind:value={recipient} required />
-		<div class="amount-flex">
-			<Amount
-				selectItems={[Coin.hbd]}
-				id="hbd-stake-amount"
-				label="Deposit and Stake Amount:"
-				coin={Coin.hbd}
-				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
-				bind:originalAmount={amount}
-				required
-				maxField={type === 'stake' ? (shouldDeposit ? undefined : 'hbd') : 'hbd_savings'}
-			/>
-		</div>
-		{#if type === 'stake'}
-			<label for="hbd-stake-checkbox">
-				<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
-				First Deposit HBD into VSC
-			</label>
-		{/if}
-		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-			>{#if shouldDeposit}Deposit and{/if}
-			{#if type === 'stake'}Stake{:else}Initialize Unstake{/if}</PillButton
-		>
-		<span class="status">{status}</span>
-	</form>
-{:else}
-	<p class="error">
-		Consensus staking with an EVM wallet is currently unsupported. Please <a href="/logout"
-			>logout</a
-		> and login with a hive account instead.
-	</p>
-{/if}
+	<span class="status">{status}</span>
+</form>
 
 <style>
 	input[type='checkbox'] {

@@ -69,7 +69,11 @@
 
 		return out;
 	}
-	const spacedDates = $derived(getSpacedDates(dateExtent, 5));
+	const daysSpacing = $derived.by(() => {
+		const daysApart = moment(dateExtent[1]).diff(moment(dateExtent[0]), 'days');
+		return daysApart > 7 ? 5 : daysApart
+	});
+	const spacedDates = $derived(getSpacedDates(dateExtent, daysSpacing));
 	let lineGenerator = area<{ value: number; date: Date }>()
 		.y((d) => yScale(d.value))
 		.x((d) => xScale(d.date))

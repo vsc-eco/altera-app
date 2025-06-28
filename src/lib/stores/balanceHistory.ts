@@ -1,21 +1,11 @@
 import moment from 'moment';
 import { writable } from 'svelte/store';
-import { getBlockHeightFromDate } from '../routes/(authed)/transactions/getDateFromBlockHeight';
-import { CoinAmount } from './currency/CoinAmount';
-import { Coin, Network } from './send/sendOptions';
-import config from '../../houdini.config';
-import { type Point } from './LineChart.svelte';
-
-export type AccountBalance = {
-	hbd: number;
-	hbd_savings: number;
-	pending_hbd_unstaking: number;
-	hive: number;
-	hive_consensus: number;
-	consensus_unstaking: number;
-	resource_credits: number;
-	last_tx_height: number;
-};
+import { getBlockHeightFromDate } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
+import { CoinAmount } from '$lib/currency/CoinAmount';
+import { Coin, Network } from '$lib/send/sendOptions';
+import config from '../../../houdini.config';
+import { type Point } from '../LineChart.svelte';
+import { type AccountBalance, getDefaultBalance } from './currentBalance';
 
 export type BalanceOption =
 	| 'hbd'
@@ -31,12 +21,6 @@ type BalanceDataPoint = {
 	timestamp: moment.Moment;
 	amount: number; // total amount in USD (sum of converted balances)
 };
-
-// svelte store for current balance (updated in AccBalance.svelte)
-export const accountBalance = writable<{ bal: AccountBalance; loading: boolean }>({
-	bal: getDefaultBalance(),
-	loading: true
-});
 
 // svelte store for the balance data
 export const accountBalanceHistory = writable<Point[]>([]);
@@ -165,19 +149,6 @@ export async function fetchBalancesHTTP(
 		console.error('Failed to fetch balances with raw fetch:', error);
 		return [];
 	}
-}
-
-function getDefaultBalance(): AccountBalance {
-	return {
-		hbd: 0,
-		hbd_savings: 0,
-		pending_hbd_unstaking: 0,
-		hive: 0,
-		hive_consensus: 0,
-		consensus_unstaking: 0,
-		resource_credits: 0,
-		last_tx_height: 0
-	};
 }
 
 export async function fetchAndStoreAccountBalances(

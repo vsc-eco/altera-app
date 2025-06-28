@@ -3,7 +3,7 @@
 	import { untrack } from 'svelte';
 	import { Coin, Network } from './sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { isValidBalanceField } from '$lib/balances';
+	import { isValidBalanceField } from '$lib/stores/balanceHistory';
 	let {
 		fromAmount = $bindable(''),
 		fromCoin: newFromCoin,

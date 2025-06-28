@@ -5,7 +5,8 @@
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
-	import { accountBalance, type BalanceOption } from '$lib/balances';
+	import { type BalanceOption } from '$lib/stores/balanceHistory';
+	import { accountBalance } from '$lib/stores/currentBalance';
 	import PillButton from '$lib/PillButton.svelte';
 
 	let {

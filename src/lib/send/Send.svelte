@@ -16,10 +16,10 @@
 	import Receipt from './Receipt.svelte';
 	import {
 		executeTx,
-		getEVMOpType,
 		getSendOpGenerator,
 		getSendOpType
 	} from '$lib/vscTransactions/hive';
+	import { getEVMOpType } from '$lib/vscTransactions/eth';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
 	import { addLocalTransaction } from './localStorageTxs';
@@ -139,7 +139,7 @@
 					const sendOp = getEVMOpType(
 						fromNetwork,
 						toNetwork,
-						auth.value.address,
+						auth.value.did,
 						getDidFromUsername(toUsername),
 						new CoinAmount(toAmount, toCoin.coin)
 					);

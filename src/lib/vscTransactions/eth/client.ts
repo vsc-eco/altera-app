@@ -4,7 +4,6 @@ import Axios from 'axios';
 import { encodePayload } from 'dag-jose-utils';
 import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
-import { convertCBORToEIP712TypedData } from './cbor_to_eip712_converter';
 
 export type Client = {
 	api: string;
@@ -62,7 +61,7 @@ type Transaction =
 	| DepositTransaction;
 
 export type VSCTransactionOp = {
-	op: string;
+	type: string;
 	payload: Uint8Array; // CBOR-encoded payload
 	required_auths: {
 		active: string[];
@@ -169,7 +168,7 @@ function createVSCTransactionOp(transaction: Transaction, userId: string): VSCTr
 	const encodedPayload = encodeTransactionPayload(transaction);
 
 	return {
-		op: transaction.op,
+		type: transaction.op,
 		payload: encodedPayload,
 		required_auths: {
 			active: [userId],
@@ -208,7 +207,7 @@ function createVSCTransactionContainer(
 
 function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactionSigningShell {
 	const decodedOps = txContainer.tx.map((op) => ({
-		type: op.op,
+		type: op.type,
 		payload: decodePayloadForSigning(op.payload)
 	}));
 
@@ -223,6 +222,15 @@ function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactio
 		},
 		tx: decodedOps
 	};
+}
+
+function uint8ArrayToBase64(uint8Array: Uint8Array): string {
+	let binaryString = '';
+	uint8Array.forEach((byte) => {
+		binaryString += String.fromCharCode(byte);
+	});
+
+	return btoa(binaryString);
 }
 
 type TupleRemoveFirstTwoValues<T extends any[]> = T extends [any, any, ...infer Rest]
@@ -262,7 +270,7 @@ export async function signAndBrodcastTransaction<
 		...signerArgs
 	);
 
-	const sigEncoded = uint8ArrayToBase64Url(
+	const sigEncoded = uint8ArrayToBase64(
 		(
 			await encodePayload({
 				__t: 'vsc-sig',
@@ -270,7 +278,7 @@ export async function signAndBrodcastTransaction<
 			})
 		).linkedBlock
 	);
-	const txEncoded = uint8ArrayToBase64Url(signedTx.rawTx);
+	const txEncoded = uint8ArrayToBase64((await encodePayload(txContainer)).linkedBlock);
 
 	const { data } = await Axios.post(`${client.api}/api/v1/graphql`, {
 		query: submitTxQuery,
@@ -279,7 +287,7 @@ export async function signAndBrodcastTransaction<
 			sig: sigEncoded
 		}
 	});
-	// console.log(data);
+	console.log('axios response:', data);
 	if (data?.data?.submitTransactionV1) {
 		const submitResult = data.data.submitTransactionV1;
 		client.nonce!++;
@@ -289,7 +297,7 @@ export async function signAndBrodcastTransaction<
 		};
 	}
 
-	throw new Error(`vsc transaction failed: ${data.error}`);
+	throw new Error(`vsc transaction failed: ${data.errors}`);
 }
 
 export type OnchainTransaction = Transaction;

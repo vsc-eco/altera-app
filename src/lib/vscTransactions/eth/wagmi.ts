@@ -61,15 +61,15 @@ export const wagmiSigner2: Signer<[Config]> = async (
 
 		console.log('User signature:', signature);
 
-		// Create signature container
+		// backend wants type {alg, kid, sig}, even though struct can take {t, s}
 		const sigs = [
 			{
-				t: 'eip191' as const,
-				s: signature
+				alg: "EdDSA",
+				kid: client.userId,
+				sig: signature
 			}
 		];
 
-		// Encode the raw transaction
 		const rawTx = (await encodePayload(signingShell)).linkedBlock;
 
 		console.log('Raw transaction encoded, length:', rawTx.length);

@@ -11,27 +11,28 @@ import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/send/sendOptions';
 import { getHiveDepositOp } from './vscOperations/deposit';
 import { getHiveTransferOp } from './vscOperations/transfer';
-import { getDepositTransaction } from '../oldVscClient/client';
 import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
+import type { TransferTransaction, DepositTransaction, WithdrawTransaction } from '../eth/client';
 
 export const consensusTx = async (
 	amount: string,
 	nodeRunnerAccount: string,
 	username: string,
 	shouldDeposit: boolean,
-	aioha: Aioha,
+	aioha: Aioha
 ): Promise<OperationResult> => {
-	if (Number(amount) == 0) return {
-		success: false,
-		error: 'Error: cannot stake 0 HIVE.',
-		errorCode: 0,
-	};
+	if (Number(amount) == 0)
+		return {
+			success: false,
+			error: 'Error: cannot stake 0 HIVE.',
+			errorCode: 0
+		};
 	let stakeOp = getHiveConsensusStakeOp(
 		username,
 		nodeRunnerAccount,
-		new CoinAmount(amount, Coin.hive),
+		new CoinAmount(amount, Coin.hive)
 	);
 	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hive));
 	let ops: Operation[] = [];
@@ -45,17 +46,18 @@ export const consensusUnstakeTx = async (
 	amount: string,
 	nodeRunnerAccount: string,
 	username: string,
-	aioha: Aioha,
+	aioha: Aioha
 ): Promise<OperationResult> => {
-	if (Number(amount) == 0) return {
-		success: false,
-		error: 'Error: cannot unstake 0 HIVE.',
-		errorCode: 0,
-	};
+	if (Number(amount) == 0)
+		return {
+			success: false,
+			error: 'Error: cannot unstake 0 HIVE.',
+			errorCode: 0
+		};
 	let unstakeOp = getHiveConsensusUnstakeOp(
 		username,
 		nodeRunnerAccount,
-		new CoinAmount(amount, Coin.hive),
+		new CoinAmount(amount, Coin.hive)
 	);
 	let ops: Operation[] = [];
 	ops.push(unstakeOp);
@@ -68,18 +70,15 @@ export const hbdStakeTx = async (
 	recipient: string,
 	username: string,
 	shouldDeposit: boolean,
-	aioha: Aioha,
+	aioha: Aioha
 ): Promise<OperationResult> => {
-	if (Number(amount) == 0) return {
-		success: false,
-		error: 'Error: cannot stake 0 HBD.',
-		errorCode: 0,
-	};
-	let stakeOp = getHbdStakeOp(
-		username,
-		recipient,
-		new CoinAmount(amount, Coin.hbd),
-	);
+	if (Number(amount) == 0)
+		return {
+			success: false,
+			error: 'Error: cannot stake 0 HBD.',
+			errorCode: 0
+		};
+	let stakeOp = getHbdStakeOp(username, recipient, new CoinAmount(amount, Coin.hbd));
 	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hbd));
 	let ops: Operation[] = [];
 	if (shouldDeposit) ops.push(depositOp);
@@ -93,18 +92,15 @@ export const hbdUnstakeTx = async (
 	recipient: string,
 	username: string,
 	shouldDeposit: boolean,
-	aioha: Aioha,
+	aioha: Aioha
 ): Promise<OperationResult> => {
-	if (Number(amount) == 0) return {
-		success: false,
-		error: 'Error: cannot stake 0 HBD.',
-		errorCode: 0,
-	};
-	let stakeOp = getHbdUnstakeOp(
-		username,
-		recipient,
-		new CoinAmount(amount, Coin.hbd),
-	);
+	if (Number(amount) == 0)
+		return {
+			success: false,
+			error: 'Error: cannot stake 0 HBD.',
+			errorCode: 0
+		};
+	let stakeOp = getHbdUnstakeOp(username, recipient, new CoinAmount(amount, Coin.hbd));
 	let depositOp = getHiveDepositOp(username, username, new CoinAmount(amount, Coin.hbd));
 	let ops: Operation[] = [];
 	if (shouldDeposit) ops.push(depositOp);
@@ -118,18 +114,15 @@ export const executeTx = async (aioha: Aioha, ops: Operation[]) => {
 	return res;
 };
 
-export function getSendOpType(
-	fromNetwork: Network,
-	toNetwork: Network
-) {
+export function getSendOpType(fromNetwork: Network, toNetwork: Network) {
 	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
-		return "transfer";
+		return 'transfer';
 	}
 	if (fromNetwork == Network.hiveMainnet && toNetwork == Network.vsc) {
-		return "deposit";
+		return 'deposit';
 	}
 	if (fromNetwork == Network.vsc && toNetwork == Network.hiveMainnet) {
-		return "withdrawal";
+		return 'withdrawal';
 	}
 }
 
@@ -140,7 +133,7 @@ export const getSendOpGenerator = (
 	from: string,
 	toDid: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
-	memo?: URLSearchParams,
+	memo?: URLSearchParams
 ) => Operation) => {
 	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
 		return getHiveTransferOp;
@@ -150,6 +143,43 @@ export const getSendOpGenerator = (
 	}
 	if (fromNetwork == Network.vsc && toNetwork == Network.hiveMainnet) {
 		return getHiveWithdrawalOp;
+	}
+	throw new Error(
+		`VSC does not currently support going from ${fromNetwork.label} to ${toNetwork.label}`
+	);
+};
+
+export function getEVMOpType(
+	fromNetwork: Network,
+	toNetwork: Network,
+	from: string,
+	to: string,
+	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>
+): TransferTransaction | DepositTransaction | WithdrawTransaction {
+	let payload = {
+		from: from,
+		to: to,
+		amount: amount.toPrettyAmountString(),
+		asset: amount.coin.unit.toLowerCase(),
+		netId: 'vsc-mainnet',
+	}
+	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
+		return {
+			op: 'transfer',
+			payload: payload
+		}
+	}
+	if (fromNetwork == Network.hiveMainnet && toNetwork == Network.vsc) {
+		return {
+			op: 'deposit',
+			payload: payload
+		}
+	}
+	if (fromNetwork == Network.vsc && toNetwork == Network.hiveMainnet) {
+		return {
+			op: 'withdraw',
+			payload: payload
+		}
 	}
 	throw new Error(
 		`VSC does not currently support going from ${fromNetwork.label} to ${toNetwork.label}`

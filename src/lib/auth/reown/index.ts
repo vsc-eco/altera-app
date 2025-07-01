@@ -15,6 +15,9 @@ const wagmiAdapter = new WagmiAdapter({
 	projectId,
 	networks
 });
+
+export const wagmiConfig = wagmiAdapter.wagmiConfig;
+
 // 3. Configure the metadata
 const metadata = {
 	name: 'VSC Frontend',

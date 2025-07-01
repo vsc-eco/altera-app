@@ -208,7 +208,7 @@ function createVSCTransactionContainer(
 function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactionSigningShell {
 	const decodedOps = txContainer.tx.map((op) => ({
 		type: op.type,
-		payload: decodePayloadForSigning(op.payload)
+		payload: JSON.stringify(decodePayloadForSigning(op.payload))
 	}));
 
 	return {

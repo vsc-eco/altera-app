@@ -1,7 +1,7 @@
 import { GetStatusesStore } from '$houdini';
 import { readonly, writable, type Writable } from 'svelte/store';
 
-const statusStore = new GetStatusesStore();
+const statusStore = new GetStatusesStore;
 
 const checkingStores: { [tx_id: string]: Writable<string> } = {};
 

@@ -10,12 +10,10 @@
 	import { Info } from '@lucide/svelte';
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
+	import InfoToolip from '$lib/components/InfoToolip.svelte';
 	let { username, isHive }: { username: string | undefined; isHive: boolean } = $props();
 
 	let rc: Manabar | null = $state(null);
-	// TODO: fix once backend accounts for 5000 free RCs
-	let adjustedRcs = $derived($accountBalance.bal.resource_credits + (isHive ? 5000 : 0));
-	let adjustedMax = $derived($accountBalance.bal.hbd + (isHive ? 5000 : 0));
 
 	$effect(() => {
 		if (!username || !isHive) return;
@@ -70,29 +68,24 @@
 			<div class="bar-and-info">
 				<div class="bar-wrapper">
 					<Progress
-						boundaries={{ min: 0, max: adjustedMax / 1000 }}
-						currentValue={$accountBalance.loading ? null : adjustedRcs / 1000}
+						boundaries={{ min: 0, max: $accountBalance.bal.hbd / 1000 }}
+						currentValue={$accountBalance.loading
+							? null
+							: $accountBalance.bal.resource_credits / 1000}
 						timerLabel={vscRegenTime &&
 						vscRegenTime.asSeconds() > 0 &&
-						adjustedRcs / adjustedMax < 0.85
+						$accountBalance.bal.resource_credits / $accountBalance.bal.hbd < 0.85
 							? `Full in ${durationToString(vscRegenTime)}`
 							: undefined}
 					/>
 				</div>
-				{#snippet trigger(attributes: HTMLButtonAttributes)}
-					<PillButton {...attributes} onclick={attributes.onclick!} styleType="icon-subtle">
-						<Info />
-					</PillButton>
-				{/snippet}
 				<span class="info-button">
-					<Popover {trigger}>
-						<p>
-							VSC Resource Credits are non-transferable credits that let you perform blockchain
-							actions. They regenerate over 5 days after use and are based on your deposited HBD.
-							Hive account holders receive an extra 5.000 credits.
-						</p>
-					</Popover></span
-				>
+					<InfoToolip>
+						VSC Resource Credits are non-transferable credits that let you perform blockchain
+						actions. They regenerate over 5 days after use and are based on your deposited HBD. Hive
+						account holders receive an extra 5.000 credits.
+					</InfoToolip>
+				</span>
 			</div>
 		</div>
 		{#if isHive}
@@ -109,20 +102,14 @@
 								: undefined}
 						/>
 					</div>
-					{#snippet trigger(attributes: HTMLButtonAttributes)}
-						<PillButton {...attributes} onclick={attributes.onclick!} styleType="icon-subtle">
-							<Info />
-						</PillButton>
-					{/snippet}
+
 					<span class="info-button">
-						<Popover {trigger}>
-							<p>
-								Hive Resource Credits are non-transferable credits that are used to perform all
-								actions across the Hive blockchain. It takes 5 days to regenerate all of your
-								resource credits.
-							</p>
-						</Popover></span
-					>
+						<InfoToolip>
+							Hive Resource Credits are non-transferable credits that are used to perform all
+							actions across the Hive blockchain. It takes 5 days to regenerate all of your resource
+							credits.
+						</InfoToolip>
+					</span>
 				</div>
 			</div>
 		{/if}

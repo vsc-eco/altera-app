@@ -6,6 +6,7 @@
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';
 	import { accountBalance, type AccountBalance } from './stores/currentBalance';
 	import moment from 'moment';
+	import InfoToolip from './components/InfoToolip.svelte';
 
 	type Props = {
 		did: string;
@@ -36,8 +37,12 @@
 	});
 </script>
 
-<h2>VSC Balance</h2>
 <div class="box">
+	<div class="title-and-tooltip">
+		<h5>Balances</h5>
+		<InfoToolip>Only balance deposited in VSC is listed.</InfoToolip>
+	</div>
+
 	<table>
 		<tbody>
 			<tr>
@@ -107,6 +112,16 @@
 </div>
 
 <style>
+	.box {
+		margin: 0.75rem;
+		margin-top: 0;
+	}
+	.title-and-tooltip {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		justify-content: space-between;
+	}
 	img {
 		width: 1.25rem;
 		height: 1.25rem;
@@ -124,7 +139,6 @@
 		container-name: table-row;
 		display: flex;
 		padding: 1rem 0.5rem;
-		margin: 0rem 0.75rem;
 		border-bottom: 1px solid var(--neutral-bg-mid);
 		min-width: 200px;
 		align-items: center;
@@ -144,14 +158,5 @@
 	}
 	tr:last-child {
 		border-bottom: none;
-	}
-	h2 {
-		position: sticky;
-		font-size: var(--text-2xl);
-		font-weight: 400;
-		transform: translateY(-1rem);
-		left: 0rem;
-		overflow: visible;
-		margin-bottom: 0;
 	}
 </style>

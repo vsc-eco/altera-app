@@ -102,7 +102,8 @@
 
 <Card>
 	<div class={['root', { hovered: hoveredIndex }]}>
-		<span class="caption">VSC Balance</span>
+		<div class="caption">
+		<h5>VSC Balance</h5>
 		<div class="price">
 			{#if loadingBalances}
 				<span class="loading">Loading...</span>
@@ -116,9 +117,10 @@
 				>
 			{/if}
 		</div>
+		</div>
 
 		<div class="date-change-bar">
-			<div class="date">
+			<div class={['date', {hovered: date}]}>
 				<Date
 					onValueChange={(v) => {
 						selectedDateRange = v;
@@ -146,7 +148,7 @@
 	</div>
 </Card>
 
-<style>
+<style lang='scss'>
 	.root {
 		display: block;
 		min-width: min(300px, 100%);
@@ -157,14 +159,18 @@
 		box-sizing: border-box;
 	}
 	.caption {
-		font-size: var(--text-sm);
-		color: var(--neutral-fg-mid);
+		margin: 0.75rem;
+		margin-top: 0;
 	}
 	.date-change-bar {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		min-height: 3.5rem;
+		margin-right: 0.75rem;
+		.hovered {
+			margin-left: 0.75rem;
+		}
 	}
 	.price {
 		vertical-align: text-top;

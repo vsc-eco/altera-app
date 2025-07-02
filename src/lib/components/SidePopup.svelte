@@ -9,7 +9,7 @@
 		title?: Snippet;
 		children?: Snippet;
 		description?: Snippet;
-		toggle?: (open?: boolean) => void;
+		toggle: () => void;
 		defaultOpen?: boolean;
 		open?: boolean;
 		position?: 'left' | 'right' | 'top' | 'bottom';
@@ -22,7 +22,7 @@
 		title,
 		children,
 		description,
-		toggle = $bindable(),
+		toggle,
 		defaultOpen = false,
 		open = $bindable(defaultOpen),
 		position = 'right',
@@ -47,7 +47,7 @@
 	// Handle escape key
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && open) {
-			open = false;
+			toggle();
 		}
 	}
 
@@ -133,7 +133,7 @@
 	>
 		<div class="background">
 			<div class="close-button">
-				<PillButton onclick={() => (open = false)} styleType="icon-outline">
+				<PillButton onclick={toggle} styleType="icon-outline">
 					<X />
 				</PillButton>
 			</div>

@@ -1,13 +1,8 @@
 <script lang="ts">
-	import Date from '../tds/Date.svelte';
 	import ToFrom from '../tds/ToFrom.svelte';
 	import Amount from '../tds/Amount.svelte';
 	import Token from '../tds/Token.svelte';
 	import Type from '../tds/Type.svelte';
-	import { portal, normalizeProps, useMachine } from '@zag-js/svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import { getUniqueId } from '$lib/zag/idgen';
-	import Card from '$lib/cards/Card.svelte';
 	import { ExternalLink, X } from '@lucide/svelte';
 	import StatusView from './StatusView.svelte';
 	import { Coin, Network } from '$lib/send/sendOptions';
@@ -18,7 +13,7 @@
 	import { checkOpStatus } from './checkStatus';
 	import type { TransactionInter, TransactionOpType } from '../../txStores';
 	import moment from 'moment';
-	import SidePopup from '$lib/sidePopup/SidePopup.svelte';
+	import SidePopup from '$lib/components/SidePopup.svelte';
 
 	type Props = {
 		tx: TransactionInter;
@@ -119,7 +114,6 @@
 			e.preventDefault();
 		}
 	}
-	let toggle: (open?: boolean) => void = $state(() => {});
 	$effect(() => {
 		detailsOpen = openOp !== null && openOp[0] === tx.id && openOp[1] === op.index;
 	});
@@ -139,7 +133,7 @@
 	<Type isIncoming={!amount.isNegative()} {t} />
 </tr>
 
-<SidePopup bind:toggle bind:open={detailsOpen} defaultOpen={false}>
+<SidePopup toggle={() => onRowClick([tx.id, op.index])} bind:open={detailsOpen} defaultOpen={false}>
 	{#snippet content()}
 		<h2>
 			{t
@@ -237,6 +231,11 @@
 		/* min-height: 2rem; */
 		display: flex;
 		padding-top: 0.25rem;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
+		word-break: break-word; /* This tries to break at word boundaries first */
+		white-space: pre-wrap;
+		max-width: 100%;
 	}
 	.misc.section {
 		display: flex;

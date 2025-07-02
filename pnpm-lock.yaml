@@ -29,6 +29,9 @@ importers:
       '@ipld/dag-cbor':
         specifier: ^9.2.2
         version: 9.2.2
+      '@ipld/dag-json':
+        specifier: ^10.2.5
+        version: 10.2.5
       '@leeoniya/ufuzzy':
         specifier: ^1.0.18
         version: 1.0.18
@@ -960,6 +963,10 @@ packages:
 
   '@ipld/dag-cbor@9.2.2':
     resolution: {integrity: sha512-uIEOuruCqKTP50OBWwgz4Js2+LhiBQaxc57cnP71f45b1mHEAo1OCR1Zn/TbvSW/mV1x+JqhacIktkKyaYqhCw==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
+
+  '@ipld/dag-json@10.2.5':
+    resolution: {integrity: sha512-Q4Fr3IBDEN8gkpgNefynJ4U/ZO5Kwr7WSUMBDbZx0c37t0+IwQCTM9yJh8l5L4SRFjm31MuHwniZ/kM+P7GQ3Q==}
     engines: {node: '>=16.0.0', npm: '>=7.0.0'}
 
   '@isaacs/cliui@8.0.2':
@@ -5620,6 +5627,11 @@ snapshots:
       multiformats: 9.9.0
 
   '@ipld/dag-cbor@9.2.2':
+    dependencies:
+      cborg: 4.2.12
+      multiformats: 13.3.2
+
+  '@ipld/dag-json@10.2.5':
     dependencies:
       cborg: 4.2.12
       multiformats: 13.3.2

@@ -82,55 +82,47 @@
 	};
 </script>
 
-{#if auth.value == undefined || auth.value!.username != undefined}
-	<form
-		onsubmit={(e) => {
-			e.preventDefault();
-			sendTransaction(amount!, nodeRunnerAccount!).then(async (res) => {
-				if (!res.success) {
-					status = '';
-					error = res.error;
-					return;
-				}
-				status = 'Transaction broadcasted successfully!';
-				await sleep(1);
+<form
+	onsubmit={(e) => {
+		e.preventDefault();
+		sendTransaction(amount!, nodeRunnerAccount!).then(async (res) => {
+			if (!res.success) {
 				status = '';
-				amount = '';
-			});
-		}}
+				error = res.error;
+				return;
+			}
+			status = 'Transaction broadcasted successfully!';
+			await sleep(1);
+			status = '';
+			amount = '';
+		});
+	}}
+>
+	<h2>Consensus Staking</h2>
+	<p>Be sure to be signed in with the account you'd like to deposit and stake hive from.</p>
+	<p class="error">{error}</p>
+	<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
+	<div class="amount-flex">
+		<Amount
+			selectItems={[Coin.hive]}
+			id="consensus-stake-amount"
+			label="Deposit and Stake Amount:"
+			coin={Coin.hive}
+			network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
+			bind:originalAmount={amount}
+			required
+			maxField={shouldDeposit ? undefined : 'hive'}
+		/>
+	</div>
+	<label for="deposit-checkbox">
+		<input type="checkbox" id="deposit-checkbox" bind:checked={shouldDeposit} />
+		First Deposit HIVE into VSC
+	</label>
+	<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
+		>{#if shouldDeposit}Deposit and{/if} Stake</PillButton
 	>
-		<h2>Consensus Staking</h2>
-		<p>Be sure to be signed in with the account you'd like to deposit and stake hive from.</p>
-		<p class="error">{error}</p>
-		<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
-		<div class="amount-flex">
-			<Amount
-				selectItems={[Coin.hive]}
-				id="consensus-stake-amount"
-				label="Deposit and Stake Amount:"
-				coin={Coin.hive}
-				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
-				bind:originalAmount={amount}
-				required
-				maxField={shouldDeposit ? undefined : 'hive'}
-			/>
-		</div>
-		<label for="deposit-checkbox">
-			<input type="checkbox" id="deposit-checkbox" bind:checked={shouldDeposit} />
-			First Deposit HIVE into VSC
-		</label>
-		<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-			>{#if shouldDeposit}Deposit and{/if} Stake</PillButton
-		>
-		<span class="status">{status}</span>
-	</form>
-{:else}
-	<p class="error">
-		Consensus staking with an EVM wallet is currently unsupported. Please <a href="/logout"
-			>logout</a
-		> and login with a hive account instead.
-	</p>
-{/if}
+	<span class="status">{status}</span>
+</form>
 
 <style>
 	input[type='checkbox'] {

@@ -8,6 +8,7 @@ import { encode as encodeJson, decode as decodeJson } from '@ipld/dag-json';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 import { getAccount } from '@wagmi/core';
 import { wagmiConfig } from '$lib/auth/reown';
+import { GetAccountNonceStore } from '$houdini';
 
 export type Client = {
 	api: string;
@@ -225,9 +226,11 @@ function createVSCTransactionContainer(
 }
 
 function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactionSigningShell {
+	console.log("decoded cbor", decodeCborg(txContainer.tx[0].payload));
+	console.log("reencoded dag json", encodeJson(decodeCborg(txContainer.tx[0].payload)));
 	const decodedOps = txContainer.tx.map((op) => ({
 		type: op.type,
-		payload: encodeJson(decodeCborg(op.payload)).toString()
+		payload: Buffer.from(encodeJson(decodeCborg(op.payload))).toString('utf-8')
 	}));
 
 	return {
@@ -271,14 +274,16 @@ export async function signAndBrodcastTransaction<
 	}
 
 	if (client.nonce === null) {
-		client.nonce = await getNonce([client.userId], `${client.api}/api/v1/graphql`).catch((err) =>
-			console.log('error fetching nonce', err)
-		);
+		// client.nonce = await getNonce([client.userId], `${client.api}/api/v1/graphql`).catch((err) =>
+		// 	console.log('error fetching nonce', err)
+		// );
+		const nonceStore = new GetAccountNonceStore;
+		const res = await nonceStore.fetch({variables: {account: client.userId}})
+		client.nonce = res.data?.getAccountNonce?.nonce ?? null;
 	}
 
-	console.log('nonce:', client.nonce);
 	if (!client.nonce) {
-		client.nonce = 0;
+		throw new Error(`error fetching nonce`);
 	}
 
 	// Create the transaction container with CBOR-encoded payloads

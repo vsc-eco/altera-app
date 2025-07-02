@@ -123,7 +123,7 @@
 				)
 					.then((result) => {
 						console.log('Transaction successful:', result);
-						status = `Transaction submitted successfully! ID: ${result.id}`;
+						status = `Transaction submitted successfully!`;
 
 						return result.id;
 					})

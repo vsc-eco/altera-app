@@ -1,0 +1,5 @@
+query GetAccountNonce($account: String!) {
+  getAccountNonce(account: $account) {
+    nonce
+  }
+}

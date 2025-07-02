@@ -2,8 +2,8 @@
 	import { getUniqueId } from '$lib/zag/idgen';
 	import * as tabs from '@zag-js/tabs';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import WithdrawModal from './WithdrawModal.svelte';
-	import DepositModal from './DepositModal.svelte';
+	import WithdrawModal from './ConsensusUnstakeModal.svelte';
+	import DepositModal from './ConsensusStakeModal.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Tabs from '$lib/zag/Tabs.svelte';
 

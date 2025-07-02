@@ -4,6 +4,9 @@ import Axios from 'axios';
 import { encodePayload } from 'dag-jose-utils';
 import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
+import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
+import { getAccount } from '@wagmi/core';
+import { wagmiConfig } from '$lib/auth/reown';
 
 export type Client = {
 	api: string;
@@ -44,7 +47,18 @@ export type WithdrawTransaction = {
 };
 
 export type StakeTransaction = {
-	op: 'stake' | 'unstake';
+	op: 'stake_hbd' | 'unstake_hbd';
+	payload: {
+		from: string;
+		to: string;
+		amount: string;
+		asset: string;
+		type: string;
+	};
+};
+
+export type ConsensusStakeTransaction = {
+	op: 'consensus_stake' | 'consensus_unstake';
 	payload: {
 		from: string;
 		to: string;
@@ -58,6 +72,7 @@ type Transaction =
 	| TransferTransaction
 	| WithdrawTransaction
 	| StakeTransaction
+	| ConsensusStakeTransaction
 	| DepositTransaction;
 
 export type VSCTransactionOp = {
@@ -164,14 +179,28 @@ function decodePayloadForSigning(cborPayload: Uint8Array): string {
 }
 
 // Create VSC transaction operation from high-level transaction
-function createVSCTransactionOp(transaction: Transaction, userId: string): VSCTransactionOp {
-	const encodedPayload = encodeTransactionPayload(transaction);
+function createVSCTransactionOp(tx: Transaction, userId: string): VSCTransactionOp {
+	if (tx.op === 'consensus_stake' || tx.op === 'consensus_unstake') {
+		throw new Error(`Unsupported operation ${tx.op} on VSC Network.`)
+	}
+
+	const encodedPayload = encodeTransactionPayload(tx);
+
+	let requiredAuths = {
+		active: [tx.payload.from],
+		posting: []
+	};
+
+	// require to auth for stake/unstake
+	if (tx.op === 'stake_hbd' || tx.op === 'unstake_hbd') {
+		requiredAuths.active.push(tx.payload.to);
+	}
 
 	return {
-		type: transaction.op,
+		type: tx.op,
 		payload: encodedPayload,
 		required_auths: {
-			active: [userId],
+			active: [tx.payload.from],
 			posting: []
 		}
 	};
@@ -246,6 +275,11 @@ export async function signAndBrodcastTransaction<
 	client: Client,
 	...signerArgs: TupleRemoveFirstTwoValues<Parameters<SigningFunc>>
 ): Promise<TransactionResult> {
+	const walletConnected = await ensureWalletConnection();
+	if (!walletConnected) {
+		throw new Error(`wallet connection failed`);
+	}
+
 	if (client.nonce === null) {
 		client.nonce = await getNonce([client.userId], `${client.api}/api/v1/graphql`).catch((err) =>
 			console.log('error fetching nonce', err)

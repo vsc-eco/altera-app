@@ -1,6 +1,6 @@
 <script>
-	import DepositModal from './DepositModal.svelte';
-	import WithdrawModal from './WithdrawModal.svelte';
+	import DepositModal from './ConsensusStakeModal.svelte';
+	import WithdrawModal from './ConsensusUnstakeModal.svelte';
 </script>
 
 <document:head>

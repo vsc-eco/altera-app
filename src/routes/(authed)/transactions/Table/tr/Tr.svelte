@@ -181,13 +181,15 @@
 					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
 						VSC Block Explorer<ExternalLink /></a
 					>
-					<a
-						href={'https://www.hiveblockexplorer.com/tx/' + tx.id}
-						target="_blank"
-						rel="noreferrer"
-					>
-						Hive Block Explorer<ExternalLink /></a
-					>
+					{#if to.slice(0, 5) === 'hive:' && from.slice(0, 5) === 'hive:'}
+						<a
+							href={'https://www.hiveblockexplorer.com/tx/' + tx.id}
+							target="_blank"
+							rel="noreferrer"
+						>
+							Hive Block Explorer<ExternalLink /></a
+						>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -262,6 +264,10 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
+	}
+
+	.links.section {
+		display: inline;
 	}
 
 	.tx-id.section {

@@ -6,12 +6,22 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import { sleep } from 'aninest';
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
-	import { type OperationResult } from '@aioha/aioha/build/types';
+	import type { OperationResult, OperationError, OperationSuccess } from '@aioha/aioha/build/types';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
+	import { getDidFromUsername } from '$lib/getAccountName';
+	import {
+		createClient,
+		signAndBrodcastTransaction,
+		type StakeTransaction
+	} from '$lib/vscTransactions/eth/client';
+	import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
+	import { wagmiConfig } from '$lib/auth/reown';
 	let { type }: { type: 'stake' | 'unstake' } = $props();
 	let auth = $derived(getAuth()());
-	let username = $derived(auth.value?.username);
+	let username = $derived(
+		auth.value?.provider == 'aioha' ? auth.value?.username : auth.value?.address
+	);
 	let recipient: string | undefined = $state();
 	let amount: string | undefined = $state('');
 	let status = $state('');
@@ -21,7 +31,7 @@
 		recipient = username;
 	});
 	const sendTransaction = async (amount: string, recipient: string): Promise<OperationResult> => {
-		if (!username || !auth.value?.aioha)
+		if (!auth.value)
 			return {
 				success: false,
 				error: 'Error: not authenticated.',
@@ -34,48 +44,111 @@
 				error: 'Error: cannot stake 0 HBD.',
 				errorCode: 1
 			};
-		const res =
-			type === 'stake'
-				? await hbdStakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha)
-				: await hbdUnstakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha);
-
-		// TODO: implement once backend is fixed
-		if (res.success) {
-			const ops: PendingTx['ops'] = [
-				{
-					data: {
-						amount: new CoinAmount(amount, Coin.hbd).toAmountString(),
-						asset: Coin.hbd.unit.toLowerCase(),
-						from: username,
-						to: recipient,
-						type: type === 'stake' ? 'stake_hbd' : 'unstake_hbd'
-					},
-					type: type === 'stake' ? 'stake_hbd' : 'unstake_hbd',
-					index: 0
+		if (auth.value.provider == 'reown') {
+			const client = createClient(auth.value.did);
+			const coinAmt = new CoinAmount(amount, Coin.hbd);
+			const stakeOp: StakeTransaction = {
+				op: type === 'stake' ? 'stake_hbd' : 'unstake_hbd',
+				payload: {
+					from: auth.value.did,
+					to: getDidFromUsername(recipient),
+					amount: coinAmt.toPrettyAmountString(),
+					asset: coinAmt.coin.unit.toLowerCase(),
+					type: type === 'stake' ? 'stake_hbd' : 'unstake_hbd'
 				}
-			];
-			if (shouldDeposit) {
-				ops.push({
-					data: {
-						amount: new CoinAmount(amount, Coin.hbd).toAmountString(),
-						asset: Coin.hbd.unit.toLowerCase(),
-						from: username,
-						to: recipient,
+			};
+			let returnVal: OperationResult = {
+				success: false,
+				errorCode: 0,
+				error: 'Transaction failed.'
+			};
+			try {
+				const result = await signAndBrodcastTransaction(
+					[stakeOp],
+					wagmiSigner, // version with error handling
+					client,
+					wagmiConfig
+				);
+				console.log('Transaction successful:', result);
+				status = `Transaction submitted successfully! ID: ${result.id}`;
+
+				returnVal = {
+					success: true,
+					result: result.id.toString()
+				};
+			} catch (error) {
+				console.error('Transaction error:', error);
+				if (error instanceof Error) {
+					let cleanError = 'Transaction failed.'
+					if (error.message.includes('User rejected') || error.message.includes('rejected')) {
+						cleanError = 'Transaction was cancelled by user';
+					} else if (error.message.includes('wallet')) {
+						cleanError = 'Please connect your wallet and try again';
+					} else if (error.message.includes('422')) {
+						cleanError = 'Transaction format error. Please check your inputs and try again';
+					} else if (error.message.includes('network') || error.message.includes('Network')) {
+						cleanError = 'Network error. Please check your connection and try again';
+					}
+					returnVal = {
+						success: false,
+						errorCode: 0,
+						error: cleanError
+					};
+					status = cleanError
+				} else {
+					status = 'Unknown error occurred during transaction';
+				}
+			}
+			return returnVal;
+		} else {
+			if (!username || !auth.value.aioha)
+				return {
+					success: false,
+					error: 'Error: not authenticated.',
+					errorCode: 1
+				};
+			const res =
+				type === 'stake'
+					? await hbdStakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha)
+					: await hbdUnstakeTx(amount, recipient, username, shouldDeposit, auth.value.aioha);
+
+			if (res.success) {
+				const ops: PendingTx['ops'] = [
+					{
+						data: {
+							amount: new CoinAmount(amount, Coin.hbd).toAmountString(),
+							asset: Coin.hbd.unit.toLowerCase(),
+							from: username,
+							to: recipient,
+							type: type === 'stake' ? 'stake_hbd' : 'unstake_hbd'
+						},
+						type: type === 'stake' ? 'stake_hbd' : 'unstake_hbd',
+						index: 0
+					}
+				];
+				if (shouldDeposit) {
+					ops.push({
+						data: {
+							amount: new CoinAmount(amount, Coin.hbd).toAmountString(),
+							asset: Coin.hbd.unit.toLowerCase(),
+							from: username,
+							to: recipient,
+							type: 'deposit',
+							memo: ''
+						},
 						type: 'deposit',
-						memo: ''
-					},
-					type: 'deposit',
-					index: 1
+						index: 1
+					});
+				}
+				addLocalTransaction({
+					ops: ops,
+					timestamp: new Date(),
+					id: res.result,
+					type: 'hive'
 				});
 			}
-			addLocalTransaction({
-				ops: ops,
-				timestamp: new Date(),
-				id: res.result,
-				type: 'hive'
-			});
+			return res;
 		}
-		return res;
 	};
 </script>
 

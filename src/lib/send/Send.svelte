@@ -14,11 +14,7 @@
 	import CurrencySelect from './CurrencySelect.svelte';
 	import { untrack } from 'svelte';
 	import Receipt from './Receipt.svelte';
-	import {
-		executeTx,
-		getSendOpGenerator,
-		getSendOpType
-	} from '$lib/vscTransactions/hive';
+	import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
 	import { getEVMOpType } from '$lib/vscTransactions/eth';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
@@ -26,7 +22,7 @@
 	import { idchain } from 'viem/chains';
 	import { uuid } from 'uuidv4';
 	import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/eth/client';
-	import { wagmiSigner2, wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
+	import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 	import { type Config, getAccount } from '@wagmi/core';
 	import { wagmiConfig, modal } from '$lib/auth/reown';
 	import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
@@ -102,86 +98,53 @@
 		}
 		if (intermediary == Network.vsc) {
 			if (auth.value?.provider == 'reown') {
-				// console.log("auth here");
-				// const client = createClient(auth.value.did);
-				// const sendOp = getEVMOpType(
-				// 	fromNetwork,
-				// 	toNetwork,
-				// 	auth.value.username!,
-				// 	toUsername,
-				// 	new CoinAmount(toAmount, toCoin.coin)
-				// );
-				// signAndBrodcastTransaction([sendOp], enhancedWagmiSigner, client, wagmiConfig).then(async (res) => {
-				// 	status = `Transaction submitted. Your transaction should appear shortly.`;
-				// }).catch((err) => {
-				// 	status = `Error sending transaction: ${err}`;
-				// });
-				// return '';
-				try {
-					const account = getAccount(wagmiConfig);
-					// if (!account.isConnected || !account.address) {
-					// 	status = 'Please connect your wallet first';
-					// 	return '';
-					// }
-					// TODO: fix reconnection
-					ensureWalletConnection(modal).then((res) => {
-						console.log("reconnected:", res);
+				// account check in signAndBroadcast
+				console.log('Auth DID:', auth.value.did);
+
+				const client = createClient(auth.value.did);
+				console.log('Created client:', client);
+
+				const sendOp = getEVMOpType(
+					fromNetwork,
+					toNetwork,
+					auth.value.did,
+					getDidFromUsername(toUsername),
+					new CoinAmount(toAmount, toCoin.coin)
+				);
+
+				console.log('Transaction operation:', sendOp);
+				status = 'Preparing transaction for signing...';
+
+				signAndBrodcastTransaction(
+					[sendOp],
+					wagmiSigner, // version with error handling
+					client,
+					wagmiConfig
+				)
+					.then((result) => {
+						console.log('Transaction successful:', result);
+						status = `Transaction submitted successfully! ID: ${result.id}`;
+
+						return result.id;
 					})
-
-					console.log("auth:", auth.value);
-
-					console.log('Connected wallet address:', account.address);
-					console.log('Auth DID:', auth.value.did);
-
-					const client = createClient(auth.value.did);
-					console.log('Created client:', client);
-
-					const sendOp = getEVMOpType(
-						fromNetwork,
-						toNetwork,
-						auth.value.did,
-						getDidFromUsername(toUsername),
-						new CoinAmount(toAmount, toCoin.coin)
-					);
-
-					console.log('Transaction operation:', sendOp);
-
-					status = 'Preparing transaction for signing...';
-
-					signAndBrodcastTransaction(
-						[sendOp],
-						wagmiSigner2, // version with error handling
-						client,
-						wagmiConfig
-					)
-						.then((result) => {
-							console.log('Transaction successful:', result);
-							status = `Transaction submitted successfully! ID: ${result.id}`;
-
-							return result.id;
-						})
-						.catch((error) => {
-							console.error('Transaction error:', error);
-							status = 'Transaction failed.'
-						});
-				} catch (error) {
-					// Better error messages for users
-					if (error instanceof Error) {
-						if (error.message.includes('User rejected') || error.message.includes('rejected')) {
-							status = 'Transaction was cancelled by user';
-						} else if (error.message.includes('Wallet not connected')) {
-							status = 'Please connect your wallet and try again';
-						} else if (error.message.includes('422')) {
-							status = 'Transaction format error. Please check your inputs and try again';
-						} else if (error.message.includes('network') || error.message.includes('Network')) {
-							status = 'Network error. Please check your connection and try again';
+					.catch((error) => {
+						console.error('Transaction error:', error);
+						if (error instanceof Error) {
+							if (error.message.includes('User rejected') || error.message.includes('rejected')) {
+								status = 'Transaction was cancelled by user';
+							} else if (error.message.includes('wallet')) {
+								status = 'Please connect your wallet and try again';
+							} else if (error.message.includes('422')) {
+								status = 'Transaction format error. Please check your inputs and try again';
+							} else if (error.message.includes('network') || error.message.includes('Network')) {
+								status = 'Network error. Please check your connection and try again';
+							} else {
+								status = 'Transaction failed.';
+							}
 						} else {
-							status = `Transaction failed: ${error.message}`;
+							status = 'Unknown error occurred during transaction';
 						}
-					} else {
-						status = 'Unknown error occurred during transaction';
-					}
-				}
+					});
 				return '';
 			}
 			if (!auth.value?.aioha) return "VSC Transactions via an EVM wallet isn't supported yet.";
@@ -194,7 +157,7 @@
 				getDidFromUsername(toUsername),
 				new CoinAmount(toAmount, toCoin.coin)
 			);
-			console.log("sendOp", sendOp);
+			console.log('sendOp', sendOp);
 			executeTx(auth.value.aioha, [sendOp]).then(async (res) => {
 				if (res.success) {
 					// status = `Transaction submitted. You will be notified when your transaction is finished.`;

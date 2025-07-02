@@ -5,27 +5,7 @@ import { type Config, signTypedData, getAccount } from '@wagmi/core';
 import { convertCBORToEIP712TypedData } from './cbor_to_eip712_converter';
 import type { VSCTransactionSigningShell, Client } from './client';
 
-export const wagmiSigner = (async (txData, _, config: Config) => {
-	const types = convertCBORToEIP712TypedData('vsc.network', encode(txData), 'tx_container_v0');
-	const signature = await signTypedData(config, types as any);
-
-	const sigs = [
-		{
-			t: 'eip191',
-			//Key id copy
-			s: signature
-		} as const
-	];
-
-	const rawTx = (await encodePayload(txData)).linkedBlock;
-
-	return {
-		sigs,
-		rawTx
-	};
-}) satisfies Signer<[Config]>;
-
-export const wagmiSigner2: Signer<[Config]> = async (
+export const wagmiSigner: Signer<[Config]> = async (
 	signingShell: VSCTransactionSigningShell,
 	client: Client,
 	config: Config
@@ -64,7 +44,7 @@ export const wagmiSigner2: Signer<[Config]> = async (
 		// backend wants type {alg, kid, sig}, even though struct can take {t, s}
 		const sigs = [
 			{
-				alg: "EdDSA",
+				alg: 'EdDSA',
 				kid: client.userId,
 				sig: signature
 			}

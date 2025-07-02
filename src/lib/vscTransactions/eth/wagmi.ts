@@ -35,7 +35,7 @@ export const wagmiSigner: Signer<[Config]> = async (
 		const encodedShell = encode(signingShell);
 		const types = convertCBORToEIP712TypedData('vsc.network', encodedShell, 'tx_container_v0');
 
-		// console.log('EIP712 typed data:', JSON.stringify(types, null, 2));
+		console.log('EIP712 typed data:', JSON.stringify(types, null, 2));
 
 		const signature = await signTypedData(config, types as any);
 

@@ -4,6 +4,7 @@ import Axios from 'axios';
 import { encodePayload } from 'dag-jose-utils';
 import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
+import { encode as encodeJson, decode as decodeJson } from '@ipld/dag-json';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 import { getAccount } from '@wagmi/core';
 import { wagmiConfig } from '$lib/auth/reown';
@@ -167,24 +168,13 @@ export function createClient(userId: string, api?: string): Client {
 	};
 }
 
-// Helper function to encode transaction payload to CBOR
-function encodeTransactionPayload(transaction: Transaction): Uint8Array {
-	const payload = transaction.payload;
-	return encodeCborg(payload);
-}
-
-// Helper function to decode CBOR payload back to JSON for signing display
-function decodePayloadForSigning(cborPayload: Uint8Array): string {
-	return decodeCborg(cborPayload);
-}
-
 // Create VSC transaction operation from high-level transaction
 function createVSCTransactionOp(tx: Transaction, userId: string): VSCTransactionOp {
 	if (tx.op === 'consensus_stake' || tx.op === 'consensus_unstake') {
-		throw new Error(`Unsupported operation ${tx.op} on VSC Network.`)
+		throw new Error(`Unsupported operation ${tx.op} on VSC Network.`);
 	}
 
-	const encodedPayload = encodeTransactionPayload(tx);
+	const encodedPayload = encodeCborg(tx.payload);
 
 	let requiredAuths = {
 		active: [tx.payload.from],
@@ -237,7 +227,7 @@ function createVSCTransactionContainer(
 function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactionSigningShell {
 	const decodedOps = txContainer.tx.map((op) => ({
 		type: op.type,
-		payload: JSON.stringify(decodePayloadForSigning(op.payload))
+		payload: encodeJson(decodeCborg(op.payload)).toString()
 	}));
 
 	return {

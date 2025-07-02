@@ -13,28 +13,27 @@ export function getEVMOpType(
 		from: from,
 		to: to,
 		amount: amount.toPrettyAmountString(),
-		asset: amount.coin.unit.toLowerCase(),
-		netId: 'vsc-mainnet',
-	}
+		asset: amount.coin.unit.toLowerCase()
+	};
 	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
 		return {
 			op: 'transfer',
 			payload: payload
-		}
+		};
 	}
 	if (fromNetwork == Network.hiveMainnet && toNetwork == Network.vsc) {
 		return {
 			op: 'deposit',
 			payload: payload
-		}
+		};
 	}
 	if (fromNetwork == Network.vsc && toNetwork == Network.hiveMainnet) {
 		return {
 			op: 'withdraw',
 			payload: payload
-		}
+		};
 	}
 	throw new Error(
 		`VSC does not currently support going from ${fromNetwork.label} to ${toNetwork.label}`
 	);
-};
+}

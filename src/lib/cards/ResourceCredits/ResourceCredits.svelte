@@ -11,6 +11,20 @@
 
 	let rc: Manabar | null = $state(null);
 
+	// adjust the RCs to round up within 1, if user has more than 5 total.
+	let [adjustedRCs, adjustedMaxRCs] = $derived.by(() => {
+		if ($accountBalance.loading) {
+			return [null, 0];
+		}
+		if ($accountBalance.bal.hbd < 5000) {
+			return [$accountBalance.bal.resource_credits / 1000, $accountBalance.bal.hbd / 1000];
+		}
+		if ($accountBalance.bal.hbd - $accountBalance.bal.resource_credits < 1000) {
+			return [$accountBalance.bal.hbd / 1000, $accountBalance.bal.hbd / 1000];
+		}
+		return [$accountBalance.bal.resource_credits / 1000, $accountBalance.bal.hbd / 1000];
+	});
+
 	$effect(() => {
 		if (!username || !isHive) return;
 		const fetchRC = async () => {
@@ -64,10 +78,8 @@
 			<div class="bar-and-info">
 				<div class="bar-wrapper">
 					<Progress
-						boundaries={{ min: 0, max: $accountBalance.bal.hbd / 1000 }}
-						currentValue={$accountBalance.loading
-							? null
-							: $accountBalance.bal.resource_credits / 1000}
+						boundaries={{ min: 0, max: adjustedMaxRCs }}
+						currentValue={adjustedRCs}
 						timerLabel={vscRegenTime &&
 						vscRegenTime.asSeconds() > 0 &&
 						$accountBalance.bal.resource_credits / $accountBalance.bal.hbd < 0.85

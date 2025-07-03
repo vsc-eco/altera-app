@@ -10,13 +10,9 @@
 	const autoOpenOp: [string, number] | undefined = $derived.by(() => {
 		const autoOpenTxId = page.url.searchParams.get('tx');
 		const autoOpenIndex = Number(page.url.searchParams.get('index'));
-		console.log('autoOpenTxId', autoOpenTxId);
-		console.log('autoOpenIndex', autoOpenIndex);
 		if (autoOpenTxId) {
-			console.log('autoOpenOp', [autoOpenTxId, autoOpenIndex]);
 			return [autoOpenTxId, autoOpenIndex];
 		}
-		console.log('autoOpenOp undefined');
 		return undefined;
 	});
 
@@ -41,6 +37,6 @@
 	.flex {
 		display: flex;
 		flex-direction: column;
-		height: calc(100vh - 3.5rem);
+		height: calc(100vh - 4.5rem);
 	}
 </style>

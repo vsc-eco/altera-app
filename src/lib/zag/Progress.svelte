@@ -8,8 +8,9 @@
 		currentValue: number | null;
 		colorVar?: string;
 		timerLabel?: string;
+		customPercentage?: number;
 	};
-	let { boundaries, currentValue, colorVar = '--primary-bg-mid', timerLabel }: Props = $props();
+	let { boundaries, currentValue, colorVar = '--primary-bg-mid', timerLabel, customPercentage }: Props = $props();
 	let percentage = $derived.by(() => {
 		if (currentValue !== null) {
 			if (currentValue === 0) {
@@ -32,7 +33,7 @@
 	const api = $derived(progress.connect(service, normalizeProps));
 
 	$effect(() => {
-		api.setValue(percentage);
+		api.setValue(customPercentage ?? percentage);
 	});
 
 	function formatNumber(n: number): string {
@@ -75,7 +76,7 @@
 			{#if currentValue && currentValue < boundaries.min}
 				&lt;
 			{/if}
-			{percentage ?? 0}%
+			{customPercentage ?? percentage ?? 0}%
 		</span>
 	</div>
 </div>

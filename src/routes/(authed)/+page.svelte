@@ -46,9 +46,6 @@
 		{/if}
 	</div>
 	<div class="row large">
-		{#if auth.value == undefined || auth.value.username != undefined}
-			<StakeUnstakeTabsModal />
-		{/if}
 		<Card>
 			<Send widgetView />
 		</Card>

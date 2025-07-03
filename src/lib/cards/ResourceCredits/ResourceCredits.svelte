@@ -4,10 +4,6 @@
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { DHive } from '$lib/vscTransactions/dhive';
 	import type { Manabar } from '@hiveio/dhive/lib/chain/rc';
-	import Popover from '$lib/zag/Popover.svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import { type HTMLButtonAttributes } from 'svelte/elements';
-	import { Info } from '@lucide/svelte';
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
 	import InfoToolip from '$lib/components/InfoToolip.svelte';

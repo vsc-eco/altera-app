@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	let { children } = $props();
 	import Sidebar from '$lib/Sidebar.svelte';
 	import Topbar from '$lib/Topbar/Topbar.svelte';
@@ -10,16 +11,17 @@
 
 	let auth = $derived(getAuth()());
 	$effect(() => {
-		if (!auth.value) return;
+		if (!browser || !auth.value) return;
 		startAccountPolling(auth.value.did);
 	});
 	$effect(() => {
-		if (auth.value?.provider == "reown") {
-			ensureWalletConnection();
-		}
-	})
+		if (!browser || auth.value?.provider !== 'reown') return;
+		ensureWalletConnection();
+	});
 	onDestroy(() => {
-		stopAccountPolling();
+		if (browser) {
+			stopAccountPolling();
+		}
 	});
 </script>
 

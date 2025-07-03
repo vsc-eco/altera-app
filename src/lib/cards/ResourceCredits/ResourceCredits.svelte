@@ -7,6 +7,7 @@
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
 	import InfoToolip from '$lib/components/InfoToolip.svelte';
+	import { custom } from 'viem';
 	let { username, isHive }: { username: string | undefined; isHive: boolean } = $props();
 
 	let rc: Manabar | null = $state(null);
@@ -24,6 +25,14 @@
 		}
 		return [$accountBalance.bal.resource_credits / 1000, $accountBalance.bal.hbd / 1000];
 	});
+
+	let customPercentage = $derived(
+		$accountBalance.loading
+			? undefined
+			: Math.floor(
+					(Math.max($accountBalance.bal.resource_credits, 0) / $accountBalance.bal.hbd) * 100
+				)
+	);
 
 	$effect(() => {
 		if (!username || !isHive) return;
@@ -85,6 +94,7 @@
 						$accountBalance.bal.resource_credits / $accountBalance.bal.hbd < 0.85
 							? `Full in ${durationToString(vscRegenTime)}`
 							: undefined}
+						customPercentage={customPercentage}
 					/>
 				</div>
 				<span class="info-button">

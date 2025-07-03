@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { GetTransactionsStore } from '$houdini';
 	import Tr from './tr/Tr.svelte';
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import {
 		allTransactionsStore,
 		vscTxsStore,
@@ -9,6 +9,7 @@
 		updateTxsFromLocalStorage
 	} from '../txStores';
 	import { goto } from '$app/navigation';
+
 	let {
 		did,
 		allowPopup = true,
@@ -20,6 +21,29 @@
 	} = $props();
 	let store = $derived(new GetTransactionsStore());
 	let loading = $state(true);
+
+	let skeletonRowCount = $state(8);
+	onMount(() => {
+		const rootStyle = getComputedStyle(document.documentElement);
+		const remValue = parseFloat(rootStyle.fontSize);
+
+		const calculateRows = () => {
+			const tableElement = document.getElementById('transactions-tbody');
+			if (tableElement) {
+				const rowHeight = remValue * 4.5;
+				const viewportHeight = window.innerHeight;
+				const tableTop = tableElement.getBoundingClientRect().top;
+				const remainingHeight = viewportHeight - tableTop;
+				skeletonRowCount = Math.max(5, Math.floor(remainingHeight / rowHeight));
+			}
+		};
+
+		calculateRows();
+		window.addEventListener('resize', calculateRows);
+
+		return () => window.removeEventListener('resize', calculateRows);
+	});
+
 	function fetchFromStore() {
 		untrack(() => store)
 			.fetch({
@@ -96,6 +120,7 @@
 						offset: currStoreLen
 					}
 				});
+
 				loading = false;
 				if (!posts.data?.findTransaction || posts.data.findTransaction.length === 0) {
 					// No more transactions to load
@@ -182,7 +207,6 @@
 	onscroll={(_e) => {
 		const me = document.documentElement;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
-			loading = true;
 			fetchAdditionalFromStore();
 		}
 	}}
@@ -207,21 +231,19 @@
 			</tr>
 		</thead>
 
-		<tbody>
+		<tbody
+			id="transactions-tbody"
+			class={!$allTransactionsStore?.length && !loading ? 'no-transactions-container' : ''}
+		>
 			{#if $allTransactionsStore && $allTransactionsStore.length > 0}
 				{#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id } = tx}
 					{#each ops!.sort((a, b) => {
 						// put deposits below other ops in their transaction
-						return (a?.type === "deposit" ? 1 : 0) - (b?.type === "deposit" ? 1 : 0)
+						return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
 					}) as op}
 						{#if op}
 							{@const { data } = op}
-							<!-- TODO: Check in with vaultec to see if I should have each ledger as a tx row -->
-							<!-- {#if ledger?.length != 0}
-							{#each ledger! as _, i}
-								<Tr {tx} ledgerIndex={i} />
-							{/each} -->
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} {op} {openOp} onRowClick={allowPopup ? openDetails : openTxsPage} />
 							{:else}
@@ -232,14 +254,35 @@
 						{/if}
 					{/each}
 				{/each}
-			{:else}
-				<tr><td colspan="100">No Transactions found.</td></tr>
+			{:else if !loading}
+				{#each Array(skeletonRowCount - 1) as _, i}
+					<tr class="skeleton-row blurred-skeleton">
+						<td><div class="skeleton-cell date"></div></td>
+						<td><div class="skeleton-cell to-from"></div></td>
+						<td><div class="skeleton-cell amount"></div></td>
+						<td><div class="skeleton-cell token"></div></td>
+						<td><div class="skeleton-cell type"></div></td>
+					</tr>
+				{/each}
 			{/if}
 			{#if loading}
-				<tr><td colspan="100" class="loading">Loading..</td></tr>
+				{#each Array(skeletonRowCount) as _, i}
+					<tr class="skeleton-row">
+						<td><div class="skeleton-cell date"></div></td>
+						<td><div class="skeleton-cell to-from"></div></td>
+						<td><div class="skeleton-cell amount"></div></td>
+						<td><div class="skeleton-cell token"></div></td>
+						<td><div class="skeleton-cell type"></div></td>
+					</tr>
+				{/each}
 			{/if}
 		</tbody>
 	</table>
+	{#if !$allTransactionsStore?.length && !loading}
+		<div class={["no-transactions-overlay", {short: skeletonRowCount <= 5}]}>
+			<div class="no-transactions-message">No transactions found</div>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -247,14 +290,23 @@
 		overflow: auto;
 		width: 100%;
 		flex-grow: 1;
+		position: relative;
 	}
 	table {
 		width: 100%;
 		border-spacing: 1rem 0.5rem;
 		border-collapse: collapse;
+		position: relative;
 	}
-	.loading {
+	/* .loading {
 		background-color: var(--neutral-bg-accent);
+	} */
+	.skeleton-cell {
+		background-color: var(--neutral-bg-accent);
+		border-radius: 0.5rem;
+		height: 3rem;
+		margin: 0.75rem 1rem;
+		animation: pulse 2s ease-in-out infinite;
 	}
 	thead {
 		position: sticky;
@@ -284,5 +336,48 @@
 
 	.to-from-header {
 		padding-left: 3rem;
+	}
+
+	.blurred-skeleton {
+		filter: blur(2px);
+		opacity: 0.3;
+	}
+
+	tbody.no-transactions-container {
+		position: relative;
+	}
+
+	.no-transactions-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: linear-gradient(to bottom, transparent 0%, var(--neutral-bg) 50%);
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	.no-transactions-overlay.short {
+		background: linear-gradient(to bottom, transparent 0%, var(--neutral-bg) 80%);
+		align-items: end;
+	}
+
+	.no-transactions-message {
+		font-weight: 500;
+		padding: 1.5rem;
+	}
+
+	@keyframes pulse {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.5;
+		}
 	}
 </style>

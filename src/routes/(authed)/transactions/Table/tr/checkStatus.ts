@@ -1,13 +1,11 @@
 import { GetStatusesStore } from '$houdini';
 import { readonly, writable, type Writable } from 'svelte/store';
 
-const statusStore = new GetStatusesStore;
-
 const checkingStores: { [tx_id: string]: Writable<string> } = {};
 
 function updateStatuses() {
 	const idsToFetch = Object.keys(checkingStores);
-	statusStore
+	new GetStatusesStore()
 		.fetch({
 			variables: {
 				txIds: idsToFetch

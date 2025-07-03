@@ -282,7 +282,7 @@ export async function signAndBrodcastTransaction<
 		client.nonce = res.data?.getAccountNonce?.nonce ?? null;
 	}
 
-	if (!client.nonce) {
+	if (client.nonce === null) {
 		throw new Error(`error fetching nonce`);
 	}
 

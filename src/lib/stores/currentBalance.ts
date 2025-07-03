@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { GetAccountBalanceStore } from '$houdini';
+import { browser } from '$app/environment';
 
 export type AccountBalance = {
 	hbd: number;
@@ -35,7 +36,7 @@ let isPolling = false;
 let intervalId: NodeJS.Timeout | null = null;
 
 export function startAccountPolling(did: string) {
-	if (isPolling) return; // Prevent multiple intervals
+	if (!browser || isPolling) return; // Prevent multiple intervals
 
 	isPolling = true;
 	const api = new GetAccountBalanceStore();

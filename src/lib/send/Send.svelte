@@ -303,6 +303,9 @@
 	{/if}
 {/snippet}
 
+{#if widgetView}
+	<h5>Send</h5>
+{/if}
 <form
 	class={{ complete: fromCoin && fromNetwork && toCoin && toNetwork, widgetView }}
 	onsubmit={(e) => {
@@ -310,9 +313,6 @@
 	}}
 	id="send"
 >
-	{#if widgetView}
-		<h2>Send</h2>
-	{/if}
 	<fieldset>
 		<legend>From:</legend>
 		<CurrencySelect
@@ -481,26 +481,14 @@
 		flex-wrap: wrap;
 		margin: auto;
 		&.widgetView {
-			padding: 1rem;
-			padding-left: 0;
+			padding: 0 .75rem .75rem .75rem;
 			flex-wrap: nowrap;
 			height: 28.125rem;
 			:global(fieldset) {
 				min-height: calc(100% - 2rem);
-				margin-top: 1rem;
 				width: 300px;
 			}
 		}
-	}
-	h2 {
-		position: sticky;
-		font-size: var(--text-2xl);
-		font-weight: 400;
-		top: -1rem;
-		transform: translateY(-2rem);
-		left: 0rem;
-		width: 0;
-		overflow: visible;
 	}
 	h3 {
 		font-weight: 600;
@@ -544,5 +532,9 @@
 	p {
 		margin-top: auto;
 		margin-bottom: 0.5rem;
+	}
+
+	h5 {
+		margin-left: 0.75rem;
 	}
 </style>

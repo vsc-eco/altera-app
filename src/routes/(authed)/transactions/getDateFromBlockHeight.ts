@@ -1,7 +1,6 @@
 import moment from 'moment';
-import { allTransactionsStore, getTimestamp } from './txStores';
+import { allTransactionsStore, getTimestamp } from '$lib/stores/txStores';
 import { get } from 'svelte/store';
-import { GetTransactionsStore } from '$houdini';
 const START_BLOCK = 88079516;
 const START_BLOCK_TIME = moment('2024-08-16T02:46:48Z');
 

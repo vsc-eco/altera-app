@@ -8,7 +8,7 @@
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
 	import type { OperationResult, OperationError, OperationSuccess } from '@aioha/aioha/build/types';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
+	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import {
 		createClient,

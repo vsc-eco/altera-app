@@ -238,6 +238,15 @@ export type CoinOptions = {
 	}[];
 };
 
+export type sendDetails = {
+	fromCoin: CoinOptions['coins'][number] | undefined;
+	fromNetwork: Network | undefined;
+	fromAmount: string;
+	toCoin: CoinOptions['coins'][number] | undefined;
+	toNetwork: Network | undefined;
+	toUsername: string;
+};
+
 const swapOptions: {
 	from: CoinOptions;
 	to: CoinOptions;

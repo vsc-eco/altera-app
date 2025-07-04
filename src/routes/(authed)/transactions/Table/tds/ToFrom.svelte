@@ -9,7 +9,7 @@
 		otherAccount,
 		memo,
 		status
-	}: { otherAccount: string; memo?: string | undefined; status: string } = $props();
+	}: { otherAccount: string; memo?: string | undefined; status?: string } = $props();
 </script>
 
 <td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
@@ -73,6 +73,7 @@
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-sm);
 		margin-left: 0.5rem;
+		line-height: 1.5;
 	}
 
 	.to-from > .toFrom,

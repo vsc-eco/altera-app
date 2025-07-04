@@ -2,9 +2,11 @@
 	import type { SharedProps } from '$lib/PillButton.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
 	import StakePopup from '$lib/vscTransactions/hive/vscOperations/StakePopup.svelte';
-	import { Component, LockKeyhole } from '@lucide/svelte';
+	import { Component, LockKeyhole, Send } from '@lucide/svelte';
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';
+	import QuickSend from '$lib/send/quickSend/QuickSend.svelte';
+	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
 	let { auth }: { auth: Auth } = $props();
 	type PopupAction = {
 		type: 'popup';
@@ -13,19 +15,34 @@
 		icon: typeof Component;
 		styling?: SharedProps;
 	};
-	let dialogOpen = $state(false);
-	let toggle = $state((open?: boolean) => {
-		dialogOpen = open !== undefined ? open : !dialogOpen;
+	let stakeOpen = $state(false);
+	let toggleStake = $state((open?: boolean) => {
+		stakeOpen = open !== undefined ? open : !stakeOpen;
 	});
-	function openPopup() {
-		toggle(true);
-	}
+	let quickSendOpen = $state(false);
+	let sendSessionId = $state(getTxSessionId());
+	let toggleQuickSend = $state((open?: boolean) => {
+		quickSendOpen = open !== undefined ? open : !quickSendOpen;
+	});
 	const menuActions: (NavigationAction | PopupAction)[] = [
-		...actions,
+		{
+			type: 'popup',
+			label: 'Quick Send',
+			onclick: () => {
+				sendSessionId = getTxSessionId();
+				toggleQuickSend(true);
+			},
+			icon: Send,
+			styling: {
+				theme: 'primary',
+				styleType: 'invert'
+			}
+		},
+		...actions.filter(action => action.label !== 'Send'),
 		{
 			type: 'popup',
 			label: 'Staking',
-			onclick: openPopup,
+			onclick: () => toggleStake(true),
 			icon: LockKeyhole
 		}
 	];
@@ -43,7 +60,8 @@
 		</PillBtn>
 	{/each}
 </div>
-<StakePopup {auth} bind:dialogOpen bind:toggle />
+<StakePopup {auth} bind:dialogOpen={stakeOpen} bind:toggle={toggleStake} />
+<QuickSend bind:dialogOpen={quickSendOpen} bind:toggle={toggleQuickSend} sessionId={sendSessionId}/>
 
 <style>
 	.action-bar {

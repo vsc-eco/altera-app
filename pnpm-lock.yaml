@@ -62,6 +62,9 @@ importers:
       '@zag-js/clipboard':
         specifier: ^1.9.3
         version: 1.9.3
+      '@zag-js/collapsible':
+        specifier: 1.9.3
+        version: 1.9.3
       '@zag-js/combobox':
         specifier: ^1.9.3
         version: 1.9.3
@@ -84,6 +87,9 @@ importers:
         specifier: ^1.9.3
         version: 1.9.3
       '@zag-js/select':
+        specifier: ^1.9.3
+        version: 1.9.3
+      '@zag-js/steps':
         specifier: ^1.9.3
         version: 1.9.3
       '@zag-js/svelte':
@@ -131,6 +137,9 @@ importers:
       queries:
         specifier: link:@vsc.eco/client/dist/queries
         version: link:@vsc.eco/client/dist/queries
+      steps:1.9.3:
+        specifier: link:@zag-js/steps:1.9.3
+        version: link:@zag-js/steps:1.9.3
       tabs:1.9.3:
         specifier: link:@zag-js/tabs:1.9.3
         version: link:@zag-js/tabs:1.9.3
@@ -2100,6 +2109,9 @@ packages:
   '@zag-js/clipboard@1.9.3':
     resolution: {integrity: sha512-cWlsduCO5/Z3JHn5yKnwpeP/6OTijNskcDluZeCviKYwBKmwyJs2fjRA38M5gHv5EViPM8KyGH6o/LOhJARSew==}
 
+  '@zag-js/collapsible@1.9.3':
+    resolution: {integrity: sha512-5SvBo8pygAnk3gbgGcWZlpGxJX7dtg8CLzMnAE1x92LdSckZmuMQC8N9zGoPblLtj/I/yigEAz5OPkabjUr48g==}
+
   '@zag-js/collection@1.9.3':
     resolution: {integrity: sha512-hy0jSsZ2BdXTqf2fJtUuMf2joaFM4VfJWT2eE46svxq6vWXM1nMLKrmo8GN3y/ou6DpJYP2pdB25y42z+6qfMQ==}
 
@@ -2153,6 +2165,9 @@ packages:
 
   '@zag-js/select@1.9.3':
     resolution: {integrity: sha512-FrUjen3SClRXm1gIIJl91DLe+hp2mKqp/GZFkQt2wQMPIQxb/93aBD5E5xGBJiBwZt21c7lf/zBlbmbskNaXrA==}
+
+  '@zag-js/steps@1.9.3':
+    resolution: {integrity: sha512-JtPvsBBpeL1yGLi/Mw5eRDwYxOmTz+NngpOg+EsElP0mn50I/fDgVv7Sc5HG03AbPTEeKw+HYNXU/m7nhh0L7g==}
 
   '@zag-js/svelte@1.9.3':
     resolution: {integrity: sha512-0TIjLbzLuXg6fBN59FoGINcJZX4bfXhlMdw6CChtcHVZoj23t5C3F9pWJC0PUwDcKu8xSXI553hLG6bGruPP2w==}
@@ -7824,6 +7839,14 @@ snapshots:
       '@zag-js/types': 1.9.3
       '@zag-js/utils': 1.9.3
 
+  '@zag-js/collapsible@1.9.3':
+    dependencies:
+      '@zag-js/anatomy': 1.9.3
+      '@zag-js/core': 1.9.3
+      '@zag-js/dom-query': 1.9.3
+      '@zag-js/types': 1.9.3
+      '@zag-js/utils': 1.9.3
+
   '@zag-js/collection@1.9.3':
     dependencies:
       '@zag-js/utils': 1.9.3
@@ -7951,6 +7974,14 @@ snapshots:
       '@zag-js/dismissable': 1.9.3
       '@zag-js/dom-query': 1.9.3
       '@zag-js/popper': 1.9.3
+      '@zag-js/types': 1.9.3
+      '@zag-js/utils': 1.9.3
+
+  '@zag-js/steps@1.9.3':
+    dependencies:
+      '@zag-js/anatomy': 1.9.3
+      '@zag-js/core': 1.9.3
+      '@zag-js/dom-query': 1.9.3
       '@zag-js/types': 1.9.3
       '@zag-js/utils': 1.9.3
 

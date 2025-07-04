@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Card from '$lib/cards/Card.svelte';
 	import PillButton, { type ButtonAttributes } from '$lib/PillButton.svelte';
 	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 	import type { Api } from '@zag-js/select';
@@ -7,19 +8,106 @@
 		api: Api<PropTypes, unknown>;
 		def: string;
 		disabled?: boolean;
+		items?: any[];
+		styleType?: 'default' | 'card' | 'dropdown';
 	};
-	let { api, def, disabled }: Props = $props();
+	let { api, def, disabled, items, styleType = 'default' }: Props = $props();
 	const triggerProps: ButtonAttributes = $derived(api.getTriggerProps()) as ButtonAttributes;
 	let open = $derived(api.open);
+	let currentItem: any | undefined = $derived(
+		items?.find((item) => item.label === api.valueAsString)
+	);
+	let defOpt = $derived(items?.find((item) => (item.value ?? item.lable) === def));
 </script>
 
-<div {...api.getControlProps()}>
-	<PillButton {...triggerProps} styleType="text" {disabled}>
-		{api.valueAsString || def || 'Select option'}
-		{#if open}
-			<ChevronUp></ChevronUp>
-		{:else}
-			<ChevronDown></ChevronDown>
-		{/if}
-	</PillButton>
+<div {...api.getControlProps()} class={{ card: styleType !== 'default' }}>
+	{#if styleType === 'default'}
+		<PillButton {...triggerProps} styleType="text" {disabled}>
+			{#if typeof currentItem?.snippet == 'function'}
+				{@const Snippet = currentItem.snippet}
+				{@render Snippet(currentItem.snippetData ?? currentItem)}
+			{:else if typeof defOpt?.snippet == 'function'}
+				{@const Snippet = defOpt.snippet}
+				{@render Snippet(defOpt.snippetData ?? defOpt)}
+			{:else}
+				{api.valueAsString || def || 'Select option'}
+			{/if}
+			{#if open}
+				<ChevronUp></ChevronUp>
+			{:else}
+				<ChevronDown></ChevronDown>
+			{/if}
+		</PillButton>
+	{:else}
+		<button
+			{...triggerProps}
+			class={['cardlike', { card: styleType === 'card', dropdown: styleType === 'dropdown' }]}
+		>
+			<div class={['content', { tall: styleType === 'card' }]}>
+				{#if typeof currentItem?.snippet == 'function'}
+					{@const Snippet = currentItem.snippet}
+					{@render Snippet(currentItem.snippetData ?? currentItem)}
+				{:else}
+					{api.valueAsString || def || 'Select option'}
+				{/if}
+				<span class="arrow">
+					{#if open}
+						<ChevronUp></ChevronUp>
+					{:else}
+						<ChevronDown></ChevronDown>
+					{/if}
+				</span>
+			</div>
+		</button>
+	{/if}
 </div>
+
+<style lang="scss">
+	[data-part='control'].card {
+		flex-grow: 1;
+		display: flex;
+	}
+	[data-part='trigger'] {
+		font: inherit;
+		color: var(--neutral-fg);
+		.arrow {
+			padding-left: 0.5rem;
+		}
+	}
+	[data-part='trigger'].cardlike {
+		position: relative;
+		flex-grow: 1;
+		display: flex;
+		height: auto;
+	}
+	[data-part='trigger'].card {
+		border: none;
+		background: none;
+		width: 100%;
+		padding: 0rem;
+		margin: 0;
+		align-items: center;
+		justify-content: space-between;
+		&:hover {
+			cursor: pointer;
+		}
+	}
+	[data-part='trigger'].dropdown {
+		border: 1px solid var(--neutral-bg-accent-shifted);
+		background-color: var(--neutral-off-bg);
+		border-radius: 0.5rem;
+		&[data-state='open'] {
+			border-bottom: 2px solid var(--primary-bg-mid);
+			outline: none;
+			border-radius: 0.5rem 0.5rem 0 0;
+		}
+	}
+	.content {
+		flex-grow: 1;
+		padding: 0.5rem;
+		height: auto;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+</style>

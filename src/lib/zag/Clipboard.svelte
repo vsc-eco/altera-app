@@ -4,7 +4,15 @@
 	import { ClipboardCheck, ClipboardCopyIcon } from '@lucide/svelte';
 	import { getUniqueId } from './idgen';
 	import PillButton from '$lib/PillButton.svelte';
-	let { label, value, disabled = false } = $props();
+	let {
+		label,
+		value,
+		disabled = false
+	}: {
+		label: string;
+		value: string;
+		disabled: boolean;
+	} = $props();
 	const service = useMachine(clipboard.machine, {
 		id: getUniqueId(),
 		value
@@ -25,9 +33,9 @@
 			styleType="icon-text"
 		>
 			{#if api.copied && !disabled}
-				<ClipboardCheck class="clipboard-icon"/>
+				<ClipboardCheck class="clipboard-icon" />
 			{:else}
-				<ClipboardCopyIcon class="clipboard-icon"/>
+				<ClipboardCopyIcon class="clipboard-icon" />
 			{/if}
 		</PillButton>
 	</div>
@@ -52,11 +60,11 @@
 	.disabled {
 		filter: grayscale(50%);
 	}
-	
+
 	.disabled input {
 		color: var(--neutral-mid);
 	}
-	
+
 	.disabled [data-part='control'] {
 		pointer-events: none;
 	}

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Select from '$lib/zag/Select.svelte';
 	import moment from 'moment';
-	export type DateRange = { label: string; start: Date; end: Date };
+	export type DateRange = { label: string; value: string; start: Date; end: Date };
 	type Props = {
 		dateRanges?: DateRange[];
 		currDate?: Date;

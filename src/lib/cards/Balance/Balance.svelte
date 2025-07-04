@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { defaultData } from '$lib/defaultLineData';
 	import LineChart, { type Point } from '$lib/LineChart.svelte';
 	import moment from 'moment';
 	import Card from '../Card.svelte';
@@ -36,35 +35,40 @@
 	const dateRanges = [
 		{
 			label: 'Last 7 Days',
+			value: '7days',
 			start: moment().subtract(7, 'days').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'Last 30 Days',
+			value: '30days',
 			start: moment().subtract(30, 'days').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'Last 90 Days',
+			value: '90days',
 			start: moment().subtract(90, 'days').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'Last 365 Days',
+			value: '365days',
 			start: moment().subtract(365, 'days').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'This Month',
+			value: 'this-month',
 			start: moment().startOf('month').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'Year to Date',
+			value: 'this-year',
 			start: moment().startOf('year').toDate(),
 			end: moment().toDate()
 		}
-		// TODO: add month to date, quarter to date, year to date
 	];
 	let selectedDateRange = $state(dateRanges[0]);
 	let hourly = $derived(moment(selectedDateRange.end).diff(selectedDateRange.start, 'day') < 14);
@@ -87,14 +91,23 @@
 	);
 
 	$effect(() => {
-		if (did) {
+		if (!selectedDateRange && dateRanges.length > 0) {
+			selectedDateRange = dateRanges[0];
+		}
+	});
+
+	$effect(() => {
+		if (did && selectedDateRange) {
 			loadingBalances = true;
 			fetchAndStoreAccountBalances(did, selectedDateRange.start, selectedDateRange.end, interval)
 				.then(() => {
 					loadingBalances = false;
 				})
-				.catch(() => {
+				.catch((err) => {
 					loadingBalances = false;
+					if (err instanceof Error) {
+						console.log('error fetching balance history:', err.message);
+					}
 				});
 		}
 	});
@@ -103,24 +116,24 @@
 <Card>
 	<div class={['root', { hovered: hoveredIndex }]}>
 		<div class="caption">
-		<h5>VSC Balance</h5>
-		<div class="price">
-			{#if loadingBalances}
-				<span class="loading">Loading...</span>
-			{:else}
-				${Math.floor(balance)}<span
-					><span>.</span>{new Intl.NumberFormat('en-US', {
-						style: 'decimal',
-						maximumFractionDigits: 0,
-						minimumIntegerDigits: 2
-					}).format((balance * 100) % 100)}</span
-				>
-			{/if}
-		</div>
+			<h5>VSC Balance</h5>
+			<div class="price">
+				{#if loadingBalances}
+					<span class="loading">Loading...</span>
+				{:else}
+					${Math.floor(balance)}<span
+						><span>.</span>{new Intl.NumberFormat('en-US', {
+							style: 'decimal',
+							maximumFractionDigits: 0,
+							minimumIntegerDigits: 2
+						}).format((balance * 100) % 100)}</span
+					>
+				{/if}
+			</div>
 		</div>
 
 		<div class="date-change-bar">
-			<div class={['date', {hovered: date}]}>
+			<div class={['date', { hovered: date }]}>
 				<Date
 					onValueChange={(v) => {
 						selectedDateRange = v;
@@ -148,7 +161,7 @@
 	</div>
 </Card>
 
-<style lang='scss'>
+<style lang="scss">
 	.root {
 		display: block;
 		min-width: min(300px, 100%);

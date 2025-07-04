@@ -13,7 +13,7 @@
 	let {
 		boundaries,
 		currentValue,
-		colorVar = '--primary-bg-mid',
+		colorVar = '--accent-mid',
 		timerLabel,
 		customPercentage
 	}: Props = $props();

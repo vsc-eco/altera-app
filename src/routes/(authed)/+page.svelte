@@ -6,7 +6,7 @@
 	import { actions } from '../quickActions';
 	import { getAccountNameFromAuth, getUsernameFromAuth } from '$lib/getAccountName';
 	import StakeUnstakeTabsModal from './witness-assistant/StakeUnstakeTabsModal.svelte';
-	import Send from '$lib/send/Send.svelte';
+	import Send from '$lib/send/SendCards.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Table from './transactions/Table/Table.svelte';
 	import AccBalance from '$lib/AccBalance.svelte';

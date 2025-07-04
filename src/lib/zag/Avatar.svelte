@@ -4,10 +4,16 @@
 	import { getUniqueId } from './idgen';
 	import { getProfilePicUrl } from '$lib/auth/hive/getProfilePicUrl';
 	import { getUsernameFromDid } from '$lib/getAccountName';
-	let { src, did, fallback }: { src?: string; did?: string; fallback?: string } = $props();
+	let {
+		src,
+		did,
+		fallback,
+		large
+	}: { src?: string; did?: string; fallback?: string; large?: boolean } = $props();
 	const service = useMachine(avatar.machine, { id: getUniqueId() });
 	const api = $derived(avatar.connect(service, normalizeProps));
 	$effect(() => {
+		src = undefined;
 		if (did == undefined) return;
 		if (!did.startsWith('did:pkh:eip155:1')) {
 			const username = did.split(':').at(-1)!;
@@ -23,7 +29,7 @@
 	});
 </script>
 
-<div {...api.getRootProps()}>
+<div {...api.getRootProps()} class={['wrapper', {large: large?? false}]}>
 	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}
 		>{fallback}</span
 	>
@@ -31,11 +37,17 @@
 </div>
 
 <style>
+	.wrapper {
+		width: 2.5rem;
+	}
+	.wrapper.large {
+		width: 3.5rem;
+	}
 	[data-part='root'] {
 		position: relative;
 		/* Styles for the root part */
 		border-radius: 100%;
-		width: 2.5rem;
+		/* width: 2.5rem; */
 		flex-shrink: 0;
 		padding: -0.5rem -0.5rem;
 		box-sizing: border-box;
@@ -53,6 +65,9 @@
 		align-items: center;
 		justify-content: center;
 		aspect-ratio: 1;
+	}
+	[data-part='fallback'][data-state='hidden'] {
+		display: none;
 	}
 
 	[data-part='image'],

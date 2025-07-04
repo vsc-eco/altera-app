@@ -24,6 +24,7 @@
 	} = $props();
 	// TODO: make sure this is in the onClick handler instead
 	const altera_id = uuid();
+	console.log("toamt", toAmount);
 	let invoiceReq = $derived(
 		createLightningInvoice(
 			toAmount,

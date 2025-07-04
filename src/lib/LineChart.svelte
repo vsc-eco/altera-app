@@ -71,7 +71,7 @@
 	}
 	const daysSpacing = $derived.by(() => {
 		const daysApart = moment(dateExtent[1]).diff(moment(dateExtent[0]), 'days');
-		return daysApart > 7 ? 5 : daysApart
+		return daysApart > 7 ? 5 : daysApart;
 	});
 	const spacedDates = $derived(getSpacedDates(dateExtent, daysSpacing));
 	let lineGenerator = area<{ value: number; date: Date }>()
@@ -244,14 +244,13 @@
 		align-items: center;
 		justify-content: center;
 		gap: 1rem;
-		z-index: 10;
+		z-index: 3;
 		font-size: var(--text-sm);
 		color: var(--neutral-fg-mid);
 		backdrop-filter: blur(1px);
 	}
 
 	:global(.loader-icon) {
-		color: var(--accent-fg);
 		animation: spin 1s linear infinite;
 	}
 

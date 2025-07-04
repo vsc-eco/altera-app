@@ -1,0 +1,48 @@
+<script module lang="ts">
+	export {
+		assetCardSnippet as assetCard,
+		accountCardSnippet as accountCard,
+		networkCardSnippet as networkCard
+	};
+	import { type CoinOptions, Network, SendAccount } from '$lib/send/sendOptions';
+	import AccountInfo from '../AccountInfo.svelte';
+	import AssetInfo from '../AssetInfo.svelte';
+	import {
+		getLastPaidNetwork,
+		SendTxDetails,
+		type CoinOptionParam,
+		type NetworkOptionParam
+	} from '$lib/send/sendUtils';
+	import { get } from 'svelte/store';
+	import NetworkInfo from '../NetworkInfo.svelte';
+	import { type Auth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
+</script>
+
+{#snippet assetCardSnippet(params: {fromOpt: CoinOptionParam | undefined, net?: Network})}
+	<!-- <div class="card-wrapper"> -->
+	{@const fromOpt = params.fromOpt}
+	{#if fromOpt}
+		<AssetInfo coinOpt={fromOpt} network={params.net} disabledMemo={fromOpt.disabledMemo} />
+	{/if}
+	<!-- </div> -->
+{/snippet}
+
+{#snippet accountCardSnippet(account: SendAccount | undefined)}
+	<!-- <div class="card-wrapper"> -->
+	{#if account}
+		{@const store = get(SendTxDetails)}
+		<AccountInfo {account} currentCoin={store.fromCoin?.coin} />
+	{/if}
+	<!-- </div> -->
+{/snippet}
+
+{#snippet networkCardSnippet(net: NetworkOptionParam)}
+	{@const auth = getAuth()()}
+
+	{#await getLastPaidNetwork(auth, net.value) }
+		<NetworkInfo network={net} adjacent={true} disabledMemo={net.disabledMemo} />
+	{:then lastPaid}
+		<NetworkInfo network={net} {lastPaid} adjacent={true} disabledMemo={net.disabledMemo} />
+	{/await}
+{/snippet}

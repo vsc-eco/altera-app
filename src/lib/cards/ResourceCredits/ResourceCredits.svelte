@@ -64,12 +64,11 @@
 			return;
 		}
 
-		getDateFromBlockHeight($accountBalance.bal.last_tx_height).then((date) => {
-			vscRegenTime = moment.duration(
-				moment.duration(5, 'days').asSeconds() - moment().diff(moment(date), 'seconds'),
-				'seconds'
-			);
-		});
+		const date = getDateFromBlockHeight($accountBalance.bal.last_tx_height);
+		vscRegenTime = moment.duration(
+			moment.duration(5, 'days').asSeconds() - moment().diff(moment(date), 'seconds'),
+			'seconds'
+		);
 	});
 	function durationToString(d: moment.Duration) {
 		let output = '';

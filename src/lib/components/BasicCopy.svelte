@@ -23,7 +23,7 @@
 	}
 </script>
 
-<div>
+<span>
 	{#if children}
 		{@render children()}
 	{:else}
@@ -36,10 +36,10 @@
 			<ClipboardCopy class="clipboard-icon" />
 		{/if}
 	</PillButton>
-</div>
+</span>
 
 <style>
-	div {
+	span {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;

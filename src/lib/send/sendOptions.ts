@@ -1,6 +1,9 @@
 import type { Auth } from '../auth/store';
 import { getV4VMetadata } from './v4v/api-types/metadata';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+import { Record } from '$houdini/runtime/public/record';
+import { BadgeDollarSign, type Icon as LucideIcon } from '@lucide/svelte';
+import type { SvelteComponent } from 'svelte';
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
@@ -55,6 +58,23 @@ const hbd: Coin = {
 	},
 	decimalPlaces: 3
 };
+const shbd: Coin = {
+	value: 'hbd_savings',
+	label: 'sHBD',
+	icon: '/hive/hbd.svg',
+	unit: 'HBD',
+	enabled: (going, info, auth, mode) => {
+		// currently can't swap from HBD to anything else
+		if (going == 'from' && mode == 'swap') return false;
+
+		if (info.from?.network == Network.lightning) return true;
+		if (info.from?.coin == undefined) return true;
+		if (going == 'from') return true;
+		if (info.from?.coin == Coin.hbd) return true;
+		return false;
+	},
+	decimalPlaces: 3
+};
 const btc: Coin = {
 	value: 'btc',
 	label: 'BTC',
@@ -69,7 +89,7 @@ const btc: Coin = {
 const usd: Coin = {
 	value: 'usd',
 	label: 'USD',
-	icon: '/btc/btc.svg',
+	icon: '/fiat/usd.svg',
 	unit: 'USD',
 	enabled: never,
 	decimalPlaces: 2
@@ -97,6 +117,7 @@ const unk: Coin = {
 export const Coin = {
 	hive,
 	hbd,
+	shbd,
 	btc,
 	sats,
 	usd,
@@ -238,6 +259,94 @@ export type CoinOptions = {
 	}[];
 };
 
+export type SendDetails = {
+	fromCoin: CoinOptions['coins'][number] | undefined;
+	fromNetwork: Network | undefined;
+	fromAmount: string;
+	toCoin: CoinOptions['coins'][number] | undefined;
+	toNetwork: Network | undefined;
+	toAmount: string;
+	toUsername: string;
+	fee: CoinAmount<Coin> | undefined;
+	method: TransferMethod | undefined;
+	account: SendAccount | undefined;
+	toDisplayName: string;
+	memo: string;
+};
+
+export type NecessarySendDetails = {
+	fromCoin: CoinOptions['coins'][number];
+	fromNetwork: Network;
+	amount: string;
+	toCoin: CoinOptions['coins'][number];
+	toNetwork: Network;
+	toUsername: string;
+	memo?: string;
+};
+
+export type TransferMethod = {
+	label: string;
+	value: string;
+	length: string;
+	fees: string;
+};
+
+const vscTransfer: TransferMethod = {
+	label: 'VSC Transfer',
+	value: 'vsc-transfer',
+	length: 'Instant',
+	fees: 'No Fees'
+};
+
+const lightningTransfer: TransferMethod = {
+	label: 'Lightning Network',
+	value: 'lightning',
+	length: 'About a Minute',
+	fees: '2% Fee'
+};
+
+export const TransferMethod = {
+	vscTransfer,
+	lightningTransfer
+};
+
+export const networkMap: Map<string, Coin[]> = new Map([
+	[Network.vsc.value, [Coin.hive, Coin.hbd, Coin.shbd]],
+	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
+	[Network.lightning.value, [Coin.btc]]
+]);
+
+export type SendAccount = {
+	value: string;
+	label: string;
+	icon?: string;
+	fee?: string;
+};
+
+const vscAccount: SendAccount = {
+	label: 'VSC Account',
+	value: 'vsc-account',
+	icon: '/vsc.png'
+};
+
+const deposit: SendAccount = {
+	label: 'Deposit',
+	value: 'deposit',
+	fee: '0-3%'
+};
+
+const swap: SendAccount = {
+	label: 'Swap',
+	value: 'swap',
+	fee: '0-3%'
+};
+
+export const SendAccount = {
+	vscAccount,
+	deposit,
+	swap
+};
+
 const swapOptions: {
 	from: CoinOptions;
 	to: CoinOptions;
@@ -253,8 +362,13 @@ const swapOptions: {
 				networks: [vsc, hiveMainnet]
 			},
 			{
+				coin: shbd,
+				networks: [vsc]
+			},
+			{
 				coin: btc,
-				networks: [lightning, btcMainnet]
+				// networks: [lightning, btcMainnet]
+				networks: [lightning]
 			}
 		]
 	},

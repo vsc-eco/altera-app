@@ -165,7 +165,6 @@
 					});
 			}}
 			onchange={() => {
-				console.log('HERE CHANGED');
 				if (maxField && Number(amountOfOriginalCoin) > $accountBalance.bal[maxField]) {
 					error = 'Amount exceeds available balance.';
 				}

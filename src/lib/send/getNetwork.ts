@@ -28,6 +28,6 @@ function throughVsc(from: CoinOnNetwork, to: CoinOnNetwork) {
 	if (throughHive(from, to)) {
 		return false;
 	}
-	const vscSupportedNetworks: Network[] = [Network.vsc, Network.hiveMainnet];
-	return vscSupportedNetworks.includes(from.network) && vscSupportedNetworks.includes(to.network);
+	const vscSupportedNetworks: string[] = [Network.vsc.value, Network.hiveMainnet.value];
+	return vscSupportedNetworks.includes(from.network.value) && vscSupportedNetworks.includes(to.network.value);
 }

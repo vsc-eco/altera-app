@@ -1,5 +1,8 @@
 /* TEAM */
-	Frontend Developer: Zephiris Evergreen
+	Frontend Developer: Milo Ridenour
+	GitHub: miloridenour
+
+	Former Frontend Developer: Zephiris Evergreen
 	Site: zephiris.me
 	Pronouns: they/them
 	Contact: z [at] zephiris.me

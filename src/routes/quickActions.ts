@@ -2,12 +2,12 @@ import type { SharedProps } from '$lib/PillButton.svelte';
 import { ArrowRightLeft, Component, Send } from '@lucide/svelte';
 
 export type NavigationAction = {
-	type: 'navigation'
+	type: 'navigation';
 	label: string;
 	href: string;
 	icon: typeof Component;
 	styling?: SharedProps;
-}
+};
 
 export const actions: NavigationAction[] = [
 	{

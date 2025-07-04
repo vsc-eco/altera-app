@@ -50,7 +50,6 @@
 			hide: hide
 		}
 	]);
-	if (theme == 'primary') $inspect({ theme, styleType, rest });
 </script>
 
 {#snippet inner()}

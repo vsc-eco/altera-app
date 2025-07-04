@@ -16,7 +16,7 @@
 		required?: boolean;
 		id?: string;
 		items: Item[];
-		name: string;
+		name?: string;
 		value?: string | null;
 		defaultValue?: string;
 		hideError?: boolean;
@@ -27,8 +27,7 @@
 		items,
 		value = $bindable(),
 		defaultValue: propDefault,
-		required,
-		hideError
+		required
 	}: Props = $props();
 	let generatedId = getUniqueId();
 	let enabled = $derived(items.filter((item) => !item.disabled));
@@ -37,7 +36,12 @@
 		id: id ?? generatedId,
 		name,
 		orientation: 'horizontal',
-		defaultValue: propDefault
+		defaultValue: propDefault,
+		onValueChange(details) {
+			if (details.value) {
+				value = details.value;
+			}
+		}
 	});
 	const api = $derived(radio.connect(service, normalizeProps));
 	$effect(() => {
@@ -46,15 +50,20 @@
 		}
 	});
 	$effect(() => {
-		value = api.value;
-		if (value != null && items.find((item) => item.value == value)?.disabled === true) {
-			api.clearValue();
-		}
+		const val = value;
+		untrack(() => {
+			if (!val) return;
+			if (items.find((item) => item.value === val)?.disabled === true || val !== api.value) {
+				api.setValue(val);
+			}
+		});
 	});
 </script>
 
 <div {...api.getRootProps()}>
-	<h3 {...api.getLabelProps()}>{name}</h3>
+	{#if name}
+		<h3 {...api.getLabelProps()}>{name}</h3>
+	{/if}
 	<div class="items">
 		{#each items as opt}
 			<label
@@ -109,13 +118,11 @@
 		{/each}
 	</div>
 
-	<label class="error" for={id}>
-		{#if error}
+	{#if error}
+		<label class="error" for={id}>
 			{error}
-		{:else}
-			&nbsp;
-		{/if}
-	</label>
+		</label>
+	{/if}
 </div>
 
 <style lang="scss">
@@ -160,7 +167,6 @@
 		width: 100%;
 		justify-content: flex-start;
 		gap: 0.75rem;
-		padding-right: 0.5rem;
 		box-sizing: border-box;
 		/* styles for radio checked or unchecked state */
 	}

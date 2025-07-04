@@ -60,7 +60,7 @@
 		overflow: hidden;
 	}
 	.up {
-		color: var(--primary-fg-mid);
+		color: var(--green-fg);
 	}
 	.down {
 		color: var(--secondary-fg-mid);

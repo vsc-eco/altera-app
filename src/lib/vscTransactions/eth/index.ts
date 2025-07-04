@@ -15,19 +15,19 @@ export function getEVMOpType(
 		amount: amount.toPrettyAmountString(),
 		asset: amount.coin.unit.toLowerCase()
 	};
-	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
+	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.vsc.value) {
 		return {
 			op: 'transfer',
 			payload: payload
 		};
 	}
-	if (fromNetwork == Network.hiveMainnet && toNetwork == Network.vsc) {
+	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.vsc.value) {
 		return {
 			op: 'deposit',
 			payload: payload
 		};
 	}
-	if (fromNetwork == Network.vsc && toNetwork == Network.hiveMainnet) {
+	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.hiveMainnet.value) {
 		return {
 			op: 'withdraw',
 			payload: payload

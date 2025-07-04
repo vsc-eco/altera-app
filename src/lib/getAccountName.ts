@@ -11,7 +11,7 @@ export const getAccountNameFromAuth = (auth: Auth) => {
 	return shortenUsername(u);
 };
 
-export const accountNameFromAddress = (addr: string) => {
+export const getAccountNameFromAddress = (addr: string) => {
 	return shortenUsername(addr);
 };
 

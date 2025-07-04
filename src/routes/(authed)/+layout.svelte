@@ -7,21 +7,22 @@
 	import { getAuth } from '$lib/auth/store';
 	import { startAccountPolling, stopAccountPolling } from '$lib/stores/currentBalance';
 	import { onDestroy } from 'svelte';
-	import { clearAllStores } from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 	import { loginRetry } from '$lib/auth/store';
+	import { clearAllStores } from '$lib/stores/txStores';
+	import { page } from '$app/state';
 
 	let { children } = $props();
 	let showSidebar = $state(false);
-
+	
 	let auth = $derived(getAuth()());
+	let isFullscreen = $derived(page.url.pathname === '/send');
 	$effect(() => {
 		if (!browser || !auth.value) return;
 		startAccountPolling(auth.value.did);
 		localStorage.setItem('last_connection', auth.value.provider);
 	});
 	$effect(() => {
-		console.log($loginRetry);
 		if ($loginRetry === 'logout') return;
 		if ($loginRetry === 'cooldown') {
 			if (auth.value) {
@@ -57,13 +58,17 @@
 </script>
 
 <div class={['flex', { showSidebar }]}>
-	<Sidebar bind:visible={showSidebar}></Sidebar>
-	<div class="main">
-		<Topbar
-			onMenuToggle={() => {
-				showSidebar = !showSidebar;
-			}}
-		></Topbar>
+	{#if !isFullscreen}
+		<Sidebar bind:visible={showSidebar}></Sidebar>
+	{/if}
+	<div class={["main", {fullscreen: isFullscreen}]}>
+		{#if !isFullscreen}
+			<Topbar
+				onMenuToggle={() => {
+					showSidebar = !showSidebar;
+				}}
+			></Topbar>
+		{/if}
 		<main>
 			{@render children()}
 		</main>
@@ -95,5 +100,8 @@
 		box-sizing: border-box;
 		flex-basis: 0;
 		overflow: hidden;
+	}
+	.main.fullscreen {
+		max-width: none;
 	}
 </style>

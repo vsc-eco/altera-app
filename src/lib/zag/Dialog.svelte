@@ -47,7 +47,7 @@
 	<div use:portal {...api.getBackdropProps()}></div>
 	<div use:portal {...api.getPositionerProps()}>
 		<div {...api.getContentProps()}>
-			<Card>
+			<Card defaultBg>
 				<div class="title-and-close" class:no-title={!title}>
 					{#if title}
 						<h2 {...api.getTitleProps()}>{@render title()}</h2>
@@ -74,7 +74,9 @@
 
 <style lang="scss">
 	[data-part='backdrop'] {
-		background-color: rgb(0, 0, 0, 0.2);
+		// TODO: change to shade of official color
+		background-color: rgba(58, 46, 57, 0.2);
+		backdrop-filter: blur(4px);
 		position: fixed;
 		top: 0;
 		left: 0;
@@ -88,13 +90,14 @@
 		border: none;
 		z-index: 2;
 		outline: none;
+		max-height: 90vh;
+		overflow-y: scroll;
 	}
 
 	[data-part='positioner'] {
 		border-radius: 0.5rem;
 		position: fixed;
 		padding: 0.5rem;
-		width: max(80vw, 25rem);
 		box-sizing: border-box;
 		max-width: calc(100% - 0.5rem);
 		width: max-content;

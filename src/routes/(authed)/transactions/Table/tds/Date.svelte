@@ -5,7 +5,7 @@
 </script>
 
 <td class="date">
-	{(await getDateFromBlockHeight(block_height)).format('MMM D')}
+	{getDateFromBlockHeight(block_height).format('MMM D')}
 </td>
 
 <style>

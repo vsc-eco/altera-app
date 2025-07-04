@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { GetAccountBalanceStore } from '$houdini';
-	import { untrack } from 'svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from './send/sendOptions';
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';

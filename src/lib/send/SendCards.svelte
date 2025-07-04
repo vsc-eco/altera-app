@@ -9,7 +9,7 @@
 	import { getIntermediaryNetwork } from './getNetwork';
 	import { sleep } from 'aninest';
 	import V4VPopup from './V4VPopup.svelte';
-	import { accountNameFromAddress, getDidFromUsername } from '$lib/getAccountName';
+	import { getAccountNameFromAddress, getDidFromUsername } from '$lib/getAccountName';
 	import Amounts from './Amounts.svelte';
 	import CurrencySelect from './CurrencySelect.svelte';
 	import { untrack } from 'svelte';
@@ -369,7 +369,7 @@
 				Send <Amount network={fromNetwork} amount={new CoinAmount(fromAmount, fromCoin.coin)}
 				></Amount>
 				to
-				<span class="mono">{accountNameFromAddress(toUsername)}</span
+				<span class="mono">{getAccountNameFromAddress(toUsername)}</span
 				>{#if toCoin?.coin.value != fromCoin?.coin.value || toNetwork?.value != fromNetwork?.value}
 					&nbsp;as <Amount network={toNetwork} amount={new CoinAmount(toAmount, toCoin.coin)}
 					></Amount>{/if}?
@@ -487,7 +487,6 @@
 		display: flex;
 		gap: 1rem;
 		width: 100%;
-		box-sizing: border-box;
 		scroll-snap-type: x proximity;
 		position: relative;
 		flex-wrap: wrap;

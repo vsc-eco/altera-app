@@ -1,9 +1,10 @@
 /// <references types="houdini-svelte">
 
-/** @type {import('houdini').ConfigFile} */
+
 // const GQL_URL = 'http://127.0.0.1:8080'; // for running backend locally
 const GQL_URL = 'https://api.vsc.eco';
 
+/** @type {import('houdini').ConfigFile} */
 const config = {
 	watchSchema: {
 		url: (GQL_URL || 'https://api.vsc.eco') + '/api/v1/graphql'
@@ -31,9 +32,11 @@ const config = {
 		Map: {
 			// <- The GraphQL Scalar
 			type: '{ type: string } & any' // <-  The TypeScript type
+		},
+		DateTime: {
+			type: 'string'
 		}
 	},
-	forceRunesMode: true,
 	defaultPaginateMode: 'Infinite'
 };
 

@@ -32,7 +32,6 @@ const changeLogout = (v: Auth) => {
 		v.value.logout = async () => {
 			loginRetry.set('logout');
 			await oldLogout();
-			console.log('supposedly done with logout');
 			// clear svelte stores
 			clearAllStores();
 			accountBalance.set({

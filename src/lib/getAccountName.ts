@@ -22,6 +22,10 @@ function shortenUsername(u: string) {
 	return u;
 }
 
+export const getUsernameFromDid = (did: string) => {
+	return did.split(':').at(-1)!;
+};
+
 export const getAccountNameFromDid = (did: string) => {
 	const u = did.split(':').at(-1)!;
 	return shortenUsername(u);

@@ -12,6 +12,7 @@
 	const service = useMachine(avatar.machine, { id: getUniqueId() });
 	const api = $derived(avatar.connect(service, normalizeProps));
 	$effect(() => {
+		src = undefined;
 		if (did == undefined) return;
 		if (!did.startsWith('did:pkh:eip155:1')) {
 			const username = did.split(':').at(-1)!;

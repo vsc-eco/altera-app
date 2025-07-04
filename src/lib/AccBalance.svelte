@@ -54,7 +54,14 @@
 			</tr>
 			<tr>
 				<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
-				<td class="coin-cell">HBD Savings</td>
+				<td class="coin-cell">
+					<span class="coin-name">Liquid Hive Dollar Savings (sHBD)</span>
+					<span class="tooltip">
+						<InfoToolip>
+							sHBD is HBD that remains transferable while earning 15% APR
+						</InfoToolip>
+					</span>
+				</td>
 				<td class="amount-cell"
 					>{new CoinAmount(
 						$accountBalance.bal.hbd_savings,
@@ -111,7 +118,7 @@
 	</table>
 </div>
 
-<style>
+<style lang="scss">
 	.box {
 		margin: 0.75rem;
 		margin-top: 0;
@@ -144,16 +151,28 @@
 		align-items: center;
 	}
 	.coin-cell {
-		width: fit-content;
-		font-weight: 500;
-		text-align: left;
+		display: flex;
 		padding-left: 0.5rem;
+		align-items: center;
+		font-weight: 500;
+		.coin-name {
+			display: flex;
+			flex: 0 1 auto;
+			text-align: left;
+			overflow-wrap: break-word;
+			white-space: normal;
+		}
 		min-width: 120px;
+		.tooltip {
+			padding: 0 0.25rem;
+			flex-grow: 1;
+		}
 	}
 	.amount-cell {
 		font-family: 'Noto Sans Mono Variable', monospace;
 		font-weight: 400;
-		width: 100%;
+		margin-left: auto;
+		align-self: right;
 		text-align: right;
 	}
 	tr:last-child {

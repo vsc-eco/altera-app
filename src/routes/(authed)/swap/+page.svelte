@@ -1,5 +1,5 @@
 <script>
-	import Send from '$lib/send/Send.svelte';
+	import Send from '$lib/send/SendCards.svelte';
 </script>
 
 <document:head>

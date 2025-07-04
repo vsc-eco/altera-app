@@ -8,7 +8,7 @@
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
 	import type { OperationResult, OperationError, OperationSuccess } from '@aioha/aioha/build/types';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
+	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import {
 		createClient,
@@ -214,6 +214,7 @@
 			maxField={type === 'stake' ? (shouldDeposit ? undefined : 'hbd') : 'hbd_savings'}
 		/>
 	</div>
+	{#if allowDeposit}
 	{#if allowDeposit}
 		<label for="hbd-stake-checkbox">
 			<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />

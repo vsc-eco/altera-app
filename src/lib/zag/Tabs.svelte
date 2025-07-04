@@ -4,7 +4,7 @@
 	import type { Snippet } from 'svelte';
 	import { getUniqueId } from './idgen';
 	type Props = {
-		items: { value: string; label: string; content: Snippet }[];
+		items: { value: string; label: string; disabled?: boolean; content: Snippet }[];
 		defaultValue?: string;
 		activeTab?: string | null;
 	};
@@ -25,7 +25,7 @@
 <div {...api.getRootProps()}>
 	<div {...api.getListProps()}>
 		{#each items as item}
-			<button {...api.getTriggerProps({ value: item.value })}>
+			<button {...api.getTriggerProps({ value: item.value, disabled: item.disabled ?? false })}>
 				<span>
 					<p>{item.label}</p>
 				</span>

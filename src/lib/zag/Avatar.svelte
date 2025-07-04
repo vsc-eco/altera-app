@@ -3,7 +3,12 @@
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
 	import { getProfilePicUrl } from '$lib/auth/hive/getProfilePicUrl';
-	let { src, did, fallback }: { src?: string; did?: string; fallback?: string } = $props();
+	let {
+		src,
+		did,
+		fallback,
+		large
+	}: { src?: string; did?: string; fallback?: string; large?: boolean } = $props();
 	const service = useMachine(avatar.machine, { id: getUniqueId() });
 	const api = $derived(avatar.connect(service, normalizeProps));
 	$effect(() => {
@@ -21,17 +26,25 @@
 	});
 </script>
 
-<div {...api.getRootProps()}>
-	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}>{fallback}</span>
+<div {...api.getRootProps()} class={['wrapper', {large: large?? false}]}>
+	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}
+		>{fallback}</span
+	>
 	<img alt={`${did ?? ''} PFP`} {src} {...api.getImageProps()} />
 </div>
 
 <style>
+	.wrapper {
+		width: 2.5rem;
+	}
+	.wrapper.large {
+		width: 3.5rem;
+	}
 	[data-part='root'] {
 		position: relative;
 		/* Styles for the root part */
 		border-radius: 100%;
-		width: 2.5rem;
+		/* width: 2.5rem; */
 		flex-shrink: 0;
 		padding: -0.5rem -0.5rem;
 		box-sizing: border-box;

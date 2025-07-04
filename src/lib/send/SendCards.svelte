@@ -18,14 +18,12 @@
 	import { getEVMOpType } from '$lib/vscTransactions/eth';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
-	import { addLocalTransaction } from './localStorageTxs';
+	import { addLocalTransaction } from '../stores/localStorageTxs';
 	import { idchain } from 'viem/chains';
 	import { uuid } from 'uuidv4';
 	import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/eth/client';
 	import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
-	import { type Config, getAccount } from '@wagmi/core';
 	import { wagmiConfig, modal } from '$lib/auth/reown';
-	import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 
 	let { widgetView, hideToUsername }: { widgetView?: boolean; hideToUsername?: boolean } = $props();
 	let auth = $derived(getAuth()());
@@ -489,7 +487,6 @@
 		display: flex;
 		gap: 1rem;
 		width: 100%;
-		box-sizing: border-box;
 		scroll-snap-type: x proximity;
 		position: relative;
 		flex-wrap: wrap;

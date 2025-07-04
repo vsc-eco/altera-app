@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { type GetTransactions$result } from '$houdini';
-import { getLocalTransactions, removeLocalTransaction } from '$lib/send/localStorageTxs';
+import { getLocalTransactions, removeLocalTransaction } from '$lib/stores/localStorageTxs';
 
 type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 

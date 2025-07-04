@@ -11,7 +11,7 @@
 	import { untrack } from 'svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
-	import type { TransactionInter, TransactionOpType } from '../../txStores';
+	import type { TransactionInter, TransactionOpType } from '../../../../../lib/stores/txStores';
 	import moment from 'moment';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 

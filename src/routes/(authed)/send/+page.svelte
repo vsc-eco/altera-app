@@ -1,13 +1,17 @@
 <script>
-	import Send from '$lib/send/Send.svelte';
+	import SendCards from '$lib/send/SendCards.svelte';
+	import SendStages from '$lib/send/SendStages.svelte';
 </script>
 
 <document:head>
 	<title>Send</title>
 </document:head>
 <h1>Send</h1>
+<!-- <div class="send-wrapper">
+	<SendCards/>
+</div> -->
 <div class="send-wrapper">
-	<Send></Send>
+	<SendStages/>
 </div>
 
 <style>

@@ -7,7 +7,7 @@
 		vscTxsStore,
 		toTransactionInter,
 		updateTxsFromLocalStorage
-	} from '../txStores';
+	} from '../../../../lib/stores/txStores';
 	import { goto } from '$app/navigation';
 
 	let {

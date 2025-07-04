@@ -8,7 +8,7 @@
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
 	import type { OperationResult, OperationError, OperationSuccess } from '@aioha/aioha/build/types';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { addLocalTransaction, type PendingTx } from '$lib/send/localStorageTxs';
+	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import {
 		createClient,
@@ -26,7 +26,11 @@
 	let amount: string | undefined = $state('');
 	let status = $state('');
 	let error = $state('');
-	let shouldDeposit = $state(type === 'stake');
+	const allowDeposit = $derived(type === 'stake' && auth.value?.provider === 'aioha');
+	let shouldDeposit = $state(false);
+	$effect(() => {
+		shouldDeposit = allowDeposit
+	});
 	$effect(() => {
 		recipient = username;
 	});
@@ -193,7 +197,7 @@
 			maxField={type === 'stake' ? (shouldDeposit ? undefined : 'hbd') : 'hbd_savings'}
 		/>
 	</div>
-	{#if type === 'stake'}
+	{#if allowDeposit}
 		<label for="hbd-stake-checkbox">
 			<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
 			First Deposit HBD into VSC

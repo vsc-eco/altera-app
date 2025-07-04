@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Avatar from '$lib/zag/Avatar.svelte';
 	import { getAuth } from '$lib/auth/store';
-	import { getAccountNameFromAuth, getDidFromUsername } from '$lib/getAccountName';
+	import { getAccountNameFromAuth, getAccountNameFromDid, getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
 	import Username from '$lib/auth/Username.svelte';
 	import ToFrom from '../../../routes/(authed)/transactions/Table/tds/ToFrom.svelte';
 	import { CircleUser, MoveDown } from '@lucide/svelte';
@@ -10,6 +10,7 @@
 	import { GetTransactionsStore } from '$houdini';
 	import { stringToBytes } from 'viem';
 	import moment from 'moment';
+	import { Ellipsis } from '@lucide/svelte';
 
 	let auth = $derived(getAuth()());
 	let error = $state('');
@@ -94,9 +95,19 @@
 					result.set(op.data.to, toRec);
 				}
 			}
-			if (result.size >= 3) return result;
 		}
-		return result;
+		return Array.from(result);
+	}
+
+	function handleTrigger(did: string) {
+		recipientUsername = getUsernameFromDid(did);
+		debouncedUsername = recipientUsername;
+	}
+	function handleKeydown(e: KeyboardEvent, did: string) {
+		if (e.key === ' ' || e.key === 'Enter') {
+			handleTrigger(did);
+			e.preventDefault();
+		}
 	}
 </script>
 
@@ -121,28 +132,34 @@
 			{/if}
 		</div>
 		<div class="username-input">
-			<Username id="send-recipient" bind:value={recipientUsername} required />
+			<Username id="send-recipient" bind:value={recipientUsername} required wide />
 		</div>
 	</div>
 </div>
 <div class="recent">
+	<h3>Recent Contacts</h3>
 	<table>
 		<tbody>
-			{#each getRecentContacts().entries() as [did, txs]}
-				<tr>
-					<td><ToFrom otherAccount={did}/></td>
-					<td class='tx-description'>
+				{#each getRecentContacts() as [did, txs]}
+					<tr
+						onclick={() => handleTrigger(did)}
+						onkeydown={(event) => handleKeydown(event, did)}
+					>
+					<td>
+						<ToFrom otherAccount={did} />
+					</td>
+					<td class={['tx-description', {hasellipsis: txs.length > 3}]}>
 						{#each txs.slice(0, 3) as tx}
 							<span>
 								{#if tx.toFrom != 'self'}
 									{tx.toFrom == 'to' ? 'sent' : 'received'}
 								{/if}
-								{tx.type} on
+								{tx.type.replaceAll('_', ' ')} on
 								{moment(tx.date).format('MMM DD')}
 							</span>
 						{/each}
 						{#if txs.length > 3}
-							...
+							<span class="ellipsis"><Ellipsis /></span>
 						{/if}
 					</td>
 				</tr>
@@ -166,7 +183,7 @@
 			gap: 0.5rem;
 		}
 		.arrow {
-			margin: 1rem 0;
+			margin: 0.5rem 0;
 			padding-left: 0.5rem;
 		}
 		.to {
@@ -189,6 +206,9 @@
 					}
 				}
 			}
+			.username-input {
+				width: 100%;
+			}
 		}
 	}
 	.small-caption {
@@ -196,6 +216,7 @@
 		font-size: var(--text-sm);
 	}
 	.recent {
+		margin-top: 2rem;
 		width: 100%;
 		table {
 			width: 100%;
@@ -206,6 +227,23 @@
 		tr {
 			display: flex;
 			justify-content: space-between;
+			align-items: center;
+			border-bottom: 1px solid var(--neutral-bg-accent);
+			.tx-description {
+				display: flex;
+				flex-direction: column;
+				text-align: right;
+				line-height: 1.2rem;
+				&.hasellipsis {
+					translate: 0 8px;
+				}
+			}
+		}
+		tr:hover,
+		tr {
+			cursor: pointer;
+			transition: background-color 1s;
+			animation: highlight-in 1s both;
 		}
 	}
 </style>

@@ -12,26 +12,27 @@
 
 	let rc: Manabar | null = $state(null);
 
+	const maxRCs = $derived(isHive ? $accountBalance.bal.hbd + 5000 : $accountBalance.bal.hbd);
 	// adjust the RCs to round up within 1, if user has more than 5 total.
 	let [adjustedRCs, adjustedMaxRCs] = $derived.by(() => {
 		if ($accountBalance.loading) {
 			return [null, 0];
 		}
-		if ($accountBalance.bal.hbd < 5000) {
-			return [$accountBalance.bal.resource_credits / 1000, $accountBalance.bal.hbd / 1000];
+		if (maxRCs < 5000) {
+			return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
 		}
-		if ($accountBalance.bal.hbd - $accountBalance.bal.resource_credits < 1000) {
-			return [$accountBalance.bal.hbd / 1000, $accountBalance.bal.hbd / 1000];
+		if (maxRCs - $accountBalance.bal.resource_credits < 1000) {
+			return [maxRCs / 1000, maxRCs / 1000];
 		}
-		return [$accountBalance.bal.resource_credits / 1000, $accountBalance.bal.hbd / 1000];
+		return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
 	});
 
 	let customPercentage = $derived(
 		$accountBalance.loading
 			? undefined
-			: Math.floor(
-					(Math.max($accountBalance.bal.resource_credits, 0) / $accountBalance.bal.hbd) * 100
-				)
+			: maxRCs
+				? Math.floor((Math.max($accountBalance.bal.resource_credits, 0) / maxRCs) * 100)
+				: 0
 	);
 
 	$effect(() => {
@@ -91,10 +92,10 @@
 						currentValue={adjustedRCs}
 						timerLabel={vscRegenTime &&
 						vscRegenTime.asSeconds() > 0 &&
-						$accountBalance.bal.resource_credits / $accountBalance.bal.hbd < 0.85
+						$accountBalance.bal.resource_credits / maxRCs < 0.85
 							? `Full in ${durationToString(vscRegenTime)}`
 							: undefined}
-						customPercentage={customPercentage}
+						{customPercentage}
 					/>
 				</div>
 				<span class="info-button">

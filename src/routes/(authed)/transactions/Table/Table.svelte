@@ -54,7 +54,10 @@
 			})
 			.then((posts) => {
 				loading = false;
-				if (!posts.data?.findTransaction) return;
+				if (!posts.data?.findTransaction) {
+					vscTxsStore.set([]);
+					return;
+				}
 				// set the store since this is a complete fetch
 				vscTxsStore.set(toTransactionInter(posts.data?.findTransaction));
 			})
@@ -65,7 +68,9 @@
 			});
 	}
 	function fetchAdditionalFromStore(limit = 12) {
-		loading = true;
+		if ($allTransactionsStore && $allTransactionsStore.length > 0) {
+			loading = true;
+		}
 		store
 			.fetch({
 				variables: {
@@ -130,7 +135,6 @@
 					currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
 				);
 			} catch (error) {
-				loading = false;
 				if (error instanceof Error && error.name !== 'AbortError') {
 					console.error(error);
 				}
@@ -173,7 +177,6 @@
 						}
 
 						// Prepend only new transactions
-						console.log('backend txs:', [...fetchedTxs.slice(0, prevUpdate), ...currentTxs]);
 						return [...fetchedTxs.slice(0, prevUpdate), ...currentTxs];
 					});
 				})
@@ -182,7 +185,7 @@
 						console.error(e);
 					}
 				});
-			updateTxsFromLocalStorage();
+			updateTxsFromLocalStorage(did);
 		}, 2000);
 		return () => clearInterval(intervalId);
 	});

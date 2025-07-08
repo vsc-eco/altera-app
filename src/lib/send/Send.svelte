@@ -177,7 +177,6 @@
 				if (res.success) {
 					// status = `Transaction submitted. You will be notified when your transaction is finished.`;
 					status = `Transaction submitted. Your transaction should appear shortly.`;
-					// Using optional chaining and nullish coalescing
 					addLocalTransaction({
 						ops: [
 							{

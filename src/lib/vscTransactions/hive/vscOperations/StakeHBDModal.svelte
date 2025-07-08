@@ -26,7 +26,11 @@
 	let amount: string | undefined = $state('');
 	let status = $state('');
 	let error = $state('');
-	let shouldDeposit = $state(type === 'stake');
+	const allowDeposit = $derived(type === 'stake' && auth.value?.provider === 'aioha');
+	let shouldDeposit = $state(false);
+	$effect(() => {
+		shouldDeposit = allowDeposit;
+	});
 	$effect(() => {
 		recipient = username;
 	});
@@ -69,8 +73,25 @@
 					client,
 					wagmiConfig
 				);
-				console.log('Transaction successful:', result);
 				status = `Transaction submitted successfully! ID: ${result.id}`;
+
+				// TODO: add back when backend fixed
+				// add local storage tx
+				// addLocalTransaction({
+				// 	ops: [
+				// 		{
+				// 			data: {
+				// 				...stakeOp.payload,
+				// 				type: stakeOp.op
+				// 			},
+				// 			type: stakeOp.op,
+				// 			index: 0
+				// 		}
+				// 	],
+				// 	timestamp: new Date(),
+				// 	id: result.id,
+				// 	type: 'vsc'
+				// });
 
 				returnVal = {
 					success: true,
@@ -79,7 +100,7 @@
 			} catch (error) {
 				console.error('Transaction error:', error);
 				if (error instanceof Error) {
-					let cleanError = 'Transaction failed.'
+					let cleanError = 'Transaction failed.';
 					if (error.message.includes('User rejected') || error.message.includes('rejected')) {
 						cleanError = 'Transaction was cancelled by user';
 					} else if (error.message.includes('wallet')) {
@@ -94,7 +115,7 @@
 						errorCode: 0,
 						error: cleanError
 					};
-					status = cleanError
+					status = cleanError;
 				} else {
 					status = 'Unknown error occurred during transaction';
 				}
@@ -193,7 +214,7 @@
 			maxField={type === 'stake' ? (shouldDeposit ? undefined : 'hbd') : 'hbd_savings'}
 		/>
 	</div>
-	{#if type === 'stake'}
+	{#if allowDeposit}
 		<label for="hbd-stake-checkbox">
 			<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
 			First Deposit HBD into VSC

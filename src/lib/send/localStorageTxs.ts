@@ -41,7 +41,7 @@ export function addLocalTransaction(tx: PendingTx) {
 	let txList: TransactionInter[] = txString ? JSON.parse(txString) : [];
 	txList.push(toPendingTransactionInter(tx));
 	localStorage.setItem('transactions', JSON.stringify(txList));
-	updateTxsFromLocalStorage();
+	updateTxsFromLocalStorage(tx.ops[0].data.from);
 }
 
 export function getLocalTransactions(): TransactionInter[] {

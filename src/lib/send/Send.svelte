@@ -124,7 +124,22 @@
 					.then((result) => {
 						console.log('Transaction successful:', result);
 						status = `Transaction submitted successfully!`;
-
+						// TODO: add back once backend fixed
+						// addLocalTransaction({
+						// 	ops: [
+						// 		{
+						// 			data: {
+						// 				...sendOp.payload,
+						// 				type: sendOp.op
+						// 			},
+						// 			type: sendOp.op,
+						// 			index: 0
+						// 		}
+						// 	],
+						// 	timestamp: new Date(),
+						// 	id: result.id,
+						// 	type: 'vsc'
+						// });
 						return result.id;
 					})
 					.catch((error) => {
@@ -481,7 +496,7 @@
 		flex-wrap: wrap;
 		margin: auto;
 		&.widgetView {
-			padding: 0 .75rem .75rem .75rem;
+			padding: 0 0.75rem 0.75rem 0.75rem;
 			flex-wrap: nowrap;
 			height: 28.125rem;
 			:global(fieldset) {

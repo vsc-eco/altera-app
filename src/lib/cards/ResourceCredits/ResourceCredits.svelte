@@ -58,16 +58,19 @@
 		if (!rc) return null;
 		return moment.duration((1 - rc.percentage * 1e-4) * HIVE_REGEN_TIME, 'minutes');
 	});
-	let vscRegenTime = $derived.by(() => {
-		if (!rc) return null;
-		return moment.duration(
-			moment.duration(5, 'days').asSeconds() -
-				moment().diff(
-					moment(getDateFromBlockHeight($accountBalance.bal.last_tx_height)),
-					'seconds'
-				),
-			'seconds'
-		);
+	let vscRegenTime: moment.Duration | null = $state(null);
+	$effect(() => {
+		if (!rc || !$accountBalance?.bal?.last_tx_height) {
+			vscRegenTime = null;
+			return;
+		}
+
+		getDateFromBlockHeight($accountBalance.bal.last_tx_height).then((date) => {
+			vscRegenTime = moment.duration(
+				moment.duration(5, 'days').asSeconds() - moment().diff(moment(date), 'seconds'),
+				'seconds'
+			);
+		});
 	});
 	function durationToString(d: moment.Duration) {
 		let output = '';

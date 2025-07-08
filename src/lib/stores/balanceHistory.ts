@@ -53,11 +53,11 @@ export async function sumBalance(accBal: AccountBalance): Promise<number> {
 	return totalInUSD.toNumber();
 }
 
-function getBlockHeightSeries(
+async function getBlockHeightSeries(
 	start: Date | moment.Moment,
 	end: Date | moment.Moment,
 	interval: moment.Duration
-): { blockHeight: number; timestamp: moment.Moment }[] {
+): Promise<{ blockHeight: number; timestamp: moment.Moment }[]> {
 	const momentStart = moment(start);
 	const momentEnd =
 		interval.asHours() === 1 ? moment(end).startOf('hour') : moment(end).startOf('day');
@@ -69,7 +69,7 @@ function getBlockHeightSeries(
 	let current = momentEnd.clone();
 
 	while (current.isAfter(momentStart) || current.isSame(momentStart)) {
-		const blockHeight = getBlockHeightFromDate(current);
+		const blockHeight = await getBlockHeightFromDate(current, true);
 		series.push({
 			blockHeight,
 			timestamp: current.clone()
@@ -107,7 +107,7 @@ export async function fetchBalancesHTTP(
 	interval: moment.Duration
 ): Promise<BalanceDataPoint[]> {
 	const graphqlEndpoint = config.watchSchema.url;
-	const blockHeightSeries = getBlockHeightSeries(start, end, interval);
+	const blockHeightSeries = await getBlockHeightSeries(start, end, interval);
 	const blockHeights = blockHeightSeries.map((item) => item.blockHeight);
 	const queryString = buildMultiHeightQuery(account, blockHeights);
 	try {
@@ -136,7 +136,6 @@ export async function fetchBalancesHTTP(
 				const alias = `block_${item.blockHeight}`;
 				const balanceData: AccountBalance = result.data?.[alias] || getDefaultBalance();
 				const totalAmount = await sumBalance(balanceData);
-
 				return {
 					blockHeight: item.blockHeight,
 					timestamp: item.timestamp,

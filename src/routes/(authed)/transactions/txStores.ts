@@ -71,7 +71,7 @@ function deduplicate(txs: TransactionInter[]) {
 		) {
 			removeLocalTransaction(alteraId);
 			localTxsStore.update((currentLocalTxs) => {
-				return currentLocalTxs.filter(tx => tx.id !== alteraId);
+				return currentLocalTxs.filter((tx) => tx.id !== alteraId);
 			});
 			if (tx.isPending) {
 				continue;
@@ -110,7 +110,7 @@ export function updateTxsFromLocalStorage(did: string) {
 		if (!tx.ops) continue;
 		let approved = false;
 		for (const op of tx.ops) {
-			if (op?.data.to === did || op?.data.from === did) {
+			if (op?.data.from === did) {
 				approved = true;
 			}
 		}
@@ -118,7 +118,7 @@ export function updateTxsFromLocalStorage(did: string) {
 			hasThisAcc.push(tx);
 		}
 	}
-	if (txs.length > 0) localTxsStore.set(txs);
+	if (hasThisAcc.length > 0) localTxsStore.set(hasThisAcc);
 }
 
 export function clearAllStores() {

@@ -24,7 +24,13 @@
 	};
 	let { tx, op, ledgerIndex, openOp, onRowClick }: Props = $props();
 	const did = $derived(getAuth()().value!.did);
-	const { ledger, anchr_height: block_height, anchr_ts, status } = $derived(tx);
+	const {
+		ledger,
+		anchr_height: block_height,
+		anchr_ts,
+		status
+		// TODO: change to pending once it's not useful to differentiate for testing
+	} = $derived({ ...tx, status: tx.status === 'unconfirmed' ? 'unconfirmed' : tx.status });
 	const { data } = $derived(op);
 	const anchor_ts = $derived(anchr_ts + 'Z');
 	const {

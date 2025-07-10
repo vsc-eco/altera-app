@@ -1,20 +1,19 @@
 <script lang="ts">
-    import { type Snippet } from "svelte";
-    import { type HTMLAttributes } from "svelte/elements";
-     let {
-        children,
-        ...restProps
-    } : {
-        children: Snippet;
-    } & HTMLAttributes<HTMLDivElement> = $props();
+	import { type Snippet } from 'svelte';
+	import { fly } from 'svelte/transition';
+	let {
+		children
+	}: {
+		children: Snippet;
+	} = $props();
 </script>
 
-<div>
-    {@render children()}
+<div transition:fly={{ y: 600, duration: 300 }}>
+	{@render children()}
 </div>
 
 <style>
-    div {
+	div {
 		position: absolute;
 		top: 0;
 		left: 0;

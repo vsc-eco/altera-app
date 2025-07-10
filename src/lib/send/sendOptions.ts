@@ -245,6 +245,7 @@ export type sendDetails = {
 	toCoin: CoinOptions['coins'][number] | undefined;
 	toNetwork: Network | undefined;
 	toUsername: string;
+	toDisplayName: string;
 };
 
 const swapOptions: {

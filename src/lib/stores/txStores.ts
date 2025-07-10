@@ -36,7 +36,7 @@ function getAlteraID(tx: TransactionInter) {
 
 function getTimestamp(tx: TransactionInter): string {
 	if (tx.type == 'hive') {
-		return tx.anchr_ts;
+		return tx.anchr_ts ?? tx.first_seen;
 	}
 	return tx.first_seen;
 }
@@ -189,18 +189,23 @@ export function fetchTxs(
 	updateTxsFromLocalStorage(did);
 }
 
-export function waitForExtend(did: string): Promise<boolean> {
+export function waitForExtend(did: string, limit = 12): Promise<boolean> {
 	return new Promise((resolve) => {
 		const timeout = setTimeout(() => {
 			resolve(false);
 		}, 2000);
 
 		// can use value! because only called from getLastPaid()
-		fetchTxs(did, 'extend', (val) => {
-			if (val === false) {
-				clearTimeout(timeout);
-				resolve(true);
-			}
-		});
+		fetchTxs(
+			did,
+			'extend',
+			(val) => {
+				if (val === false) {
+					clearTimeout(timeout);
+					resolve(true);
+				}
+			},
+			limit
+		);
 	});
 }

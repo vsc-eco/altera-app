@@ -1,18 +1,13 @@
 <script lang="ts">
-	import { getAuth } from '$lib/auth/store';
-	import PillButton from '$lib/PillButton.svelte';
-	import Amount from '../currency/Amount.svelte';
 	import Recipient from './stages/recipient/Recipient.svelte';
 	import SendTitle from './navigation/SendTitle.svelte';
 	import * as tabs from '@zag-js/tabs';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from '$lib/zag/idgen';
 	import { onMount } from 'svelte';
-	import Card from '$lib/cards/Card.svelte';
 	import type { sendDetails } from './sendOptions';
-	import type { Network } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
-	import SendBottomButtons from './navigation/SendBottomButtons.svelte';
+	import SendBottomButtons from './navigation/SendNavButtons.svelte';
 
 	let windowWidth = $state(0);
 	let remValue = $state(0);
@@ -30,7 +25,8 @@
 		fromAmount: '0',
 		toCoin: undefined,
 		toNetwork: undefined,
-		toUsername: ''
+		toUsername: '',
+		toDisplayName: ''
 	});
 
 	const tabItems = [
@@ -43,39 +39,34 @@
 		id,
 		orientation: 'vertical',
 		get value() {
-			return currentTab
+			return currentTab;
 		},
 		onValueChange: (details) => {
-			console.log("now active", details.value);
 			currentTab = details.value;
-		},
-		// onFocusChange: (details) => {
-		// 	console.log("now active", details.focusedValue);
-		// 	api.setValue(details.focusedValue);
-		// }
+		}
 	});
 
 	const api = $derived(tabs.connect(service, normalizeProps));
 
 	function advanceTab() {
-		const currentIndex = tabItems.findIndex(item => item.value === currentTab);
-		const nextIndex = (currentIndex + 1);
+		const currentIndex = tabItems.findIndex((item) => item.value === currentTab);
+		const nextIndex = currentIndex + 1;
 		// change action for last tab
 		if (nextIndex === tabItems.length - 1) {
-			buttons.fwd.label = "Send";
+			buttons.fwd.label = 'Send';
 		}
 		currentTab = tabItems[nextIndex].value;
 	}
 	function backTab() {
-		const currentIndex = tabItems.findIndex(item => item.value === currentTab);
+		const currentIndex = tabItems.findIndex((item) => item.value === currentTab);
 		if (currentIndex === 0) {
 			goto('/');
 			return;
 		}
 		if (currentIndex === tabItems.length - 1) {
-			buttons.fwd.label = "Next";
+			buttons.fwd.label = 'Next';
 		}
-		const prevIndex = (currentIndex - 1);
+		const prevIndex = currentIndex - 1;
 		currentTab = tabItems[prevIndex].value;
 	}
 	let buttons = $state({

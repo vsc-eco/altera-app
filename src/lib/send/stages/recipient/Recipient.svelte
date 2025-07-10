@@ -17,16 +17,13 @@
 	import { allTransactionsStore, fetchTxs, vscTxsStore, waitForExtend } from '$lib/stores/txStores';
 	import type { sendDetails } from '$lib/send/sendOptions';
 	import { getAccounts } from '@aioha/aioha/build/rpc';
-	import {
-		type Account,
-		type PostingMetadata,
-		postingMetadataFromString
-	} from '$lib/auth/hive/accountTypes';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectContact from './SelectContact.svelte';
-	import { goto } from '$app/navigation';
-	import { fly } from 'svelte/transition';
+	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
+	import { untrack } from 'svelte';
+	import ContactInfo from '../ContactInfo.svelte';
+	import { getDisplayName } from '../sendUtils';
 
 	let {
 		details = $bindable()
@@ -35,27 +32,20 @@
 	} = $props();
 	const auth = $authStore;
 	let error = $state('');
-	let toDid: string | undefined = $state();
 	$effect(() => {
 		if (!auth.value) return;
-		toDid = auth.value.did;
-		details.toUsername = getUsernameFromDid(auth.value.did);
+		untrack(() => {
+			details.toUsername = getUsernameFromDid(auth.value!.did);
+			details.toDisplayName = getUsernameFromDid(auth.value!.did);
+			(async () => {
+				const displayName = await getDisplayName(toDid);
+				if (displayName) {
+					details.toDisplayName = displayName;
+				}
+			})();
+		});
 	});
-	let toName = $state(details.toUsername === '' ? undefined : details.toUsername);
-	// get the name from hive account
-	$effect(() => {
-		if (auth.value?.provider !== 'aioha') return;
-		(async () => {
-			const accountInfo: Account = (await getAccounts([details.toUsername])).result[0];
-			if (!accountInfo?.posting_json_metadata) {
-				return;
-			}
-			const postingMetadata = postingMetadataFromString(accountInfo.posting_json_metadata).profile;
-			if (postingMetadata['name']) {
-				toName = postingMetadata['name'];
-			}
-		})();
-	});
+	const toDid = $derived(getDidFromUsername(details.toUsername));
 
 	// increment through store, keep fetching more to find last paid
 	async function getLastPaid() {
@@ -81,12 +71,12 @@
 		return 'Never';
 	}
 	let lastPaid = $state('Never');
+	// let toName = $derived(details.toDisplayName);
 	$effect(() => {
-		if (auth.value) {
-			(async () => {
-				lastPaid = await getLastPaid();
-			})();
-		}
+		if (!auth.value) return;
+		(async () => {
+			lastPaid = await getLastPaid();
+		})();
 	});
 	let selectOpen = $state(false);
 </script>
@@ -95,16 +85,13 @@
 	<h2>Recipient</h2>
 	<div class="to">
 		<div class="name-card">
-			{#if toDid}
-				<Avatar did={toDid} large />
-				<div class="info">
-					<span class="name">{toName ?? auth.value?.username}</span>
-					<span class="available-addresses">1 Address Available</span>
-					<span class="last-paid">
-						Last paid
-						{lastPaid}
-					</span>
-				</div>
+			{#if details.toUsername}
+				<ContactInfo
+					did={toDid}
+					name={details.toDisplayName}
+					accounts={[details.toUsername]}
+					{lastPaid}
+				/>
 				<span class="more">
 					<button onclick={() => (selectOpen = true)} class="small-button"> Edit </button>
 				</span>
@@ -123,13 +110,17 @@
 {/snippet}
 
 {#snippet selectContact()}
-	<SelectContact close={() => selectOpen = false} bind:username={details.toUsername}/>
+	<SelectContact
+		close={() => (selectOpen = false)}
+		bind:username={details.toUsername}
+		bind:displayName={details.toDisplayName}
+	/>
 {/snippet}
 
 {#if selectOpen}
-	<div class="select-backdrop" transition:fly={{y: 600, duration: 300}}>
+	<FullscreenModal>
 		{@render selectContact()}
-	</div>
+	</FullscreenModal>
 {:else}
 	{@render recipient()}
 {/if}
@@ -150,21 +141,6 @@
 		background-color: var(--neutral-bg);
 		border-radius: 0.5rem;
 		padding: 1rem;
-		.info {
-			display: flex;
-			flex-direction: column;
-			.name {
-				margin-bottom: 0.5rem;
-			}
-			.available-addresses {
-				font-size: var(--text-sm);
-				line-height: 1.2;
-			}
-			.last-paid {
-				font-size: var(--text-sm);
-				line-height: 1.2;
-			}
-		}
 		.more {
 			margin-left: auto;
 		}
@@ -211,15 +187,5 @@
 		cursor: pointer;
 		font-size: var(--text-sm);
 		color: var(--accent-fg-mid);
-	}
-	.select-backdrop {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: calc(100vw - 1rem);
-		height: 100vh;
-		background-color: var(--neutral-bg);
-		z-index: 500;
-		padding: 0 0.5rem;
 	}
 </style>

@@ -55,7 +55,7 @@
 </script>
 
 <div {...api.getRootProps()}>
-	<Toggle {api} def={initial || 'Select option'} {disabled}></Toggle>
+	<Toggle {api} def={initial || 'Select option'} {disabled} items={options}></Toggle>
 
 	<div {...api.getPositionerProps()}>
 		<List {api} selectData={api.collection.items}></List>

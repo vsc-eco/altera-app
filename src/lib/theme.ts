@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { Laptop, Sun, Moon } from '@lucide/svelte';
 
-type ThemeValue = 'system' | 'light' | 'dark';
+export type ThemeValue = 'system' | 'light' | 'dark';
 type ThemeInfo = {
 	value: ThemeValue;
 	label: string;

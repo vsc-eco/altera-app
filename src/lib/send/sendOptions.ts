@@ -1,6 +1,7 @@
 import type { Auth } from '../auth/store';
 import { getV4VMetadata } from './v4v/api-types/metadata';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+import { Record } from '$houdini/runtime/public/record';
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
@@ -55,6 +56,23 @@ const hbd: Coin = {
 	},
 	decimalPlaces: 3
 };
+const shbd: Coin = {
+	value: 'hbd_savings',
+	label: 'sHBD',
+	icon: '/hive/hbd.svg',
+	unit: 'HBD',
+	enabled: (going, info, auth, mode) => {
+		// currently can't swap from HBD to anything else
+		if (going == 'from' && mode == 'swap') return false;
+
+		if (info.from?.network == Network.lightning) return true;
+		if (info.from?.coin == undefined) return true;
+		if (going == 'from') return true;
+		if (info.from?.coin == Coin.hbd) return true;
+		return false;
+	},
+	decimalPlaces: 3
+};
 const btc: Coin = {
 	value: 'btc',
 	label: 'BTC',
@@ -69,7 +87,7 @@ const btc: Coin = {
 const usd: Coin = {
 	value: 'usd',
 	label: 'USD',
-	icon: '/btc/btc.svg',
+	icon: '/fiat/usd.svg',
 	unit: 'USD',
 	enabled: never,
 	decimalPlaces: 2
@@ -97,6 +115,7 @@ const unk: Coin = {
 export const Coin = {
 	hive,
 	hbd,
+	shbd,
 	btc,
 	sats,
 	usd,
@@ -238,14 +257,49 @@ export type CoinOptions = {
 	}[];
 };
 
-export type sendDetails = {
+export type SendDetails = {
 	fromCoin: CoinOptions['coins'][number] | undefined;
 	fromNetwork: Network | undefined;
 	fromAmount: string;
 	toCoin: CoinOptions['coins'][number] | undefined;
 	toNetwork: Network | undefined;
 	toUsername: string;
+	toDisplayName: string;
+	method: TransferMethod | undefined;
 };
+
+export type TransferMethod = {
+	label: string,
+	value?: string,
+	length: string,
+	fees: string
+}
+
+const vscTransfer: TransferMethod = {
+	label: "VSC Transfer",
+	value: "vsc-transfer",
+	length: "Instant",
+	fees: "No Fees"
+}
+
+const lightningTransfer: TransferMethod = {
+	label: "Lightning Network",
+	value: "lightning",
+	length: "About a Minute",
+	fees: "2% Fee"
+}
+
+export const TransferMethod = {
+	vscTransfer,
+	lightningTransfer
+}
+
+export const networkMap: Map<Network, Coin[]> = new Map([
+	[Network.vsc, [Coin.hive, Coin.hbd, Coin.shbd]], 
+	[Network.hiveMainnet, [Coin.hive, Coin.hbd]], 
+	[Network.lightning, [Coin.btc]]
+])
+
 
 const swapOptions: {
 	from: CoinOptions;

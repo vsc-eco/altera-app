@@ -1,60 +1,60 @@
 <script lang="ts">
-	import Avatar from '$lib/zag/Avatar.svelte';
 	import { authStore } from '$lib/auth/store';
-	import {
-		getAccountNameFromAuth,
-		getAccountNameFromDid,
-		getDidFromUsername,
-		getUsernameFromDid
-	} from '$lib/getAccountName';
-	import Username from '$lib/auth/Username.svelte';
-	import ToFrom from '../../../../routes/(authed)/transactions/Table/tds/ToFrom.svelte';
-	import { CircleUser, MapPin } from '@lucide/svelte';
+	import { getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
+	import { CircleUser, Dot, Landmark, MapPin } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
-	import { GetTransactionsStore } from '$houdini';
 	import moment from 'moment';
-	import { Ellipsis } from '@lucide/svelte';
-	import { allTransactionsStore, fetchTxs, vscTxsStore, waitForExtend } from '$lib/stores/txStores';
-	import type { sendDetails } from '$lib/send/sendOptions';
-	import { getAccounts } from '@aioha/aioha/build/rpc';
-	import {
-		type Account,
-		type PostingMetadata,
-		postingMetadataFromString
-	} from '$lib/auth/hive/accountTypes';
+	import { vscTxsStore, waitForExtend } from '$lib/stores/txStores';
+	import type { SendDetails } from '$lib/send/sendOptions';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
-	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectContact from './SelectContact.svelte';
-	import { goto } from '$app/navigation';
-	import { fly } from 'svelte/transition';
+	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
+	import { untrack } from 'svelte';
+	import ContactInfo from '../ContactInfo.svelte';
+	import { getDisplayName, getRecipientNetworks } from '../../sendUtils';
+	import SelectNetwork from './SelectNetwork.svelte';
+	import { Network, TransferMethod } from '../../sendOptions';
+	import NetworkInfo from '../NetworkInfo.svelte';
+	import ComboBox from '$lib/zag/ComboBox.svelte';
 
 	let {
 		details = $bindable()
 	}: {
-		details: sendDetails;
+		details: SendDetails;
 	} = $props();
 	const auth = $authStore;
-	let error = $state('');
-	let toDid: string | undefined = $state();
 	$effect(() => {
 		if (!auth.value) return;
-		toDid = auth.value.did;
-		details.toUsername = getUsernameFromDid(auth.value.did);
+		untrack(() => {
+			details.toUsername = getUsernameFromDid(auth.value!.did);
+			details.toDisplayName = getUsernameFromDid(auth.value!.did);
+			(async () => {
+				const displayName = await getDisplayName(toDid);
+				if (displayName) {
+					details.toDisplayName = displayName;
+				}
+			})();
+			details.toNetwork = Network.vsc;
+		});
 	});
-	let toName = $state(details.toUsername === '' ? undefined : details.toUsername);
-	// get the name from hive account
+	const toDid = $derived(getDidFromUsername(details.toUsername));
+	const possibleNetworks = $derived(getRecipientNetworks(toDid));
 	$effect(() => {
-		if (auth.value?.provider !== 'aioha') return;
-		(async () => {
-			const accountInfo: Account = (await getAccounts([details.toUsername])).result[0];
-			if (!accountInfo?.posting_json_metadata) {
-				return;
-			}
-			const postingMetadata = postingMetadataFromString(accountInfo.posting_json_metadata).profile;
-			if (postingMetadata['name']) {
-				toName = postingMetadata['name'];
-			}
-		})();
+		// have to do this because .includes doesn't work on array of Networks
+		const netVals = possibleNetworks.map((net) => net.value);
+		if (details.toNetwork && !netVals.includes(details.toNetwork.value)) {
+			details.toNetwork = Network.vsc;
+		}
+	});
+	const transferMethods = [TransferMethod.vscTransfer, TransferMethod.lightningTransfer].map(
+		(item) => ({
+			...item,
+			snippet: methodDetails
+		})
+	);
+	let method: string | undefined = $state('vsc-transfer');
+	$effect(() => {
+		details.method = transferMethods.find((mthd) => mthd.value === method);
 	});
 
 	// increment through store, keep fetching more to find last paid
@@ -80,37 +80,64 @@
 		} while ($vscTxsStore.length > lastLength);
 		return 'Never';
 	}
+	async function getLastNetwork() {
+		if (!auth.value?.did) return 'Never';
+		let lastChecked = 0;
+		let lastLength = 0;
+		do {
+			lastLength = $vscTxsStore.length;
+			for (const tx of $vscTxsStore.slice(lastChecked)) {
+				if (!tx.ops) continue;
+				if (details.toNetwork?.value.startsWith(tx.type)) {
+					return `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
+				}
+			}
+			lastChecked = Math.max($vscTxsStore.length - 1, 0);
+			const success = await waitForExtend(auth.value.did);
+			if (!success) {
+				break;
+			}
+		} while ($vscTxsStore.length > lastLength);
+		return 'Never';
+	}
 	let lastPaid = $state('Never');
+	let lastNetwork = $state('Never');
+	// let toName = $derived(details.toDisplayName);
 	$effect(() => {
-		if (auth.value) {
-			(async () => {
-				lastPaid = await getLastPaid();
-			})();
-		}
+		if (!auth.value) return;
+		(async () => {
+			lastPaid = await getLastPaid();
+			lastNetwork = await getLastNetwork();
+		})();
 	});
-	let selectOpen = $state(false);
+	let contactOpen = $state(false);
+	let networkOpen = $state(false);
 </script>
+
+{#snippet methodDetails(info: TransferMethod)}
+	<span class="method-description">
+		{info.label}
+		<span class="faded-caption">{info.length} <Dot size={16} /> {info.fees}</span>
+	</span>
+{/snippet}
 
 {#snippet recipient()}
 	<h2>Recipient</h2>
 	<div class="to">
 		<div class="name-card">
-			{#if toDid}
-				<Avatar did={toDid} large />
-				<div class="info">
-					<span class="name">{toName ?? auth.value?.username}</span>
-					<span class="available-addresses">1 Address Available</span>
-					<span class="last-paid">
-						Last paid
-						{lastPaid}
-					</span>
-				</div>
-				<span class="more">
-					<button onclick={() => (selectOpen = true)} class="small-button"> Edit </button>
-				</span>
+			{#if details.toUsername}
+				<ContactInfo
+					did={toDid}
+					name={details.toDisplayName}
+					accounts={[details.toUsername]}
+					{lastPaid}
+				/>
 			{:else}
 				<span class="user-icon-placeholder"><CircleUser /></span>
 			{/if}
+			<span class="more">
+				<button onclick={() => (contactOpen = true)} class="small-button"> Edit </button>
+			</span>
 		</div>
 		<div class="address">
 			<span class="pin"><MapPin /></span>
@@ -120,16 +147,58 @@
 			</div>
 		</div>
 	</div>
+
+	<h3>Payment Method</h3>
+	<div class="method">
+		<ComboBox items={transferMethods} bind:value={method} />
+		{#if details.method}
+			<span class="faded-caption"
+				>{details.method.length} <Dot size={16} /> {details.method.fees}</span
+			>
+		{:else}
+			<br />
+		{/if}
+	</div>
+
+	<h3>Recipient Network</h3>
+	<Card>
+		<div class="network-card">
+			{#if details.toUsername}
+				<NetworkInfo network={details.toNetwork ?? Network.vsc} lastPaid={lastNetwork} />
+			{:else}
+				<span class="user-icon-placeholder"><Landmark /></span>
+			{/if}
+			<span class="more">
+				<button onclick={() => (networkOpen = true)} class="small-button"> Edit </button>
+			</span>
+		</div>
+	</Card>
 {/snippet}
 
 {#snippet selectContact()}
-	<SelectContact close={() => selectOpen = false} bind:username={details.toUsername}/>
+	<SelectContact
+		close={() => (contactOpen = false)}
+		bind:username={details.toUsername}
+		bind:displayName={details.toDisplayName}
+	/>
 {/snippet}
 
-{#if selectOpen}
-	<div class="select-backdrop" transition:fly={{y: 600, duration: 300}}>
+{#snippet selectNetwork()}
+	<SelectNetwork
+		close={() => (networkOpen = false)}
+		bind:network={details.toNetwork}
+		username={details.toUsername}
+	/>
+{/snippet}
+
+{#if contactOpen}
+	<FullscreenModal>
 		{@render selectContact()}
-	</div>
+	</FullscreenModal>
+{:else if networkOpen}
+	<FullscreenModal>
+		{@render selectNetwork()}
+	</FullscreenModal>
 {:else}
 	{@render recipient()}
 {/if}
@@ -144,30 +213,9 @@
 		max-height: 100%;
 	}
 	.name-card {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
 		background-color: var(--neutral-bg);
 		border-radius: 0.5rem;
 		padding: 1rem;
-		.info {
-			display: flex;
-			flex-direction: column;
-			.name {
-				margin-bottom: 0.5rem;
-			}
-			.available-addresses {
-				font-size: var(--text-sm);
-				line-height: 1.2;
-			}
-			.last-paid {
-				font-size: var(--text-sm);
-				line-height: 1.2;
-			}
-		}
-		.more {
-			margin-left: auto;
-		}
 		.user-icon-placeholder {
 			width: 3.5rem;
 			height: 3.5rem;
@@ -179,6 +227,18 @@
 				height: 100%;
 			}
 		}
+	}
+	.name-card,
+	.network-card {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		.more {
+			margin-left: auto;
+		}
+	}
+	.network-card {
+		padding: 0.5rem;
 	}
 	.address {
 		display: flex;
@@ -212,14 +272,27 @@
 		font-size: var(--text-sm);
 		color: var(--accent-fg-mid);
 	}
-	.select-backdrop {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: calc(100vw - 1rem);
-		height: 100vh;
-		background-color: var(--neutral-bg);
-		z-index: 500;
-		padding: 0 0.5rem;
+	h3 {
+		margin-top: 2rem;
+		color: var(--neutral-fg);
+		font-size: var(--text-1xl);
+		margin-bottom: 0.5rem;
+		font-weight: 450;
+	}
+	.method-description {
+		display: flex;
+		align-items: center;
+		.faded-caption {
+			display: flex;
+			align-items: center;
+			margin-left: auto;
+		}
+	}
+	.method {
+		.faded-caption {
+			display: flex;
+			align-items: center;
+			margin-top: 0.25rem;
+		}
 	}
 </style>

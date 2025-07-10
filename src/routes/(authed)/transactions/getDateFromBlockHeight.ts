@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { allTransactionsStore } from './txStores';
+import { allTransactionsStore } from '$lib/stores/txStores';
 import { get } from 'svelte/store';
 import { GetTransactionsStore } from '$houdini';
 const START_BLOCK = 88079516;

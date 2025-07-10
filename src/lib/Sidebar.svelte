@@ -39,17 +39,25 @@
 		transition:fly={{ x: -navWidth, opacity: 1, duration: preload ? 0 : undefined }}
 		class={{ visible, preload }}
 	>
-		<button
-			class="transparent-icon"
-			onclick={() => {
-				visible = !visible;
-			}}
-		>
-			<PanelLeftCloseIcon></PanelLeftCloseIcon>
-		</button>
+		<div class="logo-close">
+			<a class="logo-name" href="/">
+				<img src="altera_med.png" alt="VSC" />
+				<span class="vertical-line"></span>
+				Altera
+			</a>
+			<button
+				class="transparent-icon"
+				onclick={() => {
+					visible = !visible;
+				}}
+			>
+				<PanelLeftCloseIcon></PanelLeftCloseIcon>
+			</button>
+		</div>
+
 		{#each paths as path}
 			{@const Icon = path.icon}
-			<a href={path.href} class={{ current: path.href == page.url.pathname }}>
+			<a href={path.href} class={['nav-button', { current: path.href == page.url.pathname }]}>
 				<Icon></Icon>
 				{path.name}
 			</a>
@@ -57,7 +65,7 @@
 	</nav>
 {/if}
 
-<style>
+<style lang="scss">
 	.popover {
 		position: fixed;
 		z-index: 9;
@@ -100,9 +108,9 @@
 		}
 	}
 	button.transparent-icon {
-		align-self: flex-end;
+		margin-left: auto;
 	}
-	a {
+	.nav-button {
 		text-wrap: nowrap;
 		display: flex;
 		height: 2.5rem;
@@ -117,23 +125,48 @@
 		transition: transform 0.05s;
 	}
 
-	a.current,
-	a.current:hover {
+	.nav-button.current,
+	.nav-button.current:hover {
 		background-color: var(--neutral-bg-accent);
 		color: var(--primary-fg-accent-shifted);
 	}
-	a:hover {
+	.nav-button:hover {
 		background-color: var(--neutral-bg-accent);
 		color: var(--primary-fg-accent);
 	}
 
-	a:active {
+	.nav-button:active {
 		background-color: var(--neutral-bg-accent);
 		color: var(--primary-fg-accent-shifted);
 		transform: scale(0.99);
 	}
 
-	a :global(.lucide-icon) {
+	.nav-button :global(.lucide-icon) {
 		margin-right: 0.5rem;
+	}
+	.logo-close {
+		display: flex;
+		justify-content: space-between;
+		padding: 0.5rem;
+		margin-bottom: 0.5rem;
+		.logo-name {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+		}
+		.vertical-line {
+			height: 2rem;
+			width: 1px;
+			position: relative;
+			background-color: var(--neutral-bg-mid);
+		}
+		img {
+			height: 2.5rem;
+			filter: invert(var(--is-dark-mode));
+		}
+		a {
+			text-decoration: none;
+			color: var(--fg);
+		}
 	}
 </style>

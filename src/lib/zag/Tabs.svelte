@@ -65,7 +65,6 @@
 			align-items: center;
 			margin-bottom: 0.5rem;
 			padding: 0.5rem 1rem;
-			box-sizing: border-box;
 			border-radius: 0.5rem;
 			color: var(--neutral-fg);
 			text-decoration: none;

@@ -1,5 +1,5 @@
-import { writable, derived } from 'svelte/store';
-import { type GetTransactions$result } from '$houdini';
+import { writable, derived, get } from 'svelte/store';
+import { type GetTransactions$result, GetTransactionsStore } from '$houdini';
 import { getLocalTransactions, removeLocalTransaction } from '$lib/stores/localStorageTxs';
 
 type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
@@ -124,4 +124,83 @@ export function updateTxsFromLocalStorage(did: string) {
 export function clearAllStores() {
 	vscTxsStore.set([]);
 	localTxsStore.set([]);
+}
+
+// load txs from store
+// set: sets the store to the txs loaded
+// update: loads new txs, adds any that aren't in local store to the front
+// extend: loads older txs than last in store, adds to the back
+export function fetchTxs(
+	did: string,
+	type: 'set' | 'update' | 'extend',
+	setLoading?: (val: boolean) => void,
+	limit = 12
+) {
+	if (type !== 'update') {
+		if (setLoading) setLoading(true);
+	}
+	new GetTransactionsStore()
+		.fetch({
+			variables: {
+				limit: limit,
+				did,
+				offset: type === 'extend' ? get(vscTxsStore).length : undefined
+			},
+			policy: 'NetworkOnly'
+		})
+		.then((post) => {
+			if (!post.data?.findTransaction) {
+				if (type === 'set') {
+					vscTxsStore.set([]);
+				}
+				if (setLoading) setLoading(false);
+				return;
+			}
+			const fetchedTxs = toTransactionInter(post.data.findTransaction);
+			switch (type) {
+				case 'set':
+					vscTxsStore.set(fetchedTxs);
+					break;
+				case 'extend':
+					vscTxsStore.update((currentTxs) => currentTxs.concat(fetchedTxs));
+					break;
+				default: // also case for update, since this is most robust
+					if (get(vscTxsStore).length > 0 && fetchedTxs[0].id == get(vscTxsStore)[0].id) break; // nothing to update
+					vscTxsStore.update((currentTxs) => {
+						const fetchedTxs = toTransactionInter(post.data!.findTransaction!);
+						const prevUpdate = fetchedTxs.findIndex((v) => v.id === currentTxs[0]?.id);
+
+						// sets the store to only new txs if > limit new txs
+						if (prevUpdate === -1) {
+							return fetchedTxs;
+						}
+
+						// Prepend only new transactions
+						return [...fetchedTxs.slice(0, prevUpdate), ...currentTxs];
+					});
+			}
+			if (setLoading) setLoading(false);
+		})
+		.catch((e) => {
+			if (e.name !== 'AbortError') {
+				console.error(e);
+			}
+		});
+	updateTxsFromLocalStorage(did);
+}
+
+export function waitForExtend(did: string): Promise<boolean> {
+	return new Promise((resolve) => {
+		const timeout = setTimeout(() => {
+			resolve(false);
+		}, 2000);
+
+		// can use value! because only called from getLastPaid()
+		fetchTxs(did, 'extend', (val) => {
+			if (val === false) {
+				clearTimeout(timeout);
+				resolve(true);
+			}
+		});
+	});
 }

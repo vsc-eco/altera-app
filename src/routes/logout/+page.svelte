@@ -1,6 +1,6 @@
 <script>
 	import { getAuth } from '$lib/auth/store';
-	import { clearAllStores } from '../(authed)/transactions/txStores';
+	import { clearAllStores } from '$lib/stores/txStores';
 	import { accountBalance, getDefaultBalance } from '$lib/stores/currentBalance';
 	import { accountBalanceHistory } from '$lib/stores/balanceHistory';
 

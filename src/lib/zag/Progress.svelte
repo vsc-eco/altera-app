@@ -10,7 +10,13 @@
 		timerLabel?: string;
 		customPercentage?: number;
 	};
-	let { boundaries, currentValue, colorVar = '--primary-bg-mid', timerLabel, customPercentage }: Props = $props();
+	let {
+		boundaries,
+		currentValue,
+		colorVar = '--accent-mid',
+		timerLabel,
+		customPercentage
+	}: Props = $props();
 	let percentage = $derived.by(() => {
 		if (currentValue !== null) {
 			if (currentValue === 0) {

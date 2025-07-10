@@ -215,7 +215,6 @@
 		/>
 	</div>
 	{#if allowDeposit}
-	{#if allowDeposit}
 		<label for="hbd-stake-checkbox">
 			<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
 			First Deposit HBD into VSC

@@ -26,6 +26,14 @@ export const getUsernameFromDid = (did: string) => {
 	return did.split(':').at(-1)!;
 };
 
+export const getUsernameFromAuth = (auth: Auth) => {
+	if (auth.value?.provider === 'aioha') {
+		return auth.value.username;
+	} else if (auth.value?.provider === 'reown') {
+		return auth.value.address;
+	}
+};
+
 export const getAccountNameFromDid = (did: string) => {
 	const u = did.split(':').at(-1)!;
 	return shortenUsername(u);

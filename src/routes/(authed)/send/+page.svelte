@@ -6,7 +6,6 @@
 <document:head>
 	<title>Send</title>
 </document:head>
-<h1>Send</h1>
 <!-- <div class="send-wrapper">
 	<SendCards/>
 </div> -->
@@ -17,8 +16,5 @@
 <style>
 	.send-wrapper {
 		width: 100%;
-	}
-	.send-wrapper :global(*) {
-		max-width: 42rem;
 	}
 </style>

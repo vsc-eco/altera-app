@@ -17,6 +17,7 @@
 		} else {
 			const addr = did.split(':').at(-1)!;
 			fallback = addr.slice(2, 4);
+			src = `https://effigy.im/a/${addr}.svg`
 		}
 	});
 </script>

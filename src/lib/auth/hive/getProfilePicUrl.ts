@@ -5,7 +5,9 @@ const pending: { [username: string]: ((value: Account) => void)[] } = {};
 let pendingReqId: NodeJS.Timeout | undefined = undefined;
 const cached: { [username: string]: string } = {};
 export async function getProfilePicUrl(username: string): Promise<string | undefined> {
-	if (username.length > 16) return; // to avoid querying for eth addresses
+	if (username.length > 16) {
+		return `https://effigy.im/a/${username}.svg`
+	}
 	if (username in cached) return cached[username];
 	let resolve: (value: Account) => void;
 	const out = new Promise<Account>((res) => (resolve = res));

@@ -1,14 +1,9 @@
-import { getNonce, uint8ArrayToBase64Url } from '@vsc.eco/client/dist/utils';
-import { submitTxQuery } from '@vsc.eco/client/dist/queries';
-import Axios from 'axios';
 import { encodePayload } from 'dag-jose-utils';
 import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
-import { encode as encodeJson, decode as decodeJson } from '@ipld/dag-json';
+import { encode as encodeJson } from '@ipld/dag-json';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
-import { getAccount } from '@wagmi/core';
-import { wagmiConfig } from '$lib/auth/reown';
-import { GetAccountNonceStore } from '$houdini';
+import { GetAccountNonceStore, SubmitTransactionV1Store } from '$houdini';
 
 export type Client = {
 	api: string;
@@ -307,16 +302,26 @@ export async function signAndBrodcastTransaction<
 	);
 	const txEncoded = uint8ArrayToBase64((await encodePayload(txContainer)).linkedBlock);
 
-	const { data } = await Axios.post(`${client.api}/api/v1/graphql`, {
-		query: submitTxQuery,
+	const response = await new SubmitTransactionV1Store().fetch({
 		variables: {
 			tx: txEncoded,
 			sig: sigEncoded
 		}
 	});
-	console.log('axios response:', data);
-	if (data?.data?.submitTransactionV1) {
-		const submitResult = data.data.submitTransactionV1;
+
+	// const response: AxiosResponse = await Axios.post(`${client.api}/api/v1/graphql`, {
+	// 	query: submitTxQuery,
+	// 	variables: {
+	// 		tx: txEncoded,
+	// 		sig: sigEncoded
+	// 	}
+	// });
+	console.log('response', response);
+	if (response?.data?.submitTransactionV1) {
+		const submitResult = response.data.submitTransactionV1;
+		if (!submitResult.id) {
+			throw new Error(`No transaction ID found.`);
+		}
 		client.nonce!++;
 		// console.log(submitResult);
 		return {
@@ -324,7 +329,7 @@ export async function signAndBrodcastTransaction<
 		};
 	}
 
-	throw new Error(`vsc transaction failed: ${data.errors.message}`);
+	throw new Error(`vsc transaction failed: ${response.errors ? response.errors[0].message : ''}`);
 }
 
 export type OnchainTransaction = Transaction;

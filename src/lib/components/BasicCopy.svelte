@@ -3,11 +3,17 @@
 	import { ClipboardCheck, ClipboardCopy } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 
-	let { value, children }: { value: string, children?: Snippet } = $props();
+	let {
+		value,
+		children,
+		show = true
+	}: { value: string; children?: Snippet; show?: boolean } = $props();
 
 	let copied = $state(false);
 	let timeoutId: NodeJS.Timeout;
-	function handleClick() {
+	function handleClick(e: MouseEvent) {
+		e.stopPropagation();
+		e.preventDefault();
 		copied = true;
 		navigator.clipboard.writeText(value);
 		copied = true;
@@ -18,12 +24,12 @@
 </script>
 
 <div>
-    {#if children}
-        {@render children()}
-    {:else}
-	    {value}
-    {/if}
-	<PillButton onclick={handleClick} styleType="icon-subtle" disabled={copied}>
+	{#if children}
+		{@render children()}
+	{:else}
+		{value}
+	{/if}
+	<PillButton onclick={handleClick} styleType="icon-subtle" disabled={copied} hide={!show}>
 		{#if copied}
 			<ClipboardCheck class="clipboard-icon" />
 		{:else}

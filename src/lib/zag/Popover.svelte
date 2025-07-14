@@ -19,7 +19,7 @@
 		positioning: {
 			placement: title ? 'top-end' : 'bottom',
 			overflowPadding: 5,
-			flip: ['top'],
+			flip: title ? ['bottom-end'] : ['top'],
 			strategy: 'fixed'
 		}
 	});
@@ -84,7 +84,7 @@
 		border-radius: 0.5rem;
 	}
 	[data-part='content'][data-variant='simple'] {
-		max-width: calc(100vw / 8);
+		max-width: calc(20rem);
 		position: relative;
 		background-color: var(--neutral-bg);
 		// filter: drop-shadow(1px 1px var(--neutral-bg-accent)) drop-shadow(-1px -1px var(--neutral-bg-accent));

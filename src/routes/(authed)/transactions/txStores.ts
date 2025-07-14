@@ -34,11 +34,8 @@ function getAlteraID(tx: TransactionInter) {
 	return null;
 }
 
-function getTimestamp(tx: TransactionInter): string {
-	if (tx.type == 'hive') {
-		return tx.anchr_ts;
-	}
-	return tx.first_seen;
+export function getTimestamp(tx: TransactionInter): string {
+	return tx.anchr_ts ?? tx.first_seen;
 }
 
 function deduplicate(txs: TransactionInter[]) {

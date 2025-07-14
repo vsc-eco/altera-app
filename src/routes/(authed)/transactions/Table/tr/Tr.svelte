@@ -14,6 +14,7 @@
 	import type { TransactionInter, TransactionOpType } from '../../txStores';
 	import moment from 'moment';
 	import SidePopup from '$lib/components/SidePopup.svelte';
+	import { addNotification } from '$lib/Topbar/notifications';
 
 	type Props = {
 		tx: TransactionInter;
@@ -88,6 +89,9 @@
 		return untrack(() => statusStore).subscribe((status) => {
 			if (tx.status != status) {
 				tx = { ...tx, status };
+				if (['CONFIRMED', 'FAILED'].includes(status)) {
+					addNotification(tx);
+				}
 			}
 		});
 	});

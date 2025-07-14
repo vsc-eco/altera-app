@@ -5,6 +5,7 @@ const checkingStores: { [tx_id: string]: Writable<string> } = {};
 
 function updateStatuses() {
 	const idsToFetch = Object.keys(checkingStores);
+	// console.log('fetching statuses for', idsToFetch);
 	new GetStatusesStore()
 		.fetch({
 			variables: {
@@ -15,6 +16,7 @@ function updateStatuses() {
 		.then((res) => {
 			// console.log('FETCHED');
 			const statuses = res.data?.findTransaction;
+			// console.log('got statuses', statuses);
 			if (!statuses) return;
 			for (const { status, id } of statuses) {
 				const store = checkingStores[id];
@@ -59,6 +61,6 @@ export const checkOpStatus = (tx_id: string, currStatus: string) => {
 
 	// console.log('WRITABLE');
 	checkingStores[tx_id] = store;
-	// console.log('statusquery - Added to checkingStores:', tx_id, Object.keys(checkingStores));
+	console.log('statusquery - Added to checkingStores:', tx_id, checkingStores);
 	return readonly(store);
 };

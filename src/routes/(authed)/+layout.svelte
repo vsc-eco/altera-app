@@ -7,7 +7,7 @@
 	let showSidebar = $state(false);
 	import { getAuth } from '$lib/auth/store';
 	import { startAccountPolling, stopAccountPolling } from '$lib/stores/currentBalance';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy } from 'svelte';
 
 	let auth = $derived(getAuth()());
 	$effect(() => {

@@ -10,7 +10,13 @@
 		timerLabel?: string;
 		customPercentage?: number;
 	};
-	let { boundaries, currentValue, colorVar = '--primary-bg-mid', timerLabel, customPercentage }: Props = $props();
+	let {
+		boundaries,
+		currentValue,
+		colorVar = '--primary-bg-mid',
+		timerLabel,
+		customPercentage
+	}: Props = $props();
 	let percentage = $derived.by(() => {
 		if (currentValue !== null) {
 			if (currentValue === 0) {
@@ -37,12 +43,26 @@
 	});
 
 	function formatNumber(n: number): string {
-		if (n > 1e9) {
-			const billions = n / 1e9;
-			const floored = Math.floor(billions * 1000) / 1000;
-			return `${floored}b`;
+		// Helper function to format to 4 significant figures
+		function toSignificantFigures(num: number, sigFigs: number = 4): number {
+			if (num === 0) return 0;
+			const magnitude = Math.floor(Math.log10(Math.abs(num)));
+			const factor = Math.pow(10, sigFigs - 1 - magnitude);
+			return Math.round(num * factor) / factor;
 		}
-		return n.toString();
+
+		if (n >= 1e9) {
+			const billions = toSignificantFigures(n / 1e9);
+			return `${billions}b`;
+		} else if (n >= 1e6) {
+			const millions = toSignificantFigures(n / 1e6);
+			return `${millions}m`;
+		} else if (n >= 1e3) {
+			const thousands = toSignificantFigures(n / 1e3);
+			return `${thousands}k`;
+		}
+
+		return toSignificantFigures(n).toString();
 	}
 </script>
 

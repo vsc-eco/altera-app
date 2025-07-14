@@ -26,20 +26,20 @@ export const wagmiSigner: Signer<[Config]> = async (
 		throw new Error('Invalid signing shell structure');
 	}
 
-	console.log('=== Signing Transaction ===');
-	console.log('Connected wallet:', account.address);
-	console.log('Client user ID:', client.userId);
-	console.log('Transaction shell:', JSON.stringify(signingShell, null, 2));
+	// console.log('=== Signing Transaction ===');
+	// console.log('Connected wallet:', account.address);
+	// console.log('Client user ID:', client.userId);
+	// console.log('Transaction shell:', JSON.stringify(signingShell, null, 2));
 
 	try {
 		const encodedShell = encode(signingShell);
 		const types = convertCBORToEIP712TypedData('vsc.network', encodedShell, 'tx_container_v0');
 
-		console.log('EIP712 typed data:', JSON.stringify(types, null, 2));
+		// console.log('EIP712 typed data:', JSON.stringify(types, null, 2));
 
 		const signature = await signTypedData(config, types as any);
 
-		console.log('User signature:', signature);
+		// console.log('User signature:', signature);
 
 		// backend wants type {alg, kid, sig}, even though struct can take {t, s}
 		const sigs = [
@@ -52,16 +52,16 @@ export const wagmiSigner: Signer<[Config]> = async (
 
 		const rawTx = (await encodePayload(signingShell)).linkedBlock;
 
-		console.log('Raw transaction encoded, length:', rawTx.length);
-		console.log('=== Signing Complete ===');
+		// console.log('Raw transaction encoded, length:', rawTx.length);
+		// console.log('=== Signing Complete ===');
 
 		return {
 			sigs,
 			rawTx
 		};
 	} catch (error) {
-		console.error('=== Signing Failed ===');
-		console.error('Error details:', error);
+		// console.error('=== Signing Failed ===');
+		// console.error('Error details:', error);
 
 		if (error instanceof Error) {
 			if (error.message.includes('User rejected')) {

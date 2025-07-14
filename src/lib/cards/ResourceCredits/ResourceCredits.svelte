@@ -18,12 +18,12 @@
 		if ($accountBalance.loading) {
 			return [null, 0];
 		}
-		if (maxRCs < 5000) {
-			return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
-		}
-		if (maxRCs - $accountBalance.bal.resource_credits < 1000) {
-			return [maxRCs / 1000, maxRCs / 1000];
-		}
+		// if (maxRCs < 5000) {
+		// 	return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
+		// }
+		// if (maxRCs - $accountBalance.bal.resource_credits < 1000) {
+		// 	return [maxRCs / 1000, maxRCs / 1000];
+		// }
 		return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
 	});
 
@@ -98,7 +98,6 @@
 						$accountBalance.bal.resource_credits / maxRCs < 0.85
 							? `Full in ${durationToString(vscRegenTime)}`
 							: undefined}
-						{customPercentage}
 					/>
 				</div>
 				<span class="info-button">

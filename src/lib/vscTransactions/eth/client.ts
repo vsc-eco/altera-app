@@ -226,8 +226,6 @@ function createVSCTransactionContainer(
 }
 
 function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactionSigningShell {
-	console.log("decoded cbor", decodeCborg(txContainer.tx[0].payload));
-	console.log("reencoded dag json", encodeJson(decodeCborg(txContainer.tx[0].payload)));
 	const decodedOps = txContainer.tx.map((op) => ({
 		type: op.type,
 		payload: Buffer.from(encodeJson(decodeCborg(op.payload))).toString('utf-8')
@@ -277,8 +275,8 @@ export async function signAndBrodcastTransaction<
 		// client.nonce = await getNonce([client.userId], `${client.api}/api/v1/graphql`).catch((err) =>
 		// 	console.log('error fetching nonce', err)
 		// );
-		const nonceStore = new GetAccountNonceStore;
-		const res = await nonceStore.fetch({variables: {account: client.userId}})
+		const nonceStore = new GetAccountNonceStore();
+		const res = await nonceStore.fetch({ variables: { account: client.userId } });
 		client.nonce = res.data?.getAccountNonce?.nonce ?? null;
 	}
 
@@ -320,13 +318,13 @@ export async function signAndBrodcastTransaction<
 	if (data?.data?.submitTransactionV1) {
 		const submitResult = data.data.submitTransactionV1;
 		client.nonce!++;
-		console.log(submitResult);
+		// console.log(submitResult);
 		return {
 			id: submitResult.id
 		};
 	}
 
-	throw new Error(`vsc transaction failed: ${data.errors}`);
+	throw new Error(`vsc transaction failed: ${data.errors.message}`);
 }
 
 export type OnchainTransaction = Transaction;

@@ -237,6 +237,7 @@ type RcRecord {
   account: String!
   amount: Int64!
   block_height: Uint64!
+  max_rcs: Int64!
 }
 
 input TransactionFilter {
@@ -267,7 +268,7 @@ type TransactionOutput {
 type TransactionRecord {
   anchr_height: Uint64!
   anchr_index: Uint64!
-  anchr_ts: String!
+  anchr_ts: String
   first_seen: DateTime!
   id: String!
   ledger: [OpLogEvent!]

@@ -4,13 +4,14 @@
 	import PillBtn from '$lib/PillButton.svelte';
 	import TopHomeMenu from './TopHomeMenu.svelte';
 	import { actions } from '../quickActions';
-	import { getAccountNameFromAuth, getDidFromUsername } from '$lib/getAccountName';
+	import { getAccountNameFromAuth, getUsernameFromAuth } from '$lib/getAccountName';
 	import StakeUnstakeTabsModal from './witness-assistant/StakeUnstakeTabsModal.svelte';
 	import Send from '$lib/send/Send.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Table from './transactions/Table/Table.svelte';
 	import AccBalance from '$lib/AccBalance.svelte';
 	import ResourceCredits from '$lib/cards/ResourceCredits/ResourceCredits.svelte';
+	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	// let { auth }: LayoutData = $props();
 	let auth = $derived(getAuth()());
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
@@ -23,7 +24,13 @@
 <h1>
 	Welcome,
 	<span class={['name', { loaded: !!username }]}>
-		{#if username}{username}{:else}&nbsp;{/if}
+		{#if username}
+			<BasicCopy value={getUsernameFromAuth(auth)!}>
+				{username}
+			</BasicCopy>
+		{:else}
+			&nbsp;
+		{/if}
 	</span>
 </h1>
 

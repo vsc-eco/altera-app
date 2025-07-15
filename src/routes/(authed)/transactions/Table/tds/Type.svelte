@@ -1,14 +1,16 @@
 <script lang="ts">
-	import { ArrowRight, ArrowLeft } from '@lucide/svelte';
-	let { outgoing, t }: { outgoing: boolean; t: string } = $props();
+	import { ArrowRight, ArrowLeft, ArrowRightLeft } from '@lucide/svelte';
+	let { direction, t }: { direction: 'incoming' | 'outgoing' | 'swap'; t: string } = $props();
 </script>
 
 <td>
 	<span class="type">
-		{#if outgoing}
+		{#if direction === 'outgoing'}
 			<ArrowRight />
+		{:else if direction === 'swap'}
+			<ArrowRightLeft />
 		{:else}
-			<ArrowLeft></ArrowLeft>
+			<ArrowLeft />
 		{/if}
 
 		{t.replaceAll('_', ' ')}

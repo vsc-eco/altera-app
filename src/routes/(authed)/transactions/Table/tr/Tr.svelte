@@ -127,9 +127,21 @@
 	$effect(() => {
 		detailsOpen = openOp !== null && openOp[0] === tx.id && openOp[1] === op.index;
 	});
-	const outgoing = $derived(
-		to === from ? (t.includes('withdraw') ? true : false) : to == did ? false : true
-	);
+	const direction: 'incoming' | 'outgoing' | 'swap' = $derived.by(() => {
+		if (to === from) {
+			if (t.includes('stake') || t.includes('unstake')) {
+				return 'swap';
+			}
+			if (t.includes('withdraw')) {
+				return 'outgoing';
+			}
+			return 'incoming';
+		}
+		if (to == did) {
+			return 'incoming';
+		}
+		return 'outgoing';
+	});
 </script>
 
 <tr
@@ -141,9 +153,9 @@
 >
 	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memoNoId?.toString()} {status} />
-	<Amount {amount} {outgoing} />
-	<Token {amount} {outgoing} />
-	<Type {outgoing} {t} />
+	<Amount {amount} {direction} />
+	<Token {amount} {direction} />
+	<Type {direction} {t} />
 </tr>
 
 <SidePopup toggle={() => onRowClick([tx.id, op.index])} bind:open={detailsOpen} defaultOpen={false}>

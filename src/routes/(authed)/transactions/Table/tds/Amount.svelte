@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { UnkCoinAmount } from '$lib/currency/CoinAmount';
 
-	type Props = { amount: UnkCoinAmount };
-	let { amount }: Props = $props();
+	type Props = { amount: UnkCoinAmount; outgoing?: boolean };
+	let { amount, outgoing = false }: Props = $props();
 </script>
 
 <td>
@@ -10,13 +10,12 @@
 		class={[
 			'amount',
 			{
-				primary: !amount.isNegative(),
-				neutral: amount.isNegative()
+				neutral: outgoing
 			}
 		]}
 	>
 		{#if amount}
-			{amount.toPrettyAmountString()}
+			{(outgoing ? '-' : '') + amount.toPrettyAmountString()}
 		{:else}
 			invalid
 		{/if}
@@ -27,10 +26,10 @@
 	.amount {
 		font-family: 'Noto Sans Mono Variable', monospace;
 		font-size: var(--text-sm);
-		color: var(--fg-mid);
+		color: var(--green-fg);
 	}
 	.amount.neutral {
-		color: var(--fg-accent);
+		color: var(--neutral-off-fg);
 	}
 	td:has(.amount) {
 		padding-right: 0.5rem;

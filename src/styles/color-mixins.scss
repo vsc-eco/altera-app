@@ -1,8 +1,10 @@
 $color-nums: 15, 20, 25, 30, 40, 50, 60, 80, 90, 98, 99;
-$color-dark-shade-names: bg, off-bg, bg-accent, bg-accent-shifted, bg-mid, mid, fg-mid,
-	fg-accent-shifted, fg-accent, off-fg, fg;
-$color-light-shade-names: fg, off-fg, fg-accent, fg-accent-shifted, fg-mid, mid, bg-mid,
-	bg-accent-shifted, bg-accent, off-bg, bg;
+$color-dark-shade-names:
+	bg, off-bg, bg-accent, bg-accent-shifted, bg-mid, mid, fg-mid, fg-accent-shifted, fg-accent,
+	off-fg, fg;
+$color-light-shade-names:
+	fg, off-fg, fg-accent, fg-accent-shifted, fg-mid, mid, bg-mid, bg-accent-shifted, bg-accent,
+	off-bg, bg;
 @use 'sass:list';
 @use 'sass:string';
 @use 'sass:math';
@@ -22,6 +24,16 @@ $color-light-shade-names: fg, off-fg, fg-accent, fg-accent-shifted, fg-mid, mid,
 		$num: list.nth($color-nums, $i);
 		$shade-name: list.nth($shade-names, $i);
 		@include color($color-name, $name, $num, $shade-name);
+	}
+}
+
+@mixin shade-minimal($name, $shade-names: $color-light-shade-names) {
+	@if $shade-names == $color-light-shade-names {
+		--#{$name}-fg: var(--#{$name}-45);
+		--#{$name}-bg: var(--#{$name}-60);
+	} @else {
+		--#{$name}-fg: var(--#{$name}-60);
+		--#{$name}-bg: var(--#{$name}-40);
 	}
 }
 

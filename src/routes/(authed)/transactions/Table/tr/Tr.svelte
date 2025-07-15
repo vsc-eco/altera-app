@@ -9,7 +9,7 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 	import { untrack } from 'svelte';
-	import { getAuth } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
 	import type { TransactionInter, TransactionOpType } from '../../txStores';
 	import moment from 'moment';
@@ -127,6 +127,9 @@
 	$effect(() => {
 		detailsOpen = openOp !== null && openOp[0] === tx.id && openOp[1] === op.index;
 	});
+	const outgoing = $derived(
+		to === from ? (t.includes('withdraw') ? true : false) : to == did ? false : true
+	);
 </script>
 
 <tr
@@ -138,9 +141,9 @@
 >
 	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memoNoId?.toString()} {status} />
-	<Amount {amount} />
-	<Token {amount} />
-	<Type isIncoming={!amount.isNegative()} {t} />
+	<Amount {amount} {outgoing} />
+	<Token {amount} {outgoing} />
+	<Type {outgoing} {t} />
 </tr>
 
 <SidePopup toggle={() => onRowClick([tx.id, op.index])} bind:open={detailsOpen} defaultOpen={false}>

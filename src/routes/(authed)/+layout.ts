@@ -4,6 +4,9 @@ import { redirect } from '@sveltejs/kit';
 import '$lib/auth/reown';
 import '$lib/auth/hive';
 
+export const ssr = false;
+export const prerender = false;
+
 function isAuthenticated(): Promise<Auth | false> {
 	const out = new Promise<Auth | false>((resolve) => {
 		let unsubscribe: () => void = () => {};

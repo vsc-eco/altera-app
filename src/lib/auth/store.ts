@@ -2,6 +2,9 @@ import { goto } from '$app/navigation';
 import type { Aioha } from '@aioha/aioha';
 import { getContext } from 'svelte';
 import { readable, writable } from 'svelte/store';
+import { clearAllStores } from '../../routes/(authed)/transactions/txStores';
+import { accountBalance, getDefaultBalance } from '$lib/stores/currentBalance';
+import { accountBalanceHistory } from '$lib/stores/balanceHistory';
 
 export type Auth = {
 	status: 'none' | 'pending' | 'authenticated';
@@ -27,8 +30,17 @@ const changeLogout = (v: Auth) => {
 	if (v.value) {
 		const oldLogout = v.value.logout;
 		v.value.logout = async () => {
+			loginRetry.set('logout');
 			await oldLogout();
-			goto('/logout');
+			console.log('supposedly done with logout');
+			// clear svelte stores
+			clearAllStores();
+			accountBalance.set({
+				loading: true,
+				bal: getDefaultBalance()
+			});
+			accountBalanceHistory.set([]);
+			goto('/login');
 		};
 	}
 };
@@ -54,3 +66,5 @@ export const authStore = readable<Auth>({ status: 'pending' }, (set) => {
 		newSet(v);
 	});
 });
+
+export const loginRetry = writable<'idle' | 'retry' | 'cooldown' | 'logout'>('idle');

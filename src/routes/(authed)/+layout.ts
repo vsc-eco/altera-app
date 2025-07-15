@@ -6,15 +6,21 @@ import '$lib/auth/hive';
 
 function isAuthenticated(): Promise<Auth | false> {
 	const out = new Promise<Auth | false>((resolve) => {
-		authStore.subscribe((v) => {
-			if (v.status == 'authenticated' || !browser) {
+		let unsubscribe: () => void = () => {};
+
+		const handle = (v: Auth | { status: 'none', value: undefined }) => {
+			if (v.status === 'authenticated' || !browser) {
 				console.log('authenticated with value ', v.value);
 				resolve(v);
-			}
-			if (v.status == 'none') {
+				unsubscribe();
+			} else if (v.status === 'none') {
 				resolve(false);
+				unsubscribe();
 			}
-		});
+		};
+
+		unsubscribe = authStore.subscribe(handle);
+
 	});
 	return out;
 }

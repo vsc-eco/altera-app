@@ -92,7 +92,7 @@
 			}
 		}}
 	>
-		<Avatar {src} fallback={username.slice(0, 2).toLocaleUpperCase()}></Avatar>
+		<Avatar did={auth.value?.did} fallback=""></Avatar>
 	</Menu>
 </header>
 

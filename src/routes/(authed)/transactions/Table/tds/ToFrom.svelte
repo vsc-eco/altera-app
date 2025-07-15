@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { getAccountNameFromDid } from '$lib/getAccountName';
+	import BasicCopy from '$lib/components/BasicCopy.svelte';
+	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
 	import Avatar from '$lib/zag/Avatar.svelte';
 	import StatusBadge from '../StatusBadge.svelte';
 
+	let isHovered = $state(false);
 	let {
 		otherAccount,
 		memo,
@@ -10,13 +12,15 @@
 	}: { otherAccount: string; memo?: string | undefined; status: string } = $props();
 </script>
 
-<td>
+<td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
 	<span class="to-from">
 		<span class="pfp">
 			<Avatar did={otherAccount} fallback=""></Avatar>
 		</span>
 		<span class="toFrom">
-			{getAccountNameFromDid(otherAccount)}
+			<BasicCopy value={getUsernameFromDid(otherAccount)} show={isHovered}>
+				{getAccountNameFromDid(otherAccount)}
+			</BasicCopy>
 		</span>
 		{#if memo}
 			<span class="memo">
@@ -38,7 +42,6 @@
 	}
 	.to-from {
 		width: 100%;
-
 		display: grid;
 		grid-template: 'pfp toFrom memo status';
 		justify-content: left;
@@ -69,16 +72,19 @@
 		font-weight: 400;
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-sm);
+		margin-left: 0.5rem;
 	}
 
-	.toFrom {
-		grid-area: toFrom;
-	}
 	.to-from > .toFrom,
 	.to-from > .memo {
 		text-overflow: ellipsis;
-		overflow-x: hidden;
-		height: 1.2rem;
+		overflow: hidden;
 		white-space: nowrap;
+		display: flex;
+		align-items: center;
+		height: max-content;
+	}
+	.toFrom {
+		grid-area: toFrom;
 	}
 </style>

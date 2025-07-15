@@ -8,7 +8,16 @@
 	export type SharedProps = {
 		children?: Snippet;
 		theme?: string;
-		styleType?: 'invert' | 'text' | 'outline' | 'default' | 'icon' | 'icon-outline' | 'icon-text' | 'icon-subtle';
+		hide?: boolean;
+		styleType?:
+			| 'invert'
+			| 'text'
+			| 'outline'
+			| 'default'
+			| 'icon'
+			| 'icon-outline'
+			| 'icon-text'
+			| 'icon-subtle';
 	};
 	export type AnchorProps = { href: string; onclick?: undefined } & HTMLAnchorAttributes;
 	export type ButtonAttributes = {
@@ -16,7 +25,13 @@
 		onclick: MouseEventHandler<HTMLButtonElement>;
 	} & HTMLButtonAttributes;
 	export type Props = SharedProps & (AnchorProps | ButtonAttributes);
-	let { children, theme = 'neutral', styleType: styleType, ...rest }: Props = $props();
+	let {
+		children,
+		theme = 'neutral',
+		hide = false,
+		styleType: styleType,
+		...rest
+	}: Props = $props();
 	let invertStyle = $derived(styleType == 'invert');
 	let textStyle = $derived(styleType == 'text' || styleType == 'icon-text');
 	let outlineStyle = $derived(styleType == 'outline' || styleType == 'icon-outline');
@@ -26,7 +41,14 @@
 	let subtleStyle = $derived(styleType === 'icon-subtle');
 	let className = $derived([
 		theme,
-		{ invert: invertStyle, text: textStyle, outline: outlineStyle, icon: iconStyle, subtle: subtleStyle }
+		{
+			invert: invertStyle,
+			text: textStyle,
+			outline: outlineStyle,
+			icon: iconStyle,
+			subtle: subtleStyle,
+			hide: hide
+		}
 	]);
 	if (theme == 'primary') $inspect({ theme, styleType, rest });
 </script>
@@ -49,6 +71,9 @@
 <style lang="scss">
 	button,
 	a {
+		&.hide {
+			visibility: hidden;
+		}
 		display: inline-flex;
 		justify-content: center;
 		cursor: pointer;

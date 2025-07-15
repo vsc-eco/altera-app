@@ -3,8 +3,9 @@
 
 	type Props = {
 		amount: UnkCoinAmount;
+		direction?: 'incoming' | 'outgoing' | 'swap';
 	};
-	let { amount }: Props = $props();
+	let { amount, direction = 'incoming' }: Props = $props();
 </script>
 
 <td>
@@ -12,8 +13,7 @@
 		class={[
 			'token',
 			{
-				primary: !amount.isNegative(),
-				neutral: amount.isNegative()
+				green: direction === 'incoming'
 			}
 		]}
 	>
@@ -25,13 +25,13 @@
 
 <style>
 	.token {
-		color: var(--fg-mid);
+		color: var(--neutral-off-fg);
 		font-family: 'Noto Sans Mono Variable', monospace;
 		font-size: var(--text-sm);
 	}
 
-	.token.neutral {
-		color: var(--fg-accent);
+	.token.green {
+		color: var(--green-fg);
 	}
 
 	td:has(.token) {

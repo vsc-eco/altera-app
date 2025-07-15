@@ -21,7 +21,7 @@
 			From
 			{getAccountNameFromDid(from)}
 		</div>
-		<div class="from-ts ts msg">{moment(anchor_ts).format('MMM DD [at] h:mmA')}</div>
+		<div class="from-ts ts msg">{moment(anchor_ts).format('MMM DD [at] H:mm')}</div>
 		<div class="vertical-line"></div>
 
 		<span
@@ -46,7 +46,7 @@
 			</span>
 		{/if}
 		<div class="to-ts ts msg">
-			{moment(anchor_ts).format('MMM DD [at] h:mmA')}
+			{moment(anchor_ts).format('MMM DD [at] H:mm')}
 			{#if block_height != 0}
 				(#{block_height})
 			{/if}

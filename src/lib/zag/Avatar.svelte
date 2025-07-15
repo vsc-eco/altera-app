@@ -3,6 +3,7 @@
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
 	import { getProfilePicUrl } from '$lib/auth/hive/getProfilePicUrl';
+	import { getUsernameFromDid } from '$lib/getAccountName';
 	let { src, did, fallback }: { src?: string; did?: string; fallback?: string } = $props();
 	const service = useMachine(avatar.machine, { id: getUniqueId() });
 	const api = $derived(avatar.connect(service, normalizeProps));
@@ -15,7 +16,7 @@
 				src = url;
 			});
 		} else {
-			const addr = did.split(':').at(-1)!;
+			const addr = getUsernameFromDid(did);
 			fallback = addr.slice(2, 4);
 			src = `https://effigy.im/a/${addr}.svg`
 		}

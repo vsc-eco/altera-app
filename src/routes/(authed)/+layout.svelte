@@ -1,22 +1,53 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	let { children } = $props();
 	import Sidebar from '$lib/Sidebar.svelte';
 	import Topbar from '$lib/Topbar/Topbar.svelte';
+	import { modal } from '$lib/auth/reown';
 	import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
-	let showSidebar = $state(false);
 	import { getAuth } from '$lib/auth/store';
 	import { startAccountPolling, stopAccountPolling } from '$lib/stores/currentBalance';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy } from 'svelte';
+	import { clearAllStores } from './transactions/txStores';
+	import { goto } from '$app/navigation';
+	import { loginRetry } from '$lib/auth/store';
+
+	let { children } = $props();
+	let showSidebar = $state(false);
 
 	let auth = $derived(getAuth()());
 	$effect(() => {
 		if (!browser || !auth.value) return;
 		startAccountPolling(auth.value.did);
+		localStorage.setItem('last_connection', auth.value.provider);
 	});
 	$effect(() => {
-		if (!browser || auth.value?.provider !== 'reown') return;
-		ensureWalletConnection();
+		console.log($loginRetry);
+		if ($loginRetry === 'logout') return;
+		if ($loginRetry === 'cooldown') {
+			if (auth.value) {
+				loginRetry.set('retry');
+				return;
+			}
+			clearAllStores();
+			goto('/login');
+			return;
+		}
+
+		if (
+			!browser ||
+			(auth.value && auth.value?.provider !== 'reown') ||
+			localStorage.getItem('last_connection') !== 'reown'
+		) {
+			return;
+		}
+
+		(async () => {
+			const success = await ensureWalletConnection();
+			if (!success) {
+				loginRetry.set('cooldown');
+				modal.open();
+			}
+		})();
 	});
 	onDestroy(() => {
 		if (browser) {

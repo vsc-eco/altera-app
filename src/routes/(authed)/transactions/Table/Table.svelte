@@ -282,7 +282,7 @@
 		</tbody>
 	</table>
 	{#if !$allTransactionsStore?.length && !loading}
-		<div class={["no-transactions-overlay", {short: skeletonRowCount <= 5}]}>
+		<div class={['no-transactions-overlay', { short: skeletonRowCount <= 5 }]}>
 			<div class="no-transactions-message">No transactions found</div>
 		</div>
 	{/if}

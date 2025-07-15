@@ -9,11 +9,12 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 	import { untrack } from 'svelte';
-	import { getAuth } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
 	import type { TransactionInter, TransactionOpType } from '../../txStores';
 	import moment from 'moment';
 	import SidePopup from '$lib/components/SidePopup.svelte';
+	import { addNotification } from '$lib/Topbar/notifications';
 
 	type Props = {
 		tx: TransactionInter;
@@ -88,6 +89,9 @@
 		return untrack(() => statusStore).subscribe((status) => {
 			if (tx.status != status) {
 				tx = { ...tx, status };
+				if (['CONFIRMED', 'FAILED'].includes(status)) {
+					addNotification(tx);
+				}
 			}
 		});
 	});
@@ -123,6 +127,21 @@
 	$effect(() => {
 		detailsOpen = openOp !== null && openOp[0] === tx.id && openOp[1] === op.index;
 	});
+	const direction: 'incoming' | 'outgoing' | 'swap' = $derived.by(() => {
+		if (to === from) {
+			if (t.includes('stake') || t.includes('unstake')) {
+				return 'swap';
+			}
+			if (t.includes('withdraw')) {
+				return 'outgoing';
+			}
+			return 'incoming';
+		}
+		if (to == did) {
+			return 'incoming';
+		}
+		return 'outgoing';
+	});
 </script>
 
 <tr
@@ -134,9 +153,9 @@
 >
 	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memoNoId?.toString()} {status} />
-	<Amount {amount} />
-	<Token {amount} />
-	<Type isIncoming={!amount.isNegative()} {t} />
+	<Amount {amount} {direction} />
+	<Token {amount} {direction} />
+	<Type {direction} {t} />
 </tr>
 
 <SidePopup toggle={() => onRowClick([tx.id, op.index])} bind:open={detailsOpen} defaultOpen={false}>

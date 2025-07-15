@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { modal } from '$lib/auth/reown';
 	import PillButton from '../PillButton.svelte';
-	import { _reownAuthStore } from './store';
+	import { _reownAuthStore, loginRetry } from './store';
 </script>
 
 <PillButton
@@ -19,5 +19,6 @@
 			}
 		});
 		modal.open();
+		loginRetry.set('idle');
 	}}>Social/EVM Wallet</PillButton
 >

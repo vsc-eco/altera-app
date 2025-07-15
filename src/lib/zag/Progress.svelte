@@ -51,7 +51,13 @@
 			return Math.round(num * factor) / factor;
 		}
 
-		if (n >= 1e9) {
+		if (n >= 1e15) {
+			const quadrillions = toSignificantFigures(n / 1e15);
+			return `${quadrillions}q`;
+		} else if (n >= 1e12) {
+			const trillions = toSignificantFigures(n / 1e12);
+			return `${trillions}t`;
+		} else if (n >= 1e9) {
 			const billions = toSignificantFigures(n / 1e9);
 			return `${billions}b`;
 		} else if (n >= 1e6) {

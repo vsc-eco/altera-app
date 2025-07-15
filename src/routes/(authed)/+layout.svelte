@@ -18,10 +18,11 @@
 	$effect(() => {
 		if (!browser || !auth.value) return;
 		startAccountPolling(auth.value.did);
+		localStorage.setItem('last_connection', auth.value.provider);
 	});
 	$effect(() => {
 		if (retried === true) {
-			console.log("here");
+			console.log('here');
 			if (auth.value) {
 				retried = false;
 				return;
@@ -30,7 +31,12 @@
 			goto('/login');
 			return;
 		}
-		if (!browser || (auth.value && auth.value?.provider !== 'reown')) return;
+		if (
+			!browser ||
+			auth.value?.provider !== 'reown' ||
+			localStorage.getItem('last_connection') !== 'reown'
+		)
+			return;
 		(async () => {
 			const success = await ensureWalletConnection();
 			if (!success) {

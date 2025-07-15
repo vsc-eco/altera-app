@@ -7,7 +7,11 @@
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import { getLocalNotifications, notifications, removeNotification } from './notifications';
 	import { authStore } from '$lib/auth/store';
-	import { getTimestamp, type TransactionInter } from '../../routes/(authed)/transactions/txStores';
+	import {
+		formatOpType,
+		getTimestamp,
+		type TransactionInter
+	} from '../../routes/(authed)/transactions/txStores';
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
 	const auth = $authStore;
 	onMount(() => {
@@ -26,9 +30,9 @@
 	{#if tx.ops && tx.ops[0]?.data}
 		{@const fromYou = tx.ops[0].data.from === auth.value?.did}
 		<div class="notif">
-			{tx.ops[0].type?.replace('_', ' ')}
+			{formatOpType(tx.ops[0])}
 			{fromYou ? 'to' : 'from'}
-			{getAccountNameFromDid(fromYou ? tx.ops[0].data.to : tx.ops[0].data.from)}
+			{`@${getAccountNameFromDid(fromYou ? tx.ops[0].data.to : tx.ops[0].data.from)}`}
 			completed.
 			<span class="at">
 				{moment(tx.anchr_ts ? tx.anchr_ts + 'Z' : tx.first_seen).format('MMM DD HH:mm')}

@@ -10,6 +10,22 @@ export interface TransactionInter extends VscTransaction {
 
 export type TransactionOpType = NonNullable<NonNullable<TransactionInter['ops']>[number]>;
 
+export function formatOpType(op: TransactionOpType, sequence: string = 'hbd') {
+	const str = op.type;
+	if (!str) return str;
+
+	// First, capitalize the first letter
+	let result = str.charAt(0).toUpperCase() + str.slice(1);
+
+	// Then capitalize all occurrences of the sequence (case-insensitive search)
+	if (sequence) {
+		const regex = new RegExp(sequence, 'gi');
+		result = result.replace(regex, sequence.toUpperCase());
+	}
+
+	return result.replace('_', ' ');
+}
+
 export function toTransactionInter(txs: VscTransaction[]): TransactionInter[] {
 	return txs.map((tx) => ({ ...tx, isPending: false }));
 }

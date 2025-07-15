@@ -3,11 +3,16 @@
 	let { children } = $props();
 	import Sidebar from '$lib/Sidebar.svelte';
 	import Topbar from '$lib/Topbar/Topbar.svelte';
+	import { modal } from '$lib/auth/reown';
 	import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 	let showSidebar = $state(false);
 	import { getAuth } from '$lib/auth/store';
 	import { startAccountPolling, stopAccountPolling } from '$lib/stores/currentBalance';
 	import { onDestroy } from 'svelte';
+	import { clearAllStores } from './transactions/txStores';
+	import { goto } from '$app/navigation';
+
+	let retried = false;
 
 	let auth = $derived(getAuth()());
 	$effect(() => {
@@ -15,8 +20,24 @@
 		startAccountPolling(auth.value.did);
 	});
 	$effect(() => {
-		if (!browser || auth.value?.provider !== 'reown') return;
-		ensureWalletConnection();
+		if (retried === true) {
+			console.log("here");
+			if (auth.value) {
+				retried = false;
+				return;
+			}
+			clearAllStores();
+			goto('/login');
+			return;
+		}
+		if (!browser || (auth.value && auth.value?.provider !== 'reown')) return;
+		(async () => {
+			const success = await ensureWalletConnection();
+			if (!success) {
+				retried = true;
+				modal.open();
+			}
+		})();
 	});
 	onDestroy(() => {
 		if (browser) {

@@ -4,6 +4,7 @@ import { mainnet } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { DOMAIN } from '../url';
 import { _reownAuthStore } from '../store';
+import { browser } from '$app/environment';
 
 // 1. Get a project ID at https://cloud.reown.com
 export const projectId = '55a54e098e74ddb214919fe0da4ac384';

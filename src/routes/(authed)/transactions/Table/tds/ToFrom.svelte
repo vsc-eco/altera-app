@@ -42,7 +42,6 @@
 	}
 	.to-from {
 		width: 100%;
-
 		display: grid;
 		grid-template: 'pfp toFrom memo status';
 		justify-content: left;
@@ -79,14 +78,13 @@
 	.to-from > .toFrom,
 	.to-from > .memo {
 		text-overflow: ellipsis;
-		overflow-x: hidden;
-		height: 1.2rem;
+		overflow: hidden;
 		white-space: nowrap;
 		display: flex;
 		align-items: center;
+		height: max-content;
 	}
 	.toFrom {
 		grid-area: toFrom;
-		height: auto;
 	}
 </style>

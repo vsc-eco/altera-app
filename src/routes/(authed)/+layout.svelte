@@ -33,7 +33,11 @@
 			return;
 		}
 
-		if (!browser || (auth.value && auth.value?.provider !== 'reown')) {
+		if (
+			!browser ||
+			(auth.value && auth.value?.provider !== 'reown') ||
+			localStorage.getItem('last_connection') !== 'reown'
+		) {
 			return;
 		}
 

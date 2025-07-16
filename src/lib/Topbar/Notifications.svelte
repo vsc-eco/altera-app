@@ -11,7 +11,7 @@
 		formatOpType,
 		getTimestamp,
 		type TransactionInter
-	} from '../../routes/(authed)/transactions/txStores';
+	} from '$lib/stores/txStores';
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
 	const auth = $authStore;
 	onMount(() => {

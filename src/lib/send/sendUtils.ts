@@ -4,7 +4,7 @@ import {
 	postingMetadataFromString
 } from '$lib/auth/hive/accountTypes';
 import { getUsernameFromDid } from '$lib/getAccountName';
-import { Network, type IntermediaryNetwork } from './sendOptions';
+import { Network, TransferMethod, type IntermediaryNetwork } from './sendOptions';
 
 export async function getDisplayName(did: string) {
 	if (!did.startsWith('hive:')) {
@@ -26,6 +26,15 @@ export function getRecipientNetworks(did: string): (IntermediaryNetwork | Networ
 	}
 	if (did.startsWith("did:pkh:eip155:1:")) {
 		return [Network.vsc]
+	}
+	return [];
+}
+
+export function getMethodNetworks(method: TransferMethod) {
+	if (method == TransferMethod.vscTransfer) {
+		return [Network.vsc, Network.hiveMainnet];
+	} else if (method === TransferMethod.lightningTransfer) {
+		return [Network.lightning];
 	}
 	return [];
 }

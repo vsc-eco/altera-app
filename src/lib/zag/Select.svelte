@@ -1,4 +1,4 @@
-<script lang="ts" generics="Option extends {label: string}">
+<script lang="ts" generics="Option extends {label: string, [key: string]: any}">
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	import { untrack, type Snippet } from 'svelte';
 	import type { ValueChangeDetails } from '@zag-js/select';
@@ -15,11 +15,12 @@
 		onValueChange?: (value: ValueChangeDetails<Option>) => void;
 	};
 	let { items: options, initial, onValueChange, styleType, disabled }: Props = $props();
+	// pass items with snippet and snippetData in order to render a snippet and not just the label
 
 	const collection = select.collection({
 		items: options as Option[],
 		itemToString: (item) => item.label,
-		itemToValue: (item) => item.label
+		itemToValue: (item) => item.value ?? item.label
 	});
 	const userProps = $derived({
 		id: getUniqueId(),

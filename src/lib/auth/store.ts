@@ -2,7 +2,7 @@ import { goto } from '$app/navigation';
 import type { Aioha } from '@aioha/aioha';
 import { getContext } from 'svelte';
 import { readable, writable } from 'svelte/store';
-import { clearAllStores } from '../../routes/(authed)/transactions/txStores';
+import { clearAllStores } from '$lib/stores/txStores';
 import { accountBalance, getDefaultBalance } from '$lib/stores/currentBalance';
 import { accountBalanceHistory } from '$lib/stores/balanceHistory';
 

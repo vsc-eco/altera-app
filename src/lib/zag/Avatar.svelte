@@ -3,6 +3,7 @@
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
 	import { getProfilePicUrl } from '$lib/auth/hive/getProfilePicUrl';
+	import { getUsernameFromDid } from '$lib/getAccountName';
 	let {
 		src,
 		did,

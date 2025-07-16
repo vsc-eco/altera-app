@@ -6,7 +6,7 @@
         network
     } : {
         coinOpt: CoinOptions['coins'][number];
-        network: Network | undefined;
+        network?: Network | undefined;
     } = $props();
 </script>
 

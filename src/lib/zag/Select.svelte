@@ -10,11 +10,11 @@
 	type Props = {
 		items: Option[];
 		initial?: string;
-		styleType?: 'default' | 'text';
+		styleType?: 'default' | 'card';
 		disabled?: boolean;
 		onValueChange?: (value: ValueChangeDetails<Option>) => void;
 	};
-	let { items: options, initial, onValueChange, styleType, disabled }: Props = $props();
+	let { items: options, initial, onValueChange, styleType = 'default', disabled }: Props = $props();
 	// pass items with snippet and snippetData in order to render a snippet and not just the label
 
 	const collection = select.collection({
@@ -56,7 +56,7 @@
 </script>
 
 <div {...api.getRootProps()}>
-	<Toggle {api} def={initial || 'Select option'} {disabled} items={options}></Toggle>
+	<Toggle {api} def={initial || 'Select option'} {disabled} items={options} {styleType}></Toggle>
 
 	<div {...api.getPositionerProps()}>
 		<List {api} selectData={api.collection.items}></List>

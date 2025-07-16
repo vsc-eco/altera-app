@@ -270,7 +270,7 @@ export type SendDetails = {
 
 export type TransferMethod = {
 	label: string,
-	value?: string,
+	value: string,
 	length: string,
 	fees: string
 }

@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
 	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
-	import { Coin, Network, networkMap, type CoinOptions, type SendDetails } from '$lib/send/sendOptions';
+	import {
+		Coin,
+		Network,
+		networkMap,
+		type CoinOptions,
+		type SendDetails
+	} from '$lib/send/sendOptions';
 	import { getMethodNetworks } from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
 	import { optimism } from 'viem/chains';
 	import AssetInfo from '../AssetInfo.svelte';
+	import type { Snippet } from 'svelte';
 
 	let auth = $authStore;
 	let {
@@ -18,30 +25,37 @@
 		console.log(details.fromAmount);
 	});
 
-    const networkOptions = $derived(details.method ? getMethodNetworks(details.method) : []);
-    const assetOptions: CoinOptions['coins'] = $derived.by(() => {
-        let result: CoinOptions['coins'] = [];
-        for (const net of networkOptions) {
-            const coins = networkMap.get(net);
+	const networkOptions = $derived(details.method ? getMethodNetworks(details.method) : []);
+	const assetOptions: CoinOptions['coins'] = $derived.by(() => {
+		let result: CoinOptions['coins'] = [];
+		console.log('network options', networkOptions);
+		for (const net of networkOptions) {
+			const coins = networkMap.get(net);
 			if (!coins) continue;
-            for (const coin of coins) {
-				const entry = result.find(item => item.coin.value === coin.value);
+			for (const coin of coins) {
+				const entry = result.find((item) => item.coin.value === coin.value);
 				if (entry) {
-					if (entry.networks.find(item => item.value === net.value)) continue;
+					if (entry.networks.find((item) => item.value === net.value)) continue;
 					entry.networks.push(net);
 				} else {
-					result.push({coin: coin, networks: [net]});
+					result.push({ coin: coin, networks: [net] });
 				}
 			}
-        }
-		console.log("assetOptions", result);
-        return result;
-    });
-	const assetObjs = $derived(assetOptions.map(opt => ({
-		...opt.coin,
-		snippet: assetCard,
-		snippetData: {fromCoin: opt.coin}
-	})));
+		}
+		console.log('assetOptions', result);
+		return result;
+	});
+	interface AssetObject extends Coin {
+		snippetData: CoinOptions['coins'][number];
+		snippet: (...args: any[]) => ReturnType<import("svelte").Snippet>;
+	}
+	const assetObjs: AssetObject[] = $derived(
+		assetOptions.map((opt) => ({
+			...opt.coin,
+			snippet: assetCard,
+			snippetData: opt
+		}))
+	);
 </script>
 
 {#snippet assetCard(fromCoin: CoinOptions['coins'][number] | undefined)}
@@ -55,9 +69,10 @@
 <BasicAmountInput bind:details id={'basic-input'} />
 
 <h3>Asset</h3>
+<Select items={assetObjs} styleType={'card'}/>
 
 <h3>Send From</h3>
-<Select items={assetObjs}/>
+
 
 <style lang="scss">
 	h3 {

@@ -31,9 +31,9 @@ export function getRecipientNetworks(did: string): (IntermediaryNetwork | Networ
 }
 
 export function getMethodNetworks(method: TransferMethod) {
-	if (method == TransferMethod.vscTransfer) {
+	if (method.value === TransferMethod.vscTransfer.value) {
 		return [Network.vsc, Network.hiveMainnet];
-	} else if (method === TransferMethod.lightningTransfer) {
+	} else if (method.value === TransferMethod.lightningTransfer.value) {
 		return [Network.lightning];
 	}
 	return [];

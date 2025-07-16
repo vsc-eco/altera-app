@@ -35,7 +35,7 @@
 			{`@${getAccountNameFromDid(fromYou ? tx.ops[0].data.to : tx.ops[0].data.from)}`}
 			completed.
 			<span class="at">
-				{moment(tx.anchr_ts ? tx.anchr_ts + 'Z' : tx.first_seen).format('MMM DD H:mm')}
+				{moment(getTimestamp(tx)).format('MMM DD H:mm')}
 			</span>
 			<span class="delete">
 				<PillButton onclick={() => removeNotification(tx.id)} styleType="icon-subtle">

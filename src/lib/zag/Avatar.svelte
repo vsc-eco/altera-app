@@ -18,13 +18,15 @@
 		} else {
 			const addr = getUsernameFromDid(did);
 			fallback = addr.slice(2, 4);
-			src = `https://effigy.im/a/${addr}.svg`
+			src = `https://effigy.im/a/${addr}.svg`;
 		}
 	});
 </script>
 
 <div {...api.getRootProps()}>
-	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}>{fallback}</span>
+	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}
+		>{fallback}</span
+	>
 	<img alt={`${did ?? ''} PFP`} {src} {...api.getImageProps()} />
 </div>
 

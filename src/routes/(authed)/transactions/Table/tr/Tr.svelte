@@ -11,7 +11,7 @@
 	import { untrack } from 'svelte';
 	import { authStore, getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
-	import type { TransactionInter, TransactionOpType } from '../../txStores';
+	import { getTimestamp, type TransactionInter, type TransactionOpType } from '../../txStores';
 	import moment from 'moment';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import { addNotification } from '$lib/Topbar/notifications';
@@ -28,12 +28,15 @@
 	const {
 		ledger,
 		anchr_height: block_height,
-		anchr_ts,
+		timestamp,
 		status
 		// TODO: change to pending once it's not useful to differentiate for testing
-	} = $derived({ ...tx, status: tx.status === 'unconfirmed' ? 'unconfirmed' : tx.status });
+	} = $derived({
+		...tx,
+		status: tx.status === 'unconfirmed' ? 'unconfirmed' : tx.status,
+		timestamp: getTimestamp(tx)
+	});
 	const { data } = $derived(op);
-	const anchor_ts = $derived(anchr_ts + 'Z');
 	const {
 		from,
 		to,
@@ -135,6 +138,9 @@
 			if (t.includes('withdraw')) {
 				return 'outgoing';
 			}
+			if (t.includes('transfer')) {
+				return 'swap';
+			}
 			return 'incoming';
 		}
 		if (to == did) {
@@ -151,7 +157,7 @@
 	onkeydown={handleKeydown}
 	class="clickable-row"
 >
-	<td class="date">{moment(anchor_ts).format('MMM DD')}</td>
+	<td class="date">{moment(timestamp).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memoNoId?.toString()} {status} />
 	<Amount {amount} {direction} />
 	<Token {amount} {direction} />
@@ -176,7 +182,7 @@
 		</div>
 
 		<StatusView
-			{anchor_ts}
+			anchor_ts={timestamp}
 			memo={memo?.toString() || undefined}
 			{from}
 			{to}

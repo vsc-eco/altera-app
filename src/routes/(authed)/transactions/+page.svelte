@@ -4,6 +4,7 @@
 	import Table from './Table/Table.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { goto } from '$app/navigation';
+	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);
 	// let did = 'hive:techcoderx';
@@ -34,6 +35,9 @@
 </div>
 
 <style>
+	h1 {
+		display: flex;
+	}
 	.flex {
 		display: flex;
 		flex-direction: column;

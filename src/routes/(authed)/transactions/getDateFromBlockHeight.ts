@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { allTransactionsStore } from './txStores';
+import { allTransactionsStore, getTimestamp } from './txStores';
 import { get } from 'svelte/store';
 import { GetTransactionsStore } from '$houdini';
 const START_BLOCK = 88079516;
@@ -16,7 +16,7 @@ const updateSyncValues = (): Promise<[number, moment.Moment]> => {
 
 			if (txs.length > 0) {
 				const startBlock = txs[0].anchr_height;
-				const startTime = moment(txs[0].anchr_ts + 'Z');
+				const startTime = moment(getTimestamp(txs[0]));
 				resolve([startBlock, startTime]);
 				return;
 			}
@@ -44,7 +44,7 @@ export async function getDateFromBlockHeight(blockHeight: number, wait = false) 
 		// tries once even if wait isn't specified
 		if (txs.length > 0) {
 			startBlock = txs[0].anchr_height;
-			startTime = moment(txs[0].anchr_ts + 'Z');
+			startTime = moment(getTimestamp(txs[0]));
 		}
 	}
 	const date =
@@ -67,7 +67,7 @@ export async function getBlockHeightFromDate(
 		// tries once even if wait isn't specified
 		if (txs.length > 0) {
 			startBlock = txs[0].anchr_height;
-			startTime = moment(txs[0].anchr_ts + 'Z');
+			startTime = moment(getTimestamp(txs[0]));
 		}
 	}
 	const targetDate = moment(date);

@@ -51,7 +51,11 @@ function getAlteraID(tx: TransactionInter) {
 }
 
 export function getTimestamp(tx: TransactionInter): string {
-	return tx.anchr_ts ?? tx.first_seen;
+	const timestamp = tx.anchr_ts ?? tx.first_seen as string;
+	if (timestamp.endsWith('Z')) {
+		return timestamp;
+	}
+	return timestamp + 'Z';
 }
 
 function deduplicate(txs: TransactionInter[]) {

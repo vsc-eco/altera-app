@@ -153,7 +153,7 @@
 								status = 'Transaction format error. Please check your inputs and try again';
 							} else if (error.message.includes('network') || error.message.includes('Network')) {
 								status = 'Network error. Please check your connection and try again';
-							} else if (error.message.includes('not enough RCs')) {
+							} else if (error.message.includes('not enough RCS')) {
 								status = "Not enough Resource Credits. Please deposit HBD and try again."
 							} else {
 								status = 'Transaction failed.';

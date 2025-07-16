@@ -359,13 +359,13 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(to bottom, transparent 0%, var(--neutral-bg) 50%);
+		background: linear-gradient(to bottom, transparent 10%, var(--neutral-bg) 60%);
 		pointer-events: none;
 		z-index: 1;
 	}
 
 	.no-transactions-overlay.short {
-		background: linear-gradient(to bottom, transparent 0%, var(--neutral-bg) 80%);
+		background: linear-gradient(to bottom, transparent 10%, var(--neutral-bg) 80%);
 		align-items: end;
 	}
 

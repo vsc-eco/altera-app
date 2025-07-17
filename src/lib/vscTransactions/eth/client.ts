@@ -76,8 +76,8 @@ export type VSCTransactionOp = {
 	type: string;
 	payload: Uint8Array; // CBOR-encoded payload
 	required_auths: {
-		active: string[];
-		posting: string[];
+		active?: string[];
+		posting?: string[];
 	};
 };
 
@@ -87,8 +87,6 @@ export interface VSCTransactionContainer {
 	headers: {
 		nonce: number;
 		required_auths: string[];
-		intents: [TransactionIntent, string][];
-		type: TransactionDbType;
 		rc_limit: number;
 		net_id: string;
 	};
@@ -117,16 +115,11 @@ export type Signer<ExtraArgs extends any[] = []> = (
 	...signerArgs: ExtraArgs
 ) => SignedTransaction | Promise<SignedTransaction>;
 
-export type Signature =
-	| {
-			t: 'eip191';
-			s: string;
-	  }
-	| {
-			alg: string;
-			kid: string;
-			sig: string;
-	  };
+export type Signature = {
+	alg: string;
+	kid: string;
+	sig: string;
+};
 
 export type SignedTransaction = {
 	sigs: Signature[];
@@ -144,10 +137,6 @@ export enum TransactionDbType {
 	virtual,
 	core,
 	anchor_ref
-}
-
-export enum TransactionIntent {
-	'money.spend' = 'money.spend'
 }
 
 export interface SignatureContainer {
@@ -186,8 +175,7 @@ function createVSCTransactionOp(tx: Transaction, userId: string): VSCTransaction
 		type: tx.op,
 		payload: encodedPayload,
 		required_auths: {
-			active: [tx.payload.from],
-			posting: []
+			active: [tx.payload.from]
 		}
 	};
 }
@@ -201,8 +189,10 @@ function createVSCTransactionContainer(
 	// Collect all required auths from operations
 	const requiredAuthsSet = new Set<string>();
 	ops.forEach((op) => {
-		op.required_auths.active.forEach((auth) => requiredAuthsSet.add(auth));
-		op.required_auths.posting.forEach((auth) => requiredAuthsSet.add(auth));
+		if (op.required_auths.active)
+			op.required_auths.active.forEach((auth) => requiredAuthsSet.add(auth));
+		if (op.required_auths.posting)
+			op.required_auths.posting.forEach((auth) => requiredAuthsSet.add(auth));
 	});
 
 	return {
@@ -211,8 +201,6 @@ function createVSCTransactionContainer(
 		headers: {
 			nonce: client.nonce!,
 			required_auths: Array.from(requiredAuthsSet),
-			intents: [],
-			type: TransactionDbType.input,
 			rc_limit: 500,
 			net_id: client.netId
 		},
@@ -267,9 +255,6 @@ export async function signAndBrodcastTransaction<
 	}
 
 	if (client.nonce === null) {
-		// client.nonce = await getNonce([client.userId], `${client.api}/api/v1/graphql`).catch((err) =>
-		// 	console.log('error fetching nonce', err)
-		// );
 		const nonceStore = new GetAccountNonceStore();
 		const res = await nonceStore.fetch({ variables: { account: client.userId } });
 		client.nonce = res.data?.getAccountNonce?.nonce ?? null;
@@ -281,6 +266,8 @@ export async function signAndBrodcastTransaction<
 
 	// Create the transaction container with CBOR-encoded payloads
 	const txContainer = createVSCTransactionContainer(txs, client);
+
+	console.log("TX before encoding", txContainer);
 
 	// Create signing shell with decoded payloads for display
 	const signingShell = createSigningShell(txContainer);
@@ -302,6 +289,9 @@ export async function signAndBrodcastTransaction<
 	);
 	const txEncoded = uint8ArrayToBase64((await encodePayload(txContainer)).linkedBlock);
 
+	console.log("sigEncoded", sigEncoded);
+	console.log("txEncoded", txEncoded);
+
 	const response = await new SubmitTransactionV1Store().fetch({
 		variables: {
 			tx: txEncoded,
@@ -309,14 +299,6 @@ export async function signAndBrodcastTransaction<
 		}
 	});
 
-	// const response: AxiosResponse = await Axios.post(`${client.api}/api/v1/graphql`, {
-	// 	query: submitTxQuery,
-	// 	variables: {
-	// 		tx: txEncoded,
-	// 		sig: sigEncoded
-	// 	}
-	// });
-	console.log('response', response);
 	if (response?.data?.submitTransactionV1) {
 		const submitResult = response.data.submitTransactionV1;
 		if (!submitResult.id) {

@@ -29,11 +29,7 @@
 	});
 </script>
 
-<<<<<<< HEAD
-<div {...api.getRootProps()}>
-=======
 <div {...api.getRootProps()} class={['wrapper', {large: large?? false}]}>
->>>>>>> c6f5d20 (recipient page done)
 	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}
 		>{fallback}</span
 	>

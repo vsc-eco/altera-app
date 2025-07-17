@@ -75,10 +75,6 @@ type Transaction =
 export type VSCTransactionOp = {
 	type: string;
 	payload: Uint8Array; // CBOR-encoded payload
-	required_auths: {
-		active?: string[];
-		posting?: string[];
-	};
 };
 
 export interface VSCTransactionContainer {
@@ -90,7 +86,10 @@ export interface VSCTransactionContainer {
 		rc_limit: number;
 		net_id: string;
 	};
-	tx: VSCTransactionOp[];
+	tx: {
+		type: string;
+		payload: Uint8Array;
+	}[]
 }
 
 // Signing shell with decoded payloads for display
@@ -161,22 +160,9 @@ function createVSCTransactionOp(tx: Transaction, userId: string): VSCTransaction
 
 	const encodedPayload = encodeCborg(tx.payload);
 
-	let requiredAuths = {
-		active: [tx.payload.from],
-		posting: []
-	};
-
-	// require to auth for stake/unstake
-	if (tx.op === 'stake_hbd' || tx.op === 'unstake_hbd') {
-		requiredAuths.active.push(tx.payload.to);
-	}
-
 	return {
 		type: tx.op,
 		payload: encodedPayload,
-		required_auths: {
-			active: [tx.payload.from]
-		}
 	};
 }
 
@@ -188,12 +174,7 @@ function createVSCTransactionContainer(
 
 	// Collect all required auths from operations
 	const requiredAuthsSet = new Set<string>();
-	ops.forEach((op) => {
-		if (op.required_auths.active)
-			op.required_auths.active.forEach((auth) => requiredAuthsSet.add(auth));
-		if (op.required_auths.posting)
-			op.required_auths.posting.forEach((auth) => requiredAuthsSet.add(auth));
-	});
+	transactions.forEach(tx => requiredAuthsSet.add(tx.payload.from));
 
 	return {
 		__t: 'vsc-tx',
@@ -204,7 +185,10 @@ function createVSCTransactionContainer(
 			rc_limit: 500,
 			net_id: client.netId
 		},
-		tx: ops
+		tx: ops.map(op => ({
+			type: op.type,
+			payload: op.payload
+		}))
 	};
 }
 

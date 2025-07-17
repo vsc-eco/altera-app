@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { Check } from '@lucide/svelte';
+	import type { Api } from '@zag-js/select';
+	import type { PropTypes } from '@zag-js/svelte';
 
-	let { api, selectData } = $props();
+	type Props = {
+		api: Api<PropTypes, unknown>;
+		selectData: any[];
+		styleType?: 'default' | 'card';
+	};
+	let { api, selectData, styleType = 'default' }: Props = $props();
 </script>
 
-<ul {...api.getContentProps()}>
+<ul {...api.getContentProps()} class={{ card: styleType === 'card' }}>
 	{#each selectData as item}
-		<li {...api.getItemProps({ item })}>
+		<li {...api.getItemProps({ item })} class={{ card: styleType === 'card' }}>
 			<span {...api.getItemTextProps({ item })}>
 				{#if typeof item.snippet == 'function'}
 					{@const Snippet = item.snippet}
@@ -23,15 +30,30 @@
 </ul>
 
 <style lang="scss">
-	ul {
+	[data-part='content'] {
 		border-radius: 0.25rem;
 		background-color: var(--neutral-off-bg);
 		border: 1px solid var(--neutral-bg-accent);
 		// width: 160px;
-		padding: 0.25rem;
+		// padding: 0.25rem;
 		z-index: 5;
 	}
-	li {
+	[data-part='content'].card {
+		box-sizing: border-box;
+		background-color: var(--neutral-bg);
+		border: 1px solid var(--neutral-bg-accent-shifted);
+		z-index: 5;
+		padding: 0.5rem;
+		border-radius: 0 0 0.5rem 0.5rem;
+		max-height: var(--available-height);
+		max-width: var(--available-width);
+		overflow: auto;
+		border-top: none;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	[data-part='item'] {
 		border-radius: 0.25rem;
 		padding: 0.5rem 0.75rem;
 		display: flex;
@@ -40,7 +62,12 @@
 		justify-content: space-between;
 		cursor: pointer;
 	}
-	li[data-highlighted] {
+	[data-part='item'] {
+		background-color: var(--neutral-off-bg);
+		border: 1px solid var(--neutral-bg-accent);
+		height: 3rem;
+	}
+	[data-part='item'][data-highlighted] {
 		background-color: var(--bg-accent);
 	}
 	.check {

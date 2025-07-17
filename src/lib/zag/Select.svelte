@@ -35,7 +35,15 @@
 			defaultValue: initial ? [initial] : undefined,
 			// svelte-ignore state_referenced_locally
 			collection,
-			onValueChange
+			onValueChange,
+			positioning: styleType === 'default' ? {} : {
+				placement: 'bottom-start',
+				flip: false,
+				sameWidth: true,
+				gutter: 0,
+				shift: 0,
+				
+			}
 		}
 	);
 	const api = $derived(select.connect(service, normalizeProps));
@@ -55,15 +63,20 @@
 	});
 </script>
 
-<div {...api.getRootProps()}>
+<div {...api.getRootProps()} class={{card: styleType === 'card'}}>
 	<Toggle {api} def={initial || 'Select option'} {disabled} items={options} {styleType}></Toggle>
 
-	<div {...api.getPositionerProps()}>
-		<List {api} selectData={api.collection.items}></List>
+	<div {...api.getPositionerProps()} class={{card: styleType === 'card'}}>
+		<List {api} selectData={api.collection.items} {styleType}></List>
 	</div>
 </div>
 
 <style lang="scss">
+	[data-part='root'].card {
+		width: 100%;
+		display: flex;
+		position: relative;
+	}
 	.dropdown {
 		background-color: var(--bg-accent);
 		z-index: 5;

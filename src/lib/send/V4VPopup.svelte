@@ -2,7 +2,7 @@
 	import type { Auth } from '$lib/auth/store';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import QR from '$lib/zag/QR.svelte';
-	import { uuid } from 'uuidv4';
+	import { v4 as uuid } from 'uuid';
 	import type { CoinOnNetwork } from './sendOptions';
 	import { satsToBtc } from './units';
 	import { checkLightningSuccess, createLightningInvoice } from './v4v/v4v';

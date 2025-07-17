@@ -22,9 +22,9 @@ export function getInitialTheme(): ThemeValue {
 	return 'system';
 }
 
-export const theme = writable<ThemeInfo>(THEMES[getInitialTheme()]);
+export const themeStore = writable<ThemeInfo>(THEMES[getInitialTheme()]);
 
-theme.subscribe((value) => {
+themeStore.subscribe((value) => {
 	if (!browser) return;
 
 	localStorage.setItem('theme', value.value);

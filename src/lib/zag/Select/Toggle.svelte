@@ -20,7 +20,7 @@
 	console.log('toggle style type', styleType);
 </script>
 
-<div {...api.getControlProps()}>
+<div {...api.getControlProps()} class={{ card: styleType === 'card' }}>
 	{#if styleType === 'default'}
 		<PillButton {...triggerProps} styleType="text" {disabled}>
 			{#if typeof currentItem?.snippet == 'function'}
@@ -36,16 +36,14 @@
 			{/if}
 		</PillButton>
 	{:else}
-		<Card>
-			<button {...triggerProps}>
-				<div class="content">
-					{#if typeof currentItem?.snippet == 'function'}
-						{@const Snippet = currentItem.snippet}
-						{@render Snippet(currentItem.snippetData)}
-					{:else}
-						{api.valueAsString || def || 'Select option'}
-					{/if}
-				</div>
+		<button {...triggerProps} class={{ card: styleType === 'card' }}>
+			<div class="content">
+				{#if typeof currentItem?.snippet == 'function'}
+					{@const Snippet = currentItem.snippet}
+					{@render Snippet(currentItem.snippetData)}
+				{:else}
+					{api.valueAsString || def || 'Select option'}
+				{/if}
 				<span class="arrow">
 					{#if open}
 						<ChevronUp></ChevronUp>
@@ -53,25 +51,44 @@
 						<ChevronDown></ChevronDown>
 					{/if}
 				</span>
-			</button>
-		</Card>
+			</div>
+		</button>
 	{/if}
 </div>
 
 <style lang="scss">
-	button {
+	[data-part='control'].card {
+		flex-grow: 1;
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
+	}
+	[data-part='trigger'].card {
+		position: relative;
+		flex-grow: 1;
+		display: flex;
 		height: auto;
-		min-height: 4rem;
-		width: 100%;
-		display: flex;
 		border: none;
 		background: none;
+		width: 100%;
+		min-height: 4rem;
+		padding: 0;
+		margin: 0;
+		align-items: center;
+		justify-content: space-between;
 		&:hover {
 			cursor: pointer;
 		}
 		font: inherit;
+	}
+	.content {
+		flex-grow: 1;
+		padding: 0.5rem;
+		height: auto;
+		min-height: 3.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		background-color: var(--neutral-off-bg);
+		border: 1px solid var(--neutral-bg-accent);
+		border-radius: 0.5rem;
 	}
 </style>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Select from '$lib/zag/Select.svelte';
-	import { getInitialTheme, THEMES, theme, type ThemeValue } from '$lib/theme';
+	import { getInitialTheme, THEMES, themeStore, type ThemeValue } from '$lib/theme';
 	import { Sun, Moon, Laptop } from '@lucide/svelte';
 
 	const themeItems = [
@@ -48,7 +48,7 @@
 	items={themeItems}
 	initial={THEMES[getInitialTheme()].label}
 	onValueChange={(v) => {
-		theme.set(THEMES[v.items[0].label.toLocaleLowerCase() as ThemeValue]);
+		themeStore.set(THEMES[v.items[0].label.toLocaleLowerCase() as ThemeValue]);
 	}}
 />
 

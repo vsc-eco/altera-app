@@ -166,9 +166,13 @@
 			}
 		}
 	}
+	[data-part='content'] {
+		height: 100%;
+	}
 	form {
 		margin: auto;
 		margin-top: 3rem;
 		max-width: 42rem;
+		height: 100%;
 	}
 </style>

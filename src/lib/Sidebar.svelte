@@ -4,6 +4,7 @@
 	import { beforeNavigate } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { paths } from './paths';
+
 	beforeNavigate(() => {
 		if (visible) {
 			visible = false;

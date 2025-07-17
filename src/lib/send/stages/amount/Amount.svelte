@@ -1,18 +1,11 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
 	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
-	import {
-		Coin,
-		Network,
-		networkMap,
-		type CoinOptions,
-		type SendDetails
-	} from '$lib/send/sendOptions';
+	import { Coin, networkMap, type CoinOptions, type SendDetails } from '$lib/send/sendOptions';
 	import { getMethodNetworks } from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
-	import { optimism } from 'viem/chains';
+	import AccountInfo from '../AccountInfo.svelte';
 	import AssetInfo from '../AssetInfo.svelte';
-	import type { Snippet } from 'svelte';
 
 	let auth = $authStore;
 	let {
@@ -47,7 +40,7 @@
 	});
 	interface AssetObject extends Coin {
 		snippetData: CoinOptions['coins'][number];
-		snippet: (...args: any[]) => ReturnType<import("svelte").Snippet>;
+		snippet: (...args: any[]) => ReturnType<import('svelte').Snippet>;
 	}
 	const assetObjs: AssetObject[] = $derived(
 		assetOptions.map((opt) => ({
@@ -60,21 +53,32 @@
 
 {#snippet assetCard(fromCoin: CoinOptions['coins'][number] | undefined)}
 	{#if fromCoin}
-    	<AssetInfo coinOpt={fromCoin}/>
+		<AssetInfo coinOpt={fromCoin} />
 	{/if}
 {/snippet}
 
-<h2>Amount</h2>
-<h3>Recipient Gets</h3>
-<BasicAmountInput bind:details id={'basic-input'} />
+{#snippet accountCard(fromCoin: CoinOptions['coins'][number] | undefined)}
+	{#if fromCoin}
+		<!-- <AccountInfo /> -->
+	{/if}
+{/snippet}
 
-<h3>Asset</h3>
-<Select items={assetObjs} styleType={'card'}/>
+<div class="wrapper">
+	<h2>Amount</h2>
+	<h3>Recipient Gets</h3>
+	<BasicAmountInput bind:details id={'basic-input'} />
 
-<h3>Send From</h3>
+	<h3>Asset</h3>
+	<Select items={assetObjs} styleType="card" />
 
+	<h3>Send From</h3>
+</div>
 
 <style lang="scss">
+	.wrapper {
+		min-height: 75vh;
+		overflow-y: auto;
+	}
 	h3 {
 		margin-top: 2rem;
 		color: var(--neutral-fg);

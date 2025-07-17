@@ -19,21 +19,25 @@
 
 	let inUsd = $state('');
 	let error = $state('');
-	let coinAmount = $derived(new CoinAmount(details.fromAmount, details.fromCoin?.coin ?? coins.usd));
-	const currentCoin = coins.usd;
+	let currentCoin = $state.raw(coins.usd);
+	let coinAmount = $derived(new CoinAmount(details.fromAmount, currentCoin));
 	let boundAmount: string | null = $state(null);
 
 	const maxField: BalanceOption | undefined = $derived.by(() => {
-		if (!details.fromCoin) return undefined;
-		if (isValidBalanceField(details.fromCoin.coin.value)) {
-			return details.fromCoin.coin.value as BalanceOption;
+		if (!currentCoin) return undefined;
+		if (isValidBalanceField(currentCoin.value)) {
+			return currentCoin.value as BalanceOption;
 		}
 	});
-	let showMax = $derived(maxField !== undefined);
+	let showMax = $derived(
+		maxField !== undefined &&
+			new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toAmountString() !==
+				new CoinAmount(boundAmount ?? 0, currentCoin).toAmountString()
+	);
 	$effect(() => {
 		// makes it reactive to boundAmount, which is only in a "then" otherwise
-		const newCoin = details.fromCoin;
-		if (!newCoin) {
+		const newCoinOpt = details.fromCoin;
+		if (!newCoinOpt) {
 			return;
 		}
 		untrack(() => {
@@ -42,13 +46,14 @@
 				return;
 			}
 			originalAmount
-				.convertTo(newCoin.coin, Network.lightning)
+				.convertTo(newCoinOpt.coin, Network.lightning)
 				.then((amount) => {
 					details.fromAmount = amount.toAmountString(true);
+					boundAmount = details.fromAmount;
 				})
-				.catch(() => {
-				});
+				.catch(() => {});
 		});
+		currentCoin = newCoinOpt.coin;
 	});
 	$effect(() => {
 		if (!boundAmount) {
@@ -65,31 +70,43 @@
 
 	let maxBalance = $derived.by(() => {
 		if (maxField && details.fromCoin) {
-			return new CoinAmount($accountBalance.bal[maxField], details.fromCoin.coin, true).toAmountString();
+			return new CoinAmount(
+				$accountBalance.bal[maxField],
+				details.fromCoin.coin,
+				true
+			).toAmountString();
 		}
 		return undefined;
 	});
 
+	$effect(() => {
+		console.log('fromAmt, boundAmt', details.fromAmount, boundAmount);
+	});
+
 	function setToMax() {
 		details.fromAmount = maxBalance ?? '0';
+		boundAmount = maxBalance ?? '0';
 	}
 </script>
 
-<label for={id}>
-	<span>
-		{#if maxField}
-			<span style="white-space: nowrap;">
-				(Balance:
-				<span class="balance-amount">
-					{new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toPrettyString()}
-				</span>)
-			</span>
-		{/if}
-	</span>
-</label>
-
-	<div class='amount-input'>
-		<CoinNetworkIcon coin={details.fromCoin?.coin ?? coins.usd} network={details.fromNetwork ?? Network.unknown} />
+<div class="wrapper">
+	<label for={id}>
+		<span>
+			{#if maxField}
+				<span style="white-space: nowrap;">
+					(Balance:
+					<span class="balance-amount">
+						{new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toPrettyString()}
+					</span>)
+				</span>
+			{/if}
+		</span>
+	</label>
+	<div class="amount-input">
+		<CoinNetworkIcon
+			coin={details.fromCoin?.coin ?? coins.usd}
+			network={details.fromNetwork ?? Network.unknown}
+		/>
 		<input
 			min="0.000000001"
 			max={maxBalance}
@@ -109,13 +126,10 @@
 			}}
 			oninput={(e) => {
 				error = '';
-				if (maxField && Number(details.fromAmount) > $accountBalance.bal[maxField]) {
-					error = 'Amount exceeds available balance.';
-				}
 			}}
 			onchange={() => {
-				if (maxField && Number(details.fromAmount) > $accountBalance.bal[maxField]) {
-					error = 'Amount exceeds available balance.';
+				if (boundAmount) {
+					details.fromAmount = new CoinAmount(boundAmount, currentCoin).toAmountString();
 				}
 			}}
 			required={true}
@@ -135,40 +149,30 @@
 			{currentCoin.label}
 		</div>
 	</div>
-	{#if boundAmount}
-		<span class="approx-usd">
-			Approx. USD value:
-			{#if details.fromCoin?.coin.value != Coin.unk.value}
-				${inUsd}
-			{:else}
-				Unknown
-			{/if}
-		</span>
-	{/if}
+	<span class={["approx-usd", {hidden: !maxField}]}>
+		Approx. USD value:
+		{#if details.fromCoin?.coin.value != Coin.unk.value}
+			${inUsd}
+		{:else}
+			Unknown
+		{/if}
+	</span>
 	{#if error != ''}
 		<span class="error">
 			{error}
 		</span>
 	{/if}
+</div>
 
 <style lang="scss">
-	.approx-usd {
-		text-wrap: wrap;
-		color: var(--neutral-fg-mid);
-		font-size: var(--text-sm);
-		margin-bottom: 0;
+	.wrapper {
+		position: relative;
 	}
 	label {
-		--bg: var(--neutral-off-bg);
-		display: block;
-		margin-left: 0;
-		flex-grow: 1;
-		width: 100%;
-		flex-basis: 30%;
-		> span {
-			display: inline-block;
-			margin: 0.5rem;
-		}
+		position: absolute;
+		top: 0;
+		right: 0;
+		translate: -0.5rem -1.75rem;
 	}
 	.balance-amount {
 		font-family: 'Noto Sans Mono Variable', monospace;
@@ -223,5 +227,14 @@
 	.coin-label {
 		width: 4rem;
 		text-align: center;
+	}
+	.approx-usd {
+		text-wrap: wrap;
+		color: var(--neutral-fg-mid);
+		font-size: var(--text-sm);
+		margin-bottom: 0;
+		&.hidden {
+			visibility: hidden;
+		}
 	}
 </style>

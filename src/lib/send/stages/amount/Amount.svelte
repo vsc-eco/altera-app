@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
 	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
-	import { Coin, networkMap, type CoinOptions, type SendDetails } from '$lib/send/sendOptions';
-	import { getMethodNetworks } from '$lib/send/sendUtils';
+	import swapOptions, { Coin, Network, networkMap, SendAccount, type CoinOptions, type SendDetails } from '$lib/send/sendOptions';
+	import { getFromOptions, getMethodNetworks } from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
 	import AccountInfo from '../AccountInfo.svelte';
 	import AssetInfo from '../AssetInfo.svelte';
@@ -14,9 +14,8 @@
 		details: SendDetails;
 	} = $props();
 
-	$effect(() => {
-		console.log(details.fromAmount);
-	});
+	const assetAllowedNetworks: Network[] | undefined = $state();
+	const accountAllowedNetworks: Network[] | undefined = $state();
 
 	const networkOptions = $derived(details.method ? getMethodNetworks(details.method) : []);
 	const assetOptions: CoinOptions['coins'] = $derived.by(() => {
@@ -49,6 +48,18 @@
 			snippetData: opt
 		}))
 	);
+	const fromOptions = $derived(getFromOptions(details.method, auth.value?.did));
+	interface AccountObject extends SendAccount {
+		snippetData: SendAccount;
+		snippet: (...args: any[]) => ReturnType<import('svelte').Snippet>;
+	}
+	const accountOptions: AccountObject[] = $derived(
+		fromOptions?.accounts.map(opt => ({
+			...opt,
+			snippet: accountCard,
+			snippetData: opt
+		})) ?? []
+	);
 </script>
 
 {#snippet assetCard(fromCoin: CoinOptions['coins'][number] | undefined)}
@@ -57,9 +68,9 @@
 	{/if}
 {/snippet}
 
-{#snippet accountCard(fromCoin: CoinOptions['coins'][number] | undefined)}
-	{#if fromCoin}
-		<!-- <AccountInfo /> -->
+{#snippet accountCard(account: SendAccount | undefined)}
+	{#if account}
+		<AccountInfo {account}/>
 	{/if}
 {/snippet}
 
@@ -69,9 +80,12 @@
 	<BasicAmountInput bind:details id={'basic-input'} />
 
 	<h3>Asset</h3>
-	<Select items={assetObjs} styleType="card" />
+	<Select items={assetObjs} styleType="card" onValueChange={v => {
+		details.fromCoin = swapOptions.from.coins.find(val => val.coin.value === v.value[0]);
+	}}/>
 
 	<h3>Send From</h3>
+	<Select items={accountOptions} styleType="card" />
 </div>
 
 <style lang="scss">

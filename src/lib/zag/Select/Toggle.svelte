@@ -17,7 +17,6 @@
 	let currentItem: any | undefined = $derived(
 		items?.find((item) => item.label === api.valueAsString)
 	);
-	console.log('toggle style type', styleType);
 </script>
 
 <div {...api.getControlProps()} class={{ card: styleType === 'card' }}>

@@ -2,6 +2,8 @@ import type { Auth } from '../auth/store';
 import { getV4VMetadata } from './v4v/api-types/metadata';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 import { Record } from '$houdini/runtime/public/record';
+import { BadgeDollarSign, type Icon as LucideIcon } from '@lucide/svelte';
+import type { SvelteComponent } from 'svelte';
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
@@ -269,37 +271,67 @@ export type SendDetails = {
 };
 
 export type TransferMethod = {
-	label: string,
-	value: string,
-	length: string,
-	fees: string
-}
+	label: string;
+	value: string;
+	length: string;
+	fees: string;
+};
 
 const vscTransfer: TransferMethod = {
-	label: "VSC Transfer",
-	value: "vsc-transfer",
-	length: "Instant",
-	fees: "No Fees"
-}
+	label: 'VSC Transfer',
+	value: 'vsc-transfer',
+	length: 'Instant',
+	fees: 'No Fees'
+};
 
 const lightningTransfer: TransferMethod = {
-	label: "Lightning Network",
-	value: "lightning",
-	length: "About a Minute",
-	fees: "2% Fee"
-}
+	label: 'Lightning Network',
+	value: 'lightning',
+	length: 'About a Minute',
+	fees: '2% Fee'
+};
 
 export const TransferMethod = {
 	vscTransfer,
 	lightningTransfer
-}
+};
 
 export const networkMap: Map<Network, Coin[]> = new Map([
-	[Network.vsc, [Coin.hive, Coin.hbd, Coin.shbd]], 
-	[Network.hiveMainnet, [Coin.hive, Coin.hbd]], 
+	[Network.vsc, [Coin.hive, Coin.hbd, Coin.shbd]],
+	[Network.hiveMainnet, [Coin.hive, Coin.hbd]],
 	[Network.lightning, [Coin.btc]]
-])
+]);
 
+export type SendAccount = {
+	value: string;
+	label: string;
+	icon?: string;
+	fee?: string;
+};
+
+const vscAccount: SendAccount = {
+	label: 'VSC Account',
+	value: 'vsc-account',
+	icon: '/vsc.png'
+};
+
+const deposit: SendAccount = {
+	label: 'Deposit',
+	value: 'deposit',
+	fee: '0-3%'
+};
+
+const swap: SendAccount = {
+	label: 'Swap',
+	value: 'swap',
+	fee: '0-3%'
+};
+
+export const SendAccount = {
+	vscAccount,
+	deposit,
+	swap
+};
 
 const swapOptions: {
 	from: CoinOptions;
@@ -316,8 +348,13 @@ const swapOptions: {
 				networks: [vsc, hiveMainnet]
 			},
 			{
+				coin: shbd,
+				networks: [vsc]
+			},
+			{
 				coin: btc,
-				networks: [lightning, btcMainnet]
+				// networks: [lightning, btcMainnet]
+				networks: [lightning]
 			}
 		]
 	},

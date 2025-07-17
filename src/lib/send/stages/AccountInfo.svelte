@@ -1,36 +1,61 @@
 <script lang="ts">
-	import { Network, type Coin, type CoinOptions, type IntermediaryNetwork } from "../sendOptions";
+	import { ArrowRightLeft, BadgeDollarSign } from "@lucide/svelte";
+	import { Network, SendAccount, type Coin, type CoinOptions, type IntermediaryNetwork } from "../sendOptions";
+	import { sumBalance } from "$lib/stores/balanceHistory";
+	import { accountBalance } from "$lib/stores/currentBalance";
 
     let {
-        coinOpt,
-        depositNetworks
+		account,
     } : {
-        coinOpt: CoinOptions['coins'][number];
-        depositNetworks: (Network | IntermediaryNetwork)[];
+		account: SendAccount;
     } = $props();
 
 	const vsc = Network.vsc;
+
+	let balance = $state(0);
+	$effect(() => {
+		sumBalance($accountBalance.bal)
+		.then((bal) => {
+			balance = bal;
+		})
+	})
 </script>
 
-<!-- <div class="wrapper">
-    <img src={network.icon} alt={network.label} class={{ large: !adjacent }} />
+{#snippet accountImg(acc: SendAccount)}
+	<div class="icon">
+		{#if acc.icon}
+			<img src={acc.icon} alt={acc.label} />
+		{:else if acc.value === 'deposit'}
+			<BadgeDollarSign strokeWidth={1.5} absoluteStrokeWidth={true}/>
+		{:else if acc.value === 'swap'}
+			<ArrowRightLeft strokeWidth={1.5} absoluteStrokeWidth={true}/>
+		{/if}
+	</div>
+{/snippet}
+
+<div class="wrapper">
+    {@render accountImg(account)}
 	<div class="name-details">
 		<span class="name">
-			{network.label}
+			{account.label}
 		</span>
-		<div class={['details', { adjacent: adjacent }]}>
-			<span class="available-addresses">{numAssets}</span>
-			<span class="last-paid">
-				Last paid
-				{lastPaid}
-			</span>
+		<div class='details'>
+			{#if account.value === 'vsc-account'}
+				<span>{balance}</span>
+			{:else if account.fee}
+				<span>Fee: {account.fee}</span>
+			{/if}
 		</div>
 	</div>
-</div> -->
+</div>
 
-<style>
-	img {
-		width: 2.5rem;
+<style lang="scss">
+	.icon {
+		img,
+		:global(.lucide-icon) {
+			width: 2.5rem;
+			height: 2.5rem;
+		}
 	}
 	.wrapper {
 		display: flex;
@@ -42,6 +67,7 @@
 		flex-direction: column;
 	}
 	.details {
+		text-align: left;
 		display: flex;
 		flex-direction: row;
 		align-items: center;

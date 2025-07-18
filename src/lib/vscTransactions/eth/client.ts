@@ -251,7 +251,7 @@ export async function signAndBrodcastTransaction<
 	// Create the transaction container with CBOR-encoded payloads
 	const txContainer = createVSCTransactionContainer(txs, client);
 
-	console.log("TX before encoding", txContainer);
+	// console.log("TX before encoding", txContainer);
 
 	// Create signing shell with decoded payloads for display
 	const signingShell = createSigningShell(txContainer);
@@ -273,8 +273,8 @@ export async function signAndBrodcastTransaction<
 	);
 	const txEncoded = uint8ArrayToBase64((await encodePayload(txContainer)).linkedBlock);
 
-	console.log("sigEncoded", sigEncoded);
-	console.log("txEncoded", txEncoded);
+	// console.log("sigEncoded", sigEncoded);
+	// console.log("txEncoded", txEncoded);
 
 	const response = await new SubmitTransactionV1Store().fetch({
 		variables: {
@@ -289,7 +289,7 @@ export async function signAndBrodcastTransaction<
 			throw new Error(`No transaction ID found.`);
 		}
 		client.nonce!++;
-		// console.log(submitResult);
+		// // console.log(submitResult);
 		return {
 			id: submitResult.id
 		};

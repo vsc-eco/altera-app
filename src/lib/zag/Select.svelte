@@ -32,7 +32,7 @@
 		untrack(() => select.machine),
 		{
 			id: getUniqueId(),
-			defaultValue: initial ? [initial] : undefined,
+			defaultValue: initial ? [initial] : options.length === 1 ? options[0].value : undefined,
 			// svelte-ignore state_referenced_locally
 			collection,
 			onValueChange,
@@ -44,12 +44,12 @@
 							flip: false,
 							sameWidth: true,
 							gutter: 0,
-							shift: 0,
+							shift: 0
 						}
 		}
 	);
 	const api = $derived(select.connect(service, normalizeProps));
-	$inspect(options);
+	// $inspect(options);
 	$effect(() => {
 		// api.collection.setItems(options);
 		api.collection.items = options;
@@ -62,6 +62,14 @@
 		} else {
 			untrack(() => api.clearValue());
 		}
+	});
+	$effect(() => {
+		const newOptions = options;
+		untrack(() => {
+			if (!newOptions.find((opt) => opt.value === api.value[0])) {
+				api.clearValue();
+			}
+		});
 	});
 </script>
 

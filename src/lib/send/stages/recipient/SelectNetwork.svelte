@@ -113,7 +113,7 @@
 
 	function save() {
 		if (tmpNetwork) {
-			network = tmpNetwork;
+			network = {...tmpNetwork};
 		}
 		close();
 	}
@@ -137,7 +137,7 @@
 <SendTitle {close} />
 <div class="wrapper">
 	<div class="select">
-		<h2>Select a Recipient</h2>
+		<h2>Select a Network</h2>
 		<span class="sm-label">Search</span>
 		<div class="search">
 			<ComboBox

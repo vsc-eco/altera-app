@@ -1,8 +1,15 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
 	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
-	import swapOptions, { Coin, Network, networkMap, SendAccount, type CoinOptions, type SendDetails } from '$lib/send/sendOptions';
-	import { getFromOptions, getMethodNetworks } from '$lib/send/sendUtils';
+	import swapOptions, {
+		Coin,
+		SendAccount,
+		sendAccountOptions,
+		type CoinOptions,
+		type SendDetails
+	} from '$lib/send/sendOptions';
+	import { solveNetworkConstraints } from '$lib/send/sendUtils';
+	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import AccountInfo from '../AccountInfo.svelte';
 	import AssetInfo from '../AssetInfo.svelte';
@@ -14,29 +21,10 @@
 		details: SendDetails;
 	} = $props();
 
-	const assetAllowedNetworks: Network[] | undefined = $state();
-	const accountAllowedNetworks: Network[] | undefined = $state();
+	const { assetOptions, accountOptions, networkOptions } = $derived(
+		solveNetworkConstraints(details.method, details.fromCoin, auth.value?.did, details.account)
+	);
 
-	const networkOptions = $derived(details.method ? getMethodNetworks(details.method) : []);
-	const assetOptions: CoinOptions['coins'] = $derived.by(() => {
-		let result: CoinOptions['coins'] = [];
-		console.log('network options', networkOptions);
-		for (const net of networkOptions) {
-			const coins = networkMap.get(net);
-			if (!coins) continue;
-			for (const coin of coins) {
-				const entry = result.find((item) => item.coin.value === coin.value);
-				if (entry) {
-					if (entry.networks.find((item) => item.value === net.value)) continue;
-					entry.networks.push(net);
-				} else {
-					result.push({ coin: coin, networks: [net] });
-				}
-			}
-		}
-		console.log('assetOptions', result);
-		return result;
-	});
 	interface AssetObject extends Coin {
 		snippetData: CoinOptions['coins'][number];
 		snippet: (...args: any[]) => ReturnType<import('svelte').Snippet>;
@@ -48,17 +36,46 @@
 			snippetData: opt
 		}))
 	);
-	const fromOptions = $derived(getFromOptions(details.method, auth.value?.did));
+	// const fromOptions = $derived(getFromOptions(details.method, auth.value?.did));
 	interface AccountObject extends SendAccount {
 		snippetData: SendAccount;
 		snippet: (...args: any[]) => ReturnType<import('svelte').Snippet>;
 	}
-	const accountOptions: AccountObject[] = $derived(
-		fromOptions?.accounts.map(opt => ({
+	const accountObjs: AccountObject[] = $derived(
+		accountOptions.map((opt) => ({
 			...opt,
 			snippet: accountCard,
 			snippetData: opt
 		})) ?? []
+	);
+
+	$effect(() => {
+		if (networkOptions.length === 1) {
+			if (details.fromNetwork?.value !== networkOptions[0].value) {
+				details.fromNetwork = networkOptions[0];
+			}
+		} else {
+			details.fromNetwork = undefined;
+		}
+	});
+
+	let toCoinValue = $state('');
+	$effect(() => {
+		if (details.account?.value === SendAccount.swap.value && toCoinValue) {
+			details.toCoin = swapOptions.to.coins.find((coin) => coin.coin.value === toCoinValue);
+		} else {
+			details.toCoin = details.fromCoin;
+		}
+	});
+	let toCoinOptions = $derived(
+		swapOptions.to.coins.map((opt) => {
+			return {
+				icon: opt.coin.icon,
+				value: opt.coin.value,
+				label: opt.coin.label,
+				snippet: radioLabel
+			};
+		})
 	);
 </script>
 
@@ -70,8 +87,13 @@
 
 {#snippet accountCard(account: SendAccount | undefined)}
 	{#if account}
-		<AccountInfo {account}/>
+		<AccountInfo {account} currentCoin={details.fromCoin?.coin} />
 	{/if}
+{/snippet}
+
+{#snippet radioLabel(info: { icon: string; label: string })}
+	<img width="16" src={info.icon} alt="" />
+	{info.label}
 {/snippet}
 
 <div class="wrapper">
@@ -80,12 +102,38 @@
 	<BasicAmountInput bind:details id={'basic-input'} />
 
 	<h3>Asset</h3>
-	<Select items={assetObjs} styleType="card" onValueChange={v => {
-		details.fromCoin = swapOptions.from.coins.find(val => val.coin.value === v.value[0]);
-	}}/>
+	<Select
+		items={assetObjs}
+		styleType="card"
+		onValueChange={(v) => {
+			details.fromCoin = swapOptions.from.coins.find((val) => val.coin.value === v.value[0]);
+		}}
+	/>
 
 	<h3>Send From</h3>
-	<Select items={accountOptions} styleType="card" />
+	<Select
+		items={accountObjs}
+		styleType="card"
+		onValueChange={(v) => {
+			details.account = sendAccountOptions.find((acc) => acc.value === v.value[0]);
+		}}
+	/>
+
+	{#if details.account?.value === SendAccount.swap.value}
+		<div class="to-coin">
+			<RadioGroup required id={'network'} bind:value={toCoinValue} items={toCoinOptions} />
+		</div>
+	{/if}
+
+	{#if details.fromNetwork}
+		<div class="from-network">
+			<span class="sm-caption">Sending From Network:</span>
+			<div class="network-details">
+				<img src={details.fromNetwork.icon} alt={details.fromNetwork.label} />
+				{details.fromNetwork.label}
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style lang="scss">
@@ -99,5 +147,26 @@
 		font-size: var(--text-1xl);
 		margin-bottom: 0.5rem;
 		font-weight: 450;
+	}
+	.sm-caption {
+		color: var(--neutral-mid);
+		font-size: var(--text-sm);
+	}
+	.from-network {
+		margin-top: 2rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		.network-details {
+			img {
+				width: 2rem;
+			}
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
+	}
+	.to-coin {
+		margin-top: 1rem;
 	}
 </style>

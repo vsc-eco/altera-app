@@ -114,13 +114,13 @@ export const executeTx = async (aioha: Aioha, ops: Operation[]) => {
 };
 
 export function getSendOpType(fromNetwork: Network, toNetwork: Network) {
-	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
+	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.vsc.value) {
 		return 'transfer';
 	}
-	if (fromNetwork == Network.hiveMainnet && toNetwork == Network.vsc) {
+	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.vsc.value) {
 		return 'deposit';
 	}
-	if (fromNetwork == Network.vsc && toNetwork == Network.hiveMainnet) {
+	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.hiveMainnet.value) {
 		return 'withdrawal';
 	}
 }
@@ -134,13 +134,13 @@ export const getSendOpGenerator = (
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
 	memo?: URLSearchParams
 ) => Operation) => {
-	if (fromNetwork == Network.vsc && toNetwork == Network.vsc) {
+	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.vsc.value) {
 		return getHiveTransferOp;
 	}
-	if (fromNetwork == Network.hiveMainnet && toNetwork == Network.vsc) {
+	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.vsc.value) {
 		return getHiveDepositOp;
 	}
-	if (fromNetwork == Network.vsc && toNetwork == Network.hiveMainnet) {
+	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.hiveMainnet.value) {
 		return getHiveWithdrawalOp;
 	}
 	throw new Error(

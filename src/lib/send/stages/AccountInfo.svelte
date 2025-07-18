@@ -1,23 +1,32 @@
 <script lang="ts">
 	import { ArrowRightLeft, BadgeDollarSign } from "@lucide/svelte";
-	import { Network, SendAccount, type Coin, type CoinOptions, type IntermediaryNetwork } from "../sendOptions";
-	import { sumBalance } from "$lib/stores/balanceHistory";
+	import { Coin, Network, SendAccount, type CoinOptions, type IntermediaryNetwork } from "../sendOptions";
+	import { isValidBalanceField, sumBalance, type BalanceOption } from "$lib/stores/balanceHistory";
 	import { accountBalance } from "$lib/stores/currentBalance";
+	import { CoinAmount } from "$lib/currency/CoinAmount";
 
     let {
 		account,
+		currentCoin
     } : {
 		account: SendAccount;
+		currentCoin?: Coin;
     } = $props();
 
 	const vsc = Network.vsc;
 
-	let balance = $state(0);
+	let balanceString = $state('');
 	$effect(() => {
-		sumBalance($accountBalance.bal)
-		.then((bal) => {
-			balance = bal;
-		})
+		if (currentCoin && isValidBalanceField(currentCoin.value)) {
+			const field = currentCoin.value as BalanceOption;
+			balanceString = new CoinAmount($accountBalance.bal[field], currentCoin, true).toPrettyString();
+		} else {
+			sumBalance($accountBalance.bal)
+			.then((bal) => {
+				const usdAmt = new CoinAmount(bal, Coin.usd).toPrettyAmountString();
+				balanceString = `Approx. USD value: \$${usdAmt}`;
+			})
+		}
 	})
 </script>
 
@@ -41,7 +50,7 @@
 		</span>
 		<div class='details'>
 			{#if account.value === 'vsc-account'}
-				<span>{balance}</span>
+				<span>{balanceString}</span>
 			{:else if account.fee}
 				<span>Fee: {account.fee}</span>
 			{/if}
@@ -65,6 +74,7 @@
 	.name-details {
 		display: flex;
 		flex-direction: column;
+		text-align: left;
 	}
 	.details {
 		text-align: left;

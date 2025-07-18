@@ -268,6 +268,16 @@ export type SendDetails = {
 	toUsername: string;
 	toDisplayName: string;
 	method: TransferMethod | undefined;
+	account: SendAccount | undefined;
+};
+
+export type NecessarySendDetails = {
+	fromCoin: CoinOptions['coins'][number];
+	fromNetwork: Network;
+	amount: string;
+	toCoin: CoinOptions['coins'][number];
+	toNetwork: Network;
+	toUsername: string;
 };
 
 export type TransferMethod = {
@@ -332,6 +342,8 @@ export const SendAccount = {
 	deposit,
 	swap
 };
+
+export const sendAccountOptions = [SendAccount.deposit, SendAccount.vscAccount, SendAccount.swap];
 
 const swapOptions: {
 	from: CoinOptions;

@@ -55,7 +55,20 @@
 	let method: string | undefined = $state('vsc-transfer');
 	$effect(() => {
 		details.method = transferMethods.find((mthd) => mthd.value === method);
-		untrack(() => console.log('method set', details.method));
+		untrack(() => {
+			if (details.fromNetwork) {
+				details.fromNetwork = undefined;
+			}
+			if (details.fromCoin) {
+				details.fromCoin = undefined;
+			}
+			if (details.fromAmount) {
+				details.fromAmount = '0';
+			}
+			if (details.account) {
+				details.account = undefined;
+			}
+		});
 	});
 
 	// increment through store, keep fetching more to find last paid

@@ -5,11 +5,20 @@
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from '$lib/zag/idgen';
 	import { onMount } from 'svelte';
-	import type { SendDetails } from './sendOptions';
+	import { Coin, Network, type CoinOptions, type NecessarySendDetails, type SendDetails } from './sendOptions';
 	import { goto } from '$app/navigation';
 	import SendBottomButtons from './navigation/SendNavButtons.svelte';
 	import Amount from './stages/amount/Amount.svelte';
+	import Review from './stages/review/Review.svelte';
+	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import V4VPopup from './V4VPopup.svelte';
+	import { getIntermediaryNetwork } from './getNetwork';
+	import { authStore, type Auth } from '$lib/auth/store';
+	import { send } from './sendUtils';
+	import NetworkInfo from './stages/NetworkInfo.svelte';
 
+	let auth = $authStore;
 	let windowWidth = $state(0);
 	let remValue = $state(0);
 	let currentTab = $state('recipient');
@@ -20,6 +29,8 @@
 	// size of content + 2 * (space for tabs + buffer)
 	const showTabs = $derived(windowWidth > 42 * remValue + 2 * (6.75 * remValue + 106 + 10));
 
+	let error = $state('');
+	let status = $state('');
 	let details: SendDetails = $state({
 		fromCoin: undefined,
 		fromNetwork: undefined,
@@ -28,12 +39,14 @@
 		toNetwork: undefined,
 		toUsername: '',
 		toDisplayName: '',
-		method: undefined
+		method: undefined,
+		account: undefined
 	});
 
 	const tabItems = [
 		{ value: 'recipient', label: 'Recipient', content: recipient },
-		{ value: 'amount', label: 'Amount', content: amount }
+		{ value: 'amount', label: 'Amount', content: amount },
+		{ value: 'review', label: 'Review', content: review }
 	];
 
 	const id = getUniqueId();
@@ -56,6 +69,10 @@
 		// change action for last tab
 		if (nextIndex === tabItems.length - 1) {
 			buttons.fwd.label = 'Send';
+		}
+		if (currentIndex === tabItems.length - 1) {
+			initSwap();
+			return;
 		}
 		currentTab = tabItems[nextIndex].value;
 	}
@@ -81,7 +98,63 @@
 			action: backTab
 		}
 	});
-	function initSwap(e: Event) {
+	let showV4VModal = $state.raw(false);
+	function isLikelyProxy(obj: any): boolean {
+		if (!obj || typeof obj !== 'object') return false;
+		try {
+			Object.getOwnPropertyDescriptors(obj);
+			return false;
+		} catch {
+			return true;
+		}
+	}
+	function openV4V() {
+		showV4VModal = false;
+		sleep(0).then(() => {
+			showV4VModal = true;
+		});
+	}
+	function setStatus(s: string) {
+		status = s;
+	}
+	function initSwap() {
+		console.log('in initSwap');
+		const { fromCoin, fromNetwork, fromAmount: amount, toCoin, toNetwork, toUsername } = $state.snapshot(details) as SendDetails;
+
+		if (!fromCoin || !fromNetwork || !toCoin || !toNetwork) {
+			return new Error('Required field undefined.');
+		}
+
+		console.log('fields', fromCoin, fromNetwork, toCoin, toNetwork);
+
+		const importantDetails: NecessarySendDetails = {
+			fromCoin,
+			fromNetwork,
+			amount,
+			toCoin,
+			toNetwork,
+			toUsername
+		};
+
+		let intermediary = getIntermediaryNetwork(
+			{ coin: fromCoin.coin, network: fromNetwork },
+			{ coin: toCoin.coin, network: toNetwork }
+		);
+
+		console.log('intermediary', intermediary);
+
+		if (intermediary === Network.lightning) {
+			openV4V();
+			return;
+		}
+
+		send(importantDetails, auth, intermediary, setStatus).then((res) => {
+			if (res instanceof Error) {
+				console.error(res.message);
+			} else {
+				console.log('id:', res.id);
+			}
+		});
 		return;
 	}
 </script>
@@ -100,6 +173,9 @@
 {#snippet amount()}
 	<Amount bind:details />
 {/snippet}
+{#snippet review()}
+	<Review bind:details {status} />
+{/snippet}
 
 <SendTitle close={() => goto('/')} />
 
@@ -116,8 +192,8 @@
 	{/if}
 	<form
 		class={{ complete: false }}
-		onsubmit={(e) => {
-			initSwap(e);
+		onsubmit={() => {
+			initSwap();
 		}}
 		id="send"
 	>
@@ -129,6 +205,51 @@
 	</form>
 </div>
 <SendBottomButtons {buttons} />
+
+{#if showV4VModal && details.toCoin && details.toNetwork && details.fromAmount}
+	{@const toCoin = details.toCoin}
+	{@const toNetwork = details.toNetwork}
+	{@const toAmount = details.fromAmount}
+
+	<V4VPopup
+		from={{ coin: Coin.sats, network: Network.lightning }}
+		to={{ coin: toCoin.coin, network: toNetwork }}
+		{toAmount}
+		{auth}
+		toUsername={details.toUsername}
+		onerror={(v) => {
+			error = v;
+			showV4VModal = false;
+		}}
+		onsuccess={(id) => {
+			error = '';
+			// TODO: after success notify via a notification
+			// store transaction as pending in local storage
+			addLocalTransaction({
+				ops: [
+					{
+						data: {
+							amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
+							asset: toCoin!.coin.unit.toLowerCase(),
+							from: `v4vapp`,
+							to: details.toUsername,
+							memo: `altera_id=${id}`,
+							type: 'transfer'
+						},
+						type: 'transfer',
+						index: 0
+					}
+				],
+				timestamp: new Date(),
+				id: id,
+				type: 'v4v'
+			});
+			setTimeout(() => {
+				showV4VModal = false;
+			}, 10000);
+		}}
+	/>
+{/if}
 
 <style lang="scss">
 	[data-part='list'] {

@@ -30,7 +30,7 @@
 		}
 	});
 	let showMax = $derived(
-		maxField !== undefined &&
+		maxField !== undefined && details.fromNetwork?.value === Network.vsc.value && 
 			new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toAmountString() !==
 				new CoinAmount(boundAmount ?? 0, currentCoin).toAmountString()
 	);
@@ -38,6 +38,8 @@
 		// makes it reactive to boundAmount, which is only in a "then" otherwise
 		const newCoinOpt = details.fromCoin;
 		if (!newCoinOpt) {
+			boundAmount = null;
+			currentCoin = coins.usd;
 			return;
 		}
 		untrack(() => {
@@ -79,10 +81,6 @@
 		return undefined;
 	});
 
-	$effect(() => {
-		console.log('fromAmt, boundAmt', details.fromAmount, boundAmount);
-	});
-
 	function setToMax() {
 		details.fromAmount = maxBalance ?? '0';
 		boundAmount = maxBalance ?? '0';
@@ -92,7 +90,7 @@
 <div class="wrapper">
 	<label for={id}>
 		<span>
-			{#if maxField}
+			{#if showMax && maxField}
 				<span style="white-space: nowrap;">
 					(Balance:
 					<span class="balance-amount">
@@ -149,7 +147,7 @@
 			{currentCoin.label}
 		</div>
 	</div>
-	<span class={["approx-usd", {hidden: !maxField}]}>
+	<span class={["approx-usd", {hidden: !(details.fromCoin && boundAmount)}]}>
 		Approx. USD value:
 		{#if details.fromCoin?.coin.value != Coin.unk.value}
 			${inUsd}
@@ -233,6 +231,7 @@
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-sm);
 		margin-bottom: 0;
+		line-height: 1.2;
 		&.hidden {
 			visibility: hidden;
 		}

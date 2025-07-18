@@ -19,13 +19,9 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
 	import { addLocalTransaction } from './localStorageTxs';
-	import { idchain } from 'viem/chains';
-	import { uuid } from 'uuidv4';
 	import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/eth/client';
 	import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
-	import { type Config, getAccount } from '@wagmi/core';
-	import { wagmiConfig, modal } from '$lib/auth/reown';
-	import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
+	import { wagmiConfig } from '$lib/auth/reown';
 
 	let { widgetView, hideToUsername }: { widgetView?: boolean; hideToUsername?: boolean } = $props();
 	let auth = $derived(getAuth()());

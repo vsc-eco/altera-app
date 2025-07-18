@@ -4,6 +4,7 @@ import type { Signer } from './client';
 import { type Config, signTypedData, getAccount } from '@wagmi/core';
 import { convertCBORToEIP712TypedData } from './cbor_to_eip712_converter';
 import type { VSCTransactionSigningShell, Client } from './client';
+import { hashTypedData } from 'viem';
 
 export const wagmiSigner: Signer<[Config]> = async (
 	signingShell: VSCTransactionSigningShell,
@@ -33,7 +34,10 @@ export const wagmiSigner: Signer<[Config]> = async (
 
 	try {
 		const encodedShell = encode(signingShell);
+
 		const types = convertCBORToEIP712TypedData('vsc.network', encodedShell, 'tx_container_v0');
+
+		// console.log("hashed data", hashTypedData(types));
 
 		// console.log('EIP712 typed data:', JSON.stringify(types, null, 2));
 
@@ -52,7 +56,7 @@ export const wagmiSigner: Signer<[Config]> = async (
 
 		const rawTx = (await encodePayload(signingShell)).linkedBlock;
 
-		// console.log('Raw transaction encoded, length:', rawTx.length);
+		// // console.log('Raw transaction encoded, length:', rawTx.length);
 		// console.log('=== Signing Complete ===');
 
 		return {
@@ -60,8 +64,8 @@ export const wagmiSigner: Signer<[Config]> = async (
 			rawTx
 		};
 	} catch (error) {
-		// console.error('=== Signing Failed ===');
-		// console.error('Error details:', error);
+		console.error('=== Signing Failed ===');
+		console.error('Error details:', error);
 
 		if (error instanceof Error) {
 			if (error.message.includes('User rejected')) {

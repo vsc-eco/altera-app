@@ -17,10 +17,16 @@
 	let { items: options, initial, onValueChange, styleType = 'default', disabled }: Props = $props();
 	// pass items with snippet and snippetData in order to render a snippet and not just the label
 
+	let currentOptions = options;
+
+	function getValue(opt: Option): string {
+		return opt.value ?? opt.label;
+	}
+
 	const collection = select.collection({
 		items: options as Option[],
 		itemToString: (item) => item.label,
-		itemToValue: (item) => item.value ?? item.label
+		itemToValue: getValue
 	});
 	const userProps = $derived({
 		id: getUniqueId(),
@@ -32,7 +38,7 @@
 		untrack(() => select.machine),
 		{
 			id: getUniqueId(),
-			defaultValue: initial ? [initial] : options.length === 1 ? options[0].value : undefined,
+			defaultValue: initial ? [initial] : undefined,
 			// svelte-ignore state_referenced_locally
 			collection,
 			onValueChange,
@@ -49,27 +55,33 @@
 		}
 	);
 	const api = $derived(select.connect(service, normalizeProps));
-	// $inspect(options);
+
 	$effect(() => {
-		// api.collection.setItems(options);
 		api.collection.items = options;
 	});
 	$effect(() => {
 		if (initial) {
-			untrack(() => {
-				api.selectValue(initial);
-			});
+			untrack(() => api.selectValue(initial));
 		} else {
 			untrack(() => api.clearValue());
 		}
 	});
+
+	// clears the value if the options change
 	$effect(() => {
 		const newOptions = options;
-		untrack(() => {
-			if (!newOptions.find((opt) => opt.value === api.value[0])) {
-				api.clearValue();
-			}
-		});
+		const newVals = new Set(newOptions.map((opt) => getValue(opt)));
+		const currentVals = new Set(currentOptions.map((opt) => getValue(opt)));
+		if (newVals.difference(currentVals).size > 0 || currentVals.difference(newVals).size > 0) {
+			untrack(() => {
+				if (newOptions.length === 1) {
+					api.setValue([getValue(newOptions[0])]);
+				} else if (api.value.length > 0 && !newOptions.find((opt) => opt.value === api.value[0])) {
+					api.clearValue();
+				}
+			});
+			currentOptions = newOptions;
+		}
 	});
 </script>
 

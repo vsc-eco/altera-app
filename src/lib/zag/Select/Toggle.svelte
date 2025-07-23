@@ -17,6 +17,7 @@
 	let currentItem: any | undefined = $derived(
 		items?.find((item) => item.label === api.valueAsString)
 	);
+	let defOpt = $derived(items?.find((item) => (item.value ?? item.lable) === def));
 </script>
 
 <div {...api.getControlProps()} class={{ card: styleType === 'card' }}>
@@ -25,6 +26,9 @@
 			{#if typeof currentItem?.snippet == 'function'}
 				{@const Snippet = currentItem.snippet}
 				{@render Snippet(currentItem.snippetData)}
+			{:else if typeof defOpt?.snippet == 'function'}
+				{@const Snippet = defOpt.snippet}
+				{@render Snippet(defOpt.snippetData)}
 			{:else}
 				{api.valueAsString || def || 'Select option'}
 			{/if}

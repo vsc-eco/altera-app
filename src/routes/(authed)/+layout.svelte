@@ -23,7 +23,6 @@
 		localStorage.setItem('last_connection', auth.value.provider);
 	});
 	$effect(() => {
-		console.log($loginRetry);
 		if ($loginRetry === 'logout') return;
 		if ($loginRetry === 'cooldown') {
 			if (auth.value) {

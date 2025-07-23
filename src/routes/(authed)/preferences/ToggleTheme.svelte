@@ -6,16 +6,19 @@
 	const themeItems = [
 		{
 			label: 'System',
+			value: 'system',
 			snippet: system,
 			snippetData: 'System Preference'
 		},
 		{
 			label: 'Light',
+			value: 'light',
 			snippet: light,
 			snippetData: 'Light'
 		},
 		{
 			label: 'Dark',
+			value: 'dark',
 			snippet: dark,
 			snippetData: 'Dark'
 		}
@@ -46,7 +49,7 @@
 <h2>Theme</h2>
 <Select
 	items={themeItems}
-	initial={THEMES[getInitialTheme()].label}
+	initial={THEMES[getInitialTheme()].value}
 	onValueChange={(v) => {
 		themeStore.set(THEMES[v.items[0].label.toLocaleLowerCase() as ThemeValue]);
 	}}

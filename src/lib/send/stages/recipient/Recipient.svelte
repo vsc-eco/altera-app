@@ -5,45 +5,58 @@
 	import Card from '$lib/cards/Card.svelte';
 	import moment from 'moment';
 	import { vscTxsStore, waitForExtend } from '$lib/stores/txStores';
-	import type { SendDetails } from '$lib/send/sendOptions';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import SelectContact from './SelectContact.svelte';
 	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
 	import { untrack } from 'svelte';
 	import ContactInfo from '../ContactInfo.svelte';
-	import { getDisplayName, getRecipientNetworks } from '../../sendUtils';
+	import { getDisplayName, getRecipientNetworks, SendTxDetails } from '../../sendUtils';
 	import SelectNetwork from './SelectNetwork.svelte';
 	import { Network, TransferMethod } from '../../sendOptions';
 	import NetworkInfo from '../NetworkInfo.svelte';
 	import ComboBox from '$lib/zag/ComboBox.svelte';
 
 	let {
-		details = $bindable()
+		id,
+		editStage
 	}: {
-		details: SendDetails;
+		id: string;
+		editStage: (id: string, add: boolean) => void;
 	} = $props();
+
 	const auth = $authStore;
+
+	$effect(() => {
+		if ($SendTxDetails.method && $SendTxDetails.toUsername && $SendTxDetails.toNetwork) {
+			editStage(id, true);
+		} else {
+			editStage(id, false);
+		}
+	});
 	$effect(() => {
 		if (!auth.value) return;
 		untrack(() => {
-			details.toUsername = getUsernameFromDid(auth.value!.did);
-			details.toDisplayName = getUsernameFromDid(auth.value!.did);
 			(async () => {
 				const displayName = await getDisplayName(toDid);
-				if (displayName) {
-					details.toDisplayName = displayName;
-				}
+				SendTxDetails.update((current) => ({
+					...current,
+					toDisplayName: displayName ?? getUsernameFromDid(auth.value!.did),
+					toUsername: getUsernameFromDid(auth.value!.did),
+					toNetwork: Network.vsc
+				}));
 			})();
-			details.toNetwork = Network.vsc;
 		});
 	});
-	const toDid = $derived(getDidFromUsername(details.toUsername));
+	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 	const possibleNetworks = $derived(getRecipientNetworks(toDid));
 	$effect(() => {
 		// have to do this because .includes doesn't work on array of Networks
 		const netVals = possibleNetworks.map((net) => net.value);
-		if (details.toNetwork && !netVals.includes(details.toNetwork.value)) {
-			details.toNetwork = Network.vsc;
+		if ($SendTxDetails.toNetwork && !netVals.includes($SendTxDetails.toNetwork.value)) {
+			SendTxDetails.update((current) => ({
+				...current,
+				toNetwork: Network.vsc
+			}));
 		}
 	});
 	const transferMethods = [TransferMethod.vscTransfer, TransferMethod.lightningTransfer].map(
@@ -54,20 +67,16 @@
 	);
 	let method: string | undefined = $state('vsc-transfer');
 	$effect(() => {
-		details.method = transferMethods.find((mthd) => mthd.value === method);
+		const newMethod = transferMethods.find((mthd) => mthd.value === method);
 		untrack(() => {
-			if (details.fromNetwork) {
-				details.fromNetwork = undefined;
-			}
-			if (details.fromCoin) {
-				details.fromCoin = undefined;
-			}
-			if (details.fromAmount) {
-				details.fromAmount = '0';
-			}
-			if (details.account) {
-				details.account = undefined;
-			}
+			SendTxDetails.update((current) => ({
+				...current,
+				fromNetwork: undefined,
+				fromCoin: undefined,
+				fromAmount: '0',
+				account: undefined,
+				method: newMethod
+			}));
 		});
 	});
 
@@ -102,7 +111,7 @@
 			lastLength = $vscTxsStore.length;
 			for (const tx of $vscTxsStore.slice(lastChecked)) {
 				if (!tx.ops) continue;
-				if (details.toNetwork?.value.startsWith(tx.type)) {
+				if ($SendTxDetails.toNetwork?.value.startsWith(tx.type)) {
 					return `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
 				}
 			}
@@ -116,7 +125,6 @@
 	}
 	let lastPaid = $state('Never');
 	let lastNetwork = $state('Never');
-	// let toName = $derived(details.toDisplayName);
 	$effect(() => {
 		if (!auth.value) return;
 		(async () => {
@@ -139,11 +147,11 @@
 	<h2>Recipient</h2>
 	<div class="to">
 		<div class="name-card">
-			{#if details.toUsername}
+			{#if $SendTxDetails.toUsername}
 				<ContactInfo
 					did={toDid}
-					name={details.toDisplayName}
-					accounts={[details.toUsername]}
+					name={$SendTxDetails.toDisplayName}
+					accounts={[$SendTxDetails.toUsername]}
 					{lastPaid}
 				/>
 			{:else}
@@ -157,7 +165,7 @@
 			<span class="pin"><MapPin /></span>
 			<div class="data">
 				<span class="faded-caption">Recipient address</span>
-				<BasicCopy value={details.toUsername} />
+				<BasicCopy value={$SendTxDetails.toUsername} />
 			</div>
 		</div>
 	</div>
@@ -165,9 +173,9 @@
 	<h3>Payment Method</h3>
 	<div class="method">
 		<ComboBox items={transferMethods} bind:value={method} />
-		{#if details.method}
+		{#if $SendTxDetails.method}
 			<span class="faded-caption"
-				>{details.method.length} <Dot size={16} /> {details.method.fees}</span
+				>{$SendTxDetails.method.length} <Dot size={16} /> {$SendTxDetails.method.fees}</span
 			>
 		{:else}
 			<br />
@@ -177,32 +185,26 @@
 	<h3>Recipient Network</h3>
 	<Card>
 		<div class="network-card">
-			{#if details.toUsername}
-				<NetworkInfo network={details.toNetwork ?? Network.vsc} lastPaid={lastNetwork} />
+			{#if $SendTxDetails.toUsername}
+				<NetworkInfo network={$SendTxDetails.toNetwork ?? Network.vsc} lastPaid={lastNetwork} />
 			{:else}
 				<span class="user-icon-placeholder"><Landmark /></span>
 			{/if}
-			<span class="more">
-				<button onclick={() => (networkOpen = true)} class="small-button"> Edit </button>
-			</span>
+			{#if getRecipientNetworks(toDid).length > 1}
+				<span class="more">
+					<button onclick={() => (networkOpen = true)} class="small-button"> Edit </button>
+				</span>
+			{/if}
 		</div>
 	</Card>
 {/snippet}
 
 {#snippet selectContact()}
-	<SelectContact
-		close={() => (contactOpen = false)}
-		bind:username={details.toUsername}
-		bind:displayName={details.toDisplayName}
-	/>
+	<SelectContact close={() => (contactOpen = false)} />
 {/snippet}
 
 {#snippet selectNetwork()}
-	<SelectNetwork
-		close={() => (networkOpen = false)}
-		bind:network={details.toNetwork}
-		username={details.toUsername}
-	/>
+	<SelectNetwork close={() => (networkOpen = false)} />
 {/snippet}
 
 {#if contactOpen}

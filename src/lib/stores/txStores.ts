@@ -1,6 +1,8 @@
 import { writable, derived, get } from 'svelte/store';
 import { type GetTransactions$result, GetTransactionsStore } from '$houdini';
 import { getLocalTransactions, removeLocalTransaction } from '$lib/stores/localStorageTxs';
+import { blockSync } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
+import moment from 'moment';
 
 type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 
@@ -51,7 +53,7 @@ function getAlteraID(tx: TransactionInter) {
 }
 
 export function getTimestamp(tx: TransactionInter): string {
-	const timestamp = tx.anchr_ts ?? tx.first_seen as string;
+	const timestamp = tx.anchr_ts ?? (tx.first_seen as string);
 	if (timestamp.endsWith('Z')) {
 		return timestamp;
 	}
@@ -195,6 +197,12 @@ export function fetchTxs(
 						// Prepend only new transactions
 						return [...fetchedTxs.slice(0, prevUpdate), ...currentTxs];
 					});
+			}
+			if (fetchedTxs.length > 0) {
+				blockSync.set({
+					height: fetchedTxs[0].anchr_height,
+					time: moment(getTimestamp(fetchedTxs[0]))
+				});
 			}
 			if (setLoading) setLoading(false);
 		})

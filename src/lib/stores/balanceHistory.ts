@@ -69,7 +69,7 @@ async function getBlockHeightSeries(
 	let current = momentEnd.clone();
 
 	while (current.isAfter(momentStart) || current.isSame(momentStart)) {
-		const blockHeight = await getBlockHeightFromDate(current, true);
+		const blockHeight = getBlockHeightFromDate(current);
 		series.push({
 			blockHeight,
 			timestamp: current.clone()
@@ -106,7 +106,10 @@ export async function fetchBalancesHTTP(
 	end: Date | moment.Moment,
 	interval: moment.Duration
 ): Promise<BalanceDataPoint[]> {
-	const graphqlEndpoint = config.watchSchema.url;
+	const graphqlEndpoint = config.watchSchema?.url;
+	if (!graphqlEndpoint || typeof graphqlEndpoint !== 'string') {
+		throw new Error('No API availabe.');
+	}
 	const blockHeightSeries = await getBlockHeightSeries(start, end, interval);
 	const blockHeights = blockHeightSeries.map((item) => item.blockHeight);
 	const queryString = buildMultiHeightQuery(account, blockHeights);

@@ -20,6 +20,19 @@ import { addLocalTransaction } from '../stores/localStorageTxs';
 import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/eth/client';
 import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 import { wagmiConfig } from '$lib/auth/reown';
+import { writable } from 'svelte/store';
+
+export const SendTxDetails = writable<SendDetails>({
+	fromCoin: undefined,
+	fromNetwork: undefined,
+	fromAmount: '0',
+	toCoin: undefined,
+	toNetwork: undefined,
+	toUsername: '',
+	toDisplayName: '',
+	method: undefined,
+	account: undefined
+});
 
 export async function getDisplayName(did: string) {
 	if (!did.startsWith('hive:')) {
@@ -45,9 +58,13 @@ export function getRecipientNetworks(did: string): (IntermediaryNetwork | Networ
 	return [];
 }
 
-export function getMethodNetworks(method: TransferMethod) {
+export function getMethodNetworks(method: TransferMethod, did: string) {
 	if (method.value === TransferMethod.vscTransfer.value) {
-		return [Network.vsc, Network.hiveMainnet];
+		let result = [Network.vsc];
+		if (did.startsWith('hive:')) {
+			result.push(Network.hiveMainnet);
+		}
+		return result;
 	} else if (method.value === TransferMethod.lightningTransfer.value) {
 		return [Network.lightning];
 	}
@@ -137,6 +154,7 @@ export function solveNetworkConstraints(
 	did: string | undefined,
 	account?: SendAccount
 ): Constraints {
+	// console.log("parameters to solve constraints", method, fromCoin, did, account);
 	if (!method || !did)
 		return {
 			assetOptions: [],
@@ -144,7 +162,7 @@ export function solveNetworkConstraints(
 			networkOptions: []
 		};
 	// given account: what are the network options
-	let accountNetworkOptions: Set<string> = createSet(getMethodNetworks(method));
+	let accountNetworkOptions: Set<string> = createSet(getMethodNetworks(method, did));
 
 	if (account) {
 		const accountNetworks = createSet(getNetworksFromAccount(account, did) ?? []);
@@ -170,7 +188,7 @@ export function solveNetworkConstraints(
 		[]
 	);
 
-	let coinNetworkOptions: Set<string> = createSet(getMethodNetworks(method));
+	let coinNetworkOptions: Set<string> = createSet(getMethodNetworks(method, did));
 	if (fromCoin) {
 		const coinNetworks = createSet(fromCoin.networks);
 		coinNetworkOptions = coinNetworkOptions.intersection(coinNetworks);
@@ -196,10 +214,10 @@ export async function send(
 ): Promise<Error | { id: string }> {
 	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
 
-	console.log("in send()");
+	console.log('in send()');
 
 	if (intermediary == Network.vsc) {
-		console.log("intermediary network identified as vsc");
+		console.log('intermediary network identified as vsc');
 		if (auth.value?.provider == 'reown') {
 			// account check in signAndBroadcast
 			const client = createClient(auth.value.did);
@@ -296,7 +314,7 @@ export async function send(
 	}
 
 	if (intermediary == Network.hiveMainnet) {
-		console.log("intermediary network identified as hive");
+		console.log('intermediary network identified as hive');
 		if (!auth.value?.aioha)
 			return new Error("Hive Mainnet Transactions via an EVM wallet aren't supported yet.");
 		setStatus('Waiting for Hive wallet approval…');

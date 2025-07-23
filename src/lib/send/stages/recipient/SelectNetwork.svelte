@@ -10,20 +10,19 @@
 	import { vscTxsStore, waitForExtend } from '$lib/stores/txStores';
 	import NetworkInfo from '../NetworkInfo.svelte';
 	import moment from 'moment';
+	import { SendTxDetails } from '$lib/send/sendUtils';
 
 	let {
-		close,
-		network = $bindable(),
-		username
+		close
 	}: {
 		close: () => void;
-		network: IntermediaryNetwork | Network | undefined;
-		username: string;
 	} = $props();
 	const auth = $derived($authStore);
 	let tmpNetwork: Network | undefined = $state();
 	let tmpNetworkVal: string | undefined = $state();
-	const availableNetworks = $derived(getRecipientNetworks(getDidFromUsername(username)));
+	const availableNetworks = $derived(
+		getRecipientNetworks(getDidFromUsername($SendTxDetails.toUsername))
+	);
 
 	$effect(() => {
 		tmpNetwork = availableNetworks.find((net) => net.value === tmpNetworkVal);
@@ -113,7 +112,10 @@
 
 	function save() {
 		if (tmpNetwork) {
-			network = {...tmpNetwork};
+			SendTxDetails.update((current) => ({
+				...current,
+				toNetwork: tmpNetwork
+			}));
 		}
 		close();
 	}

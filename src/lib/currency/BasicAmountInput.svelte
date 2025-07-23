@@ -1,26 +1,28 @@
 <script lang="ts">
-	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
-	import { Coin, Network, type SendDetails } from '../send/sendOptions';
-	import type { HTMLInputAttributes } from 'svelte/elements';
+	import { Coin, Network, type CoinOptions, type SendDetails } from '../send/sendOptions';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import PillButton from '$lib/PillButton.svelte';
+	import { is } from '$lib/vscTransactions/eth/cborg_utils/is';
 
 	let {
-		details = $bindable(),
+		fromAmount = $bindable(),
+		fromCoin,
+		fromNetwork,
 		id
 	}: {
-		details: SendDetails;
+		fromAmount: string;
+		fromCoin: CoinOptions['coins'][number] | undefined;
+		fromNetwork: Network | undefined;
 		id: string;
 	} = $props();
 
 	let inUsd = $state('');
 	let error = $state('');
 	let currentCoin = $state.raw(coins.usd);
-	let coinAmount = $derived(new CoinAmount(details.fromAmount, currentCoin));
 	let boundAmount: string | null = $state(null);
 
 	const maxField: BalanceOption | undefined = $derived.by(() => {
@@ -30,31 +32,52 @@
 		}
 	});
 	let showMax = $derived(
-		maxField !== undefined && details.fromNetwork?.value === Network.vsc.value && 
+		maxField !== undefined &&
+			fromNetwork?.value === Network.vsc.value &&
 			new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toAmountString() !==
 				new CoinAmount(boundAmount ?? 0, currentCoin).toAmountString()
 	);
 	$effect(() => {
+		const _ = showMax;
+		untrack(() => {
+			fromAmount = isInRange() ? boundAmount! : '0';
+		})
+	});
+	$effect(() => {
 		// makes it reactive to boundAmount, which is only in a "then" otherwise
-		const newCoinOpt = details.fromCoin;
+		const newCoinOpt = fromCoin;
+		console.log("newCoinOpt", newCoinOpt);
 		if (!newCoinOpt) {
-			boundAmount = null;
-			currentCoin = coins.usd;
+			if (currentCoin !== coins.usd) {
+				boundAmount = null;
+				currentCoin = coins.usd;
+			}
+			console.log("returning");
+			return;
+		}
+		if (newCoinOpt.coin.value === currentCoin.value) {
+			console.log("returning because values match");
 			return;
 		}
 		untrack(() => {
-			const originalAmount = new CoinAmount(details.fromAmount, currentCoin, true);
+			const originalAmount = new CoinAmount(fromAmount, currentCoin, true);
 			if (originalAmount.toNumber() === 0) {
+				console.log("returning because 0");
 				return;
 			}
+			console.log("here");
 			originalAmount
 				.convertTo(newCoinOpt.coin, Network.lightning)
 				.then((amount) => {
-					details.fromAmount = amount.toAmountString(true);
-					boundAmount = details.fromAmount;
+					console.log("amount", amount);
+					boundAmount = amount.toAmountString(true);
+					fromAmount = isInRange() ? boundAmount : '0';
 				})
-				.catch(() => {});
+				.catch((err) => {
+					console.log("error converting", err.message);
+				});
 		});
+		console.log('setting current coin');
 		currentCoin = newCoinOpt.coin;
 	});
 	$effect(() => {
@@ -71,19 +94,25 @@
 	});
 
 	let maxBalance = $derived.by(() => {
-		if (maxField && details.fromCoin) {
-			return new CoinAmount(
-				$accountBalance.bal[maxField],
-				details.fromCoin.coin,
-				true
-			).toAmountString();
+		if (showMax && maxField && fromCoin) {
+			return new CoinAmount($accountBalance.bal[maxField], fromCoin.coin, true).toAmountString();
 		}
 		return undefined;
 	});
 
 	function setToMax() {
-		details.fromAmount = maxBalance ?? '0';
+		fromAmount = maxBalance ?? '0';
 		boundAmount = maxBalance ?? '0';
+	}
+
+	function isInRange() {
+		if (
+			!boundAmount ||
+			Number(boundAmount) < 0 ||
+			(maxBalance && Number(boundAmount) > Number(maxBalance))
+		)
+			return false;
+		return true;
 	}
 </script>
 
@@ -101,10 +130,7 @@
 		</span>
 	</label>
 	<div class="amount-input">
-		<CoinNetworkIcon
-			coin={details.fromCoin?.coin ?? coins.usd}
-			network={details.fromNetwork ?? Network.unknown}
-		/>
+		<CoinNetworkIcon coin={fromCoin?.coin ?? coins.usd} network={fromNetwork ?? Network.unknown} />
 		<input
 			min="0.000000001"
 			max={maxBalance}
@@ -122,12 +148,14 @@
 					inline: 'center'
 				});
 			}}
-			oninput={(e) => {
-				error = '';
+			oninput={() => {
+				// if (!boundAmount || !isInRange()) {
+				// 	fromAmount = '0';
+				// }
 			}}
 			onchange={() => {
-				if (boundAmount) {
-					details.fromAmount = new CoinAmount(boundAmount, currentCoin).toAmountString();
+				if (boundAmount && isInRange()) {
+					fromAmount = new CoinAmount(boundAmount, currentCoin).toAmountString();
 				}
 			}}
 			required={true}
@@ -147,9 +175,9 @@
 			{currentCoin.label}
 		</div>
 	</div>
-	<span class={["approx-usd", {hidden: !(details.fromCoin && boundAmount)}]}>
+	<span class={['approx-usd', { hidden: !(fromCoin && boundAmount) }]}>
 		Approx. USD value:
-		{#if details.fromCoin?.coin.value != Coin.unk.value}
+		{#if fromCoin?.coin.value != Coin.unk.value}
 			${inUsd}
 		{:else}
 			Unknown

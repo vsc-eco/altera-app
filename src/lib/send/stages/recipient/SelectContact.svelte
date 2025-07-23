@@ -10,15 +10,12 @@
 	import ContactInfo from '../ContactInfo.svelte';
 	import { getDisplayName } from '../../sendUtils';
 	import PillButton from '$lib/PillButton.svelte';
+	import { SendTxDetails } from '../../sendUtils';
 
 	let {
 		close,
-		username = $bindable(),
-		displayName = $bindable()
 	}: {
 		close: () => void;
-		username: string;
-		displayName: string;
 	} = $props();
 
 	const auth = $derived($authStore);
@@ -123,8 +120,11 @@
 	}
 	function save() {
 		if (recipientUsername) {
-			username = recipientUsername;
-			displayName = tmpDisplayName ?? recipientUsername;
+			SendTxDetails.update(current => ({
+				...current,
+				toUsername: recipientUsername!,
+				toDisplayName: tmpDisplayName ?? recipientUsername!
+			}))
 		}
 		close();
 	}

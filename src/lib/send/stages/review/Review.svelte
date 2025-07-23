@@ -2,22 +2,30 @@
 	import { authStore } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
-	import { Coin, Network, SendAccount, type SendDetails } from '$lib/send/sendOptions';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { Coin, Network, SendAccount } from '$lib/send/sendOptions';
 	import moment from 'moment';
+	import { SendTxDetails } from '$lib/send/sendUtils';
 
 	let auth = $authStore;
 	let {
-		details = $bindable(),
+		id,
+		editStage,
 		status
 	}: {
-		details: SendDetails;
+		id: string;
+		editStage: (id: string, add: boolean) => void;
 		status: string;
 	} = $props();
-	let fromCoin = $derived(details.fromCoin?.coin ?? coins.unk);
+
+	$effect(() => {
+		editStage(id, true);
+	})
+
+	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
 	$effect(() => {
-		new CoinAmount(details.fromAmount, fromCoin)
+		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
 				inUsd = amount.toAmountString();
@@ -25,14 +33,14 @@
 	});
 	let today = moment().format('MMM D, YYYY');
 	let fromAccount = $derived.by(() => {
-		if (details.account?.value === SendAccount.vscAccount.value) {
-			return details.account.label;
+		if ($SendTxDetails.account?.value === SendAccount.vscAccount.value) {
+			return $SendTxDetails.account.label;
 		}
-		if (details.account?.value === SendAccount.deposit.value) {
-			return `Deposit from ${details.fromNetwork?.label ?? 'UNK'}`;
+		if ($SendTxDetails.account?.value === SendAccount.deposit.value) {
+			return `Deposit from ${$SendTxDetails.fromNetwork?.label ?? 'UNK'}`;
 		}
-		if (details.account?.value === SendAccount.swap.value) {
-			return `Swap from ${details.fromNetwork?.label ?? 'UNK'}`;
+		if ($SendTxDetails.account?.value === SendAccount.swap.value) {
+			return `Swap from ${$SendTxDetails.fromNetwork?.label ?? 'UNK'}`;
 		}
 	});
 </script>
@@ -41,8 +49,8 @@
 
 <Card>
 	<div class="amount">
-		<span class="sm-caption">Payment to {details.toDisplayName}</span>
-		<h4>{new CoinAmount(details.fromAmount, fromCoin).toPrettyString()} {`(\$US ${inUsd})`}</h4>
+		<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
+		<h4>{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()} {`(\$US ${inUsd})`}</h4>
 	</div>
 	<div class="date">
 		<span>Pay once on {today}</span>
@@ -53,11 +61,11 @@
 		<tbody>
 			<tr>
 				<td class="label">Recipient</td>
-				<td class="content">{details.toDisplayName}</td>
+				<td class="content">{$SendTxDetails.toDisplayName}</td>
 			</tr>
 			<tr>
 				<td class="label">Address</td>
-				<td class="content">{details.toUsername}</td>
+				<td class="content">{$SendTxDetails.toUsername}</td>
 			</tr>
 			<tr>
 				<td class="label">Asset</td>
@@ -68,7 +76,7 @@
 			</tr>
 			<tr>
 				<td class="label">Network</td>
-				<td class="content">{details.toNetwork?.label}</td>
+				<td class="content">{$SendTxDetails.toNetwork?.label}</td>
 			</tr>
 		</tbody>
 	</table>

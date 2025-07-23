@@ -1,39 +1,39 @@
 <script lang="ts">
-	import type { Coin, CoinOptions, Network } from "../sendOptions";
+	import type { Coin, CoinOptions, Network } from '../sendOptions';
 
-    let {
-        coinOpt,
-        network
-    } : {
-        coinOpt: CoinOptions['coins'][number];
-        network?: Network | undefined;
-    } = $props();
+	let {
+		coinOpt,
+		network
+	}: {
+		coinOpt: CoinOptions['coins'][number];
+		network?: Network | undefined;
+	} = $props();
 </script>
 
 <div class="wrapper">
-    <img src={coinOpt.coin.icon} alt={coinOpt.coin.label} />
-    <div class="name-details">
+	<img src={coinOpt.coin.icon} alt={coinOpt.coin.label} />
+	<div class="name-details">
 		<span class="name">
 			{coinOpt.coin.label}
 		</span>
-		<div class='details'>
+		<div class="details">
 			<span class="on-network">
 				{`From ${coinOpt.networks.length} network${coinOpt.networks.length != 1 ? 's' : ''}`}
 				{#if network}
-                    | On {network.label}
-                {/if}
+					| On {network.label}
+				{/if}
 			</span>
 		</div>
 	</div>
 </div>
 
 <style>
-    img {
+	img {
 		width: 2.5rem;
 	}
-	img.large {
+	/* img.large {
 		width: 3.5rem;
-	}
+	} */
 	.wrapper {
 		display: flex;
 		align-items: center;

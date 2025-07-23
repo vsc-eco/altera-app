@@ -12,22 +12,22 @@
 </script>
 
 <ul {...api.getContentProps()} class={{ card: styleType === 'card' }}>
-	<div class={["content-spacing", {card: styleType === 'card'}]}>
-	{#each selectData as item}
-		<li {...api.getItemProps({ item })} class={{ card: styleType === 'card' }}>
-			<span {...api.getItemTextProps({ item })}>
-				{#if typeof item.snippet == 'function'}
-					{@const Snippet = item.snippet}
-					{@render Snippet(item.snippetData)}
-				{:else}
-					{item.label}
-				{/if}
-			</span>
-			<span class="check" {...api.getItemIndicatorProps({ item })}>
-				<Check></Check>
-			</span>
-		</li>
-	{/each}
+	<div class={['content-spacing', { card: styleType === 'card' }]}>
+		{#each selectData as item}
+			<li {...api.getItemProps({ item })} class={{ card: styleType === 'card' }}>
+				<span {...api.getItemTextProps({ item })}>
+					{#if typeof item.snippet == 'function'}
+						{@const Snippet = item.snippet}
+						{@render Snippet(item.snippetData)}
+					{:else}
+						{item.label}
+					{/if}
+				</span>
+				<span class="check" {...api.getItemIndicatorProps({ item })}>
+					<Check></Check>
+				</span>
+			</li>
+		{/each}
 	</div>
 </ul>
 
@@ -39,7 +39,7 @@
 		// width: 160px;
 		// padding: 0.25rem;
 		padding: 0.5rem;
-		z-index: 5;
+		z-index: 10;
 	}
 	[data-part='content'].card {
 		box-sizing: border-box;

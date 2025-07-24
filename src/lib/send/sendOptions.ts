@@ -267,6 +267,7 @@ export type SendDetails = {
 	toNetwork: Network | undefined;
 	toAmount: string;
 	toUsername: string;
+	fee: CoinAmount<Coin> | undefined;
 	method: TransferMethod | undefined;
 	account: SendAccount | undefined;
 	toDisplayName: string;
@@ -307,10 +308,10 @@ export const TransferMethod = {
 	lightningTransfer
 };
 
-export const networkMap: Map<Network, Coin[]> = new Map([
-	[Network.vsc, [Coin.hive, Coin.hbd, Coin.shbd]],
-	[Network.hiveMainnet, [Coin.hive, Coin.hbd]],
-	[Network.lightning, [Coin.btc]]
+export const networkMap: Map<string, Coin[]> = new Map([
+	[Network.vsc.value, [Coin.hive, Coin.hbd, Coin.shbd]],
+	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
+	[Network.lightning.value, [Coin.btc]]
 ]);
 
 export type SendAccount = {

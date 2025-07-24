@@ -4,6 +4,7 @@
 	import swapOptions, {
 		Coin,
 		Network,
+		networkMap,
 		SendAccount,
 		sendAccountOptions,
 		type CoinOptions
@@ -16,6 +17,8 @@
 	import AssetInfo from '../AssetInfo.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { CornerDownRight } from '@lucide/svelte';
+	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
 
 	let auth = $authStore;
 	let {
@@ -26,10 +29,12 @@
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
 
+	// TODO: change this to give 'to' options not 'from' options
 	const { assetOptions, accountOptions, networkOptions } = $derived(
 		solveNetworkConstraints(
 			$SendTxDetails.method,
 			$SendTxDetails.fromCoin,
+			$SendTxDetails.toNetwork,
 			auth.value?.did,
 			$SendTxDetails.account
 		)
@@ -59,6 +64,19 @@
 		})) ?? []
 	);
 
+	// default to USD
+	$effect(() => {
+		if ($SendTxDetails.account?.value === SendAccount.swap.value && !$SendTxDetails.toCoin) {
+			SendTxDetails.update((current) => ({
+				...current,
+				toCoin: {
+					coin: coins.usd,
+					networks: []
+				}
+			}));
+		}
+	});
+
 	$effect(() => {
 		if (networkOptions.length === 1) {
 			if ($SendTxDetails.fromNetwork?.value !== networkOptions[0].value) {
@@ -79,57 +97,113 @@
 		}
 	});
 
-	let toCoinValue = $state('');
+	let fromCoinValue = $state('');
 	$effect(() => {
-		if ($SendTxDetails.account?.value === SendAccount.swap.value && toCoinValue) {
-			if ($SendTxDetails.toCoin?.coin.value !== toCoinValue) {
-				const toCoin = swapOptions.to.coins.find((coin) => coin.coin.value === toCoinValue);
-				if (!toCoin || !$SendTxDetails.fromCoin) {
-					return;
-				}
-				new CoinAmount(fromAmount, $SendTxDetails.fromCoin.coin)
-					.convertTo(toCoin.coin, Network.lightning)
-					.then((amount) => {
+		if ($SendTxDetails.account?.value === SendAccount.swap.value && fromCoinValue) {
+			if ($SendTxDetails.fromCoin?.coin.value !== fromCoinValue) {
+				const fromCoinOpt = swapOptions.from.coins.find(
+					(coin) => coin.coin.value === fromCoinValue
+				);
+				if (!fromCoinOpt) return;
+				if ($SendTxDetails.toCoin) {
+					(async () => {
+						const amount = await new CoinAmount(toAmount, $SendTxDetails.toCoin!.coin).convertTo(
+							fromCoinOpt.coin,
+							Network.lightning
+						);
+						const fee = await getTableFee();
+						console.log("fee", fee);
 						SendTxDetails.update((current) => ({
 							...current,
-							toCoin: toCoin,
-							toAmount: amount.toAmountString()
+							fromCoin: fromCoinOpt,
+							fromAmount: amount.toAmountString(),
+							fee: fee
 						}));
-					});
+					})();
+				} else {
+					SendTxDetails.update((current) => ({
+						...current,
+						fromCoin: fromCoinOpt
+					}));
+				}
 			}
 		} else if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
 			SendTxDetails.update((current) => ({
 				...current,
-				toCoin: current.fromCoin,
-				toAmount: current.fromAmount
+				fromCoin: current.toCoin,
+				fromAmount: current.toAmount
 			}));
 		}
 	});
-	let toCoinOptions = $derived(
-		swapOptions.to.coins.map((opt) => {
-			return {
-				icon: opt.coin.icon,
-				value: opt.coin.value,
-				label: opt.coin.label,
-				snippet: radioLabel
-			};
-		})
+
+	let fromCoinOptions = $derived(
+		$SendTxDetails.fromNetwork
+			? (networkMap.get($SendTxDetails.fromNetwork.value)?.map((coin) => ({
+					icon: coin.icon,
+					value: coin.value,
+					label: coin.label,
+					snippet: radioLabel
+				})) ?? [])
+			: []
 	);
-	let fromAmount = $state('');
+
+	// TODO: replace with logic for multiple coin options
+	// either a radio group or dropdown on the amount
+	$effect(() => {
+		if (fromCoinOptions.length === 1) {
+			fromCoinValue = fromCoinOptions[0].value;
+		}
+	});
+	let toAmount = $state('');
+	let fromSwapAmount = $state('');
+	let effectToAmount = $state('');
+	let effectFromAmount = $state('');
 
 	$effect(() => {
-		if (fromAmount !== $SendTxDetails.fromAmount) {
+		if (effectToAmount === toAmount) return;
+		untrack(() => {
+			if (!$SendTxDetails.toCoin || !$SendTxDetails.fromCoin) return;
+			new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)
+				.convertTo($SendTxDetails.fromCoin.coin, Network.lightning)
+				.then((amount) => {
+					const amtString = amount.toAmountString();
+					if (amtString !== fromSwapAmount) {
+						effectFromAmount = amtString;
+						fromSwapAmount = amtString;
+					}
+				});
+		});
+	});
+
+	$effect(() => {
+		if (effectFromAmount === fromSwapAmount) return;
+		untrack(() => {
+			if (!$SendTxDetails.toCoin || !$SendTxDetails.fromCoin) return;
+			new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
+				.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
+				.then((amount) => {
+					const amtString = amount.toAmountString();
+					if (amtString !== toAmount) {
+						effectToAmount = amtString;
+						toAmount = amtString;
+					}
+				});
+		});
+	});
+
+	$effect(() => {
+		if (toAmount !== $SendTxDetails.toAmount) {
 			untrack(() => {
 				if ($SendTxDetails.toCoin && $SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
-					const toCoin = swapOptions.to.coins.find((coin) => coin.coin.value === toCoinValue);
-					if (toCoin && $SendTxDetails.fromCoin) {
-						new CoinAmount(fromAmount, $SendTxDetails.fromCoin.coin)
-							.convertTo(toCoin.coin, Network.lightning)
+					const fromCoin = swapOptions.from.coins.find((coin) => coin.coin.value === fromCoinValue);
+					if (fromCoin && $SendTxDetails.fromCoin) {
+						new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)
+							.convertTo(fromCoin.coin, Network.lightning)
 							.then((amount) => {
 								SendTxDetails.update((current) => ({
 									...current,
-									fromAmount: fromAmount,
-									toAmount: amount.toAmountString()
+									toAmount: toAmount,
+									fromAmount: amount.toAmountString()
 								}));
 							});
 						return;
@@ -137,8 +211,8 @@
 				}
 				SendTxDetails.update((current) => ({
 					...current,
-					fromAmount: fromAmount,
-					toAmount: fromAmount
+					fromAmount: toAmount,
+					toAmount: toAmount
 				}));
 			});
 		}
@@ -160,6 +234,25 @@
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
+	async function getTableFee() {
+		if (
+			$SendTxDetails.fromCoin &&
+			$SendTxDetails.fromNetwork &&
+			$SendTxDetails.toCoin &&
+			$SendTxDetails.toCoin.coin.value !== coins.usd.value &&
+			$SendTxDetails.toNetwork &&
+			$SendTxDetails.toAmount !== '0'
+		) {
+			const fee = await getIntermediaryNetwork(
+				{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork },
+				{ coin: $SendTxDetails.toCoin.coin, network: $SendTxDetails.toNetwork }
+			).feeCalculation(
+				new CoinAmount(Number(toAmount), $SendTxDetails.toCoin.coin),
+				$SendTxDetails.fromCoin.coin
+			);
+			return fee;
+		}
+	}
 </script>
 
 {#snippet assetCard(fromCoin: CoinOptions['coins'][number] | undefined)}
@@ -187,9 +280,9 @@
 	<h2>Amount</h2>
 	<h3>Recipient Gets</h3>
 	<BasicAmountInput
-		bind:fromAmount
-		fromCoin={$SendTxDetails.fromCoin}
-		fromNetwork={$SendTxDetails.fromNetwork}
+		bind:amount={toAmount}
+		coin={$SendTxDetails.toCoin}
+		network={$SendTxDetails.toNetwork}
 		id={'basic-input'}
 	/>
 
@@ -198,7 +291,10 @@
 		items={assetObjs}
 		styleType="card"
 		onValueChange={(v) => {
-			$SendTxDetails.fromCoin = swapOptions.from.coins.find((val) => val.coin.value === v.value[0]);
+			SendTxDetails.update((current) => ({
+				...current,
+				toCoin: swapOptions.from.coins.find((val) => val.coin.value === v.value[0])
+			}));
 		}}
 	/>
 
@@ -213,22 +309,46 @@
 
 	{#if toSelf}
 		<p class="error to-self-error">
-			Cannot transfer currency to yourself on the same network. Please select a different recipient or network.
+			Cannot transfer currency to yourself on the same network. Please select a different recipient
+			or network.
 		</p>
 	{/if}
 
 	{#if $SendTxDetails.account?.value === SendAccount.swap.value}
-		<div class="to-coin">
-			<span class="sm-caption">To Asset</span>
-			<div class="to-amount">
-				<span class="coin-select">
-					<RadioGroup required id={'network'} bind:value={toCoinValue} items={toCoinOptions} />
-				</span>
-				{#if $SendTxDetails.toCoin && $SendTxDetails.toAmount !== '0'}
-					<p>
-						{new CoinAmount($SendTxDetails.toAmount, $SendTxDetails.toCoin.coin).toPrettyString()}
-					</p>
-				{/if}
+		<div class="swap-wrapper">
+			<CornerDownRight />
+			<div class="swap-options">
+				<h3>Swap Options</h3>
+				<span class="sm-caption">To Asset</span>
+				<div class="amt-and-fees">
+					<div class="to-amount">
+						<BasicAmountInput
+							bind:amount={fromSwapAmount}
+							coin={$SendTxDetails.fromCoin}
+							network={$SendTxDetails.fromNetwork}
+							id={'from-amt'}
+						/>
+					</div>
+					{#if $SendTxDetails.fee}
+						{@const fee = $SendTxDetails.fee}
+						<table>
+							<tbody>
+								<tr>
+									<th>Fee:</th>
+									<td>~{fee.toPrettyString()}</td>
+								</tr>
+								<tr>
+									<th>Send Total:</th>
+									<td
+										>~{fee
+											.add(new CoinAmount($SendTxDetails.fromAmount, $SendTxDetails.fromCoin!.coin))
+											.toPrettyString()}</td
+									>
+								</tr>
+							</tbody>
+						</table>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}
@@ -281,26 +401,55 @@
 			gap: 0.5rem;
 		}
 	}
-	.to-coin {
-		margin-top: 1rem;
+	.swap-wrapper {
 		display: flex;
-		flex-direction: column;
-		.sm-caption {
-			padding-bottom: 0.5rem;
-		}
-		.to-amount {
+		margin-top: 1rem;
+		width: 100%;
+		.swap-options {
+			.amt-and-fees {
+				display: flex;
+				justify-content: space-between;
+			}
+			padding-left: 1rem;
+			width: 100%;
+			h3 {
+				margin-top: 0;
+			}
 			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			p {
+			flex-direction: column;
+			.sm-caption {
+				padding-bottom: 0.5rem;
+			}
+			.to-amount {
+				max-width: 50%;
+				flex-grow: 1;
+			}
+			// .coin-select {
+			// 	width: fit-content;
+			// }
+			td {
+				display: block;
 				font-family: 'Noto Sans Mono Variable', monospace;
 				font-weight: 400;
+				white-space: nowrap;
+				text-align: right;
+				padding-left: 0.5rem;
+			}
+			th {
+				flex-grow: 1;
+				display: block;
+				font-weight: bold;
+				text-align: right;
+				padding-right: 0.25rem;
+			}
+			tr {
+				padding: 0.25rem 0;
+				display: flex;
+				align-items: center;
 			}
 		}
-		.coin-select {
-			width: fit-content;
-		}
 	}
+
 	.to-self-error {
 		margin-top: 0.5rem;
 	}

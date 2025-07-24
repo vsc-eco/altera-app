@@ -6,6 +6,7 @@
 	import { Coin, Network, SendAccount } from '$lib/send/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
+	import { ArrowDown, ArrowRight } from '@lucide/svelte';
 
 	let auth = $authStore;
 	let {
@@ -22,15 +23,17 @@
 		editStage(id, true);
 	});
 
+	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
 	$effect(() => {
-		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
+		new CoinAmount($SendTxDetails.fromAmount, toCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
 				inUsd = amount.toAmountString();
 			});
 	});
+	let isSwap = $derived($SendTxDetails.account?.value === SendAccount.swap.value);
 	let today = moment().format('MMM D, YYYY');
 	let fromAccount = $derived.by(() => {
 		if ($SendTxDetails.account?.value === SendAccount.vscAccount.value) {
@@ -39,7 +42,7 @@
 		if ($SendTxDetails.account?.value === SendAccount.deposit.value) {
 			return `Deposit from ${$SendTxDetails.fromNetwork?.label ?? 'UNK'}`;
 		}
-		if ($SendTxDetails.account?.value === SendAccount.swap.value) {
+		if (isSwap) {
 			return `Swap from ${$SendTxDetails.fromNetwork?.label ?? 'UNK'}`;
 		}
 	});
@@ -50,8 +53,14 @@
 <Card>
 	<div class="amount">
 		<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
+		{#if isSwap}
+			<div class="swap-header">
+				<p>{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}</p>
+				<ArrowDown />
+			</div>
+		{/if}
 		<h4>
-			{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+			{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
 			{`(\$US ${inUsd})`}
 		</h4>
 	</div>
@@ -73,8 +82,8 @@
 			<tr>
 				<td class="label">Asset</td>
 				<td class="content coin">
-					<img src={fromCoin.icon} alt={fromCoin.label} />
-					{fromCoin.label}
+					<img src={toCoin.icon} alt={toCoin.label} />
+					{toCoin.label}
 				</td>
 			</tr>
 			<tr>
@@ -95,6 +104,27 @@
 				<td class="label">Account</td>
 				<td class="content">{fromAccount}</td>
 			</tr>
+			{#if isSwap && $SendTxDetails.fee}
+				<tr>
+					<td class="label">Asset</td>
+					<td class="content coin">
+						<img src={fromCoin.icon} alt={fromCoin.label} />
+						{fromCoin.label}
+					</td>
+				</tr>
+				<tr>
+					<td class="label">Fee</td>
+					<td class="content">
+						{$SendTxDetails.fee}
+					</td>
+				</tr>
+				<tr>
+					<td class="label">Total</td>
+					<td class="content">
+						{$SendTxDetails.fee?.add(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
+					</td>
+				</tr>
+			{/if}
 			<tr>
 				<td class="label">Initiated on</td>
 				<td class="content">{today}</td>

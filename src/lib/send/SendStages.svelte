@@ -29,6 +29,8 @@
 	let sessionId = $state(getTxSessionId());
 	SendTxDetails.set(blankDetails());
 
+	let contentElement = $state<HTMLElement | null>();
+
 	onMount(() => {
 		const rootStyle = getComputedStyle(document.documentElement);
 		remValue = parseFloat(rootStyle.fontSize);
@@ -193,6 +195,10 @@
 		const rootStyle = getComputedStyle(document.documentElement);
 		remValue = parseFloat(rootStyle.fontSize);
 	}}
+	on:visibilitychange={() => {
+		const rootStyle = getComputedStyle(document.documentElement);
+		remValue = parseFloat(rootStyle.fontSize);
+	}}
 />
 
 {#snippet recipient(value: string)}
@@ -208,6 +214,7 @@
 	<Complete {txId} />
 {/snippet}
 
+<div class="stages-wrapper">
 <SendTitle close={() => goto('/')} />
 
 {#key sessionId}
@@ -226,9 +233,12 @@
 				{@render step.content(step.value)}
 			</div>
 		{/each}
-		<SendNavButtons {buttons} />
 	</div>
 {/key}
+
+<SendNavButtons {buttons} />
+
+</div>
 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
 	{@const toCoin = $SendTxDetails.toCoin}
@@ -281,6 +291,17 @@
 {/if}
 
 <style lang="scss">
+	.stages-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
+	[data-part='root'] {
+		flex-grow: 1;
+		width: 100vw;
+		max-height: 100vh;
+		overflow-y: auto;
+	}
 	[data-part='list'] {
 		position: absolute;
 		left: 6.75rem;
@@ -320,13 +341,12 @@
 			pointer-events: none;
 		}
 	}
-
 	[data-part='content'] {
 		margin: auto;
-		margin-top: 3rem;
 		max-width: 42rem;
-		height: 100%;
-		min-height: 77vh;
+		padding-bottom: 1rem;
+		min-height: 100%;
+		overflow-y: scroll;
 	}
 	.nav-buttons {
 		display: flex;
@@ -347,6 +367,7 @@
 		justify-content: center;
 	}
 	:global(h2) {
-		margin-bottom: 1rem;
+		margin-bottom: 1rem !important;
+		margin-top: 0 !important;
 	}
 </style>

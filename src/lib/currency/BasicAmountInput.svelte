@@ -10,15 +10,17 @@
 	import { DollarSign } from '@lucide/svelte';
 
 	let {
-		fromAmount = $bindable(),
-		fromCoin,
-		fromNetwork,
-		id
+		amount = $bindable(),
+		coin,
+		network,
+		id,
+		maxField
 	}: {
-		fromAmount: string;
-		fromCoin: CoinOptions['coins'][number] | undefined;
-		fromNetwork: Network | undefined;
+		amount: string;
+		coin: CoinOptions['coins'][number] | undefined;
+		network: Network | undefined;
 		id: string;
+		maxField?: BalanceOption;
 	} = $props();
 
 	let inUsd = $state('');
@@ -26,27 +28,31 @@
 	let currentCoin = $state.raw(coins.usd);
 	let boundAmount: string | null = $state(null);
 
-	const maxField: BalanceOption | undefined = $derived.by(() => {
-		if (!currentCoin) return undefined;
-		if (isValidBalanceField(currentCoin.value)) {
-			return currentCoin.value as BalanceOption;
-		}
-	});
 	let showMax = $derived(
 		maxField !== undefined &&
-			fromNetwork?.value === Network.vsc.value &&
+			network?.value === Network.vsc.value &&
 			new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toAmountString() !==
 				new CoinAmount(boundAmount ?? 0, currentCoin).toAmountString()
 	);
 	$effect(() => {
 		const _ = showMax;
 		untrack(() => {
-			fromAmount = isInRange() ? boundAmount! : '0';
+			amount = isInRange() ? boundAmount! : '0';
 		});
 	});
 	$effect(() => {
+		const newAmount = amount;
+		untrack(() => {
+			// null instead of '0'
+			const setAmount = newAmount === '0' ? null : newAmount;
+			if (boundAmount !== setAmount) {
+				boundAmount = setAmount;
+			}
+		})
+	});
+	$effect(() => {
 		// makes it reactive to boundAmount, which is only in a "then" otherwise
-		const newCoinOpt = fromCoin;
+		const newCoinOpt = coin;
 		if (!newCoinOpt) {
 			if (currentCoin !== coins.usd) {
 				boundAmount = null;
@@ -58,15 +64,15 @@
 			return;
 		}
 		untrack(() => {
-			const originalAmount = new CoinAmount(fromAmount, currentCoin, true);
+			const originalAmount = new CoinAmount(amount, currentCoin, true);
 			if (originalAmount.toNumber() === 0) {
 				return;
 			}
 			originalAmount
 				.convertTo(newCoinOpt.coin, Network.lightning)
-				.then((amount) => {
-					boundAmount = amount.toAmountString(true);
-					fromAmount = isInRange() ? boundAmount : '0';
+				.then((amt) => {
+					boundAmount = amt.toAmountString(true);
+					amount = isInRange() ? boundAmount : '0';
 				})
 				.catch((err) => {
 					console.log('error converting', err.message);
@@ -88,14 +94,14 @@
 	});
 
 	let maxBalance = $derived.by(() => {
-		if (showMax && maxField && fromCoin) {
-			return new CoinAmount($accountBalance.bal[maxField], fromCoin.coin, true).toAmountString();
+		if (showMax && maxField && coin) {
+			return new CoinAmount($accountBalance.bal[maxField], coin.coin, true).toAmountString();
 		}
 		return undefined;
 	});
 
 	function setToMax() {
-		fromAmount = maxBalance ?? '0';
+		amount = maxBalance ?? '0';
 		boundAmount = maxBalance ?? '0';
 	}
 
@@ -124,12 +130,12 @@
 		</span>
 	</label>
 	<div class="amount-input">
-		{#if !fromCoin?.coin}
+		{#if !coin?.coin}
 			<DollarSign />
 		{:else}
 			<CoinNetworkIcon
-				coin={fromCoin?.coin ?? coins.usd}
-				network={fromNetwork ?? Network.unknown}
+				coin={coin?.coin ?? coins.usd}
+				network={network ?? Network.unknown}
 			/>
 		{/if}
 		<input
@@ -151,9 +157,9 @@
 			}}
 			oninput={() => {
 				if (boundAmount && isInRange()) {
-					fromAmount = new CoinAmount(boundAmount, currentCoin).toAmountString();
+					amount = new CoinAmount(boundAmount, currentCoin).toAmountString();
 				} else {
-					fromAmount = '0';
+					amount = '0';
 				}
 			}}
 			required={true}
@@ -173,9 +179,9 @@
 			{currentCoin.label}
 		</div>
 	</div>
-	<span class={['approx-usd', { hidden: !(fromCoin && boundAmount) }]}>
+	<span class={['approx-usd', { hidden: !(coin && boundAmount) }]}>
 		Approx. USD value:
-		{#if fromCoin?.coin.value != Coin.unk.value}
+		{#if coin?.coin.value != Coin.unk.value}
 			${inUsd}
 		{:else}
 			Unknown

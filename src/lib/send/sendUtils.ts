@@ -1,7 +1,7 @@
 import { getAccounts } from '@aioha/aioha/build/rpc';
 import { type Account, postingMetadataFromString } from '$lib/auth/hive/accountTypes';
 import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
-import {
+import swapOptions, {
 	Network,
 	networkMap,
 	SendAccount,
@@ -35,14 +35,15 @@ export function blankDetails() {
 		toUsername: '',
 		toDisplayName: '',
 		method: undefined,
-		account: undefined
+		account: undefined,
+		fee: undefined
 	};
 }
 
 let tx_session_id = 0;
 
 export function getTxSessionId() {
-	return (++tx_session_id);
+	return ++tx_session_id;
 }
 
 export async function getDisplayName(did: string) {
@@ -93,7 +94,6 @@ export function getFromOptions(
 	method: TransferMethod | undefined,
 	did: string | undefined
 ): AccsNetsPair {
-	console.log('getfromopts', method, did);
 	if (!method || !did) {
 		return;
 	}
@@ -150,7 +150,7 @@ function createSet(arr: { value: string; [key: string]: any }[]) {
 }
 
 function toNetworkArr(set: Set<string>) {
-	const allNets = networkMap.keys();
+	const allNets = [Network.vsc, Network.hiveMainnet, Network.lightning];
 	let result: Network[] = [];
 	Array.from(set).forEach((entry) => {
 		const network = allNets.find((net) => net.value === entry);
@@ -162,6 +162,7 @@ function toNetworkArr(set: Set<string>) {
 export function solveNetworkConstraints(
 	method: TransferMethod | undefined,
 	fromCoin: CoinOptions['coins'][number] | undefined,
+	toNetwork: Network | undefined,
 	did: string | undefined,
 	account?: SendAccount
 ): Constraints {
@@ -180,9 +181,10 @@ export function solveNetworkConstraints(
 		accountNetworkOptions = accountNetworkOptions.intersection(accountNetworks);
 	}
 
-	const assetOptions = toNetworkArr(accountNetworkOptions).reduce<CoinOptions['coins']>(
+	// asset options based allowed on networks allowed by accounts
+	const assetFromOptions = toNetworkArr(accountNetworkOptions).reduce<CoinOptions['coins']>(
 		(acc, net) => {
-			const coins = networkMap.get(net);
+			const coins = networkMap.get(net.value);
 			if (!coins) return acc;
 			for (const coin of coins) {
 				const existing = acc.find((item) => item.coin.value === coin.value);
@@ -198,6 +200,32 @@ export function solveNetworkConstraints(
 		},
 		[]
 	);
+	// keeps only coins that are also in the toNetwork
+	const assetOptions: CoinOptions['coins'] = (() => {
+		if (!toNetwork) {
+			return [];
+		}
+
+		if (account?.value === SendAccount.swap.value) {
+			const coins = networkMap.get(toNetwork.value);
+			if (!coins) return [];
+			return coins
+				.map((coin) => ({
+					coin: coin,
+					networks: swapOptions.from.coins.find((coinOpt) => coinOpt.coin.value === coin.value)
+						?.networks ?? [toNetwork]
+				}))
+				.filter((coinOpt) =>
+					swapOptions.to.coins.map((coin) => coin.coin.value).includes(coinOpt.coin.value)
+				);
+		}
+		return assetFromOptions.filter((coinOpt) =>
+			networkMap
+				.get(toNetwork.value)
+				?.map((coin) => coin.value)
+				?.includes(coinOpt.coin.value)
+		);
+	})();
 
 	let coinNetworkOptions: Set<string> = createSet(getMethodNetworks(method, did));
 	if (fromCoin) {
@@ -205,10 +233,16 @@ export function solveNetworkConstraints(
 		coinNetworkOptions = coinNetworkOptions.intersection(coinNetworks);
 	}
 	const accountOptions = getAccountsFromNetworks(toNetworkArr(coinNetworkOptions));
+	if (account && !accountOptions.includes(account)) {
+		accountOptions.push(account);
+	}
 
 	// console.log('acc opts, coin opts', accountNetworkOptions, coinNetworkOptions);
-	const networkOptions = toNetworkArr(accountNetworkOptions.intersection(coinNetworkOptions));
-	// console.log('network options', networkOptions);
+	const networkOptions = toNetworkArr(
+		account?.value === SendAccount.swap.value
+			? accountNetworkOptions
+			: accountNetworkOptions.intersection(coinNetworkOptions)
+	);
 
 	return {
 		assetOptions: assetOptions,
@@ -224,9 +258,6 @@ export async function send(
 	setStatus: (status: string, isError?: boolean) => void
 ): Promise<Error | { id: string }> {
 	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
-
-	console.log('in send(), coin is', details.fromCoin, details.toCoin);
-
 	if (intermediary == Network.vsc) {
 		if (auth.value?.provider == 'reown') {
 			// account check in signAndBroadcast
@@ -323,7 +354,6 @@ export async function send(
 	}
 
 	if (intermediary == Network.hiveMainnet) {
-		console.log('intermediary network identified as hive');
 		if (!auth.value?.aioha)
 			return new Error("Hive Mainnet Transactions via an EVM wallet aren't supported yet.");
 		setStatus('Waiting for Hive wallet approval…');

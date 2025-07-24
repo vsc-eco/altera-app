@@ -16,7 +16,7 @@
 	} = $props();
 </script>
 
-<div class="bar">
+<div class="bar" id="send-footer">
 	<div class="button-wrapper">
 		<PillButton onclick={buttons.back.action} disabled={buttons.back.disabled} styleType="outline">
 			{buttons.back.label}
@@ -34,9 +34,6 @@
 
 <style>
 	.bar {
-		position: absolute;
-		bottom: 0;
-		left: 0;
 		width: 100vw;
 		background-color: var(--neutral-off-bg);
 		border-top: 1px solid var(--neutral-bg-accent);

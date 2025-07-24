@@ -9,7 +9,7 @@
 	} = $props();
 </script>
 
-<header>
+<header id="send-header">
 	<a class="logo-slogan" href="/">
 		<img src="altera_med.png" alt="VSC"/>
         <span class="vertical-line"></span>
@@ -51,7 +51,14 @@
 	// point where it's as wide as content 
 	@media screen and (max-width: 776px) {
 		header {
-			margin: 3rem 1rem;
+			margin-left: 1rem;
+			margin-right: 1rem;
+		}
+	}
+	@media screen and (max-height: 700px) {
+		header {
+			margin-top: 1rem;
+			margin-bottom: 1rem;
 		}
 	}
 </style>

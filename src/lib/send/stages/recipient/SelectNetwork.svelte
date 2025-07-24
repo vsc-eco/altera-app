@@ -210,6 +210,7 @@
 		gap: 0.5rem;
 		.radio-buttons {
 			margin-top: 1rem;
+			width: fit-content;
 		}
 	}
 

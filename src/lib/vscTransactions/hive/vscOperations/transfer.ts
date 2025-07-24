@@ -26,7 +26,7 @@ export function getHiveTransferOp(
 	const jsonOutput: transferOp = {
 		from: `hive:${from}`,
 		to: toDid,
-		asset: amount.coin.unit.toLowerCase(),
+		asset: amount.coin.value.toLowerCase(),
 		net_id: 'vsc-mainnet',
 		amount: amount.toPrettyAmountString(),
 	}

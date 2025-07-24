@@ -60,6 +60,8 @@
 			const currentTxs = $vscTxsStore;
 			const foundTx = currentTxs.find((tx) => tx.id === targetTxId);
 
+			let lastOffset = currStoreLen;
+
 			if (foundTx) {
 				console.log('found');
 				hasFoundAutoOpenTx = true;
@@ -82,6 +84,9 @@
 				if (error instanceof Error && error.name !== 'AbortError') {
 					console.error(error);
 				}
+				break;
+			}
+			if (currStoreLen === lastOffset) {
 				break;
 			}
 		}

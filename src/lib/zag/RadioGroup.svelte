@@ -118,13 +118,11 @@
 		{/each}
 	</div>
 
-	<label class="error" for={id}>
-		{#if error}
+	{#if error}
+		<label class="error" for={id}>
 			{error}
-		{:else}
-			&nbsp;
-		{/if}
-	</label>
+		</label>
+	{/if}
 </div>
 
 <style lang="scss">

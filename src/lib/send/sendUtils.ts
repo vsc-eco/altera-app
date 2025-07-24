@@ -11,7 +11,7 @@ import {
 	type NecessarySendDetails,
 	type SendDetails
 } from './sendOptions';
-import type { Auth } from '$lib/auth/store';
+import { authStore, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
 import { getEVMOpType } from '$lib/vscTransactions/eth';
 import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -20,19 +20,30 @@ import { addLocalTransaction } from '../stores/localStorageTxs';
 import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/eth/client';
 import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 import { wagmiConfig } from '$lib/auth/reown';
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 
-export const SendTxDetails = writable<SendDetails>({
-	fromCoin: undefined,
-	fromNetwork: undefined,
-	fromAmount: '0',
-	toCoin: undefined,
-	toNetwork: undefined,
-	toUsername: '',
-	toDisplayName: '',
-	method: undefined,
-	account: undefined
-});
+export const SendTxDetails = writable<SendDetails>(blankDetails());
+
+export function blankDetails() {
+	return {
+		fromCoin: undefined,
+		fromNetwork: undefined,
+		fromAmount: '0',
+		toCoin: undefined,
+		toNetwork: undefined,
+		toAmount: '0',
+		toUsername: '',
+		toDisplayName: '',
+		method: undefined,
+		account: undefined
+	};
+}
+
+let tx_session_id = 0;
+
+export function getTxSessionId() {
+	return (++tx_session_id);
+}
 
 export async function getDisplayName(did: string) {
 	if (!did.startsWith('hive:')) {
@@ -210,14 +221,13 @@ export async function send(
 	details: NecessarySendDetails,
 	auth: Auth,
 	intermediary: IntermediaryNetwork,
-	setStatus: (status: string) => void
+	setStatus: (status: string, isError?: boolean) => void
 ): Promise<Error | { id: string }> {
 	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
 
-	console.log('in send()');
+	console.log('in send(), coin is', details.fromCoin, details.toCoin);
 
 	if (intermediary == Network.vsc) {
-		console.log('intermediary network identified as vsc');
 		if (auth.value?.provider == 'reown') {
 			// account check in signAndBroadcast
 			const client = createClient(auth.value.did);
@@ -232,7 +242,7 @@ export async function send(
 
 			setStatus('Preparing transaction for signing…');
 
-			const result = await signAndBrodcastTransaction([sendOp], wagmiSigner, client, wagmiConfig)
+			const id = await signAndBrodcastTransaction([sendOp], wagmiSigner, client, wagmiConfig)
 				.then((result) => {
 					setStatus(`Transaction submitted successfully!`);
 					// TODO: add back once backend fixed
@@ -255,25 +265,23 @@ export async function send(
 				})
 				.catch((error) => {
 					if (error instanceof Error) {
-						if (error.message.includes('User rejected') || error.message.includes('rejected')) {
-							setStatus('Transaction was cancelled by user');
-						} else if (error.message.includes('wallet')) {
-							setStatus('Please connect your wallet and try again');
+						if (error.message.includes('wallet')) {
+							setStatus('Please connect your wallet and try again.', true);
 						} else if (error.message.includes('422')) {
-							setStatus('Transaction format error. Please check your inputs and try again');
+							setStatus('Transaction format error. Please check your inputs and try again.', true);
 						} else if (error.message.includes('network') || error.message.includes('Network')) {
-							setStatus('Network error. Please check your connection and try again');
+							setStatus('Network error. Please check your connection and try again.', true);
 						} else if (error.message.includes('not enough RCS')) {
-							setStatus('Not enough Resource Credits. Please deposit HBD and try again.');
+							setStatus('Not enough Resource Credits. Please deposit HBD and try again.', true);
 						} else {
-							setStatus('Transaction failed.');
+							setStatus(error.message, true);
 						}
 						return error;
 					}
-					setStatus('Transaction failed.');
+					setStatus('Transaction failed.', true);
 					return new Error('Transaction failed.');
 				});
-			return result;
+			return id;
 		}
 		if (!auth.value?.aioha)
 			return new Error("VSC Transactions via an EVM wallet isn't supported yet.");
@@ -310,6 +318,7 @@ export async function send(
 			});
 			return { id: res.result };
 		}
+		setStatus(res.error, true);
 		return new Error(res.error);
 	}
 

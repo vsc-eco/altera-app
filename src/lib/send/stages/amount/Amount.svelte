@@ -3,6 +3,7 @@
 	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
 	import swapOptions, {
 		Coin,
+		Network,
 		SendAccount,
 		sendAccountOptions,
 		type CoinOptions
@@ -13,6 +14,8 @@
 	import { untrack } from 'svelte';
 	import AccountInfo from '../AccountInfo.svelte';
 	import AssetInfo from '../AssetInfo.svelte';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
 
 	let auth = $authStore;
 	let {
@@ -79,15 +82,27 @@
 	let toCoinValue = $state('');
 	$effect(() => {
 		if ($SendTxDetails.account?.value === SendAccount.swap.value && toCoinValue) {
-			SendTxDetails.update(current => ({
-				...current,
-				toCoin: swapOptions.to.coins.find((coin) => coin.coin.value === toCoinValue)
-			}))
+			if ($SendTxDetails.toCoin?.coin.value !== toCoinValue) {
+				const toCoin = swapOptions.to.coins.find((coin) => coin.coin.value === toCoinValue);
+				if (!toCoin || !$SendTxDetails.fromCoin) {
+					return;
+				}
+				new CoinAmount(fromAmount, $SendTxDetails.fromCoin.coin)
+					.convertTo(toCoin.coin, Network.lightning)
+					.then((amount) => {
+						SendTxDetails.update((current) => ({
+							...current,
+							toCoin: toCoin,
+							toAmount: amount.toAmountString()
+						}));
+					});
+			}
 		} else if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
-			SendTxDetails.update(current => ({
+			SendTxDetails.update((current) => ({
 				...current,
-				toCoin: current.fromCoin
-			}))
+				toCoin: current.fromCoin,
+				toAmount: current.fromAmount
+			}));
 		}
 	});
 	let toCoinOptions = $derived(
@@ -101,24 +116,50 @@
 		})
 	);
 	let fromAmount = $state('');
-	$inspect(fromAmount);
 
 	$effect(() => {
 		if (fromAmount !== $SendTxDetails.fromAmount) {
-			SendTxDetails.update(current => ({
-				...current,
-				fromAmount: fromAmount
-			}))
+			untrack(() => {
+				if ($SendTxDetails.toCoin && $SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
+					const toCoin = swapOptions.to.coins.find((coin) => coin.coin.value === toCoinValue);
+					if (toCoin && $SendTxDetails.fromCoin) {
+						new CoinAmount(fromAmount, $SendTxDetails.fromCoin.coin)
+							.convertTo(toCoin.coin, Network.lightning)
+							.then((amount) => {
+								SendTxDetails.update((current) => ({
+									...current,
+									fromAmount: fromAmount,
+									toAmount: amount.toAmountString()
+								}));
+							});
+						return;
+					}
+				}
+				SendTxDetails.update((current) => ({
+					...current,
+					fromAmount: fromAmount,
+					toAmount: fromAmount
+				}));
+			});
 		}
 	});
 
 	$effect(() => {
-		if ($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork && $SendTxDetails.fromAmount !== '0') {
+		if (
+			$SendTxDetails.fromCoin &&
+			$SendTxDetails.fromNetwork &&
+			$SendTxDetails.fromAmount !== '0' &&
+			!toSelf
+		) {
 			editStage(id, true);
 		} else {
 			editStage(id, false);
 		}
-	})
+	});
+	let toSelf = $derived(
+		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
+			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
+	);
 </script>
 
 {#snippet assetCard(fromCoin: CoinOptions['coins'][number] | undefined)}
@@ -170,10 +211,25 @@
 		}}
 	/>
 
+	{#if toSelf}
+		<p class="error to-self-error">
+			Cannot transfer currency to yourself on the same network. Please select a different recipient or network.
+		</p>
+	{/if}
+
 	{#if $SendTxDetails.account?.value === SendAccount.swap.value}
 		<div class="to-coin">
 			<span class="sm-caption">To Asset</span>
-			<RadioGroup required id={'network'} bind:value={toCoinValue} items={toCoinOptions} />
+			<div class="to-amount">
+				<span class="coin-select">
+					<RadioGroup required id={'network'} bind:value={toCoinValue} items={toCoinOptions} />
+				</span>
+				{#if $SendTxDetails.toCoin && $SendTxDetails.toAmount !== '0'}
+					<p>
+						{new CoinAmount($SendTxDetails.toAmount, $SendTxDetails.toCoin.coin).toPrettyString()}
+					</p>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
@@ -232,5 +288,20 @@
 		.sm-caption {
 			padding-bottom: 0.5rem;
 		}
+		.to-amount {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			p {
+				font-family: 'Noto Sans Mono Variable', monospace;
+				font-weight: 400;
+			}
+		}
+		.coin-select {
+			width: fit-content;
+		}
+	}
+	.to-self-error {
+		margin-top: 0.5rem;
 	}
 </style>

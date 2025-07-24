@@ -265,6 +265,7 @@ export type SendDetails = {
 	fromAmount: string;
 	toCoin: CoinOptions['coins'][number] | undefined;
 	toNetwork: Network | undefined;
+	toAmount: string;
 	toUsername: string;
 	method: TransferMethod | undefined;
 	account: SendAccount | undefined;

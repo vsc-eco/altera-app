@@ -15,12 +15,12 @@
 	}: {
 		id: string;
 		editStage: (id: string, add: boolean) => void;
-		status: string;
+		status: { message: string; isError: boolean };
 	} = $props();
 
 	$effect(() => {
 		editStage(id, true);
-	})
+	});
 
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
@@ -50,7 +50,10 @@
 <Card>
 	<div class="amount">
 		<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
-		<h4>{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()} {`(\$US ${inUsd})`}</h4>
+		<h4>
+			{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+			{`(\$US ${inUsd})`}
+		</h4>
 	</div>
 	<div class="date">
 		<span>Pay once on {today}</span>
@@ -99,10 +102,10 @@
 		</tbody>
 	</table>
 </div>
-{#if status}
+{#if status.message}
 	<div class="status-wrapper">
 		<span class="sm-caption">Status</span>
-		<span class="status">{status}</span>
+		<p class={{ status: !status.isError, error: status.isError }}>{status.message}</p>
 	</div>
 {/if}
 

@@ -13,16 +13,21 @@
 	import V4VPopup from './V4VPopup.svelte';
 	import { getIntermediaryNetwork } from './getNetwork';
 	import { authStore } from '$lib/auth/store';
-	import { send } from './sendUtils';
+	import { blankDetails, getTxSessionId, send } from './sendUtils';
 	import PillButton, { type ButtonAttributes } from '$lib/PillButton.svelte';
 	import { SendTxDetails } from './sendUtils';
 	import { goto } from '$app/navigation';
 	import Card from '$lib/cards/Card.svelte';
 	import Complete from './stages/complete/Complete.svelte';
+	import SendNavButtons from './navigation/SendNavButtons.svelte';
+	import { sleep } from 'aninest';
 
 	let auth = $authStore;
 	let windowWidth = $state(0);
 	let remValue = $state(0);
+
+	let sessionId = $state(getTxSessionId());
+	SendTxDetails.set(blankDetails());
 
 	onMount(() => {
 		const rootStyle = getComputedStyle(document.documentElement);
@@ -31,8 +36,8 @@
 	// size of content + 2 * (space for tabs + buffer)
 	const showTabs = $derived(windowWidth > 42 * remValue + 2 * (6.75 * remValue + 106 + 10));
 
-	let error = $state('');
-	let status = $state('');
+	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
+	let txId = $state('');
 
 	const stepsData = [
 		{ value: 'recipient', label: 'Recipient', content: recipient },
@@ -63,15 +68,14 @@
 			showV4VModal = true;
 		});
 	}
-	function setStatus(s: string) {
-		status = s;
+	function setStatus(s: string, isError = false) {
+		status = { message: s, isError: isError };
 	}
 	function initSwap() {
-		console.log('in initSwap');
 		const {
 			fromCoin,
 			fromNetwork,
-			fromAmount: amount,
+			toAmount: amount,
 			toCoin,
 			toNetwork,
 			toUsername
@@ -81,7 +85,7 @@
 			return new Error('Required field undefined.');
 		}
 
-		console.log('fields', fromCoin, fromNetwork, toCoin, toNetwork);
+		console.log('fields', fromCoin, fromNetwork, toCoin, toNetwork, amount);
 
 		const importantDetails: NecessarySendDetails = {
 			fromCoin,
@@ -97,18 +101,18 @@
 			{ coin: toCoin.coin, network: toNetwork }
 		);
 
-		console.log('intermediary', intermediary);
-
 		if (intermediary === Network.lightning) {
+			setStatus('Generating Lightning transfer');
 			openV4V();
 			return;
 		}
 
 		send(importantDetails, auth, intermediary, setStatus).then((res) => {
 			if (res instanceof Error) {
-				console.error(res.message);
+				// log the error if it isn't caught
+				if (!status.isError) console.error(res.message);
 			} else {
-				console.log('id:', res.id);
+				txId = res.id;
 			}
 		});
 		return;
@@ -130,8 +134,57 @@
 		}
 		stepComplete = false;
 	}
-	
-	const nextLabel = $derived(api.value === stepsData.length - 1 ? 'Send' : 'Next');
+	function next() {
+		if (api.value === api.count) {
+			goto('/transactions');
+		} else if (stepsData[api.value].value === 'review') {
+			editStage(stepsData[stepsData.length - 1].value, true);
+			setStatus('');
+			initSwap();
+		} else {
+			api.goToNextStep();
+		}
+	}
+	function previous() {
+		if (txId) {
+			txId = '';
+		}
+		if (api.value === 0) {
+			goto('/');
+		} else if (api.value === api.count) {
+			api.setStep(0);
+			sessionId = getTxSessionId();
+			SendTxDetails.set(blankDetails());
+		} else {
+			api.goToPrevStep();
+			setStatus('');
+		}
+	}
+
+	const nextLabel = $derived(
+		stepsData[api.value].value === 'review'
+			? 'Send'
+			: api.value === stepsData.length - 1
+				? 'Done'
+				: 'Next'
+	);
+	const buttons = $derived({
+		fwd: {
+			label: nextLabel,
+			action: next,
+			disabled: !stepComplete
+		},
+		back: {
+			label: 'Back',
+			action: previous
+		}
+	});
+	$effect(() => {
+		if (txId) {
+			setStatus('');
+			api.setStep(stepsData.length - 1);
+		}
+	});
 </script>
 
 <svelte:window
@@ -152,53 +205,35 @@
 	<Review id={value} {editStage} {status} />
 {/snippet}
 {#snippet complete(value: string)}
-	<Complete /> 
+	<Complete {txId} />
 {/snippet}
 
 <SendTitle close={() => goto('/')} />
 
-<div {...api.getRootProps()}>
-	{#if showTabs}
-		<div {...api.getListProps()}>
-			{#each stepsData as step, index}
-				<button {...api.getTriggerProps({ index })}>
-					<div {...api.getIndicatorProps({ index })}>{step.label}</div>
-				</button>
-			{/each}
-		</div>
-	{/if}
-	{#each stepsData as step, index}
-		<div {...api.getContentProps({ index })}>
-			{@render step.content(step.value)}
-		</div>
-	{/each}
-	<div class="nav-bar">
-		<div class="nav-buttons">
-			<PillButton {...api.getPrevTriggerProps() as ButtonAttributes} styleType="outline"
-				>Back</PillButton
-			>
-			<!-- {#if stepComplete} -->
-			<PillButton
-				{...api.getNextTriggerProps() as ButtonAttributes}
-				styleType="invert"
-				theme="accent"
-				disabled={!stepComplete}
-			>
-				{nextLabel}
-			</PillButton>
-			<!-- {:else}
-				<PillButton onclick={() => (violation = true)} styleType="invert" theme="accent">
-					{nextLabel}
-				</PillButton>
-			{/if} -->
-		</div>
+{#key sessionId}
+	<div {...api.getRootProps()}>
+		{#if showTabs}
+			<div {...api.getListProps()}>
+				{#each stepsData.slice(0, -1) as step, index}
+					<button {...api.getTriggerProps({ index })}>
+						<div {...api.getIndicatorProps({ index })}>{step.label}</div>
+					</button>
+				{/each}
+			</div>
+		{/if}
+		{#each stepsData as step, index}
+			<div {...api.getContentProps({ index })}>
+				{@render step.content(step.value)}
+			</div>
+		{/each}
+		<SendNavButtons {buttons} />
 	</div>
-</div>
+{/key}
 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
 	{@const toCoin = $SendTxDetails.toCoin}
 	{@const toNetwork = $SendTxDetails.toNetwork}
-	{@const toAmount = $SendTxDetails.fromAmount}
+	{@const toAmount = $SendTxDetails.toAmount}
 
 	<V4VPopup
 		from={{ coin: Coin.sats, network: Network.lightning }}
@@ -207,11 +242,15 @@
 		{auth}
 		toUsername={$SendTxDetails.toUsername}
 		onerror={(v) => {
-			error = v;
+			if (v.includes('Bad request')) {
+				setStatus('An error occured, please try again.', true);
+			} else {
+				setStatus(v.startsWith('Error: ') ? v.substring(7) : v, true);
+			}
 			showV4VModal = false;
 		}}
 		onsuccess={(id) => {
-			error = '';
+			setStatus('');
 			// TODO: after success notify via a notification
 			// store transaction as pending in local storage
 			addLocalTransaction({
@@ -233,6 +272,7 @@
 				id: id,
 				type: 'v4v'
 			});
+			txId = id;
 			setTimeout(() => {
 				showV4VModal = false;
 			}, 10000);
@@ -305,5 +345,8 @@
 		border-top: 1px solid var(--neutral-bg-accent);
 		display: flex;
 		justify-content: center;
+	}
+	:global(h2) {
+		margin-bottom: 1rem;
 	}
 </style>

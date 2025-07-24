@@ -11,7 +11,11 @@
 	import { untrack } from 'svelte';
 	import { authStore, getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
-	import { getTimestamp, type TransactionInter, type TransactionOpType } from '$lib/stores/txStores';
+	import {
+		getTimestamp,
+		type TransactionInter,
+		type TransactionOpType
+	} from '$lib/stores/txStores';
 	import moment from 'moment';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import { addNotification } from '$lib/Topbar/notifications';
@@ -79,10 +83,12 @@
 			};
 		}
 	});
-	$inspect(status);
+	// $inspect(status);
 
 	const statusStore = $derived(
-		tx.isPending || ['CONFIRMED', 'FAILED'].includes(tx.status)
+		tx.isPending ||
+			['CONFIRMED', 'FAILED'].includes(tx.status) ||
+			moment().diff(moment(getTimestamp(tx)), 'days') > 1
 			? null
 			: checkOpStatus(tx.id, tx.status)
 	);

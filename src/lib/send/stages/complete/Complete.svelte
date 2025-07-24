@@ -4,6 +4,13 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
+	import { goto } from '$app/navigation';
+	import PieTimer from './PieTimer.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+
+	let timer = $state<PieTimer>();
+
+	let { txId }: { txId: string } = $props();
 
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
@@ -15,6 +22,31 @@
 			});
 	});
 	let today = moment().format('MMM D, YYYY');
+
+	function redirect() {
+		const openTxParams = new URLSearchParams();
+		openTxParams.set('tx', txId);
+		openTxParams.set('index', '0');
+		goto(`/transactions?${openTxParams.toString()}`);
+	}
+
+	let timerStarted = false;
+	let timerCanceled = $state(false);
+	function cancelTimer() {
+		timer?.stop();
+		timerCanceled = true;
+	}
+	$effect(() => {
+		if (txId && !timerStarted) {
+			timer?.start();
+			timerStarted = true;
+		}
+		if (timerStarted && !txId) {
+			timer?.stop();
+			timerStarted = false;
+			timerCanceled = false;
+		}
+	});
 </script>
 
 <div class="wrapper">
@@ -31,6 +63,13 @@
 			<span>Paid on {today}</span>
 		</div>
 	</Card>
+	{#if !timerCanceled}
+		<div class="redirect">
+			<p>Redirecting to transactions…</p>
+			<PieTimer bind:this={timer} onComplete={redirect} />
+			<PillButton onclick={cancelTimer}>Stay</PillButton>
+		</div>
+	{/if}
 </div>
 
 <style lang="scss">
@@ -47,5 +86,11 @@
 	}
 	.sm-caption {
 		font-size: var(--text-sm);
+	}
+	.redirect {
+		margin-top: 2rem;
+		display: flex;
+		gap: 1rem;
+		align-items: center;
 	}
 </style>

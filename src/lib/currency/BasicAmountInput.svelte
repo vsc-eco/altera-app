@@ -7,6 +7,7 @@
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import PillButton from '$lib/PillButton.svelte';
 	import { is } from '$lib/vscTransactions/eth/cborg_utils/is';
+	import { DollarSign } from '@lucide/svelte';
 
 	let {
 		fromAmount = $bindable(),
@@ -41,43 +42,36 @@
 		const _ = showMax;
 		untrack(() => {
 			fromAmount = isInRange() ? boundAmount! : '0';
-		})
+		});
 	});
 	$effect(() => {
 		// makes it reactive to boundAmount, which is only in a "then" otherwise
 		const newCoinOpt = fromCoin;
-		console.log("newCoinOpt", newCoinOpt);
 		if (!newCoinOpt) {
 			if (currentCoin !== coins.usd) {
 				boundAmount = null;
 				currentCoin = coins.usd;
 			}
-			console.log("returning");
 			return;
 		}
 		if (newCoinOpt.coin.value === currentCoin.value) {
-			console.log("returning because values match");
 			return;
 		}
 		untrack(() => {
 			const originalAmount = new CoinAmount(fromAmount, currentCoin, true);
 			if (originalAmount.toNumber() === 0) {
-				console.log("returning because 0");
 				return;
 			}
-			console.log("here");
 			originalAmount
 				.convertTo(newCoinOpt.coin, Network.lightning)
 				.then((amount) => {
-					console.log("amount", amount);
 					boundAmount = amount.toAmountString(true);
 					fromAmount = isInRange() ? boundAmount : '0';
 				})
 				.catch((err) => {
-					console.log("error converting", err.message);
+					console.log('error converting', err.message);
 				});
 		});
-		console.log('setting current coin');
 		currentCoin = newCoinOpt.coin;
 	});
 	$effect(() => {
@@ -130,9 +124,16 @@
 		</span>
 	</label>
 	<div class="amount-input">
-		<CoinNetworkIcon coin={fromCoin?.coin ?? coins.usd} network={fromNetwork ?? Network.unknown} />
+		{#if !fromCoin?.coin}
+			<DollarSign />
+		{:else}
+			<CoinNetworkIcon
+				coin={fromCoin?.coin ?? coins.usd}
+				network={fromNetwork ?? Network.unknown}
+			/>
+		{/if}
 		<input
-			min="0.000000001"
+			min="0.00000001"
 			max={maxBalance}
 			oninvalid={(e) => {
 				e.preventDefault();
@@ -149,13 +150,10 @@
 				});
 			}}
 			oninput={() => {
-				// if (!boundAmount || !isInRange()) {
-				// 	fromAmount = '0';
-				// }
-			}}
-			onchange={() => {
 				if (boundAmount && isInRange()) {
 					fromAmount = new CoinAmount(boundAmount, currentCoin).toAmountString();
+				} else {
+					fromAmount = '0';
 				}
 			}}
 			required={true}

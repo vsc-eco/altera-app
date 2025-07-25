@@ -19,6 +19,7 @@
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import { CornerDownRight } from '@lucide/svelte';
 	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
+	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 
 	let auth = $authStore;
 	let {
@@ -64,9 +65,11 @@
 		})) ?? []
 	);
 
+	let isSwap = $derived($SendTxDetails.account?.value === SendAccount.swap.value);
+
 	// default to USD
 	$effect(() => {
-		if ($SendTxDetails.account?.value === SendAccount.swap.value && !$SendTxDetails.toCoin) {
+		if (isSwap && !$SendTxDetails.toCoin) {
 			SendTxDetails.update((current) => ({
 				...current,
 				toCoin: {
@@ -99,27 +102,27 @@
 
 	let fromCoinValue = $state('');
 	$effect(() => {
-		if ($SendTxDetails.account?.value === SendAccount.swap.value && fromCoinValue) {
+		if (isSwap && fromCoinValue) {
 			if ($SendTxDetails.fromCoin?.coin.value !== fromCoinValue) {
 				const fromCoinOpt = swapOptions.from.coins.find(
 					(coin) => coin.coin.value === fromCoinValue
 				);
 				if (!fromCoinOpt) return;
 				if ($SendTxDetails.toCoin) {
-					(async () => {
-						const amount = await new CoinAmount(toAmount, $SendTxDetails.toCoin!.coin).convertTo(
+					Promise.all([
+						new CoinAmount(toAmount, $SendTxDetails.toCoin!.coin).convertTo(
 							fromCoinOpt.coin,
 							Network.lightning
-						);
-						const fee = await getTableFee();
-						console.log("fee", fee);
+						),
+						getFee()
+					]).then(([amount, fee]) => {
 						SendTxDetails.update((current) => ({
 							...current,
 							fromCoin: fromCoinOpt,
 							fromAmount: amount.toAmountString(),
 							fee: fee
 						}));
-					})();
+					});
 				} else {
 					SendTxDetails.update((current) => ({
 						...current,
@@ -154,6 +157,16 @@
 			fromCoinValue = fromCoinOptions[0].value;
 		}
 	});
+
+	const maxField: BalanceOption | undefined = $derived.by(() => {
+		if (isSwap || $SendTxDetails.fromNetwork?.value !== Network.vsc.value) return;
+		const fromCoin = $SendTxDetails.fromCoin?.coin;
+		if (!fromCoin) return undefined;
+		if (isValidBalanceField(fromCoin.value)) {
+			return fromCoin.value as BalanceOption;
+		}
+	});
+
 	let toAmount = $state('');
 	let fromSwapAmount = $state('');
 	let effectToAmount = $state('');
@@ -197,15 +210,20 @@
 				if ($SendTxDetails.toCoin && $SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
 					const fromCoin = swapOptions.from.coins.find((coin) => coin.coin.value === fromCoinValue);
 					if (fromCoin && $SendTxDetails.fromCoin) {
-						new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)
-							.convertTo(fromCoin.coin, Network.lightning)
-							.then((amount) => {
-								SendTxDetails.update((current) => ({
-									...current,
-									toAmount: toAmount,
-									fromAmount: amount.toAmountString()
-								}));
-							});
+						Promise.all([
+							new CoinAmount(toAmount, $SendTxDetails.toCoin!.coin).convertTo(
+								fromCoin.coin,
+								Network.lightning
+							),
+							getFee()
+						]).then(([amount, fee]) => {
+							SendTxDetails.update((current) => ({
+								...current,
+								toAmount: toAmount,
+								fromAmount: amount.toAmountString(),
+								fee: fee
+							}));
+						});
 						return;
 					}
 				}
@@ -234,14 +252,13 @@
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
-	async function getTableFee() {
+	async function getFee() {
 		if (
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.fromNetwork &&
 			$SendTxDetails.toCoin &&
 			$SendTxDetails.toCoin.coin.value !== coins.usd.value &&
-			$SendTxDetails.toNetwork &&
-			$SendTxDetails.toAmount !== '0'
+			$SendTxDetails.toNetwork
 		) {
 			const fee = await getIntermediaryNetwork(
 				{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork },
@@ -284,6 +301,7 @@
 		coin={$SendTxDetails.toCoin}
 		network={$SendTxDetails.toNetwork}
 		id={'basic-input'}
+		{maxField}
 	/>
 
 	<h3>Asset</h3>
@@ -314,12 +332,12 @@
 		</p>
 	{/if}
 
-	{#if $SendTxDetails.account?.value === SendAccount.swap.value}
+	{#if isSwap}
 		<div class="swap-wrapper">
 			<CornerDownRight />
 			<div class="swap-options">
 				<h3>Swap Options</h3>
-				<span class="sm-caption">To Asset</span>
+				<span class="sm-caption">From Asset</span>
 				<div class="amt-and-fees">
 					<div class="to-amount">
 						<BasicAmountInput

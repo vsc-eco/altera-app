@@ -14,10 +14,8 @@
 	import { getIntermediaryNetwork } from './getNetwork';
 	import { authStore } from '$lib/auth/store';
 	import { blankDetails, getTxSessionId, send } from './sendUtils';
-	import PillButton, { type ButtonAttributes } from '$lib/PillButton.svelte';
 	import { SendTxDetails } from './sendUtils';
 	import { goto } from '$app/navigation';
-	import Card from '$lib/cards/Card.svelte';
 	import Complete from './stages/complete/Complete.svelte';
 	import SendNavButtons from './navigation/SendNavButtons.svelte';
 	import { sleep } from 'aninest';
@@ -28,8 +26,6 @@
 
 	let sessionId = $state(getTxSessionId());
 	SendTxDetails.set(blankDetails());
-
-	let contentElement = $state<HTMLElement | null>();
 
 	onMount(() => {
 		const rootStyle = getComputedStyle(document.documentElement);
@@ -298,7 +294,7 @@
 	}
 	[data-part='root'] {
 		flex-grow: 1;
-		width: 100vw;
+		width: calc(100vw - 1rem);
 		max-height: 100vh;
 		overflow-y: auto;
 	}
@@ -345,7 +341,7 @@
 		margin: auto;
 		max-width: 42rem;
 		padding-bottom: 1rem;
-		min-height: 100%;
+		min-height: calc(100% - 1rem);
 		overflow-y: scroll;
 	}
 	.nav-buttons {

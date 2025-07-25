@@ -187,7 +187,9 @@
 	</div>
 </div>
 
-<SendNavButtons {buttons} />
+<div class="nav">
+	<SendNavButtons {buttons} />
+</div>
 
 <style lang="scss">
 	.wrapper {
@@ -246,6 +248,12 @@
 			margin: 0.75rem 1rem;
 			animation: pulse 2s ease-in-out infinite;
 		}
+	}
+
+	.nav {
+		position: fixed;
+		left: 0;
+		bottom: 0;
 	}
 
 	@keyframes pulse {

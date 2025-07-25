@@ -33,31 +33,21 @@
 			editStage(id, false);
 		}
 	});
+	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
+	const possibleNetworks = $derived(getRecipientNetworks(toDid));
 	$effect(() => {
-		if (!auth.value) return;
+		const did = auth.value?.did;
 		untrack(() => {
-			(async () => {
-				const displayName = await getDisplayName(toDid);
+			if (!did) return;
+			getDisplayName(did).then((displayName) => {
 				SendTxDetails.update((current) => ({
 					...current,
 					toDisplayName: displayName ?? getUsernameFromDid(auth.value!.did),
 					toUsername: getUsernameFromDid(auth.value!.did),
 					toNetwork: Network.vsc
 				}));
-			})();
+			});
 		});
-	});
-	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
-	const possibleNetworks = $derived(getRecipientNetworks(toDid));
-	$effect(() => {
-		// have to do this because .includes doesn't work on array of Networks
-		const netVals = possibleNetworks.map((net) => net.value);
-		if ($SendTxDetails.toNetwork && !netVals.includes($SendTxDetails.toNetwork.value)) {
-			SendTxDetails.update((current) => ({
-				...current,
-				toNetwork: Network.vsc
-			}));
-		}
 	});
 	const transferMethods = [TransferMethod.vscTransfer, TransferMethod.lightningTransfer].map(
 		(item) => ({

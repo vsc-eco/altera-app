@@ -39,12 +39,14 @@
 		border-top: 1px solid var(--neutral-bg-accent);
 		display: flex;
 		justify-content: center;
+		translate: -0.5rem 0;
 	}
 	.button-wrapper {
 		display: flex;
 		flex-grow: 1;
 		justify-content: space-between;
 		padding: 1rem 0;
+		margin: 0 1rem;
 		align-items: center;
 		max-width: 42rem;
 	}

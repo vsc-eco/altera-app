@@ -27,7 +27,7 @@
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
 	$effect(() => {
-		new CoinAmount($SendTxDetails.fromAmount, toCoin)
+		new CoinAmount($SendTxDetails.toAmount, toCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
 				inUsd = amount.toAmountString();
@@ -51,8 +51,8 @@
 <h2>Review</h2>
 
 <Card>
+	<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
 	<div class="amount">
-		<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
 		{#if isSwap}
 			<div class="swap-header">
 				<p>{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}</p>
@@ -71,10 +71,12 @@
 <div class="recipient">
 	<table>
 		<tbody>
-			<tr>
-				<td class="label">Recipient</td>
-				<td class="content">{$SendTxDetails.toDisplayName}</td>
-			</tr>
+			{#if $SendTxDetails.toDisplayName !== $SendTxDetails.toUsername}
+				<tr>
+					<td class="label">Recipient</td>
+					<td class="content">{$SendTxDetails.toDisplayName}</td>
+				</tr>
+			{/if}
 			<tr>
 				<td class="label">Address</td>
 				<td class="content">{$SendTxDetails.toUsername}</td>
@@ -140,8 +142,13 @@
 {/if}
 
 <style lang="scss">
-	h4 {
+	.amount {
 		padding: 1.5rem 0;
+		p {
+			color: var(--primary-fg-mid);
+		}
+	}
+	h4 {
 		font-size: var(--text-6xl);
 		// font-weight: 400;
 		// color: var(--neutral-fg);

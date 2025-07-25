@@ -209,7 +209,10 @@
 		</table>
 	</div>
 </div>
-<SendNavButtons {buttons} />
+<div class="nav">
+	<SendNavButtons {buttons} />
+</div>
+
 
 <style lang="scss">
 	.wrapper {
@@ -293,6 +296,11 @@
 	.sm-label {
 		font-size: var(--text-sm);
 		color: var(--neutral-mid);
+	}
+	.nav {
+		position: fixed;
+		left: 0;
+		bottom: 0;
 	}
 
 	@keyframes pulse {

@@ -21,6 +21,8 @@ import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/e
 import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
+import { vscTxsStore, waitForExtend, type TransactionInter } from '$lib/stores/txStores';
+import moment from 'moment';
 
 export const SendTxDetails = writable<SendDetails>(blankDetails());
 
@@ -81,6 +83,54 @@ export function getMethodNetworks(method: TransferMethod, did: string) {
 		return [Network.lightning];
 	}
 	return [];
+}
+
+// increment through store, keep fetching more to find last paid
+export async function getLastPaidContact(auth: Auth, toDid: string) {
+	if (!auth.value?.did) return 'Never';
+	let lastChecked = 0;
+	let lastLength = 0;
+	let store: TransactionInter[];
+	do {
+		store = get(vscTxsStore);
+		lastLength = store.length;
+		for (const tx of store.slice(lastChecked)) {
+			if (!tx.ops) continue;
+			for (const op of tx.ops) {
+				if (op?.data.to === toDid) {
+					return `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
+				}
+			}
+		}
+		lastChecked = Math.max(store.length - 1, 0);
+		const success = await waitForExtend(auth.value.did);
+		if (!success) {
+			break;
+		}
+	} while (store.length > lastLength);
+	return 'Never';
+}
+export async function getLastPaidNetwork(auth: Auth, netVal?: string) {
+	if (!auth.value?.did || !netVal) return 'Never';
+	let lastChecked = 0;
+	let lastLength = 0;
+	let store: TransactionInter[];
+	do {
+		store = get(vscTxsStore);
+		lastLength = store.length;
+		for (const tx of store.slice(lastChecked)) {
+			if (!tx.ops) continue;
+			if (netVal.startsWith(tx.type)) {
+				return `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
+			}
+		}
+		lastChecked = Math.max(store.length - 1, 0);
+		const success = await waitForExtend(auth.value.did);
+		if (!success) {
+			break;
+		}
+	} while (store.length > lastLength);
+	return 'Never';
 }
 
 type AccsNetsPair =
@@ -150,10 +200,9 @@ function createSet(arr: { value: string; [key: string]: any }[]) {
 }
 
 function toNetworkArr(set: Set<string>) {
-	const allNets = [Network.vsc, Network.hiveMainnet, Network.lightning];
 	let result: Network[] = [];
 	Array.from(set).forEach((entry) => {
-		const network = allNets.find((net) => net.value === entry);
+		const network = Object.values(Network).find((net) => net.value === entry);
 		if (network) result.push(network);
 	});
 	return result;
@@ -167,14 +216,24 @@ export function solveNetworkConstraints(
 	account?: SendAccount
 ): Constraints {
 	// console.log("parameters to solve constraints", method, fromCoin, did, account);
-	if (!method || !did)
+	if (!did)
 		return {
 			assetOptions: [],
 			accountOptions: [],
 			networkOptions: []
 		};
+	// if (!method) {
+
+	// 	return {
+	// 		assetOptions: [],
+	// 		accountOptions: [],
+	// 		networkOptions: []
+	// 	};
+	// }
 	// given account: what are the network options
-	let accountNetworkOptions: Set<string> = createSet(getMethodNetworks(method, did));
+	let accountNetworkOptions: Set<string> = method
+		? createSet(getMethodNetworks(method, did))
+		: createSet(Object.values(Network));
 
 	if (account) {
 		const accountNetworks = createSet(getNetworksFromAccount(account, did) ?? []);
@@ -227,7 +286,9 @@ export function solveNetworkConstraints(
 		);
 	})();
 
-	let coinNetworkOptions: Set<string> = createSet(getMethodNetworks(method, did));
+	let coinNetworkOptions: Set<string> = method
+		? createSet(getMethodNetworks(method, did))
+		: createSet(Object.values(Network));
 	if (fromCoin) {
 		const coinNetworks = createSet(fromCoin.networks);
 		coinNetworkOptions = coinNetworkOptions.intersection(coinNetworks);

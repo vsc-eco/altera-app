@@ -1,22 +1,23 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { Coin, Network, type CoinOptions, type SendDetails } from '../send/sendOptions';
+	import { Coin, Network, type CoinOptions } from '../send/sendOptions';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
-	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
+	import { type BalanceOption } from '$lib/stores/balanceHistory';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import PillButton from '$lib/PillButton.svelte';
-	import { is } from '$lib/vscTransactions/eth/cborg_utils/is';
 	import { DollarSign } from '@lucide/svelte';
 
 	let {
 		amount = $bindable(),
+		connectedCoinAmount,
 		coin,
 		network,
 		id,
 		maxField
 	}: {
 		amount: string;
+		connectedCoinAmount?: CoinAmount<Coin>;
 		coin: CoinOptions['coins'][number] | undefined;
 		network: Network | undefined;
 		id: string;
@@ -27,6 +28,7 @@
 	let error = $state('');
 	let currentCoin = $state.raw(coins.usd);
 	let boundAmount: string | null = $state(null);
+	let lastConnected: CoinAmount<Coin> | undefined = $state();
 
 	let showMax = $derived(
 		maxField !== undefined &&
@@ -34,21 +36,26 @@
 			new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toAmountString() !==
 				new CoinAmount(boundAmount ?? 0, currentCoin).toAmountString()
 	);
+
 	$effect(() => {
-		const _ = showMax;
-		untrack(() => {
-			amount = isInRange() ? boundAmount! : '0';
-		});
-	});
-	$effect(() => {
-		const newAmount = amount;
-		untrack(() => {
-			// null instead of '0'
-			const setAmount = newAmount === '0' ? null : newAmount;
-			if (boundAmount !== setAmount) {
-				boundAmount = setAmount;
-			}
-		})
+		if (connectedCoinAmount && coin) {
+			if (connectedCoinAmount.toString() === untrack(() => lastConnected?.toString())) return;
+			untrack(() => {
+				Promise.all([
+					connectedCoinAmount.convertTo(coin.coin, Network.lightning),
+					new CoinAmount(amount, coin.coin).convertTo(connectedCoinAmount.coin, Network.lightning)
+				]).then(([connectedInThis, thisInConnected]) => {
+					if (thisInConnected.toString() === connectedCoinAmount.toString()) return;
+					const amtString = connectedInThis.toAmountString();
+					if (amtString === '0' && boundAmount && boundAmount !== '0') {
+						boundAmount = null;
+					} else {
+						boundAmount = amtString;
+					}
+					amount = amtString;
+				});
+			});
+		}
 	});
 	$effect(() => {
 		// makes it reactive to boundAmount, which is only in a "then" otherwise
@@ -133,10 +140,7 @@
 		{#if !coin?.coin}
 			<DollarSign />
 		{:else}
-			<CoinNetworkIcon
-				coin={coin?.coin ?? coins.usd}
-				network={network ?? Network.unknown}
-			/>
+			<CoinNetworkIcon coin={coin?.coin ?? coins.usd} network={network ?? Network.unknown} />
 		{/if}
 		<input
 			min="0.00000001"

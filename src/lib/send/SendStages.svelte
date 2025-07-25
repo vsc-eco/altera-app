@@ -50,8 +50,7 @@
 		id,
 		orientation: 'vertical',
 		// linear: true,
-		count: stepsData.length - 1,
-		onStepChange: (details) => {}
+		count: stepsData.length - 1
 	});
 
 	const api = $derived(steps.connect(service, normalizeProps));
@@ -206,7 +205,7 @@
 {#snippet review(value: string)}
 	<Review id={value} {editStage} {status} />
 {/snippet}
-{#snippet complete(value: string)}
+{#snippet complete()}
 	<Complete {txId} />
 {/snippet}
 

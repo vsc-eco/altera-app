@@ -51,7 +51,7 @@
 <h2>Review</h2>
 
 <Card>
-	<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
+	<span class="dark sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
 	<div class="amount">
 		{#if isSwap}
 			<div class="swap-header">
@@ -73,23 +73,23 @@
 		<tbody>
 			{#if $SendTxDetails.toDisplayName !== $SendTxDetails.toUsername}
 				<tr>
-					<td class="label">Recipient</td>
+					<td class="sm-caption">Recipient</td>
 					<td class="content">{$SendTxDetails.toDisplayName}</td>
 				</tr>
 			{/if}
 			<tr>
-				<td class="label">Address</td>
+				<td class="sm-caption">Address</td>
 				<td class="content">{$SendTxDetails.toUsername}</td>
 			</tr>
 			<tr>
-				<td class="label">Asset</td>
+				<td class="sm-caption">Asset</td>
 				<td class="content coin">
 					<img src={toCoin.icon} alt={toCoin.label} />
 					{toCoin.label}
 				</td>
 			</tr>
 			<tr>
-				<td class="label">Network</td>
+				<td class="sm-caption">Network</td>
 				<td class="content">{$SendTxDetails.toNetwork?.label}</td>
 			</tr>
 		</tbody>
@@ -98,37 +98,39 @@
 <div class="sender">
 	<table>
 		<tbody>
+			{#if !isSwap}
+				<tr>
+					<td class="sm-caption">From</td>
+					<td class="content">{getUsernameFromAuth(auth)}</td>
+				</tr>
+			{/if}
 			<tr>
-				<td class="label">From</td>
-				<td class="content">{getUsernameFromAuth(auth)}</td>
-			</tr>
-			<tr>
-				<td class="label">Account</td>
+				<td class="sm-caption">Account</td>
 				<td class="content">{fromAccount}</td>
 			</tr>
 			{#if isSwap && $SendTxDetails.fee}
 				<tr>
-					<td class="label">Asset</td>
+					<td class="sm-caption">Asset</td>
 					<td class="content coin">
 						<img src={fromCoin.icon} alt={fromCoin.label} />
 						{fromCoin.label}
 					</td>
 				</tr>
 				<tr>
-					<td class="label">Fee</td>
+					<td class="sm-caption">Fee</td>
 					<td class="content">
 						{$SendTxDetails.fee}
 					</td>
 				</tr>
 				<tr>
-					<td class="label">Total</td>
+					<td class="sm-caption">Total</td>
 					<td class="content">
 						{$SendTxDetails.fee?.add(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
 					</td>
 				</tr>
 			{/if}
 			<tr>
-				<td class="label">Initiated on</td>
+				<td class="sm-caption">Initiated on</td>
 				<td class="content">{today}</td>
 			</tr>
 		</tbody>
@@ -158,12 +160,8 @@
 		padding: 1.5rem 0 1rem;
 		border-top: 1px solid var(--neutral-bg-accent);
 	}
-	.sm-caption,
-	.label {
-		font-size: var(--text-sm);
-	}
-	.label {
-		color: var(--neutral-mid);
+	.dark {
+		color: var(--neutral-fg);
 	}
 	table,
 	tbody,
@@ -195,7 +193,7 @@
 			width: 16px;
 		}
 	}
-	.label {
+	.sm-caption {
 		flex: 0 1 12rem;
 	}
 	.status-wrapper {

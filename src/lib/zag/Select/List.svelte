@@ -52,6 +52,11 @@
 		overflow: auto;
 		border-top: none;
 	}
+	[data-part='content'][data-side='top'].card {
+		border: 1px solid var(--neutral-bg-accent-shifted);
+		border-radius: 0.5rem 0.5rem 0 0;
+		border-bottom: none;
+	}
 	[data-part='item'] {
 		border-radius: 0.25rem;
 		padding: 0.5rem 0.75rem;

@@ -345,8 +345,6 @@ export const SendAccount = {
 	swap
 };
 
-export const sendAccountOptions = [SendAccount.deposit, SendAccount.vscAccount, SendAccount.swap];
-
 const swapOptions: {
 	from: CoinOptions;
 	to: CoinOptions;

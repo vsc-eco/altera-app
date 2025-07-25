@@ -12,9 +12,10 @@
 		initial?: string;
 		styleType?: 'default' | 'card';
 		disabled?: boolean;
+		placeholder?: string;
 		onValueChange?: (value: ValueChangeDetails<Option>) => void;
 	};
-	let { items: options, initial, onValueChange, styleType = 'default', disabled }: Props = $props();
+	let { items: options, initial, onValueChange, styleType = 'default', disabled, placeholder }: Props = $props();
 	// pass items with snippet and snippetData in order to render a snippet and not just the label
 
 	let currentOptions = options;
@@ -47,7 +48,6 @@
 					? {}
 					: {
 							placement: 'bottom-start',
-							flip: false,
 							sameWidth: true,
 							gutter: 0,
 							shift: 0
@@ -86,7 +86,7 @@
 </script>
 
 <div {...api.getRootProps()} class={{ card: styleType === 'card' }}>
-	<Toggle {api} def={initial || 'Select option'} {disabled} items={options} {styleType}></Toggle>
+	<Toggle {api} def={initial || placeholder || 'Select option'} {disabled} items={options} {styleType}></Toggle>
 
 	<div {...api.getPositionerProps()} class={{ card: styleType === 'card' }}>
 		<List {api} selectData={api.collection.items} {styleType}></List>

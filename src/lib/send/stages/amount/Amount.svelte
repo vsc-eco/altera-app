@@ -6,20 +6,17 @@
 		Network,
 		networkMap,
 		SendAccount,
-		sendAccountOptions,
 		type CoinOptions
 	} from '$lib/send/sendOptions';
 	import { solveNetworkConstraints, SendTxDetails } from '$lib/send/sendUtils';
-	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
-	import AccountInfo from '../AccountInfo.svelte';
-	import AssetInfo from '../AssetInfo.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
-	import { CornerDownRight } from '@lucide/svelte';
 	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
+	import SwapOptions from './SwapOptions.svelte';
+	import { accountCard, assetCard } from './CardSnippets.svelte'
 
 	let auth = $authStore;
 	let {
@@ -30,7 +27,6 @@
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
 
-	// TODO: change this to give 'to' options not 'from' options
 	const { assetOptions, accountOptions, networkOptions } = $derived(
 		solveNetworkConstraints(
 			$SendTxDetails.method,
@@ -43,7 +39,7 @@
 
 	interface AssetObject extends Coin {
 		snippetData: CoinOptions['coins'][number];
-		snippet: (...args: any[]) => ReturnType<import('svelte').Snippet>;
+		snippet: typeof assetCard;
 	}
 	const assetObjs: AssetObject[] = $derived(
 		assetOptions.map((opt) => ({
@@ -55,7 +51,7 @@
 	// const fromOptions = $derived(getFromOptions($SendTxDetails.method, auth.value?.did));
 	interface AccountObject extends SendAccount {
 		snippetData: SendAccount;
-		snippet: (...args: any[]) => ReturnType<import('svelte').Snippet>;
+		snippet: typeof accountCard;
 	}
 	const accountObjs: AccountObject[] = $derived(
 		accountOptions.map((opt) => ({
@@ -169,40 +165,6 @@
 
 	let toAmount = $state('');
 	let fromSwapAmount = $state('');
-	let effectToAmount = $state('');
-	let effectFromAmount = $state('');
-
-	$effect(() => {
-		if (effectToAmount === toAmount) return;
-		untrack(() => {
-			if (!$SendTxDetails.toCoin || !$SendTxDetails.fromCoin) return;
-			new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)
-				.convertTo($SendTxDetails.fromCoin.coin, Network.lightning)
-				.then((amount) => {
-					const amtString = amount.toAmountString();
-					if (amtString !== fromSwapAmount) {
-						effectFromAmount = amtString;
-						fromSwapAmount = amtString;
-					}
-				});
-		});
-	});
-
-	$effect(() => {
-		if (effectFromAmount === fromSwapAmount) return;
-		untrack(() => {
-			if (!$SendTxDetails.toCoin || !$SendTxDetails.fromCoin) return;
-			new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
-				.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
-				.then((amount) => {
-					const amtString = amount.toAmountString();
-					if (amtString !== toAmount) {
-						effectToAmount = amtString;
-						toAmount = amtString;
-					}
-				});
-		});
-	});
 
 	$effect(() => {
 		if (toAmount !== $SendTxDetails.toAmount) {
@@ -272,22 +234,6 @@
 	}
 </script>
 
-{#snippet assetCard(fromCoin: CoinOptions['coins'][number] | undefined)}
-	<div class="card-wrapper">
-		{#if fromCoin}
-			<AssetInfo coinOpt={fromCoin} />
-		{/if}
-	</div>
-{/snippet}
-
-{#snippet accountCard(account: SendAccount | undefined)}
-	<div class="card-wrapper">
-		{#if account}
-			<AccountInfo {account} currentCoin={$SendTxDetails.fromCoin?.coin} />
-		{/if}
-	</div>
-{/snippet}
-
 {#snippet radioLabel(info: { icon: string; label: string })}
 	<img width="16" src={info.icon} alt="" />
 	{info.label}
@@ -302,6 +248,9 @@
 		network={$SendTxDetails.toNetwork}
 		id={'basic-input'}
 		{maxField}
+		connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
+			? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
+			: undefined}
 	/>
 
 	<h3>Asset</h3>
@@ -321,7 +270,7 @@
 		items={accountObjs}
 		styleType="card"
 		onValueChange={(v) => {
-			$SendTxDetails.account = sendAccountOptions.find((acc) => acc.value === v.value[0]);
+			$SendTxDetails.account = Object.values(SendAccount).find((acc) => acc.value === v.value[0]);
 		}}
 	/>
 
@@ -333,42 +282,7 @@
 	{/if}
 
 	{#if isSwap}
-		<div class="swap-wrapper">
-			<CornerDownRight />
-			<div class="swap-options">
-				<h3>Swap Options</h3>
-				<span class="sm-caption">From Asset</span>
-				<div class="amt-and-fees">
-					<div class="to-amount">
-						<BasicAmountInput
-							bind:amount={fromSwapAmount}
-							coin={$SendTxDetails.fromCoin}
-							network={$SendTxDetails.fromNetwork}
-							id={'from-amt'}
-						/>
-					</div>
-					{#if $SendTxDetails.fee}
-						{@const fee = $SendTxDetails.fee}
-						<table>
-							<tbody>
-								<tr>
-									<th>Fee:</th>
-									<td>~{fee.toPrettyString()}</td>
-								</tr>
-								<tr>
-									<th>Send Total:</th>
-									<td
-										>~{fee
-											.add(new CoinAmount($SendTxDetails.fromAmount, $SendTxDetails.fromCoin!.coin))
-											.toPrettyString()}</td
-									>
-								</tr>
-							</tbody>
-						</table>
-					{/if}
-				</div>
-			</div>
-		</div>
+		<SwapOptions bind:toAmount bind:fromSwapAmount/>
 	{/if}
 
 	{#if $SendTxDetails.fromNetwork}
@@ -401,10 +315,6 @@
 		margin-bottom: 0.5rem;
 		font-weight: 450;
 	}
-	.sm-caption {
-		color: var(--neutral-mid);
-		font-size: var(--text-sm);
-	}
 	.from-network {
 		margin-top: 2rem;
 		display: flex;
@@ -417,54 +327,6 @@
 			display: flex;
 			align-items: center;
 			gap: 0.5rem;
-		}
-	}
-	.swap-wrapper {
-		display: flex;
-		margin-top: 1rem;
-		width: 100%;
-		.swap-options {
-			.amt-and-fees {
-				display: flex;
-				justify-content: space-between;
-			}
-			padding-left: 1rem;
-			width: 100%;
-			h3 {
-				margin-top: 0;
-			}
-			display: flex;
-			flex-direction: column;
-			.sm-caption {
-				padding-bottom: 0.5rem;
-			}
-			.to-amount {
-				max-width: 50%;
-				flex-grow: 1;
-			}
-			// .coin-select {
-			// 	width: fit-content;
-			// }
-			td {
-				display: block;
-				font-family: 'Noto Sans Mono Variable', monospace;
-				font-weight: 400;
-				white-space: nowrap;
-				text-align: right;
-				padding-left: 0.5rem;
-			}
-			th {
-				flex-grow: 1;
-				display: block;
-				font-weight: bold;
-				text-align: right;
-				padding-right: 0.25rem;
-			}
-			tr {
-				padding: 0.25rem 0;
-				display: flex;
-				align-items: center;
-			}
 		}
 	}
 

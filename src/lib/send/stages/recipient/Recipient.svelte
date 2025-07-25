@@ -10,7 +10,13 @@
 	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
 	import { untrack } from 'svelte';
 	import ContactInfo from '../ContactInfo.svelte';
-	import { getDisplayName, getRecipientNetworks, SendTxDetails } from '../../sendUtils';
+	import {
+		getDisplayName,
+		getLastPaidContact,
+		getLastPaidNetwork,
+		getRecipientNetworks,
+		SendTxDetails
+	} from '../../sendUtils';
 	import SelectNetwork from './SelectNetwork.svelte';
 	import { Network, TransferMethod } from '../../sendOptions';
 	import NetworkInfo from '../NetworkInfo.svelte';
@@ -70,57 +76,17 @@
 		});
 	});
 
-	// increment through store, keep fetching more to find last paid
-	async function getLastPaid() {
-		if (!auth.value?.did) return 'Never';
-		let lastChecked = 0;
-		let lastLength = 0;
-		do {
-			lastLength = $vscTxsStore.length;
-			for (const tx of $vscTxsStore.slice(lastChecked)) {
-				if (!tx.ops) continue;
-				for (const op of tx.ops) {
-					if (op?.data.to === toDid) {
-						return `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
-					}
-				}
-			}
-			lastChecked = Math.max($vscTxsStore.length - 1, 0);
-			const success = await waitForExtend(auth.value.did);
-			if (!success) {
-				break;
-			}
-		} while ($vscTxsStore.length > lastLength);
-		return 'Never';
-	}
-	async function getLastNetwork() {
-		if (!auth.value?.did) return 'Never';
-		let lastChecked = 0;
-		let lastLength = 0;
-		do {
-			lastLength = $vscTxsStore.length;
-			for (const tx of $vscTxsStore.slice(lastChecked)) {
-				if (!tx.ops) continue;
-				if ($SendTxDetails.toNetwork?.value.startsWith(tx.type)) {
-					return `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
-				}
-			}
-			lastChecked = Math.max($vscTxsStore.length - 1, 0);
-			const success = await waitForExtend(auth.value.did);
-			if (!success) {
-				break;
-			}
-		} while ($vscTxsStore.length > lastLength);
-		return 'Never';
-	}
 	let lastPaid = $state('Never');
 	let lastNetwork = $state('Never');
 	$effect(() => {
 		if (!auth.value) return;
-		(async () => {
-			lastPaid = await getLastPaid();
-			lastNetwork = await getLastNetwork();
-		})();
+		Promise.all([
+			getLastPaidContact(auth, toDid),
+			getLastPaidNetwork(auth, $SendTxDetails.toNetwork?.value)
+		]).then(([paid, net]) => {
+			lastPaid = paid;
+			lastNetwork = net;
+		});
 	});
 	let contactOpen = $state(false);
 	let networkOpen = $state(false);

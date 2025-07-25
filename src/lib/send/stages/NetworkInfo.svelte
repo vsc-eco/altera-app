@@ -12,7 +12,7 @@
 		adjacent?: boolean;
 	} = $props();
 	const numAssets = $derived.by(() => {
-		const coins = networkMap.get(network);
+		const coins = networkMap.get(network.value);
 		if (!coins || coins.length === 0) {
 			return 'No Assets Available';
 		}
@@ -70,5 +70,8 @@
 		flex-direction: row;
 		align-items: center;
 		margin-top: 0.25rem;
+	}
+	.name {
+		text-align: left;
 	}
 </style>

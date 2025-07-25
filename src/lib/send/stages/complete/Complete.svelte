@@ -85,7 +85,7 @@
 		border-top: 1px solid var(--neutral-bg-accent);
 	}
 	.sm-caption {
-		font-size: var(--text-sm);
+		color: var(--neutral-fg);
 	}
 	.redirect {
 		margin-top: 2rem;

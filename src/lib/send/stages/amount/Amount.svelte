@@ -8,7 +8,7 @@
 		SendAccount,
 		type CoinOptions
 	} from '$lib/send/sendOptions';
-	import { solveNetworkConstraints, SendTxDetails } from '$lib/send/sendUtils';
+	import { solveNetworkConstraints, SendTxDetails, getFee } from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -16,7 +16,7 @@
 	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import SwapOptions from './SwapOptions.svelte';
-	import { accountCard, assetCard } from './CardSnippets.svelte'
+	import { accountCard, assetCard } from './CardSnippets.svelte';
 
 	let auth = $authStore;
 	let {
@@ -76,6 +76,7 @@
 		}
 	});
 
+	// TODO: add solution for selecting when there are more possibilities
 	$effect(() => {
 		if (networkOptions.length === 1) {
 			if ($SendTxDetails.fromNetwork?.value !== networkOptions[0].value) {
@@ -110,7 +111,7 @@
 							fromCoinOpt.coin,
 							Network.lightning
 						),
-						getFee()
+						getFee(toAmount)
 					]).then(([amount, fee]) => {
 						SendTxDetails.update((current) => ({
 							...current,
@@ -177,7 +178,7 @@
 								fromCoin.coin,
 								Network.lightning
 							),
-							getFee()
+							getFee(toAmount)
 						]).then(([amount, fee]) => {
 							SendTxDetails.update((current) => ({
 								...current,
@@ -214,24 +215,7 @@
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
-	async function getFee() {
-		if (
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.fromNetwork &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.toCoin.coin.value !== coins.usd.value &&
-			$SendTxDetails.toNetwork
-		) {
-			const fee = await getIntermediaryNetwork(
-				{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork },
-				{ coin: $SendTxDetails.toCoin.coin, network: $SendTxDetails.toNetwork }
-			).feeCalculation(
-				new CoinAmount(Number(toAmount), $SendTxDetails.toCoin.coin),
-				$SendTxDetails.fromCoin.coin
-			);
-			return fee;
-		}
-	}
+	
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
@@ -270,7 +254,10 @@
 		items={accountObjs}
 		styleType="card"
 		onValueChange={(v) => {
-			$SendTxDetails.account = Object.values(SendAccount).find((acc) => acc.value === v.value[0]);
+			SendTxDetails.update((current) => ({
+				...current,
+				account: Object.values(SendAccount).find((acc) => acc.value === v.value[0])
+			}));
 		}}
 	/>
 
@@ -282,7 +269,7 @@
 	{/if}
 
 	{#if isSwap}
-		<SwapOptions bind:toAmount bind:fromSwapAmount/>
+		<SwapOptions bind:toAmount bind:fromSwapAmount />
 	{/if}
 
 	{#if $SendTxDetails.fromNetwork}

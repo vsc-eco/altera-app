@@ -39,14 +39,28 @@
 
 	$effect(() => {
 		if (connectedCoinAmount && coin) {
-			if (connectedCoinAmount.toString() === untrack(() => lastConnected?.toString())) return;
+			console.log("connectedCoinAmount", connectedCoinAmount.toString());
 			untrack(() => {
+				if (!lastConnected) {
+					lastConnected = connectedCoinAmount;
+					console.log("no last connected");
+					return;
+				}
+				if (connectedCoinAmount.toString() === lastConnected.toString()) {
+					console.log("last connected same as new connected");
+					return;
+				}
 				Promise.all([
 					connectedCoinAmount.convertTo(coin.coin, Network.lightning),
 					new CoinAmount(amount, coin.coin).convertTo(connectedCoinAmount.coin, Network.lightning)
 				]).then(([connectedInThis, thisInConnected]) => {
-					if (thisInConnected.toString() === connectedCoinAmount.toString()) return;
+					if (thisInConnected.toString() === connectedCoinAmount.toString()) {
+						console.log("this in connected same as new conncted");
+						return;
+					}
 					const amtString = connectedInThis.toAmountString();
+					// do this first to stop future effects
+					lastConnected = connectedCoinAmount;
 					if (amtString === '0' && boundAmount && boundAmount !== '0') {
 						boundAmount = null;
 					} else {

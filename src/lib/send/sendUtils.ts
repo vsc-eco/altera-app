@@ -23,6 +23,7 @@ import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
 import { vscTxsStore, waitForExtend, type TransactionInter } from '$lib/stores/txStores';
 import moment from 'moment';
+import { getIntermediaryNetwork } from './getNetwork';
 
 export const SendTxDetails = writable<SendDetails>(blankDetails());
 
@@ -133,6 +134,29 @@ export async function getLastPaidNetwork(auth: Auth, netVal?: string) {
 	return 'Never';
 }
 
+export async function getFee(toAmount: string) {
+	const store = get(SendTxDetails);
+	// console.log("getFee called",
+	// 	store.fromCoin,
+	// 	store.fromNetwork,
+	// 	store.toCoin,
+	// 	store.toNetwork
+	// )
+	if (
+		store.fromCoin &&
+		store.fromNetwork &&
+		store.toCoin &&
+		store.toCoin.coin.value !== coins.usd.value &&
+		store.toNetwork
+	) {
+		const fee = await getIntermediaryNetwork(
+			{ coin: store.fromCoin.coin, network: store.fromNetwork },
+			{ coin: store.toCoin.coin, network: store.toNetwork }
+		).feeCalculation(new CoinAmount(Number(toAmount), store.toCoin.coin), store.fromCoin.coin);
+		return fee;
+	}
+}
+
 type AccsNetsPair =
 	| {
 			accounts: SendAccount[];
@@ -175,16 +199,13 @@ function getNetworksFromAccount(account: SendAccount, did: string) {
 	}
 }
 
-function getAccountsFromNetworks(networks: Network[]) {
-	let result: SendAccount[] = [];
-	if (networks.find((net) => net.value === Network.vsc.value)) {
-		result.push(SendAccount.vscAccount);
+function getAccountsFromMethod(method: TransferMethod, did: string) {
+	if (method.value === TransferMethod.lightningTransfer.value) {
+		return [SendAccount.swap]
 	}
-	if (networks.find((net) => net.value === Network.hiveMainnet.value)) {
+	let result = [SendAccount.vscAccount];
+	if (did.startsWith('hive:')) {
 		result.push(SendAccount.deposit);
-	}
-	if (networks.find((net) => net.value === Network.lightning.value)) {
-		result.push(SendAccount.swap);
 	}
 	return result;
 }
@@ -200,12 +221,7 @@ function createSet(arr: { value: string; [key: string]: any }[]) {
 }
 
 function toNetworkArr(set: Set<string>) {
-	let result: Network[] = [];
-	Array.from(set).forEach((entry) => {
-		const network = Object.values(Network).find((net) => net.value === entry);
-		if (network) result.push(network);
-	});
-	return result;
+	return Object.values(Network).filter(net => set.has(net.value));
 }
 
 export function solveNetworkConstraints(
@@ -222,15 +238,12 @@ export function solveNetworkConstraints(
 			accountOptions: [],
 			networkOptions: []
 		};
-	// if (!method) {
 
-	// 	return {
-	// 		assetOptions: [],
-	// 		accountOptions: [],
-	// 		networkOptions: []
-	// 	};
-	// }
 	// given account: what are the network options
+	const accountOptions = method ? getAccountsFromMethod(method, did) : Object.values(SendAccount);
+	// if (accountOptions?.length === 1) {
+	// 	account = accountOptions[0];
+	// }
 	let accountNetworkOptions: Set<string> = method
 		? createSet(getMethodNetworks(method, did))
 		: createSet(Object.values(Network));
@@ -293,17 +306,14 @@ export function solveNetworkConstraints(
 		const coinNetworks = createSet(fromCoin.networks);
 		coinNetworkOptions = coinNetworkOptions.intersection(coinNetworks);
 	}
-	const accountOptions = getAccountsFromNetworks(toNetworkArr(coinNetworkOptions));
-	if (account && !accountOptions.includes(account)) {
-		accountOptions.push(account);
-	}
 
 	// console.log('acc opts, coin opts', accountNetworkOptions, coinNetworkOptions);
 	const networkOptions = toNetworkArr(
-		account?.value === SendAccount.swap.value
+		!account || account.value === SendAccount.swap.value
 			? accountNetworkOptions
 			: accountNetworkOptions.intersection(coinNetworkOptions)
 	);
+	
 
 	return {
 		assetOptions: assetOptions,

@@ -6,17 +6,19 @@
 	import { Coin, Network, SendAccount } from '$lib/send/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
-	import { ArrowDown, ArrowRight } from '@lucide/svelte';
+	import { ArrowDown } from '@lucide/svelte';
 
 	let auth = $authStore;
 	let {
 		id,
 		editStage,
-		status
+		status,
+		compact
 	}: {
 		id: string;
 		editStage: (id: string, add: boolean) => void;
 		status: { message: string; isError: boolean };
+		compact?: boolean;
 	} = $props();
 
 	$effect(() => {
@@ -52,7 +54,7 @@
 
 <Card>
 	<span class="dark sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
-	<div class="amount">
+	<div class={["amount", {compact}]}>
 		{#if isSwap}
 			<div class="swap-header">
 				<p>{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}</p>
@@ -64,73 +66,75 @@
 			{`(\$US ${inUsd})`}
 		</h4>
 	</div>
-	<div class="date">
-		<span>Pay once on {today}</span>
-	</div>
+	{#if !compact}
+		<div class="date">
+			<span>Pay once on {today}</span>
+		</div>
+	{/if}
 </Card>
-<div class="recipient">
+<div class={["recipient", {compact}]}>
 	<table>
 		<tbody>
 			{#if $SendTxDetails.toDisplayName !== $SendTxDetails.toUsername}
 				<tr>
-					<td class="sm-caption">Recipient</td>
+					<td class="sm-caption label">Recipient</td>
 					<td class="content">{$SendTxDetails.toDisplayName}</td>
 				</tr>
 			{/if}
 			<tr>
-				<td class="sm-caption">Address</td>
+				<td class="sm-caption label">Address</td>
 				<td class="content">{$SendTxDetails.toUsername}</td>
 			</tr>
 			<tr>
-				<td class="sm-caption">Asset</td>
+				<td class="sm-caption label">Asset</td>
 				<td class="content coin">
 					<img src={toCoin.icon} alt={toCoin.label} />
 					{toCoin.label}
 				</td>
 			</tr>
 			<tr>
-				<td class="sm-caption">Network</td>
+				<td class="sm-caption label">Network</td>
 				<td class="content">{$SendTxDetails.toNetwork?.label}</td>
 			</tr>
 		</tbody>
 	</table>
 </div>
-<div class="sender">
+<div class={["sender", {compact}]}>
 	<table>
 		<tbody>
 			{#if !isSwap}
 				<tr>
-					<td class="sm-caption">From</td>
+					<td class="sm-caption label">From</td>
 					<td class="content">{getUsernameFromAuth(auth)}</td>
 				</tr>
 			{/if}
 			<tr>
-				<td class="sm-caption">Account</td>
+				<td class="sm-caption label">Account</td>
 				<td class="content">{fromAccount}</td>
 			</tr>
 			{#if isSwap && $SendTxDetails.fee}
 				<tr>
-					<td class="sm-caption">Asset</td>
+					<td class="sm-caption label">Asset</td>
 					<td class="content coin">
 						<img src={fromCoin.icon} alt={fromCoin.label} />
 						{fromCoin.label}
 					</td>
 				</tr>
 				<tr>
-					<td class="sm-caption">Fee</td>
+					<td class="sm-caption label">Fee</td>
 					<td class="content">
 						{$SendTxDetails.fee}
 					</td>
 				</tr>
 				<tr>
-					<td class="sm-caption">Total</td>
+					<td class="sm-caption label">Total</td>
 					<td class="content">
 						{$SendTxDetails.fee?.add(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
 					</td>
 				</tr>
 			{/if}
 			<tr>
-				<td class="sm-caption">Initiated on</td>
+				<td class="sm-caption label">Initiated on</td>
 				<td class="content">{today}</td>
 			</tr>
 		</tbody>
@@ -148,6 +152,9 @@
 		padding: 1.5rem 0;
 		p {
 			color: var(--primary-fg-mid);
+		}
+		&.compact {
+			padding: 1rem 0;
 		}
 	}
 	h4 {
@@ -174,10 +181,16 @@
 		margin: 0 0.5rem;
 		padding: 1rem 0;
 		border-bottom: 1px solid var(--neutral-bg-accent);
+		&.compact {
+			padding: 0.5rem 0;
+		}
 	}
 	.recipient {
 		margin-top: 2rem;
 		border-top: 1px solid var(--neutral-bg-accent);
+		&.compact {
+			margin-top: 1rem;
+		}
 	}
 	tr {
 		display: flex;
@@ -193,7 +206,7 @@
 			width: 16px;
 		}
 	}
-	.sm-caption {
+	.label {
 		flex: 0 1 12rem;
 	}
 	.status-wrapper {

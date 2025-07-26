@@ -6,6 +6,7 @@
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';
 	import QuickSend from '$lib/send/quickSend/QuickSend.svelte';
+	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
 	let { auth }: { auth: Auth } = $props();
 	type PopupAction = {
 		type: 'popup';
@@ -19,6 +20,7 @@
 		stakeOpen = open !== undefined ? open : !stakeOpen;
 	});
 	let quickSendOpen = $state(false);
+	let sendSessionId = $state(getTxSessionId());
 	let toggleQuickSend = $state((open?: boolean) => {
 		quickSendOpen = open !== undefined ? open : !quickSendOpen;
 	});
@@ -26,7 +28,11 @@
 		{
 			type: 'popup',
 			label: 'Quick Send',
-			onclick: () => toggleQuickSend(true),
+			onclick: () => {
+				SendTxDetails.set(blankDetails());
+				sendSessionId = getTxSessionId();
+				toggleQuickSend(true);
+			},
 			icon: Send,
 			styling: {
 				theme: 'primary',
@@ -56,7 +62,7 @@
 	{/each}
 </div>
 <StakePopup {auth} bind:dialogOpen={stakeOpen} bind:toggle={toggleStake} />
-<QuickSend {auth} bind:dialogOpen={quickSendOpen} bind:toggle={toggleQuickSend} />
+<QuickSend bind:dialogOpen={quickSendOpen} bind:toggle={toggleQuickSend} sessionId={sendSessionId}/>
 
 <style>
 	.action-bar {

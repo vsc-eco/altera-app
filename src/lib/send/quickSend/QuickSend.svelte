@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { getUniqueId } from '$lib/zag/idgen';
-	import { blankDetails, getDisplayName, getTxSessionId, SendTxDetails } from '../sendUtils';
+	import { blankDetails, getDisplayName, getTxSessionId, send, SendTxDetails } from '../sendUtils';
 	import Complete from '../stages/complete/Complete.svelte';
 	import Review from '../stages/review/Review.svelte';
 	import SelectOptions from './SelectOptions.svelte';
@@ -11,18 +11,85 @@
 	import SendNavButtons from '../navigation/SendNavButtons.svelte';
 	import { untrack } from 'svelte';
 	import { getUsernameFromDid } from '$lib/getAccountName';
-	import { Network } from '../sendOptions';
+	import { Coin, Network, type NecessarySendDetails } from '../sendOptions';
+	import { getIntermediaryNetwork } from '../getNetwork';
+	import { sleep } from 'aninest';
+	import V4VPopup from '../V4VPopup.svelte';
+	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 
-	let { dialogOpen = $bindable(), toggle = $bindable()} = $props<{
+	let {dialogOpen = $bindable(), toggle = $bindable(), sessionId} = $props<{
 		dialogOpen: boolean;
 		toggle: (open?: boolean) => void;
+		sessionId: number;
 	}>();
 
 	const auth = $authStore;
 
-	let sessionId = $state(getTxSessionId());
 	SendTxDetails.set(blankDetails());
 
+	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
+	let txId = $state('');
+	function setStatus(s: string, isError = false) {
+		status = { message: s, isError: isError };
+	}
+
+	// SENDING
+	let showV4VModal = $state.raw(false);
+	function openV4V() {
+		showV4VModal = false;
+		sleep(0).then(() => {
+			showV4VModal = true;
+		});
+	}
+	function initSwap() {
+		const {
+			fromCoin,
+			fromNetwork,
+			toAmount: amount,
+			toCoin,
+			toNetwork,
+			toUsername
+		} = $SendTxDetails;
+
+		if (!fromCoin || !fromNetwork || !toCoin || !toNetwork) {
+			return new Error('Required field undefined.');
+		}
+
+		console.log('fields', fromCoin, fromNetwork, toCoin, toNetwork, amount);
+
+		const importantDetails: NecessarySendDetails = {
+			fromCoin,
+			fromNetwork,
+			amount,
+			toCoin,
+			toNetwork,
+			toUsername
+		};
+
+		let intermediary = getIntermediaryNetwork(
+			{ coin: fromCoin.coin, network: fromNetwork },
+			{ coin: toCoin.coin, network: toNetwork }
+		);
+
+		if (intermediary === Network.lightning) {
+			setStatus('Generating Lightning transfer');
+			openV4V();
+			return;
+		}
+
+		send(importantDetails, auth, intermediary, setStatus).then((res) => {
+			if (res instanceof Error) {
+				// log the error if it isn't caught
+				if (!status.isError) console.error(res.message);
+			} else {
+				txId = res.id;
+			}
+		});
+		return;
+	}
+
+	// STEPS
 	const stepsData = [
 		{ value: 'options', content: options },
 		{ value: 'review', label: 'Review', content: review },
@@ -39,9 +106,11 @@
 	const api = $derived(steps.connect(service, normalizeProps));
 
 	$effect(() => {
+		const _ = sessionId;
 		const did = auth.value?.did;
 		untrack(() => {
 			if (!did) return;
+			api.setStep(0);
 			getDisplayName(did).then((displayName) => {
 				SendTxDetails.update((current) => ({
 					...current,
@@ -72,31 +141,31 @@
 	}
 
 	function next() {
-		// if (api.value === api.count) {
-		// 	goto('/transactions');
-		// } else if (stepsData[api.value].value === 'review') {
-		// 	editStage(stepsData[stepsData.length - 1].value, true);
-		// 	setStatus('');
-		// 	initSwap();
-		// } else {
-		// 	api.goToNextStep();
-		// }
+		if (api.value === api.count) {
+			toggle(false)
+		} else if (stepsData[api.value].value === 'review') {
+			editStage(stepsData[stepsData.length - 1].value, true);
+			setStatus('');
+			initSwap();
+		} else {
+			api.goToNextStep();
+		}
 	}
 	function previous() {
-		// if (txId) {
-		// 	txId = '';
-		// }
+		if (txId) {
+			txId = '';
+		}
 		if (api.value === 0) {
 			toggle(false);
 		} 
-		// else if (api.value === api.count) {
-		// 	api.setStep(0);
-		// 	sessionId = getTxSessionId();
-		// 	SendTxDetails.set(blankDetails());
-		// } else {
-		// 	api.goToPrevStep();
-		// 	setStatus('');
-		// }
+		else if (api.value === api.count) {
+			api.setStep(0);
+			sessionId = getTxSessionId();
+			SendTxDetails.set(blankDetails());
+		} else {
+			api.goToPrevStep();
+			setStatus('');
+		}
 	}
 
 	const nextLabel = $derived(
@@ -120,15 +189,15 @@
 </script>
 
 {#snippet options(value: string)}
-	<SelectOptions />
+	<SelectOptions id={value} {editStage}/>
 {/snippet}
 
 {#snippet review(value: string)}
-	<!-- <Review /> -->
+	<Review id={value} {editStage} {status} compact/>
 {/snippet}
 
 {#snippet complete()}
-	<!-- <Complete /> -->
+	<Complete {txId} close={() => toggle(false)}/>
 {/snippet}
 
 <Dialog bind:toggle bind:open={dialogOpen}>
@@ -145,6 +214,56 @@
 		<SendNavButtons {buttons} small={true} />
 	{/snippet}
 </Dialog>
+
+{#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
+	{@const toCoin = $SendTxDetails.toCoin}
+	{@const toNetwork = $SendTxDetails.toNetwork}
+	{@const toAmount = $SendTxDetails.toAmount}
+
+	<V4VPopup
+		from={{ coin: Coin.sats, network: Network.lightning }}
+		to={{ coin: toCoin.coin, network: toNetwork }}
+		{toAmount}
+		{auth}
+		toUsername={$SendTxDetails.toUsername}
+		onerror={(v) => {
+			if (v.includes('Bad request')) {
+				setStatus('An error occured, please try again.', true);
+			} else {
+				setStatus(v.startsWith('Error: ') ? v.substring(7) : v, true);
+			}
+			showV4VModal = false;
+		}}
+		onsuccess={(id) => {
+			setStatus('');
+			// TODO: after success notify via a notification
+			// store transaction as pending in local storage
+			addLocalTransaction({
+				ops: [
+					{
+						data: {
+							amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
+							asset: toCoin!.coin.unit.toLowerCase(),
+							from: `v4vapp`,
+							to: $SendTxDetails.toUsername,
+							memo: `altera_id=${id}`,
+							type: 'transfer'
+						},
+						type: 'transfer',
+						index: 0
+					}
+				],
+				timestamp: new Date(),
+				id: id,
+				type: 'v4v'
+			});
+			txId = id;
+			setTimeout(() => {
+				showV4VModal = false;
+			}, 10000);
+		}}
+	/>
+{/if}
 
 <style lang="scss">
 	[data-part='root'] {

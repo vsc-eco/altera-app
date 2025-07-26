@@ -10,7 +10,7 @@
 
 	let timer = $state<PieTimer>();
 
-	let { txId }: { txId: string } = $props();
+	let { txId, close }: { txId: string; close?: () => void} = $props();
 
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
@@ -66,7 +66,7 @@
 	{#if !timerCanceled}
 		<div class="redirect">
 			<p>Redirecting to transactions…</p>
-			<PieTimer bind:this={timer} onComplete={redirect} />
+			<PieTimer bind:this={timer} onComplete={close?? redirect} />
 			<PillButton onclick={cancelTimer}>Stay</PillButton>
 		</div>
 	{/if}

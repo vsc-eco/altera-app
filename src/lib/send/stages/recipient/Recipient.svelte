@@ -70,6 +70,7 @@
 				fromNetwork: undefined,
 				fromCoin: undefined,
 				fromAmount: '0',
+				toCoin: undefined,
 				account: undefined,
 				method: newMethod
 			}));

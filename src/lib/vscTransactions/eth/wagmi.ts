@@ -4,7 +4,6 @@ import type { Signer } from './client';
 import { type Config, signTypedData, getAccount } from '@wagmi/core';
 import { convertCBORToEIP712TypedData } from './cbor_to_eip712_converter';
 import type { VSCTransactionSigningShell, Client } from './client';
-import { hashTypedData } from 'viem';
 
 export const wagmiSigner: Signer<[Config]> = async (
 	signingShell: VSCTransactionSigningShell,

@@ -47,7 +47,8 @@
 		"typescript-eslint": "^8.24.0",
 		"vite": "^6.1.0",
 		"vite-plugin-mkcert": "^1.17.8",
-		"vitest": "^3.2.3"
+		"vitest": "^3.2.3",
+		"viem": "^2.23.2"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -105,7 +106,6 @@
 		"tabs:1.9.3": "link:@zag-js/tabs:1.9.3",
 		"utils": "link:@vsc.eco/client/dist/utils",
 		"uuid": "^11.1.0",
-		"viem": "^2.23.2",
 		"wagmi": "^2.14.11"
 	},
 	"packageManager": "pnpm@10.10.0+sha512.d615db246fe70f25dcfea6d8d73dee782ce23e2245e3c4f6f888249fb568149318637dca73c2c5c8ef2a4ca0d5657fb9567188bfab47f566d1ee6ce987815c39"

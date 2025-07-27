@@ -7,7 +7,6 @@
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
 	import InfoToolip from '$lib/components/InfoToolip.svelte';
-	import { custom } from 'viem';
 	let { username, isHive }: { username: string | undefined; isHive: boolean } = $props();
 
 	let rc: Manabar | null = $state(null);

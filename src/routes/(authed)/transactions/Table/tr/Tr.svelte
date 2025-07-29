@@ -11,7 +11,7 @@
 	import { untrack } from 'svelte';
 	import { authStore, getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
-	import { getTimestamp, type TransactionInter, type TransactionOpType } from '../../txStores';
+	import { getTimestamp, type TransactionInter, type TransactionOpType } from '$lib/stores/txStores';
 	import moment from 'moment';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import { addNotification } from '$lib/Topbar/notifications';

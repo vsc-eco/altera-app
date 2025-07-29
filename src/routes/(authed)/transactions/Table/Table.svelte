@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { GetTransactionsStore } from '$houdini';
 	import Tr from './tr/Tr.svelte';
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import {
 		allTransactionsStore,
 		vscTxsStore,
 		toTransactionInter,
-		updateTxsFromLocalStorage
-	} from '../txStores';
+		fetchTxs,
+		waitForExtend
+	} from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 
 	let {
@@ -24,6 +25,9 @@
 
 	let skeletonRowCount = $state(8);
 	onMount(() => {
+		if (!initialOpen && $allTransactionsStore.length < 20) {
+			fetchTxs(did, 'set', (val) => (loading = val));
+		}
 		const rootStyle = getComputedStyle(document.documentElement);
 		const remValue = parseFloat(rootStyle.fontSize);
 
@@ -44,54 +48,6 @@
 		return () => window.removeEventListener('resize', calculateRows);
 	});
 
-	function fetchFromStore() {
-		untrack(() => store)
-			.fetch({
-				variables: {
-					limit: 20,
-					did
-				}
-			})
-			.then((posts) => {
-				loading = false;
-				if (!posts.data?.findTransaction) {
-					vscTxsStore.set([]);
-					return;
-				}
-				// set the store since this is a complete fetch
-				vscTxsStore.set(toTransactionInter(posts.data?.findTransaction));
-			})
-			.catch((e) => {
-				if (e.name !== 'AbortError') {
-					console.error(e);
-				}
-			});
-	}
-	function fetchAdditionalFromStore(limit = 12) {
-		if ($allTransactionsStore && $allTransactionsStore.length > 0) {
-			loading = true;
-		}
-		store
-			.fetch({
-				variables: {
-					limit: limit, // FIXME: add back once server properly supports pagination
-					did,
-					offset: currStoreLen
-				}
-			})
-			.then((posts) => {
-				loading = false;
-				if (!posts.data?.findTransaction) return;
-				vscTxsStore.update((currentTxs) =>
-					currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
-				);
-			})
-			.catch((e) => {
-				if (e.name !== 'AbortError') {
-					console.error(e);
-				}
-			});
-	}
 	// this assumes that did doesn't change, and is not reactive to did
 	// just runs once when the page loads and again if too many new transactions
 	// are added (called explicitly below)
@@ -99,12 +55,15 @@
 	async function loadUntilTxFound(targetTxId: string) {
 		if (!targetTxId || hasFoundAutoOpenTx) return;
 
-		while (!hasFoundAutoOpenTx && !loading) {
+		while (!hasFoundAutoOpenTx) {
 			// Check if the transaction is already in the current store
 			const currentTxs = $vscTxsStore;
 			const foundTx = currentTxs.find((tx) => tx.id === targetTxId);
 
+			let lastOffset = currStoreLen;
+
 			if (foundTx) {
+				console.log('found');
 				hasFoundAutoOpenTx = true;
 				// Scroll to the transaction after a brief delay to ensure DOM is updated
 				setTimeout(() => {
@@ -118,26 +77,16 @@
 
 			loading = true;
 			try {
-				const posts = await store.fetch({
-					variables: {
-						limit: 12,
-						did,
-						offset: currStoreLen
-					}
-				});
-
-				loading = false;
-				if (!posts.data?.findTransaction || posts.data.findTransaction.length === 0) {
-					// No more transactions to load
-					break;
-				}
-				vscTxsStore.update((currentTxs) =>
-					currentTxs.concat(toTransactionInter(posts.data?.findTransaction!))
-				);
+				console.log('extending, offset', currStoreLen);
+				const success = await waitForExtend(did);
+				if (!success) break;
 			} catch (error) {
 				if (error instanceof Error && error.name !== 'AbortError') {
 					console.error(error);
 				}
+				break;
+			}
+			if (currStoreLen === lastOffset) {
 				break;
 			}
 		}
@@ -148,44 +97,8 @@
 		}
 	});
 	$effect(() => {
-		fetchFromStore();
-	});
-	$effect(() => {
 		const intervalId = setInterval(() => {
-			new GetTransactionsStore()
-				.fetch({
-					variables: {
-						limit: 20,
-						did
-					},
-					policy: 'NetworkOnly'
-				})
-				.then((post) => {
-					loading = false;
-					if (!post.data?.findTransaction) return;
-					if ($vscTxsStore.length > 0 && post.data?.findTransaction[0].id == $vscTxsStore[0].id)
-						return; // nothing to update
-
-					vscTxsStore.update((currentTxs) => {
-						const fetchedTxs = toTransactionInter(post.data!.findTransaction!);
-						const prevUpdate = fetchedTxs.findIndex((v) => v.id === currentTxs[0]?.id);
-
-						if (prevUpdate === -1) {
-							// Too many new transactions, replace entirely
-							fetchFromStore();
-							return currentTxs;
-						}
-
-						// Prepend only new transactions
-						return [...fetchedTxs.slice(0, prevUpdate), ...currentTxs];
-					});
-				})
-				.catch((e) => {
-					if (e.name !== 'AbortError') {
-						console.error(e);
-					}
-				});
-			updateTxsFromLocalStorage(did);
+			fetchTxs(did, 'update', (val) => (loading = val));
 		}, 2000);
 		return () => clearInterval(intervalId);
 	});
@@ -210,7 +123,7 @@
 	onscroll={(_e) => {
 		const me = document.documentElement;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
-			fetchAdditionalFromStore();
+			fetchTxs(did, 'extend', (val) => (loading = val), 12);
 		}
 	}}
 />
@@ -219,7 +132,7 @@
 	onscroll={(e) => {
 		const me = e.currentTarget;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
-			fetchAdditionalFromStore();
+			fetchTxs(did, 'extend', (val) => (loading = val), 12);
 		}
 	}}
 >

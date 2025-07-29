@@ -7,7 +7,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { startAccountPolling, stopAccountPolling } from '$lib/stores/currentBalance';
 	import { onDestroy } from 'svelte';
-	import { clearAllStores } from './transactions/txStores';
+	import { clearAllStores } from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 	import { loginRetry } from '$lib/auth/store';
 

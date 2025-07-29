@@ -18,7 +18,7 @@
 	import { getEVMOpType } from '$lib/vscTransactions/eth';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import type { TransferOperation } from '@hiveio/dhive';
-	import { addLocalTransaction } from './localStorageTxs';
+	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/eth/client';
 	import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 	import { wagmiConfig } from '$lib/auth/reown';

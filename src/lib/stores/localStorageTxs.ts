@@ -2,7 +2,7 @@ import type { UnkCoinAmount } from '$lib/currency/CoinAmount';
 import {
 	updateTxsFromLocalStorage,
 	type TransactionInter
-} from '../../routes/(authed)/transactions/txStores';
+} from './txStores';
 
 export type PendingTx = {
 	ops: {

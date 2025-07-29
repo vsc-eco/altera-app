@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { type TransactionInter } from '../../routes/(authed)/transactions/txStores';
+import { type TransactionInter } from '$lib/stores/txStores';
 
 export const notifications = writable<TransactionInter[]>([]);
 

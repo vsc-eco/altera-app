@@ -8,10 +8,14 @@
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-	import { untrack } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import { authStore, getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
-	import { getTimestamp, type TransactionInter, type TransactionOpType } from '$lib/stores/txStores';
+	import {
+		getTimestamp,
+		type TransactionInter,
+		type TransactionOpType
+	} from '$lib/stores/txStores';
 	import moment from 'moment';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import { addNotification } from '$lib/Topbar/notifications';
@@ -20,10 +24,9 @@
 		tx: TransactionInter;
 		op: TransactionOpType;
 		ledgerIndex?: number;
-		openOp: [string, number] | null;
-		onRowClick: (op: [string, number]) => void;
+		onRowClick: (op: [string, number], content: Snippet) => void;
 	};
-	let { tx, op, ledgerIndex, openOp, onRowClick }: Props = $props();
+	let { tx, op, ledgerIndex, onRowClick }: Props = $props();
 	const did = $derived(getAuth()().value!.did);
 	const {
 		ledger,
@@ -119,7 +122,7 @@
 
 	let detailsOpen = $state(false);
 	function handleTrigger() {
-		onRowClick([tx.id, op.index]);
+		onRowClick([tx.id, op.index], thisRowContent);
 	}
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === ' ' || e.key === 'Enter') {
@@ -127,9 +130,6 @@
 			e.preventDefault();
 		}
 	}
-	$effect(() => {
-		detailsOpen = openOp !== null && openOp[0] === tx.id && openOp[1] === op.index;
-	});
 	const direction: 'incoming' | 'outgoing' | 'swap' = $derived.by(() => {
 		if (to === from) {
 			if (t.includes('stake') || t.includes('unstake')) {
@@ -164,62 +164,57 @@
 	<Type {direction} {t} />
 </tr>
 
-<SidePopup toggle={() => onRowClick([tx.id, op.index])} bind:open={detailsOpen} defaultOpen={false}>
-	{#snippet content()}
-		<h2>
-			{t
-				.replace('_', ' ')
-				.replace(
-					/\w\S*/g,
-					(text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
-				)}
-		</h2>
-		<div class="amount">
-			{amount.toPrettyString()}
-			<span class="approx-usd">
-				Approx. ${inUsd} USD
-			</span>
-		</div>
+{#snippet thisRowContent()}
+	<h2>
+		{t
+			.replace('_', ' ')
+			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase())}
+	</h2>
+	<div class="amount">
+		{amount.toPrettyString()}
+		<span class="approx-usd">
+			Approx. ${inUsd} USD
+		</span>
+	</div>
 
-		<StatusView
-			anchor_ts={timestamp}
-			memo={memo?.toString() || undefined}
-			{from}
-			{to}
-			{status}
-			{block_height}
-		/>
-		<div class="sections">
-			{#if memo}
-				<div class="memo section">
-					<h3>Memo</h3>
-					<p>{memo}</p>
-				</div>
-			{/if}
-			<div class="tx-id section">
-				<h3>Transaction Id</h3>
-				<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+	<StatusView
+		anchor_ts={timestamp}
+		memo={memo?.toString() || undefined}
+		{from}
+		{to}
+		{status}
+		{block_height}
+	/>
+	<div class="sections">
+		{#if memo}
+			<div class="memo section">
+				<h3>Memo</h3>
+				<p>{memo}</p>
 			</div>
-			<div class="links section">
-				<h3>External Links</h3>
-				<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
-						VSC Block Explorer<ExternalLink /></a
+		{/if}
+		<div class="tx-id section">
+			<h3>Transaction Id</h3>
+			<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+		</div>
+		<div class="links section">
+			<h3>External Links</h3>
+			<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
+				<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
+					VSC Block Explorer<ExternalLink /></a
+				>
+				{#if to.slice(0, 5) === 'hive:' && from.slice(0, 5) === 'hive:'}
+					<a
+						href={'https://www.hiveblockexplorer.com/tx/' + tx.id}
+						target="_blank"
+						rel="noreferrer"
 					>
-					{#if to.slice(0, 5) === 'hive:' && from.slice(0, 5) === 'hive:'}
-						<a
-							href={'https://www.hiveblockexplorer.com/tx/' + tx.id}
-							target="_blank"
-							rel="noreferrer"
-						>
-							Hive Block Explorer<ExternalLink /></a
-						>
-					{/if}
-				</div>
+						Hive Block Explorer<ExternalLink /></a
+					>
+				{/if}
 			</div>
 		</div>
-	{/snippet}
-</SidePopup>
+	</div>
+{/snippet}
 
 <style>
 	tr:hover,

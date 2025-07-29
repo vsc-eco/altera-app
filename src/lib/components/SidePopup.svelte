@@ -5,7 +5,7 @@
 	import { fly } from 'svelte/transition';
 
 	type Props = {
-		content: Snippet;
+		content: Snippet | undefined;
 		title?: Snippet;
 		children?: Snippet;
 		description?: Snippet;
@@ -149,7 +149,9 @@
 				{/if}
 
 				<div class="popup-body">
-					{@render content()}
+					{#if content}
+						{@render content()}
+					{/if}
 				</div>
 			</div>
 		</div>

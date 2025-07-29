@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { GetTransactionsStore } from '$houdini';
 	import Tr from './tr/Tr.svelte';
-	import { onMount, untrack } from 'svelte';
+	import { onMount, untrack, type Snippet } from 'svelte';
 	import {
 		allTransactionsStore,
 		vscTxsStore,
@@ -10,6 +10,7 @@
 		waitForExtend
 	} from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
+	import SidePopup from '$lib/components/SidePopup.svelte';
 
 	let {
 		did,
@@ -106,11 +107,17 @@
 		return () => clearInterval(intervalId);
 	});
 	let openOp: [string, number] | null = $state(initialOpen ?? null);
-	function openDetails(op: [string, number]) {
+	let openSnippet: Snippet | undefined = $state();
+	let popopOpen = $state(false);
+	function toggleDetails(op: [string, number], content: Snippet) {
 		if (openOp && openOp[0] === op[0] && openOp[1] === op[1]) {
 			openOp = null;
+			openSnippet = undefined;
+			popopOpen = false;
 		} else {
 			openOp = op;
+			openSnippet = content;
+			popopOpen = true;
 		}
 	}
 	function openTxsPage(op: [string, number]) {
@@ -165,7 +172,7 @@
 						{#if op}
 							{@const { data } = op}
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-								<Tr {tx} {op} {openOp} onRowClick={allowPopup ? openDetails : openTxsPage} />
+								<Tr {tx} {op} onRowClick={toggleDetails} />
 							{:else}
 								<tr>
 									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
@@ -204,6 +211,17 @@
 		</div>
 	{/if}
 </div>
+
+<SidePopup
+	toggle={() => {
+		openOp = null;
+		openSnippet = undefined;
+		popopOpen = false;
+	}}
+	content={openSnippet}
+	open={popopOpen}
+	defaultOpen={false}
+/>
 
 <style>
 	.scroll {

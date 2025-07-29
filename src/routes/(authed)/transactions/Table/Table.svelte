@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { GetTransactionsStore } from '$houdini';
 	import Tr from './tr/Tr.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import {
 		allTransactionsStore,
 		vscTxsStore,
@@ -22,6 +22,9 @@
 	} = $props();
 	let store = $derived(new GetTransactionsStore());
 	let loading = $state(true);
+	let lastLength = $state(0);
+	let currStoreLen = $derived($allTransactionsStore.length);
+	let hitBottom = $derived(lastLength === currStoreLen);
 
 	let skeletonRowCount = $state(8);
 	onMount(() => {
@@ -102,7 +105,6 @@
 		}, 2000);
 		return () => clearInterval(intervalId);
 	});
-	let currStoreLen = $derived($allTransactionsStore.length);
 	let openOp: [string, number] | null = $state(initialOpen ?? null);
 	function openDetails(op: [string, number]) {
 		if (openOp && openOp[0] === op[0] && openOp[1] === op[1]) {
@@ -122,7 +124,8 @@
 <svelte:document
 	onscroll={(_e) => {
 		const me = document.documentElement;
-		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
+		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1 && !hitBottom && !loading) {
+			lastLength = currStoreLen;
 			fetchTxs(did, 'extend', (val) => (loading = val), 12);
 		}
 	}}
@@ -131,7 +134,8 @@
 	class="scroll"
 	onscroll={(e) => {
 		const me = e.currentTarget;
-		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1) {
+		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1 && !hitBottom && !loading) {
+			lastLength = currStoreLen;
 			fetchTxs(did, 'extend', (val) => (loading = val), 12);
 		}
 	}}

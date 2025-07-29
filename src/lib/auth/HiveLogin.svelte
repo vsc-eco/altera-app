@@ -35,6 +35,25 @@
 	let errorArr = $derived([usernameErrorText, authServiceErrorText, aiohaErrorText]);
 	let hasError = $derived(errorArr.some((err) => err != BLANK));
 
+	$effect(() => {
+		if (defaultValue && defaultValue !== authProvider) {
+			if (
+				['keychain', 'hivesigner', 'hiveauth', 'ledger', 'peakvault', 'custom'].includes(
+					defaultValue
+				)
+			) {
+				authProvider = defaultValue as
+					| 'keychain'
+					| 'hivesigner'
+					| 'hiveauth'
+					| 'ledger'
+					| 'peakvault'
+					| 'custom'
+					| undefined;
+			}
+		}
+	});
+
 	function clearErrors() {
 		usernameErrorText = '';
 		authServiceErrorText = '';

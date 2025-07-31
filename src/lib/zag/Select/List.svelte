@@ -21,7 +21,7 @@
 				<span {...api.getItemTextProps({ item })} class={{ dropdown: styleType === 'dropdown' }}>
 					{#if typeof item.snippet == 'function'}
 						{@const Snippet = item.snippet}
-						{@render Snippet(item.snippetData)}
+						{@render Snippet(item.snippetData ?? item)}
 					{:else}
 						{item.label}
 					{/if}

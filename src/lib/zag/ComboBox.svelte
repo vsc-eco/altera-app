@@ -178,7 +178,7 @@
 			{#each options as item}
 				<li {...api.getItemProps({ item })}>
 					{#if item.snippet}
-						{@render item.snippet(item)}
+						{@render item.snippet(item.snippetData ?? item)}
 					{:else}
 						{item.label}
 					{/if}
@@ -239,6 +239,9 @@
 	}
 	[data-part='item'][data-highlighted] {
 		background-color: var(--bg-accent);
+	}
+	[data-part='item'][data-disabled] {
+		cursor: default;
 	}
 	li {
 		padding: 0.5rem;

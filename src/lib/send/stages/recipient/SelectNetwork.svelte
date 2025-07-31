@@ -11,6 +11,7 @@
 	import NetworkInfo from '../NetworkInfo.svelte';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
+	import { networkCard } from '../amount/CardSnippets.svelte';
 
 	let {
 		close
@@ -27,13 +28,19 @@
 	$effect(() => {
 		tmpNetwork = availableNetworks.find((net) => net.value === tmpNetworkVal);
 	});
-	let networkItems = $derived(
+	let radioItems = $derived(
 		availableNetworks.map((v) => {
 			return {
-				icon: v.icon,
-				value: v.value,
-				label: v.label,
+				...v,
 				snippet: radioLabel
+			};
+		})
+	);
+	let comboItems = $derived(
+		availableNetworks.map((v) => {
+			return {
+				...v,
+				snippet: networkCard
 			};
 		})
 	);
@@ -129,6 +136,7 @@
 			action: close
 		}
 	});
+	let disabledMemo = $derived(auth.value?.provider === 'reown' ? 'Not available for EVM accounts' : 'Not available for this account.');
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
@@ -143,14 +151,14 @@
 		<span class="sm-label">Search</span>
 		<div class="search">
 			<ComboBox
-				items={networkItems}
+				items={comboItems}
 				bind:value={tmpNetworkVal}
 				icon={tmpNetwork ? tmpNetwork.icon : ''}
 				placeholder="Search for VSC, Hive..."
 			/>
 		</div>
 		<div class="radio-buttons">
-			<RadioGroup required id={'network'} bind:value={tmpNetworkVal} items={networkItems} />
+			<RadioGroup required id={'network'} bind:value={tmpNetworkVal} items={radioItems} />
 		</div>
 	</div>
 	<div class="recent">
@@ -165,7 +173,8 @@
 					{/each}
 				{:then recents}
 					{#each recents as recentNetwork}
-						<tr
+						{@const disabled = availableNetworks.find(net => net.value === recentNetwork.network.value)?.disabled}
+						<tr class={{disabled}}
 							onclick={() => handleTableTrigger(recentNetwork.network)}
 							onkeydown={(event) => handleTableKeydown(event, recentNetwork.network)}
 							tabindex="0"
@@ -176,7 +185,8 @@
 									lastPaid={recentNetwork.date
 										? `on ${moment(recentNetwork.date).format('MMM DD, YYYY')}`
 										: 'Never'}
-									adjacent={true}
+									size='medium'
+									disabledMemo={disabled ? disabledMemo : undefined}
 								/>
 							</td>
 						</tr>
@@ -237,6 +247,10 @@
 			cursor: pointer;
 			transition: background-color 1s;
 			animation: highlight-in 1s both;
+		}
+		tr.disabled {
+			cursor: default;
+			pointer-events: none;
 		}
 		td {
 			flex-grow: 1;

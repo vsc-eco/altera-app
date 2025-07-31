@@ -46,7 +46,13 @@ export function addLocalTransaction(tx: PendingTx) {
 
 export function getLocalTransactions(): TransactionInter[] {
 	const txString = localStorage.getItem('transactions');
-	return txString ? JSON.parse(txString) : [];
+	const jsonTxs: TransactionInter[] = txString ? JSON.parse(txString) : [];
+	for (const tx of jsonTxs) {
+		if (new Date().getTime() - new Date(tx.first_seen).getTime() > 24 * 60 * 60 * 1000) {
+			removeLocalTransaction(tx.id);
+		}
+	}
+	return jsonTxs;
 }
 
 export function removeLocalTransaction(id: string) {

@@ -41,8 +41,8 @@
 	{@const auth = getAuth()()}
 
 	{#await getLastPaidNetwork(auth, net.value) }
-		<NetworkInfo network={net} adjacent={true} disabledMemo={net.disabledMemo} />
+		<NetworkInfo network={net} disabledMemo={net.disabledMemo} />
 	{:then lastPaid}
-		<NetworkInfo network={net} {lastPaid} adjacent={true} disabledMemo={net.disabledMemo} />
+		<NetworkInfo network={net} {lastPaid} disabledMemo={net.disabledMemo} />
 	{/await}
 {/snippet}

@@ -39,7 +39,8 @@
 			$SendTxDetails.fromCoin,
 			$SendTxDetails.toNetwork,
 			auth.value?.did,
-			$SendTxDetails.account
+			$SendTxDetails.account,
+			$SendTxDetails.fromNetwork
 		)
 	);
 

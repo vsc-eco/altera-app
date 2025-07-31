@@ -63,7 +63,6 @@ export function getTimestamp(tx: TransactionInter): string {
 function deduplicate(txs: TransactionInter[]) {
 	const noAlteraID: TransactionInter[] = [];
 	const byAlteraID: Record<string, TransactionInter> = {};
-	let deleted = false;
 
 	// console.log("deduplicate, txs=", txs);
 
@@ -80,7 +79,6 @@ function deduplicate(txs: TransactionInter[]) {
 			new Date().getTime() - new Date(getTimestamp(tx)).getTime() > 24 * 60 * 60 * 1000
 		) {
 			removeLocalTransaction(alteraId);
-			deleted = true;
 			continue;
 		}
 		// removes if there is a tx with the same altera id, or deduplicates based on regular id

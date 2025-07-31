@@ -5,19 +5,19 @@
 		label: string;
 		display?: string[];
 		disabled?: boolean;
-		tall?: boolean;
+		size?: 'small' | 'medium' | 'large';
 	};
-	let { label, display, disabled = false, tall = false }: Props = $props();
+	let { label, display, disabled = false, size = 'small' }: Props = $props();
 </script>
 
-<div class={{tall}}>
+<div class={{stacked: size !== 'small'}}>
 	<span class={{ disabled }}>{label}</span>
 
 	{#if display}
-		<ul class={{ disabled, tall }}>
+		<ul class={{ disabled, stacked: size === 'large' }}>
 			{#each display as item, index}
 				<li>{item}</li>
-				{#if index < display.length - 1 && !tall}
+				{#if index < display.length - 1 && size !== 'large'}
 					<Dot />
 				{/if}
 			{/each}
@@ -43,10 +43,10 @@
 	ul.disabled {
 		color: var(--secondary-bg-mid);
 	}
-	ul.tall {
+	ul.stacked {
 		padding-top: 0.5rem;
 	}
-	.tall {
+	.stacked {
 		flex-direction: column;
 		align-items: start;
 	}

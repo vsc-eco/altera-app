@@ -6,7 +6,7 @@
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import SelectContact from './SelectContact.svelte';
 	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
-	import { untrack } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import ContactInfo from '../ContactInfo.svelte';
 	import {
 		getDisplayName,
@@ -20,6 +20,7 @@
 	import NetworkInfo from '../NetworkInfo.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import SearchContact from './SearchContact.svelte';
+	import InfoSegment from '../InfoSegment.svelte';
 
 	let {
 		id,
@@ -40,13 +41,23 @@
 	});
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 	const possibleNetworks = $derived(getRecipientNetworks(toDid));
-	const transferMethods = [TransferMethod.vscTransfer, TransferMethod.lightningTransfer].map(
-		(item) => ({
-			...item,
+	interface MethodOptionParam extends TransferMethod {
+		disabled?: boolean;
+		disabledMemo?: string;
+		snippet: (info: MethodOptionParam) => ReturnType<Snippet>;
+	}
+	const transferMethods: MethodOptionParam[] = [
+		{
+			...TransferMethod.vscTransfer,
+			snippet: methodDetails
+		},
+		{
+			...TransferMethod.lightningTransfer,
 			snippet: methodDetails,
-			snippetData: item
-		})
-	);
+			disabled: true,
+			disabledMemo: 'Not available at this time. Please visit swap page.'
+		}
+	];
 	let method: string | undefined = $state(TransferMethod.vscTransfer.value);
 	$effect(() => {
 		const newMethod = transferMethods.find((mthd) => mthd.value === method);
@@ -79,11 +90,12 @@
 	let networkOpen = $state(false);
 </script>
 
-{#snippet methodDetails(info: TransferMethod)}
-	<span class="method-description">
-		{info.label}
-		<span class="faded-caption">{info.length} <Dot size={16} /> {info.fees}</span>
-	</span>
+{#snippet methodDetails(info: MethodOptionParam)}
+	<InfoSegment
+		label={info.label}
+		disabled={info.disabled}
+		display={info.disabledMemo ? [info.disabledMemo] : [info.length, info.fees]}
+	/>
 {/snippet}
 
 {#snippet recipient()}
@@ -139,7 +151,7 @@
 	<Card>
 		<div class="network-card">
 			{#if $SendTxDetails.toNetwork}
-				<NetworkInfo network={$SendTxDetails.toNetwork} lastPaid={lastNetwork} tall/>
+				<NetworkInfo network={$SendTxDetails.toNetwork} lastPaid={lastNetwork} size="large" />
 			{:else}
 				<span class="user-icon-placeholder"><Landmark /></span>
 			{/if}

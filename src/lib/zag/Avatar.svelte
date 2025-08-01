@@ -15,21 +15,15 @@
 	$effect(() => {
 		src = undefined;
 		if (did == undefined) return;
-		if (!did.startsWith('did:pkh:eip155:1')) {
-			const username = did.split(':').at(-1)!;
-			fallback = username?.slice(0, 2);
-			getProfilePicUrl(did.split(':').at(-1)!).then((url) => {
-				src = url;
-			});
-		} else {
-			const addr = getUsernameFromDid(did);
-			fallback = addr.slice(2, 4);
-			src = `https://effigy.im/a/${addr}.svg`;
-		}
+		const username = getUsernameFromDid(did);
+		fallback = did.startsWith('did:pkh:eip155:1') ? username.slice(2, 4) : username.slice(0, 2);
+		getProfilePicUrl(did).then((url) => {
+			src = url ?? undefined;
+		});
 	});
 </script>
 
-<div {...api.getRootProps()} class={['wrapper', {large: large?? false}]}>
+<div {...api.getRootProps()} class={['wrapper', { large: large ?? false }]}>
 	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}
 		>{fallback}</span
 	>

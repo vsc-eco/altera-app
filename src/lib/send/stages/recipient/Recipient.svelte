@@ -268,18 +268,6 @@
 		margin-bottom: 0.5rem;
 		font-weight: 450;
 	}
-	.method-description {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		width: 100%;
-		padding-right: 1rem;
-		.faded-caption {
-			display: flex;
-			align-items: center;
-			margin-left: auto;
-		}
-	}
 	.method {
 		:global(button) {
 			width: 100%;

@@ -47,6 +47,7 @@
 			options = items;
 		},
 		onInputValueChange({ inputValue }) {
+			if (!custom) return;
 			if (inputValue === '') {
 				options = items;
 				return;
@@ -68,13 +69,14 @@
 
 			if (getSuggestions && !inputValue?.startsWith("0x")) {
 				const currentValue = inputValue;
-				getSuggestions(currentValue).then((items) => {
+				getSuggestions(currentValue).then((itms) => {
 					if (api.inputValue !== currentValue) return;
-					const all = [...newOptions, ...items];
+					const all = [...newOptions, ...itms];
 					options = all.reduce((acc: Option[], current) => {
 						const exists = acc.find((item) => item.value === current.value);
 						if (!exists) {
-							acc.push(current);
+							const inItems = items.find(item => item.value === current.value);
+							acc.push(inItems ?? current);
 						}
 						return acc;
 					}, []);
@@ -82,11 +84,6 @@
 			} else {
 				options = newOptions;
 			}
-			// if (custom) {
-			// 	const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-			// 	api.setValue([val]);
-			// 	value = val;
-			// }
 		},
 		onFocusOutside() {
 			if (custom) {

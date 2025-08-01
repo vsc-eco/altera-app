@@ -104,15 +104,17 @@
 	});
 
 	const otherAccount = $derived(
-		to == from
-			? t.includes('unstake')
-				? from!
-				: t.includes('stake')
-					? to!
+		!from
+			? to
+			: to == from
+				? t.includes('unstake')
+					? from!
+					: t.includes('stake')
+						? to!
+						: to!
+				: to == did
+					? from!
 					: to!
-			: to == did
-				? from!
-				: to!
 	);
 	let inUsd = $state('');
 	$effect(() => {

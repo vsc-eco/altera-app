@@ -32,13 +32,10 @@
 	}
 
 	const amt: string = $derived(op.data.intents?.args?.limit ?? '0');
-	const coinVal: string = $derived(op.data.intents?.args?.limit ?? coins.unk.value);
+	const coinVal: string = $derived(op.data.intents?.args?.limit ?? coins.hive.value);
 	const amount = $derived(
-		new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.unk, true)
+		new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.hive, true)
 	);
-	$effect(() => {
-		console.log(amt, coinVal, amount);
-	});
 </script>
 
 <tr
@@ -50,16 +47,8 @@
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<td class="filler"></td>
-	{#if amt !== '0'}
-		<Amount {amount} direction={'swap'} />
-	{:else}
-		<td class="amount">0.000</td>
-	{/if}
-	{#if coinVal !== coins.unk.value}
-		<Token {amount} direction={'swap'} />
-	{:else}
-		<td class="token">HIVE/HBD</td>
-	{/if}
+	<Amount {amount} direction={'swap'} />
+	<Token {amount} direction={'swap'} />
 
 	<Type direction="swap" t={op.type!} />
 </tr>
@@ -145,14 +134,4 @@
 	.tx-id.section {
 		margin-top: 2rem;
 	}
-	.amount,
-    .token {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		font-size: var(--text-sm);
-		color: var(--neutral-off-fg);
-	}
-    .amount {
-		padding-right: 0.5rem;
-		text-align: right;
-    }
 </style>

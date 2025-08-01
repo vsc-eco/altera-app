@@ -164,15 +164,20 @@
 		>
 			{#if $allTransactionsStore && $allTransactionsStore.length > 0}
 				{#each $allTransactionsStore as tx (tx.id)}
-					{@const { ops, id } = tx}
-					{#each ops!.sort((a, b) => {
+					{@const { ops, id, ledger } = tx}
+					{@const isContract = ops?.find((op) => op?.data.contract_id !== undefined) !== undefined}
+					{@const show = isContract
+						? ops
+						: ledger?.map((value, index) => ({ ...value, index: index }))}
+					{#each show!.sort((a, b) => {
 						// put deposits below other ops in their transaction
 						return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
-					}) as op}
+					}) as op, index (op?.index)}
 						{#if op}
-							{@const { data } = op}
+							{@const newOp = 'data' in op ? op : { data: op, index: index, type: op.type }}
+							{@const { data } = newOp}
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-								<Tr {tx} {op} onRowClick={toggleDetails} />
+								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
 							{:else}
 								<tr>
 									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>

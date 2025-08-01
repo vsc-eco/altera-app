@@ -1,19 +1,27 @@
 <script lang="ts">
-	import { getTimestamp, type TransactionInter, type TransactionOpType } from "$lib/stores/txStores";
-	import moment from "moment";
-	import type { Snippet } from "svelte";
-	import Type from "../tds/Type.svelte";
-	import { ExternalLink } from "@lucide/svelte";
-	import Clipboard from "$lib/zag/Clipboard.svelte";
+	import {
+		getTimestamp,
+		type TransactionInter,
+		type TransactionOpType
+	} from '$lib/stores/txStores';
+	import moment from 'moment';
+	import type { Snippet } from 'svelte';
+	import Type from '../tds/Type.svelte';
+	import { ExternalLink } from '@lucide/svelte';
+	import Clipboard from '$lib/zag/Clipboard.svelte';
+	import Amount from '../tds/Amount.svelte';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { Coin } from '$lib/send/sendOptions';
+	import Token from '../tds/Token.svelte';
 
-    type Props = {
+	type Props = {
 		tx: TransactionInter;
 		op: TransactionOpType;
 		onRowClick: (op: [string, number], content: Snippet) => void;
 	};
-    let { tx, op, onRowClick }: Props = $props();
+	let { tx, op, onRowClick }: Props = $props();
 
-    function handleTrigger() {
+	function handleTrigger() {
 		onRowClick([tx.id, op.index], contractRowContent);
 	}
 	function handleKeydown(e: KeyboardEvent) {
@@ -22,8 +30,16 @@
 			e.preventDefault();
 		}
 	}
-</script>
 
+	const amt: string = $derived(op.data.intents?.args?.limit ?? '0');
+	const coinVal: string = $derived(op.data.intents?.args?.limit ?? coins.unk.value);
+	const amount = $derived(
+		new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.unk, true)
+	);
+	$effect(() => {
+		console.log(amt, coinVal, amount);
+	});
+</script>
 
 <tr
 	data-tx-id={tx.id}
@@ -34,8 +50,17 @@
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<td class="filler"></td>
-	<td></td>
-	<td></td>
+	{#if amt !== '0'}
+		<Amount {amount} direction={'swap'} />
+	{:else}
+		<td class="amount">0.000</td>
+	{/if}
+	{#if coinVal !== coins.unk.value}
+		<Token {amount} direction={'swap'} />
+	{:else}
+		<td class="token">HIVE/HBD</td>
+	{/if}
+
 	<Type direction="swap" t={op.type!} />
 </tr>
 
@@ -62,36 +87,36 @@
 {/snippet}
 
 <style>
-    tr:hover,
+	tr:hover,
 	tr {
 		cursor: pointer;
 		transition: background-color 1s;
 		animation: highlight-in 1s both;
 	}
-    .filler {
-        height: 4.5rem;
-    }
-    .date {
+	.filler {
+		height: 4.5rem;
+	}
+	.date {
 		vertical-align: middle;
 		padding: 1rem min(1rem, 2%);
 		width: max-content;
 		border-bottom: 1px solid var(--neutral-bg-accent);
 		min-width: 4rem;
 	}
-    a {
+	a {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.25rem;
 	}
-    a :global(svg) {
+	a :global(svg) {
 		width: 16px;
 	}
-    h3 {
+	h3 {
 		font-size: var(--text-sm);
 		font-weight: 600;
 		margin-top: 0;
 	}
-    .section {
+	.section {
 		padding: 0.5rem;
 		border-radius: 0.5rem;
 		position: relative;
@@ -120,4 +145,14 @@
 	.tx-id.section {
 		margin-top: 2rem;
 	}
+	.amount,
+    .token {
+		font-family: 'Noto Sans Mono Variable', monospace;
+		font-size: var(--text-sm);
+		color: var(--neutral-off-fg);
+	}
+    .amount {
+		padding-right: 0.5rem;
+		text-align: right;
+    }
 </style>

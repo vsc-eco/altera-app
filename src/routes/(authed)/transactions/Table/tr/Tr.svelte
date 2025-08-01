@@ -123,7 +123,6 @@
 		});
 	});
 
-	let detailsOpen = $state(false);
 	function handleTrigger() {
 		onRowClick([tx.id, op.index], thisRowContent);
 	}

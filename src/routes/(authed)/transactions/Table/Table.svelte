@@ -7,10 +7,16 @@
 		vscTxsStore,
 		toTransactionInter,
 		fetchTxs,
-		waitForExtend
+		waitForExtend,
+
+		getTimestamp
+
 	} from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 	import SidePopup from '$lib/components/SidePopup.svelte';
+	import moment from 'moment';
+	import Type from './tds/Type.svelte';
+	import ContractTr from './tr/ContractTr.svelte';
 
 	let {
 		did,
@@ -178,6 +184,9 @@
 							{@const { data } = newOp}
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
+							{:else if op.type === 'call_contract'}
+							<!-- FIXME: show useful info for contracts -->
+								<ContractTr {tx} op={newOp}  onRowClick={toggleDetails}/>
 							{:else}
 								<tr>
 									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
@@ -268,7 +277,6 @@
 		width: max-content;
 		border-bottom: 1px solid var(--neutral-bg-accent);
 	}
-
 	.token-header {
 		padding-left: 0;
 	}

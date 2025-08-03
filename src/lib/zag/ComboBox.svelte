@@ -26,7 +26,6 @@
 	} = $props();
 
 	let options = $state.raw(items);
-	let displayName = $state.raw('');
 
 	const collection = $derived(
 		combobox.collection({
@@ -44,7 +43,9 @@
 			return collection;
 		},
 		onOpenChange() {
-			options = items;
+			if (!options) {
+				options = items;
+			}
 		},
 		onInputValueChange({ inputValue }) {
 			if (!custom) return;
@@ -66,8 +67,7 @@
 			)
 				? filtered
 				: [currentlyInput, ...filtered];
-
-			if (getSuggestions && !inputValue?.startsWith("0x")) {
+			if (getSuggestions && !inputValue?.startsWith('0x')) {
 				const currentValue = inputValue;
 				getSuggestions(currentValue).then((itms) => {
 					if (api.inputValue !== currentValue) return;
@@ -75,7 +75,7 @@
 					options = all.reduce((acc: Option[], current) => {
 						const exists = acc.find((item) => item.value === current.value);
 						if (!exists) {
-							const inItems = items.find(item => item.value === current.value);
+							const inItems = items.find((item) => item.value === current.value);
 							acc.push(inItems ?? current);
 						}
 						return acc;

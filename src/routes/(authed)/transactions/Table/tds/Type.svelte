@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { ArrowRight, ArrowLeft, ArrowRightLeft } from '@lucide/svelte';
-	let { direction, t }: { direction: 'incoming' | 'outgoing' | 'swap'; t: string } = $props();
+	import { ArrowRight, ArrowLeft, ArrowRightLeft, NotebookPen } from '@lucide/svelte';
+	let { direction, t }: { direction: 'incoming' | 'outgoing' | 'swap' | 'contract'; t: string } = $props();
 </script>
 
 <td>
@@ -9,8 +9,10 @@
 			<ArrowRight />
 		{:else if direction === 'swap'}
 			<ArrowRightLeft />
-		{:else}
+		{:else if direction === 'incoming'}
 			<ArrowLeft />
+		{:else}
+			<NotebookPen />
 		{/if}
 
 		{t.replaceAll('_', ' ')}

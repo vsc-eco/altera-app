@@ -135,7 +135,17 @@ export function updateTxsFromLocalStorage(did: string) {
 			hasThisAcc.push(tx);
 		}
 	}
-	if (hasThisAcc.length > 0) localTxsStore.set(hasThisAcc);
+	// don't update store unless different
+	if (hasThisAcc.length > 0) {
+		let identical = true;
+		const currentIds = new Set(get(localTxsStore).map((tx) => tx.id));
+		hasThisAcc.forEach((entry) => {
+			if (!currentIds.has(entry.id)) identical = false;
+		});
+		if (!identical) localTxsStore.set(hasThisAcc);
+	} else if (get(localTxsStore).length > 0) {
+		localTxsStore.set([]);
+	}
 }
 
 export function clearAllStores() {

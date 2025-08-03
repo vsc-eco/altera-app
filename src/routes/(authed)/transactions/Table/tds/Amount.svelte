@@ -1,11 +1,14 @@
 <script lang="ts">
 	import type { UnkCoinAmount } from '$lib/currency/CoinAmount';
 
-	type Props = { amount: UnkCoinAmount; direction?: 'incoming' | 'outgoing' | 'swap' };
+	type Props = { amount: UnkCoinAmount; direction?: 'incoming' | 'outgoing' | 'swap' | 'contract' };
 	let { amount, direction = 'incoming' }: Props = $props();
 </script>
 
 <td>
+	{#if direction === 'contract'}
+		<span class="sm-caption">Limit:</span>
+	{/if}
 	<span
 		class={[
 			'amount',

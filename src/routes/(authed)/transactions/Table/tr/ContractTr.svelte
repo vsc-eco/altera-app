@@ -13,6 +13,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import Token from '../tds/Token.svelte';
+	import ContractId from '../tds/ContractId.svelte';
 
 	type Props = {
 		tx: TransactionInter;
@@ -52,11 +53,11 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
-	<td class="filler"></td>
+	<ContractId address={op.data.contract_id ?? ''} status={tx.status} />
 	<Amount {amount} direction={'contract'} />
 	<Token {amount} direction={'contract'} />
 
-	<Type direction="swap" t={op.type!} />
+	<Type direction="contract" t={op.type!} />
 </tr>
 
 {#snippet contractRowContent()}

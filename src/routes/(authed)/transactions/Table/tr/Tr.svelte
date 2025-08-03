@@ -160,7 +160,7 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(timestamp).format('MMM DD')}</td>
-	<ToFrom {otherAccount} memo={memoNoId?.toString()} {status} />
+	<ToFrom {otherAccount} memo={memoNoId?.get('msg') ?? undefined} {status} />
 	<Amount {amount} {direction} />
 	<Token {amount} {direction} />
 	<Type {direction} {t} />
@@ -191,7 +191,7 @@
 		{#if memo}
 			<div class="memo section">
 				<h3>Memo</h3>
-				<p>{memo}</p>
+				<p>{memo.get('msg')}</p>
 			</div>
 		{/if}
 		<div class="tx-id section">

@@ -8,15 +8,15 @@
 		toTransactionInter,
 		fetchTxs,
 		waitForExtend,
-
 		getTimestamp
-
 	} from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import moment from 'moment';
 	import Type from './tds/Type.svelte';
 	import ContractTr from './tr/ContractTr.svelte';
+	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 
 	let {
 		did,
@@ -27,7 +27,6 @@
 		allowPopup?: boolean;
 		initialOpen?: [string, number];
 	} = $props();
-	let store = $derived(new GetTransactionsStore());
 	let loading = $state(true);
 	let lastLength = $state(0);
 	let currStoreLen = $derived($allTransactionsStore.length);
@@ -36,7 +35,7 @@
 	let skeletonRowCount = $state(8);
 	onMount(() => {
 		if (!initialOpen && $allTransactionsStore.length < 20) {
-			fetchTxs(did, 'set', (val) => (loading = val));
+			fetchTxs(did, 'set', (val) => (loading = val), 20);
 		}
 		const rootStyle = getComputedStyle(document.documentElement);
 		const remValue = parseFloat(rootStyle.fontSize);
@@ -73,13 +72,15 @@
 			let lastOffset = currStoreLen;
 
 			if (foundTx) {
-				console.log('found');
 				hasFoundAutoOpenTx = true;
 				// Scroll to the transaction after a brief delay to ensure DOM is updated
 				setTimeout(() => {
 					const txElement = document.querySelector(`[data-tx-id="${targetTxId}"]`);
 					if (txElement) {
 						txElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						if (txElement instanceof HTMLElement) {
+							txElement.click();
+						}
 					}
 				}, 100);
 				break;
@@ -87,7 +88,6 @@
 
 			loading = true;
 			try {
-				console.log('extending, offset', currStoreLen);
 				const success = await waitForExtend(did);
 				if (!success) break;
 			} catch (error) {
@@ -112,10 +112,11 @@
 		}, 2000);
 		return () => clearInterval(intervalId);
 	});
-	let openOp: [string, number] | null = $state(initialOpen ?? null);
+	let openOp: [string, number] | null = $state(null);
 	let openSnippet: Snippet | undefined = $state();
 	let popopOpen = $state(false);
 	function toggleDetails(op: [string, number], content: Snippet) {
+		if (!allowPopup) openTxsPage(op);
 		if (openOp && openOp[0] === op[0] && openOp[1] === op[1]) {
 			openOp = null;
 			openSnippet = undefined;
@@ -169,12 +170,31 @@
 			class={!$allTransactionsStore?.length && !loading ? 'no-transactions-container' : ''}
 		>
 			{#if $allTransactionsStore && $allTransactionsStore.length > 0}
+				<!-- {#each $allTransactionsStore as tx (tx.id)}
+					{@const { ops, id } = tx}
+					{#each ops!.sort((a, b) => {
+						// put deposits below other ops in their transaction
+						return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
+					}) as op}
+						{#if op}
+							{@const { data } = op}
+							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
+								<Tr {tx} {op} onRowClick={allowPopup ? toggleDetails : openTxsPage} />
+							{:else}
+								<tr>
+									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
+								</tr>
+							{/if}
+						{/if}
+					{/each}
+				{/each} -->
 				{#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id, ledger } = tx}
 					{@const isContract = ops?.find((op) => op?.data.contract_id !== undefined) !== undefined}
-					{@const show = isContract
-						? ops
-						: ledger?.map((value, index) => ({ ...value, index: index }))}
+					{@const show =
+						isContract && ledger?.length && ledger.length > 0
+							? ledger?.map((value, index) => ({ ...value, index: index }))
+							: ops}
 					{#each show!.sort((a, b) => {
 						// put deposits below other ops in their transaction
 						return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
@@ -185,8 +205,7 @@
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
 							{:else if op.type === 'call_contract'}
-							<!-- FIXME: show useful info for contracts -->
-								<ContractTr {tx} op={newOp}  onRowClick={toggleDetails}/>
+								<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
 							{:else}
 								<tr>
 									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
@@ -237,7 +256,7 @@
 	defaultOpen={false}
 />
 
-<style>
+<style lang="scss">
 	.scroll {
 		overflow: auto;
 		width: 100%;

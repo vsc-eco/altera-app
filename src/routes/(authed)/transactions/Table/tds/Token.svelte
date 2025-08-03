@@ -3,7 +3,7 @@
 
 	type Props = {
 		amount: UnkCoinAmount;
-		direction?: 'incoming' | 'outgoing' | 'swap';
+		direction?: 'incoming' | 'outgoing' | 'swap' | 'contract';
 	};
 	let { amount, direction = 'incoming' }: Props = $props();
 </script>

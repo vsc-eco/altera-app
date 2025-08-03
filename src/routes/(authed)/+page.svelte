@@ -52,11 +52,6 @@
 			/>
 		{/if}
 	</div>
-	<div class="row large">
-		<Card>
-			<Send widgetView />
-		</Card>
-	</div>
 
 	<div class="txs">
 		<h3>Transactions</h3>

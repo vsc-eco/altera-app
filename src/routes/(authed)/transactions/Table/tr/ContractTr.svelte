@@ -11,7 +11,7 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import Amount from '../tds/Amount.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { Coin } from '$lib/send/sendOptions';
+	import { Coin, Network } from '$lib/send/sendOptions';
 	import Token from '../tds/Token.svelte';
 
 	type Props = {
@@ -31,11 +31,17 @@
 		}
 	}
 
-	const amt: string = $derived(op.data.intents?.args?.limit ?? '0');
-	const coinVal: string = $derived(op.data.intents?.args?.limit ?? coins.hive.value);
+	const amt: string = $derived(op.data.intents[0]?.args?.limit ?? '0');
+	const coinVal: string = $derived(op.data.intents[0]?.args?.limit ?? coins.hive.value);
 	const amount = $derived(
 		new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.hive, true)
 	);
+	let inUsd = $state('');
+	$effect(() => {
+		amount.convertTo(Coin.usd, Network.lightning).then((amount) => {
+			inUsd = amount.toAmountString();
+		});
+	});
 </script>
 
 <tr
@@ -47,8 +53,8 @@
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<td class="filler"></td>
-	<Amount {amount} direction={'swap'} />
-	<Token {amount} direction={'swap'} />
+	<Amount {amount} direction={'contract'} />
+	<Token {amount} direction={'contract'} />
 
 	<Type direction="swap" t={op.type!} />
 </tr>
@@ -60,6 +66,13 @@
 			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase())}
 	</h2>
 	<div class="sections">
+		<div class="amount section">
+			<h3>Limit</h3>
+			{amount.toPrettyString()}
+			<span class="approx-usd">
+				Approx. ${inUsd} USD
+			</span>
+		</div>
 		<div class="tx-id section">
 			<h3>Transaction Id</h3>
 			<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
@@ -84,6 +97,17 @@
 	}
 	.filler {
 		height: 4.5rem;
+	}
+	.amount {
+		font-size: var(--text-4xl);
+		margin: 1rem 0;
+	}
+	.approx-usd {
+		display: block;
+		text-wrap: wrap;
+		color: var(--neutral-fg-mid);
+		font-size: var(--text-sm);
+		margin-top: 0.5rem;
 	}
 	.date {
 		vertical-align: middle;
@@ -132,6 +156,6 @@
 	}
 
 	.tx-id.section {
-		margin-top: 2rem;
+		margin-top: auto;
 	}
 </style>

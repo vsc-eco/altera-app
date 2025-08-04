@@ -198,9 +198,9 @@
 					{#each show!.sort((a, b) => {
 						// put deposits below other ops in their transaction
 						return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
-					}) as op, index (op?.index)}
+					}) as op, i (`${tx.id}-${op?.index}`)}
 						{#if op}
-							{@const newOp = 'data' in op ? op : { data: op, index: index, type: op.type }}
+							{@const newOp = 'data' in op ? op : { data: op, index: i, type: op.type }}
 							{@const { data } = newOp}
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} op={newOp} onRowClick={toggleDetails} />

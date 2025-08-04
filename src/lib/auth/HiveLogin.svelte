@@ -10,6 +10,7 @@
 	import PeakVaultIcon from './hive/PeakVaultIcon.svelte';
 	import { browser } from '$app/environment';
 	import HiveUsername from './Username.svelte';
+	import { untrack } from 'svelte';
 	// credit for regex: https://github.com/Mintrawa/hive-username-regex/blob/main/src/index.ts
 	const hiveRegex =
 		'^(?=.{3,16}$)[a-z][0-9a-z\\-]{1,}[0-9a-z]([.][a-z][0-9a-z\\-]{1,}[0-9a-z]){0,}';
@@ -36,7 +37,7 @@
 	let hasError = $derived(errorArr.some((err) => err != BLANK));
 
 	$effect(() => {
-		if (defaultValue && defaultValue !== authProvider) {
+		if (defaultValue && defaultValue !== untrack(() => authProvider)) {
 			if (
 				['keychain', 'hivesigner', 'hiveauth', 'ledger', 'peakvault', 'custom'].includes(
 					defaultValue
@@ -104,10 +105,6 @@
 <Dialog bind:toggle={close}>
 	Hive Login
 	{#snippet title()}
-		Hive Login
-	{/snippet}
-
-	{#snippet content()}
 		{#if qrData && !hasError}
 			<span class="back-button">
 				<PillButton
@@ -118,6 +115,12 @@
 					><ArrowLeft></ArrowLeft>
 				</PillButton>
 			</span>
+		{/if}
+		Hive Login
+	{/snippet}
+
+	{#snippet content()}
+		{#if qrData && !hasError}
 			<p>Tap or scan the QR Code below to open the HiveAuth app.</p>
 
 			<Qr data={qrData}></Qr>
@@ -194,11 +197,5 @@
 	.error {
 		min-height: 1em;
 		margin-top: 0.25rem;
-	}
-	.back-button {
-		display: inline-block;
-		position: absolute;
-		top: 1rem;
-		left: 1.5rem;
 	}
 </style>

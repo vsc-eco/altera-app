@@ -187,7 +187,7 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 	for (const tx of store) {
 		if (!tx.ops) continue;
 		for (const op of tx.ops) {
-			if (!op) continue;
+			if (!op || !op.data.from) continue;
 			const username = getUsernameFromDid(op.data.from);
 			if (!leaveOut.includes(username) && !result.has(username)) {
 				result.set(username, {

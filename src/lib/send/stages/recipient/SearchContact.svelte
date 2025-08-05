@@ -13,11 +13,12 @@
 	import ComboBox from '$lib/zag/ComboBox.svelte';
 	import { CircleUser } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
+	import type { Snippet } from 'svelte';
 	const auth = $derived($authStore);
 	let isValidHive = $state(false);
 	let lastPaid = $state('Never');
-	let recipientUsername: string | undefined = $state();
-    const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
+	let recipientUsername: string | undefined = $state($SendTxDetails.toUsername);
+	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 
 	function setUsername(username: string) {
 		getDisplayName(getDidFromUsername(username)).then((displayName) => {
@@ -39,7 +40,7 @@
 	interface recipientSnippet extends recipientData {
 		label: string;
 		value: string;
-		snippet: (contact: recipientData) => ReturnType<import('svelte').Snippet>;
+		snippet: (contact: recipientData) => ReturnType<Snippet>;
 	}
 	let recipients: recipientSnippet[] = $state([]);
 	$effect(() => {
@@ -127,12 +128,12 @@
 </Card>
 
 <style>
-    .user-icon-placeholder {
+	.user-icon-placeholder {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 	}
-    .name-card {
+	.name-card {
 		display: flex;
 		align-items: center;
 		gap: 1rem;

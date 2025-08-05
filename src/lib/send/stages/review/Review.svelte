@@ -3,7 +3,7 @@
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import {
-	getAccountNameFromAuth,
+		getAccountNameFromAuth,
 		getAccountNameFromDid,
 		getDidFromUsername,
 		getUsernameFromAuth
@@ -158,6 +158,18 @@
 			</tbody>
 		</table>
 	</div>
+	{#if $SendTxDetails.memo}
+		<div class={['memo', { compact }]}>
+			<table>
+				<tbody>
+					<tr>
+						<td class="sm-caption label">Memo</td>
+						<td class="content">{$SendTxDetails.memo}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	{/if}
 	{#if status.message}
 		<div class="status-wrapper">
 			<span class="sm-caption">Status</span>
@@ -195,7 +207,9 @@
 		width: calc(100% - 1rem);
 	}
 	.recipient,
-	.sender {
+	.sender,
+	.memo
+	 {
 		width: calc(100% - 1rem);
 		margin: 0 0.5rem;
 		padding: 1rem 0;

@@ -238,6 +238,7 @@
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
+	let memo = $state('');
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
@@ -306,6 +307,24 @@
 	<SwapOptions bind:toAmount bind:fromSwapAmount />
 {/if}
 
+<hr />
+
+<h2 class="details-header">Details</h2>
+<div class="details">
+	<span class="sm-caption">Memo (optional)</span>
+	<input
+		bind:value={memo}
+		maxlength="300"
+		onchange={() => {
+			SendTxDetails.update((current) => ({
+				...current,
+				memo: memo
+			}));
+		}}
+	/>
+	<span>Custom message to the recipient.</span>
+</div>
+
 <!-- {#if $SendTxDetails.fromNetwork}
 	<div class="from-network">
 		<span class="sm-caption">Sending From Network:</span>
@@ -341,8 +360,22 @@
 	// 		gap: 0.5rem;
 	// 	}
 	// }
-
 	.to-self-error {
 		margin-top: 0.5rem;
+	}
+	hr {
+		margin: 2rem 0;
+		background-color: var(--neutral-bg-accent);
+	}
+	.details-header {
+		font-size: var(--text-3xl);
+	}
+	.details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		input {
+			width: calc(100% - 0.5rem);
+		}
 	}
 </style>

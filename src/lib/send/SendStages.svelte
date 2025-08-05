@@ -29,7 +29,7 @@
 	function stageDetails() {
 		return {
 			...blankDetails(),
-			toNetwork: Network.vsc,
+			toNetwork: Network.vsc
 		};
 	}
 	SendTxDetails.set(stageDetails());
@@ -47,7 +47,6 @@
 	const stepsData = [
 		{ value: 'recipient', label: 'Recipient', content: recipient },
 		{ value: 'amount', label: 'Amount', content: amount },
-		{ value: 'details', label: 'Details', content: details },
 		{ value: 'review', label: 'Review', content: review },
 		{ value: 'complete', label: 'Review', content: complete }
 	];
@@ -126,10 +125,11 @@
 	let isDoneInstructions = $derived(
 		auth.value?.provider === 'reown' &&
 			$SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value &&
-			api.value === 3
+			api.value === stepsData.findIndex((step) => step.value === 'review')
 	);
 
 	let stage = new Set<string>(['details', 'review']);
+	let maxStage = $state(0);
 	let stepComplete = $state(false);
 	function editStage(id: string, add: boolean) {
 		if (add) {
@@ -156,6 +156,7 @@
 			initSwap();
 		} else {
 			api.goToNextStep();
+			maxStage = api.value;
 		}
 	}
 	function previous() {
@@ -218,10 +219,7 @@
 {#snippet amount(value: string)}
 	<Amount id={value} {editStage} />
 {/snippet}
-{#snippet details()}
-	<Details />
-{/snippet}
-{#snippet review(value: string)}
+{#snippet review()}
 	<Review {status} />
 {/snippet}
 {#snippet complete()}
@@ -236,7 +234,10 @@
 			{#if showTabs}
 				<div {...api.getListProps()}>
 					{#each stepsData.slice(0, -1) as step, index}
-						<button {...api.getTriggerProps({ index })}>
+						<button
+							{...api.getTriggerProps({ index })}
+							data-visited={index <= maxStage && stepComplete}
+						>
 							<div {...api.getIndicatorProps({ index })}>{step.label}</div>
 						</button>
 					{/each}
@@ -340,18 +341,20 @@
 		&:hover {
 			border-color: var(--neutral-bg-accent-shifted);
 		}
+		&[data-visited='false'] {
+			cursor: default;
+			pointer-events: none;
+		}
 		&[data-complete] {
 			border-color: var(--primary-bg-accent);
+			pointer-events: auto;
+			cursor: pointer;
 		}
 		&[data-current] {
 			border-color: var(--accent-mid);
 			&:hover {
 				cursor: default;
 			}
-		}
-		&[data-incomplete] {
-			cursor: default;
-			pointer-events: none;
 		}
 	}
 	[data-part='content'] {

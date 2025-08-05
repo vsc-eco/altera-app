@@ -130,11 +130,12 @@
 		untrack(() => {
 			if (custom && val === api.inputValue) return;
 			if (api.value.length > 0 && val === api.value[0]) return;
-			console.log('val, api.value[0]', val, api.value[0]);
 			api.setValue([val]);
 			const itemWithVal = items.find((item) => item.value && item.value === val);
 			if (itemWithVal) {
 				api.setInputValue(itemWithVal.label);
+			} else {
+				api.setInputValue(val);
 			}
 		});
 	});

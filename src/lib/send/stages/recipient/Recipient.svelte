@@ -1,15 +1,13 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
-	import { getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
+	import { getDidFromUsername } from '$lib/getAccountName';
 	import { CircleUser, Dot, Landmark, MapPin } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import SelectContact from './SelectContact.svelte';
 	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
 	import { untrack, type Snippet } from 'svelte';
-	import ContactInfo from '../ContactInfo.svelte';
 	import {
-		getDisplayName,
 		getLastPaidContact,
 		getLastPaidNetwork,
 		getRecipientNetworks,
@@ -100,32 +98,8 @@
 
 {#snippet recipient()}
 	<h2>Recipient</h2>
-	<div class="to">
-		<!-- <div class="name-card">
-			{#if $SendTxDetails.toUsername}
-				<ContactInfo
-					did={toDid}
-					name={$SendTxDetails.toDisplayName}
-					accounts={[$SendTxDetails.toUsername]}
-					{lastPaid}
-				/>
-			{:else}
-				<span class="user-icon-placeholder"><CircleUser /></span>
-			{/if}
-			<span class="more">
-				<button onclick={() => (contactOpen = true)} class="small-button"> Edit </button>
-			</span>
-		</div> -->
-		<div class="contact-search">
-			<SearchContact />
-		</div>
-		<div class="address">
-			<span class="pin"><MapPin /></span>
-			<div class="data">
-				<span class="faded-caption">Recipient address</span>
-				<BasicCopy value={$SendTxDetails.toUsername} />
-			</div>
-		</div>
+	<div class="contact-search">
+		<SearchContact />
 	</div>
 
 	<h3>Payment Method</h3>
@@ -185,31 +159,6 @@
 {/if}
 
 <style lang="scss">
-	.to {
-		background-color: var(--neutral-bg-accent);
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		border-radius: 0.5rem;
-		padding: 1rem;
-		overflow: auto;
-		max-height: 100%;
-	}
-	// .name-card {
-	// 	background-color: var(--neutral-bg);
-	// 	border-radius: 0.5rem;
-	// 	padding: 1rem;
-	// 	.user-icon-placeholder {
-	// 		width: 3.5rem;
-	// 		height: 3.5rem;
-	// 		display: flex;
-	// 		align-items: center;
-	// 		justify-content: center;
-	// 		:global(svg) {
-	// 			width: 100%;
-	// 			height: 100%;
-	// 		}
-	// 	}
-	// }
-	// .name-card,
 	.contact-search {
 		display: flex;
 		flex-direction: column;
@@ -229,31 +178,6 @@
 	.network-card {
 		padding: 0.5rem;
 	}
-	.address {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		margin: 1.5rem 1rem 0;
-		line-height: 1.2;
-		.faded-caption {
-			margin-bottom: 0.25rem;
-		}
-		.pin {
-			display: flex;
-			align-items: center;
-			padding: 0.75rem;
-			background-color: var(--neutral-bg-accent-shifted);
-			border-radius: 2.5rem;
-		}
-		.data {
-			display: flex;
-			flex-direction: column;
-		}
-	}
-	.faded-caption {
-		color: var(--neutral-mid);
-		font-size: var(--text-xs);
-	}
 	.small-button {
 		border: none;
 		background-color: transparent;
@@ -271,10 +195,6 @@
 	.method {
 		:global(button) {
 			width: 100%;
-		}
-		.faded-caption {
-			display: flex;
-			align-items: center;
 		}
 	}
 </style>

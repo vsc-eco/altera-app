@@ -125,6 +125,9 @@
 	$effect(() => {
 		const _ = sessionId;
 		untrack(() => {
+			if (txId) {
+				txId = '';
+			}
 			api.setStep(0);
 		});
 	});

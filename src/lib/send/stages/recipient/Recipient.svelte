@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
 	import { getDidFromUsername } from '$lib/getAccountName';
-	import { CircleUser, Dot, Landmark, MapPin } from '@lucide/svelte';
+	import { Landmark } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
-	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import SelectContact from './SelectContact.svelte';
-	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
 	import { untrack, type Snippet } from 'svelte';
 	import {
 		getLastPaidContact,
@@ -14,11 +12,12 @@
 		SendTxDetails
 	} from '../../sendUtils';
 	import SelectNetwork from './SelectNetwork.svelte';
-	import { Network, TransferMethod } from '../../sendOptions';
-	import NetworkInfo from '../NetworkInfo.svelte';
+	import { TransferMethod } from '../../sendOptions';
+	import NetworkInfo from '../components/NetworkInfo.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import SearchContact from './SearchContact.svelte';
-	import InfoSegment from '../InfoSegment.svelte';
+	import InfoSegment from '../components/InfoSegment.svelte';
+	import Dialog from '$lib/zag/Dialog.svelte';
 
 	let {
 		id,
@@ -86,6 +85,7 @@
 	});
 	let contactOpen = $state(false);
 	let networkOpen = $state(false);
+	let toggleNetwork = $state<(open?: boolean) => void>(() => {});
 </script>
 
 {#snippet methodDetails(info: MethodOptionParam)}
@@ -96,67 +96,61 @@
 	/>
 {/snippet}
 
-{#snippet recipient()}
-	<h2>Recipient</h2>
-	<div class="contact-search">
-		<SearchContact />
-	</div>
+<h2>Recipient</h2>
+<div class="contact-search">
+	<SearchContact />
+</div>
 
-	<h3>Payment Method</h3>
-	<div class="method">
-		<!-- <ComboBox items={transferMethods} bind:value={method} /> -->
-		<Select
-			items={transferMethods}
-			onValueChange={(v) => (method = v.value[0])}
-			initial={$SendTxDetails.method?.value}
-			styleType="dropdown"
-		/>
-		<!-- For Combobox -->
-		<!-- {#if $SendTxDetails.method}
+<h3>Payment Method</h3>
+<div class="method">
+	<!-- <ComboBox items={transferMethods} bind:value={method} /> -->
+	<Select
+		items={transferMethods}
+		onValueChange={(v) => (method = v.value[0])}
+		initial={$SendTxDetails.method?.value}
+		styleType="dropdown"
+	/>
+	<!-- For Combobox -->
+	<!-- {#if $SendTxDetails.method}
 				<span class="faded-caption"
 					>{$SendTxDetails.method.length} <Dot size={16} /> {$SendTxDetails.method.fees}</span
 				>
 			{:else}
 				<br />
 			{/if} -->
-	</div>
+</div>
 
-	<h3>Recipient Network</h3>
-	<Card>
-		<div class="network-card">
-			{#if $SendTxDetails.toNetwork}
-				<NetworkInfo network={$SendTxDetails.toNetwork} lastPaid={lastNetwork} size="large" />
-			{:else}
-				<span class="user-icon-placeholder"><Landmark /></span>
-			{/if}
-			{#if getRecipientNetworks(toDid).length > 1}
-				<span class="more">
-					<button onclick={() => (networkOpen = true)} class="small-button"> Edit </button>
-				</span>
-			{/if}
-		</div>
-	</Card>
-{/snippet}
+<h3>Recipient Network</h3>
+<Card>
+	<div class="network-card">
+		{#if $SendTxDetails.toNetwork}
+			<NetworkInfo network={$SendTxDetails.toNetwork} lastPaid={lastNetwork} size="large" />
+		{:else}
+			<span class="user-icon-placeholder"><Landmark /></span>
+		{/if}
+		{#if getRecipientNetworks(toDid).length > 1}
+			<span class="more">
+				<button onclick={() => toggleNetwork(true)} class="small-button"> Edit </button>
+			</span>
+		{/if}
+	</div>
+</Card>
 
 {#snippet selectContact()}
 	<SelectContact close={() => (contactOpen = false)} />
 {/snippet}
 
-{#snippet selectNetwork()}
-	<SelectNetwork close={() => (networkOpen = false)} />
-{/snippet}
+<Dialog bind:open={networkOpen} bind:toggle={toggleNetwork}>
+	{#snippet content()}
+		<SelectNetwork />
+	{/snippet}
+</Dialog>
 
-{#if contactOpen}
+<!-- {#if contactOpen}
 	<FullscreenModal>
 		{@render selectContact()}
 	</FullscreenModal>
-{:else if networkOpen}
-	<FullscreenModal>
-		{@render selectNetwork()}
-	</FullscreenModal>
-{:else}
-	{@render recipient()}
-{/if}
+	-->
 
 <style lang="scss">
 	.contact-search {
@@ -171,20 +165,19 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+		padding: 0.5rem;
 		.more {
 			margin-left: auto;
 		}
+		.small-button {
+			border: none;
+			background-color: transparent;
+			cursor: pointer;
+			font-size: var(--text-sm);
+			color: var(--accent-fg-mid);
+		}
 	}
-	.network-card {
-		padding: 0.5rem;
-	}
-	.small-button {
-		border: none;
-		background-color: transparent;
-		cursor: pointer;
-		font-size: var(--text-sm);
-		color: var(--accent-fg-mid);
-	}
+
 	h3 {
 		margin-top: 2rem;
 		color: var(--neutral-fg);

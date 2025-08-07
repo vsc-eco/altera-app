@@ -1,5 +1,4 @@
 <script lang="ts" generics="Option extends {label: string, [key: string]: any}">
-	import { networkCard } from '$lib/send/stages/amount/CardSnippets.svelte';
 	import { ChevronDown, Search } from '@lucide/svelte';
 	import * as combobox from '@zag-js/combobox';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
@@ -7,6 +6,7 @@
 
 	let {
 		items,
+		fullItems,
 		dropdown = false,
 		value = $bindable(),
 		icon,
@@ -16,6 +16,7 @@
 		custom = false
 	}: {
 		items: Option[];
+		fullItems?: Option[];
 		dropdown?: boolean;
 		value: string | undefined;
 		icon?: string;
@@ -48,9 +49,8 @@
 			}
 		},
 		onInputValueChange({ inputValue }) {
-			if (!custom) return;
 			if (inputValue === '') {
-				options = items;
+				options = items.filter((item) => item.disabled === false);
 				return;
 			}
 			const filtered = items.filter(
@@ -58,31 +58,35 @@
 					item.label.toLowerCase().includes(inputValue.toLowerCase()) ||
 					item.value.toLocaleLowerCase().includes(inputValue.toLocaleLowerCase())
 			);
-			const currentlyInput = createPlaceholder
-				? createPlaceholder(inputValue)
-				: { label: inputValue };
-			// const newOptions: Option[] = [currentlyInput, ...(filtered.length > 0 ? filtered : items)];
-			const newOptions: Option[] = filtered.find(
-				(item) => item.label === currentlyInput.label || item.value === currentlyInput.value
-			)
-				? filtered
-				: [currentlyInput, ...filtered];
-			if (getSuggestions && !inputValue?.startsWith('0x')) {
-				const currentValue = inputValue;
-				getSuggestions(currentValue).then((itms) => {
-					if (api.inputValue !== currentValue) return;
-					const all = [...newOptions, ...itms];
-					options = all.reduce((acc: Option[], current) => {
-						const exists = acc.find((item) => item.value === current.value);
-						if (!exists) {
-							const inItems = items.find((item) => item.value === current.value);
-							acc.push(inItems ?? current);
-						}
-						return acc;
-					}, []);
-				});
+			if (custom) {
+				const currentlyInput = createPlaceholder
+					? createPlaceholder(inputValue)
+					: { label: inputValue };
+				// const newOptions: Option[] = [currentlyInput, ...(filtered.length > 0 ? filtered : items)];
+				const newOptions: Option[] = filtered.find(
+					(item) => item.label === currentlyInput.label || item.value === currentlyInput.value
+				)
+					? filtered
+					: [currentlyInput, ...filtered];
+				if (getSuggestions && !inputValue?.startsWith('0x')) {
+					const currentValue = inputValue;
+					getSuggestions(currentValue).then((itms) => {
+						if (api.inputValue !== currentValue) return;
+						const all = [...newOptions, ...itms];
+						options = all.reduce((acc: Option[], current) => {
+							const exists = acc.find((item) => item.value === current.value);
+							if (!exists) {
+								const inItems = items.find((item) => item.value === current.value);
+								acc.push(inItems ?? current);
+							}
+							return acc;
+						}, []);
+					});
+				} else {
+					options = newOptions;
+				}
 			} else {
-				options = newOptions;
+				options = filtered;
 			}
 		},
 		onFocusOutside() {
@@ -138,6 +142,11 @@
 				api.setInputValue(val);
 			}
 		});
+	});
+	$effect(() => {
+		if (options.find((opt) => opt.value === api.value[0])?.disabled) {
+			api.clearValue();
+		}
 	});
 	function handleKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {

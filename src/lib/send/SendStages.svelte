@@ -4,7 +4,7 @@
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from '$lib/zag/idgen';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { Coin, Network, type NecessarySendDetails, type SendDetails } from './sendOptions';
 	import Amount from './stages/amount/Amount.svelte';
 	import Review from './stages/review/Review.svelte';
@@ -19,7 +19,6 @@
 	import Complete from './stages/complete/Complete.svelte';
 	import SendNavButtons from './navigation/SendNavButtons.svelte';
 	import { sleep } from 'aninest';
-	import Details from './stages/details/Details.svelte';
 
 	let auth = $authStore;
 	let windowWidth = $state(0);
@@ -61,6 +60,13 @@
 	});
 
 	const api = $derived(steps.connect(service, normalizeProps));
+
+	// $effect(() => {
+	// 	const _ = api;
+	// 	untrack(() => {
+	// 		api.setStep(1);
+	// 	});
+	// });
 
 	// $inspect(api.count, api.hasNextStep, api.value, api.isCompleted);
 

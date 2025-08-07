@@ -13,16 +13,28 @@
 		SendTxDetails,
 		getFee,
 		type NetworkOptionParam,
-		type CoinOptionParam
+		type CoinOptionParam,
+		getRecipientNetworks
 	} from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
 	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import SwapOptions from './SwapOptions.svelte';
-	import { accountCard, assetCard, networkCard } from './CardSnippets.svelte';
+	import {
+		accountCard,
+		assetCard,
+		networkCard,
+		type AssetObject
+	} from '../components/CardSnippets.svelte';
+	import Card from '$lib/cards/Card.svelte';
+	import NetworkInfo from '../components/NetworkInfo.svelte';
+	import { Coins, Landmark } from '@lucide/svelte';
+	import Dialog from '$lib/zag/Dialog.svelte';
+	import SelectAsset from './SelectAsset.svelte';
+	import AssetInfo from '../components/AssetInfo.svelte';
 
 	let auth = $authStore;
 	let {
@@ -43,13 +55,8 @@
 			$SendTxDetails.fromNetwork
 		)
 	);
+	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 
-	interface AssetObject extends Coin {
-		snippetData: { fromOpt: CoinOptionParam | undefined; net?: Network };
-		snippet: typeof assetCard;
-		disabled?: boolean;
-		disabledMemo?: string;
-	}
 	const assetObjs: AssetObject[] = $derived(
 		assetOptions.map((opt) => ({
 			...opt.coin,
@@ -238,6 +245,13 @@
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
+
+	let lastAsset = $state('Never');
+	let assetOpen = $state(false);
+	let toggleAsset = $state<(open?: boolean) => void>(() => {});
+	$inspect($SendTxDetails.toCoin);
+
+	// DETAILS
 	let memo = $state('');
 </script>
 
@@ -260,7 +274,26 @@
 />
 
 <h3>Asset</h3>
-<Select
+<Card>
+	<div class="asset-card">
+		{#if $SendTxDetails.fromCoin}
+			<AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" />
+		{:else}
+			<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+		{/if}
+		<!-- {#if getRecipientNetworks(toDid).length > 1} -->
+		<span class="more">
+			<button onclick={() => toggleAsset(true)} class="small-button"> Edit </button>
+		</span>
+		<!-- {/if} -->
+	</div>
+</Card>
+<Dialog bind:open={assetOpen} bind:toggle={toggleAsset}>
+	{#snippet content()}
+		<SelectAsset availableCoins={assetObjs} />
+	{/snippet}
+</Dialog>
+<!-- <Select
 	items={assetObjs}
 	styleType="dropdown"
 	onValueChange={(v) => {
@@ -269,7 +302,7 @@
 			toCoin: swapOptions.from.coins.find((val) => val.coin.value === v.value[0])
 		}));
 	}}
-/>
+/> -->
 
 <!-- <h3>Send From</h3> -->
 <!-- <Select
@@ -336,15 +369,28 @@
 {/if} -->
 
 <style lang="scss">
-	// .card-wrapper {
-	// 	color: var(--neutral-fg);
-	// }
 	h3 {
 		margin-top: 2rem;
 		color: var(--neutral-fg);
 		font-size: var(--text-1xl);
 		margin-bottom: 0.5rem;
 		font-weight: 450;
+	}
+	.asset-card {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.5rem;
+		.more {
+			margin-left: auto;
+		}
+		.small-button {
+			border: none;
+			background-color: transparent;
+			cursor: pointer;
+			font-size: var(--text-sm);
+			color: var(--accent-fg-mid);
+		}
 	}
 	// .from-network {
 	// 	margin-top: 2rem;

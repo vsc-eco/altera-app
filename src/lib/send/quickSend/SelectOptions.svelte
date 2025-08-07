@@ -1,39 +1,25 @@
 <script lang="ts">
 	import {
-		getDisplayName,
 		getFee,
 		getLastPaidContact,
-		getRecentContacts,
 		getRecipientNetworks,
 		SendTxDetails,
 		solveNetworkConstraints,
 		type CoinOptionParam,
-		type NetworkOptionParam,
-		type recipientData
+		type NetworkOptionParam
 	} from '../sendUtils';
-	import ContactInfo from '../stages/ContactInfo.svelte';
-	import { authStore, type Auth } from '$lib/auth/store';
-	import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
-	import moment from 'moment';
-	import { CircleUser } from '@lucide/svelte';
+	import { authStore } from '$lib/auth/store';
+	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
 	import SelectContact from '../stages/recipient/SelectContact.svelte';
-	import Card from '$lib/cards/Card.svelte';
 	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
-	import swapOptions, {
-		Coin,
-		Network,
-		networkMap,
-		SendAccount,
-	} from '../sendOptions';
+	import swapOptions, { Coin, Network, networkMap, SendAccount } from '../sendOptions';
 	import Select from '$lib/zag/Select.svelte';
-	import { assetCard, networkCard } from '../stages/amount/CardSnippets.svelte';
+	import { assetCard, networkCard } from '../stages/components/CardSnippets.svelte';
 	import SwapOptions from '../stages/amount/SwapOptions.svelte';
 	import { untrack } from 'svelte';
-	import ComboBox from '$lib/zag/ComboBox.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
-	import { DHive } from '$lib/vscTransactions/dhive';
 	import SearchContact from '../stages/recipient/SearchContact.svelte';
 
 	let {
@@ -320,7 +306,6 @@
 				placeholder="Find a contact or paste wallet address"
 			/>
 		</div> -->
-	
 
 	<span class="sm-caption gap">Recipient Network</span>
 	<Select
@@ -404,17 +389,17 @@
 </div>
 
 <div class="section">
-<span class="sm-caption">Memo (optional)</span>
-<input
-	bind:value={memo}
-    maxlength=300
-	onchange={() => {
-		SendTxDetails.update((current) => ({
-			...current,
-			memo: memo
-		}));
-	}}
-/>
+	<span class="sm-caption">Memo (optional)</span>
+	<input
+		bind:value={memo}
+		maxlength="300"
+		onchange={() => {
+			SendTxDetails.update((current) => ({
+				...current,
+				memo: memo
+			}));
+		}}
+	/>
 </div>
 
 <style lang="scss">

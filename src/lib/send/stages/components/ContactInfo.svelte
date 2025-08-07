@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
+	import { getUsernameFromDid } from '$lib/getAccountName';
 	import Avatar from '$lib/zag/Avatar.svelte';
 	import { Dot } from '@lucide/svelte';
-	import { getDisplayName } from '../sendUtils';
-	import InfoSegment from './InfoSegment.svelte';
 
 	let {
 		did,

@@ -38,7 +38,7 @@
 				styleType: 'invert'
 			}
 		},
-		...actions.filter(action => action.label !== 'Send'),
+		...actions.filter((action) => action.label !== 'Send'),
 		{
 			type: 'popup',
 			label: 'Staking',
@@ -61,7 +61,11 @@
 	{/each}
 </div>
 <StakePopup {auth} bind:dialogOpen={stakeOpen} bind:toggle={toggleStake} />
-<QuickSend bind:dialogOpen={quickSendOpen} bind:toggle={toggleQuickSend} sessionId={sendSessionId}/>
+<QuickSend
+	bind:dialogOpen={quickSendOpen}
+	bind:toggle={toggleQuickSend}
+	sessionId={sendSessionId}
+/>
 
 <style>
 	.action-bar {

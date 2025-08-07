@@ -5,8 +5,7 @@
 	import {
 		getAccountNameFromAuth,
 		getAccountNameFromDid,
-		getDidFromUsername,
-		getUsernameFromAuth
+		getDidFromUsername
 	} from '$lib/getAccountName';
 	import { Coin, Network, SendAccount } from '$lib/send/sendOptions';
 	import moment from 'moment';
@@ -208,8 +207,7 @@
 	}
 	.recipient,
 	.sender,
-	.memo
-	 {
+	.memo {
 		width: calc(100% - 1rem);
 		margin: 0 0.5rem;
 		padding: 1rem 0;

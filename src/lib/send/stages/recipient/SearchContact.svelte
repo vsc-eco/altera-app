@@ -7,7 +7,7 @@
 	} from '../../sendUtils';
 	import { getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
 	import { DHive } from '$lib/vscTransactions/dhive';
-	import ContactInfo from '../ContactInfo.svelte';
+	import ContactInfo from '../components/ContactInfo.svelte';
 	import moment from 'moment';
 	import { authStore } from '$lib/auth/store';
 	import ComboBox from '$lib/zag/ComboBox.svelte';

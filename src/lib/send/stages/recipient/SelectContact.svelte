@@ -7,7 +7,7 @@
 	import moment from 'moment';
 	import SendTitle from '$lib/send/navigation/SendTitle.svelte';
 	import SendNavButtons from '$lib/send/navigation/SendNavButtons.svelte';
-	import ContactInfo from '../ContactInfo.svelte';
+	import ContactInfo from '../components/ContactInfo.svelte';
 	import { getDisplayName, getRecentContacts } from '../../sendUtils';
 	import PillButton from '$lib/PillButton.svelte';
 	import { SendTxDetails } from '../../sendUtils';

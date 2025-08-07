@@ -6,7 +6,7 @@
 		SendAccount,
 		type CoinOptions,
 		type IntermediaryNetwork
-	} from '../sendOptions';
+	} from '../../sendOptions';
 	import { isValidBalanceField, sumBalance, type BalanceOption } from '$lib/stores/balanceHistory';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -19,8 +19,6 @@
 		account: SendAccount;
 		currentCoin?: Coin;
 	} = $props();
-
-	const vsc = Network.vsc;
 
 	let balanceString = $state('');
 	$effect(() => {

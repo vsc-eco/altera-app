@@ -52,7 +52,8 @@
 			$SendTxDetails.toNetwork,
 			auth.value?.did,
 			$SendTxDetails.account,
-			$SendTxDetails.fromNetwork
+			$SendTxDetails.fromNetwork,
+			true
 		)
 	);
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
@@ -61,7 +62,7 @@
 		assetOptions.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: $SendTxDetails.fromNetwork },
+			snippetData: { fromOpt: opt, net: $SendTxDetails.fromNetwork, size: 'medium' },
 			disabled: opt.disabled,
 			disabledMemo: opt.disabledMemo
 		}))
@@ -249,7 +250,6 @@
 	let lastAsset = $state('Never');
 	let assetOpen = $state(false);
 	let toggleAsset = $state<(open?: boolean) => void>(() => {});
-	$inspect($SendTxDetails.toCoin);
 
 	// DETAILS
 	let memo = $state('');

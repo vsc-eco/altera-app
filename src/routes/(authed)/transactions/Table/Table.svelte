@@ -116,7 +116,10 @@
 	let openSnippet: Snippet | undefined = $state();
 	let popopOpen = $state(false);
 	function toggleDetails(op: [string, number], content: Snippet) {
-		if (!allowPopup) openTxsPage(op);
+		if (!allowPopup) {
+			openTxsPage(op);
+			return;
+		}
 		if (openOp && openOp[0] === op[0] && openOp[1] === op[1]) {
 			openOp = null;
 			openSnippet = undefined;

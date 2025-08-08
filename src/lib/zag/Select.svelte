@@ -34,7 +34,7 @@
 	}
 
 	const collection = select.collection({
-		items: options as Option[],
+		items: options,
 		itemToString: (item) => item.label,
 		itemToValue: getValue,
 		isItemDisabled: (item) => item.disabled
@@ -86,7 +86,10 @@
 			untrack(() => {
 				if (newOptions.length === 1) {
 					api.setValue([getValue(newOptions[0])]);
-				} else if (api.value.length > 0 && !newOptions.find((opt) => getValue(opt) === api.value[0])) {
+				} else if (
+					api.value.length > 0 &&
+					!newOptions.find((opt) => getValue(opt) === api.value[0])
+				) {
 					api.clearValue();
 				}
 			});

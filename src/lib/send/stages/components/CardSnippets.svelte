@@ -1,9 +1,4 @@
 <script module lang="ts">
-	export {
-		assetCardSnippet as assetCard,
-		accountCardSnippet as accountCard,
-		networkCardSnippet as networkCard
-	};
 	import { Coin, type CoinOptions, Network, SendAccount } from '$lib/send/sendOptions';
 	import AccountInfo from './AccountInfo.svelte';
 	import AssetInfo from './AssetInfo.svelte';
@@ -23,13 +18,27 @@
 		disabled?: boolean;
 		disabledMemo?: string;
 	}
+	export {
+		assetCardSnippet as assetCard,
+		accountCardSnippet as accountCard,
+		networkCardSnippet as networkCard
+	};
 </script>
 
-{#snippet assetCardSnippet(params: { fromOpt: CoinOptionParam | undefined; net?: Network })}
+{#snippet assetCardSnippet(params: {
+	fromOpt: CoinOptionParam | undefined;
+	net?: Network;
+	size?: 'small' | 'medium' | 'large';
+})}
 	<!-- <div class="card-wrapper"> -->
 	{@const fromOpt = params.fromOpt}
 	{#if fromOpt}
-		<AssetInfo coinOpt={fromOpt} network={params.net} disabledMemo={fromOpt.disabledMemo} />
+		<AssetInfo
+			coinOpt={fromOpt}
+			network={params.net}
+			disabledMemo={fromOpt.disabledMemo}
+			size={params.size}
+		/>
 	{/if}
 	<!-- </div> -->
 {/snippet}

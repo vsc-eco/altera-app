@@ -1,21 +1,14 @@
 <script lang="ts">
-	import swapOptions, {
-		Coin,
-		Network,
-		type CoinOptions,
-		type IntermediaryNetwork
-	} from '$lib/send/sendOptions';
-	import { getRecipientNetworks, type CoinOptionParam } from '$lib/send/sendUtils';
-	import { getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
-	import ComboBox from '$lib/zag/ComboBox.svelte';
+	import swapOptions, { Network, type CoinOptions } from '$lib/send/sendOptions';
+	import { type CoinOptionParam } from '$lib/send/sendUtils';
+	import { getUsernameFromDid } from '$lib/getAccountName';
 	import { authStore } from '$lib/auth/store';
 	import { vscTxsStore, waitForExtend } from '$lib/stores/txStores';
-	import NetworkInfo from '../components/NetworkInfo.svelte';
-	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
-	import { networkCard, type AssetObject } from '../components/CardSnippets.svelte';
+	import { type AssetObject } from '../components/CardSnippets.svelte';
 	import { untrack } from 'svelte';
-	import AssetInfo from '../components/AssetInfo.svelte';
+	import ListBox from '$lib/zag/ListBox.svelte';
+	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 
 	let {
 		availableCoins
@@ -23,10 +16,16 @@
 		availableCoins: AssetObject[];
 	} = $props();
 
+	const listItems = $derived(
+		availableCoins.map((coin) => ({
+			...coin,
+			details: radioNetworkFromCoin
+		}))
+	);
+
 	const auth = $derived($authStore);
 	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
 	let tmpAssetVal: string | undefined = $state();
-	const allCoinOpts: CoinOptionParam[] = swapOptions.from['coins'];
 	const availableCoinOpts: CoinOptionParam[] = availableCoins
 		.map((coin) => coin.snippetData.fromOpt)
 		.filter((item): item is CoinOptionParam => item !== undefined);
@@ -49,7 +48,23 @@
 		date: string | undefined;
 	};
 
-	async function getRecentNetworks(): Promise<coinData[]> {
+	let tmpNetwork: Network | undefined = $state();
+	let tmpNetworkVal: string | undefined = $state();
+	const allNetworks = Object.values(Network);
+	$effect(() => {
+		const newVal = tmpNetworkVal;
+		untrack(() => {
+			tmpNetwork = allNetworks.find((net) => net.value === newVal);
+			if (!tmpNetwork) return;
+			if ($SendTxDetails.fromNetwork?.value === tmpNetwork?.value) return;
+			SendTxDetails.update((current) => ({
+				...current,
+				fromNetwork: tmpNetwork
+			}));
+		});
+	});
+
+	async function getRecentAssets(): Promise<coinData[]> {
 		if (!auth.value) return [];
 		let result = new Map<string, coinData>();
 		let leaveOut = ['v4vapp'];
@@ -105,22 +120,6 @@
 
 		return [...result.values()];
 	}
-
-	function handleTableTrigger(value: string) {
-		tmpAssetVal = value;
-	}
-	function handleTableKeydown(e: KeyboardEvent, value: string) {
-		if (e.key === ' ' || e.key === 'Enter') {
-			handleTableTrigger(value);
-			e.stopPropagation();
-			e.preventDefault();
-		}
-	}
-	let disabledMemo = $derived(
-		auth.value?.provider === 'reown'
-			? 'Not available for EVM accounts'
-			: 'Not available for this account.'
-	);
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
@@ -128,64 +127,33 @@
 	{info.label}
 {/snippet}
 
-<div class="wrapper">
-	<div class="select">
-		<h2>Select an Asset</h2>
-		{#if $SendTxDetails.fromNetwork}
-			<div class="from-network">
-				<span class="sm-caption">Selecting assets available on network:</span>
-				<div class="network-details">
-					<img src={$SendTxDetails.fromNetwork.icon} alt={$SendTxDetails.fromNetwork.label} />
-					{$SendTxDetails.fromNetwork.label}
-				</div>
-			</div>
-		{/if}
-		<span class="sm-label">Search</span>
-		<div class="search">
-			<ComboBox
-				items={availableCoins}
-				bind:value={tmpAssetVal}
-				icon={tmpAsset ? tmpAsset.coin.icon : ''}
-				placeholder="Search for VSC, Hive..."
-			/>
+{#snippet radioNetworkFromCoin(data: AssetObject['snippetData'])}
+	{@const networks = data.fromOpt?.networks.map((net) => ({
+		...net,
+		snippet: radioLabel
+	}))}
+	{#if networks}
+		<p class="sm-caption">Available on networks:</p>
+		<div class="radio-wrapper">
+			<RadioGroup items={networks} bind:value={tmpNetworkVal} />
 		</div>
-	</div>
-	<div class="recent">
-		<span class="sm-label">Recently Transferred</span>
-		<table>
-			<tbody>
-				{#await getRecentNetworks()}
-					{#each Array(availableCoinOpts.length) as _}
-						<tr class="skeleton-row">
-							<td><div class="skeleton-cell"></div></td>
-						</tr>
-					{/each}
-				{:then recents}
-					{#each recents as recentCoin}
-						{@const disabled = availableCoinOpts.find(
-							(coinOpt) => coinOpt.coin.value === recentCoin.coinOpt.coin.value
-						)?.disabled}
-						<tr
-							class={{ disabled }}
-							onclick={() => handleTableTrigger(recentCoin.coinOpt.coin.value)}
-							onkeydown={(event) => handleTableKeydown(event, recentCoin.coinOpt.coin.value)}
-							tabindex="0"
-						>
-							<td>
-								<AssetInfo
-									coinOpt={recentCoin.coinOpt}
-									lastPaid={recentCoin.date
-										? `on ${moment(recentCoin.date).format('MMM DD, YYYY')}`
-										: 'Never'}
-									disabledMemo={recentCoin.coinOpt.disabledMemo}
-									size="medium"
-								/>
-							</td>
-						</tr>
-					{/each}
-				{/await}
-			</tbody>
-		</table>
+	{/if}
+{/snippet}
+
+<div class="wrapper">
+	<br />
+	<h2>Select an Asset</h2>
+	{#if $SendTxDetails.fromNetwork}
+		<div class="from-network">
+			<span class="sm-caption">Selecting assets available on network:</span>
+			<div class="network-details">
+				<img src={$SendTxDetails.fromNetwork.icon} alt={$SendTxDetails.fromNetwork.label} />
+				{$SendTxDetails.fromNetwork.label}
+			</div>
+		</div>
+	{/if}
+	<div class="listbox-wrapper">
+		<ListBox items={listItems} bind:value={tmpAssetVal} />
 	</div>
 </div>
 
@@ -198,55 +166,8 @@
 	h2 {
 		color: var(--neutral-fg);
 		font-size: var(--text-1xl);
-		margin-bottom: 0.5rem;
+		margin-top: 1.5rem;
 		font-weight: 450;
-	}
-	.sm-label {
-		font-size: var(--text-sm);
-		color: var(--neutral-mid);
-	}
-	.select {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.recent {
-		margin-top: 2rem;
-		width: 100%;
-		table {
-			width: 100%;
-			border-spacing: 1rem 0.5rem;
-			border-collapse: collapse;
-			position: relative;
-		}
-		tr {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			border-bottom: 1px solid var(--neutral-bg-accent);
-			height: 4.5rem;
-		}
-		tr:hover,
-		tr {
-			cursor: pointer;
-			transition: background-color 1s;
-			animation: highlight-in 1s both;
-		}
-		tr.disabled {
-			cursor: default;
-			pointer-events: none;
-		}
-		td {
-			flex-grow: 1;
-		}
-		.skeleton-cell {
-			background-color: var(--neutral-bg-accent);
-			border-radius: 0.5rem;
-			height: 3rem;
-			margin: 0.75rem 1rem;
-			animation: pulse 2s ease-in-out infinite;
-		}
 	}
 	.from-network {
 		margin-bottom: 1rem;
@@ -261,6 +182,10 @@
 			align-items: center;
 			gap: 0.5rem;
 		}
+	}
+	.radio-wrapper {
+		margin-top: 0.5rem;
+		width: fit-content;
 	}
 
 	@keyframes pulse {

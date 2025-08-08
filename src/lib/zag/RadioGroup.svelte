@@ -45,7 +45,7 @@
 	});
 	const api = $derived(radio.connect(service, normalizeProps));
 	$effect(() => {
-		if (enabled.length == 1) {
+		if (enabled.length === 1 && required) {
 			api.setValue(enabled[0].value);
 		}
 	});

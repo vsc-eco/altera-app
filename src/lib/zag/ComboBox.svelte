@@ -1,12 +1,13 @@
-<script lang="ts" generics="Option extends {label: string, [key: string]: any}">
+<script lang="ts">
 	import { ChevronDown, Search } from '@lucide/svelte';
 	import * as combobox from '@zag-js/combobox';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { untrack, type Snippet } from 'svelte';
 
+	type Option = { label: string; [key: string]: any };
+
 	let {
 		items,
-		fullItems,
 		dropdown = false,
 		value = $bindable(),
 		icon,
@@ -16,7 +17,6 @@
 		custom = false
 	}: {
 		items: Option[];
-		fullItems?: Option[];
 		dropdown?: boolean;
 		value: string | undefined;
 		icon?: string;
@@ -243,14 +243,12 @@
 	[data-part='item'] {
 		border-radius: 0.5rem;
 		cursor: pointer;
+		padding: 0.5rem;
 	}
 	[data-part='item'][data-highlighted] {
 		background-color: var(--bg-accent);
 	}
 	[data-part='item'][data-disabled] {
 		cursor: default;
-	}
-	li {
-		padding: 0.5rem;
 	}
 </style>

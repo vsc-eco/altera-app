@@ -11,7 +11,7 @@ import swapOptions, {
 	type NecessarySendDetails,
 	type SendDetails
 } from './sendOptions';
-import { authStore, type Auth } from '$lib/auth/store';
+import { type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
 import { getEVMOpType } from '$lib/vscTransactions/eth';
 import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -430,7 +430,8 @@ export function solveNetworkConstraints(
 	toNetwork: Network | undefined,
 	did: string | undefined,
 	account?: SendAccount,
-	fromNetwork?: Network
+	fromNetwork?: Network,
+	allAssets: Boolean = false
 ): Constraints {
 	// console.log("parameters to solve constraints", method, fromCoin, did, account);
 	if (!did)
@@ -509,7 +510,7 @@ export function solveNetworkConstraints(
 	// const assetsDisabled =
 	return {
 		assetOptions: combineAssetOptions(
-			assetsGivenMethod,
+			allAssets ? allAssetsSet : assetsGivenMethod,
 			assetsGivenFromNetworks,
 			assetsGivenToNetwork,
 			toNetwork,

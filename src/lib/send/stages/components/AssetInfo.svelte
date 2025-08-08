@@ -43,15 +43,39 @@
 </script>
 
 <div class="wrapper">
-	<img
-		src={coinOpt.coin.icon}
-		alt={coinOpt.coin.label}
-		class={{ medium: size === 'medium', large: size === 'large', gray: disabledMemo !== undefined }}
-	/>
+	<span
+		class={{
+			medium: size === 'medium',
+			large: size === 'large',
+			gray: disabledMemo !== undefined
+		}}
+	>
+		<img
+			src={coinOpt.coin.icon}
+			alt={coinOpt.coin.label}
+			class={{
+				medium: size === 'medium',
+				large: size === 'large',
+				gray: disabledMemo !== undefined
+			}}
+		/>
+	</span>
+
 	<InfoSegment label={coinOpt.coin.label} {display} disabled={disabledMemo !== undefined} {size} />
 </div>
 
 <style>
+	span {
+		display: flex;
+		align-items: center;
+		height: 1.5rem;
+	}
+	span.medium {
+		height: 2.5rem;
+	}
+	span.large {
+		height: 3.5rem;
+	}
 	img {
 		width: 1.5rem;
 	}

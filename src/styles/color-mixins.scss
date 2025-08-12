@@ -31,9 +31,11 @@ $color-light-shade-names:
 	@if $shade-names == $color-light-shade-names {
 		--#{$name}-fg: var(--#{$name}-45);
 		--#{$name}-bg: var(--#{$name}-60);
+		--#{$name}-bg-accent: var(--#{$name}-80);
 	} @else {
 		--#{$name}-fg: var(--#{$name}-60);
 		--#{$name}-bg: var(--#{$name}-40);
+		--#{$name}-bg-accent: var(--#{$name}-20);
 	}
 }
 

@@ -17,11 +17,15 @@ export function getIntermediaryNetwork(
 }
 
 function throughLightning(from: CoinOnNetwork, to: CoinOnNetwork) {
-	return from.network == Network.lightning || to.network == Network.lightning;
+	return (
+		from.network.value == Network.lightning.value || to.network.value == Network.lightning.value
+	);
 }
 
 function throughHive(from: CoinOnNetwork, to: CoinOnNetwork) {
-	return from.network == Network.hiveMainnet && to.network == Network.hiveMainnet;
+	return (
+		from.network.value == Network.hiveMainnet.value && to.network.value == Network.hiveMainnet.value
+	);
 }
 
 function throughVsc(from: CoinOnNetwork, to: CoinOnNetwork) {
@@ -29,5 +33,8 @@ function throughVsc(from: CoinOnNetwork, to: CoinOnNetwork) {
 		return false;
 	}
 	const vscSupportedNetworks: string[] = [Network.vsc.value, Network.hiveMainnet.value];
-	return vscSupportedNetworks.includes(from.network.value) && vscSupportedNetworks.includes(to.network.value);
+	return (
+		vscSupportedNetworks.includes(from.network.value) &&
+		vscSupportedNetworks.includes(to.network.value)
+	);
 }

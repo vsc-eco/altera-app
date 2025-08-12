@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		dateToLastPaidString,
 		getFee,
 		getLastPaidContact,
 		getRecipientNetworks,
@@ -268,7 +269,7 @@
 	let lastPaid = $state('Never');
 	$effect(() => {
 		if (!auth.value) return;
-		getLastPaidContact(auth, toDid).then((paid) => (lastPaid = paid));
+		getLastPaidContact(auth, toDid).then((paid) => (lastPaid = dateToLastPaidString(paid)));
 	});
 	let contactOpen = $state(false);
 

@@ -21,8 +21,13 @@ import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/e
 import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
-import { vscTxsStore, waitForExtend, type TransactionInter } from '$lib/stores/txStores';
-import moment from 'moment';
+import {
+	getTimestamp,
+	vscTxsStore,
+	waitForExtend,
+	type TransactionInter
+} from '$lib/stores/txStores';
+import moment, { type Moment } from 'moment';
 import { getIntermediaryNetwork } from './getNetwork';
 
 export const SendTxDetails = writable<SendDetails>(blankDetails());
@@ -48,6 +53,43 @@ let tx_session_id = 0;
 
 export function getTxSessionId() {
 	return ++tx_session_id;
+}
+
+type validationError = {
+	success: false;
+	error: string;
+};
+type validationSuccess = {
+	success: true;
+	img?: string;
+};
+type validationResult = validationSuccess | validationError;
+export async function validateAddress(address: string): Promise<validationResult> {
+	if (address.length < 3) {
+		return {
+			success: false,
+			error: 'Minimum address length is 3 characters'
+		};
+	} else if (address.length < 16) {
+		const accountInfo: Account = (await getAccounts([address])).result[0];
+		if (accountInfo) {
+			return {
+				success: true
+			};
+		}
+		return {
+			success: false,
+			error: 'No hive account found with this username'
+		};
+	} else if (address.length === 42 && address.startsWith('0x')) {
+		return {
+			success: true
+		};
+	}
+	return {
+		success: false,
+		error: 'Address must be a Hive username or EVM address.'
+	};
 }
 
 export async function getDisplayName(did: string) {
@@ -100,14 +142,17 @@ function getDidNetworks(did: string) {
 }
 
 const lastPaidCache: {
-	contacts: Map<string, string>;
-	networks: Map<string, string>;
+	contacts: Map<string, Moment | 'Never'>;
+	networks: Map<string, Moment | 'Never'>;
 	lastLength: number;
 } = {
 	contacts: new Map(),
 	networks: new Map(),
 	lastLength: 0
 };
+export function dateToLastPaidString(lastPaid: Moment | 'Never') {
+	return lastPaid === 'Never' ? lastPaid : `on ${lastPaid.format('MMM DD, YYYY')}`;
+}
 // increment through store, keep fetching more to find last paid
 export async function getLastPaidContact(auth: Auth, toDid: string) {
 	if (!auth.value?.did) return 'Never';
@@ -123,9 +168,9 @@ export async function getLastPaidContact(auth: Auth, toDid: string) {
 			if (!tx.ops) continue;
 			for (const op of tx.ops) {
 				if (op?.data.to === toDid) {
-					const lastPaidString = `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
-					lastPaidCache.contacts.set(toDid, lastPaidString);
-					return lastPaidString;
+					const lastPaidMoment = moment(getTimestamp(tx));
+					lastPaidCache.contacts.set(toDid, lastPaidMoment);
+					return lastPaidMoment;
 				}
 			}
 		}
@@ -164,13 +209,13 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 					result.set(username, {
 						name: (await getDisplayName(op.data.to)) ?? username,
 						did: op.data.to,
-						date: tx.anchr_ts + 'Z'
+						date: getTimestamp(tx)
 					});
 				}
 				if (result.size >= 3) {
 					for (const data of result.values()) {
-						const lastPaidString = `on ${moment(data.date).format('MMM DD, YYYY')}`;
-						lastPaidCache.contacts.set(data.did, lastPaidString);
+						const lastPaidMoment = moment(data.date);
+						lastPaidCache.contacts.set(data.did, lastPaidMoment);
 					}
 					return [...result.values()];
 				}
@@ -198,16 +243,16 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 			}
 			if (result.size >= 3) {
 				for (const data of result.values()) {
-					const lastPaidString = `on ${moment(data.date).format('MMM DD, YYYY')}`;
-					lastPaidCache.contacts.set(data.did, lastPaidString);
+					const lastPaidMoment = moment(data.date);
+					lastPaidCache.contacts.set(data.did, lastPaidMoment);
 				}
 				return [...result.values()];
 			}
 		}
 	}
 	for (const data of result.values()) {
-		const lastPaidString = `on ${moment(data.date).format('MMM DD, YYYY')}`;
-		lastPaidCache.contacts.set(data.did, lastPaidString);
+		const lastPaidMoment = moment(data.date);
+		lastPaidCache.contacts.set(data.did, lastPaidMoment);
 	}
 	return [...result.values()];
 }
@@ -226,9 +271,9 @@ export async function getLastPaidNetwork(auth: Auth, netVal?: string) {
 		for (const tx of store.slice(lastChecked)) {
 			if (!tx.ops) continue;
 			if (netVal.startsWith(tx.type)) {
-				const lastPaidString = `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
-				lastPaidCache.networks.set(netVal, lastPaidString);
-				return lastPaidString;
+				const lastPaidMoment = moment(getTimestamp(tx));
+				lastPaidCache.networks.set(netVal, lastPaidMoment);
+				return lastPaidMoment;
 			}
 		}
 		lastChecked = Math.max(store.length - 1, 0);
@@ -292,43 +337,6 @@ export function getFromOptions(
 		};
 	}
 	return;
-}
-
-function getNetworksFromAccount(account: SendAccount, did: string) {
-	if (account.value === SendAccount.deposit.value && did.startsWith('hive:')) {
-		return [Network.hiveMainnet];
-	}
-	if (account.value === SendAccount.vscAccount.value) {
-		return [Network.vsc];
-	}
-	if (account.value === SendAccount.swap.value) {
-		return [Network.lightning];
-	}
-}
-
-function getAccountsFromMethod(method: TransferMethod, did: string) {
-	if (method.value === TransferMethod.lightningTransfer.value) {
-		return [SendAccount.swap];
-	}
-	let result = [SendAccount.vscAccount];
-	if (did.startsWith('hive:')) {
-		result.push(SendAccount.deposit);
-	}
-	return result;
-
-	// let result: SendAccount[] = [];
-	// if (!method) {
-	// 	result = [SendAccount.vscAccount, SendAccount.swap];
-	// } else {
-	// 	if (method.value === TransferMethod.lightningTransfer.value) {
-	// 		return [SendAccount.swap];
-	// 	}
-	// 	// let result = [SendAccount.vscAccount];
-	// }
-	// if (did.startsWith('hive:')) {
-	// 	result.push(SendAccount.deposit);
-	// }
-	// return result;
 }
 
 type CoinOptList = CoinOptions['coins'][number];

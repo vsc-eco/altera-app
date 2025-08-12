@@ -133,8 +133,8 @@
 	>
 		<div class="background">
 			<div class="close-button">
-				<PillButton onclick={toggle} styleType="icon-outline">
-					<X />
+				<PillButton onclick={toggle} styleType="icon-subtle">
+					<X size="32" />
 				</PillButton>
 			</div>
 			<div class="popup-content">

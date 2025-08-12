@@ -3,9 +3,9 @@
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import { Landmark } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
-	import SelectContact from './SelectContact.svelte';
 	import { untrack, type Snippet } from 'svelte';
 	import {
+		dateToLastPaidString,
 		getLastPaidContact,
 		getLastPaidNetwork,
 		getRecipientNetworks,
@@ -18,6 +18,10 @@
 	import SearchContact from './SearchContact.svelte';
 	import InfoSegment from '../components/InfoSegment.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
+	import SelectContact from '$lib/send/contacts/SelectContact.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import RecipientCard from './RecipientCard.svelte';
+	import { type Contact } from '$lib/send/contacts/contacts';
 
 	let {
 		id,
@@ -79,13 +83,15 @@
 			getLastPaidContact(auth, toDid),
 			getLastPaidNetwork(auth, $SendTxDetails.toNetwork?.value)
 		]).then(([paid, net]) => {
-			lastPaid = paid;
-			lastNetwork = net;
+			lastPaid = dateToLastPaidString(paid);
+			lastNetwork = dateToLastPaidString(net);
 		});
 	});
 	let contactOpen = $state(false);
 	let networkOpen = $state(false);
 	let toggleNetwork = $state<(open?: boolean) => void>(() => {});
+	let toggleContact = $state<(open?: boolean) => void>(() => {});
+	let contact = $state<Contact>();
 </script>
 
 {#snippet methodDetails(info: MethodOptionParam)}
@@ -99,25 +105,17 @@
 <h2>Recipient</h2>
 <div class="contact-search">
 	<SearchContact />
+	<RecipientCard edit={toggleContact} {contact} />
 </div>
 
 <h3>Payment Method</h3>
 <div class="method">
-	<!-- <ComboBox items={transferMethods} bind:value={method} /> -->
 	<Select
 		items={transferMethods}
 		onValueChange={(v) => (method = v.value[0])}
 		initial={$SendTxDetails.method?.value}
 		styleType="dropdown"
 	/>
-	<!-- For Combobox -->
-	<!-- {#if $SendTxDetails.method}
-				<span class="faded-caption"
-					>{$SendTxDetails.method.length} <Dot size={16} /> {$SendTxDetails.method.fees}</span
-				>
-			{:else}
-				<br />
-			{/if} -->
 </div>
 
 <h3>Recipient Network</h3>
@@ -130,15 +128,13 @@
 		{/if}
 		{#if getRecipientNetworks(toDid).length > 1}
 			<span class="more">
-				<button onclick={() => toggleNetwork(true)} class="small-button"> Edit </button>
+				<PillButton onclick={() => toggleNetwork(true)} styleType="text-subtle">
+					<span>Edit</span>
+				</PillButton>
 			</span>
 		{/if}
 	</div>
 </Card>
-
-{#snippet selectContact()}
-	<SelectContact close={() => (contactOpen = false)} />
-{/snippet}
 
 <Dialog bind:open={networkOpen} bind:toggle={toggleNetwork}>
 	{#snippet content()}
@@ -146,11 +142,11 @@
 	{/snippet}
 </Dialog>
 
-<!-- {#if contactOpen}
-	<FullscreenModal>
-		{@render selectContact()}
-	</FullscreenModal>
-	-->
+<Dialog bind:open={contactOpen} bind:toggle={toggleContact}>
+	{#snippet content()}
+		<SelectContact bind:selectedContact={contact} />
+	{/snippet}
+</Dialog>
 
 <style lang="scss">
 	.contact-search {
@@ -168,13 +164,10 @@
 		padding: 0.5rem;
 		.more {
 			margin-left: auto;
-		}
-		.small-button {
-			border: none;
-			background-color: transparent;
-			cursor: pointer;
-			font-size: var(--text-sm);
-			color: var(--accent-fg-mid);
+			span {
+				font-size: var(--text-sm);
+				color: var(--accent-fg-mid);
+			}
 		}
 	}
 

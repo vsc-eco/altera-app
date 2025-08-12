@@ -96,8 +96,8 @@
 		transition: background-color 1s;
 		animation: highlight-in 1s both;
 	}
-	.filler {
-		height: 4.5rem;
+	h2 {
+		margin-top: 0 !important;
 	}
 	.amount {
 		font-size: var(--text-4xl);

@@ -14,7 +14,8 @@
 		getFee,
 		type NetworkOptionParam,
 		type CoinOptionParam,
-		getRecipientNetworks
+		getRecipientNetworks,
+		type AccountOptionParam
 	} from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
@@ -35,6 +36,8 @@
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectAsset from './SelectAsset.svelte';
 	import AssetInfo from '../components/AssetInfo.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import EditButton from '$lib/components/EditButton.svelte';
 
 	let auth = $authStore;
 	let {
@@ -45,8 +48,32 @@
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
 
-	const { assetOptions, accountOptions, networkOptions } = $derived(
-		solveNetworkConstraints(
+	function optionsEqual<T>(
+		a: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[],
+		b: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[]
+	): boolean {
+		if (a.length !== b.length) return false;
+
+		const getValue = (item: CoinOptionParam | AccountOptionParam | NetworkOptionParam) =>
+			'coin' in item ? item.coin.value : item.value;
+
+		return a.every(
+			(val, i) =>
+				getValue(val) === getValue(b[i]) &&
+				val.disabled === b[i].disabled &&
+				val.disabledMemo === b[i].disabledMemo
+		);
+	}
+
+	let { assetOptions, accountOptions, networkOptions } = $state<
+		ReturnType<typeof solveNetworkConstraints>
+	>({ assetOptions: [], accountOptions: [], networkOptions: [] });
+	$effect(() => {
+		const {
+			assetOptions: newAssetOptions,
+			accountOptions: newAccountOptions,
+			networkOptions: newNetworkOptions
+		} = solveNetworkConstraints(
 			$SendTxDetails.method,
 			$SendTxDetails.fromCoin,
 			$SendTxDetails.toNetwork,
@@ -54,8 +81,18 @@
 			$SendTxDetails.account,
 			$SendTxDetails.fromNetwork,
 			true
-		)
-	);
+		);
+		if (!optionsEqual(newAssetOptions, assetOptions)) {
+			assetOptions = newAssetOptions;
+		}
+		if (!optionsEqual(newAccountOptions, accountOptions)) {
+			accountOptions = newAccountOptions;
+		}
+		if (!optionsEqual(newNetworkOptions, networkOptions)) {
+			networkOptions = newNetworkOptions;
+		}
+	});
+
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 
 	const assetObjs: AssetObject[] = $derived(
@@ -106,28 +143,23 @@
 		}
 	});
 
-	// TODO: add solution for selecting when there are more possibilities
-	// $effect(() => {
-	// 	if (networkOptions.length === 1) {
-	// 		if ($SendTxDetails.fromNetwork?.value !== networkOptions[0].value) {
-	// 			untrack(() => {
-	// 				SendTxDetails.update((current) => ({
-	// 					...current,
-	// 					fromNetwork: networkOptions[0]
-	// 				}));
-	// 			});
-	// 		}
-	// 	} else if ($SendTxDetails.fromNetwork) {
-	// 		untrack(() => {
-	// 			SendTxDetails.update((current) => ({
-	// 				...current,
-	// 				fromNetwork: undefined
-	// 			}));
-	// 		});
-	// 	}
-	// });
-
 	let fromCoinValue = $state('');
+	$effect(() => {
+		const newNet = $SendTxDetails.fromNetwork;
+		if (!newNet) return;
+		untrack(() => {
+			const currentCoinNetworks = $SendTxDetails.toCoin?.networks;
+			if (!currentCoinNetworks) return;
+			if (currentCoinNetworks.some((net) => net.value === newNet?.value)) return;
+			if ($SendTxDetails.toCoin) {
+				// console.log($SendTxDetails.fromNetwork, $SendTxDetails.toCoin);
+				SendTxDetails.update((current) => ({
+					...current,
+					toCoin: undefined
+				}));
+			}
+		});
+	});
 	$effect(() => {
 		if (isSwap && fromCoinValue) {
 			if ($SendTxDetails.fromCoin?.coin.value !== fromCoinValue) {
@@ -253,6 +285,8 @@
 
 	// DETAILS
 	let memo = $state('');
+
+	// $inspect(assetOptions);
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
@@ -283,7 +317,7 @@
 		{/if}
 		<!-- {#if getRecipientNetworks(toDid).length > 1} -->
 		<span class="more">
-			<button onclick={() => toggleAsset(true)} class="small-button"> Edit </button>
+			<EditButton onclick={() => toggleAsset(true)} />
 		</span>
 		<!-- {/if} -->
 	</div>
@@ -293,28 +327,7 @@
 		<SelectAsset availableCoins={assetObjs} />
 	{/snippet}
 </Dialog>
-<!-- <Select
-	items={assetObjs}
-	styleType="dropdown"
-	onValueChange={(v) => {
-		SendTxDetails.update((current) => ({
-			...current,
-			toCoin: swapOptions.from.coins.find((val) => val.coin.value === v.value[0])
-		}));
-	}}
-/> -->
 
-<!-- <h3>Send From</h3> -->
-<!-- <Select
-	items={accountObjs}
-	styleType="dropdown"
-	onValueChange={(v) => {
-		SendTxDetails.update((current) => ({
-			...current,
-			account: Object.values(SendAccount).find((acc) => acc.value === v.value[0])
-		}));
-	}}
-/> -->
 <h3>Origin Network</h3>
 <Select
 	items={networkObjs}
@@ -322,10 +335,12 @@
 	placeholder="On Network"
 	initial={$SendTxDetails.fromNetwork?.value}
 	onValueChange={(v) => {
-		SendTxDetails.update((current) => ({
-			...current,
-			fromNetwork: Object.values(Network).find((net) => net.value === v.value[0])
-		}));
+		if ($SendTxDetails.fromNetwork?.value !== v.value[0]) {
+			SendTxDetails.update((current) => ({
+				...current,
+				fromNetwork: Object.values(Network).find((net) => net.value === v.value[0])
+			}));
+		}
 	}}
 />
 
@@ -358,16 +373,6 @@
 	<span>Custom message to the recipient.</span>
 </div>
 
-<!-- {#if $SendTxDetails.fromNetwork}
-	<div class="from-network">
-		<span class="sm-caption">Sending From Network:</span>
-		<div class="network-details">
-			<img src={$SendTxDetails.fromNetwork.icon} alt={$SendTxDetails.fromNetwork.label} />
-			{$SendTxDetails.fromNetwork.label}
-		</div>
-	</div>
-{/if} -->
-
 <style lang="scss">
 	h3 {
 		margin-top: 2rem;
@@ -384,34 +389,13 @@
 		.more {
 			margin-left: auto;
 		}
-		.small-button {
-			border: none;
-			background-color: transparent;
-			cursor: pointer;
-			font-size: var(--text-sm);
-			color: var(--accent-fg-mid);
-		}
 	}
-	// .from-network {
-	// 	margin-top: 2rem;
-	// 	display: flex;
-	// 	flex-direction: column;
-	// 	gap: 0.5rem;
-	// 	.network-details {
-	// 		img {
-	// 			width: 2rem;
-	// 		}
-	// 		display: flex;
-	// 		align-items: center;
-	// 		gap: 0.5rem;
-	// 	}
-	// }
 	.to-self-error {
 		margin-top: 0.5rem;
 	}
 	hr {
 		margin: 2rem 0;
-		background-color: var(--neutral-bg-accent);
+		border-color: var(--neutral-bg-accent);
 	}
 	.details-header {
 		font-size: var(--text-3xl);

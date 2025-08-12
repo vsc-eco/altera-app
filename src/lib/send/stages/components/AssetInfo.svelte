@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { isValidBalanceField } from '$lib/stores/balanceHistory';
 	import { get } from 'svelte/store';
-	import { Network, type Coin, type CoinOptions } from '../../sendOptions';
+	import { Network, type CoinOptions } from '../../sendOptions';
 	import InfoSegment from './InfoSegment.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -11,12 +11,14 @@
 		network,
 		lastPaid,
 		disabledMemo,
+		basic = false,
 		size = 'small'
 	}: {
 		coinOpt: CoinOptions['coins'][number];
 		network?: Network | undefined;
 		lastPaid?: string;
 		disabledMemo?: string;
+		basic?: boolean;
 		size?: 'small' | 'medium' | 'large';
 	} = $props();
 
@@ -27,6 +29,7 @@
 	);
 
 	let display = $derived.by(() => {
+		if (basic) return [];
 		if (disabledMemo) return [disabledMemo];
 		let result = [
 			`From ${coinOpt.networks.length} network${coinOpt.networks.length !== 1 ? 's' : ''}`

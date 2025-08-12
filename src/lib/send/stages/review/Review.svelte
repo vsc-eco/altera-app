@@ -51,10 +51,10 @@
 	// 	}
 	// });
 	let fromNetwork = $derived.by(() => {
-		if ($SendTxDetails.fromNetwork === Network.hiveMainnet) {
+		if ($SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value) {
 			return `Deposit from ${$SendTxDetails.fromNetwork.label}`;
 		}
-		if ($SendTxDetails.fromNetwork === Network.lightning) {
+		if ($SendTxDetails.fromNetwork?.value === Network.lightning.value) {
 			return `Swap from ${$SendTxDetails.fromNetwork.label}`;
 		}
 		return $SendTxDetails.fromNetwork?.label ?? 'UNK';

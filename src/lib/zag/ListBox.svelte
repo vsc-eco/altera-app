@@ -3,9 +3,10 @@
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { createFilter } from '@zag-js/i18n-utils';
 	import { getUniqueId } from './idgen';
-	import { ChevronDown, ChevronRight, Search } from '@lucide/svelte';
+	import { Check, ChevronDown, ChevronRight, Search } from '@lucide/svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { slide } from 'svelte/transition';
+	import EditButton from '$lib/components/EditButton.svelte';
 
 	type Option = { label: string; [key: string]: any };
 
@@ -13,12 +14,16 @@
 		items,
 		input = true,
 		value = $bindable(),
-		placeholder
+		label,
+		showSelected = false,
+		customFilter
 	}: {
 		items: Option[];
 		input?: boolean;
 		value: string | undefined;
-		placeholder?: string;
+		label?: string;
+		showSelected?: boolean;
+		customFilter?: (opts: Option[]) => Option[];
 	} = $props();
 
 	const filter = createFilter({ sensitivity: 'base' });
@@ -37,7 +42,9 @@
 	}
 
 	const collection = $derived.by(() => {
-		const searchOptions = items.filter((item) => filter.contains(item.label, search));
+		const searchOptions = customFilter
+			? customFilter(items)
+			: items.filter((item) => filter.contains(item.label, search));
 		const options = filterDisabled(searchOptions);
 		return listbox.collection({
 			items: options,
@@ -47,8 +54,9 @@
 		});
 	});
 
+	const machineId = getUniqueId();
 	const service = useMachine(listbox.machine, {
-		id: getUniqueId(),
+		id: machineId,
 		get collection() {
 			return collection;
 		},
@@ -61,52 +69,70 @@
 
 	let detailsShowing: Option | undefined = $state();
 	function toggleShowing(item: Option) {
-		if (detailsShowing?.value === item.value || detailsShowing?.label === item.label) {
+		if (isOpen(item)) {
 			detailsShowing = undefined;
 		} else {
 			detailsShowing = item;
 		}
 	}
+	function isOpen(item: Option) {
+		return (
+			(detailsShowing?.value && detailsShowing?.value === item.value) ||
+			(detailsShowing?.label && detailsShowing?.label === item.label)
+		);
+	}
 </script>
 
-<div {...api.getRootProps()}>
-	<label {...api.getLabelProps()}><Search aria-label="Search" /></label>
-	{#if input}
-		<input {...api.getInputProps({ autoHighlight: true })} bind:value={search} />
-	{/if}
-	<ul {...api.getContentProps()}>
-		{#each collection.items as item (item.value ?? item.label)}
-			<li {...api.getItemProps({ item })}>
-				{#if item.snippet}
-					{@render item.snippet(item.snippetData ?? item)}
-				{:else}
-					{item.label}
-				{/if}
-				{#if item.details && !item.disabled}
-					<PillButton onclick={() => toggleShowing(item)} styleType="icon-subtle">
-						{#if detailsShowing && (detailsShowing.label === item.label || detailsShowing.value === item.value)}
-							<ChevronDown />
+{#if detailsShowing}
+	<div class="details-wrapper" transition:slide={{ duration: 300 }}>
+		{@render detailsShowing.details(detailsShowing.snippetData ?? detailsShowing)}
+	</div>
+{:else}
+	<div {...api.getRootProps()}>
+		{#if label}
+			<label {...api.getLabelProps()}>{label}</label>
+		{/if}
+		{#if input}
+			<label for={`list-${machineId}`} class="search-icon"><Search aria-label="Search" /></label>
+			<input
+				{...api.getInputProps({ autoHighlight: true })}
+				bind:value={search}
+				id={`list-${machineId}`}
+			/>
+		{/if}
+
+		<ul {...api.getContentProps()} tabindex="-1" class="listbox-ul">
+			{#each collection.items as item (item.value ?? item.label)}
+				<li {...api.getItemProps({ item })}>
+					{#if item.snippet}
+						{@render item.snippet(item.snippetData ?? item)}
+					{:else}
+						{item.label}
+					{/if}
+					{#if (item.details || item.edit) && !item.disabled}
+						{@const editFunc = () => (item.details ? toggleShowing(item) : item.edit(item))}
+						{#if item.details || item.buttonType === 'Chevron'}
+							<PillButton onclick={editFunc} styleType="text-subtle">
+								<ChevronRight />
+							</PillButton>
 						{:else}
-							<ChevronRight />
+							<EditButton onclick={editFunc} />
 						{/if}
-					</PillButton>
-				{/if}
-			</li>
-			{#if detailsShowing && (detailsShowing.label === item.label || detailsShowing.value === item.value)}
-				<div class="details-wrapper" transition:slide={{ duration: 300 }}>
-					{@render item.details(item.snippetData ?? item)}
-				</div>
-			{/if}
-		{/each}
-	</ul>
-</div>
+					{:else if showSelected}
+						<span {...api.getItemIndicatorProps({ item })}><Check size="16" /></span>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	</div>
+{/if}
 
 <style lang="scss">
 	[data-part='root'] {
 		position: relative;
 		width: 100%;
 	}
-	[data-part='label'] {
+	.search-icon {
 		color: var(--neutral-bg-mid);
 		left: 0.25rem;
 		aspect-ratio: 1;
@@ -115,6 +141,7 @@
 		align-items: center;
 		position: absolute;
 		top: 0;
+		margin: 0.5rem 0 0.5rem 0.25rem;
 		:global(svg),
 		:global(img) {
 			width: 16px;
@@ -128,13 +155,14 @@
 		box-sizing: border-box;
 		padding-left: 0.5rem;
 		padding-left: calc(16px + 0.75rem);
+		margin-bottom: 1rem;
 	}
 	[data-part='trigger'] {
 		display: none;
 	}
-	[data-part='content'] {
-		margin-top: 1rem;
-	}
+	// [data-part='content'] {
+
+	// }
 	[data-part='item'] {
 		border-radius: 0.5rem;
 		cursor: pointer;
@@ -142,11 +170,18 @@
 		display: flex;
 		align-items: center;
 	}
-	[data-part='item'][data-highlighted] {
+	[data-part='item'][data-highlighted],
+	[data-part='item']:hover {
 		background-color: var(--bg-accent);
+	}
+	[data-part='item'][data-selected] {
+		background-color: var(--green-bg-accent);
 	}
 	[data-part='item'][data-disabled] {
 		cursor: default;
+	}
+	[data-part='item-indicator'] {
+		margin-left: auto;
 	}
 	.details-wrapper {
 		padding: 0.5rem 1rem;

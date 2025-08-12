@@ -32,6 +32,10 @@
 	let generatedId = getUniqueId();
 	let enabled = $derived(items.filter((item) => !item.disabled));
 	let error = $state('');
+	const options = items.map((item) =>
+		'id' in item ? item : { ...item, id: item.value ?? item.label }
+	);
+	console.log(options, propDefault, value);
 	const service = useMachine(radio.machine, {
 		id: id ?? generatedId,
 		name,
@@ -49,14 +53,20 @@
 			api.setValue(enabled[0].value);
 		}
 	});
+	let isNew = true;
 	$effect(() => {
 		const val = value;
 		untrack(() => {
-			if (!val) return;
-			if (items.find((item) => item.value === val)?.disabled === true || val !== api.value) {
+			if (!val) {
+				if (!isNew) {
+					api.clearValue();
+					return;
+				}
+			} else if (items.find((item) => item.value === val)?.disabled === true || val !== api.value) {
 				api.setValue(val);
 			}
 		});
+		isNew = false;
 	});
 </script>
 
@@ -65,7 +75,7 @@
 		<h3 {...api.getLabelProps()}>{name}</h3>
 	{/if}
 	<div class="items">
-		{#each items as opt}
+		{#each options as opt}
 			<label
 				{...api.getItemProps({
 					value: opt.value,

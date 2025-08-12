@@ -31,8 +31,7 @@ form:has(input:focus) {
 	}
 }
 label {
-	margin-top: 0.5rem;
-	margin-bottom: 0.5rem;
+	margin-bottom: 0.25rem;
 	display: flex;
 	width: max-content;
 	align-items: center;
@@ -115,6 +114,18 @@ h6 {
 .sm-caption {
 	color: var(--neutral-fg-mid);
 	font-size: var(--text-sm);
+}
+
+.dialog-content {
+	margin: auto;
+	min-width: min-content;
+	width: 32rem;
+	min-height: 50vh;
+	h4,
+	h5,
+	h6 {
+		font-weight: 450;
+	}
 }
 
 a {

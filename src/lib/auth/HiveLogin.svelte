@@ -108,11 +108,11 @@
 		{#if qrData && !hasError}
 			<span class="back-button">
 				<PillButton
-					styleType="icon-outline"
+					styleType="icon-subtle"
 					onclick={() => {
 						qrData = undefined;
 					}}
-					><ArrowLeft></ArrowLeft>
+					><ArrowLeft size="32" />
 				</PillButton>
 			</span>
 		{/if}

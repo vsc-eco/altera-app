@@ -55,9 +55,9 @@
 					<PillButton
 						{...api.getCloseTriggerProps()}
 						onclick={api.getTriggerProps().onclick!}
-						styleType="icon-outline"
+						styleType="icon-subtle"
 					>
-						<X />
+						<X size="32" />
 					</PillButton>
 				</div>
 
@@ -138,6 +138,6 @@
 	}
 
 	.title-and-close.no-title {
-		height: 0.5rem;
+		height: 0;
 	}
 </style>

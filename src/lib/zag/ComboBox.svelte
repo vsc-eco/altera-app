@@ -3,6 +3,8 @@
 	import * as combobox from '@zag-js/combobox';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { untrack, type Snippet } from 'svelte';
+	import { getUniqueId } from './idgen';
+	import type { FocusEventHandler } from 'svelte/elements';
 
 	type Option = { label: string; [key: string]: any };
 
@@ -10,22 +12,28 @@
 		items,
 		dropdown = false,
 		value = $bindable(),
+		onBlur,
 		icon,
 		placeholder,
 		createPlaceholder,
+		// results must have label and value fields
 		getSuggestions,
-		custom = false
+		custom = false,
+		label
 	}: {
 		items: Option[];
 		dropdown?: boolean;
 		value: string | undefined;
+		onBlur?: FocusEventHandler<HTMLInputElement> | null | undefined;
 		icon?: string;
 		placeholder?: string;
 		createPlaceholder?: (value: string) => any;
 		getSuggestions?: (value: string) => Promise<any[]>;
 		custom?: boolean;
+		label?: string | ((...args: any[]) => ReturnType<Snippet>);
 	} = $props();
 
+	let inputValue = $state<string>();
 	let options = $state.raw(items);
 
 	const collection = $derived(
@@ -36,40 +44,49 @@
 		})
 	);
 
-	const id = $props.id();
-
 	const service = useMachine(combobox.machine, {
-		id,
+		id: getUniqueId(),
 		get collection() {
 			return collection;
 		},
+		get value() {
+			return value ? [value] : [];
+		},
+		get inputValue() {
+			return inputValue ?? items.find((item) => item.value && item.value === value)?.label ?? value;
+		},
+		// defaultValue: value ? [value] : undefined,
+		// defaultInputValue: value
+		// 	? (items.find((item) => item.value && item.value === value)?.label ?? value)
+		// 	: undefined,
 		onOpenChange() {
 			if (!options) {
 				options = items;
 			}
 		},
-		onInputValueChange({ inputValue }) {
-			if (inputValue === '') {
+		onInputValueChange({ inputValue: val }) {
+			inputValue = val;
+			if (val === '') {
 				options = items.filter((item) => item.disabled === false);
 				return;
 			}
 			const filtered = items.filter(
 				(item) =>
-					item.label.toLowerCase().includes(inputValue.toLowerCase()) ||
-					item.value.toLocaleLowerCase().includes(inputValue.toLocaleLowerCase())
+					item.label.toLowerCase().includes(val.toLowerCase()) ||
+					item.value.toLocaleLowerCase().includes(val.toLocaleLowerCase())
 			);
 			if (custom) {
 				const currentlyInput = createPlaceholder
-					? createPlaceholder(inputValue)
-					: { label: inputValue };
+					? createPlaceholder(val)
+					: { label: val, value: val };
 				// const newOptions: Option[] = [currentlyInput, ...(filtered.length > 0 ? filtered : items)];
 				const newOptions: Option[] = filtered.find(
 					(item) => item.label === currentlyInput.label || item.value === currentlyInput.value
 				)
 					? filtered
 					: [currentlyInput, ...filtered];
-				if (getSuggestions && !inputValue?.startsWith('0x')) {
-					const currentValue = inputValue;
+				if (getSuggestions && !val?.startsWith('0x')) {
+					const currentValue = val;
 					getSuggestions(currentValue).then((itms) => {
 						if (api.inputValue !== currentValue) return;
 						const all = [...newOptions, ...itms];
@@ -89,31 +106,25 @@
 				options = filtered;
 			}
 		},
+		onValueChange(details) {
+			value = details.value[0];
+		},
 		onFocusOutside() {
 			if (custom) {
 				const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-				api.setValue([val]);
 				value = val;
 			}
 		},
 		onPointerDownOutside() {
 			if (custom) {
 				const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-				api.setValue([val]);
 				value = val;
 			}
 		},
 		onInteractOutside() {
 			if (custom) {
 				const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-				api.setValue([val]);
 				value = val;
-			}
-		},
-		onSelect(details) {
-			if (details && details.value.length > 0) {
-				value = details.value[0];
-				api.setOpen(false);
 			}
 		},
 		positioning: {
@@ -128,21 +139,21 @@
 	});
 
 	const api = $derived(combobox.connect(service, normalizeProps));
-	$effect(() => {
-		const val = value;
-		if (!val) return;
-		untrack(() => {
-			if (custom && val === api.inputValue) return;
-			if (api.value.length > 0 && val === api.value[0]) return;
-			api.setValue([val]);
-			const itemWithVal = items.find((item) => item.value && item.value === val);
-			if (itemWithVal) {
-				api.setInputValue(itemWithVal.label);
-			} else {
-				api.setInputValue(val);
-			}
-		});
-	});
+	// $effect(() => {
+	// 	const val = value;
+	// 	if (!val) return;
+	// 	untrack(() => {
+	// 		if (custom && val === api.inputValue) return;
+	// 		if (api.value.length > 0 && val === api.value[0]) return;
+	// 		api.setValue([val]);
+	// 		const itemWithVal = items.find((item) => item.value && item.value === val);
+	// 		if (itemWithVal) {
+	// 			api.setInputValue(itemWithVal.label);
+	// 		} else {
+	// 			api.setInputValue(val);
+	// 		}
+	// 	});
+	// });
 	$effect(() => {
 		if (options.find((opt) => opt.value === api.value[0])?.disabled) {
 			api.clearValue();
@@ -150,9 +161,9 @@
 	});
 	function handleKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
+			event.preventDefault();
 			if (custom) {
 				const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-				api.setValue([val]);
 				value = val;
 			}
 		}
@@ -162,18 +173,39 @@
 <svelte:window on:keydown={handleKeyDown} />
 
 <div {...api.getRootProps()}>
-	{#if icon !== undefined}
-		<label {...api.getLabelProps()}>
-			{#if icon !== '' && api.value.length > 0}
-				<img width="16" src={icon} alt="" />
-			{:else}
-				<Search aria-label="Search" />
+	{#if icon !== undefined || label}
+		<label {...api.getLabelProps()} data-variant={label ? '' : 'icon-only'}>
+			{#if icon !== undefined}
+				<span class="icon-label">
+					{#if icon !== '' && api.value.length > 0}
+						<img width="16" src={icon} alt="" />
+					{:else}
+						<Search aria-label="Search" />
+					{/if}
+				</span>
+			{/if}
+			{#if typeof label === 'string'}
+				{label}
+			{:else if typeof label === 'function'}
+				{@render label()}
 			{/if}
 		</label>
 	{/if}
 
 	<div {...api.getControlProps()}>
-		<input {...api.getInputProps()} data-variant={icon !== undefined ? 'icon' : 'simple'} />
+		<input
+			{...api.getInputProps()}
+			data-variant={icon !== undefined ? 'icon' : 'simple'}
+			onblur={(e) => {
+				if (custom) {
+					const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
+					value = val;
+				}
+				inputValue = undefined;
+				api.setOpen(false);
+				if (onBlur) onBlur(e);
+			}}
+		/>
 		{#if dropdown}
 			<button {...api.getTriggerProps()}><ChevronDown /></button>
 		{/if}
@@ -201,20 +233,29 @@
 		width: 100%;
 	}
 	[data-part='label'] {
-		color: var(--neutral-bg-mid);
-		left: 0.25rem;
-		aspect-ratio: 1;
-		pointer-events: none;
-		display: flex;
-		align-items: center;
-		position: absolute;
-		top: 0;
-		:global(svg),
-		:global(img) {
-			width: 16px;
-			height: 16px;
-			padding: 4px 0;
+		.icon-label {
+			color: var(--neutral-bg-mid);
 			aspect-ratio: 1;
+			pointer-events: none;
+			display: flex;
+			align-items: center;
+			position: absolute;
+			top: 1.25rem;
+			left: 0.25rem;
+			margin: 0.5rem 0 0.5rem 0.25rem;
+			:global(svg),
+			:global(img) {
+				width: 16px;
+				height: 16px;
+				padding: 4px 0;
+				aspect-ratio: 1;
+			}
+		}
+		&[data-variant='icon-only'] {
+			margin: 0;
+			.icon-label {
+				top: 0;
+			}
 		}
 	}
 	[data-part='input'] {

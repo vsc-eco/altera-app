@@ -13,7 +13,7 @@
 	import { SendTxDetails } from '../../sendUtils';
 
 	let {
-		close,
+		close
 	}: {
 		close: () => void;
 	} = $props();
@@ -60,11 +60,11 @@
 	}
 	function save() {
 		if (recipientUsername) {
-			SendTxDetails.update(current => ({
+			SendTxDetails.update((current) => ({
 				...current,
 				toUsername: recipientUsername!,
 				toDisplayName: tmpDisplayName ?? recipientUsername!
-			}))
+			}));
 		}
 		close();
 	}
@@ -139,7 +139,6 @@
 									lastPaid={contact.date
 										? `on ${moment(contact.date).format('MMM DD, YYYY')}`
 										: 'Never'}
-									adjacent={true}
 								/>
 							</td>
 						</tr>
@@ -152,7 +151,6 @@
 <div class="nav">
 	<SendNavButtons {buttons} />
 </div>
-
 
 <style lang="scss">
 	.wrapper {

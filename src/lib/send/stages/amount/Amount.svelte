@@ -32,12 +32,13 @@
 	} from '../components/CardSnippets.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import NetworkInfo from '../components/NetworkInfo.svelte';
-	import { Coins, Landmark } from '@lucide/svelte';
+	import { Coins, Landmark, Link, Link2 } from '@lucide/svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectAsset from './SelectAsset.svelte';
 	import AssetInfo from '../components/AssetInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import EditButton from '$lib/components/EditButton.svelte';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 
 	let auth = $authStore;
 	let {
@@ -228,6 +229,7 @@
 
 	let toAmount = $state('');
 	let fromSwapAmount = $state('');
+	let inUsd = $state('');
 
 	$effect(() => {
 		if (toAmount !== $SendTxDetails.toAmount) {
@@ -296,19 +298,39 @@
 
 <h2>Amount</h2>
 <h3>Recipient Gets</h3>
-<BasicAmountInput
-	bind:amount={toAmount}
-	coin={$SendTxDetails.toCoin}
-	network={$SendTxDetails.toNetwork}
-	id={'basic-input'}
-	{maxField}
-	connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
-		? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
-		: undefined}
-/>
+<!-- if swap integrate this with basic amt again
+ connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
+			? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
+			: undefined}
+-->
+<div class="amounts">
+	<BasicAmountInput
+		bind:amount={toAmount}
+		coin={$SendTxDetails.toCoin}
+		network={$SendTxDetails.toNetwork}
+		id={'basic-input'}
+		{maxField}
+		connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
+	/>
+	{#if $SendTxDetails.toCoin && $SendTxDetails.toCoin?.coin.value !== coins.usd.value}
+		<Link2 />
+		<BasicAmountInput
+			bind:amount={inUsd}
+			coin={{
+				coin: coins.usd,
+				networks: []
+			}}
+			network={undefined}
+			id="usd-input"
+			connectedCoinAmount={$SendTxDetails.toCoin
+				? new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)
+				: undefined}
+		/>
+	{/if}
+</div>
 
 <h3>Asset</h3>
-<Card>
+<ClickableCard onclick={() => toggleAsset(true)}>
 	<div class="asset-card">
 		{#if $SendTxDetails.fromCoin}
 			<AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" />
@@ -321,7 +343,7 @@
 		</span>
 		<!-- {/if} -->
 	</div>
-</Card>
+</ClickableCard>
 <Dialog bind:open={assetOpen} bind:toggle={toggleAsset}>
 	{#snippet content()}
 		<SelectAsset availableCoins={assetObjs} />
@@ -380,6 +402,11 @@
 		font-size: var(--text-1xl);
 		margin-bottom: 0.5rem;
 		font-weight: 450;
+	}
+	.amounts {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
 	}
 	.asset-card {
 		display: flex;

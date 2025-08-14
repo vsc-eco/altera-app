@@ -11,7 +11,7 @@ import swapOptions, {
 	type NecessarySendDetails,
 	type SendDetails
 } from './sendOptions';
-import { type Auth } from '$lib/auth/store';
+import { authStore, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
 import { getEVMOpType } from '$lib/vscTransactions/eth';
 import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -142,22 +142,31 @@ function getDidNetworks(did: string) {
 }
 
 const lastPaidCache: {
-	contacts: Map<string, Moment | 'Never'>;
-	networks: Map<string, Moment | 'Never'>;
+	contacts: Map<string, string | 'Never'>;
+	networks: Map<string, string | 'Never'>;
 	lastLength: number;
 } = {
 	contacts: new Map(),
 	networks: new Map(),
 	lastLength: 0
 };
-export function dateToLastPaidString(lastPaid: Moment | 'Never') {
+export function clearLastPaidCache() {
+	lastPaidCache.contacts.clear();
+	lastPaidCache.networks.clear();
+}
+export function dateToLastPaidString(lastPaid?: Moment | 'Never') {
+	if (!lastPaid) return 'Never';
 	return lastPaid === 'Never' ? lastPaid : `on ${lastPaid.format('MMM DD, YYYY')}`;
 }
 // increment through store, keep fetching more to find last paid
-export async function getLastPaidContact(auth: Auth, toDid: string) {
+export async function getLastPaidContact(toDid: string): Promise<moment.Moment | 'Never'> {
+	const auth = get(authStore);
 	if (!auth.value?.did) return 'Never';
 	const cached = lastPaidCache.contacts.get(toDid);
-	if (cached) return cached;
+	if (cached) {
+		if (cached === 'Never') return 'Never';
+		return moment(cached);
+	}
 	let lastChecked = 0;
 	let lastLength = 0;
 	let store: TransactionInter[];
@@ -168,9 +177,10 @@ export async function getLastPaidContact(auth: Auth, toDid: string) {
 			if (!tx.ops) continue;
 			for (const op of tx.ops) {
 				if (op?.data.to === toDid) {
-					const lastPaidMoment = moment(getTimestamp(tx));
-					lastPaidCache.contacts.set(toDid, lastPaidMoment);
-					return lastPaidMoment;
+					const date = getTimestamp(tx);
+					const valid = isValidIsoDate(date);
+					lastPaidCache.contacts.set(toDid, valid ? date : 'Never');
+					return valid ? moment(date) : 'Never';
 				}
 			}
 		}
@@ -180,15 +190,19 @@ export async function getLastPaidContact(auth: Auth, toDid: string) {
 			break;
 		}
 	} while (store.length > lastLength);
-	lastPaidCache.contacts.set(toDid, 'Never');
 	return 'Never';
+}
+
+function isValidIsoDate(dateString: string): boolean {
+	const date = new Date(dateString);
+	return !isNaN(date.getTime()) && date.toISOString().startsWith(dateString.split('.')[0]);
 }
 
 // TODO: probably use a record instead, to filter by name but keep other data
 export type recipientData = {
 	name: string;
 	did: string;
-	date: string | undefined;
+	date: string;
 };
 export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 	if (!auth.value) return [];
@@ -214,8 +228,7 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 				}
 				if (result.size >= 3) {
 					for (const data of result.values()) {
-						const lastPaidMoment = moment(data.date);
-						lastPaidCache.contacts.set(data.did, lastPaidMoment);
+						lastPaidCache.contacts.set(data.did, isValidIsoDate(data.date) ? data.date : 'Never');
 					}
 					return [...result.values()];
 				}
@@ -238,13 +251,12 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 				result.set(username, {
 					name: (await getDisplayName(op.data.from)) ?? username,
 					did: op.data.from,
-					date: undefined
+					date: getTimestamp(tx)
 				});
 			}
 			if (result.size >= 3) {
 				for (const data of result.values()) {
-					const lastPaidMoment = moment(data.date);
-					lastPaidCache.contacts.set(data.did, lastPaidMoment);
+					lastPaidCache.contacts.set(data.did, data.date);
 				}
 				return [...result.values()];
 			}
@@ -252,18 +264,22 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 	}
 	for (const data of result.values()) {
 		const lastPaidMoment = moment(data.date);
-		lastPaidCache.contacts.set(data.did, lastPaidMoment);
+		lastPaidCache.contacts.set(data.did, lastPaidMoment.toISOString());
 	}
 	return [...result.values()];
 }
 
-export async function getLastPaidNetwork(auth: Auth, netVal?: string) {
+export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment | 'Never'> {
+	const auth = get(authStore);
 	if (!auth.value?.did || !netVal) return 'Never';
 	const cached = lastPaidCache.networks.get(netVal);
+	if (cached) {
+		if (cached === 'Never') return 'Never';
+		return moment(cached);
+	}
 	let lastChecked = 0;
 	let store: TransactionInter[] = get(vscTxsStore);
 	let lastLength = 0;
-	if (cached) return cached;
 
 	do {
 		store = get(vscTxsStore);
@@ -272,7 +288,7 @@ export async function getLastPaidNetwork(auth: Auth, netVal?: string) {
 			if (!tx.ops) continue;
 			if (netVal.startsWith(tx.type)) {
 				const lastPaidMoment = moment(getTimestamp(tx));
-				lastPaidCache.networks.set(netVal, lastPaidMoment);
+				lastPaidCache.networks.set(netVal, lastPaidMoment.toISOString());
 				return lastPaidMoment;
 			}
 		}

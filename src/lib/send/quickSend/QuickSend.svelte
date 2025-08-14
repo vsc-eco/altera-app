@@ -213,7 +213,7 @@
 	<SelectOptions id={value} {editStage} />
 {/snippet}
 
-{#snippet review(value: string)}
+{#snippet review()}
 	<Review {status} compact />
 {/snippet}
 

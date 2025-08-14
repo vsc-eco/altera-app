@@ -37,7 +37,7 @@
 		} else {
 			res = `${accounts.length} Accounts Available`;
 		}
-		if (!showSelected || !did) return res;
+		if (!showSelected || !did || accounts.length <= 1) return res;
 		const selected = accounts.find((acc) => acc.address === getUsernameFromDid(did));
 		if (selected && selected.label) {
 			res = res.concat(` - ${selected.label} Selected`);
@@ -57,7 +57,7 @@
 
 <div class={['wrapper', { gray: warning }]}>
 	{#if icon}
-		<img src={icon} alt="Contact" />
+		<img src={icon} alt="Contact" class={{ large: size === 'large' }} />
 	{:else}
 		<Avatar {did} large={size === 'large'} />
 	{/if}
@@ -71,8 +71,11 @@
 		gap: 1rem;
 		flex-grow: 1;
 		img {
-			width: 3.5rem;
+			width: 2.5rem;
 			border-radius: 100%;
+			&.large {
+				width: 3.5rem;
+			}
 		}
 	}
 	.wrapper.gray {

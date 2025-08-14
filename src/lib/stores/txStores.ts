@@ -4,6 +4,7 @@ import { getLocalTransactions, removeLocalTransaction } from '$lib/stores/localS
 import { blockSync } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
 import moment from 'moment';
 import { authStore } from '$lib/auth/store';
+import { clearLastPaidCache } from '$lib/send/sendUtils';
 
 type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 
@@ -205,6 +206,7 @@ export function fetchTxs(
 				return;
 			}
 			const fetchedTxs = toTransactionInter(post.data.findTransaction);
+			if (fetchedTxs.length > 0) clearLastPaidCache();
 			switch (type) {
 				case 'set':
 					vscTxsStore.set(fetchedTxs);
@@ -243,8 +245,14 @@ export function fetchTxs(
 	updateTxsFromLocalStorage(did);
 }
 
+const inFlight = new Map<string, Promise<boolean>>();
+
 export function waitForExtend(did: string, limit = 12): Promise<boolean> {
-	return new Promise((resolve) => {
+	if (inFlight.has(did)) {
+		return inFlight.get(did)!;
+	}
+
+	const promise = new Promise<boolean>((resolve) => {
 		const timeout = setTimeout(() => {
 			resolve(false);
 		}, 2000);
@@ -262,4 +270,7 @@ export function waitForExtend(did: string, limit = 12): Promise<boolean> {
 			limit
 		);
 	});
+
+	inFlight.set(did, promise);
+	return promise;
 }

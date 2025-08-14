@@ -5,7 +5,7 @@
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
 	import { goto } from '$app/navigation';
-	import PieTimer from './PieTimer.svelte';
+	import PieTimer from '../../../components/PieTimer.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 
 	let timer = $state<PieTimer>();

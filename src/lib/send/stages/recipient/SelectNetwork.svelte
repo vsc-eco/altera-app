@@ -11,6 +11,9 @@
 	import { SendTxDetails } from '$lib/send/sendUtils';
 	import { networkCard } from '../components/CardSnippets.svelte';
 	import { untrack } from 'svelte';
+	import { Search } from '@lucide/svelte';
+
+	let { close }: { close: () => void } = $props();
 
 	const auth = $derived($authStore);
 	let tmpNetwork: Network | undefined = $state();
@@ -19,17 +22,20 @@
 		getRecipientNetworks(getDidFromUsername($SendTxDetails.toUsername))
 	);
 
+	function updateDetails(val: string) {
+		tmpNetwork = availableNetworks.find((net) => net.value === val);
+		if (!tmpNetwork) return;
+		if ($SendTxDetails.toNetwork?.value === tmpNetwork?.value) return;
+		SendTxDetails.update((current) => ({
+			...current,
+			toNetwork: tmpNetwork
+		}));
+	}
+
 	$effect(() => {
-		const newVal = tmpNetworkVal;
-		untrack(() => {
-			tmpNetwork = availableNetworks.find((net) => net.value === newVal);
-			if (!tmpNetwork) return;
-			if ($SendTxDetails.toNetwork?.value === tmpNetwork?.value) return;
-			SendTxDetails.update((current) => ({
-				...current,
-				toNetwork: tmpNetwork
-			}));
-		});
+		if (tmpNetworkVal) {
+			untrack(() => updateDetails(tmpNetworkVal!));
+		}
 	});
 	let radioItems = $derived(
 		availableNetworks.map((v) => {
@@ -110,6 +116,8 @@
 
 	function handleTableTrigger(net: IntermediaryNetwork | Network) {
 		tmpNetworkVal = net.value;
+		updateDetails(tmpNetworkVal);
+		close();
 	}
 	function handleTableKeydown(e: KeyboardEvent, net: IntermediaryNetwork | Network) {
 		if (e.key === ' ' || e.key === 'Enter') {
@@ -138,7 +146,7 @@
 			<ComboBox
 				items={comboItems}
 				bind:value={tmpNetworkVal}
-				icon={tmpNetwork ? tmpNetwork.icon : ''}
+				icon={tmpNetwork ? tmpNetwork.icon : Search}
 				placeholder="Search for VSC, Hive..."
 			/>
 		</div>

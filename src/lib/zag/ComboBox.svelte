@@ -1,10 +1,12 @@
 <script lang="ts">
-	import { ChevronDown, Search } from '@lucide/svelte';
+	import { ChevronDown, ChevronUp, Search } from '@lucide/svelte';
 	import * as combobox from '@zag-js/combobox';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import { untrack, type Snippet } from 'svelte';
+	import { type Snippet } from 'svelte';
 	import { getUniqueId } from './idgen';
 	import type { FocusEventHandler } from 'svelte/elements';
+	import type { ImgIconOption } from '$lib/components/ImageIconRenderer.svelte';
+	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 
 	type Option = { label: string; [key: string]: any };
 
@@ -19,30 +21,90 @@
 		// results must have label and value fields
 		getSuggestions,
 		custom = false,
-		label
+		label,
+		preferValue = false
 	}: {
 		items: Option[];
 		dropdown?: boolean;
 		value: string | undefined;
 		onBlur?: FocusEventHandler<HTMLInputElement> | null | undefined;
-		icon?: string;
+		icon?: ImgIconOption;
 		placeholder?: string;
 		createPlaceholder?: (value: string) => any;
 		getSuggestions?: (value: string) => Promise<any[]>;
 		custom?: boolean;
 		label?: string | ((...args: any[]) => ReturnType<Snippet>);
+		preferValue?: boolean;
 	} = $props();
 
 	let inputValue = $state<string>();
 	let options = $state.raw(items);
 
+	function onParamChange(val: string) {
+		if (val === '') {
+			options = items.filter((item) => !item.disabled);
+			return;
+		}
+		const filtered = items.filter(
+			(item) =>
+				item.label.toLowerCase().includes(val.toLowerCase()) ||
+				item.value?.toLowerCase().includes(val.toLowerCase())
+		);
+		if (custom) {
+			const currentlyInput = createPlaceholder
+				? createPlaceholder(val)
+				: { label: val, value: val };
+			// const newOptions: Option[] = [currentlyInput, ...(filtered.length > 0 ? filtered : items)];
+			const newOptions: Option[] = filtered.find(
+				(item) => item.label === currentlyInput.label || item.value === currentlyInput.value
+			)
+				? filtered
+				: [currentlyInput, ...filtered];
+			if (getSuggestions && !val?.startsWith('0x')) {
+				const currentValue = val;
+				getSuggestions(currentValue).then((itms) => {
+					if (api.inputValue !== currentValue) return;
+					const all = [...newOptions, ...itms];
+					options = all.reduce((acc: Option[], current) => {
+						const exists = acc.find((item) => item.value === current.value);
+						if (!exists) {
+							const inItems = items.find((item) => item.value === current.value);
+							acc.push(inItems ?? current);
+						}
+						return acc;
+					}, []);
+				});
+			} else {
+				options = newOptions;
+			}
+		} else {
+			options = filtered;
+		}
+	}
+	function onDefocus() {
+		if (custom) {
+			const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
+			value = val;
+		}
+	}
+
+	function toPreferredString(item: Option) {
+		if (preferValue) {
+			return item.value ?? item.label;
+		} else {
+			item.label;
+		}
+	}
+
 	const collection = $derived(
 		combobox.collection({
 			items: options,
 			itemToValue: (item) => item.value ?? item.label,
-			itemToString: (item) => item.label
+			itemToString: toPreferredString
 		})
 	);
+
+	$inspect(value, inputValue);
 
 	const service = useMachine(combobox.machine, {
 		id: getUniqueId(),
@@ -53,80 +115,25 @@
 			return value ? [value] : [];
 		},
 		get inputValue() {
-			return inputValue ?? items.find((item) => item.value && item.value === value)?.label ?? value;
+			return inputValue;
+			// if (inputValue) return inputValue;
+			// const entry = items.find((item) => item.value ?? item.label === value);
+			// if (entry) return toPreferredString(entry);
+			// return value;
 		},
-		// defaultValue: value ? [value] : undefined,
-		// defaultInputValue: value
-		// 	? (items.find((item) => item.value && item.value === value)?.label ?? value)
-		// 	: undefined,
-		onOpenChange() {
-			if (!options) {
-				options = items;
-			}
+		onOpenChange(details) {
+			if (details.open) onParamChange(inputValue ?? '');
 		},
 		onInputValueChange({ inputValue: val }) {
 			inputValue = val;
-			if (val === '') {
-				options = items.filter((item) => item.disabled === false);
-				return;
-			}
-			const filtered = items.filter(
-				(item) =>
-					item.label.toLowerCase().includes(val.toLowerCase()) ||
-					item.value.toLocaleLowerCase().includes(val.toLocaleLowerCase())
-			);
-			if (custom) {
-				const currentlyInput = createPlaceholder
-					? createPlaceholder(val)
-					: { label: val, value: val };
-				// const newOptions: Option[] = [currentlyInput, ...(filtered.length > 0 ? filtered : items)];
-				const newOptions: Option[] = filtered.find(
-					(item) => item.label === currentlyInput.label || item.value === currentlyInput.value
-				)
-					? filtered
-					: [currentlyInput, ...filtered];
-				if (getSuggestions && !val?.startsWith('0x')) {
-					const currentValue = val;
-					getSuggestions(currentValue).then((itms) => {
-						if (api.inputValue !== currentValue) return;
-						const all = [...newOptions, ...itms];
-						options = all.reduce((acc: Option[], current) => {
-							const exists = acc.find((item) => item.value === current.value);
-							if (!exists) {
-								const inItems = items.find((item) => item.value === current.value);
-								acc.push(inItems ?? current);
-							}
-							return acc;
-						}, []);
-					});
-				} else {
-					options = newOptions;
-				}
-			} else {
-				options = filtered;
-			}
+			onParamChange(val);
 		},
 		onValueChange(details) {
 			value = details.value[0];
 		},
-		onFocusOutside() {
-			if (custom) {
-				const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-				value = val;
-			}
-		},
-		onPointerDownOutside() {
-			if (custom) {
-				const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-				value = val;
-			}
-		},
-		onInteractOutside() {
-			if (custom) {
-				const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-				value = val;
-			}
-		},
+		onFocusOutside: onDefocus,
+		onPointerDownOutside: onDefocus,
+		onInteractOutside: onDefocus,
 		positioning: {
 			placement: 'bottom-start',
 			gutter: 0,
@@ -139,21 +146,6 @@
 	});
 
 	const api = $derived(combobox.connect(service, normalizeProps));
-	// $effect(() => {
-	// 	const val = value;
-	// 	if (!val) return;
-	// 	untrack(() => {
-	// 		if (custom && val === api.inputValue) return;
-	// 		if (api.value.length > 0 && val === api.value[0]) return;
-	// 		api.setValue([val]);
-	// 		const itemWithVal = items.find((item) => item.value && item.value === val);
-	// 		if (itemWithVal) {
-	// 			api.setInputValue(itemWithVal.label);
-	// 		} else {
-	// 			api.setInputValue(val);
-	// 		}
-	// 	});
-	// });
 	$effect(() => {
 		if (options.find((opt) => opt.value === api.value[0])?.disabled) {
 			api.clearValue();
@@ -162,10 +154,7 @@
 	function handleKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
 			event.preventDefault();
-			if (custom) {
-				const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-				value = val;
-			}
+			onDefocus();
 		}
 	}
 </script>
@@ -177,11 +166,7 @@
 		<label {...api.getLabelProps()} data-variant={label ? '' : 'icon-only'}>
 			{#if icon !== undefined}
 				<span class="icon-label">
-					{#if icon !== '' && api.value.length > 0}
-						<img width="16" src={icon} alt="" />
-					{:else}
-						<Search aria-label="Search" />
-					{/if}
+					<ImageIconRenderer {icon} />
 				</span>
 			{/if}
 			{#if typeof label === 'string'}
@@ -197,17 +182,19 @@
 			{...api.getInputProps()}
 			data-variant={icon !== undefined ? 'icon' : 'simple'}
 			onblur={(e) => {
-				if (custom) {
-					const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-					value = val;
-				}
-				inputValue = undefined;
+				onDefocus();
 				api.setOpen(false);
 				if (onBlur) onBlur(e);
 			}}
 		/>
 		{#if dropdown}
-			<button {...api.getTriggerProps()}><ChevronDown /></button>
+			<button {...api.getTriggerProps()}>
+				{#if api.open}
+					<ChevronUp />
+				{:else}
+					<ChevronDown />
+				{/if}
+			</button>
 		{/if}
 	</div>
 </div>
@@ -267,7 +254,15 @@
 		padding-left: calc(16px + 0.75rem);
 	}
 	[data-part='trigger'] {
-		display: none;
+		position: absolute;
+		display: flex;
+		align-items: center;
+		height: 100%;
+		border: none;
+		background-color: transparent;
+		cursor: pointer;
+		top: 0;
+		right: 0.5rem;
 	}
 	[data-part='content'] {
 		box-sizing: border-box;

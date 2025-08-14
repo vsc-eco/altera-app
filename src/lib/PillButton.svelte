@@ -14,6 +14,7 @@
 			| 'text'
 			| 'text-subtle'
 			| 'outline'
+			| 'center'
 			| 'default'
 			| 'icon'
 			| 'icon-outline'

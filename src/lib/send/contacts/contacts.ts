@@ -1,32 +1,29 @@
-import { name } from '@ipld/dag-json';
 import moment, { type Moment } from 'moment';
 import { getLastPaidContact } from '../sendUtils';
-import { authStore } from '$lib/auth/store';
-import { get } from 'svelte/store';
 import { getDidFromUsername } from '$lib/getAccountName';
 
 export type Contact = {
 	// name, but label field required by many components
 	label: string;
 	// usernames not dids
-	addresses: { label?: string; address: string }[];
+	addresses: { label: string; address: string }[];
 	image?: string;
 	lastPaid?: string;
 };
 
 export function getContacts(): Map<string, Contact> {
 	const txString = localStorage.getItem('contacts');
-	if (!txString) return new Map();
+	if (!txString || txString === '{}') return new Map();
 	return new Map(JSON.parse(txString) as [string, Contact][]);
 }
 
 export function addContact(contact: Contact) {
-	const txMap = getContacts();
-	const existing = txMap.get(contact.label);
+	const contactMap = getContacts();
+	const existing = contactMap.get(contact.label);
 	// adds any addresses
 	if (existing) {
 		existing.addresses = [...existing.addresses, ...contact.addresses].reduce(
-			(acc: { label?: string; address: string }[], current) => {
+			(acc: Contact['addresses'][number][], current) => {
 				const existing = acc.find((item) => item.address === current.address);
 				if (existing && current.label) {
 					existing.label = current.label;
@@ -43,31 +40,35 @@ export function addContact(contact: Contact) {
 			existing.lastPaid = contact.lastPaid;
 		}
 	} else {
-		txMap.set(contact.label, contact);
+		contactMap.set(contact.label, contact);
 	}
-	localStorage.setItem('contacts', JSON.stringify([...txMap]));
+	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
 }
 
 export function setContact(contact: Contact) {
-	const txMap = getContacts();
-	txMap.set(contact.label, contact);
-	localStorage.setItem('contacts', JSON.stringify([...txMap]));
+	const contactMap = getContacts();
+	contactMap.set(contact.label, contact);
+	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
 }
 
-export function removeContact(contact: Contact) {
-	const txString = localStorage.getItem('contacts');
-	const txMap: Map<string, Contact> = txString ? JSON.parse(txString) : [];
-	txMap.delete(contact.label);
-	localStorage.setItem('contacts', JSON.stringify(txMap));
+export function removeContact(label: string) {
+	const contactMap = getContacts();
+	contactMap.delete(label);
+	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
+}
+
+export function setAllContacts(contactMap: Map<string, Contact>) {
+	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
 }
 
 export async function getAllLastPaid(contact: Contact) {
-	const auth = get(authStore);
 	const results = await Promise.all(
-		contact.addresses.map((addr) => getLastPaidContact(auth, getDidFromUsername(addr.address)))
+		contact.addresses.map((addr) => getLastPaidContact(getDidFromUsername(addr.address)))
 	);
-	// console.log(results);
-	const moments = results.filter((item): item is Moment => item !== undefined);
+	const moments = results.filter((item): item is Moment => item !== 'Never');
+	if (moments.length === 0) {
+		return undefined;
+	}
 	return moment.max(moments);
 }
 

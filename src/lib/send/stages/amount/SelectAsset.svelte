@@ -3,7 +3,6 @@
 	import { type CoinOptionParam } from '$lib/send/sendUtils';
 	import { getUsernameFromDid } from '$lib/getAccountName';
 	import { authStore } from '$lib/auth/store';
-	import { vscTxsStore, waitForExtend } from '$lib/stores/txStores';
 	import { SendTxDetails } from '$lib/send/sendUtils';
 	import { type AssetObject } from '../components/CardSnippets.svelte';
 	import { untrack } from 'svelte';
@@ -29,7 +28,7 @@
 
 	const auth = $derived($authStore);
 	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
-	let tmpAssetVal: string | undefined = $state();
+	let tmpAssetVal: string | undefined = $state($SendTxDetails.toCoin?.coin.value);
 	const availableCoinOpts: CoinOptionParam[] = availableCoins
 		.map((coin) => coin.snippetData.fromOpt)
 		.filter((item): item is CoinOptionParam => item !== undefined);
@@ -46,11 +45,6 @@
 			}));
 		});
 	});
-
-	type coinData = {
-		coinOpt: CoinOptionParam;
-		date: string | undefined;
-	};
 
 	let tmpNetwork: Network | undefined = $state();
 	let tmpNetworkVal: string | undefined = $state();

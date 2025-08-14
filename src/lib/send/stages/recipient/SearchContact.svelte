@@ -12,6 +12,11 @@
 	import { authStore } from '$lib/auth/store';
 	import ComboBox from '$lib/zag/ComboBox.svelte';
 	import type { Snippet } from 'svelte';
+	import type { Contact } from '$lib/send/contacts/contacts';
+	import { AtSign } from '@lucide/svelte';
+
+	let { contact }: { contact?: Contact } = $props();
+
 	const auth = $derived($authStore);
 	let isValidHive = $state(false);
 	let recipientUsername: string | undefined = $state($SendTxDetails.toUsername);
@@ -56,6 +61,22 @@
 			}));
 		});
 	});
+	let contactAddresses = $derived(
+		contact?.addresses.map((addr, i) => ({
+			label: addr.label,
+			value: addr.address,
+			snippet: basicAccRow,
+			snippetData: {
+				address: addr,
+				required: i === 0
+			}
+		}))
+	);
+	$effect(() => {
+		if (contact?.addresses.length === 1) {
+			recipientUsername = contact.addresses[0].address;
+		}
+	});
 	function makePlaceholderContact(value: string): recipientSnippet {
 		return {
 			did: value,
@@ -91,18 +112,56 @@
 	<ContactInfo
 		did={contact.did}
 		name={contact.name}
-		accounts={[{ address: getUsernameFromDid(contact.did) }]}
+		accounts={[{ address: getUsernameFromDid(contact.did), label: 'Primary' }]}
 		lastPaid={contact.date ? `on ${moment(contact.date).format('MMM DD, YYYY')}` : 'Never'}
 		size="medium"
 		detailed={contact.date !== 'donotshow'}
 	/>
 {/snippet}
 
-<ComboBox
-	items={recipients}
-	bind:value={recipientUsername}
-	custom={true}
-	placeholder="Find a contact or paste wallet address"
-	createPlaceholder={makePlaceholderContact}
-	getSuggestions={getSuggestedHiveAccounts}
-/>
+{#snippet basicAccRow(params: { address: Contact['addresses'][number]; required?: boolean })}
+	<div class="basic-acc-row">
+		<span class="sm-caption"
+			>{params.address.label ??
+				`${params.required ? 'Primary' : 'Additional'} Address` +
+					(params.required ? ' *' : '')}</span
+		>
+		<span>{params.address.address}</span>
+	</div>
+{/snippet}
+
+{#if !contact}
+	<ComboBox
+		items={recipients}
+		bind:value={recipientUsername}
+		custom
+		placeholder="Find a contact or paste wallet address"
+		createPlaceholder={makePlaceholderContact}
+		getSuggestions={getSuggestedHiveAccounts}
+		preferValue
+		icon={AtSign}
+	/>
+{:else}
+	<ComboBox
+		items={contactAddresses ?? contact.addresses}
+		bind:value={recipientUsername}
+		placeholder="Select address from contact"
+		dropdown
+		preferValue
+		icon={AtSign}
+	/>
+{/if}
+
+<style lang="scss">
+	.basic-acc-row {
+		display: flex;
+		width: 100%;
+		gap: 1.5rem;
+		.sm-caption {
+			width: max(12ch, 25%);
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+		}
+	}
+</style>

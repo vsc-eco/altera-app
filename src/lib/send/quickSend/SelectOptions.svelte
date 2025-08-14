@@ -11,7 +11,6 @@
 	} from '../sendUtils';
 	import { authStore } from '$lib/auth/store';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
-	import SelectContact from '../stages/recipient/SelectContact.svelte';
 	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
@@ -22,6 +21,7 @@
 	import { untrack } from 'svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import SearchContact from '../stages/recipient/SearchContact.svelte';
+	import RecipientCard from '../stages/recipient/RecipientCard.svelte';
 
 	let {
 		id,
@@ -269,7 +269,7 @@
 	let lastPaid = $state('Never');
 	$effect(() => {
 		if (!auth.value) return;
-		getLastPaidContact(auth, toDid).then((paid) => (lastPaid = dateToLastPaidString(paid)));
+		getLastPaidContact(toDid).then((paid) => (lastPaid = dateToLastPaidString(paid)));
 	});
 	let contactOpen = $state(false);
 
@@ -290,16 +290,19 @@
 	);
 	// MEMO SECTION
 	let memo = $state('');
-</script>
 
-{#snippet selectContact()}
-	<SelectContact close={() => (contactOpen = false)} />
-{/snippet}
+	let warningMsg = $derived(
+		getDidFromUsername($SendTxDetails.toUsername).startsWith('hive:') && !isValidHive
+			? 'Warning: This hive account does not exist. Payment to this address may result in loss of funds.'
+			: undefined
+	);
+</script>
 
 <h2>Send</h2>
 <div class="section to">
 	<span class="sm-caption nogap">To</span>
 	<SearchContact />
+	<RecipientCard basic />
 	<!-- <div class="selected">
 			<input
 				id="send-recipient"

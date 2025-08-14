@@ -37,6 +37,10 @@
 				new CoinAmount(boundAmount ?? 0, currentCoin).toAmountString()
 	);
 
+	let showUsd = $derived(
+		!(connectedCoinAmount?.coin.value === coins.usd.value || coin?.coin.value === coins.usd.value)
+	);
+
 	$effect(() => {
 		if (connectedCoinAmount && coin) {
 			untrack(() => {
@@ -154,7 +158,7 @@
 		</span>
 	</label>
 	<div class="amount-input">
-		{#if !coin?.coin}
+		{#if !coin?.coin || coin.coin.value === coins.usd.value}
 			<DollarSign />
 		{:else}
 			<CoinNetworkIcon coin={coin?.coin ?? coins.usd} network={network ?? Network.unknown} />
@@ -200,14 +204,16 @@
 			{currentCoin.label}
 		</div>
 	</div>
-	<span class={['approx-usd', { hidden: !(coin && boundAmount) }]}>
-		Approx. USD value:
-		{#if coin?.coin.value != Coin.unk.value}
-			${inUsd}
-		{:else}
-			Unknown
-		{/if}
-	</span>
+	{#if showUsd}
+		<span class={['approx-usd', { hidden: !(coin && boundAmount) }]}>
+			Approx. USD value:
+			{#if coin?.coin.value != Coin.unk.value}
+				${inUsd}
+			{:else}
+				Unknown
+			{/if}
+		</span>
+	{/if}
 	{#if error != ''}
 		<span class="error">
 			{error}
@@ -218,6 +224,7 @@
 <style lang="scss">
 	.wrapper {
 		position: relative;
+		flex-grow: 1;
 	}
 	label {
 		position: absolute;
@@ -230,7 +237,6 @@
 		font-weight: 400;
 	}
 	.amount-input {
-		margin-right: 0.25rem;
 		border: 1px solid var(--neutral-bg-accent-shifted);
 		color: var(--neutral-fg);
 		border-radius: 0.5rem;

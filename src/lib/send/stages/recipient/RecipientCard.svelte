@@ -1,73 +1,110 @@
 <script lang="ts">
-	import Card from '$lib/cards/Card.svelte';
 	import { getDidFromUsername } from '$lib/getAccountName';
-	import { getContacts, searchContactsForAddress, type Contact } from '$lib/send/contacts/contacts';
+	import { type Contact } from '$lib/send/contacts/contacts';
 	import { getDisplayName, SendTxDetails } from '$lib/send/sendUtils';
-	import { CircleUser, MapPin } from '@lucide/svelte';
+	import { CircleUser, Plus } from '@lucide/svelte';
 	import ContactInfo from '../components/ContactInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import BasicCopy from '$lib/components/BasicCopy.svelte';
+	import WaveLoading from '$lib/components/WaveLoading.svelte';
+	import EditButton from '$lib/components/EditButton.svelte';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
+	import { untrack } from 'svelte';
 
-	let { contact, edit }: { contact?: Contact; edit?: () => void } = $props();
+	let {
+		basic = false,
+		contact,
+		edit
+	}: { basic?: boolean; contact?: Contact; edit?: (isOpen?: boolean) => void } = $props();
 
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 	let lastPaid = $state('Never');
 	let isValidHive = $state(false);
+	let loading = $state(false);
 	$effect(() => {
-		getDisplayName(toDid).then((displayName) => {
-			isValidHive = displayName !== null;
+		const newDid = toDid;
+		untrack(() => {
+			if ($SendTxDetails.toUsername === '') return;
+			if (!contact) loading = true;
+			getDisplayName(newDid).then((displayName) => {
+				isValidHive = displayName !== null;
+				loading = false;
+			});
 		});
 	});
 
 	let warningMsg = $derived(
-		getDidFromUsername($SendTxDetails.toUsername).startsWith('hive:') && !isValidHive
+		getDidFromUsername($SendTxDetails.toUsername).startsWith('hive:') && !isValidHive && !loading
 			? 'Warning: This hive account does not exist. Payment to this address may result in loss of funds.'
 			: undefined
 	);
+
+	const isPlaceholder = $derived(!(loading || $SendTxDetails.toUsername || contact));
 </script>
 
-<Card>
-	<div class="name-card">
-		{#if $SendTxDetails.toUsername}
-			<ContactInfo
-				did={toDid}
-				name={contact?.label ?? $SendTxDetails.toDisplayName}
-				icon={contact?.image}
-				accounts={contact ? contact?.addresses : [{ address: $SendTxDetails.toUsername }]}
-				showSelected
-				{lastPaid}
-				warning={warningMsg}
-				size="large"
-			/>
+<ClickableCard
+	onclick={() => {
+		if (edit) edit();
+	}}
+	disabled={basic}
+>
+	<div class={['name-card', { padded: !basic }]}>
+		{#if loading}
+			<span class={['loading', { large: !basic }]}>
+				<WaveLoading size={32} />
+			</span>
 		{:else if contact}
 			<ContactInfo
+				did={$SendTxDetails.toUsername !== '' ? toDid : undefined}
 				name={contact.label}
 				icon={contact.image}
 				accounts={contact.addresses}
 				lastPaid={contact.lastPaid}
 				size="large"
+				showSelected
+			/>
+		{:else if $SendTxDetails.toUsername}
+			<ContactInfo
+				did={toDid}
+				name={$SendTxDetails.toDisplayName}
+				accounts={[{ address: $SendTxDetails.toUsername, label: 'Primary' }]}
+				showSelected
+				{lastPaid}
+				warning={warningMsg}
+				size={basic ? 'medium' : 'large'}
 			/>
 		{:else}
 			<span class="user-icon-placeholder">
-				<CircleUser size="56" strokeWidth="4" absoluteStrokeWidth={true} />
+				{#if basic}
+					<CircleUser size="40" />
+				{:else}
+					<CircleUser size="56" strokeWidth="4" absoluteStrokeWidth={true} />
+				{/if}
 				Select a Recipient
 			</span>
 		{/if}
 		{#if edit}
 			<span class="more">
-				<PillButton onclick={edit} styleType="text-subtle"><span>Edit</span></PillButton>
+				{#if isPlaceholder}
+					<PillButton
+						onclick={(e) => {
+							e.stopPropagation();
+							edit(true);
+						}}
+					>
+						<Plus /> Add Contact
+					</PillButton>
+				{:else}
+					<EditButton
+						onclick={(e) => {
+							e.stopPropagation();
+							edit(true);
+						}}
+					/>
+				{/if}
 			</span>
 		{/if}
 	</div>
-	{#if $SendTxDetails.toUsername}
-		<div class="address">
-			<BasicCopy value={$SendTxDetails.toUsername} clickAnywhere>
-				<MapPin />
-				{$SendTxDetails.toUsername}
-			</BasicCopy>
-		</div>
-	{/if}
-</Card>
+</ClickableCard>
 
 <style lang="scss">
 	.user-icon-placeholder {
@@ -79,17 +116,19 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
-		padding: 0.5rem;
+		&.padded {
+			padding: 0.5rem;
+		}
 	}
 	.more {
 		margin-left: auto;
-		span {
-			color: var(--accent-fg-mid);
-			font-size: var(--text-sm);
-		}
 	}
-	.address {
-		padding: 0.5rem 0;
-		padding-left: 1.5rem;
+	.loading {
+		display: flex;
+		align-items: center;
+		height: 40px;
+		&.large {
+			height: 56px;
+		}
 	}
 </style>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
-	let { onclick }: { onclick: () => void } = $props();
+	import type { MouseEventHandler } from 'svelte/elements';
+	let { onclick }: { onclick: MouseEventHandler<HTMLButtonElement> } = $props();
 </script>
 
 <PillButton {onclick} styleType="text-subtle">

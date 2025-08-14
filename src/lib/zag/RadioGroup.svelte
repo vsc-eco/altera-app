@@ -35,7 +35,6 @@
 	const options = items.map((item) =>
 		'id' in item ? item : { ...item, id: item.value ?? item.label }
 	);
-	console.log(options, propDefault, value);
 	const service = useMachine(radio.machine, {
 		id: id ?? generatedId,
 		name,

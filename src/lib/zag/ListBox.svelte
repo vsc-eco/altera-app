@@ -60,6 +60,9 @@
 		get collection() {
 			return collection;
 		},
+		get value() {
+			return value ? [value] : [];
+		},
 		onValueChange(details) {
 			value = details.value[0];
 		}
@@ -116,7 +119,12 @@
 								<ChevronRight />
 							</PillButton>
 						{:else}
-							<EditButton onclick={editFunc} />
+							<EditButton
+								onclick={(e) => {
+									e.stopPropagation();
+									editFunc();
+								}}
+							/>
 						{/if}
 					{:else if showSelected}
 						<span {...api.getItemIndicatorProps({ item })}><Check size="16" /></span>

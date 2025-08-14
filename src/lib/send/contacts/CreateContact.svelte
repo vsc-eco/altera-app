@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { CircleUser, Plus, Trash2, X } from '@lucide/svelte';
 	import { dateToLastPaidString, validateAddress } from '../sendUtils';
-	import { addContact, getAllLastPaid, setContact, type Contact } from './contacts';
+	import { addContact, getAllLastPaid, removeContact, setContact, type Contact } from './contacts';
 	import PillButton from '$lib/PillButton.svelte';
 	import ComboBox from '$lib/zag/ComboBox.svelte';
 	import { DHive } from '$lib/vscTransactions/dhive';
 	import { untrack } from 'svelte';
 	import { getProfilePicUrl } from '$lib/auth/hive/getProfilePicUrl';
 	import { getDidFromUsername } from '$lib/getAccountName';
-	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import Editable from '$lib/zag/Editable.svelte';
 
 	let { initial, close }: { initial?: Contact; close: () => void } = $props();
@@ -16,7 +15,7 @@
 	let contact: Contact = $state(
 		initial ?? {
 			label: '',
-			addresses: [{ name: 'Primary Address', address: '' }],
+			addresses: [{ label: 'Primary Address', address: '' }],
 			image: ''
 		}
 	);
@@ -143,7 +142,7 @@
 
 			contact = {
 				label: '',
-				addresses: [{ address: '' }]
+				addresses: [{ address: '', label: '' }]
 			};
 			errors = {};
 
@@ -157,8 +156,12 @@
 		}
 	}
 
-	function getAddressLabel(i: number) {
-		return `${i === 0 ? 'Primary' : 'Additional'} Address`;
+	function handleDelete() {
+		console.log(initial);
+		if (initial) {
+			removeContact(initial.label);
+			close();
+		}
 	}
 </script>
 
@@ -166,7 +169,6 @@
 	<div class="label-wrapper">
 		<Editable
 			bind:value={addresses[index].label}
-			defaultValue={getAddressLabel(index)}
 			alwaysShow={index === 0 ? ' *' : undefined}
 			maxLength={20}
 		/>
@@ -195,6 +197,11 @@
 			disabled={isSubmitting}
 			autocomplete="off"
 		/>
+	</div>
+	<div class="divider">
+		<hr />
+		<span class="sm-caption">Addresses</span>
+		<hr />
 	</div>
 	<ul class="form-group addresses">
 		{#each contact.addresses as address, index (address.address + index)}
@@ -262,7 +269,12 @@
 			</BasicCopy>
 		</div>
 	</div> -->
-	<div class="save-button">
+	<div class="buttons">
+		{#if initial}
+			<PillButton onclick={handleDelete} theme="secondary" disabled={isSubmitting}>
+				<Trash2 /> Delete
+			</PillButton>
+		{/if}
 		<PillButton onclick={handleSubmit} styleType="invert" theme="accent" disabled={isSubmitting}>
 			Save
 		</PillButton>
@@ -270,8 +282,15 @@
 </form>
 
 <style lang="scss">
-	.form-group.addresses {
-		margin-top: 1rem;
+	.divider {
+		margin-top: 1.5rem;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		hr {
+			width: 100%;
+			border-color: var(--neutral-bg-accent-shifted);
+		}
 	}
 	// .form-group.image-group {
 	// 	margin-top: 1rem;
@@ -318,10 +337,11 @@
 		grid-template-columns: 1fr;
 		gap: 0.5rem;
 	}
-	.save-button {
+	.buttons {
 		position: absolute;
 		bottom: 1.5rem;
 		right: 1.5rem;
+		display: inline-flex;
 	}
 	.label-wrapper {
 		display: flex;

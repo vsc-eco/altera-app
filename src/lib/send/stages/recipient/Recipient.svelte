@@ -22,6 +22,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import RecipientCard from './RecipientCard.svelte';
 	import { type Contact } from '$lib/send/contacts/contacts';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 
 	let {
 		id,
@@ -80,18 +81,26 @@
 	$effect(() => {
 		if (!auth.value) return;
 		Promise.all([
-			getLastPaidContact(auth, toDid),
-			getLastPaidNetwork(auth, $SendTxDetails.toNetwork?.value)
+			getLastPaidContact(toDid),
+			getLastPaidNetwork($SendTxDetails.toNetwork?.value)
 		]).then(([paid, net]) => {
 			lastPaid = dateToLastPaidString(paid);
 			lastNetwork = dateToLastPaidString(net);
 		});
 	});
+
+	function openContact(create = false) {
+		openToCreate = create;
+		toggleContact(true);
+	}
+
 	let contactOpen = $state(false);
 	let networkOpen = $state(false);
 	let toggleNetwork = $state<(open?: boolean) => void>(() => {});
 	let toggleContact = $state<(open?: boolean) => void>(() => {});
 	let contact = $state<Contact>();
+	let openToCreate = $state(false);
+	$inspect(openToCreate);
 </script>
 
 {#snippet methodDetails(info: MethodOptionParam)}
@@ -104,8 +113,8 @@
 
 <h2>Recipient</h2>
 <div class="contact-search">
-	<SearchContact />
-	<RecipientCard edit={toggleContact} {contact} />
+	<RecipientCard edit={openContact} {contact} />
+	<SearchContact {contact} />
 </div>
 
 <h3>Payment Method</h3>
@@ -119,7 +128,7 @@
 </div>
 
 <h3>Recipient Network</h3>
-<Card>
+<ClickableCard onclick={() => toggleNetwork(true)}>
 	<div class="network-card">
 		{#if $SendTxDetails.toNetwork}
 			<NetworkInfo network={$SendTxDetails.toNetwork} lastPaid={lastNetwork} size="large" />
@@ -128,23 +137,21 @@
 		{/if}
 		{#if getRecipientNetworks(toDid).length > 1}
 			<span class="more">
-				<PillButton onclick={() => toggleNetwork(true)} styleType="text-subtle">
-					<span>Edit</span>
-				</PillButton>
+				<span>Edit</span>
 			</span>
 		{/if}
 	</div>
-</Card>
+</ClickableCard>
 
 <Dialog bind:open={networkOpen} bind:toggle={toggleNetwork}>
 	{#snippet content()}
-		<SelectNetwork />
+		<SelectNetwork close={toggleNetwork} />
 	{/snippet}
 </Dialog>
 
 <Dialog bind:open={contactOpen} bind:toggle={toggleContact}>
 	{#snippet content()}
-		<SelectContact bind:selectedContact={contact} />
+		<SelectContact bind:selectedContact={contact} editing={openToCreate} close={toggleContact} />
 	{/snippet}
 </Dialog>
 
@@ -153,6 +160,9 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
+		padding: 1.5rem;
+		background-color: var(--neutral-bg-accent);
+		border-radius: 1rem;
 		:global(input) {
 			background-color: var(--neutral-bg);
 		}

@@ -11,9 +11,9 @@
 	} from '$lib/send/sendUtils';
 	import { get } from 'svelte/store';
 	import NetworkInfo from './NetworkInfo.svelte';
-	import { getAuth } from '$lib/auth/store';
 	import { type Contact } from '$lib/send/contacts/contacts';
 	import ContactInfo from './ContactInfo.svelte';
+	import { getDidFromUsername } from '$lib/getAccountName';
 
 	export interface AssetObject extends Coin {
 		snippetData: { fromOpt: CoinOptionParam | undefined; net?: Network };
@@ -57,9 +57,7 @@
 {/snippet}
 
 {#snippet networkCardSnippet(net: NetworkOptionParam)}
-	{@const auth = getAuth()()}
-
-	{#await getLastPaidNetwork(auth, net.value)}
+	{#await getLastPaidNetwork(net.value)}
 		<NetworkInfo network={net} disabledMemo={net.disabledMemo} />
 	{:then lastPaidMoment}
 		{@const lastPaid = dateToLastPaidString(lastPaidMoment)}
@@ -69,10 +67,11 @@
 
 {#snippet contactCardSnippet(params: { contact: Contact; size?: 'small' | 'medium' | 'large' })}
 	<ContactInfo
-		did={params.contact.addresses[0].address}
+		did={getDidFromUsername(params.contact.addresses[0].address)}
 		name={params.contact.label}
 		accounts={params.contact.addresses}
 		lastPaid={params.contact.lastPaid ?? 'Never'}
 		size={params.size}
+		icon={params.contact.image}
 	/>
 {/snippet}

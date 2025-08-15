@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import { type Contact } from '$lib/send/contacts/contacts';
-	import { getDisplayName, SendTxDetails } from '$lib/send/sendUtils';
+	import { SendTxDetails, validateAddress } from '$lib/send/sendUtils';
 	import { CircleUser, Plus } from '@lucide/svelte';
 	import ContactInfo from '../components/ContactInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -18,23 +18,32 @@
 
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 	let lastPaid = $state('Never');
-	let isValidHive = $state(false);
+	let isValid = $state(false);
 	let loading = $state(false);
 	$effect(() => {
-		const newDid = toDid;
+		const addr = $SendTxDetails.toUsername;
 		untrack(() => {
-			if ($SendTxDetails.toUsername === '') return;
+			if (!addr) return;
 			if (!contact) loading = true;
-			getDisplayName(newDid).then((displayName) => {
-				isValidHive = displayName !== null;
+			validateAddress(addr).then((result) => {
+				isValid = result.success;
+				if (result.success) {
+					const newDisplayName = result.displayName ?? addr;
+					if ($SendTxDetails.toDisplayName !== newDisplayName)
+						$SendTxDetails.toDisplayName = newDisplayName;
+				} else {
+					if ($SendTxDetails.toDisplayName !== addr) $SendTxDetails.toDisplayName = addr;
+					warningBody = result.error;
+				}
 				loading = false;
 			});
 		});
 	});
 
+	let warningBody = $state('');
 	let warningMsg = $derived(
-		getDidFromUsername($SendTxDetails.toUsername).startsWith('hive:') && !isValidHive && !loading
-			? 'Warning: This hive account does not exist. Payment to this address may result in loss of funds.'
+		!isValid && !loading
+			? `Warning: ${warningBody}. Payment to this address may result in loss of funds.`
 			: undefined
 	);
 

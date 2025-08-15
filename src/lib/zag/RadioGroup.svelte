@@ -40,6 +40,9 @@
 		name,
 		orientation: 'horizontal',
 		defaultValue: propDefault,
+		get value() {
+			return value;
+		},
 		onValueChange(details) {
 			if (details.value) {
 				value = details.value;
@@ -49,23 +52,8 @@
 	const api = $derived(radio.connect(service, normalizeProps));
 	$effect(() => {
 		if (enabled.length === 1 && required) {
-			api.setValue(enabled[0].value);
+			value = enabled[0].value;
 		}
-	});
-	let isNew = true;
-	$effect(() => {
-		const val = value;
-		untrack(() => {
-			if (!val) {
-				if (!isNew) {
-					api.clearValue();
-					return;
-				}
-			} else if (items.find((item) => item.value === val)?.disabled === true || val !== api.value) {
-				api.setValue(val);
-			}
-		});
-		isNew = false;
 	});
 </script>
 

@@ -39,10 +39,7 @@
 			tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === newVal);
 			if (!tmpAsset) return;
 			if ($SendTxDetails.toCoin?.coin.value === tmpAsset.coin.value) return;
-			SendTxDetails.update((current) => ({
-				...current,
-				toCoin: tmpAsset
-			}));
+			$SendTxDetails.toCoin = tmpAsset;
 		});
 	});
 
@@ -63,19 +60,9 @@
 			tmpNetwork = allNetworks.find((net) => net.value === newVal);
 			if (!tmpNetwork) return;
 			if ($SendTxDetails.fromNetwork?.value === tmpNetwork?.value) return;
-			SendTxDetails.update((current) => ({
-				...current,
-				fromNetwork: tmpNetwork
-			}));
+			$SendTxDetails.fromNetwork = tmpNetwork;
 		});
 	});
-
-	function clearFromNetwork() {
-		SendTxDetails.update((current) => ({
-			...current,
-			fromNetwork: undefined
-		}));
-	}
 
 	let detailsOpen = $state<AssetObject['snippetData']>();
 </script>
@@ -122,7 +109,10 @@
 					<img src={$SendTxDetails.fromNetwork.icon} alt={$SendTxDetails.fromNetwork.label} />
 					{$SendTxDetails.fromNetwork.label}
 					<span class="clear-button">
-						<PillButton onclick={clearFromNetwork} styleType="text-subtle">
+						<PillButton
+							onclick={() => ($SendTxDetails.fromNetwork = undefined)}
+							styleType="text-subtle"
+						>
 							<span class="clear-button-text">
 								<Delete size="16" />
 								Clear

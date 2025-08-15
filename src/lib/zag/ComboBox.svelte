@@ -2,7 +2,7 @@
 	import { ChevronDown, ChevronUp, Search } from '@lucide/svelte';
 	import * as combobox from '@zag-js/combobox';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import { type Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import { getUniqueId } from './idgen';
 	import type { FocusEventHandler } from 'svelte/elements';
 	import type { ImgIconOption } from '$lib/components/ImageIconRenderer.svelte';
@@ -47,8 +47,9 @@
 		}
 		const filtered = items.filter(
 			(item) =>
-				item.label.toLowerCase().includes(val.toLowerCase()) ||
-				item.value?.toLowerCase().includes(val.toLowerCase())
+				item.addresses === undefined &&
+				(item.label.toLowerCase().includes(val.toLowerCase()) ||
+					item.value?.toLowerCase().includes(val.toLowerCase()))
 		);
 		if (custom) {
 			const currentlyInput = createPlaceholder
@@ -84,15 +85,16 @@
 	function onDefocus() {
 		if (custom) {
 			const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
-			value = val;
+			if (value !== val) value = val;
 		}
 	}
 
-	function toPreferredString(item: Option) {
+	function toPreferredString(item: Option | undefined) {
+		if (!item) return undefined;
 		if (preferValue) {
 			return item.value ?? item.label;
 		} else {
-			item.label;
+			return item.label;
 		}
 	}
 
@@ -104,7 +106,7 @@
 		})
 	);
 
-	$inspect(value, inputValue);
+	// $inspect(value, inputValue);
 
 	const service = useMachine(combobox.machine, {
 		id: getUniqueId(),
@@ -115,11 +117,10 @@
 			return value ? [value] : [];
 		},
 		get inputValue() {
-			return inputValue;
-			// if (inputValue) return inputValue;
-			// const entry = items.find((item) => item.value ?? item.label === value);
-			// if (entry) return toPreferredString(entry);
-			// return value;
+			if (inputValue !== undefined) return inputValue;
+			const entry = items.find((item) => value && (item.value ?? item.label) === value);
+			if (entry) return toPreferredString(entry);
+			return value;
 		},
 		onOpenChange(details) {
 			if (details.open) onParamChange(inputValue ?? '');
@@ -129,7 +130,7 @@
 			onParamChange(val);
 		},
 		onValueChange(details) {
-			value = details.value[0];
+			if (value !== details.value[0]) value = details.value[0];
 		},
 		onFocusOutside: onDefocus,
 		onPointerDownOutside: onDefocus,
@@ -147,8 +148,8 @@
 
 	const api = $derived(combobox.connect(service, normalizeProps));
 	$effect(() => {
-		if (options.find((opt) => opt.value === api.value[0])?.disabled) {
-			api.clearValue();
+		if (value && options.find((opt) => opt.value === value)?.disabled) {
+			value = undefined;
 		}
 	});
 	function handleKeyDown(event: KeyboardEvent) {

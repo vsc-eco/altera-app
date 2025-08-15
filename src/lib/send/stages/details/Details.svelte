@@ -11,10 +11,7 @@
 		bind:value={memo}
 		maxlength="300"
 		onchange={() => {
-			SendTxDetails.update((current) => ({
-				...current,
-				memo: memo
-			}));
+			$SendTxDetails.memo = memo;
 		}}
 	/>
 	<span>Custom message to the recipient.</span>

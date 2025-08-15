@@ -73,10 +73,7 @@
 				$SendTxDetails.fromNetwork?.value === Network.vsc.value &&
 				networkOptions.find((net) => net.value === Network.hiveMainnet.value)?.disabled === false
 			) {
-				SendTxDetails.update((current) => ({
-					...current,
-					fromNetwork: Network.hiveMainnet
-				}));
+				$SendTxDetails.fromNetwork = Network.hiveMainnet;
 			}
 		});
 		lastFromCoin = newFromCoin;
@@ -94,13 +91,10 @@
 	// default to USD if swap
 	$effect(() => {
 		if (isSwap && !$SendTxDetails.toCoin) {
-			SendTxDetails.update((current) => ({
-				...current,
-				toCoin: {
-					coin: coins.usd,
-					networks: []
-				}
-			}));
+			$SendTxDetails.toCoin = {
+				coin: coins.usd,
+				networks: []
+			};
 		}
 	});
 
@@ -180,6 +174,7 @@
 					(coin) => coin.coin.value === fromCoinValue
 				);
 				if (!fromCoinOpt) return;
+				$SendTxDetails.fromCoin = fromCoinOpt;
 				if ($SendTxDetails.toCoin) {
 					Promise.all([
 						new CoinAmount(toAmount, $SendTxDetails.toCoin!.coin).convertTo(
@@ -188,26 +183,14 @@
 						),
 						getFee(toAmount)
 					]).then(([amount, fee]) => {
-						SendTxDetails.update((current) => ({
-							...current,
-							fromCoin: fromCoinOpt,
-							fromAmount: amount.toAmountString(),
-							fee: fee
-						}));
+						$SendTxDetails.fromAmount = amount.toAmountString();
+						$SendTxDetails.fee = fee;
 					});
-				} else {
-					SendTxDetails.update((current) => ({
-						...current,
-						fromCoin: fromCoinOpt
-					}));
 				}
 			}
 		} else if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
-			SendTxDetails.update((current) => ({
-				...current,
-				fromCoin: current.toCoin,
-				fromAmount: current.toAmount
-			}));
+			$SendTxDetails.fromCoin = $SendTxDetails.toCoin;
+			$SendTxDetails.fromAmount = $SendTxDetails.toAmount;
 		}
 	});
 
@@ -245,21 +228,14 @@
 							),
 							getFee(toAmount)
 						]).then(([amount, fee]) => {
-							SendTxDetails.update((current) => ({
-								...current,
-								toAmount: toAmount,
-								fromAmount: amount.toAmountString(),
-								fee: fee
-							}));
+							$SendTxDetails.toAmount = toAmount;
+							$SendTxDetails.fromAmount = amount.toAmountString();
+							$SendTxDetails.fee = fee;
 						});
 						return;
 					}
 				}
-				SendTxDetails.update((current) => ({
-					...current,
-					fromAmount: toAmount,
-					toAmount: toAmount
-				}));
+				$SendTxDetails.fromAmount = $SendTxDetails.toAmount = toAmount;
 			});
 		}
 	});
@@ -318,10 +294,7 @@
 		styleType="dropdown"
 		placeholder="Recipient Network"
 		onValueChange={(v) => {
-			SendTxDetails.update((current) => ({
-				...current,
-				toNetwork: Object.values(Network).find((net) => net.value === v.value[0])
-			}));
+			$SendTxDetails.toNetwork = Object.values(Network).find((net) => net.value === v.value[0]);
 		}}
 	/>
 </div>
@@ -333,10 +306,7 @@
 		styleType="dropdown"
 		placeholder="Token"
 		onValueChange={(v) => {
-			SendTxDetails.update((current) => ({
-				...current,
-				toCoin: swapOptions.from.coins.find((val) => val.coin.value === v.value[0])
-			}));
+			$SendTxDetails.toCoin = swapOptions.from.coins.find((val) => val.coin.value === v.value[0]);
 		}}
 	/>
 
@@ -359,10 +329,7 @@
 			placeholder="On Network"
 			initial={$SendTxDetails.fromNetwork?.value}
 			onValueChange={(v) => {
-				SendTxDetails.update((current) => ({
-					...current,
-					fromNetwork: Object.values(Network).find((net) => net.value === v.value[0])
-				}));
+				$SendTxDetails.fromNetwork = Object.values(Network).find((net) => net.value === v.value[0]);
 			}}
 		/>
 
@@ -398,10 +365,7 @@
 		bind:value={memo}
 		maxlength="300"
 		onchange={() => {
-			SendTxDetails.update((current) => ({
-				...current,
-				memo: memo
-			}));
+			$SendTxDetails.memo = memo;
 		}}
 	/>
 </div>

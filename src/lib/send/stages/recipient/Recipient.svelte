@@ -3,7 +3,7 @@
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import { Landmark } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
-	import { untrack, type Snippet } from 'svelte';
+	import { onMount, untrack, type Snippet } from 'svelte';
 	import {
 		dateToLastPaidString,
 		getLastPaidContact,
@@ -21,7 +21,14 @@
 	import SelectContact from '$lib/send/contacts/SelectContact.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import RecipientCard from './RecipientCard.svelte';
-	import { type Contact } from '$lib/send/contacts/contacts';
+	import {
+		compareContacts,
+		getAllLastPaid,
+		getContacts,
+		processMap,
+		setAllContacts,
+		type Contact
+	} from '$lib/send/contacts/contacts';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 
 	let {
@@ -33,6 +40,39 @@
 	} = $props();
 
 	const auth = $authStore;
+
+	$effect(() => {
+		const auth = $authStore;
+		untrack(() => {
+			const contacts = getContacts();
+			processMap<string, Contact, Contact>(contacts, async (contact) => {
+				const lastPaidMoment = await getAllLastPaid(contact);
+				const lastPaidString = dateToLastPaidString(lastPaidMoment);
+				return {
+					...contact,
+					lastPaid: lastPaidString
+				};
+			}).then((res) => {
+				const unwrapped = new Map<string, Contact>();
+				for (const [key, settled] of res) {
+					if (settled.status === 'fulfilled') {
+						const oldContact = contacts.get(key);
+						if (compareContacts(oldContact!, settled.value) < 1) {
+							unwrapped.set(key, oldContact!);
+						} else {
+							unwrapped.set(key, settled.value);
+						}
+					} else {
+						const oldContact = contacts.get(key);
+						if (oldContact) {
+							unwrapped.set(key, oldContact);
+						}
+					}
+				}
+				setAllContacts(unwrapped);
+			});
+		});
+	});
 
 	$effect(() => {
 		if ($SendTxDetails.method && $SendTxDetails.toUsername && $SendTxDetails.toNetwork) {
@@ -64,15 +104,11 @@
 	$effect(() => {
 		const newMethod = transferMethods.find((mthd) => mthd.value === method);
 		untrack(() => {
-			SendTxDetails.update((current) => ({
-				...current,
-				fromNetwork: undefined,
-				fromCoin: undefined,
-				fromAmount: '0',
-				toCoin: undefined,
-				account: undefined,
-				method: newMethod
-			}));
+			$SendTxDetails.fromNetwork = undefined;
+			$SendTxDetails.fromCoin = $SendTxDetails.toCoin = undefined;
+			$SendTxDetails.account = undefined;
+			$SendTxDetails.fromAmount = '0';
+			$SendTxDetails.method = newMethod;
 		});
 	});
 
@@ -99,8 +135,19 @@
 	let toggleNetwork = $state<(open?: boolean) => void>(() => {});
 	let toggleContact = $state<(open?: boolean) => void>(() => {});
 	let contact = $state<Contact>();
+	let createNew: string | undefined = $derived(
+		!contact && $SendTxDetails.toUsername ? $SendTxDetails.toUsername : undefined
+	);
 	let openToCreate = $state(false);
-	$inspect(openToCreate);
+
+	$effect(() => {
+		const _ = contact;
+		untrack(() => {
+			if (contact === undefined) {
+				$SendTxDetails.toUsername = '';
+			}
+		});
+	});
 </script>
 
 {#snippet methodDetails(info: MethodOptionParam)}
@@ -151,7 +198,12 @@
 
 <Dialog bind:open={contactOpen} bind:toggle={toggleContact}>
 	{#snippet content()}
-		<SelectContact bind:selectedContact={contact} editing={openToCreate} close={toggleContact} />
+		<SelectContact
+			bind:selectedContact={contact}
+			editing={openToCreate}
+			close={toggleContact}
+			{createNew}
+		/>
 	{/snippet}
 </Dialog>
 

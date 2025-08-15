@@ -157,7 +157,6 @@
 	}
 
 	function handleDelete() {
-		console.log(initial);
 		if (initial) {
 			removeContact(initial.label);
 			close();

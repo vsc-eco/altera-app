@@ -1,7 +1,9 @@
 import moment, { type Moment } from 'moment';
 import { getLastPaidContact } from '../sendUtils';
 import { getDidFromUsername } from '$lib/getAccountName';
+import { writable } from 'svelte/store';
 
+export const contactsVersion = writable(0);
 export type Contact = {
 	// name, but label field required by many components
 	label: string;
@@ -43,22 +45,26 @@ export function addContact(contact: Contact) {
 		contactMap.set(contact.label, contact);
 	}
 	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
+	contactsVersion.update((n) => n + 1);
 }
 
 export function setContact(contact: Contact) {
 	const contactMap = getContacts();
 	contactMap.set(contact.label, contact);
 	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
+	contactsVersion.update((n) => n + 1);
 }
 
 export function removeContact(label: string) {
 	const contactMap = getContacts();
 	contactMap.delete(label);
 	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
+	contactsVersion.update((n) => n + 1);
 }
 
 export function setAllContacts(contactMap: Map<string, Contact>) {
 	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
+	contactsVersion.update((n) => n + 1);
 }
 
 export async function getAllLastPaid(contact: Contact) {
@@ -72,7 +78,7 @@ export async function getAllLastPaid(contact: Contact) {
 	return moment.max(moments);
 }
 
-export function searchForContacts(contacts: Map<string, Contact>, substring: string) {
+export function searchForContacts(contacts: Map<string, Contact> | Contact[], substring: string) {
 	return [...contacts.values()].filter(
 		(contact) =>
 			contact.label.includes(substring) ||
@@ -92,4 +98,27 @@ export function searchContactsForAddress(
 	for (const contact of contacts.values()) {
 		if (contact?.addresses.some((addr) => addr.address === address)) return contact;
 	}
+}
+
+export function compareContacts(a: Contact, b: Contact) {
+	const aIsNever = a.lastPaid === 'Never' || a.lastPaid === undefined;
+	const bIsNever = b.lastPaid === 'Never' || b.lastPaid === undefined;
+
+	if (aIsNever && bIsNever) return a.label.toLowerCase().localeCompare(b.label.toLowerCase());
+	if (aIsNever) return 1;
+	if (bIsNever) return -1;
+	return a.lastPaid!.localeCompare(b.lastPaid!);
+}
+
+export async function processMap<K, V, R>(
+	inputMap: Map<K, V>,
+	fn: (value: V, key: K) => Promise<R>
+): Promise<Map<K, PromiseSettledResult<R>>> {
+	// Convert Map to array of [key, Promise] pairs
+	const entries = Array.from(inputMap.entries()).map(
+		([key, value]) => [key, fn(value, key)] as const
+	);
+	const results = await Promise.allSettled(entries.map(([_, promise]) => promise));
+	// Rebuild Map with original keys and corresponding settled results
+	return new Map(entries.map(([key], i) => [key, results[i]]));
 }

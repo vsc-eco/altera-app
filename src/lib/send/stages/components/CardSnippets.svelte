@@ -21,6 +21,11 @@
 		disabled?: boolean;
 		disabledMemo?: string;
 	}
+	export interface ContactObj extends Contact {
+		snippet: typeof contactCardSnippet;
+		snippetData: typeof contactCardSnippet.arguments;
+		edit?: (contact: Contact) => void;
+	}
 	export {
 		assetCardSnippet as assetCard,
 		accountCardSnippet as accountCard,

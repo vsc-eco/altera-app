@@ -2,7 +2,13 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import ListBox from '$lib/zag/ListBox.svelte';
 	import { ArrowLeft, Delete, Plus } from '@lucide/svelte';
-	import { getAllLastPaid, getContacts, setAllContacts, type Contact } from './contacts';
+	import {
+		contactsVersion,
+		getAllLastPaid,
+		getContacts,
+		setAllContacts,
+		type Contact
+	} from './contacts';
 	import CreateContact from './CreateContact.svelte';
 	import { contactCard } from '../stages/components/CardSnippets.svelte';
 	import { onMount, untrack } from 'svelte';
@@ -11,51 +17,36 @@
 	let {
 		selectedContact = $bindable(),
 		editing = false,
+		createNew,
 		close
-	}: { selectedContact: Contact | undefined; close: () => void; editing?: boolean } = $props();
+	}: {
+		selectedContact: Contact | undefined;
+		close: () => void;
+		editing?: boolean;
+		createNew?: string;
+	} = $props();
 
 	let contacts = $state(getContacts());
-	let addOpen = $state(editing);
-	let currentlyOpen: Contact | undefined = $state(editing ? selectedContact : undefined);
-	let selectedVal: string | undefined = $state(selectedContact?.label);
-
-	async function processMap<K, V, R>(
-		inputMap: Map<K, V>,
-		fn: (value: V, key: K) => Promise<R>
-	): Promise<Map<K, PromiseSettledResult<R>>> {
-		// Convert Map to array of [key, Promise] pairs
-		const entries = Array.from(inputMap.entries()).map(
-			([key, value]) => [key, fn(value, key)] as const
-		);
-		const results = await Promise.allSettled(entries.map(([_, promise]) => promise));
-		// Rebuild Map with original keys and corresponding settled results
-		return new Map(entries.map(([key], i) => [key, results[i]]));
-	}
-
-	onMount(() => {
-		processMap<string, Contact, Contact>(contacts, async (contact) => {
-			const lastPaidMoment = await getAllLastPaid(contact);
-			const lastPaidString = dateToLastPaidString(lastPaidMoment);
-			return {
-				...contact,
-				lastPaid: lastPaidString
-			};
-		}).then((res) => {
-			const unwrapped = new Map<string, Contact>();
-			for (const [key, settled] of res) {
-				if (settled.status === 'fulfilled') {
-					unwrapped.set(key, settled.value);
-				} else {
-					const oldContact = contacts.get(key);
-					if (oldContact) {
-						unwrapped.set(key, oldContact);
-					}
-				}
-			}
-			contacts = unwrapped;
-			setAllContacts(unwrapped);
-		});
+	contactsVersion.subscribe((n) => {
+		contacts = getContacts();
 	});
+	let addOpen = $state(editing);
+	let currentlyOpen: Contact | undefined = $state(
+		editing
+			? !selectedContact && createNew
+				? {
+						label: '',
+						addresses: [
+							{
+								label: 'Primary Address',
+								address: createNew
+							}
+						]
+					}
+				: selectedContact
+			: undefined
+	);
+	let selectedVal: string | undefined = $state(selectedContact?.label);
 
 	interface ContactObj extends Contact {
 		snippet: typeof contactCard;
@@ -103,8 +94,6 @@
 			selectedContact = undefined;
 		});
 	});
-
-	$inspect(selectedContact);
 </script>
 
 <div class="dialog-content">

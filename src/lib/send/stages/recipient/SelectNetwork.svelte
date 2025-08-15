@@ -26,10 +26,7 @@
 		tmpNetwork = availableNetworks.find((net) => net.value === val);
 		if (!tmpNetwork) return;
 		if ($SendTxDetails.toNetwork?.value === tmpNetwork?.value) return;
-		SendTxDetails.update((current) => ({
-			...current,
-			toNetwork: tmpNetwork
-		}));
+		$SendTxDetails.toNetwork = tmpNetwork;
 	}
 
 	$effect(() => {

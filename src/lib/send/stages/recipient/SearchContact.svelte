@@ -1,64 +1,56 @@
 <script lang="ts">
-	import {
-		getDisplayName,
-		getRecentContacts,
-		SendTxDetails,
-		type recipientData
-	} from '../../sendUtils';
-	import { getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
+	import { getRecentContacts, SendTxDetails, type recipientData } from '../../sendUtils';
+	import { getUsernameFromDid } from '$lib/getAccountName';
 	import { DHive } from '$lib/vscTransactions/dhive';
 	import ContactInfo from '../components/ContactInfo.svelte';
 	import moment from 'moment';
 	import { authStore } from '$lib/auth/store';
 	import ComboBox from '$lib/zag/ComboBox.svelte';
-	import type { Snippet } from 'svelte';
-	import type { Contact } from '$lib/send/contacts/contacts';
+	import { type Snippet } from 'svelte';
+	import {
+		compareContacts,
+		getContacts,
+		searchContactsForAddress,
+		type Contact
+	} from '$lib/send/contacts/contacts';
 	import { AtSign } from '@lucide/svelte';
+	import { contactCard, type ContactObj } from '../components/CardSnippets.svelte';
 
 	let { contact }: { contact?: Contact } = $props();
 
 	const auth = $derived($authStore);
-	let isValidHive = $state(false);
-	let recipientUsername: string | undefined = $state($SendTxDetails.toUsername);
-
-	function setUsername(username: string) {
-		getDisplayName(getDidFromUsername(username)).then((displayName) => {
-			isValidHive = displayName !== null;
-			SendTxDetails.update((current) => ({
-				...current,
-				// this should be a username not a did, but might be did so this clears that up
-				toUsername: getUsernameFromDid(username),
-				toDisplayName: displayName ?? username
-			}));
-		});
-	}
-	$effect(() => {
-		if (recipientUsername !== $SendTxDetails.toUsername) {
-			getDisplayName(getDidFromUsername($SendTxDetails.toUsername)).then(
-				(displayName) => (isValidHive = displayName !== null)
-			);
-		}
-	});
-	$effect(() => {
-		if (recipientUsername !== undefined) {
-			setUsername(recipientUsername);
-		}
-	});
 
 	interface recipientSnippet extends recipientData {
 		label: string;
 		value: string;
-		snippet: (contact: recipientData) => ReturnType<Snippet>;
+		snippet:
+			| ((contact: recipientData) => ReturnType<Snippet>)
+			| ((contact: Contact) => ReturnType<Snippet>);
 	}
-	let recipients: recipientSnippet[] = $state([]);
+	let recipients: (recipientSnippet | ContactObj)[] = $state([]);
 	$effect(() => {
-		getRecentContacts(auth).then((res) => {
-			recipients = res.map((contact) => ({
+		getRecentContacts(auth).then((recents) => {
+			const contacts = getContacts();
+			const noDuplicateRecents = recents.filter(
+				(recent) => !searchContactsForAddress(contacts, getUsernameFromDid(recent.did))
+			);
+			const recentObjs = noDuplicateRecents.map((contact) => ({
 				...contact,
 				label: contact.name,
 				value: getUsernameFromDid(contact.did),
-				snippet: contactCard
+				snippet: contactRecentCard
 			}));
+			const contactsObjs = [...contacts.values()]
+				.map((contact) => ({
+					...contact,
+					snippet: contactCard,
+					snippetData: {
+						contact: contact,
+						size: 'medium'
+					}
+				}))
+				.sort(compareContacts);
+			recipients = [...recentObjs, ...contactsObjs];
 		});
 	});
 	let contactAddresses = $derived(
@@ -74,7 +66,7 @@
 	);
 	$effect(() => {
 		if (contact?.addresses.length === 1) {
-			recipientUsername = contact.addresses[0].address;
+			$SendTxDetails.toUsername = contact.addresses[0].address;
 		}
 	});
 	function makePlaceholderContact(value: string): recipientSnippet {
@@ -84,7 +76,7 @@
 			label: value,
 			value: value,
 			date: 'donotshow',
-			snippet: contactCard
+			snippet: contactRecentCard
 		};
 	}
 	async function getSuggestedHiveAccounts(value: string): Promise<recipientSnippet[]> {
@@ -102,17 +94,17 @@
 					label: item.account,
 					value: item.account,
 					date: 'donotshow',
-					snippet: contactCard
+					snippet: contactRecentCard
 				};
 		});
 	}
 </script>
 
-{#snippet contactCard(contact: recipientData)}
+{#snippet contactRecentCard(contact: recipientData)}
 	<ContactInfo
 		did={contact.did}
 		name={contact.name}
-		accounts={[{ address: getUsernameFromDid(contact.did), label: 'Primary' }]}
+		accounts={[{ address: getUsernameFromDid(contact.did), label: 'Primary Address' }]}
 		lastPaid={contact.date ? `on ${moment(contact.date).format('MMM DD, YYYY')}` : 'Never'}
 		size="medium"
 		detailed={contact.date !== 'donotshow'}
@@ -133,7 +125,7 @@
 {#if !contact}
 	<ComboBox
 		items={recipients}
-		bind:value={recipientUsername}
+		bind:value={$SendTxDetails.toUsername}
 		custom
 		placeholder="Find a contact or paste wallet address"
 		createPlaceholder={makePlaceholderContact}
@@ -144,7 +136,7 @@
 {:else}
 	<ComboBox
 		items={contactAddresses ?? contact.addresses}
-		bind:value={recipientUsername}
+		bind:value={$SendTxDetails.toUsername}
 		placeholder="Select address from contact"
 		dropdown
 		preferValue

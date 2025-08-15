@@ -55,26 +55,35 @@ export function getTxSessionId() {
 	return ++tx_session_id;
 }
 
-type validationError = {
+type ValidationError = {
 	success: false;
 	error: string;
 };
-type validationSuccess = {
+type ValidationSuccess = {
 	success: true;
 	img?: string;
+	displayName?: string;
 };
-type validationResult = validationSuccess | validationError;
-export async function validateAddress(address: string): Promise<validationResult> {
+type ValidationResult = ValidationSuccess | ValidationError;
+export async function validateAddress(address: string): Promise<ValidationResult> {
 	if (address.length < 3) {
 		return {
 			success: false,
 			error: 'Minimum address length is 3 characters'
 		};
-	} else if (address.length < 16) {
+	} else if (address.length <= 16) {
 		const accountInfo: Account = (await getAccounts([address])).result[0];
 		if (accountInfo) {
+			let displayName: string | undefined = undefined;
+			if (!accountInfo.posting_json_metadata) {
+				const postingMetadata = postingMetadataFromString(
+					accountInfo.posting_json_metadata
+				).profile;
+				displayName = postingMetadata['name'];
+			}
 			return {
-				success: true
+				success: true,
+				displayName: displayName
 			};
 		}
 		return {
@@ -88,7 +97,7 @@ export async function validateAddress(address: string): Promise<validationResult
 	}
 	return {
 		success: false,
-		error: 'Address must be a Hive username or EVM address.'
+		error: 'Address must be a Hive username or EVM address'
 	};
 }
 
@@ -170,8 +179,14 @@ export async function getLastPaidContact(toDid: string): Promise<moment.Moment |
 	let lastChecked = 0;
 	let lastLength = 0;
 	let store: TransactionInter[];
+	let retries = 0;
 	do {
 		store = get(vscTxsStore);
+		if (store.length <= lastLength) {
+			retries++;
+		} else {
+			retries = 0;
+		}
 		lastLength = store.length;
 		for (const tx of store.slice(lastChecked)) {
 			if (!tx.ops) continue;
@@ -189,13 +204,14 @@ export async function getLastPaidContact(toDid: string): Promise<moment.Moment |
 		if (!success) {
 			break;
 		}
-	} while (store.length > lastLength);
+	} while (store.length > lastLength && retries < 3);
 	return 'Never';
 }
 
-function isValidIsoDate(dateString: string): boolean {
+export function isValidIsoDate(dateString: string): boolean {
 	const date = new Date(dateString);
-	return !isNaN(date.getTime()) && date.toISOString().startsWith(dateString.split('.')[0]);
+	const splitChars: RegExp = /[.Z]/;
+	return !isNaN(date.getTime()) && date.toISOString().startsWith(dateString.split(splitChars)[0]);
 }
 
 // TODO: probably use a record instead, to filter by name but keep other data

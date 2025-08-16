@@ -6,20 +6,44 @@
 	import moment from 'moment';
 	import { authStore } from '$lib/auth/store';
 	import ComboBox from '$lib/zag/ComboBox.svelte';
-	import { type Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import {
 		compareContacts,
+		contactsVersion,
 		getContacts,
 		searchContactsForAddress,
+		searchForContacts,
 		type Contact
 	} from '$lib/send/contacts/contacts';
 	import { AtSign } from '@lucide/svelte';
 	import { contactCard, type ContactObj } from '../components/CardSnippets.svelte';
 
-	let { contact }: { contact?: Contact } = $props();
+	let { contact = $bindable() }: { contact?: Contact } = $props();
 
 	const auth = $derived($authStore);
 
+	let contacts = $state(getContacts());
+	contactsVersion.subscribe(() => {
+		contacts = getContacts();
+	});
+	let recipientUsername = $state($SendTxDetails.toUsername);
+	$effect(() => {
+		const newToUsername = $SendTxDetails.toUsername;
+		untrack(() => {
+			if (recipientUsername !== newToUsername) recipientUsername = newToUsername;
+		});
+	});
+	$effect(() => {
+		const newUsername = recipientUsername;
+		untrack(() => {
+			const isContact = contacts.get(newUsername);
+			if (isContact) {
+				contact = isContact;
+			} else {
+				if ($SendTxDetails.toUsername !== newUsername) $SendTxDetails.toUsername = newUsername;
+			}
+		});
+	});
 	interface recipientSnippet extends recipientData {
 		label: string;
 		value: string;
@@ -29,8 +53,8 @@
 	}
 	let recipients: (recipientSnippet | ContactObj)[] = $state([]);
 	$effect(() => {
+		if (!auth) return;
 		getRecentContacts(auth).then((recents) => {
-			const contacts = getContacts();
 			const noDuplicateRecents = recents.filter(
 				(recent) => !searchContactsForAddress(contacts, getUsernameFromDid(recent.did))
 			);
@@ -57,6 +81,8 @@
 		contact?.addresses.map((addr, i) => ({
 			label: addr.label,
 			value: addr.address,
+			// have to put this here for the types to reconcile
+			address: addr.address,
 			snippet: basicAccRow,
 			snippetData: {
 				address: addr,
@@ -80,7 +106,7 @@
 		};
 	}
 	async function getSuggestedHiveAccounts(value: string): Promise<recipientSnippet[]> {
-		if (value === '') return [];
+		if (value === '' || value.startsWith('0x')) return [];
 		const result = await DHive.database.call('get_account_reputations', [
 			value.toLocaleLowerCase(),
 			3
@@ -96,6 +122,39 @@
 					date: 'donotshow',
 					snippet: contactRecentCard
 				};
+		});
+	}
+
+	function filterSuggestions(
+		items: (recipientSnippet | ContactObj)[],
+		search: string,
+		exact = false
+	) {
+		const addressesInContacts = items
+			.filter((item) => 'addresses' in item)
+			.flatMap((contact) => contact.addresses.map((addr) => addr.address));
+		if (exact) {
+			return items.filter((item) => {
+				if ('addresses' in item) {
+					return item.addresses.some((addr) => addr.address === search);
+				} else {
+					return (
+						!addressesInContacts.includes(item.value) &&
+						(item.label.toLowerCase() === search.toLowerCase() ||
+							item.value?.toLowerCase() === search.toLowerCase())
+					);
+				}
+			});
+		}
+		return items.filter((item) => {
+			if ('addresses' in item) {
+				return searchForContacts([item], search).length > 0;
+			} else {
+				return (
+					item.label.toLowerCase().includes(search.toLowerCase()) ||
+					item.value?.toLowerCase().includes(search.toLowerCase())
+				);
+			}
 		});
 	}
 </script>
@@ -125,11 +184,12 @@
 {#if !contact}
 	<ComboBox
 		items={recipients}
-		bind:value={$SendTxDetails.toUsername}
+		bind:value={recipientUsername}
 		custom
 		placeholder="Find a contact or paste wallet address"
 		createPlaceholder={makePlaceholderContact}
 		getSuggestions={getSuggestedHiveAccounts}
+		customFilter={filterSuggestions}
 		preferValue
 		icon={AtSign}
 	/>

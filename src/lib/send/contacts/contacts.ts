@@ -81,17 +81,17 @@ export async function getAllLastPaid(contact: Contact) {
 export function searchForContacts(contacts: Map<string, Contact> | Contact[], substring: string) {
 	return [...contacts.values()].filter(
 		(contact) =>
-			contact.label.includes(substring) ||
-			contact.addresses.some((addr) => addr.address.includes(substring))
+			contact.label.toLowerCase().includes(substring.toLowerCase()) ||
+			contact.addresses.some((addr) => addr.address.toLowerCase().includes(substring.toLowerCase()))
 	);
 }
 
 export function searchContactsForAddress(
-	contacts: Map<string, Contact>,
+	contacts: Map<string, Contact> | Contact[],
 	address: string,
 	label?: string
 ) {
-	if (label) {
+	if (label && contacts instanceof Map) {
 		const nameContact = contacts.get(label);
 		if (nameContact?.addresses.some((addr) => addr.address === address)) return nameContact;
 	}

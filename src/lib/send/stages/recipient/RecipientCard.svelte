@@ -47,7 +47,9 @@
 			: undefined
 	);
 
-	const isPlaceholder = $derived(!(loading || $SendTxDetails.toUsername || contact));
+	const isAddButton = $derived(
+		!(loading || $SendTxDetails.toUsername || contact) || ($SendTxDetails.toUsername && !contact)
+	);
 </script>
 
 <ClickableCard
@@ -93,7 +95,7 @@
 		{/if}
 		{#if edit}
 			<span class="more">
-				{#if isPlaceholder}
+				{#if isAddButton}
 					<PillButton
 						onclick={(e) => {
 							e.stopPropagation();

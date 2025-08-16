@@ -226,9 +226,8 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 	let leaveOut = ['v4vapp'];
 	let lastChecked = 0;
 	let lastLength = 0;
-	let store: TransactionInter[];
+	let store: TransactionInter[] = get(vscTxsStore);
 	do {
-		store = get(vscTxsStore);
 		lastLength = store.length;
 		for (const tx of store.slice(lastChecked)) {
 			if (!tx.ops) continue;
@@ -255,9 +254,10 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 		if (!success) {
 			break;
 		}
+		store = get(vscTxsStore);
 	} while (store.length > lastLength);
 
-	store = get(vscTxsStore);
+	console.log('store length', store.length);
 	for (const tx of store) {
 		if (!tx.ops) continue;
 		for (const op of tx.ops) {
@@ -298,7 +298,6 @@ export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment
 	let lastLength = 0;
 
 	do {
-		store = get(vscTxsStore);
 		lastLength = store.length;
 		for (const tx of store.slice(lastChecked)) {
 			if (!tx.ops) continue;
@@ -313,6 +312,7 @@ export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment
 		if (!success) {
 			break;
 		}
+		store = get(vscTxsStore);
 	} while (store.length > lastLength);
 	lastPaidCache.networks.set(netVal, 'Never');
 	return 'Never';

@@ -6,6 +6,7 @@
 		contactsVersion,
 		getAllLastPaid,
 		getContacts,
+		searchForContacts,
 		setAllContacts,
 		type Contact
 	} from './contacts';
@@ -27,7 +28,7 @@
 	} = $props();
 
 	let contacts = $state(getContacts());
-	contactsVersion.subscribe((n) => {
+	contactsVersion.subscribe(() => {
 		contacts = getContacts();
 	});
 	let addOpen = $state(editing);
@@ -109,7 +110,7 @@
 				</PillButton>
 			{/if}
 		</div>
-		<ListBox items={contactObjs} bind:value={selectedVal} />
+		<ListBox items={contactObjs} bind:value={selectedVal} customFilter={searchForContacts} />
 	{:else}
 		<PillButton onclick={closeEdit} styleType="icon-subtle">
 			<ArrowLeft size="32" />

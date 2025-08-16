@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" generics="Option extends { label: string, [key: string]: any }">
 	import { ChevronDown, ChevronUp, Search } from '@lucide/svelte';
 	import * as combobox from '@zag-js/combobox';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
@@ -8,8 +8,6 @@
 	import type { ImgIconOption } from '$lib/components/ImageIconRenderer.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 
-	type Option = { label: string; [key: string]: any };
-
 	let {
 		items,
 		dropdown = false,
@@ -17,12 +15,13 @@
 		onBlur,
 		icon,
 		placeholder,
+		custom = false,
+		label,
+		preferValue = false,
 		createPlaceholder,
 		// results must have label and value fields
 		getSuggestions,
-		custom = false,
-		label,
-		preferValue = false
+		customFilter
 	}: {
 		items: Option[];
 		dropdown?: boolean;
@@ -30,46 +29,72 @@
 		onBlur?: FocusEventHandler<HTMLInputElement> | null | undefined;
 		icon?: ImgIconOption;
 		placeholder?: string;
-		createPlaceholder?: (value: string) => any;
-		getSuggestions?: (value: string) => Promise<any[]>;
 		custom?: boolean;
 		label?: string | ((...args: any[]) => ReturnType<Snippet>);
 		preferValue?: boolean;
+		createPlaceholder?: (value: string) => any;
+		getSuggestions?: (value: string) => Promise<any[]>;
+		customFilter?: (opts: Option[], search: string, find?: boolean) => Option[];
 	} = $props();
 
 	let inputValue = $state<string>();
 	let options = $state.raw(items);
 
+	function toPreferredString(item: Option | undefined) {
+		if (!item) return undefined;
+		if (preferValue) {
+			return item.value ?? item.label;
+		} else {
+			return item.label;
+		}
+	}
+
+	function safeCompare(a: Option, b: Option) {
+		return (
+			(a.value && b.value && a.value.toLowerCase() === b.value.toLowerCase()) ||
+			a.label.toLowerCase() === b.label.toLowerCase()
+		);
+	}
+
 	function onParamChange(val: string) {
 		if (val === '') {
-			options = items.filter((item) => !item.disabled);
+			options = items.filter((item) => !item.disabled).slice(0, 4);
 			return;
 		}
-		const filtered = items.filter(
-			(item) =>
-				item.addresses === undefined &&
-				(item.label.toLowerCase().includes(val.toLowerCase()) ||
-					item.value?.toLowerCase().includes(val.toLowerCase()))
-		);
+		const filtered = customFilter
+			? customFilter(items, val)
+			: items.filter(
+					(item) =>
+						item.label.toLowerCase().includes(val.toLowerCase()) ||
+						item.value?.toLowerCase().includes(val.toLowerCase())
+				);
 		if (custom) {
 			const currentlyInput = createPlaceholder
 				? createPlaceholder(val)
 				: { label: val, value: val };
 			// const newOptions: Option[] = [currentlyInput, ...(filtered.length > 0 ? filtered : items)];
-			const newOptions: Option[] = filtered.find(
-				(item) => item.label === currentlyInput.label || item.value === currentlyInput.value
-			)
-				? filtered
-				: [currentlyInput, ...filtered];
-			if (getSuggestions && !val?.startsWith('0x')) {
+			const newOptions: Option[] = (
+				(
+					customFilter
+						? customFilter(filtered, currentlyInput.value ?? currentlyInput.label, true)
+						: filtered.find((item) => safeCompare(item, currentlyInput))
+				)
+					? filtered
+					: [currentlyInput, ...filtered]
+			).slice(0, 3);
+			if (getSuggestions) {
 				const currentValue = val;
 				getSuggestions(currentValue).then((itms) => {
 					if (api.inputValue !== currentValue) return;
 					const all = [...newOptions, ...itms];
 					options = all.reduce((acc: Option[], current) => {
-						const exists = acc.find((item) => item.value === current.value);
-						if (!exists) {
-							const inItems = items.find((item) => item.value === current.value);
+						const exists = customFilter
+							? customFilter(acc, current.value ?? current.label, true)
+							: acc.find((item) => safeCompare(item, current));
+						if (!exists || exists.length === 0) {
+							const inItems = customFilter
+								? customFilter(items, current.value ?? current.label, true)[0]
+								: items.find((item) => safeCompare(item, current));
 							acc.push(inItems ?? current);
 						}
 						return acc;
@@ -86,15 +111,6 @@
 		if (custom) {
 			const val = items.find((item) => item.label === api.inputValue)?.value ?? api.inputValue;
 			if (value !== val) value = val;
-		}
-	}
-
-	function toPreferredString(item: Option | undefined) {
-		if (!item) return undefined;
-		if (preferValue) {
-			return item.value ?? item.label;
-		} else {
-			return item.label;
 		}
 	}
 

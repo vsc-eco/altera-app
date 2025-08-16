@@ -1,14 +1,21 @@
-<script lang="ts">
+<script lang="ts" generics="Option extends { label: string, [key: string]: any }">
 	import * as listbox from '@zag-js/listbox';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { createFilter } from '@zag-js/i18n-utils';
 	import { getUniqueId } from './idgen';
-	import { Check, ChevronDown, ChevronRight, Search } from '@lucide/svelte';
+	import { Check, ChevronRight, Search } from '@lucide/svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { slide } from 'svelte/transition';
 	import EditButton from '$lib/components/EditButton.svelte';
 
-	type Option = { label: string; [key: string]: any };
+	type Props = {
+		items: Option[];
+		input?: boolean;
+		value?: string;
+		label?: string;
+		showSelected?: boolean;
+		customFilter?: (opts: Option[], search: string) => Option[];
+	};
 
 	let {
 		items,
@@ -17,14 +24,7 @@
 		label,
 		showSelected = false,
 		customFilter
-	}: {
-		items: Option[];
-		input?: boolean;
-		value: string | undefined;
-		label?: string;
-		showSelected?: boolean;
-		customFilter?: (opts: Option[]) => Option[];
-	} = $props();
+	}: Props = $props();
 
 	const filter = createFilter({ sensitivity: 'base' });
 	let search = $state('');
@@ -43,7 +43,7 @@
 
 	const collection = $derived.by(() => {
 		const searchOptions = customFilter
-			? customFilter(items)
+			? customFilter(items, search)
 			: items.filter((item) => filter.contains(item.label, search));
 		const options = filterDisabled(searchOptions);
 		return listbox.collection({

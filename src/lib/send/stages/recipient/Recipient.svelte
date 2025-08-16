@@ -161,7 +161,7 @@
 <h2>Recipient</h2>
 <div class="contact-search">
 	<RecipientCard edit={openContact} {contact} />
-	<SearchContact {contact} />
+	<SearchContact bind:contact />
 </div>
 
 <h3>Payment Method</h3>

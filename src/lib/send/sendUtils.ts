@@ -22,6 +22,7 @@ import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
 import {
+	fetchTxs,
 	getTimestamp,
 	vscTxsStore,
 	waitForExtend,
@@ -75,7 +76,7 @@ export async function validateAddress(address: string): Promise<ValidationResult
 		const accountInfo: Account = (await getAccounts([address])).result[0];
 		if (accountInfo) {
 			let displayName: string | undefined = undefined;
-			if (!accountInfo.posting_json_metadata) {
+			if (accountInfo.posting_json_metadata) {
 				const postingMetadata = postingMetadataFromString(
 					accountInfo.posting_json_metadata
 				).profile;
@@ -163,7 +164,7 @@ export function clearLastPaidCache() {
 	lastPaidCache.contacts.clear();
 	lastPaidCache.networks.clear();
 }
-export function dateToLastPaidString(lastPaid?: Moment | 'Never') {
+export function momentToLastPaidString(lastPaid?: Moment | 'Never') {
 	if (!lastPaid) return 'Never';
 	return lastPaid === 'Never' ? lastPaid : `on ${lastPaid.format('MMM DD, YYYY')}`;
 }
@@ -178,10 +179,9 @@ export async function getLastPaidContact(toDid: string): Promise<moment.Moment |
 	}
 	let lastChecked = 0;
 	let lastLength = 0;
-	let store: TransactionInter[];
+	let store = get(vscTxsStore);
 	let retries = 0;
 	do {
-		store = get(vscTxsStore);
 		if (store.length <= lastLength) {
 			retries++;
 		} else {
@@ -200,10 +200,8 @@ export async function getLastPaidContact(toDid: string): Promise<moment.Moment |
 			}
 		}
 		lastChecked = Math.max(store.length - 1, 0);
-		const success = await waitForExtend(auth.value.did);
-		if (!success) {
-			break;
-		}
+		await fetchTxs(auth.value.did, 'extend', undefined, 12);
+		store = get(vscTxsStore);
 	} while (store.length > lastLength && retries < 3);
 	return 'Never';
 }
@@ -215,14 +213,14 @@ export function isValidIsoDate(dateString: string): boolean {
 }
 
 // TODO: probably use a record instead, to filter by name but keep other data
-export type recipientData = {
-	name: string;
+export type RecipientData = {
+	name?: string;
 	did: string;
 	date: string;
 };
-export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
+export async function getRecentContacts(auth: Auth): Promise<RecipientData[]> {
 	if (!auth.value) return [];
-	let result = new Map<string, recipientData>();
+	let result = new Map<string, RecipientData>();
 	let leaveOut = ['v4vapp'];
 	let lastChecked = 0;
 	let lastLength = 0;
@@ -236,7 +234,7 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 				const username = getUsernameFromDid(op.data.to);
 				if (!leaveOut.includes(username) && !result.has(username)) {
 					result.set(username, {
-						name: (await getDisplayName(op.data.to)) ?? username,
+						name: (await getDisplayName(op.data.to)) ?? undefined,
 						did: op.data.to,
 						date: getTimestamp(tx)
 					});
@@ -257,7 +255,6 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 		store = get(vscTxsStore);
 	} while (store.length > lastLength);
 
-	console.log('store length', store.length);
 	for (const tx of store) {
 		if (!tx.ops) continue;
 		for (const op of tx.ops) {
@@ -265,7 +262,7 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 			const username = getUsernameFromDid(op.data.from);
 			if (!leaveOut.includes(username) && !result.has(username)) {
 				result.set(username, {
-					name: (await getDisplayName(op.data.from)) ?? username,
+					name: (await getDisplayName(op.data.from)) ?? undefined,
 					did: op.data.from,
 					date: getTimestamp(tx)
 				});

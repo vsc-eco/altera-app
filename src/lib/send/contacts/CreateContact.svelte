@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { CircleUser, Plus, Trash2, X } from '@lucide/svelte';
-	import { dateToLastPaidString, validateAddress } from '../sendUtils';
+	import { momentToLastPaidString, validateAddress } from '../sendUtils';
 	import { addContact, getAllLastPaid, removeContact, setContact, type Contact } from './contacts';
 	import PillButton from '$lib/PillButton.svelte';
 	import ComboBox from '$lib/zag/ComboBox.svelte';
@@ -9,8 +9,11 @@
 	import { getProfilePicUrl } from '$lib/auth/hive/getProfilePicUrl';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import Editable from '$lib/zag/Editable.svelte';
+	import Divider from '$lib/components/Divider.svelte';
 
 	let { initial, close }: { initial?: Contact; close: () => void } = $props();
+
+	const originalLabel = initial?.label;
 
 	let contact: Contact = $state(
 		initial ?? {
@@ -67,6 +70,7 @@
 			errors.name = 'Please enter a name';
 		}
 	}
+	// $inspect(errors.addresses[0]);
 	async function validateAddressField(index: number) {
 		const address = contact.addresses[index].address;
 
@@ -114,7 +118,7 @@
 		await Promise.all(contact.addresses.map((_, index) => validateAddressField(index)));
 
 		const lastPaid = await getAllLastPaid(contact);
-		contact.lastPaid = dateToLastPaidString(lastPaid);
+		contact.lastPaid = momentToLastPaidString(lastPaid);
 
 		// Check if there are any errors
 		const hasNameError = errors.name !== undefined;
@@ -136,6 +140,10 @@
 
 			if (initial) {
 				setContact(contactToSave);
+				console.log('initial, tosave', initial.label, contactToSave.label);
+				if (originalLabel && originalLabel !== contactToSave.label) {
+					removeContact(originalLabel);
+				}
 			} else {
 				addContact(contactToSave);
 			}
@@ -197,11 +205,7 @@
 			autocomplete="off"
 		/>
 	</div>
-	<div class="divider">
-		<hr />
-		<span class="sm-caption">Addresses</span>
-		<hr />
-	</div>
+	<Divider text="Addresses" style="margin-top: 1.5rem;" />
 	<ul class="form-group addresses">
 		{#each contact.addresses as address, index (address.address + index)}
 			<li class="address-group">
@@ -281,15 +285,11 @@
 </form>
 
 <style lang="scss">
-	.divider {
-		margin-top: 1.5rem;
+	form {
 		display: flex;
-		align-items: center;
-		gap: 1rem;
-		hr {
-			width: 100%;
-			border-color: var(--neutral-bg-accent-shifted);
-		}
+		flex-direction: column;
+		padding-bottom: 0.5rem;
+		flex-grow: 1;
 	}
 	// .form-group.image-group {
 	// 	margin-top: 1rem;
@@ -337,16 +337,17 @@
 		gap: 0.5rem;
 	}
 	.buttons {
-		position: absolute;
-		bottom: 1.5rem;
-		right: 1.5rem;
 		display: inline-flex;
+		margin-top: auto;
+		margin-left: auto;
 	}
 	.label-wrapper {
 		display: flex;
 		align-items: flex-end;
 		gap: 0.5rem;
+		flex-wrap: wrap;
 		.error {
+			flex-basis: 100%;
 			height: min-content;
 		}
 	}

@@ -4,29 +4,31 @@
 	import { getUsernameFromDid } from '$lib/getAccountName';
 	import { authStore } from '$lib/auth/store';
 	import { SendTxDetails } from '$lib/send/sendUtils';
-	import { type AssetObject } from '../components/CardSnippets.svelte';
+	import { networkCard, type AssetObject } from '../components/CardSnippets.svelte';
 	import { untrack } from 'svelte';
 	import ListBox from '$lib/zag/ListBox.svelte';
 	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import { ArrowLeft, Delete } from '@lucide/svelte';
+	import { ArrowLeft, ChevronRight, Delete } from '@lucide/svelte';
 	import AssetInfo from '../components/AssetInfo.svelte';
 
 	let {
-		availableCoins
+		availableCoins,
+		close
 	}: {
 		availableCoins: AssetObject[];
+		close: () => void;
 	} = $props();
 
 	const listItems = $derived(
 		availableCoins.map((coin) => ({
 			...coin,
-			edit: (coin: AssetObject) => (detailsOpen = coin.snippetData),
-			buttonType: 'Chevron'
+			iconInfo: {
+				icon: ChevronRight
+			}
 		}))
 	);
 
-	const auth = $derived($authStore);
 	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
 	let tmpAssetVal: string | undefined = $state($SendTxDetails.toCoin?.coin.value);
 	const availableCoinOpts: CoinOptionParam[] = availableCoins
@@ -40,6 +42,7 @@
 			if (!tmpAsset) return;
 			if ($SendTxDetails.toCoin?.coin.value === tmpAsset.coin.value) return;
 			$SendTxDetails.toCoin = tmpAsset;
+			detailsOpen = { fromOpt: tmpAsset, net: tmpNetwork };
 		});
 	});
 
@@ -61,16 +64,12 @@
 			if (!tmpNetwork) return;
 			if ($SendTxDetails.fromNetwork?.value === tmpNetwork?.value) return;
 			$SendTxDetails.fromNetwork = tmpNetwork;
+			close();
 		});
 	});
 
 	let detailsOpen = $state<AssetObject['snippetData']>();
 </script>
-
-{#snippet radioLabel(info: { icon: string; label: string })}
-	<img width="16" src={info.icon} alt="" />
-	{info.label}
-{/snippet}
 
 <div class="dialog-content">
 	{#if detailsOpen}
@@ -84,17 +83,22 @@
 		{/if}
 		{@const networks = detailsOpen.fromOpt?.networks.map((net) => ({
 			...net,
-			snippet: radioLabel
+			snippet: networkCard,
+			snippetData: {
+				net: net,
+				size: 'medium'
+			}
 		}))}
 		{#if networks}
 			<p class="sm-caption">Available on networks:</p>
-			<div class="radio-wrapper">
+			<!-- <div class="radio-wrapper">
 				<RadioGroup
 					items={networks}
 					bind:value={tmpNetworkVal}
 					defaultValue={$SendTxDetails.fromNetwork?.value}
 				/>
-			</div>
+			</div> -->
+			<ListBox items={networks} bind:value={tmpNetworkVal} input={false} />
 		{/if}
 	{:else}
 		<br />
@@ -149,10 +153,6 @@
 			align-items: center;
 			gap: 0.5rem;
 		}
-	}
-	.radio-wrapper {
-		margin-top: 0.5rem;
-		width: fit-content;
 	}
 	.clear-button {
 		margin-left: auto;

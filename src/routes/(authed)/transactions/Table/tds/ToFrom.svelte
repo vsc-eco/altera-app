@@ -50,14 +50,7 @@
 		align-content: center;
 		height: 4.5rem;
 	}
-	@media screen and (max-width: 450px) {
-		.to-from {
-			grid-template: 'pfp toFrom status';
-		}
-		.memo {
-			display: none;
-		}
-	}
+
 	.pfp {
 		grid-area: pfp;
 	}
@@ -87,5 +80,13 @@
 	}
 	.toFrom {
 		grid-area: toFrom;
+	}
+	@media screen and (max-width: 450px) {
+		.to-from {
+			grid-template: 'pfp toFrom status';
+		}
+		.memo {
+			display: none !important;
+		}
 	}
 </style>

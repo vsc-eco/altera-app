@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getUsernameFromDid } from '$lib/getAccountName';
+	import { getAccountNameFromAddress, getUsernameFromDid } from '$lib/getAccountName';
 	import Avatar from '$lib/zag/Avatar.svelte';
 	import { Dot } from '@lucide/svelte';
 	import InfoSegment from './InfoSegment.svelte';
@@ -61,7 +61,12 @@
 	{:else}
 		<Avatar {did} large={size === 'large'} />
 	{/if}
-	<InfoSegment label={name ?? username ?? ''} {display} disabled={warning !== undefined} {size} />
+	<InfoSegment
+		label={name ?? (username ? getAccountNameFromAddress(username) : '')}
+		{display}
+		disabled={warning !== undefined}
+		{size}
+	/>
 </div>
 
 <style lang="scss">

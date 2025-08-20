@@ -224,7 +224,7 @@
 <style lang="scss">
 	.wrapper {
 		position: relative;
-		flex-grow: 1;
+		flex: 1;
 	}
 	label {
 		position: absolute;

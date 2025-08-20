@@ -7,6 +7,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { slide } from 'svelte/transition';
 	import EditButton from '$lib/components/EditButton.svelte';
+	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 
 	type Props = {
 		items: Option[];
@@ -64,8 +65,12 @@
 			return value ? [value] : [];
 		},
 		onValueChange(details) {
+			if (details.value.length === 0) {
+				api.clearHighlightedValue();
+			}
 			value = details.value[0];
-		}
+		},
+		deselectable: true
 	});
 
 	const api = $derived(listbox.connect(service, normalizeProps));
@@ -112,20 +117,11 @@
 					{:else}
 						{item.label}
 					{/if}
-					{#if (item.details || item.edit) && !item.disabled}
-						{@const editFunc = () => (item.details ? toggleShowing(item) : item.edit(item))}
-						{#if item.details || item.buttonType === 'Chevron'}
-							<PillButton onclick={editFunc} styleType="text-subtle">
-								<ChevronRight />
-							</PillButton>
-						{:else}
-							<EditButton
-								onclick={(e) => {
-									e.stopPropagation();
-									editFunc();
-								}}
-							/>
-						{/if}
+					{#if item.iconInfo}
+						{@const icon = item.iconInfo.icon}
+						<span class={['custom-icon', { hover: item.iconInfo.hover === true }]}>
+							<ImageIconRenderer {icon} />
+						</span>
 					{:else if showSelected}
 						<span {...api.getItemIndicatorProps({ item })}><Check size="16" /></span>
 					{/if}
@@ -158,6 +154,10 @@
 			aspect-ratio: 1;
 		}
 	}
+	[data-part='content']:focus-visible {
+		outline: none;
+		z-index: inherit;
+	}
 	[data-part='input'] {
 		width: 100%;
 		box-sizing: border-box;
@@ -177,10 +177,17 @@
 		padding: 0.5rem;
 		display: flex;
 		align-items: center;
+		gap: 0.5rem;
+		.custom-icon.hover {
+			visibility: hidden;
+		}
 	}
 	[data-part='item'][data-highlighted],
 	[data-part='item']:hover {
 		background-color: var(--bg-accent);
+		.custom-icon.hover {
+			visibility: visible;
+		}
 	}
 	[data-part='item'][data-selected] {
 		background-color: var(--green-bg-accent);

@@ -13,13 +13,16 @@
 	import { ArrowDown } from '@lucide/svelte';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import Instructions from '$lib/send/quickSend/Instructions.svelte';
+	import WaveLoading from '$lib/components/WaveLoading.svelte';
 
 	let auth = $authStore;
 	let {
 		status,
+		waiting,
 		compact
 	}: {
 		status: { message: string; isError: boolean };
+		waiting: boolean;
 		compact?: boolean;
 	} = $props();
 
@@ -78,7 +81,7 @@
 			{/if}
 			<h4>
 				{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
-				{`(\$US ${inUsd})`}
+				{`(${inUsd} US$)`}
 			</h4>
 		</div>
 		{#if !compact}
@@ -176,6 +179,11 @@
 		</div>
 	{/if}
 {/if}
+{#if waiting}
+	<div class="waiting-overlay">
+		<span><WaveLoading size={32} /> Waiting for signature</span>
+	</div>
+{/if}
 
 <style lang="scss">
 	.amount {
@@ -245,5 +253,26 @@
 		display: flex;
 		flex-direction: column;
 		line-height: 1.2;
+	}
+	.waiting-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		display: flex;
+		justify-content: center;
+		background-color: rgba(58, 46, 57, 0.2);
+		backdrop-filter: blur(4px);
+		pointer-events: none;
+		z-index: 1;
+		span {
+			margin-top: 25%;
+			font-weight: 500;
+			padding: 1.5rem;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
 	}
 </style>

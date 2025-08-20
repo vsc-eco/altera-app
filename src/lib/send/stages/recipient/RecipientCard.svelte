@@ -1,7 +1,12 @@
 <script lang="ts">
-	import { getDidFromUsername } from '$lib/getAccountName';
+	import { getAccountNameFromAddress, getDidFromUsername } from '$lib/getAccountName';
 	import { type Contact } from '$lib/send/contacts/contacts';
-	import { SendTxDetails, validateAddress } from '$lib/send/sendUtils';
+	import {
+		getLastPaidContact,
+		momentToLastPaidString,
+		SendTxDetails,
+		validateAddress
+	} from '$lib/send/sendUtils';
 	import { CircleUser, Plus } from '@lucide/svelte';
 	import ContactInfo from '../components/ContactInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -17,7 +22,7 @@
 	}: { basic?: boolean; contact?: Contact; edit?: (isOpen?: boolean) => void } = $props();
 
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
-	let lastPaid = $state('Never');
+	let lastPaid: string | undefined = $state();
 	let isValid = $state(false);
 	let loading = $state(false);
 	$effect(() => {
@@ -28,14 +33,21 @@
 			validateAddress(addr).then((result) => {
 				isValid = result.success;
 				if (result.success) {
-					const newDisplayName = result.displayName ?? addr;
+					const newDisplayName = contact
+						? contact.label
+						: (result.displayName ?? getAccountNameFromAddress(addr));
 					if ($SendTxDetails.toDisplayName !== newDisplayName)
 						$SendTxDetails.toDisplayName = newDisplayName;
 				} else {
-					if ($SendTxDetails.toDisplayName !== addr) $SendTxDetails.toDisplayName = addr;
+					const newDisplayName = contact ? contact.label : getAccountNameFromAddress(addr);
+					if ($SendTxDetails.toDisplayName !== newDisplayName)
+						$SendTxDetails.toDisplayName = newDisplayName;
 					warningBody = result.error;
 				}
 				loading = false;
+			});
+			getLastPaidContact(getDidFromUsername(addr)).then((res) => {
+				lastPaid = momentToLastPaidString(res);
 			});
 		});
 	});
@@ -108,7 +120,7 @@
 					<EditButton
 						onclick={(e) => {
 							e.stopPropagation();
-							edit(true);
+							edit();
 						}}
 					/>
 				{/if}
@@ -122,17 +134,22 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		text-align: left;
 	}
 	.name-card {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		justify-content: space-between;
+		gap: 0.5rem;
 		&.padded {
 			padding: 0.5rem;
 		}
-	}
-	.more {
-		margin-left: auto;
+		@media screen and (max-width: 450px) {
+			.more {
+				display: none;
+			}
+			flex-wrap: wrap;
+		}
 	}
 	.loading {
 		display: flex;

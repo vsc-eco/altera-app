@@ -5,7 +5,7 @@
 	import Card from '$lib/cards/Card.svelte';
 	import { onMount, untrack, type Snippet } from 'svelte';
 	import {
-		dateToLastPaidString,
+		momentToLastPaidString,
 		getLastPaidContact,
 		getLastPaidNetwork,
 		getRecipientNetworks,
@@ -15,11 +15,10 @@
 	import { TransferMethod } from '../../sendOptions';
 	import NetworkInfo from '../components/NetworkInfo.svelte';
 	import Select from '$lib/zag/Select.svelte';
-	import SearchContact from './SearchContact.svelte';
+	import SearchContact from './search/SearchContact.svelte';
 	import InfoSegment from '../components/InfoSegment.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectContact from '$lib/send/contacts/SelectContact.svelte';
-	import PillButton from '$lib/PillButton.svelte';
 	import RecipientCard from './RecipientCard.svelte';
 	import {
 		compareContacts,
@@ -30,6 +29,7 @@
 		type Contact
 	} from '$lib/send/contacts/contacts';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
+	import ContactSearchBox from './search/ContactSearchBox.svelte';
 
 	let {
 		id,
@@ -47,7 +47,7 @@
 			const contacts = getContacts();
 			processMap<string, Contact, Contact>(contacts, async (contact) => {
 				const lastPaidMoment = await getAllLastPaid(contact);
-				const lastPaidString = dateToLastPaidString(lastPaidMoment);
+				const lastPaidString = momentToLastPaidString(lastPaidMoment);
 				return {
 					...contact,
 					lastPaid: lastPaidString
@@ -120,8 +120,8 @@
 			getLastPaidContact(toDid),
 			getLastPaidNetwork($SendTxDetails.toNetwork?.value)
 		]).then(([paid, net]) => {
-			lastPaid = dateToLastPaidString(paid);
-			lastNetwork = dateToLastPaidString(net);
+			lastPaid = momentToLastPaidString(paid);
+			lastNetwork = momentToLastPaidString(net);
 		});
 	});
 
@@ -139,15 +139,6 @@
 		!contact && $SendTxDetails.toUsername ? $SendTxDetails.toUsername : undefined
 	);
 	let openToCreate = $state(false);
-
-	$effect(() => {
-		const _ = contact;
-		untrack(() => {
-			if (contact === undefined) {
-				$SendTxDetails.toUsername = '';
-			}
-		});
-	});
 </script>
 
 {#snippet methodDetails(info: MethodOptionParam)}
@@ -161,7 +152,7 @@
 <h2>Recipient</h2>
 <div class="contact-search">
 	<RecipientCard edit={openContact} {contact} />
-	<SearchContact bind:contact />
+	<ContactSearchBox bind:value={$SendTxDetails.toUsername} bind:selectedContact={contact} />
 </div>
 
 <h3>Payment Method</h3>
@@ -215,8 +206,14 @@
 		padding: 1.5rem;
 		background-color: var(--neutral-bg-accent);
 		border-radius: 1rem;
-		:global(input) {
-			background-color: var(--neutral-bg);
+		@media screen and (min-width: 450px) {
+			:global(input) {
+				background-color: var(--neutral-bg);
+			}
+		}
+		@media screen and (max-width: 450px) {
+			background-color: transparent;
+			padding: 0;
 		}
 	}
 	.network-card {
@@ -232,7 +229,6 @@
 			}
 		}
 	}
-
 	h3 {
 		margin-top: 2rem;
 		color: var(--neutral-fg);

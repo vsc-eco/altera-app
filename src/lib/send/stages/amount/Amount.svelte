@@ -118,14 +118,14 @@
 		})) ?? []
 	);
 	interface NetworkObject extends NetworkOptionParam {
-		snippetData: NetworkOptionParam;
+		snippetData: typeof networkCard.arguments;
 		snippet: typeof networkCard;
 	}
 	let networkObjs: NetworkObject[] = $derived(
 		networkOptions.map((opt) => ({
 			...opt,
 			snippet: networkCard,
-			snippetData: opt
+			snippetData: { net: opt }
 		}))
 	);
 
@@ -322,7 +322,7 @@
 </ClickableCard>
 <Dialog bind:open={assetOpen} bind:toggle={toggleAsset}>
 	{#snippet content()}
-		<SelectAsset availableCoins={assetObjs} />
+		<SelectAsset availableCoins={assetObjs} close={toggleAsset} />
 	{/snippet}
 </Dialog>
 
@@ -377,6 +377,13 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+		@media screen and (max-width: 450px) {
+			flex-direction: column;
+			gap: 0.25rem;
+			:global(.wrapper) {
+				width: 100%;
+			}
+		}
 	}
 	.asset-card {
 		display: flex;

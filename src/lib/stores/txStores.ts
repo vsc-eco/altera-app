@@ -179,7 +179,7 @@ export function clearAllStores() {
 // set: sets the store to the txs loaded
 // update: loads new txs, adds any that aren't in local store to the front
 // extend: loads older txs than last in store, adds to the back
-export function fetchTxs(
+export async function fetchTxs(
 	did: string,
 	type: 'set' | 'update' | 'extend',
 	setLoading?: (val: boolean) => void,
@@ -188,7 +188,7 @@ export function fetchTxs(
 	if (type !== 'update') {
 		if (setLoading) setLoading(true);
 	}
-	new GetTransactionsStore()
+	const success = await new GetTransactionsStore()
 		.fetch({
 			variables: {
 				limit: limit,
@@ -203,7 +203,7 @@ export function fetchTxs(
 					vscTxsStore.set([]);
 				}
 				if (setLoading) setLoading(false);
-				return;
+				return true;
 			}
 			const fetchedTxs = toTransactionInter(post.data.findTransaction);
 			if (fetchedTxs.length > 0) clearLastPaidCache();
@@ -236,41 +236,19 @@ export function fetchTxs(
 				});
 			}
 			if (setLoading) setLoading(false);
+			return true;
 		})
 		.catch((e) => {
 			if (e.name !== 'AbortError') {
 				console.error(e);
 			}
+			return false;
 		});
 	updateTxsFromLocalStorage(did);
+	return success;
 }
 
-const inFlight = new Map<string, Promise<boolean>>();
-
-export function waitForExtend(did: string, limit = 12): Promise<boolean> {
-	if (inFlight.has(did)) {
-		return inFlight.get(did)!;
-	}
-
-	const promise = new Promise<boolean>((resolve) => {
-		const timeout = setTimeout(() => {
-			resolve(false);
-		}, 2000);
-
-		// can use value! because only called from getLastPaid()
-		fetchTxs(
-			did,
-			'extend',
-			(val) => {
-				if (val === false) {
-					clearTimeout(timeout);
-					resolve(true);
-				}
-			},
-			limit
-		);
-	});
-
-	inFlight.set(did, promise);
-	return promise;
+export async function waitForExtend(did: string, limit = 12): Promise<boolean> {
+	await fetchTxs(did, 'extend', undefined, limit);
+	return true;
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import {
-		dateToLastPaidString,
+		momentToLastPaidString,
 		getFee,
 		getLastPaidContact,
 		getRecipientNetworks,
@@ -20,8 +20,9 @@
 	import SwapOptions from '../stages/amount/SwapOptions.svelte';
 	import { untrack } from 'svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
-	import SearchContact from '../stages/recipient/SearchContact.svelte';
+	import SearchContact from '../stages/recipient/search/SearchContact.svelte';
 	import RecipientCard from '../stages/recipient/RecipientCard.svelte';
+	import ContactSearchBox from '../stages/recipient/search/ContactSearchBox.svelte';
 
 	let {
 		id,
@@ -138,14 +139,14 @@
 	// 	})) ?? []
 	// );
 	interface NetworkObject extends NetworkOptionParam {
-		snippetData: NetworkOptionParam;
+		snippetData: typeof networkCard.arguments;
 		snippet: typeof networkCard;
 	}
 	let networkObjs: NetworkObject[] = $derived(
 		networkOptions.map((opt) => ({
 			...opt,
 			snippet: networkCard,
-			snippetData: opt
+			snippetData: { net: opt }
 		}))
 	);
 	let fromCoinOptions = $derived(
@@ -245,7 +246,7 @@
 	let lastPaid = $state('Never');
 	$effect(() => {
 		if (!auth.value) return;
-		getLastPaidContact(toDid).then((paid) => (lastPaid = dateToLastPaidString(paid)));
+		getLastPaidContact(toDid).then((paid) => (lastPaid = momentToLastPaidString(paid)));
 	});
 	let contactOpen = $state(false);
 
@@ -260,7 +261,7 @@
 				label: v.label,
 				disabled: v.disabled,
 				snippet: networkCard,
-				snippetData: v
+				snippetData: { net: v }
 			};
 		})
 	);
@@ -277,7 +278,7 @@
 <h2>Send</h2>
 <div class="section to">
 	<span class="sm-caption nogap">To</span>
-	<SearchContact />
+	<ContactSearchBox bind:value={$SendTxDetails.toUsername} enableContacts={false} />
 	<RecipientCard basic />
 	<!-- <div class="selected">
 			<input

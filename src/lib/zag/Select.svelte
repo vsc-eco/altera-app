@@ -89,7 +89,7 @@
 		}
 	});
 	$effect(() => {
-		if (options.find((opt) => opt.value === api.value[0])?.disabled) {
+		if (options.find((opt) => getValue(opt) === api.value[0])?.disabled) {
 			api.clearValue();
 		}
 	});

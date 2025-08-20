@@ -41,6 +41,7 @@
 	const showTabs = $derived(windowWidth > 42 * remValue + 2 * (6.75 * remValue + 106 + 10));
 
 	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
+	let waiting = $state(false);
 	let txId = $state('');
 
 	const stepsData = [
@@ -117,6 +118,7 @@
 			return;
 		}
 
+		waiting = true;
 		send(importantDetails, auth, intermediary, setStatus).then((res) => {
 			if (res instanceof Error) {
 				// log the error if it isn't caught
@@ -201,8 +203,17 @@
 	});
 	$effect(() => {
 		if (txId) {
+			waiting = false;
 			setStatus('');
 			api.setStep(stepsData.length - 1);
+		}
+	});
+	$effect(() => {
+		if (
+			status.message.includes('canceled by the user') ||
+			status.message.includes('rejected by user')
+		) {
+			waiting = false;
 		}
 	});
 </script>
@@ -226,7 +237,7 @@
 	<Amount id={value} {editStage} />
 {/snippet}
 {#snippet review()}
-	<Review {status} />
+	<Review {status} {waiting} />
 {/snippet}
 {#snippet complete()}
 	<Complete {txId} />
@@ -366,7 +377,7 @@
 	[data-part='content'] {
 		margin: auto;
 		max-width: 42rem;
-		padding: 0 1rem 1rem 1rem;
+		padding: 0 0.5rem 1rem 0.5rem;
 		min-height: calc(100% - 1rem);
 		overflow-y: scroll;
 	}

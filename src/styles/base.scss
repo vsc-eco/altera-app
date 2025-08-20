@@ -99,7 +99,6 @@ h6 {
 	h#{$i} {
 		font-size: var(--text-#{7-$i}xl);
 		margin-top: calc(var(--text-#{7-$i}xl) / 2);
-		margin-top: calc(var(--text-#{7-$i}xl) / 2);
 	}
 }
 
@@ -119,12 +118,17 @@ h6 {
 .dialog-content {
 	margin: auto;
 	min-width: min-content;
-	width: 32rem;
+	width: min(32rem, calc(100vw - 4rem));
+	max-width: 32rem;
 	min-height: 50vh;
 	h4,
 	h5,
 	h6 {
 		font-weight: 450;
+	}
+	@media screen and (max-width: 450px) {
+		width: calc(100vw - 3.5rem);
+		height: calc(100vh - 3.5rem);
 	}
 }
 

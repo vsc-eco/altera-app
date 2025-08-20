@@ -4,7 +4,6 @@
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { untrack, type Snippet } from 'svelte';
 	import { getUniqueId } from './idgen';
-	import type { FocusEventHandler } from 'svelte/elements';
 	import type { ImgIconOption } from '$lib/components/ImageIconRenderer.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 
@@ -26,7 +25,7 @@
 		items: Option[];
 		dropdown?: boolean;
 		value: string | undefined;
-		onBlur?: FocusEventHandler<HTMLInputElement> | null | undefined;
+		onBlur?: ((e?: FocusEvent) => any) | null | undefined;
 		icon?: ImgIconOption;
 		placeholder?: string;
 		custom?: boolean;
@@ -39,6 +38,7 @@
 
 	let inputValue = $state<string>();
 	let options = $state.raw(items);
+	let open = $state.raw(false);
 
 	function toPreferredString(item: Option | undefined) {
 		if (!item) return undefined;
@@ -76,12 +76,12 @@
 			const newOptions: Option[] = (
 				(
 					customFilter
-						? customFilter(filtered, currentlyInput.value ?? currentlyInput.label, true)
+						? customFilter(filtered, currentlyInput.value ?? currentlyInput.label, true).length > 0
 						: filtered.find((item) => safeCompare(item, currentlyInput))
 				)
 					? filtered
 					: [currentlyInput, ...filtered]
-			).slice(0, 3);
+			).slice(0, 4);
 			if (getSuggestions) {
 				const currentValue = val;
 				getSuggestions(currentValue).then((itms) => {
@@ -89,9 +89,9 @@
 					const all = [...newOptions, ...itms];
 					options = all.reduce((acc: Option[], current) => {
 						const exists = customFilter
-							? customFilter(acc, current.value ?? current.label, true)
+							? customFilter(acc, current.value ?? current.label, true).length > 0
 							: acc.find((item) => safeCompare(item, current));
-						if (!exists || exists.length === 0) {
+						if (!exists) {
 							const inItems = customFilter
 								? customFilter(items, current.value ?? current.label, true)[0]
 								: items.find((item) => safeCompare(item, current));
@@ -133,12 +133,14 @@
 			return value ? [value] : [];
 		},
 		get inputValue() {
-			if (inputValue !== undefined) return inputValue;
+			// if open, allows empty string, otherwise does not
+			if ((inputValue !== undefined && open) || inputValue) return inputValue;
 			const entry = items.find((item) => value && (item.value ?? item.label) === value);
 			if (entry) return toPreferredString(entry);
 			return value;
 		},
 		onOpenChange(details) {
+			open = details.open;
 			if (details.open) onParamChange(inputValue ?? '');
 		},
 		onInputValueChange({ inputValue: val }) {
@@ -147,6 +149,7 @@
 		},
 		onValueChange(details) {
 			if (value !== details.value[0]) value = details.value[0];
+			if (onBlur) onBlur();
 		},
 		onFocusOutside: onDefocus,
 		onPointerDownOutside: onDefocus,
@@ -237,6 +240,7 @@
 		width: 100%;
 	}
 	[data-part='label'] {
+		width: auto;
 		.icon-label {
 			color: var(--neutral-bg-mid);
 			aspect-ratio: 1;

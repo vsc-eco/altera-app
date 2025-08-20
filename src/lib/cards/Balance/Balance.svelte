@@ -35,37 +35,31 @@
 	const dateRanges = [
 		{
 			label: 'Last 7 Days',
-			value: '7days',
 			start: moment().subtract(7, 'days').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'Last 30 Days',
-			value: '30days',
 			start: moment().subtract(30, 'days').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'Last 90 Days',
-			value: '90days',
 			start: moment().subtract(90, 'days').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'Last 365 Days',
-			value: '365days',
 			start: moment().subtract(365, 'days').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'This Month',
-			value: 'this-month',
 			start: moment().startOf('month').toDate(),
 			end: moment().toDate()
 		},
 		{
 			label: 'Year to Date',
-			value: 'this-year',
 			start: moment().startOf('year').toDate(),
 			end: moment().toDate()
 		}
@@ -103,11 +97,8 @@
 				.then(() => {
 					loadingBalances = false;
 				})
-				.catch((err) => {
+				.catch(() => {
 					loadingBalances = false;
-					if (err instanceof Error) {
-						console.log('error fetching balance history:', err.message);
-					}
 				});
 		}
 	});

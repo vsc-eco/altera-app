@@ -1,7 +1,8 @@
 import moment, { type Moment } from 'moment';
 import { getLastPaidContact } from '../sendUtils';
 import { getDidFromUsername } from '$lib/getAccountName';
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
+import { authStore } from '$lib/auth/store';
 
 export const contactsVersion = writable(0);
 export type Contact = {
@@ -13,15 +14,33 @@ export type Contact = {
 	lastPaid?: string;
 };
 
-export function getContacts(): Map<string, Contact> {
+function getAllAccountsContacts(): Record<string, [string, Contact][]> {
 	const txString = localStorage.getItem('contacts');
-	if (!txString || txString === '{}') return new Map();
-	return new Map(JSON.parse(txString) as [string, Contact][]);
+	if (!txString || txString === '{}') return {};
+	return JSON.parse(txString) as Record<string, [string, Contact][]>;
+}
+
+function saveAllAccountsContacts(allContacts: Record<string, [string, Contact][]>) {
+	localStorage.setItem('contacts', JSON.stringify(allContacts));
+	contactsVersion.update((n) => n + 1);
+}
+
+export function getContacts(): Map<string, Contact> {
+	const account = get(authStore).value?.did;
+	if (!account) return new Map();
+	const allContacts = getAllAccountsContacts();
+	const accountContacts = allContacts[account];
+	if (!accountContacts) return new Map();
+	return new Map(accountContacts);
 }
 
 export function addContact(contact: Contact) {
-	const contactMap = getContacts();
+	const account = get(authStore).value?.did;
+	if (!account) return;
+	const allContacts = getAllAccountsContacts();
+	const contactMap = new Map(allContacts[account] || []);
 	const existing = contactMap.get(contact.label);
+
 	// adds any addresses
 	if (existing) {
 		existing.addresses = [...existing.addresses, ...contact.addresses].reduce(
@@ -44,27 +63,50 @@ export function addContact(contact: Contact) {
 	} else {
 		contactMap.set(contact.label, contact);
 	}
-	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
-	contactsVersion.update((n) => n + 1);
+
+	allContacts[account] = [...contactMap];
+	saveAllAccountsContacts(allContacts);
 }
 
 export function setContact(contact: Contact) {
-	const contactMap = getContacts();
+	const account = get(authStore).value?.did;
+	if (!account) return;
+	const allContacts = getAllAccountsContacts();
+	const contactMap = new Map(allContacts[account] || []);
 	contactMap.set(contact.label, contact);
-	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
-	contactsVersion.update((n) => n + 1);
+
+	allContacts[account] = [...contactMap];
+	saveAllAccountsContacts(allContacts);
 }
 
 export function removeContact(label: string) {
-	const contactMap = getContacts();
+	const account = get(authStore).value?.did;
+	if (!account) return;
+	const allContacts = getAllAccountsContacts();
+	const contactMap = new Map(allContacts[account] || []);
 	contactMap.delete(label);
-	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
-	contactsVersion.update((n) => n + 1);
+
+	allContacts[account] = [...contactMap];
+	saveAllAccountsContacts(allContacts);
 }
 
 export function setAllContacts(contactMap: Map<string, Contact>) {
-	localStorage.setItem('contacts', JSON.stringify([...contactMap]));
-	contactsVersion.update((n) => n + 1);
+	const account = get(authStore).value?.did;
+	if (!account) return;
+	const allContacts = getAllAccountsContacts();
+	allContacts[account] = [...contactMap];
+	saveAllAccountsContacts(allContacts);
+}
+
+export function getAllAccounts(): string[] {
+	const allContacts = getAllAccountsContacts();
+	return Object.keys(allContacts);
+}
+
+export function removeAccount(account: string) {
+	const allContacts = getAllAccountsContacts();
+	delete allContacts[account];
+	saveAllAccountsContacts(allContacts);
 }
 
 export async function getAllLastPaid(contact: Contact) {

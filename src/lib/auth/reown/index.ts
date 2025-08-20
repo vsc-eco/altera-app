@@ -35,7 +35,8 @@ export const modal = createAppKit({
 	metadata,
 	projectId,
 	features: {
-		analytics: false // Optional - defaults to your Cloud configuration
+		analytics: false, // Optional - defaults to your Cloud configuration
+		connectMethodsOrder: ['wallet']
 	}
 });
 

@@ -8,6 +8,7 @@
 	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 	import { onMount } from 'svelte';
 	import { themeStore, getInitialTheme, THEMES } from '$lib/theme';
+	import { cleanOldLocalStorage } from '$lib/cleanup';
 
 	let { children } = $props();
 	injectAnalytics();
@@ -16,7 +17,8 @@
 	onMount(() => {
 		const initialTheme = getInitialTheme();
 		themeStore.set(THEMES[initialTheme]);
-	})
+		cleanOldLocalStorage();
+	});
 </script>
 
 <AuthInjector>

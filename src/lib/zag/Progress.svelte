@@ -39,7 +39,8 @@
 	const api = $derived(progress.connect(service, normalizeProps));
 
 	$effect(() => {
-		api.setValue(customPercentage ?? percentage);
+		const newVal = customPercentage ?? percentage;
+		if (api.value !== newVal) api.setValue(newVal);
 	});
 
 	function formatNumber(n: number): string {

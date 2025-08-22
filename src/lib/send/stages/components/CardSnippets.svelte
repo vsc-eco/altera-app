@@ -1,10 +1,8 @@
 <script module lang="ts">
-	import { Coin, type CoinOptions, Network, SendAccount } from '$lib/send/sendOptions';
+	import { Coin, Network, SendAccount } from '$lib/send/sendOptions';
 	import AccountInfo from './AccountInfo.svelte';
 	import AssetInfo from './AssetInfo.svelte';
 	import {
-		momentToLastPaidString,
-		getLastPaidNetwork,
 		SendTxDetails,
 		type CoinOptionParam,
 		type NetworkOptionParam,

@@ -11,11 +11,11 @@ export const paths = [
 		icon: ScrollText,
 		href: '/transactions'
 	},
-	// {
-	// 	name: 'Send',
-	// 	icon: Send,
-	// 	href: '/send'
-	// },
+	{
+		name: 'Send',
+		icon: Send,
+		href: '/send'
+	},
 	{
 		name: 'Swap',
 		icon: ArrowRightLeft,

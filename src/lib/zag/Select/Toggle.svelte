@@ -66,6 +66,7 @@
 		.arrow {
 			padding-left: 0.5rem;
 		}
+		cursor: pointer;
 	}
 	[data-part='trigger'].cardlike {
 		position: relative;

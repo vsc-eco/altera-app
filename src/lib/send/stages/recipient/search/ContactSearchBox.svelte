@@ -285,7 +285,13 @@
 		},
 		onOpenChange(details) {
 			open = details.open;
-			if (details.open) onParamChange(inputValue ?? '');
+			if (details.open) {
+				if (selectedContact && details.reason === 'trigger-click') {
+					options = [contactDivider!, ...selectedAddrObjs!];
+				} else {
+					onParamChange(inputValue ?? '');
+				}
+			}
 		},
 		onInputValueChange({ inputValue: val }) {
 			if (!isTimedOut) inputValue = val;
@@ -464,6 +470,10 @@
 		pointer-events: none;
 		display: flex;
 		align-items: flex-end;
+		white-space: nowrap;
+		max-width: calc(100% - 100px);
+		overflow: hidden;
+		white-space: nowrap;
 		.invisible {
 			visibility: hidden;
 		}

@@ -28,18 +28,26 @@
 	let service = useMachine(dialog.machine, {
 		id: getUniqueId(),
 		closeOnInteractOutside: false,
-		closeOnEscape: false
+		onInteractOutside() {
+			emphasize = true;
+		}
 	});
 	const api = $derived(dialog.connect(service, normalizeProps));
 
 	toggle = (open: boolean = false) => {
 		api.setOpen(open);
 	};
+	let emphasize = $state(false);
+	$effect(() => {
+		if (!api.open) {
+			emphasize = false;
+		}
+	});
 </script>
 
 <div use:portal {...api.getBackdropProps()}></div>
 <div use:portal {...api.getPositionerProps()}>
-	<div {...api.getContentProps()}>
+	<div {...api.getContentProps()} class={{ emphasize }}>
 		<Card defaultBg>
 			<div class="confirmation-wrapper">
 				<div class="warning">
@@ -49,9 +57,8 @@
 				<hr />
 				<div class="buttons">
 					<PillButton
-						onclick={(e) => {
+						onclick={() => {
 							toggle();
-							e.stopImmediatePropagation();
 						}}
 					>
 						{#if customCancel?.icon}
@@ -140,5 +147,9 @@
 	}
 	[data-part='content'] {
 		z-index: 15;
+		border-radius: 0.5rem;
+		&.emphasize {
+			border: 2px solid var(--secondary-mid);
+		}
 	}
 </style>

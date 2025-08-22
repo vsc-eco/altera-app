@@ -191,17 +191,17 @@
 			<WaveLoading size={32} />
 			<div class="info">
 				<p>Waiting for signature</p>
-				{#if auth.value?.provider === 'aioha'}
-					<p>
-						<b class="error">Warning:</b> Transaction may still occur if it is authorized later via your
-						hive wallet.
-					</p>
-				{/if}
 				<span>
 					<PillButton onclick={() => abort()} theme="secondary" styleType="invert">
 						<X /> Cancel
 					</PillButton>
 				</span>
+				{#if auth.value?.provider === 'aioha'}
+					<p class="warning">
+						<b class="error">Warning:</b> Transaction may still occur if it is authorized later via your
+						hive wallet.
+					</p>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -255,6 +255,7 @@
 	}
 	tr {
 		display: flex;
+		padding: 0 0.5rem;
 	}
 	td {
 		height: 2.5rem;
@@ -268,7 +269,12 @@
 		}
 	}
 	.label {
-		flex: 0 1 12rem;
+		width: min(12rem, 40%);
+	}
+	.content {
+		line-height: 1.2;
+		flex-basis: 0;
+		flex-grow: 1;
 	}
 	.status-wrapper {
 		margin-top: 1rem;
@@ -291,17 +297,35 @@
 		.waiting-card {
 			margin-top: 25%;
 			font-weight: 500;
-			padding: 1.5rem;
+			padding: 1rem;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			pointer-events: all;
+			background-color: var(--neutral-bg);
+			border: 1px solid var(--neutral-bg-accent);
+			border-radius: 0.5rem;
+			height: min-content;
 			.info {
 				display: flex;
 				flex-direction: column;
 				align-items: center;
 				gap: 0.5rem;
+				.warning {
+					max-width: 20rem;
+					text-align: center;
+				}
 			}
+		}
+	}
+	@media screen and (max-width: 450px) {
+		table,
+		tbody,
+		tr {
+			width: 100%;
+		}
+		tr {
+			padding: 0;
 		}
 	}
 </style>

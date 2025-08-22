@@ -273,7 +273,7 @@
 				</div>
 			{/if}
 			{#each stepsData as step, index}
-				<div {...api.getContentProps({ index })}>
+				<div {...api.getContentProps({ index })} tabindex="-1">
 					{@render step.content(step.value)}
 				</div>
 			{/each}

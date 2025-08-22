@@ -108,12 +108,12 @@
 		gap: 1.5rem;
 		.sm-caption {
 			min-width: max(8ch, 20%);
-			overflow: hidden;
-			white-space: nowrap;
 		}
 		overflow: hidden;
 		span {
 			text-overflow: ellipsis;
+			overflow: hidden;
+			white-space: nowrap;
 		}
 	}
 </style>

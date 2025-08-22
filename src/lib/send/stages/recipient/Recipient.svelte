@@ -12,7 +12,7 @@
 		SendTxDetails
 	} from '../../sendUtils';
 	import SelectNetwork from './SelectNetwork.svelte';
-	import { TransferMethod } from '../../sendOptions';
+	import { Network, TransferMethod } from '../../sendOptions';
 	import NetworkInfo from '../components/NetworkInfo.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import SearchContact from './search/SearchContact.svelte';
@@ -42,7 +42,7 @@
 	const auth = $authStore;
 
 	$effect(() => {
-		const auth = $authStore;
+		if (!$authStore.value) return;
 		untrack(() => {
 			const contacts = getContacts();
 			processMap<string, Contact, Contact>(contacts, async (contact) => {
@@ -123,6 +123,14 @@
 			lastPaid = momentToLastPaidString(paid);
 			lastNetwork = momentToLastPaidString(net);
 		});
+	});
+
+	$effect(() => {
+		const newNetwork = $SendTxDetails.toNetwork;
+		const userNetworks = getRecipientNetworks(getDidFromUsername($SendTxDetails.toUsername));
+		if (userNetworks.find((net) => net.value === newNetwork?.value)?.disabled) {
+			$SendTxDetails.toNetwork = Network.vsc;
+		}
 	});
 
 	function openContact(create = false) {

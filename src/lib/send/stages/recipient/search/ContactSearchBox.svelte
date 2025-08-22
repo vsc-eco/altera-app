@@ -451,6 +451,7 @@
 		cursor: pointer;
 		top: 0;
 		right: 0.5rem;
+		color: var(--neutral-fg);
 	}
 	.delete-button {
 		right: 2.5rem;

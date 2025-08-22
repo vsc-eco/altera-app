@@ -26,6 +26,7 @@
 		overflow: auto;
 		max-height: 100%;
 		width: 100%;
+		color: inherit;
 		font: inherit;
 		&:disabled {
 			pointer-events: none;

@@ -12,7 +12,9 @@
 		styleType?:
 			| 'invert'
 			| 'text'
+			| 'text-subtle'
 			| 'outline'
+			| 'center'
 			| 'default'
 			| 'icon'
 			| 'icon-outline'
@@ -30,15 +32,14 @@
 		theme = 'neutral',
 		hide = false,
 		styleType: styleType,
+		class: additionalClasses = '',
 		...rest
 	}: Props = $props();
-	let invertStyle = $derived(styleType == 'invert');
-	let textStyle = $derived(styleType == 'text' || styleType == 'icon-text');
-	let outlineStyle = $derived(styleType == 'outline' || styleType == 'icon-outline');
-	let iconStyle = $derived(
-		styleType == 'icon' || styleType == 'icon-outline' || styleType == 'icon-text'
-	);
-	let subtleStyle = $derived(styleType === 'icon-subtle');
+	let invertStyle = $derived(styleType === 'invert');
+	let textStyle = $derived(styleType?.includes('text'));
+	let outlineStyle = $derived(styleType?.includes('outline'));
+	let iconStyle = $derived(styleType?.includes('icon'));
+	let subtleStyle = $derived(styleType?.includes('subtle'));
 	let className = $derived([
 		theme,
 		{
@@ -48,7 +49,8 @@
 			icon: iconStyle,
 			subtle: subtleStyle,
 			hide: hide
-		}
+		},
+		additionalClasses
 	]);
 </script>
 
@@ -184,8 +186,13 @@
 			color: var(--fg-mid);
 			padding: 0;
 			height: min-content;
+			width: min-content;
 			&:hover {
 				color: var(--fg);
+				background-color: transparent;
+			}
+			&:active {
+				background-color: transparent;
 			}
 		}
 	}

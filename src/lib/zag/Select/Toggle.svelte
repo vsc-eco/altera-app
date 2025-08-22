@@ -1,23 +1,19 @@
 <script lang="ts">
-	import Card from '$lib/cards/Card.svelte';
 	import PillButton, { type ButtonAttributes } from '$lib/PillButton.svelte';
 	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 	import type { Api } from '@zag-js/select';
 	import type { PropTypes } from '@zag-js/svelte';
 	type Props = {
 		api: Api<PropTypes, unknown>;
-		def: string;
+		placeholder: string;
 		disabled?: boolean;
 		items?: any[];
 		styleType?: 'default' | 'card' | 'dropdown';
 	};
-	let { api, def, disabled, items, styleType = 'default' }: Props = $props();
+	let { api, placeholder, disabled, items, styleType = 'default' }: Props = $props();
 	const triggerProps: ButtonAttributes = $derived(api.getTriggerProps()) as ButtonAttributes;
 	let open = $derived(api.open);
-	let currentItem: any | undefined = $derived(
-		items?.find((item) => item.label === api.valueAsString)
-	);
-	let defOpt = $derived(items?.find((item) => (item.value ?? item.lable) === def));
+	let currentItem = $derived(items?.find((item) => (item.value ?? item.label) === api.value[0]));
 </script>
 
 <div {...api.getControlProps()} class={{ card: styleType !== 'default' }}>
@@ -26,11 +22,8 @@
 			{#if typeof currentItem?.snippet == 'function'}
 				{@const Snippet = currentItem.snippet}
 				{@render Snippet(currentItem.snippetData ?? currentItem)}
-			{:else if typeof defOpt?.snippet == 'function'}
-				{@const Snippet = defOpt.snippet}
-				{@render Snippet(defOpt.snippetData ?? defOpt)}
 			{:else}
-				{api.valueAsString || def || 'Select option'}
+				{api.valueAsString || placeholder || 'Select option'}
 			{/if}
 			{#if open}
 				<ChevronUp></ChevronUp>
@@ -48,7 +41,7 @@
 					{@const Snippet = currentItem.snippet}
 					{@render Snippet(currentItem.snippetData ?? currentItem)}
 				{:else}
-					{api.valueAsString || def || 'Select option'}
+					{api.valueAsString || placeholder || 'Select option'}
 				{/if}
 				<span class="arrow">
 					{#if open}
@@ -73,6 +66,7 @@
 		.arrow {
 			padding-left: 0.5rem;
 		}
+		cursor: pointer;
 	}
 	[data-part='trigger'].cardlike {
 		position: relative;
@@ -97,7 +91,8 @@
 		background-color: var(--neutral-off-bg);
 		border-radius: 0.5rem;
 		&[data-state='open'] {
-			border-bottom: 2px solid var(--primary-bg-mid);
+			box-shadow: 0 -1px inset var(--primary-bg-mid);
+			border-bottom-color: var(--primary-bg-mid);
 			outline: none;
 			border-radius: 0.5rem 0.5rem 0 0;
 		}

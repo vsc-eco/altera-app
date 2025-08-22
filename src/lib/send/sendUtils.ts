@@ -21,8 +21,14 @@ import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/e
 import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
-import { vscTxsStore, waitForExtend, type TransactionInter } from '$lib/stores/txStores';
-import moment from 'moment';
+import {
+	fetchTxs,
+	getTimestamp,
+	vscTxsStore,
+	waitForExtend,
+	type TransactionInter
+} from '$lib/stores/txStores';
+import moment, { type Moment } from 'moment';
 import { getIntermediaryNetwork } from './getNetwork';
 
 export const SendTxDetails = writable<SendDetails>(blankDetails());
@@ -48,6 +54,52 @@ let tx_session_id = 0;
 
 export function getTxSessionId() {
 	return ++tx_session_id;
+}
+
+type ValidationError = {
+	success: false;
+	error: string;
+};
+type ValidationSuccess = {
+	success: true;
+	img?: string;
+	displayName?: string;
+};
+type ValidationResult = ValidationSuccess | ValidationError;
+export async function validateAddress(address: string): Promise<ValidationResult> {
+	if (address.length < 3) {
+		return {
+			success: false,
+			error: 'Minimum address length is 3 characters'
+		};
+	} else if (address.length <= 16) {
+		const accountInfo: Account = (await getAccounts([address])).result[0];
+		if (accountInfo) {
+			let displayName: string | undefined = undefined;
+			if (accountInfo.posting_json_metadata) {
+				const postingMetadata = postingMetadataFromString(
+					accountInfo.posting_json_metadata
+				).profile;
+				displayName = postingMetadata['name'];
+			}
+			return {
+				success: true,
+				displayName: displayName
+			};
+		}
+		return {
+			success: false,
+			error: 'No hive account found with this username'
+		};
+	} else if (address.length === 42 && address.startsWith('0x')) {
+		return {
+			success: true
+		};
+	}
+	return {
+		success: false,
+		error: 'Address must be a Hive username or EVM address'
+	};
 }
 
 export async function getDisplayName(did: string) {
@@ -100,60 +152,80 @@ function getDidNetworks(did: string) {
 }
 
 const lastPaidCache: {
-	contacts: Map<string, string>;
-	networks: Map<string, string>;
+	contacts: Map<string, string | 'Never'>;
+	networks: Map<string, string | 'Never'>;
 	lastLength: number;
 } = {
 	contacts: new Map(),
 	networks: new Map(),
 	lastLength: 0
 };
+export function clearLastPaidCache() {
+	lastPaidCache.contacts.clear();
+	lastPaidCache.networks.clear();
+}
+export function momentToLastPaidString(lastPaid?: Moment | 'Never') {
+	if (!lastPaid) return 'Never';
+	return lastPaid === 'Never' ? lastPaid : `on ${lastPaid.format('MMM DD, YYYY')}`;
+}
 // increment through store, keep fetching more to find last paid
-export async function getLastPaidContact(auth: Auth, toDid: string) {
+export async function getLastPaidContact(toDid: string): Promise<moment.Moment | 'Never'> {
+	const auth = get(authStore);
 	if (!auth.value?.did) return 'Never';
 	const cached = lastPaidCache.contacts.get(toDid);
-	if (cached) return cached;
+	if (cached) {
+		if (cached === 'Never') return 'Never';
+		return moment(cached);
+	}
 	let lastChecked = 0;
 	let lastLength = 0;
-	let store: TransactionInter[];
+	let store = get(vscTxsStore);
+	let retries = 0;
 	do {
-		store = get(vscTxsStore);
+		if (store.length <= lastLength) {
+			retries++;
+		} else {
+			retries = 0;
+		}
 		lastLength = store.length;
 		for (const tx of store.slice(lastChecked)) {
 			if (!tx.ops) continue;
 			for (const op of tx.ops) {
 				if (op?.data.to === toDid) {
-					const lastPaidString = `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
-					lastPaidCache.contacts.set(toDid, lastPaidString);
-					return lastPaidString;
+					const date = getTimestamp(tx);
+					const valid = isValidIsoDate(date);
+					lastPaidCache.contacts.set(toDid, valid ? date : 'Never');
+					return valid ? moment(date) : 'Never';
 				}
 			}
 		}
 		lastChecked = Math.max(store.length - 1, 0);
-		const success = await waitForExtend(auth.value.did);
-		if (!success) {
-			break;
-		}
-	} while (store.length > lastLength);
-	lastPaidCache.contacts.set(toDid, 'Never');
+		await fetchTxs(auth.value.did, 'extend', undefined, 12);
+		store = get(vscTxsStore);
+	} while (store.length > lastLength && retries < 3);
 	return 'Never';
 }
 
+export function isValidIsoDate(dateString: string): boolean {
+	const date = new Date(dateString);
+	const splitChars: RegExp = /[.Z]/;
+	return !isNaN(date.getTime()) && date.toISOString().startsWith(dateString.split(splitChars)[0]);
+}
+
 // TODO: probably use a record instead, to filter by name but keep other data
-export type recipientData = {
-	name: string;
+export type RecipientData = {
+	name?: string;
 	did: string;
-	date: string | undefined;
+	date: string;
 };
-export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
+export async function getRecentContacts(auth: Auth): Promise<RecipientData[]> {
 	if (!auth.value) return [];
-	let result = new Map<string, recipientData>();
+	let result = new Map<string, RecipientData>();
 	let leaveOut = ['v4vapp'];
 	let lastChecked = 0;
 	let lastLength = 0;
-	let store: TransactionInter[];
+	let store: TransactionInter[] = get(vscTxsStore);
 	do {
-		store = get(vscTxsStore);
 		lastLength = store.length;
 		for (const tx of store.slice(lastChecked)) {
 			if (!tx.ops) continue;
@@ -162,15 +234,14 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 				const username = getUsernameFromDid(op.data.to);
 				if (!leaveOut.includes(username) && !result.has(username)) {
 					result.set(username, {
-						name: (await getDisplayName(op.data.to)) ?? username,
+						name: (await getDisplayName(op.data.to)) ?? undefined,
 						did: op.data.to,
-						date: tx.anchr_ts + 'Z'
+						date: getTimestamp(tx)
 					});
 				}
 				if (result.size >= 3) {
 					for (const data of result.values()) {
-						const lastPaidString = `on ${moment(data.date).format('MMM DD, YYYY')}`;
-						lastPaidCache.contacts.set(data.did, lastPaidString);
+						lastPaidCache.contacts.set(data.did, isValidIsoDate(data.date) ? data.date : 'Never');
 					}
 					return [...result.values()];
 				}
@@ -181,9 +252,9 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 		if (!success) {
 			break;
 		}
+		store = get(vscTxsStore);
 	} while (store.length > lastLength);
 
-	store = get(vscTxsStore);
 	for (const tx of store) {
 		if (!tx.ops) continue;
 		for (const op of tx.ops) {
@@ -191,44 +262,46 @@ export async function getRecentContacts(auth: Auth): Promise<recipientData[]> {
 			const username = getUsernameFromDid(op.data.from);
 			if (!leaveOut.includes(username) && !result.has(username)) {
 				result.set(username, {
-					name: (await getDisplayName(op.data.from)) ?? username,
+					name: (await getDisplayName(op.data.from)) ?? undefined,
 					did: op.data.from,
-					date: undefined
+					date: getTimestamp(tx)
 				});
 			}
 			if (result.size >= 3) {
 				for (const data of result.values()) {
-					const lastPaidString = `on ${moment(data.date).format('MMM DD, YYYY')}`;
-					lastPaidCache.contacts.set(data.did, lastPaidString);
+					lastPaidCache.contacts.set(data.did, data.date);
 				}
 				return [...result.values()];
 			}
 		}
 	}
 	for (const data of result.values()) {
-		const lastPaidString = `on ${moment(data.date).format('MMM DD, YYYY')}`;
-		lastPaidCache.contacts.set(data.did, lastPaidString);
+		const lastPaidMoment = moment(data.date);
+		lastPaidCache.contacts.set(data.did, lastPaidMoment.toISOString());
 	}
 	return [...result.values()];
 }
 
-export async function getLastPaidNetwork(auth: Auth, netVal?: string) {
+export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment | 'Never'> {
+	const auth = get(authStore);
 	if (!auth.value?.did || !netVal) return 'Never';
 	const cached = lastPaidCache.networks.get(netVal);
+	if (cached) {
+		if (cached === 'Never') return 'Never';
+		return moment(cached);
+	}
 	let lastChecked = 0;
 	let store: TransactionInter[] = get(vscTxsStore);
 	let lastLength = 0;
-	if (cached) return cached;
 
 	do {
-		store = get(vscTxsStore);
 		lastLength = store.length;
 		for (const tx of store.slice(lastChecked)) {
 			if (!tx.ops) continue;
 			if (netVal.startsWith(tx.type)) {
-				const lastPaidString = `on ${moment(tx.anchr_ts + 'Z').format('MMM DD, YYYY')}`;
-				lastPaidCache.networks.set(netVal, lastPaidString);
-				return lastPaidString;
+				const lastPaidMoment = moment(getTimestamp(tx));
+				lastPaidCache.networks.set(netVal, lastPaidMoment.toISOString());
+				return lastPaidMoment;
 			}
 		}
 		lastChecked = Math.max(store.length - 1, 0);
@@ -236,6 +309,7 @@ export async function getLastPaidNetwork(auth: Auth, netVal?: string) {
 		if (!success) {
 			break;
 		}
+		store = get(vscTxsStore);
 	} while (store.length > lastLength);
 	lastPaidCache.networks.set(netVal, 'Never');
 	return 'Never';
@@ -292,43 +366,6 @@ export function getFromOptions(
 		};
 	}
 	return;
-}
-
-function getNetworksFromAccount(account: SendAccount, did: string) {
-	if (account.value === SendAccount.deposit.value && did.startsWith('hive:')) {
-		return [Network.hiveMainnet];
-	}
-	if (account.value === SendAccount.vscAccount.value) {
-		return [Network.vsc];
-	}
-	if (account.value === SendAccount.swap.value) {
-		return [Network.lightning];
-	}
-}
-
-function getAccountsFromMethod(method: TransferMethod, did: string) {
-	if (method.value === TransferMethod.lightningTransfer.value) {
-		return [SendAccount.swap];
-	}
-	let result = [SendAccount.vscAccount];
-	if (did.startsWith('hive:')) {
-		result.push(SendAccount.deposit);
-	}
-	return result;
-
-	// let result: SendAccount[] = [];
-	// if (!method) {
-	// 	result = [SendAccount.vscAccount, SendAccount.swap];
-	// } else {
-	// 	if (method.value === TransferMethod.lightningTransfer.value) {
-	// 		return [SendAccount.swap];
-	// 	}
-	// 	// let result = [SendAccount.vscAccount];
-	// }
-	// if (did.startsWith('hive:')) {
-	// 	result.push(SendAccount.deposit);
-	// }
-	// return result;
 }
 
 type CoinOptList = CoinOptions['coins'][number];
@@ -430,7 +467,8 @@ export function solveNetworkConstraints(
 	toNetwork: Network | undefined,
 	did: string | undefined,
 	account?: SendAccount,
-	fromNetwork?: Network
+	fromNetwork?: Network,
+	allAssets: Boolean = false
 ): Constraints {
 	// console.log("parameters to solve constraints", method, fromCoin, did, account);
 	if (!did)
@@ -509,7 +547,7 @@ export function solveNetworkConstraints(
 	// const assetsDisabled =
 	return {
 		assetOptions: combineAssetOptions(
-			assetsGivenMethod,
+			allAssets ? allAssetsSet : assetsGivenMethod,
 			assetsGivenFromNetworks,
 			assetsGivenToNetwork,
 			toNetwork,
@@ -524,7 +562,8 @@ export async function send(
 	details: NecessarySendDetails,
 	auth: Auth,
 	intermediary: IntermediaryNetwork,
-	setStatus: (status: string, isError?: boolean) => void
+	setStatus: (status: string, isError?: boolean) => void,
+	signal: AbortSignal
 ): Promise<Error | { id: string }> {
 	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
 	if (intermediary == Network.vsc) {
@@ -542,7 +581,13 @@ export async function send(
 
 			setStatus('Preparing transaction for signing…');
 
-			const id = await signAndBrodcastTransaction([sendOp], wagmiSigner, client, wagmiConfig)
+			const id = await signAndBrodcastTransaction(
+				[sendOp],
+				wagmiSigner,
+				client,
+				signal,
+				wagmiConfig
+			)
 				.then((result) => {
 					setStatus(`Transaction submitted successfully!`);
 					// TODO: add back once backend fixed

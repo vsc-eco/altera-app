@@ -6,8 +6,9 @@
 	let {
 		value,
 		children,
-		show = true
-	}: { value: string; children?: Snippet; show?: boolean } = $props();
+		show = true,
+		clickAnywhere = false
+	}: { value: string; children?: Snippet; show?: boolean; clickAnywhere?: boolean } = $props();
 
 	let copied = $state(false);
 	let timeoutId: NodeJS.Timeout;
@@ -24,11 +25,20 @@
 </script>
 
 <span>
-	{#if children}
-		{@render children()}
-	{:else}
-		{value}
-	{/if}
+	<span
+		class={['content', { clickable: clickAnywhere }]}
+		role="button"
+		onclick={clickAnywhere ? handleClick : undefined}
+		onkeydown={() => {}}
+		tabindex="-1"
+	>
+		{#if children}
+			{@render children()}
+		{:else}
+			{value}
+		{/if}
+	</span>
+
 	<PillButton onclick={handleClick} styleType="icon-subtle" disabled={copied} hide={!show}>
 		{#if copied}
 			<ClipboardCheck class="clipboard-icon" />
@@ -43,6 +53,9 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+	}
+	.clickable {
+		cursor: pointer;
 	}
 	:global(.clipboard-icon) {
 		width: 1.25rem;

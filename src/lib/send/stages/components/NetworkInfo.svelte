@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { networkMap, type IntermediaryNetwork, type Network } from '../sendOptions';
+	import { networkMap, type IntermediaryNetwork, type Network } from '../../sendOptions';
 	import InfoSegment from './InfoSegment.svelte';
 
 	let {

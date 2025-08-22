@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Select from '$lib/zag/Select.svelte';
 	import moment from 'moment';
-	export type DateRange = { label: string; value: string; start: Date; end: Date };
+	export type DateRange = { label: string; start: Date; end: Date };
 	type Props = {
 		dateRanges?: DateRange[];
 		currDate?: Date;
@@ -20,7 +20,9 @@
 	{:else}
 		{moment(currDate).format('MMMM D, YYYY')}
 	{/if}
-{:else}
+{/if}
+<!-- style as hidden instead of {:else} to avoid recreating -->
+<div class="select-wrapper" hidden={!!currDate}>
 	<Select
 		onValueChange={(v) => {
 			initial = v.value[0];
@@ -29,4 +31,10 @@
 		{initial}
 		items={dateRanges}
 	></Select>
-{/if}
+</div>
+
+<style>
+	.select-wrapper[hidden] {
+		visibility: hidden;
+	}
+</style>

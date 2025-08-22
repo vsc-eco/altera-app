@@ -4,7 +4,7 @@
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from '$lib/zag/idgen';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { Coin, Network, type NecessarySendDetails, type SendDetails } from './sendOptions';
 	import Amount from './stages/amount/Amount.svelte';
 	import Review from './stages/review/Review.svelte';
@@ -19,7 +19,6 @@
 	import Complete from './stages/complete/Complete.svelte';
 	import SendNavButtons from './navigation/SendNavButtons.svelte';
 	import { sleep } from 'aninest';
-	import Details from './stages/details/Details.svelte';
 
 	let auth = $authStore;
 	let windowWidth = $state(0);
@@ -39,14 +38,15 @@
 		remValue = parseFloat(rootStyle.fontSize);
 	});
 	// size of content + 2 * (space for tabs + buffer)
-	const showTabs = $derived(windowWidth > 42 * remValue + 2 * (6.75 * remValue + 106 + 10));
+	const showTabs = $derived(windowWidth > 42 * remValue + 2 * (6.75 * remValue + 160 + 10));
 
 	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
+	let waiting = $state(false);
 	let txId = $state('');
 
 	const stepsData = [
 		{ value: 'recipient', label: 'Recipient', content: recipient },
-		{ value: 'amount', label: 'Amount', content: amount },
+		{ value: 'amount', label: 'Amount & Details', content: amount },
 		{ value: 'review', label: 'Review', content: review },
 		{ value: 'complete', label: 'Review', content: complete }
 	];
@@ -61,6 +61,15 @@
 	});
 
 	const api = $derived(steps.connect(service, normalizeProps));
+
+	const abortSend = new AbortController();
+
+	// $effect(() => {
+	// 	const _ = api;
+	// 	untrack(() => {
+	// 		api.setStep(1);
+	// 	});
+	// });
 
 	// $inspect(api.count, api.hasNextStep, api.value, api.isCompleted);
 
@@ -111,7 +120,8 @@
 			return;
 		}
 
-		send(importantDetails, auth, intermediary, setStatus).then((res) => {
+		waiting = true;
+		send(importantDetails, auth, intermediary, setStatus, abortSend.signal).then((res) => {
 			if (res instanceof Error) {
 				// log the error if it isn't caught
 				if (!status.isError) console.error(res.message);
@@ -193,12 +203,31 @@
 			action: previous
 		}
 	});
+	let oldId = '';
 	$effect(() => {
-		if (txId) {
+		if (txId && txId !== untrack(() => oldId)) {
+			waiting = false;
 			setStatus('');
 			api.setStep(stepsData.length - 1);
+			oldId = txId;
 		}
 	});
+	$effect(() => {
+		if (
+			status.message.includes('canceled by the user') ||
+			status.message.includes('rejected by user')
+		) {
+			waiting = false;
+		}
+	});
+	function cancelSend() {
+		abortSend.abort();
+		waiting = false;
+		status = {
+			message: 'Transaction canceled by the user',
+			isError: true
+		};
+	}
 </script>
 
 <svelte:window
@@ -220,7 +249,7 @@
 	<Amount id={value} {editStage} />
 {/snippet}
 {#snippet review()}
-	<Review {status} />
+	<Review {status} {waiting} abort={cancelSend} />
 {/snippet}
 {#snippet complete()}
 	<Complete {txId} />
@@ -244,7 +273,7 @@
 				</div>
 			{/if}
 			{#each stepsData as step, index}
-				<div {...api.getContentProps({ index })}>
+				<div {...api.getContentProps({ index })} tabindex="-1">
 					{@render step.content(step.value)}
 				</div>
 			{/each}
@@ -360,7 +389,7 @@
 	[data-part='content'] {
 		margin: auto;
 		max-width: 42rem;
-		padding: 0 1rem 1rem 1rem;
+		padding: 0 0.5rem 1rem 0.5rem;
 		min-height: calc(100% - 1rem);
 		overflow-y: scroll;
 	}

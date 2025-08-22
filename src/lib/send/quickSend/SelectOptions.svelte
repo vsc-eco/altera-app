@@ -1,40 +1,28 @@
 <script lang="ts">
 	import {
-		getDisplayName,
+		momentToLastPaidString,
 		getFee,
 		getLastPaidContact,
-		getRecentContacts,
 		getRecipientNetworks,
 		SendTxDetails,
 		solveNetworkConstraints,
 		type CoinOptionParam,
-		type NetworkOptionParam,
-		type recipientData
+		type NetworkOptionParam
 	} from '../sendUtils';
-	import ContactInfo from '../stages/ContactInfo.svelte';
-	import { authStore, type Auth } from '$lib/auth/store';
-	import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
-	import moment from 'moment';
-	import { CircleUser } from '@lucide/svelte';
-	import SelectContact from '../stages/recipient/SelectContact.svelte';
-	import Card from '$lib/cards/Card.svelte';
+	import { authStore } from '$lib/auth/store';
+	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
 	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
-	import swapOptions, {
-		Coin,
-		Network,
-		networkMap,
-		SendAccount,
-	} from '../sendOptions';
+	import swapOptions, { Coin, Network, networkMap, SendAccount } from '../sendOptions';
 	import Select from '$lib/zag/Select.svelte';
-	import { assetCard, networkCard } from '../stages/amount/CardSnippets.svelte';
+	import { assetCard, networkCard } from '../stages/components/CardSnippets.svelte';
 	import SwapOptions from '../stages/amount/SwapOptions.svelte';
 	import { untrack } from 'svelte';
-	import ComboBox from '$lib/zag/ComboBox.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
-	import { DHive } from '$lib/vscTransactions/dhive';
-	import SearchContact from '../stages/recipient/SearchContact.svelte';
+	import SearchContact from '../stages/recipient/search/SearchContact.svelte';
+	import RecipientCard from '../stages/recipient/RecipientCard.svelte';
+	import ContactSearchBox from '../stages/recipient/search/ContactSearchBox.svelte';
 
 	let {
 		id,
@@ -86,10 +74,7 @@
 				$SendTxDetails.fromNetwork?.value === Network.vsc.value &&
 				networkOptions.find((net) => net.value === Network.hiveMainnet.value)?.disabled === false
 			) {
-				SendTxDetails.update((current) => ({
-					...current,
-					fromNetwork: Network.hiveMainnet
-				}));
+				$SendTxDetails.fromNetwork = Network.hiveMainnet;
 			}
 		});
 		lastFromCoin = newFromCoin;
@@ -107,13 +92,10 @@
 	// default to USD if swap
 	$effect(() => {
 		if (isSwap && !$SendTxDetails.toCoin) {
-			SendTxDetails.update((current) => ({
-				...current,
-				toCoin: {
-					coin: coins.usd,
-					networks: []
-				}
-			}));
+			$SendTxDetails.toCoin = {
+				coin: coins.usd,
+				networks: []
+			};
 		}
 	});
 
@@ -157,14 +139,14 @@
 	// 	})) ?? []
 	// );
 	interface NetworkObject extends NetworkOptionParam {
-		snippetData: NetworkOptionParam;
+		snippetData: typeof networkCard.arguments;
 		snippet: typeof networkCard;
 	}
 	let networkObjs: NetworkObject[] = $derived(
 		networkOptions.map((opt) => ({
 			...opt,
 			snippet: networkCard,
-			snippetData: opt
+			snippetData: { net: opt }
 		}))
 	);
 	let fromCoinOptions = $derived(
@@ -193,6 +175,7 @@
 					(coin) => coin.coin.value === fromCoinValue
 				);
 				if (!fromCoinOpt) return;
+				$SendTxDetails.fromCoin = fromCoinOpt;
 				if ($SendTxDetails.toCoin) {
 					Promise.all([
 						new CoinAmount(toAmount, $SendTxDetails.toCoin!.coin).convertTo(
@@ -201,26 +184,14 @@
 						),
 						getFee(toAmount)
 					]).then(([amount, fee]) => {
-						SendTxDetails.update((current) => ({
-							...current,
-							fromCoin: fromCoinOpt,
-							fromAmount: amount.toAmountString(),
-							fee: fee
-						}));
+						$SendTxDetails.fromAmount = amount.toAmountString();
+						$SendTxDetails.fee = fee;
 					});
-				} else {
-					SendTxDetails.update((current) => ({
-						...current,
-						fromCoin: fromCoinOpt
-					}));
 				}
 			}
 		} else if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
-			SendTxDetails.update((current) => ({
-				...current,
-				fromCoin: current.toCoin,
-				fromAmount: current.toAmount
-			}));
+			$SendTxDetails.fromCoin = $SendTxDetails.toCoin;
+			$SendTxDetails.fromAmount = $SendTxDetails.toAmount;
 		}
 	});
 
@@ -258,21 +229,14 @@
 							),
 							getFee(toAmount)
 						]).then(([amount, fee]) => {
-							SendTxDetails.update((current) => ({
-								...current,
-								toAmount: toAmount,
-								fromAmount: amount.toAmountString(),
-								fee: fee
-							}));
+							$SendTxDetails.toAmount = toAmount;
+							$SendTxDetails.fromAmount = amount.toAmountString();
+							$SendTxDetails.fee = fee;
 						});
 						return;
 					}
 				}
-				SendTxDetails.update((current) => ({
-					...current,
-					fromAmount: toAmount,
-					toAmount: toAmount
-				}));
+				$SendTxDetails.fromAmount = $SendTxDetails.toAmount = toAmount;
 			});
 		}
 	});
@@ -282,7 +246,7 @@
 	let lastPaid = $state('Never');
 	$effect(() => {
 		if (!auth.value) return;
-		getLastPaidContact(auth, toDid).then((paid) => (lastPaid = paid));
+		getLastPaidContact(toDid).then((paid) => (lastPaid = momentToLastPaidString(paid)));
 	});
 	let contactOpen = $state(false);
 
@@ -297,22 +261,25 @@
 				label: v.label,
 				disabled: v.disabled,
 				snippet: networkCard,
-				snippetData: v
+				snippetData: { net: v }
 			};
 		})
 	);
 	// MEMO SECTION
 	let memo = $state('');
-</script>
 
-{#snippet selectContact()}
-	<SelectContact close={() => (contactOpen = false)} />
-{/snippet}
+	let warningMsg = $derived(
+		getDidFromUsername($SendTxDetails.toUsername).startsWith('hive:') && !isValidHive
+			? 'Warning: This hive account does not exist. Payment to this address may result in loss of funds.'
+			: undefined
+	);
+</script>
 
 <h2>Send</h2>
 <div class="section to">
 	<span class="sm-caption nogap">To</span>
-	<SearchContact />
+	<ContactSearchBox bind:value={$SendTxDetails.toUsername} enableContacts={false} />
+	<RecipientCard basic />
 	<!-- <div class="selected">
 			<input
 				id="send-recipient"
@@ -320,7 +287,6 @@
 				placeholder="Find a contact or paste wallet address"
 			/>
 		</div> -->
-	
 
 	<span class="sm-caption gap">Recipient Network</span>
 	<Select
@@ -329,10 +295,7 @@
 		styleType="dropdown"
 		placeholder="Recipient Network"
 		onValueChange={(v) => {
-			SendTxDetails.update((current) => ({
-				...current,
-				toNetwork: Object.values(Network).find((net) => net.value === v.value[0])
-			}));
+			$SendTxDetails.toNetwork = Object.values(Network).find((net) => net.value === v.value[0]);
 		}}
 	/>
 </div>
@@ -344,10 +307,7 @@
 		styleType="dropdown"
 		placeholder="Token"
 		onValueChange={(v) => {
-			SendTxDetails.update((current) => ({
-				...current,
-				toCoin: swapOptions.from.coins.find((val) => val.coin.value === v.value[0])
-			}));
+			$SendTxDetails.toCoin = swapOptions.from.coins.find((val) => val.coin.value === v.value[0]);
 		}}
 	/>
 
@@ -370,10 +330,7 @@
 			placeholder="On Network"
 			initial={$SendTxDetails.fromNetwork?.value}
 			onValueChange={(v) => {
-				SendTxDetails.update((current) => ({
-					...current,
-					fromNetwork: Object.values(Network).find((net) => net.value === v.value[0])
-				}));
+				$SendTxDetails.fromNetwork = Object.values(Network).find((net) => net.value === v.value[0]);
 			}}
 		/>
 
@@ -404,17 +361,14 @@
 </div>
 
 <div class="section">
-<span class="sm-caption">Memo (optional)</span>
-<input
-	bind:value={memo}
-    maxlength=300
-	onchange={() => {
-		SendTxDetails.update((current) => ({
-			...current,
-			memo: memo
-		}));
-	}}
-/>
+	<span class="sm-caption">Memo (optional)</span>
+	<input
+		bind:value={memo}
+		maxlength="300"
+		onchange={() => {
+			$SendTxDetails.memo = memo;
+		}}
+	/>
 </div>
 
 <style lang="scss">

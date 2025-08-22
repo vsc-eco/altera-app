@@ -1,13 +1,11 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
 	import { getDidFromUsername } from '$lib/getAccountName';
-	import { CircleUser, Dot, Landmark, MapPin } from '@lucide/svelte';
+	import { Landmark } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
-	import BasicCopy from '$lib/components/BasicCopy.svelte';
-	import SelectContact from './SelectContact.svelte';
-	import FullscreenModal from '$lib/components/FullscreenModal.svelte';
-	import { untrack, type Snippet } from 'svelte';
+	import { onMount, untrack, type Snippet } from 'svelte';
 	import {
+		momentToLastPaidString,
 		getLastPaidContact,
 		getLastPaidNetwork,
 		getRecipientNetworks,
@@ -15,10 +13,23 @@
 	} from '../../sendUtils';
 	import SelectNetwork from './SelectNetwork.svelte';
 	import { Network, TransferMethod } from '../../sendOptions';
-	import NetworkInfo from '../NetworkInfo.svelte';
+	import NetworkInfo from '../components/NetworkInfo.svelte';
 	import Select from '$lib/zag/Select.svelte';
-	import SearchContact from './SearchContact.svelte';
-	import InfoSegment from '../InfoSegment.svelte';
+	import SearchContact from './search/SearchContact.svelte';
+	import InfoSegment from '../components/InfoSegment.svelte';
+	import Dialog from '$lib/zag/Dialog.svelte';
+	import SelectContact from '$lib/send/contacts/SelectContact.svelte';
+	import RecipientCard from './RecipientCard.svelte';
+	import {
+		compareContacts,
+		getAllLastPaid,
+		getContacts,
+		processMap,
+		setAllContacts,
+		type Contact
+	} from '$lib/send/contacts/contacts';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
+	import ContactSearchBox from './search/ContactSearchBox.svelte';
 
 	let {
 		id,
@@ -29,6 +40,39 @@
 	} = $props();
 
 	const auth = $authStore;
+
+	$effect(() => {
+		if (!$authStore.value) return;
+		untrack(() => {
+			const contacts = getContacts();
+			processMap<string, Contact, Contact>(contacts, async (contact) => {
+				const lastPaidMoment = await getAllLastPaid(contact);
+				const lastPaidString = momentToLastPaidString(lastPaidMoment);
+				return {
+					...contact,
+					lastPaid: lastPaidString
+				};
+			}).then((res) => {
+				const unwrapped = new Map<string, Contact>();
+				for (const [key, settled] of res) {
+					if (settled.status === 'fulfilled') {
+						const oldContact = contacts.get(key);
+						if (compareContacts(oldContact!, settled.value) < 1) {
+							unwrapped.set(key, oldContact!);
+						} else {
+							unwrapped.set(key, settled.value);
+						}
+					} else {
+						const oldContact = contacts.get(key);
+						if (oldContact) {
+							unwrapped.set(key, oldContact);
+						}
+					}
+				}
+				setAllContacts(unwrapped);
+			});
+		});
+	});
 
 	$effect(() => {
 		if ($SendTxDetails.method && $SendTxDetails.toUsername && $SendTxDetails.toNetwork) {
@@ -60,15 +104,11 @@
 	$effect(() => {
 		const newMethod = transferMethods.find((mthd) => mthd.value === method);
 		untrack(() => {
-			SendTxDetails.update((current) => ({
-				...current,
-				fromNetwork: undefined,
-				fromCoin: undefined,
-				fromAmount: '0',
-				toCoin: undefined,
-				account: undefined,
-				method: newMethod
-			}));
+			$SendTxDetails.fromNetwork = undefined;
+			$SendTxDetails.fromCoin = $SendTxDetails.toCoin = undefined;
+			$SendTxDetails.account = undefined;
+			$SendTxDetails.fromAmount = '0';
+			$SendTxDetails.method = newMethod;
 		});
 	});
 
@@ -77,15 +117,36 @@
 	$effect(() => {
 		if (!auth.value) return;
 		Promise.all([
-			getLastPaidContact(auth, toDid),
-			getLastPaidNetwork(auth, $SendTxDetails.toNetwork?.value)
+			getLastPaidContact(toDid),
+			getLastPaidNetwork($SendTxDetails.toNetwork?.value)
 		]).then(([paid, net]) => {
-			lastPaid = paid;
-			lastNetwork = net;
+			lastPaid = momentToLastPaidString(paid);
+			lastNetwork = momentToLastPaidString(net);
 		});
 	});
+
+	$effect(() => {
+		const newNetwork = $SendTxDetails.toNetwork;
+		const userNetworks = getRecipientNetworks(getDidFromUsername($SendTxDetails.toUsername));
+		if (userNetworks.find((net) => net.value === newNetwork?.value)?.disabled) {
+			$SendTxDetails.toNetwork = Network.vsc;
+		}
+	});
+
+	function openContact(create = false) {
+		openToCreate = create;
+		toggleContact(true);
+	}
+
 	let contactOpen = $state(false);
 	let networkOpen = $state(false);
+	let toggleNetwork = $state<(open?: boolean) => void>(() => {});
+	let toggleContact = $state<(open?: boolean) => void>(() => {});
+	let contact = $state<Contact>();
+	let createNew: string | undefined = $derived(
+		!contact && $SendTxDetails.toUsername ? $SendTxDetails.toUsername : undefined
+	);
+	let openToCreate = $state(false);
 </script>
 
 {#snippet methodDetails(info: MethodOptionParam)}
@@ -96,94 +157,85 @@
 	/>
 {/snippet}
 
-{#snippet recipient()}
-	<h2>Recipient</h2>
-	<div class="contact-search">
-		<SearchContact />
-	</div>
+<h2>Recipient</h2>
+<div class="contact-search">
+	<RecipientCard edit={openContact} {contact} />
+	<ContactSearchBox bind:value={$SendTxDetails.toUsername} bind:selectedContact={contact} />
+</div>
 
-	<h3>Payment Method</h3>
-	<div class="method">
-		<!-- <ComboBox items={transferMethods} bind:value={method} /> -->
-		<Select
-			items={transferMethods}
-			onValueChange={(v) => (method = v.value[0])}
-			initial={$SendTxDetails.method?.value}
-			styleType="dropdown"
+<h3>Payment Method</h3>
+<div class="method">
+	<Select
+		items={transferMethods}
+		onValueChange={(v) => (method = v.value[0])}
+		initial={$SendTxDetails.method?.value}
+		styleType="dropdown"
+	/>
+</div>
+
+<h3>Recipient Network</h3>
+<ClickableCard onclick={() => toggleNetwork(true)}>
+	<div class="network-card">
+		{#if $SendTxDetails.toNetwork}
+			<NetworkInfo network={$SendTxDetails.toNetwork} lastPaid={lastNetwork} size="large" />
+		{:else}
+			<span class="user-icon-placeholder"><Landmark /></span>
+		{/if}
+		{#if getRecipientNetworks(toDid).length > 1}
+			<span class="more">
+				<span>Edit</span>
+			</span>
+		{/if}
+	</div>
+</ClickableCard>
+
+<Dialog bind:open={networkOpen} bind:toggle={toggleNetwork}>
+	{#snippet content()}
+		<SelectNetwork close={toggleNetwork} />
+	{/snippet}
+</Dialog>
+
+<Dialog bind:open={contactOpen} bind:toggle={toggleContact}>
+	{#snippet content()}
+		<SelectContact
+			bind:selectedContact={contact}
+			editing={openToCreate}
+			close={toggleContact}
+			{createNew}
 		/>
-		<!-- For Combobox -->
-		<!-- {#if $SendTxDetails.method}
-				<span class="faded-caption"
-					>{$SendTxDetails.method.length} <Dot size={16} /> {$SendTxDetails.method.fees}</span
-				>
-			{:else}
-				<br />
-			{/if} -->
-	</div>
-
-	<h3>Recipient Network</h3>
-	<Card>
-		<div class="network-card">
-			{#if $SendTxDetails.toNetwork}
-				<NetworkInfo network={$SendTxDetails.toNetwork} lastPaid={lastNetwork} size="large" />
-			{:else}
-				<span class="user-icon-placeholder"><Landmark /></span>
-			{/if}
-			{#if getRecipientNetworks(toDid).length > 1}
-				<span class="more">
-					<button onclick={() => (networkOpen = true)} class="small-button"> Edit </button>
-				</span>
-			{/if}
-		</div>
-	</Card>
-{/snippet}
-
-{#snippet selectContact()}
-	<SelectContact close={() => (contactOpen = false)} />
-{/snippet}
-
-{#snippet selectNetwork()}
-	<SelectNetwork close={() => (networkOpen = false)} />
-{/snippet}
-
-{#if contactOpen}
-	<FullscreenModal>
-		{@render selectContact()}
-	</FullscreenModal>
-{:else if networkOpen}
-	<FullscreenModal>
-		{@render selectNetwork()}
-	</FullscreenModal>
-{:else}
-	{@render recipient()}
-{/if}
+	{/snippet}
+</Dialog>
 
 <style lang="scss">
 	.contact-search {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		:global(input) {
-			background-color: var(--neutral-bg);
+		padding: 1.5rem;
+		background-color: var(--neutral-bg-accent);
+		border-radius: 1rem;
+		@media screen and (min-width: 450px) {
+			:global(input) {
+				background-color: var(--neutral-bg);
+			}
+		}
+		@media screen and (max-width: 450px) {
+			background-color: transparent;
+			padding: 0;
 		}
 	}
 	.network-card {
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+		padding: 0.5rem;
 		.more {
 			margin-left: auto;
+			span {
+				font-size: var(--text-sm);
+				color: var(--accent-fg-mid);
+			}
 		}
-	}
-	.network-card {
-		padding: 0.5rem;
-	}
-	.small-button {
-		border: none;
-		background-color: transparent;
-		cursor: pointer;
-		font-size: var(--text-sm);
-		color: var(--accent-fg-mid);
 	}
 	h3 {
 		margin-top: 2rem;

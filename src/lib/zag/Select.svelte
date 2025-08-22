@@ -25,8 +25,6 @@
 	}: Props = $props();
 	// pass items with snippet and snippetData in order to render a snippet and not just the label
 
-	// $inspect("options, initial", options, initial);
-
 	let currentOptions = options;
 
 	function getValue(opt: Option): string {
@@ -34,36 +32,26 @@
 	}
 
 	const collection = select.collection({
-		items: options as Option[],
+		items: options,
 		itemToString: (item) => item.label,
 		itemToValue: getValue,
 		isItemDisabled: (item) => item.disabled
 	});
-	const userProps = $derived({
+	const service = useMachine(select.machine, {
 		id: getUniqueId(),
 		defaultValue: initial ? [initial] : undefined,
 		collection,
-		onValueChange
+		onValueChange,
+		positioning:
+			styleType === 'default'
+				? {}
+				: {
+						placement: 'bottom-start',
+						sameWidth: true,
+						gutter: 0,
+						shift: 0
+					}
 	});
-	const service = useMachine(
-		untrack(() => select.machine),
-		{
-			id: getUniqueId(),
-			defaultValue: initial ? [initial] : undefined,
-			// svelte-ignore state_referenced_locally
-			collection,
-			onValueChange,
-			positioning:
-				styleType === 'default'
-					? {}
-					: {
-							placement: 'bottom-start',
-							sameWidth: true,
-							gutter: 0,
-							shift: 0
-						}
-		}
-	);
 	const api = $derived(select.connect(service, normalizeProps));
 
 	$effect(() => {
@@ -71,7 +59,11 @@
 	});
 	$effect(() => {
 		if (initial) {
-			untrack(() => api.selectValue(initial));
+			untrack(() => {
+				if (api.value[0] !== initial) {
+					api.selectValue(initial);
+				}
+			});
 		} else {
 			untrack(() => api.clearValue());
 		}
@@ -85,8 +77,11 @@
 		if (newVals.difference(currentVals).size > 0 || currentVals.difference(newVals).size > 0) {
 			untrack(() => {
 				if (newOptions.length === 1) {
-					api.setValue([getValue(newOptions[0])]);
-				} else if (api.value.length > 0 && !newOptions.find((opt) => getValue(opt) === api.value[0])) {
+					api.selectValue(getValue(newOptions[0]));
+				} else if (
+					api.value.length > 0 &&
+					!newOptions.find((opt) => getValue(opt) === api.value[0])
+				) {
 					api.clearValue();
 				}
 			});
@@ -94,7 +89,7 @@
 		}
 	});
 	$effect(() => {
-		if (options.find((opt) => opt.value === api.value[0])?.disabled) {
+		if (options.find((opt) => getValue(opt) === api.value[0])?.disabled) {
 			api.clearValue();
 		}
 	});
@@ -103,14 +98,14 @@
 <div {...api.getRootProps()} class={{ card: styleType !== 'default' }}>
 	<Toggle
 		{api}
-		def={initial || placeholder || 'Select option'}
+		placeholder={placeholder || 'Select option'}
 		{disabled}
 		items={options}
 		{styleType}
-	></Toggle>
+	/>
 
 	<div {...api.getPositionerProps()} class={{ card: styleType !== 'default' }}>
-		<List {api} selectData={api.collection.items} {styleType}></List>
+		<List {api} selectData={api.collection.items} {styleType} />
 	</div>
 </div>
 

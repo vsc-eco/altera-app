@@ -1,18 +1,10 @@
 <script lang="ts">
-	import * as collapsible from '@zag-js/collapsible';
-	import { normalizeProps, useMachine } from '@zag-js/svelte';
-	import { getUniqueId } from '$lib/zag/idgen';
-	import { ChevronDown, ChevronRight, Info } from '@lucide/svelte';
-	import { authStore } from '$lib/auth/store';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
-	import {
-		getAccountNameFromAddress,
-		getAccountNameFromAuth,
-		getUsernameFromAuth
-	} from '$lib/getAccountName';
-	import { SendTxDetails } from '../sendUtils';
-	import { Network } from '../sendOptions';
+	import { getAccountNameFromAddress } from '$lib/getAccountName';
+	import { SendTxDetails } from '../../sendUtils';
+	import { Network } from '../../sendOptions';
 	import Card from '$lib/cards/Card.svelte';
+	import { Info } from '@lucide/svelte';
 
 	let toAccount = $derived(
 		$SendTxDetails.toNetwork?.value === Network.vsc.value

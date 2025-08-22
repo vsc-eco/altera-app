@@ -3,12 +3,12 @@
 
 	type Props = {
 		children: Snippet;
-		defaultBg?: boolean
+		defaultBg?: boolean;
 	};
-	let { children, defaultBg =false  }: Props = $props();
+	let { children, defaultBg = false }: Props = $props();
 </script>
 
-<div class={{defaultBg}}>
+<div class={{ defaultBg }}>
 	{@render children()}
 </div>
 
@@ -20,6 +20,7 @@
 		padding: 0.5rem;
 		overflow: auto;
 		max-height: 100%;
+		flex: 1 1 auto;
 	}
 	div.defaultBg {
 		background-color: var(--neutral-bg);

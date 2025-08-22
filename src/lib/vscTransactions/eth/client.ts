@@ -89,7 +89,7 @@ export interface VSCTransactionContainer {
 	tx: {
 		type: string;
 		payload: Uint8Array;
-	}[]
+	}[];
 }
 
 // Signing shell with decoded payloads for display
@@ -162,7 +162,7 @@ function createVSCTransactionOp(tx: Transaction, userId: string): VSCTransaction
 
 	return {
 		type: tx.op,
-		payload: encodedPayload,
+		payload: encodedPayload
 	};
 }
 
@@ -174,7 +174,7 @@ function createVSCTransactionContainer(
 
 	// Collect all required auths from operations
 	const requiredAuthsSet = new Set<string>();
-	transactions.forEach(tx => requiredAuthsSet.add(tx.payload.from));
+	transactions.forEach((tx) => requiredAuthsSet.add(tx.payload.from));
 
 	return {
 		__t: 'vsc-tx',
@@ -185,7 +185,7 @@ function createVSCTransactionContainer(
 			rc_limit: 500,
 			net_id: client.netId
 		},
-		tx: ops.map(op => ({
+		tx: ops.map((op) => ({
 			type: op.type,
 			payload: op.payload
 		}))
@@ -231,6 +231,7 @@ export async function signAndBrodcastTransaction<
 	txs: Transaction[],
 	signer: SigningFunc,
 	client: Client,
+	signal: AbortSignal,
 	...signerArgs: TupleRemoveFirstTwoValues<Parameters<SigningFunc>>
 ): Promise<TransactionResult> {
 	const walletConnected = await ensureWalletConnection();
@@ -275,6 +276,10 @@ export async function signAndBrodcastTransaction<
 
 	// console.log("sigEncoded", sigEncoded);
 	// console.log("txEncoded", txEncoded);
+
+	if (signal.aborted) {
+		throw new Error(`Transaction canceled by the user.`);
+	}
 
 	const response = await new SubmitTransactionV1Store().fetch({
 		variables: {

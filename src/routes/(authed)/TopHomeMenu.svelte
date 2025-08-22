@@ -38,7 +38,7 @@
 				styleType: 'invert'
 			}
 		},
-		...actions.filter(action => action.label !== 'Send'),
+		...actions.filter((action) => action.label !== 'Send'),
 		{
 			type: 'popup',
 			label: 'Staking',
@@ -48,7 +48,7 @@
 	];
 </script>
 
-<div class="action-bar">
+<div class="action-bar" tabindex="-1">
 	{#each menuActions as action}
 		<PillBtn
 			{...'styling' in action ? action.styling : {}}
@@ -60,26 +60,31 @@
 		</PillBtn>
 	{/each}
 </div>
+
 <StakePopup {auth} bind:dialogOpen={stakeOpen} bind:toggle={toggleStake} />
-<QuickSend bind:dialogOpen={quickSendOpen} bind:toggle={toggleQuickSend} sessionId={sendSessionId}/>
+<QuickSend
+	bind:dialogOpen={quickSendOpen}
+	bind:toggle={toggleQuickSend}
+	sessionId={sendSessionId}
+/>
 
 <style>
 	.action-bar {
 		max-width: 100%;
 		overflow-x: auto;
-		overflow-y: hidden;
+		padding-top: 2px;
 		height: 3.5rem;
 		white-space: nowrap;
 		position: relative;
 	}
-	.action-bar::after {
+	/* .action-bar::after {
 		content: '';
 		position: sticky;
 		display: block;
 		left: calc(100% - 32px);
 		bottom: 0;
 		width: 32px;
-		height: 3rem;
+		height: 3.5rem;
 		background: linear-gradient(90deg, transparent, var(--neutral-bg));
-	}
+	} */
 </style>

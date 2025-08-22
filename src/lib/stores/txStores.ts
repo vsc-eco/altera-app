@@ -3,6 +3,8 @@ import { type GetTransactions$result, GetTransactionsStore } from '$houdini';
 import { getLocalTransactions, removeLocalTransaction } from '$lib/stores/localStorageTxs';
 import { blockSync } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
 import moment from 'moment';
+import { authStore } from '$lib/auth/store';
+import { clearLastPaidCache } from '$lib/send/sendUtils';
 
 type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 
@@ -60,46 +62,66 @@ export function getTimestamp(tx: TransactionInter): string {
 	return timestamp + 'Z';
 }
 
+// This depends on vsc txs occuring earlier in the array
+// because its [...$vscTxsStore, ...$localTxsStore]
 function deduplicate(txs: TransactionInter[]) {
 	const noAlteraID: TransactionInter[] = [];
 	const byAlteraID: Record<string, TransactionInter> = {};
 
 	// console.log("deduplicate, txs=", txs);
-
-	for (const tx of txs) {
-		// all pending transactions will have an altera ID
-		const alteraId = getAlteraID(tx);
-		if (!alteraId) {
-			noAlteraID.push(tx);
-			continue;
-		}
-		// removes pending transactions more than a day old
-		if (
-			tx.isPending &&
-			new Date().getTime() - new Date(getTimestamp(tx)).getTime() > 24 * 60 * 60 * 1000
-		) {
-			removeLocalTransaction(alteraId);
-			continue;
-		}
-		// removes if there is a tx with the same altera id, or deduplicates based on regular id
-		if (
-			byAlteraID[alteraId] ||
-			(tx.isPending && noAlteraID.some((tempTx) => tempTx.id === tx.id))
-		) {
-			removeLocalTransaction(alteraId);
-			localTxsStore.update((currentLocalTxs) => {
-				return currentLocalTxs.filter((tx) => tx.id !== alteraId);
-			});
+	let removedAnyPending = false;
+	const acc = new Map<string, TransactionInter>();
+	txs.forEach((tx) => {
+		if (acc.has(tx.id)) {
 			if (tx.isPending) {
-				continue;
+				removeLocalTransaction(tx.id);
+				removedAnyPending = true;
 			}
+		} else {
+			acc.set(tx.id, tx);
 		}
-		byAlteraID[alteraId] = tx;
+	});
+
+	if (removedAnyPending) {
+		const did = get(authStore).value?.did;
+		if (did) updateTxsFromLocalStorage(did);
 	}
+	return [...acc.values()];
 
-	// console.log("deduplicate, return val=", [...Object.values(byAlteraID), ...Object.values(noAlteraID)]);
+	// for (const tx of txs) {
+	// 	// all pending transactions will have an altera ID
+	// 	const alteraId = getAlteraID(tx);
+	// 	if (!alteraId) {
+	// 		noAlteraID.push(tx);
+	// 		continue;
+	// 	}
+	// 	// removes pending transactions more than a day old
+	// 	if (
+	// 		tx.isPending &&
+	// 		new Date().getTime() - new Date(getTimestamp(tx)).getTime() > 24 * 60 * 60 * 1000
+	// 	) {
+	// 		removeLocalTransaction(alteraId);
+	// 		continue;
+	// 	}
+	// 	// removes if there is a tx with the same altera id, or deduplicates based on regular id
+	// 	if (
+	// 		byAlteraID[alteraId] ||
+	// 		(tx.isPending && noAlteraID.some((tempTx) => tempTx.id === tx.id))
+	// 	) {
+	// 		removeLocalTransaction(alteraId);
+	// 		localTxsStore.update((currentLocalTxs) => {
+	// 			return currentLocalTxs.filter((tx) => tx.id !== alteraId);
+	// 		});
+	// 		if (tx.isPending) {
+	// 			continue;
+	// 		}
+	// 	}
+	// 	byAlteraID[alteraId] = tx;
+	// }
 
-	return [...Object.values(byAlteraID), ...Object.values(noAlteraID)];
+	// // console.log("deduplicate, return val=", [...Object.values(byAlteraID), ...Object.values(noAlteraID)]);
+
+	// return [...Object.values(byAlteraID), ...Object.values(noAlteraID)];
 }
 
 // Create a derived store that combines and sorts transactions
@@ -157,7 +179,7 @@ export function clearAllStores() {
 // set: sets the store to the txs loaded
 // update: loads new txs, adds any that aren't in local store to the front
 // extend: loads older txs than last in store, adds to the back
-export function fetchTxs(
+export async function fetchTxs(
 	did: string,
 	type: 'set' | 'update' | 'extend',
 	setLoading?: (val: boolean) => void,
@@ -166,7 +188,7 @@ export function fetchTxs(
 	if (type !== 'update') {
 		if (setLoading) setLoading(true);
 	}
-	new GetTransactionsStore()
+	const success = await new GetTransactionsStore()
 		.fetch({
 			variables: {
 				limit: limit,
@@ -181,9 +203,10 @@ export function fetchTxs(
 					vscTxsStore.set([]);
 				}
 				if (setLoading) setLoading(false);
-				return;
+				return true;
 			}
 			const fetchedTxs = toTransactionInter(post.data.findTransaction);
+			if (fetchedTxs.length > 0) clearLastPaidCache();
 			switch (type) {
 				case 'set':
 					vscTxsStore.set(fetchedTxs);
@@ -213,32 +236,19 @@ export function fetchTxs(
 				});
 			}
 			if (setLoading) setLoading(false);
+			return true;
 		})
 		.catch((e) => {
 			if (e.name !== 'AbortError') {
 				console.error(e);
 			}
+			return false;
 		});
 	updateTxsFromLocalStorage(did);
+	return success;
 }
 
-export function waitForExtend(did: string, limit = 12): Promise<boolean> {
-	return new Promise((resolve) => {
-		const timeout = setTimeout(() => {
-			resolve(false);
-		}, 2000);
-
-		// can use value! because only called from getLastPaid()
-		fetchTxs(
-			did,
-			'extend',
-			(val) => {
-				if (val === false) {
-					clearTimeout(timeout);
-					resolve(true);
-				}
-			},
-			limit
-		);
-	});
+export async function waitForExtend(did: string, limit = 12): Promise<boolean> {
+	await fetchTxs(did, 'extend', undefined, limit);
+	return true;
 }

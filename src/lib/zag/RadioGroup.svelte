@@ -32,11 +32,17 @@
 	let generatedId = getUniqueId();
 	let enabled = $derived(items.filter((item) => !item.disabled));
 	let error = $state('');
+	const options = items.map((item) =>
+		'id' in item ? item : { ...item, id: item.value ?? item.label }
+	);
 	const service = useMachine(radio.machine, {
 		id: id ?? generatedId,
 		name,
 		orientation: 'horizontal',
 		defaultValue: propDefault,
+		get value() {
+			return value;
+		},
 		onValueChange(details) {
 			if (details.value) {
 				value = details.value;
@@ -45,18 +51,9 @@
 	});
 	const api = $derived(radio.connect(service, normalizeProps));
 	$effect(() => {
-		if (enabled.length == 1) {
-			api.setValue(enabled[0].value);
+		if (enabled.length === 1 && required) {
+			value = enabled[0].value;
 		}
-	});
-	$effect(() => {
-		const val = value;
-		untrack(() => {
-			if (!val) return;
-			if (items.find((item) => item.value === val)?.disabled === true || val !== api.value) {
-				api.setValue(val);
-			}
-		});
 	});
 </script>
 
@@ -65,7 +62,7 @@
 		<h3 {...api.getLabelProps()}>{name}</h3>
 	{/if}
 	<div class="items">
-		{#each items as opt}
+		{#each options as opt}
 			<label
 				{...api.getItemProps({
 					value: opt.value,

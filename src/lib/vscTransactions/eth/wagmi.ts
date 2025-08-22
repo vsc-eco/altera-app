@@ -63,8 +63,8 @@ export const wagmiSigner: Signer<[Config]> = async (
 			rawTx
 		};
 	} catch (error) {
-		console.error('=== Signing Failed ===');
-		console.error('Error details:', error);
+		// console.error('=== Signing Failed ===');
+		// console.error('Error details:', error);
 
 		if (error instanceof Error) {
 			if (error.message.includes('User rejected')) {

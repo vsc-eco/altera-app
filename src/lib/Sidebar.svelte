@@ -41,7 +41,7 @@
 		class={{ visible, preload }}
 	>
 		<div class="logo-close">
-			<a class="logo-name" href="/">
+			<a class="logo-name" href="/" tabindex="-1">
 				<img src="altera_med.png" alt="VSC" />
 				<span class="vertical-line"></span>
 				Altera

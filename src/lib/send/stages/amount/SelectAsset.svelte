@@ -23,9 +23,11 @@
 	const listItems = $derived(
 		availableCoins.map((coin) => ({
 			...coin,
-			iconInfo: {
-				icon: ChevronRight
-			}
+			icons: [
+				{
+					icon: ChevronRight
+				}
+			]
 		}))
 	);
 
@@ -40,9 +42,9 @@
 		untrack(() => {
 			tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === newVal);
 			if (!tmpAsset) return;
+			detailsOpen = { fromOpt: tmpAsset, net: tmpNetwork };
 			if ($SendTxDetails.toCoin?.coin.value === tmpAsset.coin.value) return;
 			$SendTxDetails.toCoin = tmpAsset;
-			detailsOpen = { fromOpt: tmpAsset, net: tmpNetwork };
 		});
 	});
 

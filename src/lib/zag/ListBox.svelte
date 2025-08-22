@@ -15,6 +15,7 @@
 		value?: string;
 		label?: string;
 		showSelected?: boolean;
+		disabled?: boolean;
 		customFilter?: (opts: Option[], search: string) => Option[];
 	};
 
@@ -24,6 +25,7 @@
 		value = $bindable(),
 		label,
 		showSelected = false,
+		disabled = false,
 		customFilter
 	}: Props = $props();
 
@@ -46,7 +48,8 @@
 		const searchOptions = customFilter
 			? customFilter(items, search)
 			: items.filter((item) => filter.contains(item.label, search));
-		const options = filterDisabled(searchOptions);
+		// const options = filterDisabled(searchOptions);
+		const options = searchOptions;
 		return listbox.collection({
 			items: options,
 			itemToValue: (item) => item.value ?? item.label,
@@ -65,6 +68,7 @@
 			return value ? [value] : [];
 		},
 		onValueChange(details) {
+			if (disabled) return;
 			if (details.value.length === 0) {
 				api.clearHighlightedValue();
 			}
@@ -74,62 +78,45 @@
 	});
 
 	const api = $derived(listbox.connect(service, normalizeProps));
-
-	let detailsShowing: Option | undefined = $state();
-	function toggleShowing(item: Option) {
-		if (isOpen(item)) {
-			detailsShowing = undefined;
-		} else {
-			detailsShowing = item;
-		}
-	}
-	function isOpen(item: Option) {
-		return (
-			(detailsShowing?.value && detailsShowing?.value === item.value) ||
-			(detailsShowing?.label && detailsShowing?.label === item.label)
-		);
-	}
 </script>
 
-{#if detailsShowing}
-	<div class="details-wrapper" transition:slide={{ duration: 300 }}>
-		{@render detailsShowing.details(detailsShowing.snippetData ?? detailsShowing)}
-	</div>
-{:else}
-	<div {...api.getRootProps()}>
-		{#if label}
-			<label {...api.getLabelProps()}>{label}</label>
-		{/if}
-		{#if input}
-			<label for={`list-${machineId}`} class="search-icon"><Search aria-label="Search" /></label>
-			<input
-				{...api.getInputProps({ autoHighlight: true })}
-				bind:value={search}
-				id={`list-${machineId}`}
-			/>
-		{/if}
+<div {...api.getRootProps()}>
+	{#if label}
+		<label {...api.getLabelProps()}>{label}</label>
+	{/if}
+	{#if input}
+		<label for={`list-${machineId}`} class="search-icon"><Search aria-label="Search" /></label>
+		<input
+			{...api.getInputProps({ autoHighlight: true })}
+			bind:value={search}
+			id={`list-${machineId}`}
+		/>
+	{/if}
 
-		<ul {...api.getContentProps()} tabindex="-1" class="listbox-ul">
-			{#each collection.items as item (item.value ?? item.label)}
-				<li {...api.getItemProps({ item })}>
-					{#if item.snippet}
-						{@render item.snippet(item.snippetData ?? item)}
-					{:else}
-						{item.label}
-					{/if}
-					{#if item.iconInfo}
-						{@const icon = item.iconInfo.icon}
-						<span class={['custom-icon', { hover: item.iconInfo.hover === true }]}>
-							<ImageIconRenderer {icon} />
-						</span>
+	<ul {...api.getContentProps()} tabindex="-1" class={['listbox-ul', { disabled }]}>
+		{#each collection.items as item (item.value ?? item.label)}
+			<li {...api.getItemProps({ item })}>
+				{#if item.snippet}
+					{@render item.snippet(item.snippetData ?? item)}
+				{:else}
+					{item.label}
+				{/if}
+				<div class="icons">
+					{#if item.icons}
+						{#each item.icons as iconInfo}
+							{@const func = iconInfo.action ?? (() => {})}
+							<PillButton onclick={func} styleType="icon-subtle">
+								<ImageIconRenderer icon={iconInfo.icon} color={iconInfo.color} />
+							</PillButton>
+						{/each}
 					{:else if showSelected}
 						<span {...api.getItemIndicatorProps({ item })}><Check size="16" /></span>
 					{/if}
-				</li>
-			{/each}
-		</ul>
-	</div>
-{/if}
+				</div>
+			</li>
+		{/each}
+	</ul>
+</div>
 
 <style lang="scss">
 	[data-part='root'] {
@@ -165,6 +152,12 @@
 		padding-left: calc(16px + 0.75rem);
 		margin-bottom: 1rem;
 	}
+	[data-part='input'][data-state='open'] {
+		box-shadow: 0 -1px inset var(--primary-bg-mid);
+		border-bottom-color: var(--primary-bg-mid);
+		outline: none;
+		border-radius: 0.5rem 0.5rem 0 0;
+	}
 	[data-part='trigger'] {
 		display: none;
 	}
@@ -173,25 +166,31 @@
 	// }
 	[data-part='item'] {
 		border-radius: 0.5rem;
-		cursor: pointer;
 		padding: 0.5rem;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		.custom-icon.hover {
-			visibility: hidden;
+		.icons {
+			display: flex;
+			gap: 0.25rem;
 		}
 	}
-	[data-part='item'][data-highlighted],
-	[data-part='item']:hover {
-		background-color: var(--bg-accent);
-		.custom-icon.hover {
-			visibility: visible;
+	[data-part='content']:not(.disabled) {
+		[data-part='item'] {
+			cursor: pointer;
+		}
+		[data-part='item'][data-highlighted],
+		[data-part='item']:hover {
+			background-color: var(--bg-accent);
+			.custom-icon.hover {
+				visibility: visible;
+			}
+		}
+		[data-part='item'][data-selected] {
+			background-color: var(--green-bg-accent);
 		}
 	}
-	[data-part='item'][data-selected] {
-		background-color: var(--green-bg-accent);
-	}
+
 	[data-part='item'][data-disabled] {
 		cursor: default;
 	}

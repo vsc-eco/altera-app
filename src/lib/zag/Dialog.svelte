@@ -24,7 +24,10 @@
 		defaultOpen,
 		open = $bindable()
 	}: Props = $props();
-	let service = useMachine(dialog.machine, { id: getUniqueId(), defaultOpen });
+	let service = useMachine(dialog.machine, {
+		id: getUniqueId(),
+		defaultOpen
+	});
 	const api = $derived(dialog.connect(service, normalizeProps));
 	toggle = (open: boolean = false) => {
 		api.setOpen(open);
@@ -91,10 +94,10 @@
 		z-index: 2;
 		outline: none;
 		max-height: 90vh;
+		position: relative;
 		@media screen and (max-width: 450px) {
 			max-height: 100vh;
 		}
-		position: relative;
 	}
 
 	[data-part='positioner'] {

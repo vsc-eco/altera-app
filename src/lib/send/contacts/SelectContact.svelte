@@ -1,19 +1,19 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
 	import ListBox from '$lib/zag/ListBox.svelte';
-	import { ArrowLeft, Delete, PenLine, Plus, Pointer } from '@lucide/svelte';
+	import { ArrowLeft, PenLine, Plus, Trash2, X } from '@lucide/svelte';
 	import {
 		contactsVersion,
-		getAllLastPaid,
 		getContacts,
+		removeContact,
 		searchForContacts,
-		setAllContacts,
 		type Contact
 	} from './contacts';
 	import CreateContact from './CreateContact.svelte';
 	import { contactCard, type ContactObj } from '../stages/components/CardSnippets.svelte';
-	import { onMount, untrack } from 'svelte';
-	import { momentToLastPaidString, SendTxDetails } from '../sendUtils';
+	import { untrack } from 'svelte';
+	import { SendTxDetails } from '../sendUtils';
+	import Confirmation from '$lib/components/Confirmation.svelte';
 
 	let {
 		selectedContact = $bindable(),
@@ -49,6 +49,26 @@
 			: undefined
 	);
 	let selectedVal: string | undefined = $state(selectedContact?.label);
+	let valCache: string | undefined = $state();
+
+	$effect(() => {
+		const modeUpdate = editingMode;
+		untrack(() => {
+			if (modeUpdate) {
+				valCache = selectedVal;
+				selectedVal = undefined;
+			} else if (valCache) {
+				selectedVal = valCache;
+			}
+		});
+	});
+
+	let currentlyDeleting: Contact | undefined = $state();
+	let toggleDeleteWarning = $state<(open?: boolean) => void>(() => {});
+	function promptRemove(contact: Contact) {
+		currentlyDeleting = contact;
+		toggleDeleteWarning(true);
+	}
 
 	const contactObjs: ContactObj[] = $derived(
 		[...contacts.values()]
@@ -60,11 +80,18 @@
 					contact: contact,
 					size: 'medium'
 				},
-				iconInfo: editingMode
-					? {
-							icon: PenLine,
-							hover: true
-						}
+				icons: editingMode
+					? [
+							{
+								icon: PenLine,
+								action: () => openEdit(contact)
+							},
+							{
+								icon: Trash2,
+								action: () => promptRemove(contact),
+								color: 'var(--secondary-bg-mid)'
+							}
+						]
 					: undefined
 			}))
 			.sort((a, b) => {
@@ -89,15 +116,13 @@
 					if (contact.label !== selectedContact?.label) {
 						// remove to prevent close by default
 						if (editingMode) {
-							openEdit(contact);
-							selectedVal = undefined;
+							return;
+						}
+						selectedContact = contact;
+						$SendTxDetails.toUsername = selectedContact.addresses[0].address;
+						if (valCache) {
+							valCache = undefined;
 						} else {
-							selectedContact = contact;
-							if (selectedContact.addresses.length === 1) {
-								$SendTxDetails.toUsername = selectedContact.addresses[0].address;
-							} else {
-								$SendTxDetails.toUsername = '';
-							}
 							close();
 						}
 					}
@@ -105,6 +130,7 @@
 				}
 			}
 			selectedContact = undefined;
+			$SendTxDetails.toUsername = '';
 		});
 	});
 </script>
@@ -122,20 +148,18 @@
 				styleType={editingMode ? 'default' : 'invert'}
 			>
 				{#if editingMode}
-					<Pointer /> Select
+					<X /> Close
 				{:else}
 					<PenLine /> Edit
 				{/if}
 			</PillButton>
-			{#if selectedVal}
-				<PillButton onclick={() => (selectedVal = undefined)} theme="secondary">
-					<Delete /> Clear
-				</PillButton>
-			{/if}
 		</div>
-		<div class={{ shaded: editingMode }}>
-			<ListBox items={contactObjs} bind:value={selectedVal} customFilter={searchForContacts} />
-		</div>
+		<ListBox
+			items={contactObjs}
+			bind:value={selectedVal}
+			customFilter={searchForContacts}
+			disabled={editingMode}
+		/>
 	{:else}
 		<PillButton onclick={closeEdit} styleType="icon-subtle">
 			<ArrowLeft size="32" />
@@ -143,6 +167,20 @@
 		<CreateContact close={closeEdit} initial={currentlyOpen} />
 	{/if}
 </div>
+<Confirmation
+	confirm={() => {
+		if (currentlyDeleting) {
+			removeContact(currentlyDeleting?.label);
+			addOpen = false;
+		}
+	}}
+	bind:toggle={toggleDeleteWarning}
+	customConfirm={{ icon: Trash2, text: 'Delete', color: 'secondary' }}
+>
+	<p>
+		Are you sure you want to delete {currentlyDeleting ? currentlyDeleting.label : 'this contact'}?
+	</p>
+</Confirmation>
 
 <style lang="scss">
 	.buttons {
@@ -158,17 +196,5 @@
 			display: flex;
 			flex-direction: column;
 		}
-	}
-	.shaded::after {
-		content: '';
-		position: absolute;
-		top: 1rem;
-		bottom: 1rem;
-		left: 1rem;
-		right: 1rem;
-		inset: 0;
-		background-color: color-mix(in oklch, var(--primary-bg-mid) 7%, transparent);
-		pointer-events: none;
-		border-radius: 0.5rem;
 	}
 </style>

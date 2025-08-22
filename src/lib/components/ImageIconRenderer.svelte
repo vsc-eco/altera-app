@@ -4,10 +4,11 @@
 
 	type Props = {
 		icon: ImgIconOption;
+		color?: string;
 		alt?: string;
 		size?: number;
 	};
-	let { icon, alt, size = 24 }: Props = $props();
+	let { icon, color, alt, size = 24 }: Props = $props();
 
 	export type ImgIconOption = string | typeof Dot;
 </script>
@@ -16,5 +17,5 @@
 	<img src={icon} {alt} width={size} height={size} />
 {:else}
 	{@const Icon = icon}
-	<Icon {size} />
+	<Icon {size} {color} />
 {/if}

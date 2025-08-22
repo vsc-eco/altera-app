@@ -181,7 +181,7 @@
 
 	<StatusView
 		anchor_ts={timestamp}
-		memo={memo?.toString() || undefined}
+		memo={memo?.toString().trim() || undefined}
 		{from}
 		{to}
 		{status}

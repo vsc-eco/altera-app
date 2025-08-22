@@ -29,6 +29,7 @@
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
 	import { untrack, type Snippet } from 'svelte';
 	import Divider from '$lib/components/Divider.svelte';
+	import PillButton from '$lib/PillButton.svelte';
 
 	let {
 		value = $bindable(),
@@ -101,19 +102,20 @@
 		snippet: clearButtonSnippet
 	};
 
-	$effect(() => {
-		if (inputValue === clearString) {
-			inputValue = '';
-		}
-	});
+	let isTimedOut = $state(false);
+	let selectedTimeout: ReturnType<typeof setTimeout>;
+	function clearValues() {
+		selectedContact = undefined;
+		value = inputValue = '';
+	}
 	$effect(() => {
 		value;
+		calculateInputWidth();
 		if (!enableContacts) return;
 		untrack(() => {
 			if (!value) return;
 			if (value === clearString) {
-				selectedContact = undefined;
-				value = inputValue = '';
+				clearValues();
 				return;
 			}
 			if (selectedContact && getAddresses(selectedContact).includes(value)) {
@@ -128,15 +130,12 @@
 					return;
 				}
 				selectedContact = isContact;
-				if (isContact.addresses.length === 1) {
-					if (value !== isContact.addresses[0].address) {
-						value = isContact.addresses[0].address;
-					}
-				} else {
-					if (value !== '') {
-						console.log('clearing in is contact');
-						value = inputValue = '';
-					}
+				if (value !== isContact.addresses[0].address) {
+					value = inputValue = isContact.addresses[0].address;
+					isTimedOut = true;
+					selectedTimeout = setTimeout(() => {
+						isTimedOut = false;
+					}, 200);
 				}
 			} else {
 				if (selectedContact && !getAddresses(selectedContact).includes(value)) {
@@ -144,6 +143,15 @@
 				}
 			}
 		});
+	});
+	$effect(() => {
+		if (value && !inputValue && !open) {
+			inputValue = value;
+			isTimedOut = true;
+			selectedTimeout = setTimeout(() => {
+				isTimedOut = false;
+			}, 200);
+		}
 	});
 
 	function contactToObj(contact: Contact): ContactObj {
@@ -173,7 +181,7 @@
 
 	function onParamChange(val: string) {
 		if (val === '' && selectedContact) {
-			options = [contactDivider!, ...selectedAddrObjs!, clearSelection];
+			options = [contactDivider!, ...selectedAddrObjs!];
 			return;
 		}
 		const currentlyInput = val === '' ? undefined : makePlaceholderContact(val);
@@ -240,7 +248,7 @@
 				const filteredCurrent = selectedAddrObjs!.filter((obj) => includesValueOrLabel(obj, val));
 				const currentOpts = filteredCurrent.length > 0 ? [contactDivider!, ...filteredCurrent] : [];
 				result.delete(selectedContact.label);
-				options = [...currentOpts, clearSelection, otherDivider, ...result.values()];
+				options = [...currentOpts, otherDivider, ...result.values()];
 			}
 		});
 	}
@@ -273,7 +281,6 @@
 			return value ? [value] : [];
 		},
 		get inputValue() {
-			if (!inputValue && !open) return value;
 			return inputValue;
 		},
 		onOpenChange(details) {
@@ -281,14 +288,16 @@
 			if (details.open) onParamChange(inputValue ?? '');
 		},
 		onInputValueChange({ inputValue: val }) {
-			inputValue = val;
+			if (!isTimedOut) inputValue = val;
 			onParamChange(val);
 		},
 		onValueChange(details) {
 			const val = details.value[0];
 			if (value !== val) {
-				if (selectedContact !== undefined && !getAddresses(selectedContact).includes(val))
+				if (selectedContact !== undefined && !getAddresses(selectedContact).includes(val)) {
 					selectedContact = undefined;
+				}
+				inputValue = val;
 				value = val;
 			}
 		},
@@ -314,9 +323,24 @@
 			onDefocus();
 		}
 	}
+
+	let showAccLabel = $state(false);
+	function calculateInputWidth() {
+		const inputId = api.getInputProps().id;
+		if (!inputId) return;
+		const inputElement = document.getElementById(inputId);
+		const accNameElement = document.getElementById('acc-value-label');
+		const inputWidth = inputElement?.clientWidth;
+		const accNameWidth = accNameElement?.clientWidth;
+		if (!accNameWidth || !inputWidth || accNameWidth > inputWidth - 102) {
+			showAccLabel = false;
+		} else {
+			showAccLabel = true;
+		}
+	}
 </script>
 
-<svelte:window on:keydown={handleKeyDown} />
+<svelte:window on:keydown={handleKeyDown} on:resize={calculateInputWidth} />
 
 {#snippet divider(self: ExtraRowObj)}
 	<Divider text={self.value} />
@@ -333,8 +357,27 @@
 		</span>
 	</label>
 	<div {...api.getControlProps()}>
-		<input {...api.getInputProps()} />
+		<input
+			{...api.getInputProps()}
+			class={{ trigger: enableContacts, both: enableContacts && (inputValue || value) }}
+		/>
 		{#if enableContacts}
+			{#if selectedContact && value && !open}
+				{@const label = selectedContact.addresses.find((addr) => addr.address === value)?.label}
+				<span class={['acc-name', { hide: !showAccLabel }]} id="acc-value-label">
+					<span class="invisible">
+						{value}
+					</span>
+					<span class="sm-caption">{label}</span>
+				</span>
+			{/if}
+			{#if inputValue || value}
+				<span class="delete-button">
+					<PillButton onclick={clearValues} styleType="icon-subtle">
+						<Delete color="var(--secondary-bg-mid)" />
+					</PillButton>
+				</span>
+			{/if}
 			<button {...api.getTriggerProps()}>
 				{#if api.open}
 					<ChevronUp />
@@ -383,8 +426,22 @@
 		width: 100%;
 		box-sizing: border-box;
 		padding-left: calc(16px + 0.75rem);
+		&.trigger {
+			padding-right: 2.25rem;
+		}
+		&.both {
+			padding-right: 4.5rem;
+		}
+		text-overflow: ellipsis;
 	}
-	[data-part='trigger'] {
+	[data-part='input'][data-state='open'] {
+		box-shadow: 0 -1px inset var(--primary-bg-mid);
+		border-bottom-color: var(--primary-bg-mid);
+		outline: none;
+		border-radius: 0.5rem 0.5rem 0 0;
+	}
+	[data-part='trigger'],
+	.delete-button {
 		position: absolute;
 		display: flex;
 		align-items: center;
@@ -394,6 +451,24 @@
 		cursor: pointer;
 		top: 0;
 		right: 0.5rem;
+	}
+	.delete-button {
+		right: 2.5rem;
+	}
+	.acc-name {
+		position: absolute;
+		top: 0.75rem;
+		left: 2.25rem;
+		user-select: none;
+		pointer-events: none;
+		display: flex;
+		align-items: flex-end;
+		.invisible {
+			visibility: hidden;
+		}
+		&.hide {
+			visibility: hidden;
+		}
 	}
 	[data-part='content'] {
 		box-sizing: border-box;
@@ -416,6 +491,7 @@
 		background-color: var(--bg-accent);
 	}
 	[data-part='item'][data-disabled] {
+		padding: 0 0.5rem;
 		cursor: default;
 	}
 	.clear-selector {

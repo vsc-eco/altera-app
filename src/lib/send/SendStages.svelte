@@ -38,7 +38,7 @@
 		remValue = parseFloat(rootStyle.fontSize);
 	});
 	// size of content + 2 * (space for tabs + buffer)
-	const showTabs = $derived(windowWidth > 42 * remValue + 2 * (6.75 * remValue + 106 + 10));
+	const showTabs = $derived(windowWidth > 42 * remValue + 2 * (6.75 * remValue + 160 + 10));
 
 	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
 	let waiting = $state(false);
@@ -46,7 +46,7 @@
 
 	const stepsData = [
 		{ value: 'recipient', label: 'Recipient', content: recipient },
-		{ value: 'amount', label: 'Amount', content: amount },
+		{ value: 'amount', label: 'Amount & Details', content: amount },
 		{ value: 'review', label: 'Review', content: review },
 		{ value: 'complete', label: 'Review', content: complete }
 	];
@@ -61,6 +61,8 @@
 	});
 
 	const api = $derived(steps.connect(service, normalizeProps));
+
+	const abortSend = new AbortController();
 
 	// $effect(() => {
 	// 	const _ = api;
@@ -119,7 +121,7 @@
 		}
 
 		waiting = true;
-		send(importantDetails, auth, intermediary, setStatus).then((res) => {
+		send(importantDetails, auth, intermediary, setStatus, abortSend.signal).then((res) => {
 			if (res instanceof Error) {
 				// log the error if it isn't caught
 				if (!status.isError) console.error(res.message);
@@ -201,11 +203,13 @@
 			action: previous
 		}
 	});
+	let oldId = '';
 	$effect(() => {
-		if (txId) {
+		if (txId && txId !== untrack(() => oldId)) {
 			waiting = false;
 			setStatus('');
 			api.setStep(stepsData.length - 1);
+			oldId = txId;
 		}
 	});
 	$effect(() => {
@@ -216,6 +220,14 @@
 			waiting = false;
 		}
 	});
+	function cancelSend() {
+		abortSend.abort();
+		waiting = false;
+		status = {
+			message: 'Transaction canceled by the user',
+			isError: true
+		};
+	}
 </script>
 
 <svelte:window
@@ -237,7 +249,7 @@
 	<Amount id={value} {editStage} />
 {/snippet}
 {#snippet review()}
-	<Review {status} {waiting} />
+	<Review {status} {waiting} abort={cancelSend} />
 {/snippet}
 {#snippet complete()}
 	<Complete {txId} />

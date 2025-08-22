@@ -10,6 +10,7 @@
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import Editable from '$lib/zag/Editable.svelte';
 	import Divider from '$lib/components/Divider.svelte';
+	import Confirmation from '$lib/components/Confirmation.svelte';
 
 	let { initial, close }: { initial?: Contact; close: () => void } = $props();
 
@@ -140,7 +141,6 @@
 
 			if (initial) {
 				setContact(contactToSave);
-				console.log('initial, tosave', initial.label, contactToSave.label);
 				if (originalLabel && originalLabel !== contactToSave.label) {
 					removeContact(originalLabel);
 				}
@@ -163,13 +163,7 @@
 			close();
 		}
 	}
-
-	function handleDelete() {
-		if (initial) {
-			removeContact(initial.label);
-			close();
-		}
-	}
+	let toggleDeleteWarning = $state<(open?: boolean) => void>(() => {});
 </script>
 
 {#snippet label(addresses: Contact['addresses'], index: number)}
@@ -274,7 +268,17 @@
 	</div> -->
 	<div class="buttons">
 		{#if initial}
-			<PillButton onclick={handleDelete} theme="secondary" disabled={isSubmitting}>
+			<PillButton
+				class=".ignore-dialog-close"
+				onclick={(e) => {
+					e.stopImmediatePropagation();
+					e.preventDefault();
+					e.stopPropagation();
+					toggleDeleteWarning(true);
+				}}
+				theme="secondary"
+				disabled={isSubmitting}
+			>
 				<Trash2 /> Delete
 			</PillButton>
 		{/if}
@@ -283,6 +287,18 @@
 		</PillButton>
 	</div>
 </form>
+<Confirmation
+	confirm={() => {
+		removeContact(contact.label);
+		close();
+	}}
+	bind:toggle={toggleDeleteWarning}
+	customConfirm={{ icon: Trash2, text: 'Delete', color: 'secondary' }}
+>
+	<p>
+		Are you sure you want to delete {contact.label || 'this contact'}?
+	</p>
+</Confirmation>
 
 <style lang="scss">
 	form {
@@ -347,7 +363,6 @@
 		gap: 0.5rem;
 		flex-wrap: wrap;
 		.error {
-			flex-basis: 100%;
 			height: min-content;
 		}
 	}

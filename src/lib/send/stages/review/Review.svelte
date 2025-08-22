@@ -10,19 +10,23 @@
 	import { Coin, Network, SendAccount } from '$lib/send/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
-	import { ArrowDown } from '@lucide/svelte';
+	import { ArrowDown, ArrowLeft, X } from '@lucide/svelte';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
-	import Instructions from '$lib/send/quickSend/Instructions.svelte';
+	import Instructions from '$lib/send/stages/review/Instructions.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import Confirmation from '$lib/components/Confirmation.svelte';
 
 	let auth = $authStore;
 	let {
 		status,
 		waiting,
+		abort,
 		compact
 	}: {
 		status: { message: string; isError: boolean };
 		waiting: boolean;
+		abort: () => void;
 		compact?: boolean;
 	} = $props();
 
@@ -63,6 +67,8 @@
 		return $SendTxDetails.fromNetwork?.label ?? 'UNK';
 	});
 	let toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
+
+	// $inspect(waiting);
 </script>
 
 <h2>Review</h2>
@@ -181,7 +187,23 @@
 {/if}
 {#if waiting}
 	<div class="waiting-overlay">
-		<span><WaveLoading size={32} /> Waiting for signature</span>
+		<div class="waiting-card">
+			<WaveLoading size={32} />
+			<div class="info">
+				<p>Waiting for signature</p>
+				{#if auth.value?.provider === 'aioha'}
+					<p>
+						<b class="error">Warning:</b> Transaction may still occur if it is authorized later via your
+						hive wallet.
+					</p>
+				{/if}
+				<span>
+					<PillButton onclick={() => abort()} theme="secondary" styleType="invert">
+						<X /> Cancel
+					</PillButton>
+				</span>
+			</div>
+		</div>
 	</div>
 {/if}
 
@@ -266,13 +288,20 @@
 		backdrop-filter: blur(4px);
 		pointer-events: none;
 		z-index: 1;
-		span {
+		.waiting-card {
 			margin-top: 25%;
 			font-weight: 500;
 			padding: 1.5rem;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
+			pointer-events: all;
+			.info {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 0.5rem;
+			}
 		}
 	}
 </style>

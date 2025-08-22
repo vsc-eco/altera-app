@@ -274,6 +274,12 @@
 	[data-part='input'][data-variant='icon'] {
 		padding-left: calc(16px + 0.75rem);
 	}
+	[data-part='input'][data-state='open'] {
+		box-shadow: 0 -1px inset var(--primary-bg-mid);
+		border-bottom-color: var(--primary-bg-mid);
+		outline: none;
+		border-radius: 0.5rem 0.5rem 0 0;
+	}
 	[data-part='trigger'] {
 		position: absolute;
 		display: flex;

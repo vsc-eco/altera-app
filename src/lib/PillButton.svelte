@@ -32,6 +32,7 @@
 		theme = 'neutral',
 		hide = false,
 		styleType: styleType,
+		class: additionalClasses = '',
 		...rest
 	}: Props = $props();
 	let invertStyle = $derived(styleType === 'invert');
@@ -48,7 +49,8 @@
 			icon: iconStyle,
 			subtle: subtleStyle,
 			hide: hide
-		}
+		},
+		additionalClasses
 	]);
 </script>
 

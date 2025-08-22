@@ -19,6 +19,5 @@
 	}
 	hr {
 		width: 100%;
-		border-color: var(--neutral-bg-accent-shifted);
 	}
 </style>

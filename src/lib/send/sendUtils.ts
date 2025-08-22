@@ -562,7 +562,8 @@ export async function send(
 	details: NecessarySendDetails,
 	auth: Auth,
 	intermediary: IntermediaryNetwork,
-	setStatus: (status: string, isError?: boolean) => void
+	setStatus: (status: string, isError?: boolean) => void,
+	signal: AbortSignal
 ): Promise<Error | { id: string }> {
 	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
 	if (intermediary == Network.vsc) {
@@ -580,7 +581,13 @@ export async function send(
 
 			setStatus('Preparing transaction for signing…');
 
-			const id = await signAndBrodcastTransaction([sendOp], wagmiSigner, client, wagmiConfig)
+			const id = await signAndBrodcastTransaction(
+				[sendOp],
+				wagmiSigner,
+				client,
+				signal,
+				wagmiConfig
+			)
 				.then((result) => {
 					setStatus(`Transaction submitted successfully!`);
 					// TODO: add back once backend fixed

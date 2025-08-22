@@ -57,11 +57,6 @@
 	);
 </script>
 
-{#snippet radioLabel(info: { icon: string; label: string })}
-	<img width="16" src={info.icon} alt="" />
-	{info.label}
-{/snippet}
-
 <div class="dialog-content">
 	<h5>Select a Network</h5>
 	<ListBox {items} bind:value={tmpNetworkVal} input={false} />

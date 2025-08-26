@@ -14,9 +14,9 @@
 
 	let { children } = $props();
 	let showSidebar = $state(false);
-	
+
 	let auth = $derived(getAuth()());
-	let isFullscreen = $derived(page.url.pathname === '/send');
+	let isFullscreen = $derived(['/send', '/swap'].includes(page.url.pathname));
 	$effect(() => {
 		if (!browser || !auth.value) return;
 		startAccountPolling(auth.value.did);
@@ -61,7 +61,7 @@
 	{#if !isFullscreen}
 		<Sidebar bind:visible={showSidebar}></Sidebar>
 	{/if}
-	<div class={["main", {fullscreen: isFullscreen}]}>
+	<div class={['main', { fullscreen: isFullscreen }]}>
 		{#if !isFullscreen}
 			<Topbar
 				onMenuToggle={() => {

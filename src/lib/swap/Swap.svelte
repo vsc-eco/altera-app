@@ -1,54 +1,62 @@
 <script lang="ts">
-	import Recipient from './stages/recipient/Recipient.svelte';
-	import SendTitle from './navigation/SendTitle.svelte';
+	import { authStore } from '$lib/auth/store';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import {
+		Coin,
+		Network,
+		TransferMethod,
+		type NecessarySendDetails,
+		type SendDetails
+	} from '$lib/send/sendOptions';
+	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
+	import V4VPopup from '$lib/send/V4VPopup.svelte';
+	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
+	import { getUniqueId } from '$lib/zag/idgen';
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import { getUniqueId } from '$lib/zag/idgen';
-	import { onMount, untrack } from 'svelte';
-	import { Coin, Network, type NecessarySendDetails, type SendDetails } from './sendOptions';
-	import Amount from './stages/amount/Amount.svelte';
-	import Review from './stages/review/Review.svelte';
-	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import V4VPopup from './V4VPopup.svelte';
-	import { getIntermediaryNetwork } from './getNetwork';
-	import { authStore } from '$lib/auth/store';
-	import { blankDetails, getTxSessionId, send } from './sendUtils';
-	import { SendTxDetails } from './sendUtils';
-	import { goto } from '$app/navigation';
-	import Complete from './stages/complete/Complete.svelte';
-	import SendNavButtons from './navigation/SendNavButtons.svelte';
 	import { sleep } from 'aninest';
+	import SelectSwap from './SelectSwap.svelte';
+	import SendTitle from '$lib/send/navigation/SendTitle.svelte';
+	import { goto } from '$app/navigation';
+	import SendNavButtons from '$lib/send/navigation/SendNavButtons.svelte';
+	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
+	import type { Snippet } from 'svelte';
+	import Dialog from '$lib/zag/Dialog.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import { ArrowLeft } from '@lucide/svelte';
 
 	let auth = $authStore;
 	let windowWidth = $state(0);
 	let remValue = $state(0);
-
 	let sessionId = $state(getTxSessionId());
-	function stageDetails() {
-		return {
-			...blankDetails(),
-			toNetwork: Network.vsc
-		};
-	}
-	SendTxDetails.set(stageDetails());
-
-	onMount(() => {
-		const rootStyle = getComputedStyle(document.documentElement);
-		remValue = parseFloat(rootStyle.fontSize);
-	});
-	// size of content + 2 * (space for tabs + buffer)
-	const showTabs = $derived(windowWidth > 42 * remValue + 2 * (6.75 * remValue + 160 + 10));
-
 	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
 	let waiting = $state(false);
 	let txId = $state('');
+	let showV4VModal = $state.raw(false);
+	function swapDetails(): SendDetails {
+		return {
+			...blankDetails(),
+			toNetwork: Network.vsc,
+			fromNetwork: Network.lightning,
+			method: TransferMethod.lightningTransfer
+		};
+	}
+	SendTxDetails.set(swapDetails());
+
+	function openV4V() {
+		showV4VModal = false;
+		sleep(0).then(() => {
+			showV4VModal = true;
+		});
+	}
+	function setStatus(s: string, isError = false) {
+		status = { message: s, isError: isError };
+	}
 
 	const stepsData = [
-		{ value: 'recipient', label: 'Recipient', content: recipient },
-		{ value: 'amount', label: 'Amount & Details', content: amount },
-		{ value: 'review', label: 'Review', content: review },
-		{ value: 'complete', label: 'Review', content: complete }
+		{ value: 'options', label: 'Options', content: select }
+		// { value: 'review', label: 'Review', content: review },
+		// { value: 'complete', label: 'Review', content: complete }
 	];
 
 	const id = getUniqueId();
@@ -62,20 +70,7 @@
 
 	const api = $derived(steps.connect(service, normalizeProps));
 
-	const abortSend = new AbortController();
-
-	let showV4VModal = $state.raw(false);
-
-	function openV4V() {
-		showV4VModal = false;
-		sleep(0).then(() => {
-			showV4VModal = true;
-		});
-	}
-	function setStatus(s: string, isError = false) {
-		status = { message: s, isError: isError };
-	}
-	function initSend() {
+	function initSwap() {
 		const {
 			fromCoin,
 			fromNetwork,
@@ -112,53 +107,21 @@
 		}
 
 		waiting = true;
-		send(importantDetails, auth, intermediary, setStatus, abortSend.signal).then((res) => {
-			if (res instanceof Error) {
-				// log the error if it isn't caught
-				if (!status.isError) console.error(res.message);
-			} else {
-				txId = res.id;
-			}
-		});
 		return;
 	}
 
-	// if instructions for depositing to evm acc should be shown
-	let isDoneInstructions = $derived(
-		auth.value?.provider === 'reown' &&
-			$SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value &&
-			api.value === stepsData.findIndex((step) => step.value === 'review')
-	);
-
-	let stage = new Set<string>(['details', 'review']);
-	let maxStage = $state(0);
 	let stepComplete = $state(false);
-	function editStage(id: string, add: boolean) {
-		if (add) {
-			stage.add(id);
-		} else {
-			stage.delete(id);
-		}
-		for (const val of stage) {
-			let i = stepsData.findIndex((step) => step.value === val);
-			if (i === api.value) {
-				stepComplete = true;
-				return;
-			}
-		}
-		stepComplete = false;
+	function editStage(id: string, complete: boolean) {
+		if (id === stepsData[api.value].value) stepComplete = complete;
 	}
-
 	function next() {
-		if (api.value === api.count || isDoneInstructions) {
+		if (api.value === api.count) {
 			goto('/transactions');
 		} else if (stepsData[api.value].value === 'review') {
-			editStage(stepsData[stepsData.length - 1].value, true);
 			setStatus('');
-			initSend();
+			initSwap();
 		} else {
 			api.goToNextStep();
-			maxStage = api.value;
 		}
 	}
 	function previous() {
@@ -170,7 +133,7 @@
 		} else if (api.value === api.count) {
 			api.setStep(0);
 			sessionId = getTxSessionId();
-			SendTxDetails.set(stageDetails());
+			SendTxDetails.set(swapDetails());
 		} else {
 			api.goToPrevStep();
 			setStatus('');
@@ -178,9 +141,9 @@
 	}
 
 	const nextLabel = $derived(
-		stepsData[api.value].value === 'review' && !isDoneInstructions
+		stepsData[api.value].value === 'review'
 			? 'Send'
-			: api.value === stepsData.length - 1 || isDoneInstructions
+			: api.value === stepsData.length - 1
 				? 'Done'
 				: 'Next'
 	);
@@ -195,31 +158,33 @@
 			action: previous
 		}
 	});
-	let oldId = '';
-	$effect(() => {
-		if (txId && txId !== untrack(() => oldId)) {
-			waiting = false;
-			setStatus('');
-			api.setStep(stepsData.length - 1);
-			oldId = txId;
-		}
-	});
-	$effect(() => {
-		if (
-			status.message.includes('canceled by the user') ||
-			status.message.includes('rejected by user')
-		) {
-			waiting = false;
-		}
-	});
-	function cancelSend() {
-		abortSend.abort();
-		waiting = false;
-		status = {
-			message: 'Transaction canceled by the user',
-			isError: true
-		};
+
+	// stack of open snippets
+	// only one open parameter, do it this way so that
+	// it can be a dialog or second panel easily
+	let openSnippets: { snippet: (...args: any[]) => ReturnType<Snippet>; args: any }[] = $state([]);
+	function pushSnippet(snippet: (...args: any[]) => ReturnType<Snippet>, args?: any) {
+		openSnippets.push({ snippet: snippet, args: args });
+		toggle(true);
 	}
+	function popSnippet(all?: boolean) {
+		if (all) {
+			toggle(false);
+			openSnippets = [];
+			return;
+		}
+		if (openSnippets.length === 1) {
+			toggle(false);
+		}
+		openSnippets.pop();
+	}
+	let snippetOpen = $state(false);
+	let toggle: (open?: boolean) => void = $state(() => {});
+	$effect(() => {
+		if (snippetOpen === false) {
+			openSnippets = [];
+		}
+	});
 </script>
 
 <svelte:window
@@ -234,36 +199,15 @@
 	}}
 />
 
-{#snippet recipient(value: string)}
-	<Recipient id={value} {editStage} />
-{/snippet}
-{#snippet amount(value: string)}
-	<Amount id={value} {editStage} />
-{/snippet}
-{#snippet review()}
-	<Review {status} {waiting} abort={cancelSend} />
-{/snippet}
-{#snippet complete()}
-	<Complete {txId} />
+{#snippet select(value: string)}
+	<SelectSwap id={value} {editStage} openSnippet={pushSnippet} closeSnippet={popSnippet} />
 {/snippet}
 
-<div class="stages-wrapper">
+<div class="swap-internal-wrapper">
 	<SendTitle close={() => goto('/')} />
 
 	{#key sessionId}
 		<div {...api.getRootProps()}>
-			{#if showTabs}
-				<div {...api.getListProps()}>
-					{#each stepsData.slice(0, -1) as step, index}
-						<button
-							{...api.getTriggerProps({ index })}
-							data-visited={index <= maxStage && stepComplete}
-						>
-							<div {...api.getIndicatorProps({ index })}>{step.label}</div>
-						</button>
-					{/each}
-				</div>
-			{/if}
 			{#each stepsData as step, index}
 				<div {...api.getContentProps({ index })} tabindex="-1">
 					{@render step.content(step.value)}
@@ -274,6 +218,13 @@
 
 	<SendNavButtons {buttons} />
 </div>
+
+<Dialog bind:toggle bind:open={snippetOpen} back={popSnippet}>
+	{#snippet content()}
+		{@const top = openSnippets[openSnippets.length - 1]}
+		{@render top.snippet(top.args)}
+	{/snippet}
+</Dialog>
 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
 	{@const toCoin = $SendTxDetails.toCoin}
@@ -326,7 +277,7 @@
 {/if}
 
 <style lang="scss">
-	.stages-wrapper {
+	.swap-internal-wrapper {
 		display: flex;
 		flex-direction: column;
 		height: 100vh;

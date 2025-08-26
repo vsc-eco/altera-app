@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Amount from '$lib/currency/AmountInput.svelte';
+	import Amount from '$lib/currency/OldAmountInput.svelte';
 	import { untrack } from 'svelte';
 	import { Coin, Network } from './sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';

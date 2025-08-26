@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { authStore } from '$lib/auth/store';
-	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import swapOptions, {
 		Coin,
 		Network,
@@ -15,7 +15,8 @@
 		type NetworkOptionParam,
 		type CoinOptionParam,
 		getRecipientNetworks,
-		type AccountOptionParam
+		type AccountOptionParam,
+		optionsEqual
 	} from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
@@ -29,7 +30,7 @@
 		assetCard,
 		networkCard,
 		type AssetObject
-	} from '../components/CardSnippets.svelte';
+	} from '../components/SendSnippets.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import NetworkInfo from '../components/NetworkInfo.svelte';
 	import { Coins, Landmark, Link, Link2 } from '@lucide/svelte';
@@ -48,23 +49,6 @@
 		id: string;
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
-
-	function optionsEqual<T>(
-		a: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[],
-		b: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[]
-	): boolean {
-		if (a.length !== b.length) return false;
-
-		const getValue = (item: CoinOptionParam | AccountOptionParam | NetworkOptionParam) =>
-			'coin' in item ? item.coin.value : item.value;
-
-		return a.every(
-			(val, i) =>
-				getValue(val) === getValue(b[i]) &&
-				val.disabled === b[i].disabled &&
-				val.disabledMemo === b[i].disabledMemo
-		);
-	}
 
 	let { assetOptions, accountOptions, networkOptions } = $state<
 		ReturnType<typeof solveNetworkConstraints>
@@ -280,24 +264,22 @@
 			: undefined}
 -->
 <div class="amounts">
-	<BasicAmountInput
+	<AmountInput
 		bind:amount={toAmount}
 		coin={$SendTxDetails.toCoin}
 		network={$SendTxDetails.toNetwork}
-		id={'basic-input'}
 		{maxField}
 		connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
 	/>
 	{#if $SendTxDetails.toCoin && $SendTxDetails.toCoin?.coin.value !== coins.usd.value}
 		<Link2 />
-		<BasicAmountInput
+		<AmountInput
 			bind:amount={inUsd}
 			coin={{
 				coin: coins.usd,
 				networks: []
 			}}
 			network={undefined}
-			id="usd-input"
 			connectedCoinAmount={$SendTxDetails.toCoin
 				? new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)
 				: undefined}

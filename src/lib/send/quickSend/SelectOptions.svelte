@@ -11,16 +11,15 @@
 	} from '../sendUtils';
 	import { authStore } from '$lib/auth/store';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
-	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import swapOptions, { Coin, Network, networkMap, SendAccount } from '../sendOptions';
 	import Select from '$lib/zag/Select.svelte';
-	import { assetCard, networkCard } from '../stages/components/CardSnippets.svelte';
+	import { assetCard, networkCard } from '../stages/components/SendSnippets.svelte';
 	import SwapOptions from '../stages/amount/SwapOptions.svelte';
 	import { untrack } from 'svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
-	import SearchContact from '../stages/recipient/search/SearchContact.svelte';
 	import RecipientCard from '../stages/recipient/RecipientCard.svelte';
 	import ContactSearchBox from '../stages/recipient/search/ContactSearchBox.svelte';
 
@@ -348,7 +347,7 @@
 
 <div class="section">
 	<span class="sm-caption">Amount</span>
-	<BasicAmountInput
+	<AmountInput
 		bind:amount={toAmount}
 		coin={$SendTxDetails.toCoin}
 		network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}

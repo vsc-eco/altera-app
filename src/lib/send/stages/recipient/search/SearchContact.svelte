@@ -16,7 +16,7 @@
 		contactCard,
 		contactRecentCard,
 		type ContactObj
-	} from '../../components/CardSnippets.svelte';
+	} from '../../components/SendSnippets.svelte';
 	import type { RecipientSnippet } from './contactSearch';
 	import ContactSearchBox from './ContactSearchBox.svelte';
 

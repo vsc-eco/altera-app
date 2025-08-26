@@ -2,7 +2,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import * as dialog from '@zag-js/dialog';
 	import { portal, normalizeProps, useMachine } from '@zag-js/svelte';
-	import { X } from '@lucide/svelte';
+	import { ArrowLeft, X } from '@lucide/svelte';
 	import { type Snippet } from 'svelte';
 	import { getUniqueId } from './idgen';
 	import Card from '$lib/cards/Card.svelte';
@@ -12,6 +12,7 @@
 		children?: Snippet;
 		description?: Snippet;
 		toggle?: (open?: boolean) => void;
+		back?: () => void;
 		defaultOpen?: boolean;
 		open?: boolean;
 	};
@@ -20,7 +21,8 @@
 		title,
 		children,
 		description,
-		toggle: toggle = $bindable(),
+		toggle = $bindable(),
+		back,
 		defaultOpen,
 		open = $bindable()
 	}: Props = $props();
@@ -51,7 +53,12 @@
 	<div use:portal {...api.getPositionerProps()}>
 		<div {...api.getContentProps()}>
 			<Card defaultBg>
-				<div class="title-and-close" class:no-title={!title}>
+				<div class="title-and-close" class:no-title={!title && !back}>
+					{#if back}
+						<PillButton onclick={back} styleType="icon-subtle">
+							<ArrowLeft size="32" />
+						</PillButton>
+					{/if}
 					{#if title}
 						<h2 {...api.getTitleProps()}>{@render title()}</h2>
 					{/if}

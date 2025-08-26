@@ -23,7 +23,7 @@
 		contactCard,
 		contactRecentCard,
 		type ContactObj
-	} from '../../components/CardSnippets.svelte';
+	} from '../../components/SendSnippets.svelte';
 	import { getRecentContacts } from '$lib/send/sendUtils';
 	import { authStore } from '$lib/auth/store';
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';

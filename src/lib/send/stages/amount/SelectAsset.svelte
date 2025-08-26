@@ -1,13 +1,10 @@
 <script lang="ts">
-	import swapOptions, { Network, type CoinOptions } from '$lib/send/sendOptions';
+	import { Network, type CoinOptions } from '$lib/send/sendOptions';
 	import { type CoinOptionParam } from '$lib/send/sendUtils';
-	import { getUsernameFromDid } from '$lib/getAccountName';
-	import { authStore } from '$lib/auth/store';
 	import { SendTxDetails } from '$lib/send/sendUtils';
-	import { networkCard, type AssetObject } from '../components/CardSnippets.svelte';
+	import { networkCard, type AssetObject } from '../components/SendSnippets.svelte';
 	import { untrack } from 'svelte';
 	import ListBox from '$lib/zag/ListBox.svelte';
-	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { ArrowLeft, ChevronRight, Delete } from '@lucide/svelte';
 	import AssetInfo from '../components/AssetInfo.svelte';

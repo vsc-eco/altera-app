@@ -102,7 +102,7 @@
 					{item.label}
 				{/if}
 				<div class="icons">
-					{#if item.icons}
+					{#if item.icons && !item.disabled}
 						{#each item.icons as iconInfo}
 							{@const func = iconInfo.action ?? (() => {})}
 							<PillButton onclick={func} styleType="icon-subtle">
@@ -179,21 +179,23 @@
 		[data-part='item'] {
 			cursor: pointer;
 		}
-		[data-part='item'][data-highlighted],
-		[data-part='item']:hover {
-			background-color: var(--bg-accent);
-			.custom-icon.hover {
-				visibility: visible;
+		[data-part='item']:not([data-disabled]) {
+			&[data-highlighted],
+			&:hover {
+				background-color: var(--bg-accent);
+				.custom-icon.hover {
+					visibility: visible;
+				}
+			}
+			&[data-part='item'][data-selected] {
+				background-color: var(--green-bg-accent);
 			}
 		}
-		[data-part='item'][data-selected] {
-			background-color: var(--green-bg-accent);
+		[data-part='item'][data-disabled] {
+			cursor: default;
 		}
 	}
 
-	[data-part='item'][data-disabled] {
-		cursor: default;
-	}
 	[data-part='item-indicator'] {
 		margin-left: auto;
 	}

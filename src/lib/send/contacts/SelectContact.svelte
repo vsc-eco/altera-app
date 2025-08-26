@@ -10,7 +10,7 @@
 		type Contact
 	} from './contacts';
 	import CreateContact from './CreateContact.svelte';
-	import { contactCard, type ContactObj } from '../stages/components/CardSnippets.svelte';
+	import { contactCard, type ContactObj } from '../stages/components/SendSnippets.svelte';
 	import { untrack } from 'svelte';
 	import { SendTxDetails } from '../sendUtils';
 	import Confirmation from '$lib/components/Confirmation.svelte';

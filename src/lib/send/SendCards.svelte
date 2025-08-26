@@ -111,12 +111,7 @@
 				console.log('Transaction operation:', sendOp);
 				status = 'Preparing transaction for signing...';
 
-				signAndBrodcastTransaction(
-					[sendOp],
-					wagmiSigner,
-					client,
-					wagmiConfig
-				)
+				signAndBrodcastTransaction([sendOp], wagmiSigner, client, undefined, wagmiConfig)
 					.then((result) => {
 						console.log('Transaction successful:', result);
 						status = `Transaction submitted successfully!`;
@@ -150,7 +145,7 @@
 							} else if (error.message.includes('network') || error.message.includes('Network')) {
 								status = 'Network error. Please check your connection and try again';
 							} else if (error.message.includes('not enough RCS')) {
-								status = "Not enough Resource Credits. Please deposit HBD and try again."
+								status = 'Not enough Resource Credits. Please deposit HBD and try again.';
 							} else {
 								status = 'Transaction failed.';
 							}

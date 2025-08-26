@@ -563,7 +563,7 @@ export async function send(
 	auth: Auth,
 	intermediary: IntermediaryNetwork,
 	setStatus: (status: string, isError?: boolean) => void,
-	signal: AbortSignal
+	signal?: AbortSignal | undefined
 ): Promise<Error | { id: string }> {
 	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
 	if (intermediary == Network.vsc) {

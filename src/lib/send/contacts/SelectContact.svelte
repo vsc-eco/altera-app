@@ -196,5 +196,8 @@
 			display: flex;
 			flex-direction: column;
 		}
+		&:not(.column) {
+			position: relative;
+		}
 	}
 </style>

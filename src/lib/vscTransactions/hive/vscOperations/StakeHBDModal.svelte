@@ -71,6 +71,7 @@
 					[stakeOp],
 					wagmiSigner, // version with error handling
 					client,
+					undefined,
 					wagmiConfig
 				);
 				status = `Transaction submitted successfully! ID: ${result.id}`;

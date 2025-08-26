@@ -95,8 +95,9 @@
 		outline: none;
 		max-height: 90vh;
 		position: relative;
+		display: flex;
 		@media screen and (max-width: 450px) {
-			max-height: 100vh;
+			max-height: calc(100vh - 1rem);
 		}
 	}
 
@@ -110,13 +111,14 @@
 		left: 50%;
 		top: 50%;
 		z-index: 10;
-		max-height: calc(100svh - var(--top-offset, 0) * 8);
+		max-height: 90vh;
 		transform: translate(-50%, -50%);
 
 		@media screen and (max-width: 450px) {
 			width: 100vw;
 			height: 100vh;
 			max-width: none;
+			max-height: 100vh;
 		}
 	}
 

@@ -231,7 +231,7 @@ export async function signAndBrodcastTransaction<
 	txs: Transaction[],
 	signer: SigningFunc,
 	client: Client,
-	signal: AbortSignal,
+	signal: AbortSignal | undefined,
 	...signerArgs: TupleRemoveFirstTwoValues<Parameters<SigningFunc>>
 ): Promise<TransactionResult> {
 	const walletConnected = await ensureWalletConnection();
@@ -277,7 +277,7 @@ export async function signAndBrodcastTransaction<
 	// console.log("sigEncoded", sigEncoded);
 	// console.log("txEncoded", txEncoded);
 
-	if (signal.aborted) {
+	if (signal?.aborted) {
 		throw new Error(`Transaction canceled by the user.`);
 	}
 

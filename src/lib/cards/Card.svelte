@@ -18,7 +18,7 @@
 		border: 1px solid var(--neutral-bg-accent);
 		border-radius: 0.5rem;
 		padding: 0.5rem;
-		overflow: auto;
+		overflow: scroll;
 		max-height: 100%;
 		flex: 1 1 auto;
 	}

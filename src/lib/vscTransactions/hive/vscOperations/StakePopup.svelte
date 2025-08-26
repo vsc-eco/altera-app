@@ -24,6 +24,8 @@
 
 <Dialog bind:toggle bind:open={dialogOpen}>
 	{#snippet content()}
-		<Tabs items={tabData} />
+		<div class="dialog-content">
+			<Tabs items={tabData} />
+		</div>
 	{/snippet}
 </Dialog>

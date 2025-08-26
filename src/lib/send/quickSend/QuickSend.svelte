@@ -214,7 +214,7 @@
 {/snippet}
 
 {#snippet review()}
-	<Review {status} compact />
+	<Review {status} compact waiting={false} abort={() => {}} />
 {/snippet}
 
 {#snippet complete()}

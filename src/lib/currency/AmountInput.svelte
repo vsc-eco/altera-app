@@ -9,6 +9,7 @@
 	import { DollarSign } from '@lucide/svelte';
 	import * as numberInput from '@zag-js/number-input';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
+	import NumberInput from '$lib/zag/NumberInput.svelte';
 
 	let {
 		amount = $bindable(),
@@ -29,7 +30,7 @@
 	let inUsd = $state('');
 	let error = $state('');
 	let currentCoin = $state.raw(coins.usd);
-	let boundAmount: string | null = $state(null);
+	let boundAmount: string = $state('');
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
 
 	let maxBalance = $derived.by(() => {
@@ -48,44 +49,6 @@
 	let min = $derived(10 ** -decimals);
 	let max = $derived(maxBalance ? Number(maxBalance) : Number.MAX_SAFE_INTEGER);
 
-	const id = $props.id();
-	const service = $derived(
-		useMachine(numberInput.machine, {
-			id,
-			get value() {
-				return amount;
-			},
-			min: min,
-			max: max,
-			allowOverflow: true,
-			formatOptions: {
-				style: 'decimal',
-				useGrouping: true,
-				minimumFractionDigits: 0,
-				maximumFractionDigits: decimals
-			},
-			onValueChange(details) {
-				console.log(details.value, details.valueAsNumber);
-				error = '';
-				if (details.valueAsNumber && isInRange(details.valueAsNumber)) {
-					amount = new CoinAmount(details.valueAsNumber, currentCoin).toAmountString();
-				} else {
-					amount = '0';
-				}
-				console.log('amount', amount);
-			},
-			onValueInvalid(details) {
-				console.log(details);
-				if (details.reason === 'rangeUnderflow') {
-					error = 'Amount must be greater than zero.';
-				} else {
-					error = 'Amount exceeds available balance.';
-				}
-			}
-		})
-	);
-	const api = $derived(numberInput.connect(service, normalizeProps));
-
 	let showMax = $derived(
 		maxField !== undefined &&
 			network?.value === Network.vsc.value &&
@@ -93,9 +56,10 @@
 				new CoinAmount(boundAmount ?? 0, currentCoin).toAmountString()
 	);
 
-	let showUsd = $derived(
-		!(connectedCoinAmount?.coin.value === coins.usd.value || coin?.coin.value === coins.usd.value)
-	);
+	let showUsd = true;
+	// $derived(
+	// 	!(connectedCoinAmount?.coin.value === coins.usd.value || coin?.coin.value === coins.usd.value)
+	// );
 
 	$effect(() => {
 		if (connectedCoinAmount && coin) {
@@ -118,7 +82,7 @@
 					// do this first to stop future effects
 					lastConnected = connectedCoinAmount;
 					if (amtString === '0' && boundAmount && boundAmount !== '0') {
-						boundAmount = null;
+						boundAmount = '';
 					} else {
 						boundAmount = amtString;
 					}
@@ -127,18 +91,18 @@
 			});
 		}
 	});
-	// $effect(() => {
-	// 	const _ = showMax;
-	// 	untrack(() => {
-	// 		if (boundAmount) amount = isInRange() ? boundAmount : '0';
-	// 	});
-	// });
+	$effect(() => {
+		const _ = showMax;
+		untrack(() => {
+			if (boundAmount) amount = isInRange() ? boundAmount : '0';
+		});
+	});
 	$effect(() => {
 		// makes it reactive to boundAmount, which is only in a "then" otherwise
 		const newCoinOpt = coin;
 		if (!newCoinOpt) {
 			if (currentCoin !== coins.usd) {
-				boundAmount = null;
+				boundAmount = '';
 				currentCoin = coins.usd;
 			}
 			return;
@@ -177,60 +141,22 @@
 		error = '';
 	});
 
-	function isInRange(amount: number) {
-		if (!amount || Number(amount) < 0 || (maxBalance && Number(amount) > Number(maxBalance)))
+	function isInRange() {
+		if (
+			!boundAmount ||
+			Number(boundAmount) < 0 ||
+			(maxBalance && Number(boundAmount) > Number(maxBalance))
+		)
 			return false;
 		return true;
 	}
 
-	let typedValue = $state('');
-	$inspect(typedValue);
+	let id = $state('');
 </script>
 
-{#snippet inputElement()}
-	<div {...api.getScrubberProps()}></div>
-	<input {...api.getInputProps()} />
-	<!-- <input
-		min="0.00000001"
-		max={maxBalance}
-		oninvalid={(e) => {
-			e.preventDefault();
-			const target = e.currentTarget;
-			if (target.validity.rangeUnderflow) {
-				error = 'Amount must be greater than zero.';
-			} else if (target.validity.rangeOverflow) {
-				error = 'Amount exceeds available balance.';
-			}
-			target.scrollIntoView({
-				behavior: 'smooth',
-				block: 'nearest',
-				inline: 'center'
-			});
-		}}
-		oninput={(e) => {
-			// custom input validation regex
-			e.currentTarget.value = e.currentTarget.value.replace(/[^0-9.]/g, '');
-			typedValue = e.currentTarget.value;
-			if (boundAmount && isInRange()) {
-				amount = new CoinAmount(boundAmount, currentCoin).toAmountString();
-			} else {
-				amount = '0';
-			}
-		}}
-		required={true}
-		{id}
-		type="number"
-		step="any"
-		inputmode="decimal"
-		bind:value={boundAmount}
-		class={{ big: styleType === 'big' }}
-		placeholder={styleType === 'big' ? '0' : undefined}
-	/> -->
-{/snippet}
-
 {#if styleType === 'normal'}
-	<div {...api.getRootProps()} class="normal-wrapper">
-		<label {...api.getLabelProps()}>
+	<div class="normal-wrapper">
+		<label for={id}>
 			<span>
 				{#if showMax && maxField}
 					<span style="white-space: nowrap;">
@@ -248,7 +174,14 @@
 			{:else}
 				<CoinNetworkIcon coin={coin?.coin ?? coins.usd} network={network ?? Network.unknown} />
 			{/if}
-			{@render inputElement()}
+			{#key coin}
+				<NumberInput
+					bind:amount={boundAmount}
+					bind:error
+					bind:inputId={id}
+					max={maxBalance ? Number(maxBalance) : undefined}
+				/>
+			{/key}
 			{#if showMax}
 				<div class="max-button-wrapper">
 					<PillButton type="button" onclick={setToMax}>Max</PillButton>
@@ -259,45 +192,55 @@
 				{currentCoin.label}
 			</div>
 		</div>
-		{#if showUsd}
-			<span class={['approx-usd', { hidden: !(coin && boundAmount) }]}>
-				Approx. USD value:
-				{#if coin?.coin.value != Coin.unk.value}
-					${inUsd}
-				{:else}
-					Unknown
+		{#if showUsd || error !== ''}
+			<span class="bottom-info">
+				{#if showUsd}
+					<span class={['approx-usd', { hidden: !(coin && boundAmount) }]}>
+						Approx. USD value:
+						{#if coin?.coin.value != Coin.unk.value}
+							${inUsd}
+						{:else}
+							Unknown
+						{/if}
+					</span>
 				{/if}
-			</span>
-		{/if}
-		{#if error != ''}
-			<span class="error">
-				{error}
+				{#if error != ''}
+					<span class="error">
+						{error}
+					</span>
+				{/if}
 			</span>
 		{/if}
 	</div>
 {:else}
-	<div {...api.getRootProps()} class="big-wrapper">
+	<div class="big-wrapper">
 		<div class="amount-input">
-			<label {...api.getLabelProps()}>
+			<label for={id}>
 				{coin?.coin.label}
 			</label>
-			<span class="input-sizer">
-				{@render inputElement()}
-				<!-- <span>{typedValue === '' ? '0' : typedValue}</span> -->
-			</span>
+			<span class="input-sizer"> </span>
 		</div>
 	</div>
 {/if}
 
 <style lang="scss">
+	.normal-wrapper,
+	.big-wrapper {
+		:global(input) {
+			border: none;
+			&:focus-visible {
+				box-shadow: none;
+			}
+		}
+	}
+
 	.normal-wrapper {
 		position: relative;
 		flex: 1;
-		[data-part='label'] {
+		label {
 			position: absolute;
-			top: 0;
-			right: 0;
-			translate: -0.5rem -1.75rem;
+			top: -1.25rem;
+			right: 0.25rem;
 		}
 		.balance-amount {
 			font-family: 'Noto Sans Mono Variable', monospace;
@@ -311,7 +254,7 @@
 			align-items: center;
 			flex-basis: 1;
 			box-sizing: border-box;
-			&:has(input:focus-visible) {
+			&:has(:global(input):focus-visible) {
 				box-shadow: 0 -1px inset var(--primary-bg-mid);
 				border-bottom-color: var(--primary-bg-mid);
 				outline: none;
@@ -356,12 +299,16 @@
 			width: 4rem;
 			text-align: center;
 		}
-		.approx-usd {
+		.bottom-info {
+			display: flex;
+			flex-wrap: wrap;
 			text-wrap: wrap;
-			color: var(--neutral-fg-mid);
-			font-size: var(--text-sm);
 			margin-bottom: 0;
 			line-height: 1.2;
+		}
+		.approx-usd {
+			color: var(--neutral-fg-mid);
+			font-size: var(--text-sm);
 			&.hidden {
 				visibility: hidden;
 			}

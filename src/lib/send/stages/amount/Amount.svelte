@@ -249,6 +249,7 @@
 	let memo = $state('');
 
 	// $inspect(assetOptions);
+	$inspect('toAmount', toAmount);
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}

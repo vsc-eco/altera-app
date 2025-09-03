@@ -38,9 +38,12 @@
 		const newVal = tmpAssetVal;
 		untrack(() => {
 			tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === newVal);
-			if (!tmpAsset) return;
-			detailsOpen = { fromOpt: tmpAsset, net: tmpNetwork };
+			if (!tmpAsset) {
+				$SendTxDetails.toCoin = undefined;
+				return;
+			}
 			if ($SendTxDetails.toCoin?.coin.value === tmpAsset.coin.value) return;
+			detailsOpen = { fromOpt: tmpAsset, net: tmpNetwork };
 			$SendTxDetails.toCoin = tmpAsset;
 		});
 	});

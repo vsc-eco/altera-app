@@ -82,7 +82,6 @@
 		}
 	});
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
-	const possibleNetworks = $derived(getRecipientNetworks(toDid));
 	interface MethodOptionParam extends TransferMethod {
 		disabled?: boolean;
 		disabledMemo?: string;

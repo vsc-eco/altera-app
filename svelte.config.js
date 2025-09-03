@@ -15,11 +15,7 @@ const config = {
 			'@styles': 'src/styles',
 			$houdini: '.houdini/'
 		},
-		adapter: adapter(),
-		env: {
-			publicPrefix: '',
-			privatePrefix: 'PRIVATE'
-		}
+		adapter: adapter()
 	},
 	compilerOptions: {
 		runes: true

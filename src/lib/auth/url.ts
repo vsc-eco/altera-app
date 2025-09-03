@@ -1,4 +1,4 @@
 import { browser } from '$app/environment';
-import { VERCEL_URL } from '$env/static/public';
+import { PUBLIC_VERCEL_URL } from '$env/static/public';
 
-export const DOMAIN = browser ? window.location.host : VERCEL_URL;
+export const DOMAIN = browser ? window.location.host : PUBLIC_VERCEL_URL;

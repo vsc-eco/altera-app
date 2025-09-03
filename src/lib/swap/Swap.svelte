@@ -8,7 +8,7 @@
 		type NecessarySendDetails,
 		type SendDetails
 	} from '$lib/send/sendOptions';
-	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
+	import { blankDetails, getFee, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
 	import V4VPopup from '$lib/send/V4VPopup.svelte';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import { getUniqueId } from '$lib/zag/idgen';
@@ -20,10 +20,12 @@
 	import { goto } from '$app/navigation';
 	import SendNavButtons from '$lib/send/navigation/SendNavButtons.svelte';
 	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
-	import type { Snippet } from 'svelte';
+	import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import { ArrowLeft } from '@lucide/svelte';
+	import PreviewSwap from './PreviewSwap.svelte';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import Complete from '$lib/send/stages/complete/Complete.svelte';
+	import { loadHistoricalCoinData, saveHistoricalCoinData } from '$lib/currency/historical';
 
 	let auth = $authStore;
 	let windowWidth = $state(0);
@@ -42,6 +44,12 @@
 		};
 	}
 	SendTxDetails.set(swapDetails());
+	$effect(() => {
+		if (auth.value) {
+			const username = getUsernameFromAuth(auth);
+			if (username) $SendTxDetails.toUsername = username;
+		}
+	});
 
 	function openV4V() {
 		showV4VModal = false;
@@ -54,9 +62,9 @@
 	}
 
 	const stepsData = [
-		{ value: 'options', label: 'Options', content: select }
-		// { value: 'review', label: 'Review', content: review },
-		// { value: 'complete', label: 'Review', content: complete }
+		{ value: 'options', label: 'Options', content: select },
+		{ value: 'review', label: 'Review', content: preview },
+		{ value: 'complete', label: 'Review', content: complete }
 	];
 
 	const id = getUniqueId();
@@ -102,12 +110,13 @@
 
 		if (intermediary === Network.lightning) {
 			setStatus('Generating Lightning transfer');
-			openV4V();
+			// openV4V();
+			waiting = true;
+			txId = 'test-id';
 			return;
 		}
 
-		waiting = true;
-		return;
+		// return;
 	}
 
 	let stepComplete = $state(false);
@@ -159,6 +168,16 @@
 		}
 	});
 
+	let oldId = '';
+	$effect(() => {
+		if (txId && txId !== untrack(() => oldId)) {
+			waiting = false;
+			setStatus('');
+			api.setStep(stepsData.length - 1);
+			oldId = txId;
+		}
+	});
+
 	// stack of open snippets
 	// only one open parameter, do it this way so that
 	// it can be a dialog or second panel easily
@@ -201,6 +220,12 @@
 
 {#snippet select(value: string)}
 	<SelectSwap id={value} {editStage} openSnippet={pushSnippet} closeSnippet={popSnippet} />
+{/snippet}
+{#snippet preview()}
+	<PreviewSwap {status} {waiting} abort={() => {}} />
+{/snippet}
+{#snippet complete()}
+	<Complete {txId} type="swap" />
 {/snippet}
 
 <div class="swap-internal-wrapper">

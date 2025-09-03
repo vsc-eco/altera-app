@@ -6,22 +6,20 @@
 
 	type Props = {
 		amount: string;
-		error?: string;
 		decimals?: number;
-		min?: number;
 		max?: number;
+		min?: number;
 		inputId?: string;
 	};
 	let {
 		amount = $bindable(),
-		error = $bindable(),
 		decimals = 2,
-		min: minProp,
 		max = Number.MAX_SAFE_INTEGER,
+		min: minParam,
 		inputId = $bindable()
 	}: Props = $props();
 
-	let min = minProp ?? 10 ** -decimals;
+	let min = $derived(minParam ?? 10 ** -decimals);
 
 	function inRange(val: number) {
 		return val >= min && val <= max;
@@ -36,43 +34,26 @@
 
 	let value = $state('');
 
-	if (amount && Number(amount) < min) {
-		error = `Amount must be at least ${min}.`;
-	} else if (amount && Number(amount) > max) {
-		error = 'Amount exceeds available balance.';
-	}
-
 	const id = $props.id();
 	const service = $derived(
 		useMachine(numberInput.machine, {
 			id,
-			min: min,
+			min: 0,
 			max: max,
-			allowOverflow: true,
+			allowOverflow: false,
+			get value() {
+				return value;
+			},
 			formatOptions: {
 				style: 'decimal',
 				useGrouping: true,
 				minimumFractionDigits: 0,
 				maximumFractionDigits: decimals
 			},
-			get value() {
-				return value;
-			},
 			onValueChange(details) {
 				value = details.value;
-				if (error !== undefined) {
-					invalid = details.value !== '' && !inRange(details.valueAsNumber);
-					if (!invalid) error = '';
-				}
+				invalid = details.value !== '' && !inRange(details.valueAsNumber);
 				amount = inRange(details.valueAsNumber) ? trimOutput(api.valueAsNumber) : '';
-			},
-			onValueInvalid(details) {
-				if (error === undefined || inRange(details.valueAsNumber)) return;
-				if (details.reason === 'rangeUnderflow') {
-					error = 'Amount must be greater than zero.';
-				} else {
-					error = 'Amount exceeds available balance.';
-				}
 			}
 		})
 	);
@@ -85,27 +66,25 @@
 		if (!amount) return;
 		untrack(() => {
 			if (amount !== trimOutput(api.valueAsNumber)) {
-				value = amount;
-				if (error !== undefined) {
-					invalid = value !== '' && !inRange(Number(value));
-					if (!invalid) error = '';
+				value = parseFloat(amount).toLocaleString(undefined, { maximumFractionDigits: decimals });
+				invalid = value !== '' && !inRange(Number(value));
+				if (inRange(api.valueAsNumber)) {
+					invalid = false;
 				}
 			}
 		});
+	});
+	let width = $state(0);
+	let inputElement = $state<HTMLInputElement>();
+	$effect(() => {
+		inputElement?.style.setProperty('--width', `${width.toString()}px`);
 	});
 </script>
 
 <div {...api.getRootProps()}>
 	<div {...api.getScrubberProps()}></div>
-	<input {...api.getInputProps()} class={{ invalid }} />
-	<div class="triggers">
-		<button {...api.getIncrementTriggerProps()}>
-			<ChevronUp />
-		</button>
-		<button {...api.getDecrementTriggerProps()}>
-			<ChevronDown />
-		</button>
-	</div>
+	<input bind:this={inputElement} {...api.getInputProps()} class={{ invalid }} placeholder="0" />
+	<span bind:clientWidth={width}>{value || '0'}</span>
 </div>
 
 <style lang="scss">
@@ -113,37 +92,26 @@
 		display: flex;
 		align-items: center;
 		position: relative;
-		flex-grow: 1;
-	}
-	.triggers {
-		display: flex;
-		flex-direction: column;
-		position: absolute;
-		right: 0;
+		width: min-content;
 	}
 	[data-part='input'] {
-		width: 0;
-		flex-grow: 1;
-		padding-right: 2rem;
+		position: absolute;
+		font-size: 3rem;
+		min-width: 0;
+		width: var(--width);
+		height: auto;
+		padding: 0;
 		&.invalid {
 			color: var(--secondary-fg-mid);
 		}
-	}
-	[data-part='increment-trigger'],
-	[data-part='decrement-trigger'] {
-		height: 1rem;
 		border: none;
-		background-color: transparent;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		color: var(--fg-accent-shifted);
-		&:hover {
-			color: var(--fg-accent);
+		&:focus-visible {
+			box-shadow: none;
 		}
-		&:active {
-			color: var(--fg);
-			transform: scale(0.98);
-		}
+	}
+	span {
+		font-size: 3rem;
+		visibility: hidden;
+		pointer-events: none;
 	}
 </style>

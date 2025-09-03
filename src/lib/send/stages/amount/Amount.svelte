@@ -249,7 +249,6 @@
 	let memo = $state('');
 
 	// $inspect(assetOptions);
-	$inspect('toAmount', toAmount);
 </script>
 
 {#snippet radioLabel(info: { icon: string; label: string })}
@@ -358,13 +357,21 @@
 	}
 	.amounts {
 		display: flex;
-		align-items: center;
-		gap: 1rem;
+		align-items: flex-start;
+		gap: 0.5rem;
+		:global(.lucide-link-2) {
+			min-width: 24px;
+			height: 44px;
+		}
 		@media screen and (max-width: 450px) {
 			flex-direction: column;
+			align-items: center;
 			gap: 0.25rem;
-			:global(.wrapper) {
+			:global(.amount-wrapper) {
 				width: 100%;
+			}
+			:global(.lucide-link-2) {
+				height: auto;
 			}
 		}
 	}

@@ -7,9 +7,8 @@
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import PillButton from '$lib/PillButton.svelte';
 	import { DollarSign } from '@lucide/svelte';
-	import * as numberInput from '@zag-js/number-input';
-	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import NumberInput from '$lib/zag/NumberInput.svelte';
+	import BigInput from './BigInput.svelte';
 
 	let {
 		amount = $bindable(),
@@ -17,7 +16,8 @@
 		coin,
 		network,
 		maxField,
-		styleType = 'normal'
+		styleType = 'normal',
+		minAmount
 	}: {
 		amount: string;
 		connectedCoinAmount?: CoinAmount<Coin>;
@@ -25,16 +25,18 @@
 		network: Network | undefined;
 		maxField?: BalanceOption;
 		styleType?: 'normal' | 'big';
+		minAmount?: CoinAmount<Coin>;
 	} = $props();
 
 	let inUsd = $state('');
 	let error = $state('');
 	let currentCoin = $state.raw(coins.usd);
-	let boundAmount: string = $state('');
+	// let boundAmount: string = $state('');
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
+	const quiet = $derived(connectedCoinAmount && currentCoin.value === Coin.usd.value);
 
 	let maxBalance = $derived.by(() => {
-		if (showMax && maxField && coin) {
+		if (maxField && coin) {
 			return new CoinAmount($accountBalance.bal[maxField], coin.coin, true).toAmountString();
 		}
 		return undefined;
@@ -42,24 +44,21 @@
 
 	function setToMax() {
 		amount = maxBalance ?? '0';
-		boundAmount = maxBalance ?? '0';
 	}
 
 	let decimals = $derived(coin?.coin.decimalPlaces ?? 2);
-	let min = $derived(10 ** -decimals);
-	let max = $derived(maxBalance ? Number(maxBalance) : Number.MAX_SAFE_INTEGER);
+	let min = $state<number>();
 
 	let showMax = $derived(
 		maxField !== undefined &&
 			network?.value === Network.vsc.value &&
 			new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toAmountString() !==
-				new CoinAmount(boundAmount ?? 0, currentCoin).toAmountString()
+				new CoinAmount(amount ?? 0, currentCoin).toAmountString()
 	);
 
-	let showUsd = true;
-	// $derived(
-	// 	!(connectedCoinAmount?.coin.value === coins.usd.value || coin?.coin.value === coins.usd.value)
-	// );
+	let showUsd = $derived(
+		!(connectedCoinAmount?.coin.value === coins.usd.value || coin?.coin.value === coins.usd.value)
+	);
 
 	$effect(() => {
 		if (connectedCoinAmount && coin) {
@@ -81,28 +80,15 @@
 					const amtString = connectedInThis.toAmountString();
 					// do this first to stop future effects
 					lastConnected = connectedCoinAmount;
-					if (amtString === '0' && boundAmount && boundAmount !== '0') {
-						boundAmount = '';
-					} else {
-						boundAmount = amtString;
-					}
 					amount = amtString;
 				});
 			});
 		}
 	});
 	$effect(() => {
-		const _ = showMax;
-		untrack(() => {
-			if (boundAmount) amount = isInRange() ? boundAmount : '0';
-		});
-	});
-	$effect(() => {
-		// makes it reactive to boundAmount, which is only in a "then" otherwise
 		const newCoinOpt = coin;
 		if (!newCoinOpt) {
 			if (currentCoin !== coins.usd) {
-				boundAmount = '';
 				currentCoin = coins.usd;
 			}
 			return;
@@ -111,47 +97,52 @@
 			return;
 		}
 		untrack(() => {
-			if (!boundAmount) return;
-			const originalAmount = new CoinAmount(boundAmount, currentCoin);
+			const originalAmount = new CoinAmount(amount, currentCoin);
 			if (originalAmount.toNumber() === 0) {
 				return;
 			}
 			originalAmount
 				.convertTo(newCoinOpt.coin, Network.lightning)
 				.then((amt) => {
-					boundAmount = amt.toAmountString(true);
-					// amount = isInRange() ? boundAmount : '0';
+					amount = amt.toAmountString(true);
 				})
 				.catch((err) => {
 					console.log('error converting', err.message);
 				});
+			if (minAmount) {
+				minAmount.convertTo(newCoinOpt.coin, Network.lightning).then((amt) => {
+					min = amt.toNumber();
+				});
+			}
 		});
 		currentCoin = newCoinOpt.coin;
 	});
 	$effect(() => {
-		if (!boundAmount) {
+		if (minAmount) {
+			minAmount.convertTo(currentCoin, Network.lightning).then((amt) => {
+				min = amt.toNumber();
+			});
+		}
+	});
+	$effect(() => {
+		if (!amount) {
 			inUsd = '';
 			return;
 		}
-		new CoinAmount(boundAmount, currentCoin)
-			.convertTo(Coin.usd, Network.lightning)
-			.then((amount) => {
-				inUsd = amount.toAmountString();
-			});
-		error = '';
+		new CoinAmount(amount, currentCoin).convertTo(Coin.usd, Network.lightning).then((amount) => {
+			inUsd = amount.toAmountString();
+		});
 	});
 
-	function isInRange() {
-		if (
-			!boundAmount ||
-			Number(boundAmount) < 0 ||
-			(maxBalance && Number(boundAmount) > Number(maxBalance))
-		)
-			return false;
-		return true;
-	}
-
 	let id = $state('');
+
+	let debouncedMax = $state('');
+	$effect(() => {
+		let maxString = maxBalance ?? '';
+		if (debouncedMax !== maxString) {
+			debouncedMax = maxString;
+		}
+	});
 </script>
 
 {#if styleType === 'normal'}
@@ -174,13 +165,26 @@
 			{:else}
 				<CoinNetworkIcon coin={coin?.coin ?? coins.usd} network={network ?? Network.unknown} />
 			{/if}
-			{#key coin}
-				<NumberInput
-					bind:amount={boundAmount}
-					bind:error
-					bind:inputId={id}
-					max={maxBalance ? Number(maxBalance) : undefined}
-				/>
+			{#key [currentCoin, debouncedMax, min]}
+				{@const _ = console.log('regenerating')}
+				{#if quiet}
+					<NumberInput
+						bind:amount
+						bind:inputId={id}
+						max={maxBalance ? Number(maxBalance) : undefined}
+						{decimals}
+						{min}
+					/>
+				{:else}
+					<NumberInput
+						bind:amount
+						bind:error
+						bind:inputId={id}
+						max={maxBalance ? Number(maxBalance) : undefined}
+						{decimals}
+						{min}
+					/>
+				{/if}
 			{/key}
 			{#if showMax}
 				<div class="max-button-wrapper">
@@ -192,25 +196,22 @@
 				{currentCoin.label}
 			</div>
 		</div>
-		{#if showUsd || error !== ''}
-			<span class="bottom-info">
-				{#if showUsd}
-					<span class={['approx-usd', { hidden: !(coin && boundAmount) }]}>
-						Approx. USD value:
-						{#if coin?.coin.value != Coin.unk.value}
-							${inUsd}
-						{:else}
-							Unknown
-						{/if}
-					</span>
-				{/if}
-				{#if error != ''}
-					<span class="error">
-						{error}
-					</span>
-				{/if}
-			</span>
-		{/if}
+		<span class={['bottom-info', { hidden: !(showUsd || error) }]}>
+			{#if error != ''}
+				<span class="error">
+					{error}
+				</span>
+			{:else if showUsd && coin && amount !== '0'}
+				<span class="approx-usd">
+					Approx. USD value:
+					{#if coin?.coin.value != Coin.unk.value}
+						${inUsd}
+					{:else}
+						Unknown
+					{/if}
+				</span>
+			{/if}
+		</span>
 	</div>
 {:else}
 	<div class="big-wrapper">
@@ -218,7 +219,9 @@
 			<label for={id}>
 				{coin?.coin.label}
 			</label>
-			<span class="input-sizer"> </span>
+			{#key [currentCoin, debouncedMax, min]}
+				<BigInput bind:amount bind:inputId={id} {decimals} {min} />
+			{/key}
 		</div>
 	</div>
 {/if}
@@ -259,6 +262,10 @@
 				border-bottom-color: var(--primary-bg-mid);
 				outline: none;
 				border-radius: 0.5rem 0.5rem 0 0;
+				hr {
+					border-color: var(--primary-bg-mid);
+					border-width: 1.5px;
+				}
 			}
 
 			hr {
@@ -266,22 +273,6 @@
 				border-right: 1px solid var(--neutral-bg-accent-shifted);
 			}
 
-			input:focus-visible + hr {
-				border-color: var(--primary-bg-mid);
-				border-width: 1.5px;
-			}
-
-			input {
-				border: none;
-				height: 48px;
-				box-sizing: border-box;
-				min-width: 3.5rem;
-				width: 1rem;
-				flex-grow: 1;
-			}
-			input:focus-visible {
-				box-shadow: none;
-			}
 			.max-button-wrapper {
 				margin-right: 0.25rem;
 				:global(button) {
@@ -289,10 +280,6 @@
 					padding: 0.5rem 0.75rem;
 					height: fit-content;
 				}
-			}
-			input.big {
-				text-align: center;
-				width: min-content;
 			}
 		}
 		.coin-label {
@@ -305,11 +292,20 @@
 			text-wrap: wrap;
 			margin-bottom: 0;
 			line-height: 1.2;
+			&.hidden {
+				visibility: hidden;
+			}
 		}
 		.approx-usd {
 			color: var(--neutral-fg-mid);
 			font-size: var(--text-sm);
-			&.hidden {
+		}
+		@media screen and (min-width: 450px) and (max-width: 650px) {
+			.amount-input > .max-button-wrapper > :global(button) {
+				background-color: transparent;
+				padding: 0;
+			}
+			label {
 				visibility: hidden;
 			}
 		}
@@ -324,30 +320,21 @@
 			gap: 0.5rem;
 			width: min-content;
 			position: relative;
-			[data-part='label'] {
+			label {
 				margin: 0;
 				position: absolute;
 				right: calc(100% + 0.5rem);
 				transform: translateY(-30%);
 				color: inherit;
 			}
-			.input-sizer {
-				flex-basis: 0;
-				font-size: 3rem;
-				height: var(--text-size);
-				span {
-					visibility: hidden;
-				}
-			}
-			input,
-			input:focus-visible {
-				border: none;
-				box-shadow: none;
-			}
-			input {
+			:global(:input) {
 				padding: 0;
 				width: 100%;
 				height: var(--text-size);
+				border: none;
+				&:focus-visible {
+					box-shadow: none;
+				}
 			}
 		}
 	}

@@ -3,9 +3,7 @@ import { createAppKit } from '@reown/appkit';
 import { mainnet } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { DOMAIN } from '../url';
-import { _reownAuthStore } from '../store';
 import { browser } from '$app/environment';
-import { loginRetry } from '../store';
 import { get } from 'svelte/store';
 
 // 1. Get a project ID at https://cloud.reown.com
@@ -40,28 +38,32 @@ export const modal = createAppKit({
 	}
 });
 
-modal.subscribeAccount((value) => {
-	if (value.isConnected) {
-		_reownAuthStore.set({
-			status: 'authenticated',
-			value: {
-				address: value.address!,
-				logout: modal.disconnect,
-				provider: 'reown',
-				did: `did:pkh:eip155:1:${value.address!}`,
-				openSettings: () => modal.open()
+modal.subscribeAccount(async (value) => {
+	try {
+		const { _reownAuthStore, loginRetry } = await import('../store');
+
+		if (value.isConnected) {
+			_reownAuthStore.set({
+				status: 'authenticated',
+				value: {
+					address: value.address!,
+					logout: modal.disconnect,
+					provider: 'reown',
+					did: `did:pkh:eip155:1:${value.address!}`,
+					openSettings: () => modal.open()
+				}
+			});
+			if (get(loginRetry) !== 'logout') {
+				loginRetry.set('retry');
 			}
-		});
-		if (get(loginRetry) !== 'logout') {
-			loginRetry.set('retry');
+		} else if (value.status == 'connecting') {
+			_reownAuthStore.set({
+				status: 'pending'
+			});
+		} else {
+			_reownAuthStore.set({
+				status: 'none'
+			});
 		}
-	} else if (value.status == 'connecting') {
-		_reownAuthStore.set({
-			status: 'pending'
-		});
-	} else {
-		_reownAuthStore.set({
-			status: 'none'
-		});
-	}
+	} catch {}
 });

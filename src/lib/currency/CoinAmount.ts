@@ -69,13 +69,14 @@ export class CoinAmount<C extends Coin> {
 		const formatted = formatter.format(numericValue);
 		return `${isNegative ? '-' : ''}${formatted} ${this.coin.unit}`;
 	}
-	toPrettyMinFigs(figures = 3) {
-		const minFigs = Math.min(this.coin.decimalPlaces, figures);
+	toPrettyMinFigs(figures = 3, decimals = 2) {
 		const isNegative = this.isNegative();
 		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
+		const minFigs = numericValue < 1 ? Math.min(this.coin.decimalPlaces, figures) : figures;
 		const formatter = new Intl.NumberFormat(navigator.language, {
 			useGrouping: true,
 			minimumSignificantDigits: minFigs,
+			minimumFractionDigits: decimals,
 			maximumSignificantDigits: 21
 		});
 		const formatted = formatter.format(numericValue);

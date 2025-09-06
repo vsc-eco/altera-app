@@ -65,7 +65,7 @@
 	.masonry {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 1.5rem;
 	}
 	.txs {
 		flex-basis: 100%;
@@ -74,7 +74,7 @@
 	.row {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 1rem;
+		gap: 1.5rem;
 		align-items: stretch;
 	}
 	.row > :global(*) {

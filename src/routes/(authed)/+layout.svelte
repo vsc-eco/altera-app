@@ -19,7 +19,7 @@
 	let isFullscreen = $derived(['/send', '/swap'].includes(page.url.pathname));
 	$effect(() => {
 		if (!browser || !auth.value) return;
-		// startAccountPolling(auth.value.did);
+		startAccountPolling(auth.value.did);
 		localStorage.setItem('last_connection', auth.value.provider);
 	});
 	$effect(() => {

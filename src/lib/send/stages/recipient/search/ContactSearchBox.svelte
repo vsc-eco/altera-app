@@ -25,7 +25,7 @@
 		type ContactObj
 	} from '../../components/SendSnippets.svelte';
 	import { getRecentContacts } from '$lib/send/sendUtils';
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
 	import { untrack, type Snippet } from 'svelte';
 	import Divider from '$lib/components/Divider.svelte';
@@ -41,7 +41,7 @@
 		enableContacts?: boolean;
 	} = $props();
 
-	const auth = $derived($authStore);
+	const auth = $derived(getAuth()());
 	let recents: RecipientSnippet[] = $state([]);
 	$effect(() => {
 		if (!auth) return;

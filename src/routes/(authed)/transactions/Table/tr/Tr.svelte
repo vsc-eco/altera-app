@@ -23,7 +23,7 @@
 		tx: TransactionInter;
 		op: TransactionOpType;
 		ledgerIndex?: number;
-		onRowClick: (op: [string, number], content: Snippet) => void;
+		onRowClick: (op: [string, number], content: () => ReturnType<Snippet>) => void;
 	};
 	let { tx, op, ledgerIndex, onRowClick }: Props = $props();
 	const did = $derived(getAuth()().value!.did);

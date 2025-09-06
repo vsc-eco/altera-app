@@ -109,7 +109,7 @@
 	}
 
 	[data-part='positioner'] {
-		border-radius: 0.5rem;
+		border-radius: 0.75rem;
 		position: fixed;
 		padding: 0.5rem;
 		box-sizing: border-box;
@@ -130,7 +130,7 @@
 	}
 
 	[data-part='content'] > :global(div) {
-		border-radius: 0.5rem;
+		border-radius: 0.75rem;
 		padding: 1rem;
 	}
 

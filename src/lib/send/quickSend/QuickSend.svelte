@@ -7,7 +7,7 @@
 	import SelectOptions from './SelectOptions.svelte';
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import { authStore, type Auth } from '$lib/auth/store';
+	import { authStore, getAuth, type Auth } from '$lib/auth/store';
 	import SendNavButtons from '../navigation/SendNavButtons.svelte';
 	import { untrack } from 'svelte';
 	import { getUsernameFromDid } from '$lib/getAccountName';
@@ -28,7 +28,7 @@
 		sessionId: number;
 	}>();
 
-	const auth = $authStore;
+	const auth = $derived(getAuth()());
 
 	function quickDetails() {
 		return {

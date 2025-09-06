@@ -1,28 +1,25 @@
 <script lang="ts">
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import { Coin, Network } from '$lib/send/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
-	import { ArrowDown, Dot, EqualApproximately, X } from '@lucide/svelte';
-	import Instructions from '$lib/send/stages/review/Instructions.svelte';
+	import { Dot, EqualApproximately, X } from '@lucide/svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 
-	let auth = $authStore;
+	const auth = $derived(getAuth()());
 	let {
 		status,
 		waiting,
-		abort,
-		compact
+		abort
 	}: {
 		status: { message: string; isError: boolean };
 		waiting: boolean;
 		abort: () => void;
-		compact?: boolean;
 	} = $props();
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);

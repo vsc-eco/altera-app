@@ -9,7 +9,7 @@
 		type CoinOptionParam,
 		type NetworkOptionParam
 	} from '../sendUtils';
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -30,7 +30,7 @@
 		id: string;
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
-	const auth = $authStore;
+	const auth = $derived(getAuth()());
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 	let isSwap = $derived($SendTxDetails.account?.value === SendAccount.swap.value);
 
@@ -351,7 +351,6 @@
 		bind:amount={toAmount}
 		coin={$SendTxDetails.toCoin}
 		network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}
-		id={'basic-input'}
 		{maxField}
 		connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
 			? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)

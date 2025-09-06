@@ -9,7 +9,7 @@
 	type Props = {
 		title?: string;
 		description?: string;
-		trigger: Snippet<[HTMLButtonAttributes]>;
+		trigger: (attributes: HTMLButtonAttributes) => ReturnType<Snippet>;
 		children?: Snippet;
 	};
 	const { title, description, trigger, children }: Props = $props();

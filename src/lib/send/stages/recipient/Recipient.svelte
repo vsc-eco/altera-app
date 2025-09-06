@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import { Landmark } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
@@ -39,10 +39,10 @@
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
 
-	const auth = $authStore;
+	const auth = $derived(getAuth()());
 
 	$effect(() => {
-		if (!$authStore.value) return;
+		if (!auth.value) return;
 		untrack(() => {
 			const contacts = getContacts();
 			processMap<string, Contact, Contact>(contacts, async (contact) => {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authStore } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import {
 		Coin,
@@ -8,7 +8,7 @@
 		type NecessarySendDetails,
 		type SendDetails
 	} from '$lib/send/sendOptions';
-	import { blankDetails, getFee, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
+	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
 	import V4VPopup from '$lib/send/V4VPopup.svelte';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import { getUniqueId } from '$lib/zag/idgen';
@@ -20,16 +20,14 @@
 	import { goto } from '$app/navigation';
 	import SendNavButtons from '$lib/send/navigation/SendNavButtons.svelte';
 	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
-	import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
+	import { onDestroy, onMount, tick, untrack, type Snippet } from 'svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import PreviewSwap from './PreviewSwap.svelte';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Complete from '$lib/send/stages/complete/Complete.svelte';
-	import { loadHistoricalCoinData, saveHistoricalCoinData } from '$lib/currency/historical';
 
-	let auth = $authStore;
+	const auth = $derived(getAuth()());
 	let windowWidth = $state(0);
-	let remValue = $state(0);
 	let sessionId = $state(getTxSessionId());
 	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
 	let waiting = $state(false);
@@ -110,13 +108,10 @@
 
 		if (intermediary === Network.lightning) {
 			setStatus('Generating Lightning transfer');
-			// openV4V();
-			waiting = true;
-			txId = 'test-id';
+			openV4V();
+			// waiting = true;
 			return;
 		}
-
-		// return;
 	}
 
 	let stepComplete = $state(false);
@@ -177,49 +172,10 @@
 			oldId = txId;
 		}
 	});
-
-	// stack of open snippets
-	// only one open parameter, do it this way so that
-	// it can be a dialog or second panel easily
-	let openSnippets: { snippet: (...args: any[]) => ReturnType<Snippet>; args: any }[] = $state([]);
-	function pushSnippet(snippet: (...args: any[]) => ReturnType<Snippet>, args?: any) {
-		openSnippets.push({ snippet: snippet, args: args });
-		toggle(true);
-	}
-	function popSnippet(all?: boolean) {
-		if (all) {
-			toggle(false);
-			openSnippets = [];
-			return;
-		}
-		if (openSnippets.length === 1) {
-			toggle(false);
-		}
-		openSnippets.pop();
-	}
-	let snippetOpen = $state(false);
-	let toggle: (open?: boolean) => void = $state(() => {});
-	$effect(() => {
-		if (snippetOpen === false) {
-			openSnippets = [];
-		}
-	});
 </script>
 
-<svelte:window
-	bind:innerWidth={windowWidth}
-	on:resize={() => {
-		const rootStyle = getComputedStyle(document.documentElement);
-		remValue = parseFloat(rootStyle.fontSize);
-	}}
-	on:visibilitychange={() => {
-		const rootStyle = getComputedStyle(document.documentElement);
-		remValue = parseFloat(rootStyle.fontSize);
-	}}
-/>
-
 {#snippet select(value: string)}
-	<SelectSwap id={value} {editStage} openSnippet={pushSnippet} closeSnippet={popSnippet} />
+	<SelectSwap id={value} {editStage} />
 {/snippet}
 {#snippet preview()}
 	<PreviewSwap {status} {waiting} abort={() => {}} />
@@ -243,13 +199,6 @@
 
 	<SendNavButtons {buttons} />
 </div>
-
-<Dialog bind:toggle bind:open={snippetOpen} back={popSnippet}>
-	{#snippet content()}
-		{@const top = openSnippets[openSnippets.length - 1]}
-		{@render top.snippet(top.args)}
-	{/snippet}
-</Dialog>
 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
 	{@const toCoin = $SendTxDetails.toCoin}
@@ -279,7 +228,7 @@
 					{
 						data: {
 							amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
-							asset: toCoin!.coin.unit.toLowerCase(),
+							asset: toCoin.coin.unit.toLowerCase(),
 							from: `v4vapp`,
 							to: $SendTxDetails.toUsername,
 							memo: `altera_id=${id}`,
@@ -359,7 +308,10 @@
 		max-width: 42rem;
 		padding: 0 0.5rem 1rem 0.5rem;
 		min-height: calc(100% - 1rem);
-		overflow-y: scroll;
+		overflow-y: auto;
+		&:focus-visible {
+			outline: none;
+		}
 	}
 	.nav-buttons {
 		display: flex;

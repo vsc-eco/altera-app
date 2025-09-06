@@ -6,7 +6,7 @@
 	import { type BalanceOption } from '$lib/stores/balanceHistory';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import PillButton from '$lib/PillButton.svelte';
-	import { DollarSign } from '@lucide/svelte';
+	import { ChevronRight, DollarSign } from '@lucide/svelte';
 	import NumberInput from '$lib/zag/NumberInput.svelte';
 	import BigInput from './BigInput.svelte';
 
@@ -17,7 +17,8 @@
 		network,
 		maxField,
 		styleType = 'normal',
-		minAmount
+		minAmount,
+		buttonAction
 	}: {
 		amount: string;
 		connectedCoinAmount?: CoinAmount<Coin>;
@@ -26,11 +27,13 @@
 		maxField?: BalanceOption;
 		styleType?: 'normal' | 'big';
 		minAmount?: CoinAmount<Coin>;
+		buttonAction?: (() => void) | undefined;
 	} = $props();
 
 	let inUsd = $state('');
 	let error = $state('');
-	let currentCoin = $state.raw(coins.usd);
+	let currentCoin = $state.raw(Coin.usd);
+	let lastModification = $state.raw(new CoinAmount(amount, Coin.usd));
 	// let boundAmount: string = $state('');
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
 	const quiet = $derived(connectedCoinAmount && currentCoin.value === Coin.usd.value);
@@ -48,6 +51,25 @@
 
 	let decimals = $derived(coin?.coin.decimalPlaces ?? 2);
 	let min = $state<number>();
+	$effect(() => {
+		if (!minAmount) {
+			min = undefined;
+			return;
+		}
+		if (minAmount.coin.value === currentCoin.value) {
+			min = minAmount.toNumber();
+			return;
+		}
+		(async () => {
+			let convertTo = await minAmount.convertTo(currentCoin, Network.lightning);
+			let convertBack = await convertTo.convertTo(minAmount.coin, Network.lightning);
+			while (convertBack.toNumber() < minAmount.toNumber()) {
+				convertTo = new CoinAmount(convertTo.amount + 1, currentCoin);
+				convertBack = await convertTo.convertTo(minAmount.coin, Network.lightning);
+			}
+			min = convertTo.toNumber();
+		})();
+	});
 
 	let showMax = $derived(
 		maxField !== undefined &&
@@ -97,40 +119,41 @@
 			return;
 		}
 		untrack(() => {
-			const originalAmount = new CoinAmount(amount, currentCoin);
-			if (originalAmount.toNumber() === 0) {
+			if (lastModification.toNumber() === 0) {
 				return;
 			}
-			originalAmount
-				.convertTo(newCoinOpt.coin, Network.lightning)
-				.then((amt) => {
-					amount = amt.toAmountString(true);
-				})
-				.catch((err) => {
-					console.log('error converting', err.message);
-				});
-			if (minAmount) {
-				minAmount.convertTo(newCoinOpt.coin, Network.lightning).then((amt) => {
-					min = amt.toNumber();
-				});
+			coinChangeUpdateGuard = true;
+			if (lastModification.coin.value === newCoinOpt.coin.value) {
+				amount = lastModification.toAmountString();
+			} else {
+				lastModification
+					.convertTo(newCoinOpt.coin, Network.lightning)
+					.then((amt) => {
+						amount = amt.toAmountString(true);
+					})
+					.catch((err) => {
+						console.log('error converting', err.message);
+					});
 			}
 		});
 		currentCoin = newCoinOpt.coin;
 	});
+	let coinChangeUpdateGuard = false;
 	$effect(() => {
-		if (minAmount) {
-			minAmount.convertTo(currentCoin, Network.lightning).then((amt) => {
-				min = amt.toNumber();
+		amount;
+		untrack(() => {
+			if (coinChangeUpdateGuard) {
+				coinChangeUpdateGuard = false;
+				return;
+			}
+			lastModification = new CoinAmount(amount, currentCoin);
+			if (!amount) {
+				inUsd = '';
+				return;
+			}
+			new CoinAmount(amount, currentCoin).convertTo(Coin.usd, Network.lightning).then((amount) => {
+				inUsd = amount.toAmountString();
 			});
-		}
-	});
-	$effect(() => {
-		if (!amount) {
-			inUsd = '';
-			return;
-		}
-		new CoinAmount(amount, currentCoin).convertTo(Coin.usd, Network.lightning).then((amount) => {
-			inUsd = amount.toAmountString();
 		});
 	});
 
@@ -159,14 +182,18 @@
 				{/if}
 			</span>
 		</label>
-		<div class="amount-input">
-			{#if !coin?.coin || coin.coin.value === coins.usd.value}
-				<DollarSign />
-			{:else}
-				<CoinNetworkIcon coin={coin?.coin ?? coins.usd} network={network ?? Network.unknown} />
+		<div class={['amount-input', { tall: !!buttonAction }]}>
+			{#snippet icon()}
+				{#if !coin?.coin || coin.coin.value === coins.usd.value}
+					<DollarSign />
+				{:else}
+					<CoinNetworkIcon coin={coin?.coin ?? coins.usd} network={network ?? Network.unknown} />
+				{/if}
+			{/snippet}
+			{#if !buttonAction}
+				{@render icon()}
 			{/if}
 			{#key [currentCoin, debouncedMax, min]}
-				{@const _ = console.log('regenerating')}
 				{#if quiet}
 					<NumberInput
 						bind:amount
@@ -192,9 +219,29 @@
 				</div>
 			{/if}
 			<hr />
-			<div class="coin-label">
-				{currentCoin.label}
-			</div>
+			{#if buttonAction}
+				<div class="coin-button">
+					<PillButton onclick={buttonAction}>
+						<div class="coin-button-content">
+							{#if coin}
+								<div class="icon">
+									{@render icon()}
+								</div>
+								<span class="label">
+									{currentCoin.label}
+								</span>
+								<ChevronRight />
+							{:else}
+								Select
+							{/if}
+						</div>
+					</PillButton>
+				</div>
+			{:else}
+				<div class="coin-label">
+					{currentCoin.label}
+				</div>
+			{/if}
 		</div>
 		<span class={['bottom-info', { hidden: !(showUsd || error) }]}>
 			{#if error != ''}
@@ -285,6 +332,25 @@
 		.coin-label {
 			width: 4rem;
 			text-align: center;
+		}
+		.coin-button {
+			padding: 0.25rem 0.5rem;
+		}
+		.coin-button-content {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			width: 108px;
+			justify-content: center;
+			.icon {
+				width: 32px;
+				display: flex;
+				justify-content: center;
+			}
+			.label {
+				width: 4ch;
+				text-align: center;
+			}
 		}
 		.bottom-info {
 			display: flex;

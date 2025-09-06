@@ -5,7 +5,7 @@
 	import { fly } from 'svelte/transition';
 
 	type Props = {
-		content: Snippet | undefined;
+		content: (() => ReturnType<Snippet>) | undefined;
 		title?: Snippet;
 		children?: Snippet;
 		description?: Snippet;

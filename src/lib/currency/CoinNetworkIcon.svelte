@@ -27,9 +27,9 @@
 		position: relative;
 
 		align-items: center;
-		img {
+		/* img {
 			background-color: var(--bg);
-		}
+		} */
 		img:last-child {
 			background-color: var(--bg);
 			position: absolute;

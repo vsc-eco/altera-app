@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import swapOptions, {
 		Coin,
@@ -41,7 +41,7 @@
 	import EditButton from '$lib/components/EditButton.svelte';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 
-	let auth = $authStore;
+	const auth = $derived(getAuth()());
 	let {
 		id,
 		editStage
@@ -304,7 +304,12 @@
 </ClickableCard>
 <Dialog bind:open={assetOpen} bind:toggle={toggleAsset}>
 	{#snippet content()}
-		<SelectAsset availableCoins={assetObjs} close={toggleAsset} />
+		<SelectAsset
+			availableCoins={assetObjs}
+			close={toggleAsset}
+			bind:coin={$SendTxDetails.toCoin}
+			bind:network={$SendTxDetails.fromNetwork}
+		/>
 	{/snippet}
 </Dialog>
 

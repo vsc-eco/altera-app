@@ -12,7 +12,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import V4VPopup from './V4VPopup.svelte';
 	import { getIntermediaryNetwork } from './getNetwork';
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { blankDetails, getTxSessionId, send } from './sendUtils';
 	import { SendTxDetails } from './sendUtils';
 	import { goto } from '$app/navigation';
@@ -20,7 +20,7 @@
 	import SendNavButtons from './navigation/SendNavButtons.svelte';
 	import { sleep } from 'aninest';
 
-	let auth = $authStore;
+	const auth = $derived(getAuth()());
 	let windowWidth = $state(0);
 	let remValue = $state(0);
 
@@ -384,6 +384,9 @@
 		padding: 0 0.5rem 1rem 0.5rem;
 		min-height: calc(100% - 1rem);
 		overflow-y: scroll;
+		&:focus-visible {
+			outline: none;
+		}
 	}
 	.nav-buttons {
 		display: flex;

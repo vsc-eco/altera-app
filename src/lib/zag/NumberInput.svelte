@@ -36,19 +36,23 @@
 
 	let value = $state('');
 
-	if (amount && Number(amount) < min) {
-		error = `Amount must be at least ${min}.`;
-	} else if (amount && Number(amount) > max) {
-		error = 'Amount exceeds available balance.';
+	function setErrors(amt: number) {
+		if (amt < min) {
+			error = `Amount must be at least ${min}`;
+		} else if (amt > max) {
+			error = 'Amount exceeds available balance';
+		}
 	}
+	$effect(() => {
+		if (amount) setErrors(Number(amount));
+	});
 
 	const id = $props.id();
 	const service = $derived(
 		useMachine(numberInput.machine, {
 			id,
-			min: min,
-			max: max,
-			allowOverflow: true,
+			min: 0,
+			allowOverflow: false,
 			formatOptions: {
 				style: 'decimal',
 				useGrouping: true,
@@ -65,14 +69,7 @@
 					if (!invalid) error = '';
 				}
 				amount = inRange(details.valueAsNumber) ? trimOutput(api.valueAsNumber) : '';
-			},
-			onValueInvalid(details) {
-				if (error === undefined || inRange(details.valueAsNumber)) return;
-				if (details.reason === 'rangeUnderflow') {
-					error = 'Amount must be greater than zero.';
-				} else {
-					error = 'Amount exceeds available balance.';
-				}
+				setErrors(details.valueAsNumber);
 			}
 		})
 	);

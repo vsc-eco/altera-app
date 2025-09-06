@@ -113,9 +113,9 @@
 		return () => clearInterval(intervalId);
 	});
 	let openOp: [string, number] | null = $state(null);
-	let openSnippet: Snippet | undefined = $state();
+	let openSnippet: (() => ReturnType<Snippet>) | undefined = $state();
 	let popopOpen = $state(false);
-	function toggleDetails(op: [string, number], content: Snippet) {
+	function toggleDetails(op: [string, number], content: () => ReturnType<Snippet>) {
 		if (!allowPopup) {
 			openTxsPage(op);
 			return;

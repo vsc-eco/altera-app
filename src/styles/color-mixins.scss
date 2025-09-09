@@ -1,4 +1,5 @@
 $color-nums: 15, 20, 25, 30, 40, 50, 60, 80, 90, 98, 99;
+$color-nums-gray: 25, 30, 35, 40, 45, 55, 65, 80, 90, 98, 99;
 $color-dark-shade-names:
 	bg, off-bg, bg-accent, bg-accent-shifted, bg-mid, mid, fg-mid, fg-accent-shifted, fg-accent,
 	off-fg, fg;
@@ -19,9 +20,9 @@ $color-light-shade-names:
 	--#{$name}-#{$shade-name}: var(--#{$color-name}-#{$padded});
 }
 
-@mixin colors($color-name, $name, $shade-names) {
-	@for $i from 1 through list.length($color-nums) {
-		$num: list.nth($color-nums, $i);
+@mixin colors($color-name, $name, $shade-names, $custom-nums: $color-nums) {
+	@for $i from 1 through list.length($custom-nums) {
+		$num: list.nth($custom-nums, $i);
 		$shade-name: list.nth($shade-names, $i);
 		@include color($color-name, $name, $num, $shade-name);
 	}

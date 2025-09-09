@@ -372,7 +372,7 @@
 			cursor: pointer;
 		}
 		&[data-current] {
-			border-color: var(--accent-mid);
+			border-color: var(--primary-mid);
 			&:hover {
 				cursor: default;
 			}

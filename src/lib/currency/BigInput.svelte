@@ -113,5 +113,6 @@
 		font-size: 3rem;
 		visibility: hidden;
 		pointer-events: none;
+		max-width: calc(100vw - 2rem - 80px);
 	}
 </style>

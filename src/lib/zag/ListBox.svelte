@@ -3,10 +3,8 @@
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { createFilter } from '@zag-js/i18n-utils';
 	import { getUniqueId } from './idgen';
-	import { Check, ChevronRight, Search } from '@lucide/svelte';
+	import { Check, Search } from '@lucide/svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import { slide } from 'svelte/transition';
-	import EditButton from '$lib/components/EditButton.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 
 	type Props = {

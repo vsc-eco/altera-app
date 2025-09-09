@@ -21,7 +21,7 @@
 	button {
 		background-color: var(--neutral-off-bg);
 		border: 1px solid var(--neutral-bg-accent);
-		border-radius: .75rem;
+		border-radius: 0.75rem;
 		padding: 0.5rem;
 		overflow: auto;
 		max-height: 100%;
@@ -40,6 +40,6 @@
 		&.defaultBg {
 			background-color: var(--neutral-bg);
 		}
-		box-shadow: 0 0 4px var(--dark-purple-less-opacity);
+		box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
 	}
 </style>

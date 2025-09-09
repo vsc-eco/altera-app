@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import { Landmark } from '@lucide/svelte';
-	import Card from '$lib/cards/Card.svelte';
-	import { onMount, untrack, type Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import {
 		momentToLastPaidString,
 		getLastPaidContact,
@@ -15,7 +14,6 @@
 	import { Network, TransferMethod } from '../../sendOptions';
 	import NetworkInfo from '../components/NetworkInfo.svelte';
 	import Select from '$lib/zag/Select.svelte';
-	import SearchContact from './search/SearchContact.svelte';
 	import InfoSegment from '../components/InfoSegment.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectContact from '$lib/send/contacts/SelectContact.svelte';

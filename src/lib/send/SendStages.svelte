@@ -383,7 +383,7 @@
 		max-width: 42rem;
 		padding: 0 0.5rem 1rem 0.5rem;
 		min-height: calc(100% - 1rem);
-		overflow-y: scroll;
+		overflow-y: auto;
 		&:focus-visible {
 			outline: none;
 		}

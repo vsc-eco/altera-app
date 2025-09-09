@@ -16,7 +16,7 @@
 	let showSidebar = $state(false);
 
 	let auth = $derived(getAuth()());
-	let isFullscreen = $derived(['/send', '/swap'].includes(page.url.pathname));
+	let isFullscreen = $derived(['/send'].includes(page.url.pathname));
 	$effect(() => {
 		if (!browser || !auth.value) return;
 		startAccountPolling(auth.value.did);
@@ -91,17 +91,22 @@
 	}
 	.main {
 		padding: 0rem 0.5rem;
-		flex: 1;
+		flex: 1 1 0;
 		max-width: 64rem;
 		margin-left: auto;
 		margin-right: auto;
-		flex-shrink: 1;
 		width: 100%;
 		box-sizing: border-box;
-		flex-basis: 0;
 		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
 	}
 	.main.fullscreen {
 		max-width: none;
+	}
+	main {
+		position: relative;
+		flex-grow: 1;
 	}
 </style>

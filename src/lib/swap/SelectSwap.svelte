@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import {
 		getFee,
@@ -8,19 +8,12 @@
 		solveNetworkConstraints
 	} from '$lib/send/sendUtils';
 	import { assetCard, type AssetObject } from '$lib/send/stages/components/SendSnippets.svelte';
-	import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import AssetInfo from '$lib/send/stages/components/AssetInfo.svelte';
 	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/send/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import {
-		ArrowDown,
-		ArrowDownRight,
-		ArrowRightLeft,
-		ArrowUpRight,
-		ChevronsDown,
-		EqualApproximately
-	} from '@lucide/svelte';
+	import { ArrowDownRight, ArrowRightLeft, ArrowUpRight, EqualApproximately } from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import {
 		updateHistoricalData,
@@ -32,7 +25,6 @@
 	import LineChart, { type Point } from '$lib/LineChart.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import moment from 'moment';
-	import { fade } from 'svelte/transition';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectAsset from '$lib/send/stages/amount/SelectAsset.svelte';
 
@@ -120,7 +112,7 @@
 		swapOptions.to.coins.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: $SendTxDetails.fromNetwork, size: 'medium' }
+			snippetData: { fromOpt: opt, net: $SendTxDetails.toNetwork, size: 'medium' }
 		}))
 	);
 	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
@@ -314,6 +306,7 @@
 				close={toggle}
 				bind:coin={$SendTxDetails.toCoin}
 				bind:network={$SendTxDetails.toNetwork}
+				lockedNetwork={Network.vsc}
 			/>
 		{/if}
 	{/snippet}
@@ -406,7 +399,7 @@
 		{/if}
 	</div>
 {/if}
-<div class="graphs">
+<div class={['graphs', { hide: !$SendTxDetails.fromCoin && !$SendTxDetails.toCoin }]}>
 	<div style="grid-area: from">
 		{#if $SendTxDetails.fromCoin}
 			{@const coin = $SendTxDetails.fromCoin.coin}
@@ -519,42 +512,48 @@
 			width: 2.5rem;
 		}
 	}
-	// for double .coin-inputs
-
-	.coin-inputs {
-		display: flex;
-		flex-direction: column;
-		.arrow-positioner {
-			z-index: 2;
-			height: 2.5rem;
-			width: 100%;
-			position: relative;
-			.arrow-content {
-				color: var(--primary-fg-mid);
-				position: absolute;
-				left: 50%;
-				top: 50%;
-				translate: -50% -50%;
-				border-radius: 100%;
-				width: 40px;
-				height: 40px;
-				// background-color: var(--neutral-bg-accent);
-				// border: 1px solid var(--neutral-bg-accent-shifted);
-			}
-		}
-		:global(.approx-usd),
-		:global(.error) {
-			display: none;
-		}
-	}
+	// for double .coin-inputsu
+	// .coin-inputs {
+	// 	display: flex;
+	// 	flex-direction: column;
+	// 	.arrow-positioner {
+	// 		z-index: 2;
+	// 		height: 2.5rem;
+	// 		width: 100%;
+	// 		position: relative;
+	// 		.arrow-content {
+	// 			color: var(--primary-fg-mid);
+	// 			position: absolute;
+	// 			left: 50%;
+	// 			top: 50%;
+	// 			translate: -50% -50%;
+	// 			border-radius: 100%;
+	// 			width: 40px;
+	// 			height: 40px;
+	// 			// background-color: var(--neutral-bg-accent);
+	// 			// border: 1px solid var(--neutral-bg-accent-shifted);
+	// 		}
+	// 	}
+	// 	:global(.approx-usd),
+	// 	:global(.error) {
+	// 		display: none;
+	// 	}
+	// }
 
 	.exchange-rates {
 		display: flex;
 		justify-content: center;
+		flex-wrap: wrap;
 		width: 100%;
 		margin-top: 0.5rem;
+		:global(.lucide-equal-approximately) {
+			min-width: 16px;
+		}
 	}
 	.graphs {
+		&.hide {
+			display: none;
+		}
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		grid-template-rows: auto;

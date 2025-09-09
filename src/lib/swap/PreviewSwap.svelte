@@ -24,7 +24,7 @@
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
-	let inUsd = $state('');
+	let inUsd = $state<CoinAmount<Coin>>();
 	let feeInUsd = $state<CoinAmount<Coin>>();
 	let total = $derived(
 		!$SendTxDetails.fee
@@ -47,8 +47,8 @@
 	$effect(() => {
 		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
-			.then((amount) => {
-				inUsd = amount.toAmountString();
+			.then((amt) => {
+				inUsd = amt;
 			});
 	});
 	$effect(() => {
@@ -75,74 +75,80 @@
 <h2>Review</h2>
 
 <div class="stacked-cards">
-	<Card>
-		<svg class="dashed-line">
-			<line
-				x1="1px"
-				x2="1px"
-				y1="15%"
-				y2="85%"
-				stroke="var(--neutral-bg-accent)"
-				stroke-width="2"
-				stroke-dasharray="5,5"
-			/>
-		</svg>
-		<table>
-			<tbody>
-				{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+	<div class="line-positioner">
+		<Card>
+			<svg class="dashed-line">
+				<line
+					x1="1px"
+					x2="1px"
+					y1="15%"
+					y2="85%"
+					stroke="var(--neutral-bg-accent)"
+					stroke-width="2"
+					stroke-dasharray="5,5"
+				/>
+			</svg>
+			<table>
+				<tbody>
+					{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+						<tr>
+							<td class="icon">
+								<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork} size={32} />
+							</td>
+							<td class="sm-caption label"
+								>From {fromCoin.label} on {$SendTxDetails.fromNetwork?.label}</td
+							>
+							<td class="content">{total.toPrettyString()}</td>
+						</tr>
+					{/if}
 					<tr>
-						<td class="icon">
-							<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork} size={32} />
-						</td>
-						<td class="sm-caption label"
-							>From {fromCoin.label} on {$SendTxDetails.fromNetwork?.label}</td
-						>
-						<td class="content">{total.toPrettyString()}</td>
-					</tr>
-				{/if}
-				<tr>
-					<td class="icon"><Dot size="32" /></td>
-					<td class="sm-caption label">Fee</td>
-					<td class="content">
-						{$SendTxDetails.fee?.toPrettyString()}
-						<EqualApproximately size={16} />
-						{feeInUsd?.toPrettyString()}
-					</td>
-				</tr>
-				<tr>
-					<td class="icon"><Dot size="32" /></td>
-					<td class="sm-caption label">Amount</td>
-					<td class="content">
-						{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
-					</td>
-				</tr>
-				<tr>
-					<td class="icon"><Dot size="32" /></td>
-					<td class="sm-caption label">Market Rate</td>
-					<td class="content">
-						{new CoinAmount(1, fromCoin).toPrettyString()}
-						<EqualApproximately size="16" />
-						{fromInTo?.toPrettyString()}
-					</td>
-				</tr>
-				{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
-					<tr>
-						<td class="icon">
-							<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork} size={32} />
-						</td>
-						<td class="sm-caption label">To {toCoin.label} on {$SendTxDetails.toNetwork?.label}</td>
+						<td class="icon"><Dot size="32" /></td>
+						<td class="sm-caption label">Fee</td>
 						<td class="content">
-							{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
+							{$SendTxDetails.fee?.toPrettyString()}
+							<EqualApproximately size={16} />
+							{feeInUsd?.toPrettyString()}
 						</td>
 					</tr>
-				{/if}
-				<!-- <tr>
+					<tr>
+						<td class="icon"><Dot size="32" /></td>
+						<td class="sm-caption label">Amount</td>
+						<td class="content">
+							{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+							<EqualApproximately size={16} />
+							{inUsd?.toPrettyString()}
+						</td>
+					</tr>
+					<tr>
+						<td class="icon"><Dot size="32" /></td>
+						<td class="sm-caption label">Market Rate</td>
+						<td class="content">
+							{new CoinAmount(1, fromCoin).toPrettyMinFigs()}
+							<EqualApproximately size="16" />
+							{fromInTo?.toPrettyString()}
+						</td>
+					</tr>
+					{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+						<tr>
+							<td class="icon">
+								<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork} size={32} />
+							</td>
+							<td class="sm-caption label"
+								>To {toCoin.label} on {$SendTxDetails.toNetwork?.label}</td
+							>
+							<td class="content">
+								{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
+							</td>
+						</tr>
+					{/if}
+					<!-- <tr>
 					<td class="sm-caption label">Initiated on</td>
 					<td class="content">{today}</td>
 				</tr> -->
-			</tbody>
-		</table>
-	</Card>
+				</tbody>
+			</table>
+		</Card>
+	</div>
 	<Card>
 		<ul>
 			<li class="side-by-side time">
@@ -197,11 +203,14 @@
 		flex-direction: column;
 		gap: 1.5rem;
 	}
+	.line-positioner {
+		position: relative;
+	}
 	.dashed-line {
 		position: absolute;
-		height: 275px;
+		height: 100%;
 		width: 3px;
-		translate: 27px 0;
+		translate: calc(3px + 1.5rem) 0;
 		z-index: 0;
 	}
 	table,
@@ -245,6 +254,9 @@
 		flex-basis: 0;
 		flex-grow: 1;
 		grid-area: area-content;
+		:global(.lucide-equal-approximately) {
+			min-width: 16px;
+		}
 	}
 	li {
 		display: flex;
@@ -312,7 +324,10 @@
 			width: 100%;
 		}
 		tr {
-			padding: 0;
+			padding: 0.5rem 0;
+		}
+		.dashed-line {
+			translate: calc(3px + 1rem) 0;
 		}
 	}
 </style>

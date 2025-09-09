@@ -20,14 +20,14 @@
 	import { goto } from '$app/navigation';
 	import SendNavButtons from '$lib/send/navigation/SendNavButtons.svelte';
 	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
-	import { onDestroy, onMount, tick, untrack, type Snippet } from 'svelte';
-	import Dialog from '$lib/zag/Dialog.svelte';
+	import { onMount, untrack } from 'svelte';
 	import PreviewSwap from './PreviewSwap.svelte';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Complete from '$lib/send/stages/complete/Complete.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import SwapNavButtons from './SwapNavButtons.svelte';
 
 	const auth = $derived(getAuth()());
-	let windowWidth = $state(0);
 	let sessionId = $state(getTxSessionId());
 	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
 	let waiting = $state(false);
@@ -37,7 +37,6 @@
 		return {
 			...blankDetails(),
 			toNetwork: Network.vsc,
-			fromNetwork: Network.lightning,
 			method: TransferMethod.lightningTransfer
 		};
 	}
@@ -146,10 +145,10 @@
 
 	const nextLabel = $derived(
 		stepsData[api.value].value === 'review'
-			? 'Send'
+			? 'Swap'
 			: api.value === stepsData.length - 1
 				? 'Done'
-				: 'Next'
+				: 'Review Swap'
 	);
 	const buttons = $derived({
 		fwd: {
@@ -157,10 +156,13 @@
 			action: next,
 			disabled: !stepComplete
 		},
-		back: {
-			label: 'Back',
-			action: previous
-		}
+		back:
+			api.value !== 0
+				? {
+						label: 'Back',
+						action: previous
+					}
+				: undefined
 	});
 
 	let oldId = '';
@@ -185,7 +187,7 @@
 {/snippet}
 
 <div class="swap-internal-wrapper">
-	<SendTitle close={() => goto('/')} />
+	<!-- <SendTitle close={() => goto('/')} /> -->
 
 	{#key sessionId}
 		<div {...api.getRootProps()}>
@@ -197,7 +199,13 @@
 		</div>
 	{/key}
 
-	<SendNavButtons {buttons} />
+	<!-- <SendNavButtons {buttons} small /> -->
+	<SwapNavButtons {buttons} />
+	<!-- <div class="buttons">
+		{#if api.value === 0}
+			<PillButton onclick={next} theme="primary" styleType="invert">Review Swap</PillButton>
+		{/if}
+	</div> -->
 </div>
 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
@@ -254,13 +262,13 @@
 	.swap-internal-wrapper {
 		display: flex;
 		flex-direction: column;
-		height: 100vh;
+		height: 100%;
 	}
 	[data-part='root'] {
 		flex-grow: 1;
-		width: calc(100vw - 1rem);
-		max-height: 100vh;
+		// width: calc(100vw - 1rem);
 		overflow-y: auto;
+		padding-bottom: 3rem;
 	}
 	[data-part='list'] {
 		position: absolute;
@@ -333,6 +341,5 @@
 	}
 	:global(h2) {
 		margin-bottom: 1rem !important;
-		margin-top: 0 !important;
 	}
 </style>

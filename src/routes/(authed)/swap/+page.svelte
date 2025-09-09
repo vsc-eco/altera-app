@@ -7,12 +7,4 @@
 	<title>Send</title>
 </document:head>
 
-<div class="swap-wrapper">
-	<Swap />
-</div>
-
-<style>
-	.swap-wrapper {
-		width: 100%;
-	}
-</style>
+<Swap />

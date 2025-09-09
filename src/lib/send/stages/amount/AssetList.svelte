@@ -3,7 +3,6 @@
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { createFilter } from '@zag-js/i18n-utils';
 	import { ChevronRight, Search } from '@lucide/svelte';
-	import type { AssetObject } from '../components/SendSnippets.svelte';
 
 	type Props = {
 		items: Option[];

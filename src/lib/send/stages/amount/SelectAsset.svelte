@@ -58,11 +58,11 @@
 
 	let currentNetworkVal = $state(network?.value);
 	function handleAssetClick(assetVal: string) {
+		tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === assetVal);
 		if (lockedNetwork) {
 			coin = tmpAsset;
 			close();
 		} else {
-			tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === assetVal);
 			if (!tmpAsset) {
 				coin = undefined;
 				close();
@@ -123,14 +123,16 @@
 				<div class="network-details">
 					<img src={network.icon} alt={network.label} />
 					{network.label}
-					<span class="clear-button">
-						<PillButton onclick={() => (network = undefined)} styleType="text-subtle">
-							<span class="clear-button-text">
-								<Delete size="16" />
-								Clear
-							</span>
-						</PillButton>
-					</span>
+					{#if !lockedNetwork}
+						<span class="clear-button">
+							<PillButton onclick={() => (network = undefined)} styleType="text-subtle">
+								<span class="clear-button-text">
+									<Delete size="16" />
+									Clear
+								</span>
+							</PillButton>
+						</span>
+					{/if}
 				</div>
 			</div>
 		{/if}

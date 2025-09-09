@@ -1,28 +1,18 @@
 <script lang="ts">
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import swapOptions, {
-		Coin,
-		Network,
-		networkMap,
-		SendAccount,
-		type CoinOptions
-	} from '$lib/send/sendOptions';
+	import swapOptions, { Network, networkMap, SendAccount } from '$lib/send/sendOptions';
 	import {
 		solveNetworkConstraints,
 		SendTxDetails,
 		getFee,
 		type NetworkOptionParam,
-		type CoinOptionParam,
-		getRecipientNetworks,
-		type AccountOptionParam,
 		optionsEqual
 	} from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
-	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import SwapOptions from './SwapOptions.svelte';
 	import {
@@ -31,13 +21,10 @@
 		networkCard,
 		type AssetObject
 	} from '../components/SendSnippets.svelte';
-	import Card from '$lib/cards/Card.svelte';
-	import NetworkInfo from '../components/NetworkInfo.svelte';
-	import { Coins, Landmark, Link, Link2 } from '@lucide/svelte';
+	import { Coins, Link2 } from '@lucide/svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectAsset from './SelectAsset.svelte';
 	import AssetInfo from '../components/AssetInfo.svelte';
-	import PillButton from '$lib/PillButton.svelte';
 	import EditButton from '$lib/components/EditButton.svelte';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 
@@ -241,7 +228,6 @@
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
 
-	let lastAsset = $state('Never');
 	let assetOpen = $state(false);
 	let toggleAsset = $state<(open?: boolean) => void>(() => {});
 

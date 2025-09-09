@@ -64,7 +64,7 @@
 			let convertTo = await minAmount.convertTo(currentCoin, Network.lightning);
 			let convertBack = await convertTo.convertTo(minAmount.coin, Network.lightning);
 			while (convertBack.toNumber() < minAmount.toNumber()) {
-				convertTo = new CoinAmount(convertTo.amount + 1, currentCoin);
+				convertTo = new CoinAmount(convertTo.amount + 1, currentCoin, true);
 				convertBack = await convertTo.convertTo(minAmount.coin, Network.lightning);
 			}
 			min = convertTo.toNumber();

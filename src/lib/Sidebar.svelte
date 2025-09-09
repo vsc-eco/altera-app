@@ -39,6 +39,7 @@
 		bind:clientWidth={navWidth}
 		transition:fly={{ x: -navWidth, opacity: 1, duration: preload ? 0 : undefined }}
 		class={{ visible, preload }}
+		id="sidebar-nav"
 	>
 		<div class="logo-close">
 			<a class="logo-name" href="/" tabindex="-1">
@@ -99,7 +100,7 @@
 	}
 	@media screen and (min-width: 620px) {
 		nav {
-			z-index: 0;
+			z-index: 1;
 			display: flex;
 			position: sticky;
 			top: 0;

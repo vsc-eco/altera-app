@@ -85,7 +85,7 @@
 <style lang="scss">
 	[data-part='backdrop'] {
 		// TODO: change to shade of official color
-		background-color: rgba(58, 46, 57, 0.2);
+		background-color: oklch(from var(--primary-mid) l c h / 0.1);
 		backdrop-filter: blur(4px);
 		position: fixed;
 		top: 0;

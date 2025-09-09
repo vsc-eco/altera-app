@@ -115,7 +115,7 @@
 						<Progress
 							boundaries={{ min: 0, max: rc?.max_mana ?? 0 }}
 							currentValue={rc ? Math.min(rc.current_mana, rc.max_mana) : null}
-							colorVar="--secondary-fg-mid"
+							theme="secondary"
 							timerLabel={hiveRegenTime && hiveRegenTime.asSeconds() > 0
 								? `Full in ${durationToString(hiveRegenTime)}`
 								: undefined}

@@ -11,6 +11,6 @@
 <style>
 	span {
 		font-size: var(--text-sm);
-		color: var(--accent-fg-mid);
+		color: var(--primary-fg-mid);
 	}
 </style>

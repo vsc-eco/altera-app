@@ -22,6 +22,7 @@
 	import { defaultData } from './defaultLineData';
 	import moment from 'moment';
 	import { Loader } from '@lucide/svelte';
+	import WaveLoading from './components/WaveLoading.svelte';
 	const margin = { top: 8, right: 0, bottom: 0, left: 0 };
 	export type Point = {
 		value: number;
@@ -178,7 +179,7 @@
 <figure class={[theme, { zero: width == 0 }]} bind:clientWidth={width} tabindex="-1">
 	{#if isLoading || data.length === 0}
 		<div class="loading-overlay">
-			<Loader class="loader-icon" size={24} />
+			<WaveLoading />
 			<span>Loading chart data...</span>
 		</div>
 	{/if}
@@ -274,28 +275,14 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: rgba(var(--bg-rgb), 0.3);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 1rem;
+		gap: 0.5rem;
 		z-index: 3;
 		font-size: var(--text-sm);
 		color: var(--neutral-fg-mid);
 		backdrop-filter: blur(1px);
-	}
-
-	:global(.loader-icon) {
-		animation: spin 1s linear infinite;
-	}
-
-	@keyframes spin {
-		0% {
-			transform: rotate(0deg);
-		}
-		100% {
-			transform: rotate(360deg);
-		}
 	}
 </style>

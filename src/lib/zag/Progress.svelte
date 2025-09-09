@@ -2,14 +2,13 @@
 	import * as progress from '@zag-js/progress';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
-	import { untrack } from 'svelte';
 	type Props = {
 		boundaries: { min: number; max: number };
 		currentValue: number | null;
-		colorVar?: string;
 		timerLabel?: string;
+		theme?: string;
 	};
-	let { boundaries, currentValue, colorVar = '--accent-mid', timerLabel }: Props = $props();
+	let { boundaries, currentValue, theme = 'primary', timerLabel }: Props = $props();
 	let percentage = $derived.by(() => {
 		if (currentValue !== null) {
 			if (currentValue === 0) {
@@ -65,7 +64,7 @@
 	}
 </script>
 
-<div {...api.getRootProps()} style={`--bar-color: var(${colorVar})`}>
+<div {...api.getRootProps()}>
 	<div {...api.getLabelProps()}>
 		<span class="coin-amt current">
 			{#if currentValue !== null}
@@ -81,7 +80,7 @@
 		</span>
 	</div>
 	<div {...api.getTrackProps()}>
-		<div {...api.getRangeProps()}></div>
+		<div {...api.getRangeProps()} class={[theme]}></div>
 	</div>
 	<div {...api.getValueTextProps()}>
 		<span class="legend">
@@ -134,7 +133,7 @@
 
 	[data-scope='progress'][data-part='range'] {
 		height: 100%;
-		background-color: var(--bar-color);
+		background-color: var(--mid);
 		border-radius: 0.5rem;
 		transition: width 0.3s ease;
 		position: absolute;

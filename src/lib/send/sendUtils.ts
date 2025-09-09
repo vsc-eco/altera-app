@@ -388,6 +388,23 @@ type Constraints = {
 	accountOptions: AccountOptionParam[];
 };
 
+export function optionsEqual<T>(
+	a: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[],
+	b: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[]
+): boolean {
+	if (a.length !== b.length) return false;
+
+	const getValue = (item: CoinOptionParam | AccountOptionParam | NetworkOptionParam) =>
+		'coin' in item ? item.coin.value : item.value;
+
+	return a.every(
+		(val, i) =>
+			getValue(val) === getValue(b[i]) &&
+			val.disabled === b[i].disabled &&
+			val.disabledMemo === b[i].disabledMemo
+	);
+}
+
 function createSet(arr: { value: string; [key: string]: any }[] | undefined) {
 	if (!arr) {
 		return new Set<string>();
@@ -402,14 +419,14 @@ function toNetworkArr(set: Set<string>) {
 function combineAssetOptions(
 	all: Set<string>,
 	from: Set<string>,
-	to: Set<string>,
+	to?: Set<string>,
 	toNetwork?: Network,
 	fromNetwork?: Network
 ): CoinOptionParam[] {
 	const allObjs = Object.values(swapOptions.from.coins);
-	const available = from.intersection(to);
+	const available = to ? from.intersection(to) : from;
 	const notInFrom = all.difference(from);
-	const notInTo = all.difference(to).difference(notInFrom);
+	const notInTo = to ? all.difference(to).difference(notInFrom) : new Set<string>();
 	let result: CoinOptionParam[] = Array.from(available)
 		.map((val) => allObjs.find((coinOpt) => coinOpt.coin.value === val))
 		.filter((item): item is CoinOptionParam => item !== undefined);
@@ -549,7 +566,7 @@ export function solveNetworkConstraints(
 		assetOptions: combineAssetOptions(
 			allAssets ? allAssetsSet : assetsGivenMethod,
 			assetsGivenFromNetworks,
-			assetsGivenToNetwork,
+			method?.value === TransferMethod.lightningTransfer.value ? undefined : assetsGivenToNetwork,
 			toNetwork,
 			fromNetwork
 		),

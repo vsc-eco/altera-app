@@ -1,20 +1,10 @@
 <script>
 	import Send from '$lib/send/SendCards.svelte';
+	import Swap from '$lib/swap/Swap.svelte';
 </script>
 
 <document:head>
-	<title>Swap</title>
+	<title>Send</title>
 </document:head>
-<h1>Swap</h1>
-<div class="send-wrapper">
-	<Send hideToUsername></Send>
-</div>
 
-<style>
-	.send-wrapper {
-		width: 100%;
-	}
-	.send-wrapper :global(*) {
-		max-width: 42rem;
-	}
-</style>
+<Swap />

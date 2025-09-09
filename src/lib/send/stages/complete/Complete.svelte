@@ -7,12 +7,19 @@
 	import { goto } from '$app/navigation';
 	import PieTimer from '../../../components/PieTimer.svelte';
 	import PillButton from '$lib/PillButton.svelte';
+	import { ArrowDown, EqualApproximately } from '@lucide/svelte';
+	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 
 	let timer = $state<PieTimer>();
 
-	let { txId, close }: { txId: string; close?: () => void} = $props();
+	let {
+		txId,
+		close,
+		type = 'send'
+	}: { txId: string; close?: () => void; type?: 'send' | 'swap' } = $props();
 
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
+	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
 	$effect(() => {
 		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
@@ -53,11 +60,34 @@
 	<h2>Payment Complete</h2>
 	<Card>
 		<div class="amount">
-			<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
-			<h4>
-				{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
-				{`(\$US ${inUsd})`}
-			</h4>
+			{#if type === 'send'}
+				<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
+				<h4>
+					{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+					{`(\$US ${inUsd})`}
+				</h4>
+			{:else if $SendTxDetails.toNetwork && $SendTxDetails.fromNetwork}
+				<div class="swap-header">
+					<span class="from-icon">
+						<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork!} size={32} />
+					</span>
+					<span class="from-amt">
+						{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+						<EqualApproximately size="16" />
+						{`${inUsd} USD`}
+					</span>
+					<span class="arrow">
+						<ArrowDown />
+					</span>
+
+					<span class="to-icon">
+						<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork!} size={32} />
+					</span>
+					<span class="to-amt">
+						{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
+					</span>
+				</div>
+			{/if}
 		</div>
 		<div class="date">
 			<span>Paid on {today}</span>
@@ -66,7 +96,7 @@
 	{#if !timerCanceled}
 		<div class="redirect">
 			<p>Closing…</p>
-			<PieTimer bind:this={timer} onComplete={close?? redirect} />
+			<PieTimer bind:this={timer} onComplete={close ?? redirect} />
 			<PillButton onclick={cancelTimer}>Stay</PillButton>
 		</div>
 	{/if}
@@ -92,5 +122,37 @@
 		display: flex;
 		gap: 1rem;
 		align-items: center;
+	}
+	.swap-header {
+		padding-bottom: 0.5rem;
+		display: grid;
+		grid-template-columns: auto 1fr; /* Two columns: 1fr for image, 1fr for text */
+		grid-template-rows: auto auto auto; /* Two rows for the text */
+		gap: 0.25rem 1rem;
+		grid-template-areas:
+			'from-icon from-amt'
+			'arrow .'
+			'to-icon to-amt';
+		.from-icon {
+			grid-area: from-icon;
+		}
+		.from-amt {
+			grid-area: from-amt;
+		}
+		.arrow {
+			grid-area: arrow;
+			text-align: center;
+		}
+		.to-icon {
+			grid-area: to-icon;
+		}
+		.to-amt {
+			grid-area: to-amt;
+		}
+		.from-amt,
+		.to-amt {
+			display: flex;
+			align-items: center;
+		}
 	}
 </style>

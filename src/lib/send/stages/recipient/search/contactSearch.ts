@@ -5,7 +5,7 @@ import {
 	basicAccRow,
 	contactRecentCard,
 	type ContactObj
-} from '../../components/CardSnippets.svelte';
+} from '../../components/SendSnippets.svelte';
 import { DHive } from '$lib/vscTransactions/dhive';
 import { getUsernameFromDid } from '$lib/getAccountName';
 

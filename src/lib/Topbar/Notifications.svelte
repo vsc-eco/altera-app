@@ -6,14 +6,10 @@
 	import { onMount } from 'svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import { getLocalNotifications, notifications, removeNotification } from './notifications';
-	import { authStore } from '$lib/auth/store';
-	import {
-		formatOpType,
-		getTimestamp,
-		type TransactionInter
-	} from '$lib/stores/txStores';
+	import { authStore, getAuth } from '$lib/auth/store';
+	import { formatOpType, getTimestamp, type TransactionInter } from '$lib/stores/txStores';
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
-	const auth = $authStore;
+	const auth = $derived(getAuth()());
 	onMount(() => {
 		notifications.set(getLocalNotifications());
 	});

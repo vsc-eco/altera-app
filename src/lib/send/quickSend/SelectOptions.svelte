@@ -9,18 +9,17 @@
 		type CoinOptionParam,
 		type NetworkOptionParam
 	} from '../sendUtils';
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
-	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import swapOptions, { Coin, Network, networkMap, SendAccount } from '../sendOptions';
 	import Select from '$lib/zag/Select.svelte';
-	import { assetCard, networkCard } from '../stages/components/CardSnippets.svelte';
+	import { assetCard, networkCard } from '../stages/components/SendSnippets.svelte';
 	import SwapOptions from '../stages/amount/SwapOptions.svelte';
 	import { untrack } from 'svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
-	import SearchContact from '../stages/recipient/search/SearchContact.svelte';
 	import RecipientCard from '../stages/recipient/RecipientCard.svelte';
 	import ContactSearchBox from '../stages/recipient/search/ContactSearchBox.svelte';
 
@@ -31,7 +30,7 @@
 		id: string;
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
-	const auth = $authStore;
+	const auth = $derived(getAuth()());
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
 	let isSwap = $derived($SendTxDetails.account?.value === SendAccount.swap.value);
 
@@ -348,11 +347,10 @@
 
 <div class="section">
 	<span class="sm-caption">Amount</span>
-	<BasicAmountInput
+	<AmountInput
 		bind:amount={toAmount}
 		coin={$SendTxDetails.toCoin}
 		network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}
-		id={'basic-input'}
 		{maxField}
 		connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
 			? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)

@@ -3,7 +3,7 @@
 	import { getRecipientNetworks } from '$lib/send/sendUtils';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import { SendTxDetails } from '$lib/send/sendUtils';
-	import { networkCard } from '../components/CardSnippets.svelte';
+	import { networkCard } from '../components/SendSnippets.svelte';
 	import { untrack } from 'svelte';
 	import ListBox from '$lib/zag/ListBox.svelte';
 

@@ -279,6 +279,7 @@ type TransactionRecord {
   output: TransactionOutput
   rc_limit: Uint64!
   required_auths: [String!]
+  required_posting_auths: [String!]
   status: String!
   type: String!
 }

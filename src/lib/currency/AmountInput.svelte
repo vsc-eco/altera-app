@@ -1,333 +1,407 @@
 <script lang="ts">
-	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
-	import { Coin, Network } from '../send/sendOptions';
-	import type { HTMLInputAttributes } from 'svelte/elements';
+	import { Coin, Network, type CoinOptions } from '../send/sendOptions';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
 	import { type BalanceOption } from '$lib/stores/balanceHistory';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import PillButton from '$lib/PillButton.svelte';
+	import { ChevronRight, DollarSign } from '@lucide/svelte';
+	import NumberInput from '$lib/zag/NumberInput.svelte';
+	import BigInput from './BigInput.svelte';
 
 	let {
-		coin: originalCoin,
+		amount = $bindable(),
+		connectedCoinAmount,
+		coin,
 		network,
-		originalAmount: amountOfOriginalCoin = $bindable(),
-		label,
-		id,
-		required,
-		selectItems,
-		oninput,
-		disabled,
-		maxField
+		maxField,
+		styleType = 'normal',
+		minAmount,
+		buttonAction
 	}: {
-		coin: Coin;
-		network: Network;
-		originalAmount?: string;
-		id: string;
-		label: string;
-		required?: boolean;
-		selectItems: Coin[];
-		oninput?: HTMLInputAttributes['oninput'];
-		disabled?: boolean;
+		amount: string;
+		connectedCoinAmount?: CoinAmount<Coin>;
+		coin: CoinOptions['coins'][number] | undefined;
+		network: Network | undefined;
 		maxField?: BalanceOption;
+		styleType?: 'normal' | 'big';
+		minAmount?: CoinAmount<Coin>;
+		buttonAction?: (() => void) | undefined;
 	} = $props();
-	let value: Coin = $state(originalCoin);
-	$effect(() => {
-		value = originalCoin;
-	});
-	let inputDisabled = $state(disabled);
-	$effect(() => {
-		inputDisabled = disabled;
-	});
+
 	let inUsd = $state('');
 	let error = $state('');
-	let coinIsUnknown = $derived(originalCoin.value == Coin.unk.value);
-	$effect(() => {
-		new CoinAmount(amountOfOriginalCoin ?? '0', originalCoin)
-			.convertTo(Coin.usd, Network.lightning)
-			.then((amount) => {
-				inUsd = amount.toAmountString();
-			});
-		error = '';
-	});
+	let currentCoin = $state.raw(Coin.usd);
+	let lastModification = $state.raw(new CoinAmount(amount, Coin.usd));
+	// let boundAmount: string = $state('');
+	let lastConnected: CoinAmount<Coin> | undefined = $state();
+	const quiet = $derived(connectedCoinAmount && currentCoin.value === Coin.usd.value);
 
-	let boundAmount = $state('');
-	$effect(() => {
-		new CoinAmount(
-			Number(amountOfOriginalCoin),
-			untrack(() => originalCoin)
-		)
-			.convertTo(value, Network.lightning)
-			.then((amount) => {
-				boundAmount = amount.toAmountString();
-			});
-		error = '';
-	});
-	$effect(() => {
-		if (coinIsUnknown) boundAmount = '';
-	});
-	let showMax = $state(false);
-	$effect(() => {
-		// makes it reactive to boundAmount, which is only in a "then" otherwise
-		const _ = boundAmount;
-		if (!maxField) {
-			showMax = false;
-			return;
-		}
-		const originalAmount = new CoinAmount($accountBalance.bal[maxField], originalCoin, true);
-		if (value.value === originalCoin.value) {
-			showMax = Number(boundAmount) !== originalAmount.toNumber();
-			return;
-		}
-		originalAmount
-			.convertTo(value, Network.lightning)
-			.then((amount) => {
-				showMax = Number(boundAmount) !== amount.toNumber();
-			})
-			.catch(() => {
-				showMax = false;
-			});
-	});
 	let maxBalance = $derived.by(() => {
-		if (maxField) {
-			return new CoinAmount($accountBalance.bal[maxField], originalCoin, true).toAmountString();
-		}
-		return undefined;
-	});
-	let maxInputField = $derived.by(() => {
-		if (maxField) {
-			return new CoinAmount($accountBalance.bal[maxField], value, true).toAmountString();
+		if (maxField && coin) {
+			return new CoinAmount($accountBalance.bal[maxField], coin.coin, true).toAmountString();
 		}
 		return undefined;
 	});
 
 	function setToMax() {
-		amountOfOriginalCoin = maxBalance ?? '0';
-		new CoinAmount(Number(maxBalance ?? '0'), originalCoin)
-			.convertTo(value, Network.lightning)
-			.then((amount) => {
-				boundAmount = amount.toAmountString();
-				// Call oninput if it exists (sets connected fields)
-				if (oninput) {
-					const inputElement = document.getElementById(id) as HTMLInputElement;
-					if (inputElement) {
-						const event = { currentTarget: inputElement } as any;
-						oninput(event);
-					}
-				}
-			});
+		amount = maxBalance ?? '0';
 	}
+
+	let decimals = $derived(coin?.coin.decimalPlaces ?? 2);
+	let min = $state<number>();
+	$effect(() => {
+		if (!minAmount) {
+			min = undefined;
+			return;
+		}
+		if (minAmount.coin.value === currentCoin.value) {
+			min = minAmount.toNumber();
+			return;
+		}
+		(async () => {
+			let convertTo = await minAmount.convertTo(currentCoin, Network.lightning);
+			let convertBack = await convertTo.convertTo(minAmount.coin, Network.lightning);
+			while (convertBack.toNumber() < minAmount.toNumber()) {
+				convertTo = new CoinAmount(convertTo.amount + 1, currentCoin, true);
+				convertBack = await convertTo.convertTo(minAmount.coin, Network.lightning);
+			}
+			min = convertTo.toNumber();
+		})();
+	});
+
+	let showMax = $derived(
+		maxField !== undefined &&
+			network?.value === Network.vsc.value &&
+			new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toAmountString() !==
+				new CoinAmount(amount ?? 0, currentCoin).toAmountString()
+	);
+
+	let showUsd = $derived(
+		!(connectedCoinAmount?.coin.value === coins.usd.value || coin?.coin.value === coins.usd.value)
+	);
+
+	$effect(() => {
+		if (connectedCoinAmount && coin) {
+			untrack(() => {
+				if (!lastConnected) {
+					lastConnected = connectedCoinAmount;
+					return;
+				}
+				if (connectedCoinAmount.toString() === lastConnected.toString()) {
+					return;
+				}
+				Promise.all([
+					connectedCoinAmount.convertTo(coin.coin, Network.lightning),
+					new CoinAmount(amount, coin.coin).convertTo(connectedCoinAmount.coin, Network.lightning)
+				]).then(([connectedInThis, thisInConnected]) => {
+					if (thisInConnected.toString() === connectedCoinAmount.toString()) {
+						return;
+					}
+					const amtString = connectedInThis.toAmountString();
+					// do this first to stop future effects
+					lastConnected = connectedCoinAmount;
+					amount = amtString;
+				});
+			});
+		}
+	});
+	$effect(() => {
+		const newCoinOpt = coin;
+		if (!newCoinOpt) {
+			if (currentCoin !== coins.usd) {
+				currentCoin = coins.usd;
+			}
+			return;
+		}
+		if (newCoinOpt.coin.value === currentCoin.value) {
+			return;
+		}
+		untrack(() => {
+			if (lastModification.toNumber() === 0) {
+				return;
+			}
+			coinChangeUpdateGuard = true;
+			if (lastModification.coin.value === newCoinOpt.coin.value) {
+				amount = lastModification.toAmountString();
+			} else {
+				lastModification
+					.convertTo(newCoinOpt.coin, Network.lightning)
+					.then((amt) => {
+						amount = amt.toAmountString(true);
+					})
+					.catch((err) => {
+						console.log('error converting', err.message);
+					});
+			}
+		});
+		currentCoin = newCoinOpt.coin;
+	});
+	let coinChangeUpdateGuard = false;
+	$effect(() => {
+		amount;
+		untrack(() => {
+			if (coinChangeUpdateGuard) {
+				coinChangeUpdateGuard = false;
+				return;
+			}
+			lastModification = new CoinAmount(amount, currentCoin);
+			if (!amount) {
+				inUsd = '';
+				return;
+			}
+			new CoinAmount(amount, currentCoin).convertTo(Coin.usd, Network.lightning).then((amount) => {
+				inUsd = amount.toAmountString();
+			});
+		});
+	});
+
+	let id = $state('');
+
+	let debouncedMax = $state('');
+	$effect(() => {
+		let maxString = maxBalance ?? '';
+		if (debouncedMax !== maxString) {
+			debouncedMax = maxString;
+		}
+	});
 </script>
 
-<label for={id}>
-	<span>
-		{label}<wbr />
-		{#if maxField}
-			<span style="white-space: nowrap;">
-				(Balance:
-				<span class="balance-amount">
-					{new CoinAmount($accountBalance.bal[maxField], originalCoin, true).toPrettyString()}
-				</span>)
+{#if styleType === 'normal'}
+	<div class="normal-wrapper">
+		<label for={id}>
+			<span>
+				{#if showMax && maxField}
+					<span style="white-space: nowrap;">
+						(Balance:
+						<span class="balance-amount">
+							{new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toPrettyString()}
+						</span>)
+					</span>
+				{/if}
 			</span>
-		{/if}
-	</span>
-
-	<div class={['amount-input', { disabled }]}>
-		<CoinNetworkIcon coin={originalCoin} {network} />
-		<input
-			min="0.000000001"
-			max={maxInputField}
-			oninvalid={(e) => {
-				e.preventDefault();
-				const target = e.currentTarget;
-				if (target.validity.rangeUnderflow) {
-					error = 'Amount must be greater than zero.';
-				} else if (target.validity.rangeOverflow) {
-					error = 'Amount exceeds available balance.';
-				}
-				target.scrollIntoView({
-					behavior: 'smooth',
-					block: 'nearest',
-					inline: 'center'
-				});
-			}}
-			oninput={(e) => {
-				error = '';
-				if (maxField && Number(amountOfOriginalCoin) > $accountBalance.bal[maxField]) {
-					error = 'Amount exceeds available balance.';
-				}
-				new CoinAmount(Number(boundAmount), value)
-					.convertTo(originalCoin, Network.lightning)
-					.then((newVal) => {
-						amountOfOriginalCoin = newVal.toAmountString();
-						if (oninput) oninput(e);
-					});
-			}}
-			onchange={() => {
-				if (maxField && Number(amountOfOriginalCoin) > $accountBalance.bal[maxField]) {
-					error = 'Amount exceeds available balance.';
-				}
-				const amount =
-					amountOfOriginalCoin == ''
-						? undefined
-						: new CoinAmount(Number(amountOfOriginalCoin), originalCoin).convertTo(
-								value,
-								Network.lightning
-							);
-				inputDisabled = true;
-				if (amount == undefined) return;
-				amount.then((amount) => {
-					boundAmount = amount.toAmountString();
-					inputDisabled = disabled;
-				});
-			}}
-			{required}
-			name={label}
-			{id}
-			type="number"
-			step="any"
-			inputmode="decimal"
-			bind:value={boundAmount}
-			disabled={inputDisabled}
-		/>
-		{#if showMax}
-			<div class="max-button-wrapper">
-				<PillButton type="button" onclick={setToMax}>Max</PillButton>
-			</div>
-		{/if}
-		<hr />
-		<div class="currency-select">
-			{#if selectItems.length > 1}
-				<Select
-					{disabled}
-					items={selectItems}
-					initial={originalCoin.label}
-					onValueChange={(v) => {
-						// console.log(v);
-
-						if (v.items[0] == undefined) return;
-						if (v.items[0].value == Coin.unk.value) return;
-						if (value == undefined || value.value == Coin.unk.value) {
-							value = v.items[0];
-							return;
-						}
-						if (v.items[0].value == value.value) return;
-						if (boundAmount != undefined) {
-							new CoinAmount(Number(boundAmount), value)
-								.convertTo(v.items[0], Network.lightning)
-								.then((amount) => {
-									boundAmount = amount.toAmountString();
-									value = v.items[0];
-								});
-						} else value = v.items[0];
-					}}
-				/>
+		</label>
+		<div class={['amount-input', { tall: !!buttonAction }]}>
+			{#snippet icon()}
+				{#if !coin?.coin || coin.coin.value === coins.usd.value}
+					<DollarSign />
+				{:else}
+					<CoinNetworkIcon coin={coin?.coin ?? coins.usd} network={network ?? Network.unknown} />
+				{/if}
+			{/snippet}
+			{#if !buttonAction}
+				{@render icon()}
+			{/if}
+			{#key [currentCoin, debouncedMax, min]}
+				{#if quiet}
+					<NumberInput
+						bind:amount
+						bind:inputId={id}
+						max={maxBalance ? Number(maxBalance) : undefined}
+						{decimals}
+						{min}
+					/>
+				{:else}
+					<NumberInput
+						bind:amount
+						bind:error
+						bind:inputId={id}
+						max={maxBalance ? Number(maxBalance) : undefined}
+						{decimals}
+						{min}
+					/>
+				{/if}
+			{/key}
+			{#if showMax}
+				<div class="max-button-wrapper">
+					<PillButton type="button" onclick={setToMax}>Max</PillButton>
+				</div>
+			{/if}
+			<hr />
+			{#if buttonAction}
+				<div class="coin-button">
+					<PillButton onclick={buttonAction}>
+						<div class="coin-button-content">
+							{#if coin}
+								<div class="icon">
+									{@render icon()}
+								</div>
+								<span class="label">
+									{currentCoin.label}
+								</span>
+								<ChevronRight />
+							{:else}
+								Select
+							{/if}
+						</div>
+					</PillButton>
+				</div>
 			{:else}
-				<div class="single-coin">
-					{selectItems[0].label}
+				<div class="coin-label">
+					{currentCoin.label}
 				</div>
 			{/if}
 		</div>
-	</div>
-	{#if amountOfOriginalCoin != ''}
-		<span class="approx-usd">
-			Approx. USD value:
-			{#if originalCoin.value != Coin.unk.value}
-				${inUsd}
-			{:else}
-				Unknown
+		<span class={['bottom-info', { hidden: !(showUsd || error) }]}>
+			{#if error != ''}
+				<span class="error">
+					{error}
+				</span>
+			{:else if showUsd && coin && amount !== '0'}
+				<span class="approx-usd">
+					Approx. USD value:
+					{#if coin?.coin.value != Coin.unk.value}
+						${inUsd}
+					{:else}
+						Unknown
+					{/if}
+				</span>
 			{/if}
 		</span>
-	{/if}
-	{#if error != ''}
-		<span class="error">
-			{error}
-		</span>
-	{/if}
-</label>
+	</div>
+{:else}
+	<div class="big-wrapper">
+		<div class="amount-input">
+			<label for={id}>
+				{coin?.coin.label}
+			</label>
+			{#key [currentCoin, debouncedMax, min]}
+				<BigInput bind:amount bind:inputId={id} {decimals} {min} />
+			{/key}
+		</div>
+	</div>
+{/if}
 
 <style lang="scss">
-	.approx-usd {
-		text-wrap: wrap;
-		color: var(--neutral-fg-mid);
-		font-size: var(--text-sm);
-		margin-bottom: 0;
-	}
-	.disabled {
-		--bg: var(--neutral-bg-accent);
-		background-color: var(--neutral-bg-accent);
-	}
-	label {
-		--bg: var(--neutral-off-bg);
-		display: block;
-		margin-left: 0;
-		flex-grow: 1;
-		width: 100%;
-		flex-basis: 30%;
-		> span {
-			display: inline-block;
-			margin: 0.5rem;
-		}
-	}
-	.balance-amount {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		font-weight: 400;
-	}
-	.currency-select {
-		padding: 0 0.25rem;
-	}
-	.amount-input {
-		:global(button) {
-			margin: 0;
-		}
-		margin-right: 0.25rem;
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		color: var(--neutral-fg);
-		border-radius: 0.5rem;
-		display: flex;
-		align-items: center;
-		flex-basis: 1;
-		max-width: 16rem;
-		box-sizing: border-box;
-		&:has(input:focus-visible) {
-			box-shadow: 0 -1px inset var(--primary-bg-mid);
-			border-bottom-color: var(--primary-bg-mid);
-			outline: none;
-			border-radius: 0.5rem 0.5rem 0 0;
-		}
-
-		hr {
-			height: 1.5rem;
-			border-right: 1px solid var(--neutral-bg-accent-shifted);
-		}
-
-		input:focus-visible + hr {
-			border-color: var(--primary-bg-mid);
-			border-width: 1.5px;
-		}
-
-		input {
+	.normal-wrapper,
+	.big-wrapper {
+		:global(input) {
 			border: none;
-			height: 48px;
-			box-sizing: border-box;
-			min-width: 3.5rem;
-			width: 1rem;
-			flex-grow: 1;
-		}
-		input:focus-visible {
-			box-shadow: none;
-		}
-		.max-button-wrapper {
-			margin-right: 0.25rem;
-			:global(button) {
-				font-size: var(--text-sm);
-				padding: 0.5rem 0.75rem;
-				height: fit-content;
+			&:focus-visible {
+				box-shadow: none;
 			}
 		}
 	}
-	.single-coin {
-		padding: 0.75rem;
+
+	.normal-wrapper {
+		position: relative;
+		flex: 1;
+		label {
+			position: absolute;
+			top: -1.25rem;
+			right: 0.25rem;
+		}
+		.balance-amount {
+			font-family: 'Noto Sans Mono Variable', monospace;
+			font-weight: 400;
+		}
+		.amount-input {
+			border: 1px solid var(--neutral-bg-accent-shifted);
+			color: var(--neutral-fg);
+			border-radius: 0.5rem;
+			display: flex;
+			align-items: center;
+			flex-basis: 1;
+			box-sizing: border-box;
+			&:has(:global(input):focus-visible) {
+				box-shadow: 0 -1px inset var(--primary-bg-mid);
+				border-bottom-color: var(--primary-bg-mid);
+				outline: none;
+				border-radius: 0.5rem 0.5rem 0 0;
+				hr {
+					border-color: var(--primary-bg-mid);
+					border-width: 1.5px;
+				}
+			}
+
+			hr {
+				height: 1.5rem;
+				border-right: 1px solid var(--neutral-bg-accent-shifted);
+			}
+
+			.max-button-wrapper {
+				margin-right: 0.25rem;
+				:global(button) {
+					font-size: var(--text-sm);
+					padding: 0.5rem 0.75rem;
+					height: fit-content;
+				}
+			}
+		}
+		.coin-label {
+			width: 4rem;
+			text-align: center;
+		}
+		.coin-button {
+			padding: 0.25rem 0.5rem;
+		}
+		.coin-button-content {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			width: 108px;
+			justify-content: center;
+			.icon {
+				width: 32px;
+				display: flex;
+				justify-content: center;
+			}
+			.label {
+				width: 4ch;
+				text-align: center;
+			}
+		}
+		.bottom-info {
+			display: flex;
+			flex-wrap: wrap;
+			text-wrap: wrap;
+			margin-bottom: 0;
+			line-height: 1.2;
+			&.hidden {
+				visibility: hidden;
+			}
+		}
+		.approx-usd {
+			color: var(--neutral-fg-mid);
+			font-size: var(--text-sm);
+		}
+		@media screen and (min-width: 450px) and (max-width: 650px) {
+			.amount-input > .max-button-wrapper > :global(button) {
+				background-color: transparent;
+				padding: 0;
+			}
+			label {
+				visibility: hidden;
+			}
+		}
+	}
+	.big-wrapper {
+		--text-size: 3rem;
+		display: flex;
+		justify-content: center;
+		.amount-input {
+			display: flex;
+			align-items: flex-end;
+			gap: 0.5rem;
+			width: min-content;
+			position: relative;
+			label {
+				margin: 0;
+				position: absolute;
+				right: calc(100% + 0.5rem);
+				transform: translateY(-30%);
+				color: inherit;
+			}
+			:global(:input) {
+				padding: 0;
+				width: 100%;
+				height: var(--text-size);
+				border: none;
+				&:focus-visible {
+					box-shadow: none;
+				}
+			}
+		}
 	}
 </style>

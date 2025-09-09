@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { SendTxDetails } from '$lib/send/sendUtils';
 	import { CornerDownRight } from '@lucide/svelte';
-	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 
 	let {
@@ -20,11 +20,10 @@
 		<span class="sm-caption">From Asset</span>
 		<div class="amt-and-fees">
 			<div class="to-amount">
-				<BasicAmountInput
+				<AmountInput
 					bind:amount={fromSwapAmount}
 					coin={$SendTxDetails.fromCoin}
 					network={$SendTxDetails.fromNetwork}
-					id={'from-amt'}
 					connectedCoinAmount={$SendTxDetails.toCoin
 						? new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)
 						: undefined}

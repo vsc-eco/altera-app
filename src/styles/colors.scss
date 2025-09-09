@@ -17,13 +17,14 @@
 	--light-purple: oklch(0.67 0.27 317);
 	--middle-purple: oklch(0.272 0.086 300);
 	--dark-purple: oklch(0.188 0.0716 291);
+	--dark-purple-less-opacity: oklch(18.821% 0.07164 291.268 / 0.10);
 }
 $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 98, 99;
 :root {
 	@include color-mixins.oklch-palette($color-nums, 'salmon', 0.4, 45, 0.1, 0);
 	@include color-mixins.oklch-palette($color-nums, 'teal', 0.2, 150, 0.02, 250);
 	@include color-mixins.oklch-palette($color-nums, 'gray', 0, 305.19, 0.005, 385);
-	@include color-mixins.oklch-palette($color-nums, 'accent', 0.3, 190, 0.25, 230);
+	@include color-mixins.oklch-palette($color-nums, 'light-blue', 0.3, 190, 0.25, 230);
 	@include color-mixins.oklch-palette($color-nums, 'green', 0.2, 147, 0.05, 142);
 }
 /* Defaults to light mode if user's OS does not support light/dark mode toggling */
@@ -33,7 +34,7 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.colors('salmon', secondary, color-mixins.$color-light-shade-names);
 	@include color-mixins.colors('teal', primary, color-mixins.$color-light-shade-names);
 	@include color-mixins.colors('gray', neutral, color-mixins.$color-light-shade-names);
-	@include color-mixins.colors('accent', accent, color-mixins.$color-light-shade-names);
+	@include color-mixins.colors('light-blue', accent, color-mixins.$color-light-shade-names);
 	@include color-mixins.shade-minimal('green', color-mixins.$color-light-shade-names);
 }
 /* uses system preference if not user specified */
@@ -43,7 +44,7 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 		@include color-mixins.colors('salmon', secondary, color-mixins.$color-dark-shade-names);
 		@include color-mixins.colors('teal', primary, color-mixins.$color-dark-shade-names);
 		@include color-mixins.colors('gray', neutral, color-mixins.$color-dark-shade-names);
-		@include color-mixins.colors('accent', accent, color-mixins.$color-dark-shade-names);
+		@include color-mixins.colors('light-blue', accent, color-mixins.$color-dark-shade-names);
 		@include color-mixins.shade-minimal('green', color-mixins.$color-dark-shade-names);
 	}
 }
@@ -53,7 +54,7 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.colors('salmon', secondary, color-mixins.$color-dark-shade-names);
 	@include color-mixins.colors('teal', primary, color-mixins.$color-dark-shade-names);
 	@include color-mixins.colors('gray', neutral, color-mixins.$color-dark-shade-names);
-	@include color-mixins.colors('accent', accent, color-mixins.$color-dark-shade-names);
+	@include color-mixins.colors('light-blue', accent, color-mixins.$color-dark-shade-names);
 	@include color-mixins.shade-minimal('green', color-mixins.$color-dark-shade-names);
 }
 

@@ -60,7 +60,27 @@ export class CoinAmount<C extends Coin> {
 		return `${this.toAmountString()} ${this.coin.unit}`;
 	}
 	toPrettyString() {
-		return `${this.toPrettyAmountString()} ${this.coin.unit}`;
+		const isNegative = this.isNegative();
+		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
+		const formatter = new Intl.NumberFormat(navigator.language, {
+			useGrouping: true,
+			minimumFractionDigits: this.coin.decimalPlaces
+		});
+		const formatted = formatter.format(numericValue);
+		return `${isNegative ? '-' : ''}${formatted} ${this.coin.unit}`;
+	}
+	toPrettyMinFigs(figures = 3, decimals = 2) {
+		const isNegative = this.isNegative();
+		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
+		const minFigs = numericValue < 1 ? Math.min(this.coin.decimalPlaces, figures) : figures;
+		const formatter = new Intl.NumberFormat(navigator.language, {
+			useGrouping: true,
+			minimumSignificantDigits: minFigs,
+			minimumFractionDigits: decimals,
+			maximumSignificantDigits: 21
+		});
+		const formatted = formatter.format(numericValue);
+		return `${isNegative ? '-' : ''}${formatted} ${this.coin.unit}`;
 	}
 	toNumber() {
 		return this.amount / 10 ** this.coin.decimalPlaces;

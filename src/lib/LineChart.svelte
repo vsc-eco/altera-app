@@ -31,18 +31,20 @@
 		hoveredPoint?: Point;
 		hoveredIndex?: number;
 		height?: number;
-		data?: Point[];
+		data: Point[];
 		theme?: string;
 		isLoading?: boolean;
+		styleType?: 'balance' | 'trend';
 	};
 	let width = $state(0);
 	let {
 		hoveredPoint: hoveredPoint = $bindable(),
 		hoveredIndex = $bindable(),
 		height = 100,
-		data = $bindable(defaultData),
+		data,
 		theme = 'primary',
-		isLoading = false
+		isLoading = false,
+		styleType = 'balance'
 	}: Props = $props();
 	const dateExtent = $derived(extent(data, (d) => new Date(d.date)) as [Date, Date]);
 	const xScale = $derived(
@@ -51,11 +53,41 @@
 			.range([margin.left, width - margin.right])
 	);
 
-	const yScale = $derived(
-		scaleLinear()
-			.domain([0, max(data, (d) => d.value)!])
-			.range([height - margin.bottom, margin.top])
-	);
+	let minRange = 0.02; // Minimum $0.02 range (2 cents)
+
+	const yScale = $derived.by(() => {
+		let domain;
+
+		if (styleType === 'trend') {
+			const [min, max] = extent(data, (d) => d.value) as [number, number];
+			const range = max - min;
+
+			if (Math.abs(range) < minRange) {
+				// If actual range is smaller than minimum, expand it
+				const center = (min + max) / 2;
+				const halfMinRange = minRange / 2;
+				domain = [center - halfMinRange, center + halfMinRange];
+			} else {
+				domain = [min, max];
+			}
+		} else {
+			domain = [0, max(data, (d) => d.value)!];
+		}
+
+		return scaleLinear()
+			.domain(domain)
+			.range([height - margin.bottom, margin.top]);
+	});
+
+	// derived(
+	// 	scaleLinear()
+	// 		.domain(
+	// 			styleType === 'balance'
+	// 				? [0, max(data, (d) => d.value)!]
+	// 				: (extent(data, (d) => d.value) as [number, number])
+	// 		)
+	// 		.range([height - margin.bottom, margin.top])
+	// );
 	function getSpacedDates(extent: [Date, Date], count: number): moment.Moment[] {
 		const [start, end] = extent.map((v) => moment(v));
 		let dayDiff = end.diff(start, 'days');
@@ -144,7 +176,7 @@
 </script>
 
 <figure class={[theme, { zero: width == 0 }]} bind:clientWidth={width} tabindex="-1">
-	{#if isLoading}
+	{#if isLoading || data.length === 0}
 		<div class="loading-overlay">
 			<Loader class="loader-icon" size={24} />
 			<span>Loading chart data...</span>
@@ -184,14 +216,18 @@
 			</linearGradient>
 		</defs>
 	</svg>
-	<div class="dates">
-		{#each spacedDates as date}
-			<span class="date" style={`--position: ${xScale(date.toDate())}px`}
-				>{date.format('MMM DD')}</span
-			>
-		{/each}
-	</div>
-	<figcaption>A graph of your balance over time.</figcaption>
+	{#if styleType === 'balance'}
+		<div class="dates">
+			{#each spacedDates as date}
+				<span class="date" style={`--position: ${xScale(date.toDate())}px`}
+					>{date.format('MMM DD')}</span
+				>
+			{/each}
+		</div>
+		<figcaption>A graph of your balance over time.</figcaption>
+	{:else}
+		<figcaption>A graph of recent coin prices.</figcaption>
+	{/if}
 </figure>
 
 <style>

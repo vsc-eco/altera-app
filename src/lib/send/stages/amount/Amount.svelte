@@ -1,27 +1,18 @@
 <script lang="ts">
-	import { authStore } from '$lib/auth/store';
-	import BasicAmountInput from '$lib/currency/BasicAmountInput.svelte';
-	import swapOptions, {
-		Coin,
-		Network,
-		networkMap,
-		SendAccount,
-		type CoinOptions
-	} from '$lib/send/sendOptions';
+	import { getAuth } from '$lib/auth/store';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
+	import swapOptions, { Network, networkMap, SendAccount } from '$lib/send/sendOptions';
 	import {
 		solveNetworkConstraints,
 		SendTxDetails,
 		getFee,
 		type NetworkOptionParam,
-		type CoinOptionParam,
-		getRecipientNetworks,
-		type AccountOptionParam
+		optionsEqual
 	} from '$lib/send/sendUtils';
 	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
-	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import SwapOptions from './SwapOptions.svelte';
 	import {
@@ -29,18 +20,15 @@
 		assetCard,
 		networkCard,
 		type AssetObject
-	} from '../components/CardSnippets.svelte';
-	import Card from '$lib/cards/Card.svelte';
-	import NetworkInfo from '../components/NetworkInfo.svelte';
-	import { Coins, Landmark, Link, Link2 } from '@lucide/svelte';
+	} from '../components/SendSnippets.svelte';
+	import { Coins, Link2 } from '@lucide/svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectAsset from './SelectAsset.svelte';
 	import AssetInfo from '../components/AssetInfo.svelte';
-	import PillButton from '$lib/PillButton.svelte';
 	import EditButton from '$lib/components/EditButton.svelte';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 
-	let auth = $authStore;
+	const auth = $derived(getAuth()());
 	let {
 		id,
 		editStage
@@ -48,23 +36,6 @@
 		id: string;
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
-
-	function optionsEqual<T>(
-		a: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[],
-		b: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[]
-	): boolean {
-		if (a.length !== b.length) return false;
-
-		const getValue = (item: CoinOptionParam | AccountOptionParam | NetworkOptionParam) =>
-			'coin' in item ? item.coin.value : item.value;
-
-		return a.every(
-			(val, i) =>
-				getValue(val) === getValue(b[i]) &&
-				val.disabled === b[i].disabled &&
-				val.disabledMemo === b[i].disabledMemo
-		);
-	}
 
 	let { assetOptions, accountOptions, networkOptions } = $state<
 		ReturnType<typeof solveNetworkConstraints>
@@ -257,7 +228,6 @@
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
 
-	let lastAsset = $state('Never');
 	let assetOpen = $state(false);
 	let toggleAsset = $state<(open?: boolean) => void>(() => {});
 
@@ -280,24 +250,22 @@
 			: undefined}
 -->
 <div class="amounts">
-	<BasicAmountInput
+	<AmountInput
 		bind:amount={toAmount}
 		coin={$SendTxDetails.toCoin}
 		network={$SendTxDetails.toNetwork}
-		id={'basic-input'}
 		{maxField}
 		connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
 	/>
 	{#if $SendTxDetails.toCoin && $SendTxDetails.toCoin?.coin.value !== coins.usd.value}
 		<Link2 />
-		<BasicAmountInput
+		<AmountInput
 			bind:amount={inUsd}
 			coin={{
 				coin: coins.usd,
 				networks: []
 			}}
 			network={undefined}
-			id="usd-input"
 			connectedCoinAmount={$SendTxDetails.toCoin
 				? new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)
 				: undefined}
@@ -322,7 +290,12 @@
 </ClickableCard>
 <Dialog bind:open={assetOpen} bind:toggle={toggleAsset}>
 	{#snippet content()}
-		<SelectAsset availableCoins={assetObjs} close={toggleAsset} />
+		<SelectAsset
+			availableCoins={assetObjs}
+			close={toggleAsset}
+			bind:coin={$SendTxDetails.toCoin}
+			bind:network={$SendTxDetails.fromNetwork}
+		/>
 	{/snippet}
 </Dialog>
 
@@ -375,13 +348,21 @@
 	}
 	.amounts {
 		display: flex;
-		align-items: center;
-		gap: 1rem;
+		align-items: flex-start;
+		gap: 0.5rem;
+		:global(.lucide-link-2) {
+			min-width: 24px;
+			height: 44px;
+		}
 		@media screen and (max-width: 450px) {
 			flex-direction: column;
+			align-items: center;
 			gap: 0.25rem;
-			:global(.wrapper) {
+			:global(.amount-wrapper) {
 				width: 100%;
+			}
+			:global(.lucide-link-2) {
+				height: auto;
 			}
 		}
 	}

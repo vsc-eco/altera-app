@@ -2,115 +2,74 @@
 	import * as listbox from '@zag-js/listbox';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { createFilter } from '@zag-js/i18n-utils';
-	import { getUniqueId } from './idgen';
-	import { Check, Search } from '@lucide/svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
+	import { ChevronRight, Search } from '@lucide/svelte';
 
 	type Props = {
 		items: Option[];
-		input?: boolean;
-		value?: string;
-		label?: string;
-		showSelected?: boolean;
-		disabled?: boolean;
-		customFilter?: (opts: Option[], search: string) => Option[];
+		value: string | undefined;
+		clickAsset: (assetValue: string) => void;
+		type?: 'asset' | 'network';
 	};
 
-	let {
-		items,
-		input = true,
-		value = $bindable(),
-		label,
-		showSelected = false,
-		disabled = false,
-		customFilter
-	}: Props = $props();
+	let { items, value, clickAsset, type = 'asset' }: Props = $props();
 
 	const filter = createFilter({ sensitivity: 'base' });
 	let search = $state('');
 
-	function filterDisabled(options: Option[]): Option[] {
-		// First, check if there are any non-disabled items
-		const hasNonDisabledItems = options.some((item) => !item.disabled);
-		if (!hasNonDisabledItems) return options;
-		return options.filter((item) => {
-			if (item.value === search) {
-				return true;
-			}
-			return !item.disabled;
-		});
-	}
-
 	const collection = $derived.by(() => {
-		const searchOptions = customFilter
-			? customFilter(items, search)
-			: items.filter((item) => filter.contains(item.label, search));
+		const searchOptions = items.filter((item) => filter.contains(item.label, search));
 		// const options = filterDisabled(searchOptions);
 		const options = searchOptions;
 		return listbox.collection({
 			items: options,
 			itemToValue: (item) => item.value ?? item.label,
 			itemToString: (item) => item.label,
-			isItemDisabled: (item) => item.disabled
+			isItemDisabled: (item) => !!item.disabled
 		});
 	});
 
-	const machineId = getUniqueId();
+	const machineId = $props.id();
 	const service = useMachine(listbox.machine, {
 		id: machineId,
 		get collection() {
 			return collection;
 		},
 		get value() {
-			return value ? [value] : [];
-		},
-		onValueChange(details) {
-			if (disabled) return;
-			if (details.value.length === 0) {
-				api.clearHighlightedValue();
-			}
-			value = details.value[0];
-		},
-		deselectable: true
+			return value ? [value] : undefined;
+		}
 	});
 
 	const api = $derived(listbox.connect(service, normalizeProps));
 </script>
 
 <div {...api.getRootProps()}>
-	{#if label}
-		<label {...api.getLabelProps()}>{label}</label>
-	{/if}
-	{#if input}
-		<label for={`list-${machineId}`} class="search-icon"><Search aria-label="Search" /></label>
+	{#if type === 'asset'}
+		<label for={`list-search-${machineId}`} class="search-icon"
+			><Search aria-label="Search" /></label
+		>
 		<input
 			{...api.getInputProps({ autoHighlight: true })}
 			bind:value={search}
-			id={`list-${machineId}`}
+			id={`list-search-${machineId}`}
 		/>
 	{/if}
 
-	<ul {...api.getContentProps()} tabindex="-1" class={['listbox-ul', { disabled }]}>
+	<ul {...api.getContentProps()} tabindex="-1" class="listbox-ul">
 		{#each collection.items as item (item.value ?? item.label)}
-			<li {...api.getItemProps({ item })}>
+			<li
+				{...api.getItemProps({ item })}
+				onclick={item.disabled ? undefined : () => clickAsset(item.value)}
+			>
 				{#if item.snippet}
 					{@render item.snippet(item.snippetData ?? item)}
 				{:else}
 					{item.label}
 				{/if}
-				<div class="icons">
-					{#if item.icons && !item.disabled}
-						{#each item.icons as iconInfo}
-							{@const func = iconInfo.action ?? (() => {})}
-							<PillButton onclick={func} styleType="icon-subtle">
-								<ImageIconRenderer icon={iconInfo.icon} color={iconInfo.color} />
-							</PillButton>
-						{/each}
-					{:else if showSelected}
-						<span {...api.getItemIndicatorProps({ item })}><Check size="16" /></span>
-					{/if}
-				</div>
+				{#if !item.disabled && type === 'asset'}
+					<div class="icons">
+						<ChevronRight />
+					</div>
+				{/if}
 			</li>
 		{/each}
 	</ul>

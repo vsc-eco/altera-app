@@ -3,7 +3,7 @@
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
 	import ContactInfo from '../../components/ContactInfo.svelte';
 	import moment from 'moment';
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import { untrack } from 'svelte';
 	import {
 		compareContacts,
@@ -16,13 +16,13 @@
 		contactCard,
 		contactRecentCard,
 		type ContactObj
-	} from '../../components/CardSnippets.svelte';
+	} from '../../components/SendSnippets.svelte';
 	import type { RecipientSnippet } from './contactSearch';
 	import ContactSearchBox from './ContactSearchBox.svelte';
 
 	let { contact = $bindable() }: { contact?: Contact } = $props();
 
-	const auth = $derived($authStore);
+	const auth = $derived(getAuth()());
 
 	let contacts = $state(getContacts());
 	contactsVersion.subscribe(() => {

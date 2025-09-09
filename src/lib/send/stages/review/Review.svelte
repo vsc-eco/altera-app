@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authStore } from '$lib/auth/store';
+	import { authStore, getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import {
@@ -10,23 +10,22 @@
 	import { Coin, Network, SendAccount } from '$lib/send/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/send/sendUtils';
-	import { ArrowDown, ArrowLeft, X } from '@lucide/svelte';
+	import { ArrowDown, X } from '@lucide/svelte';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import Instructions from '$lib/send/stages/review/Instructions.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import Confirmation from '$lib/components/Confirmation.svelte';
 
-	let auth = $authStore;
+	let auth = $derived(getAuth()());
 	let {
 		status,
-		waiting,
+		waiting = false,
 		abort,
 		compact
 	}: {
 		status: { message: string; isError: boolean };
-		waiting: boolean;
-		abort: () => void;
+		waiting?: boolean;
+		abort?: () => void;
 		compact?: boolean;
 	} = $props();
 
@@ -192,7 +191,7 @@
 			<div class="info">
 				<p>Waiting for signature</p>
 				<span>
-					<PillButton onclick={() => abort()} theme="secondary" styleType="invert">
+					<PillButton onclick={() => (abort ? abort() : {})} theme="secondary" styleType="invert">
 						<X /> Cancel
 					</PillButton>
 				</span>

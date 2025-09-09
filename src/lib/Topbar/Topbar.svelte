@@ -104,6 +104,8 @@
 		align-items: center;
 		margin: calc(var(--text-4xl) / 2) auto;
 		z-index: 10;
+		width: 100%;
+		overflow-x: auto;
 	}
 	@media screen and (max-width: 420px) {
 		header {

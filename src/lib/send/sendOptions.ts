@@ -29,6 +29,7 @@ const hive: Coin = {
 	label: 'HIVE',
 	icon: '/hive/hive.svg',
 	unit: 'HIVE',
+	ucid: '5370',
 	enabled: (going, info, auth, mode) => {
 		// currently can't swap from hive to anything else
 		if (going == 'from' && mode == 'swap') return false;
@@ -46,6 +47,7 @@ const hbd: Coin = {
 	label: 'HBD',
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
+	ucid: '5375',
 	enabled: (going, info, auth, mode) => {
 		// currently can't swap from HBD to anything else
 		if (going == 'from' && mode == 'swap') return false;
@@ -63,16 +65,8 @@ const shbd: Coin = {
 	label: 'sHBD',
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
-	enabled: (going, info, auth, mode) => {
-		// currently can't swap from HBD to anything else
-		if (going == 'from' && mode == 'swap') return false;
-
-		if (info.from?.network == Network.lightning) return true;
-		if (info.from?.coin == undefined) return true;
-		if (going == 'from') return true;
-		if (info.from?.coin == Coin.hbd) return true;
-		return false;
-	},
+	ucid: '5375',
+	enabled: () => false,
 	decimalPlaces: 3
 };
 const btc: Coin = {
@@ -80,6 +74,7 @@ const btc: Coin = {
 	label: 'BTC',
 	icon: '/btc/btc.svg',
 	unit: 'BTC',
+	ucid: '1',
 	enabled: (going) => {
 		return going == 'from';
 	},
@@ -141,6 +136,10 @@ export type Coin = {
 	 * The text to display next to a currency (usually 3-4 letters for the currency)
 	 */
 	unit: string;
+	/**
+	 * The UCID of the token (unique ID to differentiate between coins with the same ticker)
+	 */
+	ucid?: string;
 	/**
 	 * A function which returns whether a currency is available to trade to/from
 	 * based on the network and currency it's going to/from

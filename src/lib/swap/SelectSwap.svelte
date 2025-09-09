@@ -511,6 +511,11 @@
 		.spacer {
 			width: 2.5rem;
 		}
+		.cycle-button {
+			:global(button) {
+				margin: 0;
+			}
+		}
 	}
 	// for double .coin-inputsu
 	// .coin-inputs {

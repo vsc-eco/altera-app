@@ -25,7 +25,8 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.oklch-palette($color-nums, 'gray', 0, 305.19, 0.005, 385);
 	@include color-mixins.oklch-palette($color-nums, 'light-blue', 0.3, 190, 0.25, 230);
 	@include color-mixins.oklch-palette($color-nums, 'green', 0.2, 147, 0.05, 142);
-	@include color-mixins.oklch-palette($color-nums, 'purple', 0.2, 300, 0.02, 291);
+	@include color-mixins.oklch-palette($color-nums, 'purple', 0.2, 291, 0.02, 300);
+	@include color-mixins.oklch-palette($color-nums, 'magenta', 0.67, 300, 0.02, 291);
 }
 /* Defaults to light mode if user's OS does not support light/dark mode toggling */
 :root {
@@ -42,7 +43,12 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 		--is-dark-mode: 1;
 		@include color-mixins.colors('salmon', secondary, color-mixins.$color-dark-shade-names);
 		@include color-mixins.colors('purple', primary, color-mixins.$color-dark-shade-names);
-		@include color-mixins.colors('gray', neutral, color-mixins.$color-dark-shade-names);
+		@include color-mixins.colors(
+			'gray',
+			neutral,
+			color-mixins.$color-dark-shade-names,
+			color-mixins.$color-nums-gray
+		);
 		@include color-mixins.colors('light-blue', accent, color-mixins.$color-dark-shade-names);
 		@include color-mixins.shade-minimal('green', color-mixins.$color-dark-shade-names);
 	}
@@ -52,7 +58,12 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	--is-dark-mode: 1;
 	@include color-mixins.colors('salmon', secondary, color-mixins.$color-dark-shade-names);
 	@include color-mixins.colors('purple', primary, color-mixins.$color-dark-shade-names);
-	@include color-mixins.colors('gray', neutral, color-mixins.$color-dark-shade-names);
+	@include color-mixins.colors(
+		'gray',
+		neutral,
+		color-mixins.$color-dark-shade-names,
+		color-mixins.$color-nums-gray
+	);
 	@include color-mixins.colors('light-blue', accent, color-mixins.$color-dark-shade-names);
 	@include color-mixins.shade-minimal('green', color-mixins.$color-dark-shade-names);
 }

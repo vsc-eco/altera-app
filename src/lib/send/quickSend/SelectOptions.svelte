@@ -423,6 +423,10 @@
 		&.from {
 			border-top: 1px solid var(--neutral-bg-accent-shifted);
 			padding-top: 2rem;
+			.to-self-error {
+				margin-top: 0.25rem;
+				line-height: 1.2;
+			}
 		}
 		&.to {
 			padding-bottom: 2rem;

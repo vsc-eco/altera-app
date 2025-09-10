@@ -31,7 +31,7 @@
 	}
 
 	.token.green {
-		color: var(--green-fg);
+		color: var(--quaternary-mid);
 	}
 
 	td:has(.token) {

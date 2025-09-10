@@ -133,7 +133,7 @@
 
 	[data-scope='progress'][data-part='range'] {
 		height: 100%;
-		background-color: var(--mid);
+		background-color: var(--fg-mid);
 		border-radius: 0.5rem;
 		transition: width 0.3s ease;
 		position: absolute;

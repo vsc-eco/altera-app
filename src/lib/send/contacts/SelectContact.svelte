@@ -110,6 +110,7 @@
 	$effect(() => {
 		const newVal = selectedVal;
 		untrack(() => {
+			const oldContact = selectedContact;
 			if (newVal) {
 				const contact = getContacts().get(newVal);
 				if (contact) {
@@ -130,14 +131,14 @@
 				}
 			}
 			selectedContact = undefined;
-			$SendTxDetails.toUsername = '';
+			if (oldContact) $SendTxDetails.toUsername = '';
 		});
 	});
 </script>
 
 <div class={['dialog-content', { column: addOpen }]}>
 	{#if !addOpen}
-		<h5>Select Contact</h5>
+		<h5 class="dialog-list-header">Select Contact</h5>
 		<div class="buttons">
 			<PillButton onclick={() => (addOpen = true)}>
 				<Plus /> Add Contact

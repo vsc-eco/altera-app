@@ -45,7 +45,7 @@
 		"typescript": "^5.9.2",
 		"typescript-eslint": "^8.42.0",
 		"viem": "^2.37.3",
-		"vite": "^6.3.5",
+		"vite": "^6.3.6",
 		"vite-plugin-mkcert": "^1.17.8",
 		"vitest": "^3.2.4"
 	},
@@ -57,7 +57,9 @@
 			"base-x": ">=5.0.1",
 			"@babel/runtime": ">=7.26.10",
 			"cookie": ">=0.7.0",
-			"brace-expansion": ">=2.0.2"
+			"brace-expansion": ">=2.0.2",
+			"undici": ">=5.29.0",
+			"esbuild": ">=0.25.0"
 		},
 		"onlyBuiltDependencies": [
 			"@parcel/watcher",

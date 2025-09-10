@@ -67,9 +67,15 @@
 {#snippet networkCardSnippet(params: {
 	net: NetworkOptionParam;
 	size?: 'small' | 'medium' | 'large';
+	hideDetails?: boolean;
 })}
 	{@const net = params.net}
-	<NetworkInfo network={net} disabledMemo={net.disabledMemo} size={params.size} />
+	<NetworkInfo
+		network={net}
+		disabledMemo={net.disabledMemo}
+		size={params.size}
+		hideDetails={!!params.hideDetails}
+	/>
 {/snippet}
 
 {#snippet contactCardSnippet(params: { contact: Contact; size?: 'small' | 'medium' | 'large' })}

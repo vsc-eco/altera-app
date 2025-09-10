@@ -9,7 +9,7 @@
 		type CoinOptionParam,
 		type NetworkOptionParam
 	} from '../sendUtils';
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -22,12 +22,18 @@
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import RecipientCard from '../stages/recipient/RecipientCard.svelte';
 	import ContactSearchBox from '../stages/recipient/search/ContactSearchBox.svelte';
+	import SelectContact from '../contacts/SelectContact.svelte';
+	import type { Contact } from '../contacts/contacts';
+	import PillButton from '$lib/PillButton.svelte';
+	import { ArrowLeft } from '@lucide/svelte';
 
 	let {
 		id,
+		hideNav = $bindable(),
 		editStage
 	}: {
 		id: string;
+		hideNav: boolean;
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
 	const auth = $derived(getAuth()());
@@ -248,6 +254,9 @@
 		getLastPaidContact(toDid).then((paid) => (lastPaid = momentToLastPaidString(paid)));
 	});
 	let contactOpen = $state(false);
+	$effect(() => {
+		hideNav = contactOpen;
+	});
 
 	const availableNetworks = $derived(
 		getRecipientNetworks(getDidFromUsername($SendTxDetails.toUsername))
@@ -260,7 +269,7 @@
 				label: v.label,
 				disabled: v.disabled,
 				snippet: networkCard,
-				snippetData: { net: v }
+				snippetData: { net: v, hideDetails: true }
 			};
 		})
 	);
@@ -272,14 +281,47 @@
 			? 'Warning: This hive account does not exist. Payment to this address may result in loss of funds.'
 			: undefined
 	);
+
+	let contact = $state<Contact>();
+	let toggleContact = (open = false) => {
+		contactOpen = open;
+	};
+	let createNew: string | undefined = $derived(
+		!contact && $SendTxDetails.toUsername ? $SendTxDetails.toUsername : undefined
+	);
+	let openToCreate = $state(false);
+	function openContact(create = false) {
+		openToCreate = create;
+		toggleContact(true);
+	}
 </script>
 
-<h2>Send</h2>
-<div class="section to">
-	<span class="sm-caption nogap">To</span>
-	<ContactSearchBox bind:value={$SendTxDetails.toUsername} enableContacts={false} />
-	<RecipientCard basic />
-	<!-- <div class="selected">
+{#if contactOpen}
+	<div class="contact-external-wrapper">
+		<div class="back-button">
+			<PillButton onclick={() => toggleContact()} styleType="icon-subtle">
+				<ArrowLeft size="32" />
+			</PillButton>
+		</div>
+		<SelectContact
+			bind:selectedContact={contact}
+			editing={openToCreate}
+			close={() => (contactOpen = false)}
+			{createNew}
+		/>
+	</div>
+{:else}
+	<h2>Send</h2>
+	<div class="section to">
+		<span class="sm-caption nogap">To</span>
+		<ContactSearchBox
+			bind:value={$SendTxDetails.toUsername}
+			bind:selectedContact={contact}
+			enableContacts={false}
+			placeholder="Enter address"
+		/>
+		<RecipientCard basic edit={openContact} {contact} />
+		<!-- <div class="selected">
 			<input
 				id="send-recipient"
 				bind:value={recipientUsername}
@@ -287,32 +329,32 @@
 			/>
 		</div> -->
 
-	<span class="sm-caption gap">Recipient Network</span>
-	<Select
-		items={networkItems}
-		initial={$SendTxDetails.toNetwork?.value}
-		styleType="dropdown"
-		placeholder="Recipient Network"
-		onValueChange={(v) => {
-			$SendTxDetails.toNetwork = Object.values(Network).find((net) => net.value === v.value[0]);
-		}}
-	/>
-</div>
+		<span class="sm-caption gap">Recipient Network</span>
+		<Select
+			items={networkItems}
+			initial={$SendTxDetails.toNetwork?.value}
+			styleType="dropdown"
+			placeholder="Recipient Network"
+			onValueChange={(v) => {
+				$SendTxDetails.toNetwork = Object.values(Network).find((net) => net.value === v.value[0]);
+			}}
+		/>
+	</div>
 
-<div class="section from">
-	<span class="sm-caption nogap">Asset</span>
-	<Select
-		items={assetObjs}
-		styleType="dropdown"
-		placeholder="Token"
-		onValueChange={(v) => {
-			$SendTxDetails.toCoin = swapOptions.from.coins.find((val) => val.coin.value === v.value[0]);
-		}}
-	/>
+	<div class="section from">
+		<span class="sm-caption nogap">Asset</span>
+		<Select
+			items={assetObjs}
+			styleType="dropdown"
+			placeholder="Token"
+			onValueChange={(v) => {
+				$SendTxDetails.toCoin = swapOptions.from.coins.find((val) => val.coin.value === v.value[0]);
+			}}
+		/>
 
-	<span class="sm-caption gap">Origin Network</span>
-	<div class="from-network-select">
-		<!-- <Select
+		<span class="sm-caption gap">Origin Network</span>
+		<div class="from-network-select">
+			<!-- <Select
 				items={accountObjs}
 				styleType="dropdown"
 				placeholder="Account"
@@ -323,51 +365,54 @@
 					}));
 				}}
 			/> -->
-		<Select
-			items={networkObjs}
-			styleType="dropdown"
-			placeholder="On Network"
-			initial={$SendTxDetails.fromNetwork?.value}
-			onValueChange={(v) => {
-				$SendTxDetails.fromNetwork = Object.values(Network).find((net) => net.value === v.value[0]);
+			<Select
+				items={networkObjs}
+				styleType="dropdown"
+				placeholder="On Network"
+				initial={$SendTxDetails.fromNetwork?.value}
+				onValueChange={(v) => {
+					$SendTxDetails.fromNetwork = Object.values(Network).find(
+						(net) => net.value === v.value[0]
+					);
+				}}
+			/>
+
+			{#if isSwap}
+				<SwapOptions bind:toAmount bind:fromSwapAmount />
+			{/if}
+			{#if toSelf}
+				<p class="error to-self-error">
+					Cannot transfer currency to yourself on the same network. Please select a different
+					recipient or network.
+				</p>
+			{/if}
+		</div>
+	</div>
+
+	<div class="section">
+		<span class="sm-caption">Amount</span>
+		<AmountInput
+			bind:amount={toAmount}
+			coin={$SendTxDetails.toCoin}
+			network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}
+			{maxField}
+			connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
+				? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
+				: undefined}
+		/>
+	</div>
+
+	<div class="section">
+		<span class="sm-caption">Memo (optional)</span>
+		<input
+			bind:value={memo}
+			maxlength="300"
+			onchange={() => {
+				$SendTxDetails.memo = memo;
 			}}
 		/>
-
-		{#if isSwap}
-			<SwapOptions bind:toAmount bind:fromSwapAmount />
-		{/if}
-		{#if toSelf}
-			<p class="error to-self-error">
-				Cannot transfer currency to yourself on the same network. Please select a different
-				recipient or network.
-			</p>
-		{/if}
 	</div>
-</div>
-
-<div class="section">
-	<span class="sm-caption">Amount</span>
-	<AmountInput
-		bind:amount={toAmount}
-		coin={$SendTxDetails.toCoin}
-		network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}
-		{maxField}
-		connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
-			? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
-			: undefined}
-	/>
-</div>
-
-<div class="section">
-	<span class="sm-caption">Memo (optional)</span>
-	<input
-		bind:value={memo}
-		maxlength="300"
-		onchange={() => {
-			$SendTxDetails.memo = memo;
-		}}
-	/>
-</div>
+{/if}
 
 <style lang="scss">
 	.section {
@@ -386,6 +431,12 @@
 	.sm-caption {
 		&.gap {
 			padding-top: 1rem;
+		}
+	}
+
+	.contact-external-wrapper:not(:has(:global(.dialog-list-header))) {
+		.back-button {
+			display: none;
 		}
 	}
 </style>

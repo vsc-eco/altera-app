@@ -68,7 +68,6 @@
 	onclick={() => {
 		if (edit) edit();
 	}}
-	disabled={basic}
 >
 	<div class={['name-card', { padded: !basic }]}>
 		{#if loading}

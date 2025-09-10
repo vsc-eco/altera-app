@@ -134,9 +134,9 @@
 		cursor: pointer;
 		display: flex;
 		align-items: center;
-		color: var(--fg-accent-shifted);
+		color: var(--neutral-fg-accent-shifted);
 		&:hover {
-			color: var(--fg-accent);
+			color: var(--neutral-fg-accent);
 		}
 		&:active {
 			color: var(--fg);

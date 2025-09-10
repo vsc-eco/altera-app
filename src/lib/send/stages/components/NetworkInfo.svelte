@@ -6,12 +6,14 @@
 		network,
 		lastPaid,
 		disabledMemo,
-		size = 'small'
+		size = 'small',
+		hideDetails = false
 	}: {
 		network: IntermediaryNetwork | Network;
 		lastPaid?: string;
 		disabledMemo?: string;
 		size?: 'small' | 'medium' | 'large';
+		hideDetails?: boolean;
 	} = $props();
 	const numAssets = $derived.by(() => {
 		const coins = networkMap.get(network.value);
@@ -25,6 +27,7 @@
 	});
 	let display = $derived.by(() => {
 		if (disabledMemo) return [disabledMemo];
+		if (hideDetails) return [];
 		let result = [numAssets];
 		if (lastPaid) {
 			result.push(`Last paid ${lastPaid}`);
@@ -39,12 +42,7 @@
 		alt={network.label}
 		class={{ medium: size === 'medium', large: size === 'large', gray: disabledMemo !== undefined }}
 	/>
-	<InfoSegment
-		label={network.label}
-		{display}
-		disabled={disabledMemo !== undefined}
-		{size}
-	/>
+	<InfoSegment label={network.label} {display} disabled={disabledMemo !== undefined} {size} />
 </div>
 
 <style>

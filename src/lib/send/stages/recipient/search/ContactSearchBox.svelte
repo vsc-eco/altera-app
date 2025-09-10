@@ -25,7 +25,7 @@
 		type ContactObj
 	} from '../../components/SendSnippets.svelte';
 	import { getRecentContacts } from '$lib/send/sendUtils';
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
 	import { untrack, type Snippet } from 'svelte';
 	import Divider from '$lib/components/Divider.svelte';
@@ -34,11 +34,13 @@
 	let {
 		value = $bindable(),
 		selectedContact = $bindable(),
-		enableContacts = true
+		enableContacts = true,
+		placeholder = 'Search for contact or address'
 	}: {
 		value: string;
 		selectedContact?: Contact | undefined;
 		enableContacts?: boolean;
+		placeholder?: string;
 	} = $props();
 
 	const auth = $derived(getAuth()());
@@ -319,7 +321,7 @@
 		},
 		openOnClick: enableContacts,
 		allowCustomValue: true,
-		placeholder: 'Search for contact or address'
+		placeholder: placeholder
 	});
 
 	const api = $derived(combobox.connect(service, normalizeProps));

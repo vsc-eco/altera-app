@@ -207,10 +207,11 @@
 			api.setStep(stepsData.length - 1);
 		}
 	});
+	let hideNav = $state(false);
 </script>
 
 {#snippet options(value: string)}
-	<SelectOptions id={value} {editStage} />
+	<SelectOptions id={value} {editStage} bind:hideNav />
 {/snippet}
 
 {#snippet review()}
@@ -232,7 +233,9 @@
 				{/each}
 			</div>
 		{/key}
-		<SendNavButtons {buttons} small={true} />
+		{#if !hideNav}
+			<SendNavButtons {buttons} small={true} />
+		{/if}
 	{/snippet}
 </Dialog>
 

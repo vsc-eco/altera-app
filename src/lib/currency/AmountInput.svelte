@@ -389,7 +389,7 @@
 			label {
 				margin: 0;
 				position: absolute;
-				right: calc(100% + 0.5rem);
+				left: calc(100% + 0.5rem);
 				transform: translateY(-30%);
 				color: inherit;
 			}

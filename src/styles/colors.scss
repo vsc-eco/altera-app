@@ -18,7 +18,7 @@
 	--middle-purple: oklch(0.272 0.086 300);
 	--dark-purple: oklch(0.188 0.0716 291);
 }
-$color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 98, 99;
+$color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 97, 98;
 :root {
 	@include color-mixins.oklch-palette($color-nums, 'salmon', 0.4, 45, 0.1, 0);
 	@include color-mixins.oklch-palette($color-nums, 'teal', 0.2, 170, 0.02, 250);

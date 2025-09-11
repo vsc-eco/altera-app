@@ -5,7 +5,7 @@
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';
 	import { accountBalance, type AccountBalance } from './stores/currentBalance';
 	import moment from 'moment';
-	import InfoToolip from './components/InfoToolip.svelte';
+	import InfoToolip from './components/InfoTooltip.svelte';
 
 	type Props = {
 		did: string;

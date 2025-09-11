@@ -2,6 +2,7 @@
 	import ConsensusStakeModal from './ConsensusStakeModal.svelte';
 	import ConsensusUnstakeModal from './ConsensusUnstakeModal.svelte';
 	import { getAuth } from '$lib/auth/store';
+	import StakeUnstakeTabsModal from './StakeUnstakeTabsModal.svelte';
 	let auth = $derived(getAuth()());
 </script>
 
@@ -13,13 +14,11 @@
 
 <div>
 	{#if auth.value == undefined || auth.value.username != undefined}
-		<ConsensusStakeModal />
-		<ConsensusUnstakeModal />
+		<StakeUnstakeTabsModal />
 	{:else}
 		<p class="error">
-			Consensus staking with an EVM wallet is unsupported. Please <a href="/logout"
-				>logout</a
-			> and login with a hive account instead.
+			Consensus staking with an EVM wallet is unsupported. Please <a href="/logout">logout</a> and login
+			with a hive account instead.
 		</p>
 	{/if}
 </div>

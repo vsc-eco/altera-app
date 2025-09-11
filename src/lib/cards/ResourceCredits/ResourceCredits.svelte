@@ -6,7 +6,7 @@
 	import type { Manabar } from '@hiveio/dhive/lib/chain/rc';
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
-	import InfoToolip from '$lib/components/InfoToolip.svelte';
+	import InfoToolip from '$lib/components/InfoTooltip.svelte';
 	let { username, isHive }: { username: string | undefined; isHive: boolean } = $props();
 
 	let rc: Manabar | null = $state(null);
@@ -115,7 +115,7 @@
 						<Progress
 							boundaries={{ min: 0, max: rc?.max_mana ?? 0 }}
 							currentValue={rc ? Math.min(rc.current_mana, rc.max_mana) : null}
-							colorVar="--secondary-fg-mid"
+							theme="secondary"
 							timerLabel={hiveRegenTime && hiveRegenTime.asSeconds() > 0
 								? `Full in ${durationToString(hiveRegenTime)}`
 								: undefined}

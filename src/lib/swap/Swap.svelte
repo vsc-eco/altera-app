@@ -187,8 +187,6 @@
 {/snippet}
 
 <div class="swap-internal-wrapper">
-	<!-- <SendTitle close={() => goto('/')} /> -->
-
 	{#key sessionId}
 		<div {...api.getRootProps()}>
 			{#each stepsData as step, index}
@@ -199,13 +197,7 @@
 		</div>
 	{/key}
 
-	<!-- <SendNavButtons {buttons} small /> -->
 	<SwapNavButtons {buttons} />
-	<!-- <div class="buttons">
-		{#if api.value === 0}
-			<PillButton onclick={next} theme="primary" styleType="invert">Review Swap</PillButton>
-		{/if}
-	</div> -->
 </div>
 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
@@ -276,40 +268,6 @@
 		display: flex;
 		flex-direction: column;
 		font: inherit;
-	}
-	[data-part='trigger'] {
-		font: inherit;
-		background: none;
-		border: none;
-		padding: 0;
-		margin: 0rem 0.25rem;
-		cursor: pointer;
-		text-align: left;
-		border-left: 2px solid var(--neutral-bg-accent);
-		padding: 0.5rem 1rem;
-		color: var(--fg);
-		text-wrap: nowrap;
-		box-sizing: border-box;
-		text-decoration: none;
-
-		&:hover {
-			border-color: var(--neutral-bg-accent-shifted);
-		}
-		&[data-visited='false'] {
-			cursor: default;
-			pointer-events: none;
-		}
-		&[data-complete] {
-			border-color: var(--primary-bg-accent);
-			pointer-events: auto;
-			cursor: pointer;
-		}
-		&[data-current] {
-			border-color: var(--accent-mid);
-			&:hover {
-				cursor: default;
-			}
-		}
 	}
 	[data-part='content'] {
 		margin: auto;

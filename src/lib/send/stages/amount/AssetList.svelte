@@ -145,7 +145,7 @@
 				}
 			}
 			&[data-part='item'][data-selected] {
-				background-color: var(--green-bg-accent);
+				background-color: var(--quaternary-bg-accent-shifted);
 			}
 		}
 		[data-part='item'][data-disabled] {

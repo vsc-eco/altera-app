@@ -1,4 +1,6 @@
-$color-nums: 15, 20, 25, 30, 40, 50, 60, 80, 90, 98, 99;
+$color-light-nums: 15, 20, 25, 30, 40, 50, 60, 80, 90, 97, 98;
+$color-dark-nums: 20, 25, 30, 35, 45, 55, 70, 80, 90, 95, 97;
+// $color-nums-gray: 25, 35, 40, 45, 50, 55, 65, 80, 90, 95, 98;
 $color-dark-shade-names:
 	bg, off-bg, bg-accent, bg-accent-shifted, bg-mid, mid, fg-mid, fg-accent-shifted, fg-accent,
 	off-fg, fg;
@@ -19,9 +21,17 @@ $color-light-shade-names:
 	--#{$name}-#{$shade-name}: var(--#{$color-name}-#{$padded});
 }
 
-@mixin colors($color-name, $name, $shade-names) {
-	@for $i from 1 through list.length($color-nums) {
-		$num: list.nth($color-nums, $i);
+@mixin colors($color-name, $name, $shade-names, $custom-nums: null) {
+	@if $custom-nums == null {
+		@if $shade-names == $color-dark-shade-names {
+			$custom-nums: $color-dark-nums;
+		} @else {
+			$custom-nums: $color-light-nums;
+		}
+	}
+
+	@for $i from 1 through list.length($custom-nums) {
+		$num: list.nth($custom-nums, $i);
 		$shade-name: list.nth($shade-names, $i);
 		@include color($color-name, $name, $num, $shade-name);
 	}
@@ -35,7 +45,7 @@ $color-light-shade-names:
 	} @else {
 		--#{$name}-fg: var(--#{$name}-60);
 		--#{$name}-bg: var(--#{$name}-40);
-		--#{$name}-bg-accent: var(--#{$name}-20);
+		--#{$name}-bg-accent: var(--#{$name}-25);
 	}
 }
 
@@ -46,15 +56,45 @@ $color-light-shade-names:
 	}
 }
 
-@mixin oklch-palette($color-nums, $name, $c-start, $h-start, $c-end: $l-start, $h-end: $h-start) {
-	$total-c-delta: ($c-end - $c-start);
+@mixin oklch-palette(
+	$color-nums,
+	$name,
+	$c-start,
+	$h-start,
+	$c-end: $c-start,
+	$h-end: $h-start,
+	$c-peak: null,
+	$peak-position: 0.5
+) {
 	$total-h-delta: ($h-end - $h-start);
+
 	@for $i from 1 through list.length($color-nums) {
 		$num: list.nth($color-nums, $i);
-		$num-percent: #{math.div($num, 100)};
+		$num-percent: math.div($num, 100);
 		$padded: string.slice(string.insert('#{$num}', '0', 0), -2);
-		$c: math.div($num, 100) * $total-c-delta;
-		$h: math.div($num, 100) * $total-h-delta;
-		--#{$name}-#{$padded}: oklch(#{math.div($num, 100)} #{$c_start + $c} #{$h-start + $h});
+
+		// Calculate hue (unchanged)
+		$h: $num-percent * $total-h-delta;
+		$c: 0;
+
+		// Calculate chroma with curve if peak is specified
+		@if $c-peak != null {
+			// Create a curve: low -> peak -> low
+			$distance-from-peak: abs($num-percent - $peak-position);
+			$max-distance: math.max($peak-position, 1 - $peak-position);
+			$curve-factor: 1 - math.div($distance-from-peak, $max-distance);
+
+			@if $num-percent <= $peak-position {
+				$c: $c-start + ($c-peak - $c-start) * math.div($num-percent, $peak-position);
+			} @else {
+				$remaining: 1 - $peak-position;
+				$progress: math.div($num-percent - $peak-position, $remaining);
+				$c: $c-peak + ($c-end - $c-peak) * $progress;
+			}
+		} @else {
+			$total-c-delta: ($c-end - $c-start);
+			$c: $c-start + $num-percent * $total-c-delta;
+		}
+		--#{$name}-#{$padded}: oklch(#{math.div($num, 100)} #{$c} #{$h-start + $h});
 	}
 }

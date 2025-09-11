@@ -18,7 +18,7 @@
 	type Props = {
 		tx: TransactionInter;
 		op: TransactionOpType;
-		onRowClick: (op: [string, number], content: Snippet) => void;
+		onRowClick: (op: [string, number], content: () => ReturnType<Snippet>) => void;
 	};
 	let { tx, op, onRowClick }: Props = $props();
 

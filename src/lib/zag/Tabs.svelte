@@ -4,7 +4,12 @@
 	import type { Snippet } from 'svelte';
 	import { getUniqueId } from './idgen';
 	type Props = {
-		items: { value: string; label: string; disabled?: boolean; content: Snippet }[];
+		items: {
+			value: string;
+			label: string;
+			disabled?: boolean;
+			content: () => ReturnType<Snippet>;
+		}[];
 		defaultValue?: string;
 		activeTab?: string | null;
 	};
@@ -65,7 +70,7 @@
 			align-items: center;
 			margin-bottom: 0.5rem;
 			padding: 0.5rem 1rem;
-			border-radius: 0.5rem;
+			border-radius: 0.25rem;
 			color: var(--neutral-fg);
 			text-decoration: none;
 			transition: transform 0.05s;

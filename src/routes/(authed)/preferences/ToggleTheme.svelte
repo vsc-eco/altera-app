@@ -46,7 +46,6 @@
 	</div>
 {/snippet}
 
-<h2>Theme</h2>
 <Select
 	items={themeItems}
 	initial={THEMES[getInitialTheme()].value}

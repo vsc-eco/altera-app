@@ -603,7 +603,7 @@
 			width: fit-content;
 		}
 		.up {
-			color: var(--green-fg);
+			color: var(--quaternary-mid);
 		}
 		.down {
 			color: var(--secondary-fg-mid);

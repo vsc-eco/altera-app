@@ -330,6 +330,10 @@
 		display: flex;
 		flex-direction: column;
 		height: 100vh;
+		:global(h2) {
+			margin-bottom: 1rem !important;
+			margin-top: 0 !important;
+		}
 	}
 	[data-part='root'] {
 		flex-grow: 1;
@@ -372,7 +376,7 @@
 			cursor: pointer;
 		}
 		&[data-current] {
-			border-color: var(--accent-mid);
+			border-color: var(--primary-mid);
 			&:hover {
 				cursor: default;
 			}
@@ -405,9 +409,5 @@
 		border-top: 1px solid var(--neutral-bg-accent);
 		display: flex;
 		justify-content: center;
-	}
-	:global(h2) {
-		margin-bottom: 1rem !important;
-		margin-top: 0 !important;
 	}
 </style>

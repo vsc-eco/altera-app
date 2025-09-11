@@ -32,7 +32,7 @@
 		color: var(--neutral-off-fg);
 	}
 	.amount.green {
-		color: var(--green-fg);
+		color: var(--quaternary-mid);
 	}
 	td:has(.amount) {
 		padding-right: 0.5rem;

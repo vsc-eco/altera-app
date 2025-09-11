@@ -37,6 +37,8 @@
 	.dot {
 		width: var(--width);
 		animation: wave var(--duration) ease-in-out infinite;
+		display: flex;
+		justify-content: center;
 	}
 
 	@keyframes wave {

@@ -22,7 +22,7 @@
 			<div class="to-amount">
 				<AmountInput
 					bind:amount={fromSwapAmount}
-					coin={$SendTxDetails.fromCoin}
+					coinOpt={$SendTxDetails.fromCoin}
 					network={$SendTxDetails.fromNetwork}
 					connectedCoinAmount={$SendTxDetails.toCoin
 						? new CoinAmount(toAmount, $SendTxDetails.toCoin.coin)

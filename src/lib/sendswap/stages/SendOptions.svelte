@@ -348,7 +348,7 @@
 		<div class="inputs">
 			<AmountInput
 				bind:amount={fromAmount}
-				coin={$SendTxDetails.fromCoin}
+				coinOpt={$SendTxDetails.fromCoin}
 				network={$SendTxDetails.fromNetwork}
 				maxAmount={max}
 				connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
@@ -357,7 +357,7 @@
 			<Link2 />
 			<AmountInput
 				bind:amount={inUsd}
-				coin={{
+				coinOpt={{
 					coin: coins.usd,
 					networks: []
 				}}

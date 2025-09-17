@@ -11,7 +11,7 @@
 	let {
 		amount = $bindable(),
 		connectedCoinAmount,
-		coin,
+		coinOpt,
 		network,
 		maxAmount,
 		minAmount,
@@ -20,7 +20,7 @@
 	}: {
 		amount: string;
 		connectedCoinAmount?: CoinAmount<Coin>;
-		coin: CoinOptions['coins'][number] | undefined;
+		coinOpt: CoinOptions['coins'][number] | undefined;
 		network: Network | undefined;
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
@@ -43,7 +43,7 @@
 		amount = maxAmount?.toAmountString() ?? '0';
 	}
 
-	let decimals = $derived(coin?.coin.decimalPlaces ?? 2);
+	let decimals = $derived(coinOpt?.coin.decimalPlaces ?? 2);
 	let min = $state<number>();
 	let max = $state<number>();
 	$effect(() => {
@@ -91,11 +91,13 @@
 	);
 
 	let showUsd = $derived(
-		!(connectedCoinAmount?.coin.value === coins.usd.value || coin?.coin.value === coins.usd.value)
+		!(
+			connectedCoinAmount?.coin.value === coins.usd.value || coinOpt?.coin.value === coins.usd.value
+		)
 	);
 
 	$effect(() => {
-		if (connectedCoinAmount && coin) {
+		if (connectedCoinAmount && coinOpt) {
 			untrack(() => {
 				if (!lastConnected) {
 					lastConnected = connectedCoinAmount;
@@ -105,8 +107,11 @@
 					return;
 				}
 				Promise.all([
-					connectedCoinAmount.convertTo(coin.coin, Network.lightning),
-					new CoinAmount(amount, coin.coin).convertTo(connectedCoinAmount.coin, Network.lightning)
+					connectedCoinAmount.convertTo(coinOpt.coin, Network.lightning),
+					new CoinAmount(amount, coinOpt.coin).convertTo(
+						connectedCoinAmount.coin,
+						Network.lightning
+					)
 				]).then(([connectedInThis, thisInConnected]) => {
 					if (thisInConnected.toString() === connectedCoinAmount.toString()) {
 						return;
@@ -120,7 +125,7 @@
 		}
 	});
 	$effect(() => {
-		const newCoinOpt = coin;
+		const newCoinOpt = coinOpt;
 		if (!newCoinOpt) {
 			if (currentCoin !== coins.unk) {
 				currentCoin = coins.unk;
@@ -193,12 +198,12 @@
 			</span>
 		</label>
 		<div class="amount-input">
-			{#if coin?.coin.value === coins.usd.value}
+			{#if coinOpt?.coin.value === coins.usd.value}
 				<DollarSign />
 			{:else}
 				<CoinNetworkIcon
 					coin={currentCoin}
-					network={coin ? (network ?? Network.unknown) : Network.unknown}
+					network={coinOpt ? (network ?? Network.unknown) : Network.unknown}
 				/>
 			{/if}
 			{#key [currentCoin, debouncedMax, min]}
@@ -223,10 +228,10 @@
 				<span class="error">
 					{error}
 				</span>
-			{:else if showUsd && coin && amount !== '0'}
+			{:else if showUsd && coinOpt && amount !== '0'}
 				<span class="approx-usd">
 					Approx. USD value:
-					{#if coin?.coin.value != Coin.unk.value}
+					{#if coinOpt?.coin.value != Coin.unk.value}
 						${inUsd}
 					{:else}
 						Unknown
@@ -239,7 +244,7 @@
 	<div class="big-wrapper">
 		<div class="amount-input">
 			<label for={id}>
-				{coin?.coin.label}
+				{coinOpt?.coin.label}
 			</label>
 			{#key [currentCoin, debouncedMax, min]}
 				<BigInput bind:amount bind:inputId={id} {decimals} {min} />

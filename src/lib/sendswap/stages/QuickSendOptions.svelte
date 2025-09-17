@@ -17,7 +17,6 @@
 	import swapOptions, { Coin, Network, networkMap, SendAccount } from '../utils/sendOptions';
 	import Select from '$lib/zag/Select.svelte';
 	import { assetCard, networkCard } from '../components/info/SendSnippets.svelte';
-	import SwapOptions from './SwapOptions.svelte';
 	import { untrack } from 'svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import RecipientCard from '../components/RecipientCard.svelte';
@@ -247,11 +246,6 @@
 
 	// RECIPIENT SECTION
 	let isValidHive = $state(false);
-	let lastPaid = $state('Never');
-	$effect(() => {
-		if (!auth.value) return;
-		getLastPaidContact(toDid).then((paid) => (lastPaid = momentToLastPaidString(paid)));
-	});
 	let contactOpen = $state(false);
 	$effect(() => {
 		hideNav = contactOpen;
@@ -390,7 +384,7 @@
 		<label for={inputId} class="sm-caption">Amount</label>
 		<AmountInput
 			bind:amount={toAmount}
-			coin={$SendTxDetails.toCoin}
+			coinOpt={$SendTxDetails.toCoin}
 			network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}
 			{maxAmount}
 			connectedCoinAmount={$SendTxDetails.fromCoin && isSwap

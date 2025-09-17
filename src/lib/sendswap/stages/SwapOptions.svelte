@@ -341,7 +341,7 @@
 		<div class="amount-input">
 			<AmountInput
 				bind:amount={inputAmount}
-				coin={shownCoin}
+				coinOpt={shownCoin}
 				network={$SendTxDetails.toNetwork}
 				styleType="big"
 				{minAmount}

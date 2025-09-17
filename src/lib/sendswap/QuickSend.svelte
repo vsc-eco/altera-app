@@ -1,13 +1,7 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { getUniqueId } from '$lib/zag/idgen';
-	import {
-		blankDetails,
-		getDisplayName,
-		getTxSessionId,
-		send,
-		SendTxDetails
-	} from './utils/sendUtils';
+	import { blankDetails, getTxSessionId, send, SendTxDetails } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
 	import ReviewSend from './stages/ReviewSend.svelte';
 	import * as steps from '@zag-js/steps';
@@ -121,7 +115,6 @@
 	const id = getUniqueId();
 	const service = useMachine(steps.machine, {
 		id,
-		orientation: 'vertical',
 		// linear: true,
 		count: stepsData.length - 1
 	});

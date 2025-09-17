@@ -28,17 +28,14 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import AssetInfo from '../components/info/AssetInfo.svelte';
 	import EditButton from '$lib/components/EditButton.svelte';
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import Divider from '$lib/components/Divider.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
-	import Card from '$lib/cards/Card.svelte';
 
 	let {
 		id,
@@ -161,15 +158,6 @@
 	});
 
 	let fromCoinValue = $state('');
-
-	const maxField: BalanceOption | undefined = $derived.by(() => {
-		if (isSwap || $SendTxDetails.fromNetwork?.value !== Network.vsc.value) return;
-		const fromCoin = $SendTxDetails.fromCoin?.coin;
-		if (!fromCoin) return undefined;
-		if (isValidBalanceField(fromCoin.value)) {
-			return fromCoin.value as BalanceOption;
-		}
-	});
 
 	let fromAmount = $state('');
 	let inUsd = $state('');
@@ -351,7 +339,7 @@
 		<div class="inputs">
 			<AmountInput
 				bind:amount={fromAmount}
-				coin={$SendTxDetails.fromCoin}
+				coinOpt={$SendTxDetails.fromCoin}
 				network={$SendTxDetails.fromNetwork}
 				maxAmount={max}
 				connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
@@ -360,7 +348,7 @@
 			<Link2 />
 			<AmountInput
 				bind:amount={inUsd}
-				coin={{
+				coinOpt={{
 					coin: coins.usd,
 					networks: []
 				}}

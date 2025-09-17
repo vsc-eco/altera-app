@@ -38,12 +38,14 @@
 
 	function setErrors(amt: number) {
 		if (amt < min) {
-			error = `Amount must be at least ${min}`;
+			error = `Amount must be at least ${min.toFixed(decimals)}`;
 		} else if (amt > max) {
 			error = 'Amount exceeds available balance';
 		}
 	}
 	$effect(() => {
+		max;
+		min;
 		if (amount) setErrors(Number(amount));
 	});
 

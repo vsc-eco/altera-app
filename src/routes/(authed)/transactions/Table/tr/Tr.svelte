@@ -9,7 +9,7 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 	import { untrack, type Snippet } from 'svelte';
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
 	import {
 		getTimestamp,
@@ -97,7 +97,7 @@
 			if (tx.status != status) {
 				tx = { ...tx, status };
 				if (['CONFIRMED', 'FAILED'].includes(status)) {
-					addNotification(tx);
+					addNotification({ ...tx, read: false });
 				}
 			}
 		});

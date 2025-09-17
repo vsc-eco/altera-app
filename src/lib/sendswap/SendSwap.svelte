@@ -204,7 +204,7 @@
 	});
 
 	$effect(() => {
-		if (status.message.includes('cancelled')) {
+		if (status.message.includes('cancel')) {
 			waiting = false;
 		}
 	});
@@ -240,7 +240,7 @@
 	<Complete {txId} type="swap" />
 {/snippet}
 
-<div class="swap-internal-wrapper">
+<div class="send-internal-wrapper">
 	{#key sessionId}
 		<div {...api.getRootProps()}>
 			{#each stepsData as step, index}
@@ -305,7 +305,7 @@
 {/if}
 
 <style lang="scss">
-	.swap-internal-wrapper {
+	.send-internal-wrapper {
 		display: flex;
 		flex-direction: column;
 		height: 100%;

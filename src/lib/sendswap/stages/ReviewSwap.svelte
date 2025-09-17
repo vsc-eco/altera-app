@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { getDidFromUsername } from '$lib/getAccountName';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
@@ -57,19 +56,6 @@
 		});
 	});
 	let today = moment().format('MMM D, YYYY');
-
-	let fromNetwork = $derived.by(() => {
-		if ($SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value) {
-			return `Deposit from ${$SendTxDetails.fromNetwork.label}`;
-		}
-		if ($SendTxDetails.fromNetwork?.value === Network.lightning.value) {
-			return `Swap from ${$SendTxDetails.fromNetwork.label}`;
-		}
-		return $SendTxDetails.fromNetwork?.label ?? 'UNK';
-	});
-	let toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
-
-	// $inspect(waiting);
 </script>
 
 <h2>Review</h2>
@@ -105,9 +91,13 @@
 						<td class="icon"><Dot size="32" /></td>
 						<td class="sm-caption label">Fee</td>
 						<td class="content">
-							{$SendTxDetails.fee?.toPrettyString()}
-							<EqualApproximately size={16} />
-							{feeInUsd?.toPrettyString()}
+							{#if !$SendTxDetails.fee || !feeInUsd}
+								<div class="fee-loading"><WaveLoading /></div>
+							{:else}
+								{$SendTxDetails.fee.toPrettyString()}
+								<EqualApproximately size={16} />
+								{feeInUsd.toPrettyString()}
+							{/if}
 						</td>
 					</tr>
 					<tr>
@@ -257,6 +247,11 @@
 		:global(.lucide-equal-approximately) {
 			min-width: 16px;
 		}
+	}
+	.fee-loading {
+		height: 20px;
+		display: flex;
+		align-items: center;
 	}
 	li {
 		display: flex;

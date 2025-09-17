@@ -1,21 +1,21 @@
 <script lang="ts">
+	import { getAuth } from '$lib/auth/store';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { getUniqueId } from '$lib/zag/idgen';
+	import { untrack } from 'svelte';
+	import DepositOptions from './stages/deposit/DepositOptions.svelte';
+	import { Coin, Network, type NecessarySendDetails, type SendDetails } from './utils/sendOptions';
 	import { blankDetails, getTxSessionId, send, SendTxDetails } from './utils/sendUtils';
-	import Complete from './stages/Complete.svelte';
-	import ReviewSend from './stages/ReviewSend.svelte';
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import { getAuth } from '$lib/auth/store';
-	import QuickSendNavButtons from './components/QuickSendNavButtons.svelte';
-	import { untrack } from 'svelte';
-	import { Coin, Network, TransferMethod, type NecessarySendDetails } from './utils/sendOptions';
 	import { getIntermediaryNetwork } from './utils/getNetwork';
+	import ReviewDeposit from './stages/deposit/ReviewDeposit.svelte';
+	import Complete from './stages/Complete.svelte';
+	import QuickSendNavButtons from './components/QuickSendNavButtons.svelte';
 	import { sleep } from 'aninest';
-	import V4VPopup from './V4VPopup.svelte';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
+	import V4VPopup from './V4VPopup.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import QuickSendOptions from './stages/QuickSendOptions.svelte';
 
 	let {
 		dialogOpen = $bindable(),
@@ -30,30 +30,35 @@
 	const auth = $derived(getAuth()());
 
 	let resetInput = $state(0);
-
-	function quickDetails() {
+	function startDetails(): SendDetails {
 		return {
 			...blankDetails(),
-			fromNetwork: Network.vsc,
-			toNetwork: Network.vsc,
-			method: TransferMethod.vscTransfer
+			toNetwork: Network.vsc
 		};
 	}
-
 	$effect(() => {
-		const _ = sessionId;
-		// set defaults for quicksend
-		SendTxDetails.set(quickDetails());
-		untrack(() => resetInput++);
+		sessionId;
+		SendTxDetails.set(startDetails());
+		untrack(() => {
+			if (auth.value) {
+				const username = getUsernameFromAuth(auth);
+				if (username) $SendTxDetails.toUsername = username;
+			}
+			if (txId) {
+				txId = '';
+			}
+			api.setStep(0);
+			resetInput++;
+		});
 	});
 
+	// SENDING
 	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
 	let txId = $state('');
 	function setStatus(s: string, isError = false) {
 		status = { message: s, isError: isError };
 	}
 
-	// SENDING
 	let showV4VModal = $state.raw(false);
 	function openV4V() {
 		showV4VModal = false;
@@ -115,7 +120,7 @@
 		{ value: 'complete', label: 'Review', content: complete }
 	];
 
-	const id = getUniqueId();
+	const id = $props.id();
 	const service = useMachine(steps.machine, {
 		id,
 		// linear: true,
@@ -123,45 +128,10 @@
 	});
 	const api = $derived(steps.connect(service, normalizeProps));
 
-	$effect(() => {
-		const _ = sessionId;
-		untrack(() => {
-			if (txId) {
-				txId = '';
-			}
-			api.setStep(0);
-		});
-	});
-
-	let isDoneInstructions = $derived(
-		auth.value?.provider === 'reown' &&
-			$SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value &&
-			api.value === 1
-	);
-
-	let stage = new Set<string>(['review']);
-	let stepComplete = $state(false);
-	function editStage(id: string, add: boolean) {
-		if (add) {
-			stage.add(id);
-		} else {
-			stage.delete(id);
-		}
-		for (const val of stage) {
-			let i = stepsData.findIndex((step) => step.value === val);
-			if (i === api.value) {
-				stepComplete = true;
-				return;
-			}
-		}
-		stepComplete = false;
-	}
-
 	function next() {
-		if (api.value === api.count || isDoneInstructions) {
+		if (api.value === api.count) {
 			toggle(false);
 		} else if (stepsData[api.value].value === 'review') {
-			editStage(stepsData[stepsData.length - 1].value, true);
 			setStatus('');
 			initSwap();
 		} else {
@@ -177,48 +147,32 @@
 		} else if (api.value === api.count) {
 			api.setStep(0);
 			sessionId = getTxSessionId();
-			SendTxDetails.set(quickDetails());
+			SendTxDetails.set(startDetails());
 		} else {
 			api.goToPrevStep();
 			setStatus('');
 		}
 	}
 
-	const nextLabel = $derived(
-		stepsData[api.value].value === 'review' && !isDoneInstructions
-			? 'Send'
-			: api.value === stepsData.length - 1 || isDoneInstructions
-				? 'Done'
-				: 'Next'
-	);
 	const buttons = $derived({
 		fwd: {
-			label: nextLabel,
-			action: next,
-			disabled: !stepComplete
+			label: 'Deposit',
+			action: next
 		},
 		back: {
 			label: 'Back',
 			action: previous
 		}
 	});
-	$effect(() => {
-		if (txId) {
-			setStatus('');
-			api.setStep(stepsData.length - 1);
-		}
-	});
-	let hideNav = $state(false);
 </script>
 
-{#snippet options(value: string)}
-	<QuickSendOptions id={value} {editStage} bind:hideNav />
+{#snippet options()}
+	<DepositOptions {next} />
 {/snippet}
-
 {#snippet review()}
-	<ReviewSend {status} compact waiting={false} abort={() => {}} />
+	<ReviewDeposit {status} waiting={false} abort={() => {}} />
+	<QuickSendNavButtons {buttons} small={true} />
 {/snippet}
-
 {#snippet complete()}
 	<Complete {txId} close={() => toggle(false)} />
 {/snippet}
@@ -230,15 +184,12 @@
 				{#each stepsData as step, index}
 					<div {...api.getContentProps({ index })} tabindex="-1">
 						{#key resetInput}
-							{@render step.content(step.value)}
+							{@render step.content()}
 						{/key}
 					</div>
 				{/each}
 			</div>
 		{/key}
-		{#if !hideNav}
-			<QuickSendNavButtons {buttons} small={true} />
-		{/if}
 	{/snippet}
 </Dialog>
 
@@ -270,7 +221,7 @@
 					{
 						data: {
 							amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
-							asset: toCoin!.coin.unit.toLowerCase(),
+							asset: toCoin.coin.unit.toLowerCase(),
 							from: `v4vapp`,
 							to: $SendTxDetails.toUsername,
 							memo: `altera_id=${id}`,
@@ -292,6 +243,8 @@
 	/>
 {/if}
 
+<div class="deposit-internal-wrapper"></div>
+
 <style lang="scss">
 	[data-part='root'] {
 		display: flex;
@@ -299,5 +252,8 @@
 	[data-part='content'] {
 		width: 32rem;
 		min-width: min-content;
+		&:focus-visible {
+			outline: none;
+		}
 	}
 </style>

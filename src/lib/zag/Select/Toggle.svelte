@@ -92,11 +92,17 @@
 		border: 1px solid var(--neutral-bg-accent-shifted);
 		background-color: var(--neutral-off-bg);
 		border-radius: 0.5rem;
-		&[data-state='open'] {
+		&[data-state='open'][data-placement='bottom-start'] {
 			box-shadow: 0 -1px inset var(--primary-bg-mid);
 			border-bottom-color: var(--primary-bg-mid);
 			outline: none;
 			border-radius: 0.5rem 0.5rem 0 0;
+		}
+		&[data-state='open'][data-placement='top-start'] {
+			box-shadow: 0 1px inset var(--primary-bg-mid);
+			border-top-color: var(--primary-bg-mid);
+			outline: none;
+			border-radius: 0 0 0.5rem 0.5rem;
 		}
 	}
 	.content {

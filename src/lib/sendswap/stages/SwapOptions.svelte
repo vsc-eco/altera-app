@@ -141,7 +141,7 @@
 		shownIndex = (shownIndex + 1) % possibleCoins.length;
 		shownCoin = possibleCoins[shownIndex];
 	}
-	// for big input
+
 	let inputAmount = $state('');
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin) return;
@@ -158,10 +158,6 @@
 				});
 		}
 	});
-	// end for big input
-	// for double inputs
-	let fromAmount = $state('');
-	let toAmount = $state('');
 
 	$effect(() => {
 		if (!$SendTxDetails.toCoin) return;
@@ -341,7 +337,7 @@
 		<div class="amount-input">
 			<AmountInput
 				bind:amount={inputAmount}
-				coin={shownCoin}
+				coinOpt={shownCoin}
 				network={$SendTxDetails.toNetwork}
 				styleType="big"
 				{minAmount}

@@ -88,7 +88,7 @@
 		// }
 	}
 	[data-part='item'][data-highlighted] {
-		background-color: var(--bg-accent);
+		background-color: var(--highlighted-bg);
 	}
 	.content-spacing.card {
 		display: flex;

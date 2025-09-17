@@ -1,10 +1,9 @@
 <script>
-	import Send from '$lib/send/SendCards.svelte';
-	import Swap from '$lib/swap/Swap.svelte';
+	import SendSwap from '$lib/sendswap/SendSwap.svelte';
 </script>
 
 <document:head>
 	<title>Send</title>
 </document:head>
 
-<Swap />
+<SendSwap type="swap" />

@@ -1,22 +1,10 @@
 <script lang="ts">
-	import { GetTransactionsStore } from '$houdini';
 	import Tr from './tr/Tr.svelte';
-	import { onMount, untrack, type Snippet } from 'svelte';
-	import {
-		allTransactionsStore,
-		vscTxsStore,
-		toTransactionInter,
-		fetchTxs,
-		waitForExtend,
-		getTimestamp
-	} from '$lib/stores/txStores';
+	import { onMount, type Snippet } from 'svelte';
+	import { allTransactionsStore, vscTxsStore, fetchTxs, waitForExtend } from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 	import SidePopup from '$lib/components/SidePopup.svelte';
-	import moment from 'moment';
-	import Type from './tds/Type.svelte';
 	import ContractTr from './tr/ContractTr.svelte';
-	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
 
 	let {
 		did,

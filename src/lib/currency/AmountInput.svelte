@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { Coin, Network, type CoinOptions } from '../send/sendOptions';
+	import { Coin, Network, type CoinOptions } from '../sendswap/utils/sendOptions';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
 	import { type BalanceOption } from '$lib/stores/balanceHistory';
@@ -16,8 +16,9 @@
 		coin,
 		network,
 		maxField,
-		styleType = 'normal',
+		maxAmount,
 		minAmount,
+		styleType = 'normal',
 		buttonAction
 	}: {
 		amount: string;
@@ -25,32 +26,37 @@
 		coin: CoinOptions['coins'][number] | undefined;
 		network: Network | undefined;
 		maxField?: BalanceOption;
-		styleType?: 'normal' | 'big';
+		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
+		styleType?: 'normal' | 'big';
 		buttonAction?: (() => void) | undefined;
 	} = $props();
 
 	let inUsd = $state('');
 	let error = $state('');
-	let currentCoin = $state.raw(Coin.usd);
-	let lastModification = $state.raw(new CoinAmount(amount, Coin.usd));
+	let currentCoin = $state.raw(Coin.unk);
+	let lastModification = $state.raw(new CoinAmount(amount, Coin.unk));
 	// let boundAmount: string = $state('');
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
-	const quiet = $derived(connectedCoinAmount && currentCoin.value === Coin.usd.value);
+	const quiet = $derived(
+		currentCoin.value === Coin.unk.value ||
+			(connectedCoinAmount && currentCoin.value === Coin.usd.value)
+	);
 
-	let maxBalance = $derived.by(() => {
-		if (maxField && coin) {
-			return new CoinAmount($accountBalance.bal[maxField], coin.coin, true).toAmountString();
+	$effect(() => {
+		if (!maxAmount && maxField) {
+			const maxCoin = Object.values(Coin).find((coin) => coin.value === maxField);
+			if (maxCoin) maxAmount = new CoinAmount($accountBalance.bal[maxField], maxCoin, true);
 		}
-		return undefined;
 	});
 
 	function setToMax() {
-		amount = maxBalance ?? '0';
+		amount = maxAmount?.toAmountString() ?? '0';
 	}
 
 	let decimals = $derived(coin?.coin.decimalPlaces ?? 2);
 	let min = $state<number>();
+	let max = $state<number>();
 	$effect(() => {
 		if (!minAmount) {
 			min = undefined;
@@ -70,12 +76,29 @@
 			min = convertTo.toNumber();
 		})();
 	});
+	$effect(() => {
+		if (!maxAmount) {
+			max = undefined;
+			return;
+		}
+		if (maxAmount.coin.value === currentCoin.value) {
+			max = maxAmount.toNumber();
+			return;
+		}
+		(async () => {
+			let convertTo = await maxAmount.convertTo(currentCoin, Network.lightning);
+			let convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
+			while (convertBack.toNumber() > maxAmount.toNumber()) {
+				convertTo = new CoinAmount(convertTo.amount - 1, currentCoin, true);
+				convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
+			}
+			max = convertTo.toNumber();
+		})();
+	});
 
 	let showMax = $derived(
-		maxField !== undefined &&
-			network?.value === Network.vsc.value &&
-			new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toAmountString() !==
-				new CoinAmount(amount ?? 0, currentCoin).toAmountString()
+		maxAmount !== undefined &&
+			maxAmount.toAmountString() !== new CoinAmount(amount ?? 0, currentCoin).toAmountString()
 	);
 
 	let showUsd = $derived(
@@ -110,8 +133,8 @@
 	$effect(() => {
 		const newCoinOpt = coin;
 		if (!newCoinOpt) {
-			if (currentCoin !== coins.usd) {
-				currentCoin = coins.usd;
+			if (currentCoin !== coins.unk) {
+				currentCoin = coins.unk;
 			}
 			return;
 		}
@@ -161,7 +184,7 @@
 
 	let debouncedMax = $state('');
 	$effect(() => {
-		let maxString = maxBalance ?? '';
+		let maxString = maxAmount?.toAmountString() ?? '';
 		if (debouncedMax !== maxString) {
 			debouncedMax = maxString;
 		}
@@ -172,11 +195,11 @@
 	<div class="normal-wrapper">
 		<label for={id}>
 			<span>
-				{#if showMax && maxField}
+				{#if showMax && maxAmount}
 					<span style="white-space: nowrap;">
 						(Balance:
 						<span class="balance-amount">
-							{new CoinAmount($accountBalance.bal[maxField], currentCoin, true).toPrettyString()}
+							{maxAmount.toPrettyString()}
 						</span>)
 					</span>
 				{/if}
@@ -184,10 +207,13 @@
 		</label>
 		<div class={['amount-input', { tall: !!buttonAction }]}>
 			{#snippet icon()}
-				{#if !coin?.coin || coin.coin.value === coins.usd.value}
+				{#if coin?.coin.value === coins.usd.value}
 					<DollarSign />
 				{:else}
-					<CoinNetworkIcon coin={coin?.coin ?? coins.usd} network={network ?? Network.unknown} />
+					<CoinNetworkIcon
+						coin={currentCoin}
+						network={coin ? (network ?? Network.unknown) : Network.unknown}
+					/>
 				{/if}
 			{/snippet}
 			{#if !buttonAction}
@@ -195,22 +221,9 @@
 			{/if}
 			{#key [currentCoin, debouncedMax, min]}
 				{#if quiet}
-					<NumberInput
-						bind:amount
-						bind:inputId={id}
-						max={maxBalance ? Number(maxBalance) : undefined}
-						{decimals}
-						{min}
-					/>
+					<NumberInput bind:amount bind:inputId={id} {max} {decimals} {min} />
 				{:else}
-					<NumberInput
-						bind:amount
-						bind:error
-						bind:inputId={id}
-						max={maxBalance ? Number(maxBalance) : undefined}
-						{decimals}
-						{min}
-					/>
+					<NumberInput bind:amount bind:error bind:inputId={id} {max} {decimals} {min} />
 				{/if}
 			{/key}
 			{#if showMax}
@@ -357,6 +370,7 @@
 			flex-wrap: wrap;
 			text-wrap: wrap;
 			margin-bottom: 0;
+			padding-top: 0.25rem;
 			line-height: 1.2;
 			&.hidden {
 				visibility: hidden;

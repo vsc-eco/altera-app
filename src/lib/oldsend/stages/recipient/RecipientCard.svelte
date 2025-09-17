@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { getAccountNameFromAddress, getDidFromUsername } from '$lib/getAccountName';
-	import { type Contact } from '$lib/send/contacts/contacts';
+	import { type Contact } from '$lib/sendswap/contacts/contacts';
 	import {
 		getLastPaidContact,
 		momentToLastPaidString,
 		SendTxDetails,
 		validateAddress
-	} from '$lib/send/sendUtils';
+	} from '$lib/sendswap/utils/sendUtils';
 	import { CircleUser, Plus } from '@lucide/svelte';
 	import ContactInfo from '../components/ContactInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';

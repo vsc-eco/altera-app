@@ -3,9 +3,9 @@
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getDidFromUsername } from '$lib/getAccountName';
-	import { Coin, Network } from '$lib/send/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
-	import { SendTxDetails } from '$lib/send/sendUtils';
+	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { Dot, EqualApproximately, X } from '@lucide/svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -282,7 +282,7 @@
 		line-height: 1.2;
 	}
 	.waiting-overlay {
-		position: absolute;
+		position: fixed;
 		top: 0;
 		left: 0;
 		right: 0;

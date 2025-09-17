@@ -5,8 +5,8 @@
 	import { Component, LockKeyhole, Send } from '@lucide/svelte';
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';
-	import QuickSend from '$lib/send/quickSend/QuickSend.svelte';
-	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
+	import QuickSend from '$lib/sendswap/QuickSend.svelte';
+	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	let { auth }: { auth: Auth } = $props();
 	type PopupAction = {
 		type: 'popup';

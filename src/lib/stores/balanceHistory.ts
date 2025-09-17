@@ -2,7 +2,7 @@ import moment from 'moment';
 import { writable } from 'svelte/store';
 import { getBlockHeightFromDate } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import { Coin, Network } from '$lib/send/sendOptions';
+import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import config from '../../../houdini.config';
 import { type Point } from '../LineChart.svelte';
 import { type AccountBalance, getDefaultBalance } from './currentBalance';

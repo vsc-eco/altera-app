@@ -1,5 +1,5 @@
 import type { TransferTransaction, DepositTransaction, WithdrawTransaction } from '../eth/client';
-import { Coin, Network } from '$lib/send/sendOptions';
+import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 
 export function getEVMOpType(

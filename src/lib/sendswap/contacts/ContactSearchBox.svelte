@@ -17,14 +17,14 @@
 		searchContactsForAddress,
 		searchForContacts,
 		type Contact
-	} from '$lib/send/contacts/contacts';
+	} from '$lib/sendswap/contacts/contacts';
 	import {
 		basicAccRow,
 		contactCard,
 		contactRecentCard,
 		type ContactObj
-	} from '../../components/SendSnippets.svelte';
-	import { getRecentContacts } from '$lib/send/sendUtils';
+	} from '../components/info/SendSnippets.svelte';
+	import { getRecentContacts } from '$lib/sendswap/utils/sendUtils';
 	import { getAuth } from '$lib/auth/store';
 	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
 	import { untrack, type Snippet } from 'svelte';
@@ -501,7 +501,7 @@
 		padding: 0.5rem;
 	}
 	[data-part='item'][data-highlighted] {
-		background-color: var(--bg-accent);
+		background-color: var(--highlighted-bg);
 	}
 	[data-part='item'][data-disabled] {
 		padding: 0 0.5rem;

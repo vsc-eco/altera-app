@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Network } from '$lib/send/sendOptions';
+	import type { Network } from '$lib/sendswap/sendOptions';
 	import type { UnkCoinAmount } from './CoinAmount';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 

@@ -11,12 +11,12 @@ import swapOptions, {
 	type NecessarySendDetails,
 	type SendDetails
 } from './sendOptions';
-import { authStore, type Auth } from '$lib/auth/store';
+import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
 import { getEVMOpType } from '$lib/vscTransactions/eth';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import type { TransferOperation } from '@hiveio/dhive';
-import { addLocalTransaction } from '../stores/localStorageTxs';
+import { addLocalTransaction } from '../../stores/localStorageTxs';
 import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/eth/client';
 import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 import { wagmiConfig } from '$lib/auth/reown';
@@ -385,7 +385,6 @@ export interface AccountOptionParam extends SendAccount {
 type Constraints = {
 	assetOptions: CoinOptionParam[];
 	networkOptions: NetworkOptionParam[];
-	accountOptions: AccountOptionParam[];
 };
 
 export function optionsEqual<T>(
@@ -483,7 +482,6 @@ export function solveNetworkConstraints(
 	fromCoin: CoinOptions['coins'][number] | undefined,
 	toNetwork: Network | undefined,
 	did: string | undefined,
-	account?: SendAccount,
 	fromNetwork?: Network,
 	allAssets: Boolean = false
 ): Constraints {
@@ -491,35 +489,15 @@ export function solveNetworkConstraints(
 	if (!did)
 		return {
 			assetOptions: [],
-			accountOptions: [],
 			networkOptions: []
 		};
 	const inUseNetworks = [Network.vsc, Network.hiveMainnet, Network.lightning];
-	const allAccountsSet = createSet(Object.values(SendAccount));
 	const allAssetsSet = createSet(swapOptions.from['coins'].map((item) => item.coin));
-	const allNetworksSet = createSet(inUseNetworks);
 
-	// given account: what are the network options
-	// const availableAccounts = method
-	// 	? createSet(getAccountsFromMethod(method, did))
-	// 	: new Set(allAccountsSet);
-	// if (accountOptions?.length === 1) {
-	// 	account = accountOptions[0];
-	// }
 	const networksGivenMethod = createSet(method ? getMethodNetworks(method) : undefined);
 	const networksGivenBoth = createSet(getDidNetworks(did)).intersection(networksGivenMethod);
-	// const networkOptions = combineNetworkOptions(networksGivenMethod, networksGivenBoth, did);
 	const networkOptions = combineNetworkOptions(networksGivenMethod, networksGivenMethod, did);
-	// let accountNetworkOptions: Set<string> = method
-	// 	? createSet(getMethodNetworks(method, did))
-	// 	: createSet([Network.vsc, Network.hiveMainnet]);
 
-	// if (account) {
-	// 	const accountNetworks = createSet(getNetworksFromAccount(account, did) ?? []);
-	// 	accountNetworkOptions = accountNetworkOptions.intersection(accountNetworks);
-	// }
-
-	// asset options based allowed on networks allowed by accounts
 	const assetsGivenMethod = (() => {
 		let result = new Set<string>();
 		for (const net of method ? getMethodNetworks(method) : inUseNetworks) {
@@ -561,7 +539,6 @@ export function solveNetworkConstraints(
 		coinNetworkOptions = coinNetworkOptions.intersection(coinNetworks);
 	}
 
-	// const assetsDisabled =
 	return {
 		assetOptions: combineAssetOptions(
 			allAssets ? allAssetsSet : assetsGivenMethod,
@@ -570,9 +547,28 @@ export function solveNetworkConstraints(
 			toNetwork,
 			fromNetwork
 		),
-		accountOptions: [],
 		networkOptions: networkOptions
 	};
+}
+
+export function solveToNetworks(): Network[] {
+	const txDetails = get(SendTxDetails);
+	const recipientNetworks: Network[] | undefined = txDetails.toUsername
+		? getRecipientNetworks(getDidFromUsername(txDetails.toUsername)).filter((net) => !net.disabled)
+		: undefined;
+	const coinNetworks =
+		txDetails.fromNetwork && txDetails.fromCoin ? txDetails.fromCoin.networks : undefined;
+	const intersection =
+		recipientNetworks && coinNetworks
+			? coinNetworks.filter((net) =>
+					recipientNetworks.map((rnet) => rnet.value).includes(net.value)
+				)
+			: (recipientNetworks ?? coinNetworks ?? []);
+	if (getUsernameFromAuth(getAuth()()) === txDetails.toUsername) {
+		return intersection.filter((net) => net.value !== txDetails.fromNetwork?.value);
+	} else {
+		return intersection;
+	}
 }
 
 export async function send(

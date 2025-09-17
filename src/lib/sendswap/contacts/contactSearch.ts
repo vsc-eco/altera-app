@@ -1,11 +1,11 @@
-import { type Contact } from '$lib/send/contacts/contacts';
-import type { RecipientData } from '$lib/send/sendUtils';
+import { type Contact } from '$lib/sendswap/contacts/contacts';
+import type { RecipientData } from '$lib/sendswap/utils/sendUtils';
 import type { Snippet } from 'svelte';
 import {
 	basicAccRow,
 	contactRecentCard,
 	type ContactObj
-} from '../../components/SendSnippets.svelte';
+} from '../components/info/SendSnippets.svelte';
 import { DHive } from '$lib/vscTransactions/dhive';
 import { getUsernameFromDid } from '$lib/getAccountName';
 

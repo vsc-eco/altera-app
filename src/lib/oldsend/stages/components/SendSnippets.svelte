@@ -15,26 +15,26 @@
 	import { getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
 	import moment from 'moment';
 
-	export interface AssetObject extends Coin {
-		snippetData: { fromOpt: CoinOptionParam | undefined; net?: Network };
-		snippet: typeof assetCardSnippet;
-		disabled?: boolean;
-		disabledMemo?: string;
-	}
-	export interface ContactObj extends Contact {
-		value: string;
-		snippet: typeof contactCardSnippet;
-		snippetData: typeof contactCardSnippet.arguments;
-		edit?: (contact: Contact) => void;
-	}
-	export {
-		assetCardSnippet as assetCard,
-		accountCardSnippet as accountCard,
-		networkCardSnippet as networkCard,
-		contactCardSnippet as contactCard,
-		contactRecentCardSnippet as contactRecentCard,
-		basicAccRowSnippet as basicAccRow
-	};
+	// export interface AssetObject extends Coin {
+	// 	snippetData: { fromOpt: CoinOptionParam | undefined; net?: Network };
+	// 	snippet: typeof assetCardSnippet;
+	// 	disabled?: boolean;
+	// 	disabledMemo?: string;
+	// }
+	// export interface ContactObj extends Contact {
+	// 	value: string;
+	// 	snippet: typeof contactCardSnippet;
+	// 	snippetData: typeof contactCardSnippet.arguments;
+	// 	edit?: (contact: Contact) => void;
+	// }
+	// export {
+	// 	assetCardSnippet as assetCard,
+	// 	accountCardSnippet as accountCard,
+	// 	networkCardSnippet as networkCard,
+	// 	contactCardSnippet as contactCard,
+	// 	contactRecentCardSnippet as contactRecentCard,
+	// 	basicAccRowSnippet as basicAccRow
+	// };
 </script>
 
 {#snippet assetCardSnippet(params: {

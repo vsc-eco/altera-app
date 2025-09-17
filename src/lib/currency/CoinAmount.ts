@@ -1,4 +1,4 @@
-import { Coin, type IntermediaryNetwork } from '$lib/send/sendOptions';
+import { Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
 import { getExchangeRates } from './convert';
 export type UnkCoinAmount = CoinAmount<Coin>;
 export class CoinAmount<C extends Coin> {

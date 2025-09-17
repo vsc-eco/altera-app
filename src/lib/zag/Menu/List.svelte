@@ -34,7 +34,7 @@
 		cursor: pointer;
 	}
 	li[data-highlighted] {
-		background-color: var(--bg-accent);
+		background-color: var(--highlighted-bg);
 	}
 	span {
 		display: flex;

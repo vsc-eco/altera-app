@@ -6,11 +6,11 @@
 		optionsEqual,
 		SendTxDetails,
 		solveNetworkConstraints
-	} from '$lib/send/sendUtils';
-	import { assetCard, type AssetObject } from '$lib/send/stages/components/SendSnippets.svelte';
+	} from '$lib/sendswap/utils/sendUtils';
+	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
-	import AssetInfo from '$lib/send/stages/components/AssetInfo.svelte';
-	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/send/sendOptions';
+	import AssetInfo from '$lib/sendswap/components/info/AssetInfo.svelte';
+	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { ArrowDownRight, ArrowRightLeft, ArrowUpRight, EqualApproximately } from '@lucide/svelte';
@@ -26,7 +26,7 @@
 	import Card from '$lib/cards/Card.svelte';
 	import moment from 'moment';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import SelectAsset from '$lib/send/stages/amount/SelectAsset.svelte';
+	import SelectAssetTiered from '$lib/sendswap/components/assetSelection/SelectAssetTiered.svelte';
 
 	let {
 		id,
@@ -71,28 +71,22 @@
 		}
 	});
 
-	let { assetOptions, accountOptions, networkOptions } = $state<
-		ReturnType<typeof solveNetworkConstraints>
-	>({ assetOptions: [], accountOptions: [], networkOptions: [] });
+	let { assetOptions, networkOptions } = $state<ReturnType<typeof solveNetworkConstraints>>({
+		assetOptions: [],
+		networkOptions: []
+	});
 	$effect(() => {
-		const {
-			assetOptions: newAssetOptions,
-			accountOptions: newAccountOptions,
-			networkOptions: newNetworkOptions
-		} = solveNetworkConstraints(
-			$SendTxDetails.method,
-			$SendTxDetails.fromCoin,
-			$SendTxDetails.toNetwork,
-			auth.value?.did,
-			$SendTxDetails.account,
-			$SendTxDetails.fromNetwork,
-			true
-		);
+		const { assetOptions: newAssetOptions, networkOptions: newNetworkOptions } =
+			solveNetworkConstraints(
+				$SendTxDetails.method,
+				$SendTxDetails.fromCoin,
+				$SendTxDetails.toNetwork,
+				auth.value?.did,
+				$SendTxDetails.fromNetwork,
+				true
+			);
 		if (!optionsEqual(newAssetOptions, assetOptions)) {
 			assetOptions = newAssetOptions;
-		}
-		if (!optionsEqual(newAccountOptions, accountOptions)) {
-			accountOptions = newAccountOptions;
 		}
 		if (!optionsEqual(newNetworkOptions, networkOptions)) {
 			networkOptions = newNetworkOptions;
@@ -294,14 +288,14 @@
 <Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet content()}
 		{#if currentlyOpen === 'from'}
-			<SelectAsset
+			<SelectAssetTiered
 				availableCoins={fromAssetObjs}
 				close={toggle}
 				bind:coin={$SendTxDetails.fromCoin}
 				bind:network={$SendTxDetails.fromNetwork}
 			/>
 		{:else}
-			<SelectAsset
+			<SelectAssetTiered
 				availableCoins={toAssetObjs}
 				close={toggle}
 				bind:coin={$SendTxDetails.toCoin}
@@ -361,27 +355,6 @@
 	</div>
 	<div class={['enter-prompt', 'sm-caption', { hide: !!inputAmount }]}>Enter Amount</div>
 </div>
-<!-- <div class="coin-inputs">
-	<AmountInput
-		bind:amount={fromAmount}
-		coin={$SendTxDetails.fromCoin}
-		network={$SendTxDetails.fromNetwork}
-		connectedCoinAmount={new CoinAmount(toAmount, $SendTxDetails.toCoin?.coin ?? Coin.usd)}
-		buttonAction={() => openSnippet(assetSelection, 'from')}
-	/>
-	<div class="arrow-positioner">
-		<div class="arrow-content">
-			<ChevronsDown size="40" />
-		</div>
-	</div>
-	<AmountInput
-		bind:amount={toAmount}
-		coin={$SendTxDetails.toCoin}
-		network={$SendTxDetails.toNetwork}
-		connectedCoinAmount={new CoinAmount(toAmount, $SendTxDetails.fromCoin?.coin ?? Coin.usd)}
-		buttonAction={() => openSnippet(assetSelection, 'to')}
-	/>
-</div> -->
 {#if possibleCoins.length > 1}
 	<div class="exchange-rates">
 		{#if $SendTxDetails.fromCoin}
@@ -517,34 +490,6 @@
 			}
 		}
 	}
-	// for double .coin-inputsu
-	// .coin-inputs {
-	// 	display: flex;
-	// 	flex-direction: column;
-	// 	.arrow-positioner {
-	// 		z-index: 2;
-	// 		height: 2.5rem;
-	// 		width: 100%;
-	// 		position: relative;
-	// 		.arrow-content {
-	// 			color: var(--primary-fg-mid);
-	// 			position: absolute;
-	// 			left: 50%;
-	// 			top: 50%;
-	// 			translate: -50% -50%;
-	// 			border-radius: 100%;
-	// 			width: 40px;
-	// 			height: 40px;
-	// 			// background-color: var(--neutral-bg-accent);
-	// 			// border: 1px solid var(--neutral-bg-accent-shifted);
-	// 		}
-	// 	}
-	// 	:global(.approx-usd),
-	// 	:global(.error) {
-	// 		display: none;
-	// 	}
-	// }
-
 	.exchange-rates {
 		display: flex;
 		justify-content: center;

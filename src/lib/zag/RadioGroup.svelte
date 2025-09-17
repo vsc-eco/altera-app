@@ -32,8 +32,8 @@
 	let generatedId = getUniqueId();
 	let enabled = $derived(items.filter((item) => !item.disabled));
 	let error = $state('');
-	const options = items.map((item) =>
-		'id' in item ? item : { ...item, id: item.value ?? item.label }
+	const options = $derived(
+		items.map((item) => ('id' in item ? item : { ...item, id: item.value ?? item.label }))
 	);
 	const service = useMachine(radio.machine, {
 		id: id ?? generatedId,
@@ -186,10 +186,10 @@
 		background-color: transparent;
 	}
 
-	[data-part='item'][data-focus] {
-		outline: 2px solid var(--primary-mid);
-		outline-offset: 2px;
-	}
+	// [data-part='item'][data-focus] {
+	// 	outline: 2px solid var(--primary-mid);
+	// 	outline-offset: 2px;
+	// }
 
 	[data-part='item-control'][data-state='checked'] {
 		/* styles for radio checked or unchecked state */

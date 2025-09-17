@@ -16,7 +16,6 @@
 	let showSidebar = $state(false);
 
 	let auth = $derived(getAuth()());
-	let isFullscreen = $derived(['/send'].includes(page.url.pathname));
 	$effect(() => {
 		if (!browser || !auth.value) return;
 		startAccountPolling(auth.value.did);
@@ -58,17 +57,13 @@
 </script>
 
 <div class={['flex', { showSidebar }]}>
-	{#if !isFullscreen}
-		<Sidebar bind:visible={showSidebar}></Sidebar>
-	{/if}
-	<div class={['main', { fullscreen: isFullscreen }]}>
-		{#if !isFullscreen}
-			<Topbar
-				onMenuToggle={() => {
-					showSidebar = !showSidebar;
-				}}
-			></Topbar>
-		{/if}
+	<Sidebar bind:visible={showSidebar}></Sidebar>
+	<div class="main">
+		<Topbar
+			onMenuToggle={() => {
+				showSidebar = !showSidebar;
+			}}
+		></Topbar>
 		<main>
 			{@render children()}
 		</main>
@@ -101,9 +96,6 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
-	}
-	.main.fullscreen {
-		max-width: none;
 	}
 	main {
 		position: relative;

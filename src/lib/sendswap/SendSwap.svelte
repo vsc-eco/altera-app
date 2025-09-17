@@ -7,25 +7,26 @@
 		TransferMethod,
 		type NecessarySendDetails,
 		type SendDetails
-	} from '$lib/send/sendOptions';
-	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/send/sendUtils';
-	import V4VPopup from '$lib/send/V4VPopup.svelte';
+	} from '$lib/sendswap/utils/sendOptions';
+	import { blankDetails, getTxSessionId, send, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import V4VPopup from '$lib/sendswap/V4VPopup.svelte';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import { getUniqueId } from '$lib/zag/idgen';
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { sleep } from 'aninest';
-	import SelectSwap from './SelectSwap.svelte';
-	import SendTitle from '$lib/send/navigation/SendTitle.svelte';
+	import SwapOptions from './stages/SwapOptions.svelte';
+	import PreviewSwap from '$lib/sendswap/stages/ReviewSwap.svelte';
+	import NavButtons from './components/NavButtons.svelte';
 	import { goto } from '$app/navigation';
-	import SendNavButtons from '$lib/send/navigation/SendNavButtons.svelte';
-	import { getIntermediaryNetwork } from '$lib/send/getNetwork';
-	import { onMount, untrack } from 'svelte';
-	import PreviewSwap from './PreviewSwap.svelte';
+	import { getIntermediaryNetwork } from '$lib/sendswap/utils/getNetwork';
+	import { untrack } from 'svelte';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
-	import Complete from '$lib/send/stages/complete/Complete.svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import SwapNavButtons from './SwapNavButtons.svelte';
+	import Complete from '$lib/sendswap/stages/Complete.svelte';
+	import SendOptions from './stages/SendOptions.svelte';
+	import Review from './stages/ReviewSend.svelte';
+
+	const { type }: { type: 'send' | 'swap' } = $props();
 
 	const auth = $derived(getAuth()());
 	let sessionId = $state(getTxSessionId());
@@ -33,36 +34,43 @@
 	let waiting = $state(false);
 	let txId = $state('');
 	let showV4VModal = $state.raw(false);
-	function swapDetails(): SendDetails {
-		return {
-			...blankDetails(),
-			toNetwork: Network.vsc,
-			method: TransferMethod.lightningTransfer
-		};
+	function startDetails(): SendDetails {
+		if (type === 'swap') {
+			return {
+				...blankDetails(),
+				toNetwork: Network.vsc,
+				method: TransferMethod.lightningTransfer
+			};
+		} else {
+			return {
+				...blankDetails(),
+				toNetwork: Network.vsc
+			};
+		}
 	}
-	SendTxDetails.set(swapDetails());
+
+	SendTxDetails.set(startDetails());
 	$effect(() => {
+		// sets username for swap
+		if (type !== 'swap') return;
 		if (auth.value) {
 			const username = getUsernameFromAuth(auth);
 			if (username) $SendTxDetails.toUsername = username;
 		}
 	});
 
-	function openV4V() {
-		showV4VModal = false;
-		sleep(0).then(() => {
-			showV4VModal = true;
-		});
-	}
-	function setStatus(s: string, isError = false) {
-		status = { message: s, isError: isError };
-	}
-
-	const stepsData = [
-		{ value: 'options', label: 'Options', content: select },
-		{ value: 'review', label: 'Review', content: preview },
-		{ value: 'complete', label: 'Review', content: complete }
-	];
+	const stepsData =
+		type === 'swap'
+			? [
+					{ value: 'options', label: 'Options', content: swapOptions },
+					{ value: 'review', label: 'Review', content: swapReview },
+					{ value: 'complete', label: 'Review', content: complete }
+				]
+			: [
+					{ value: 'options', label: 'Options', content: sendOptions },
+					{ value: 'review', label: 'Review', content: sendReview },
+					{ value: 'complete', label: 'Review', content: complete }
+				];
 
 	const id = getUniqueId();
 
@@ -75,7 +83,17 @@
 
 	const api = $derived(steps.connect(service, normalizeProps));
 
-	function initSwap() {
+	function openV4V() {
+		showV4VModal = false;
+		sleep(0).then(() => {
+			showV4VModal = true;
+		});
+	}
+	function setStatus(s: string, isError = false) {
+		status = { message: s, isError: isError };
+	}
+
+	function initSend() {
 		const {
 			fromCoin,
 			fromNetwork,
@@ -108,9 +126,19 @@
 		if (intermediary === Network.lightning) {
 			setStatus('Generating Lightning transfer');
 			openV4V();
-			// waiting = true;
 			return;
 		}
+
+		waiting = true;
+		send(importantDetails, auth, intermediary, setStatus, abortSend.signal).then((res) => {
+			if (res instanceof Error) {
+				// log the error if it isn't caught
+				if (!status.isError) console.error(res.message);
+			} else {
+				txId = res.id;
+			}
+		});
+		return;
 	}
 
 	let stepComplete = $state(false);
@@ -122,7 +150,7 @@
 			goto('/transactions');
 		} else if (stepsData[api.value].value === 'review') {
 			setStatus('');
-			initSwap();
+			initSend();
 		} else {
 			api.goToNextStep();
 		}
@@ -136,7 +164,7 @@
 		} else if (api.value === api.count) {
 			api.setStep(0);
 			sessionId = getTxSessionId();
-			SendTxDetails.set(swapDetails());
+			SendTxDetails.set(startDetails());
 		} else {
 			api.goToPrevStep();
 			setStatus('');
@@ -145,10 +173,10 @@
 
 	const nextLabel = $derived(
 		stepsData[api.value].value === 'review'
-			? 'Swap'
+			? `${type.at(0)?.toUpperCase() + type.slice(1)}`
 			: api.value === stepsData.length - 1
 				? 'Done'
-				: 'Review Swap'
+				: `Review ${type.at(0)?.toUpperCase() + type.slice(1)}`
 	);
 	const buttons = $derived({
 		fwd: {
@@ -174,14 +202,40 @@
 			oldId = txId;
 		}
 	});
+
+	$effect(() => {
+		if (status.message.includes('cancelled')) {
+			waiting = false;
+		}
+	});
+
+	// Abort Controls
+	const abortSend = new AbortController();
+	function cancelSend() {
+		abortSend.abort();
+		waiting = false;
+		status = {
+			message: 'Transaction canceled by the user',
+			isError: true
+		};
+	}
 </script>
 
-{#snippet select(value: string)}
-	<SelectSwap id={value} {editStage} />
+<!-- Swap snippets -->
+{#snippet swapOptions(value: string)}
+	<SwapOptions id={value} {editStage} />
 {/snippet}
-{#snippet preview()}
+{#snippet swapReview()}
 	<PreviewSwap {status} {waiting} abort={() => {}} />
 {/snippet}
+<!-- Send snippets -->
+{#snippet sendOptions(value: string)}
+	<SendOptions id={value} {editStage} />
+{/snippet}
+{#snippet sendReview(value: string)}
+	<Review {status} {waiting} abort={cancelSend} />
+{/snippet}
+<!-- Both -->
 {#snippet complete()}
 	<Complete {txId} type="swap" />
 {/snippet}
@@ -197,7 +251,7 @@
 		</div>
 	{/key}
 
-	<SwapNavButtons {buttons} />
+	<NavButtons {buttons} />
 </div>
 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}

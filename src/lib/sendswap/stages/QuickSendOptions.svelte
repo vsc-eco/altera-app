@@ -85,12 +85,12 @@
 		lastFromCoin = newFromCoin;
 	});
 
-	const maxField: BalanceOption | undefined = $derived.by(() => {
+	const maxAmount: CoinAmount<Coin> | undefined = $derived.by(() => {
 		if (isSwap || $SendTxDetails.fromNetwork?.value !== Network.vsc.value) return;
 		const fromCoin = $SendTxDetails.fromCoin?.coin;
 		if (!fromCoin) return undefined;
 		if (isValidBalanceField(fromCoin.value)) {
-			return fromCoin.value as BalanceOption;
+			return new CoinAmount($accountBalance.bal[fromCoin.value as BalanceOption], fromCoin, true);
 		}
 	});
 
@@ -293,6 +293,7 @@
 		openToCreate = create;
 		toggleContact(true);
 	}
+	let inputId = $state('');
 </script>
 
 {#if contactOpen}
@@ -386,15 +387,16 @@
 	</div>
 
 	<div class="section">
-		<span class="sm-caption">Amount</span>
+		<label for={inputId} class="sm-caption">Amount</label>
 		<AmountInput
 			bind:amount={toAmount}
 			coin={$SendTxDetails.toCoin}
 			network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}
-			{maxField}
+			{maxAmount}
 			connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
 				? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
 				: undefined}
+			bind:id={inputId}
 		/>
 	</div>
 
@@ -406,6 +408,7 @@
 			onchange={() => {
 				$SendTxDetails.memo = memo;
 			}}
+			id="memo-input"
 		/>
 	</div>
 {/if}
@@ -415,23 +418,28 @@
 		padding: 1rem 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		// gap: 0.5rem;
 		&.from {
 			border-top: 1px solid var(--neutral-bg-accent-shifted);
-			padding-top: 2rem;
+			padding-top: 1.5rem;
 			.to-self-error {
 				margin-top: 0.25rem;
 				line-height: 1.2;
 			}
 		}
 		&.to {
-			padding-bottom: 2rem;
+			padding-bottom: 1.5rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
 		}
 	}
 	.sm-caption {
 		&.gap {
-			padding-top: 1rem;
+			padding-top: 2rem;
 		}
+		margin-left: 0.25rem;
+		margin-bottom: 0.25rem;
 	}
 
 	.contact-external-wrapper:not(:has(:global(.dialog-list-header))) {

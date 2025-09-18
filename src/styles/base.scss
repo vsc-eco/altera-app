@@ -74,6 +74,15 @@ h3 {
 	font-weight: 600;
 }
 
+h4 {
+	font-weight: 550;
+}
+
+h5,
+h6 {
+	font-weight: 500;
+}
+
 legend {
 	padding: 0 0.5rem;
 	color: var(--neutral-fg-mid);
@@ -123,11 +132,6 @@ h6 {
 	max-width: 32rem;
 	min-height: 50vh;
 	padding: 1px 0;
-	h4,
-	h5,
-	h6 {
-		font-weight: 450;
-	}
 	@media screen and (max-width: 450px) {
 		width: calc(100vw - 3.5rem);
 		height: calc(100vh - 3.5rem);

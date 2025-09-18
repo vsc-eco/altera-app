@@ -3,10 +3,8 @@
 	import { Coin, Network, type CoinOptions } from '../sendswap/utils/sendOptions';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
-	import { type BalanceOption } from '$lib/stores/balanceHistory';
-	import { accountBalance } from '$lib/stores/currentBalance';
 	import PillButton from '$lib/PillButton.svelte';
-	import { ChevronRight, DollarSign } from '@lucide/svelte';
+	import { DollarSign } from '@lucide/svelte';
 	import NumberInput from '$lib/zag/NumberInput.svelte';
 	import BigInput from './BigInput.svelte';
 
@@ -15,21 +13,19 @@
 		connectedCoinAmount,
 		coin,
 		network,
-		maxField,
 		maxAmount,
 		minAmount,
 		styleType = 'normal',
-		buttonAction
+		id = $bindable('')
 	}: {
 		amount: string;
 		connectedCoinAmount?: CoinAmount<Coin>;
 		coin: CoinOptions['coins'][number] | undefined;
 		network: Network | undefined;
-		maxField?: BalanceOption;
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
 		styleType?: 'normal' | 'big';
-		buttonAction?: (() => void) | undefined;
+		id?: string;
 	} = $props();
 
 	let inUsd = $state('');
@@ -42,13 +38,6 @@
 		currentCoin.value === Coin.unk.value ||
 			(connectedCoinAmount && currentCoin.value === Coin.usd.value)
 	);
-
-	$effect(() => {
-		if (!maxAmount && maxField) {
-			const maxCoin = Object.values(Coin).find((coin) => coin.value === maxField);
-			if (maxCoin) maxAmount = new CoinAmount($accountBalance.bal[maxField], maxCoin, true);
-		}
-	});
 
 	function setToMax() {
 		amount = maxAmount?.toAmountString() ?? '0';
@@ -180,8 +169,6 @@
 		});
 	});
 
-	let id = $state('');
-
 	let debouncedMax = $state('');
 	$effect(() => {
 		let maxString = maxAmount?.toAmountString() ?? '';
@@ -205,19 +192,14 @@
 				{/if}
 			</span>
 		</label>
-		<div class={['amount-input', { tall: !!buttonAction }]}>
-			{#snippet icon()}
-				{#if coin?.coin.value === coins.usd.value}
-					<DollarSign />
-				{:else}
-					<CoinNetworkIcon
-						coin={currentCoin}
-						network={coin ? (network ?? Network.unknown) : Network.unknown}
-					/>
-				{/if}
-			{/snippet}
-			{#if !buttonAction}
-				{@render icon()}
+		<div class="amount-input">
+			{#if coin?.coin.value === coins.usd.value}
+				<DollarSign />
+			{:else}
+				<CoinNetworkIcon
+					coin={currentCoin}
+					network={coin ? (network ?? Network.unknown) : Network.unknown}
+				/>
 			{/if}
 			{#key [currentCoin, debouncedMax, min]}
 				{#if quiet}
@@ -232,29 +214,9 @@
 				</div>
 			{/if}
 			<hr />
-			{#if buttonAction}
-				<div class="coin-button">
-					<PillButton onclick={buttonAction}>
-						<div class="coin-button-content">
-							{#if coin}
-								<div class="icon">
-									{@render icon()}
-								</div>
-								<span class="label">
-									{currentCoin.label}
-								</span>
-								<ChevronRight />
-							{:else}
-								Select
-							{/if}
-						</div>
-					</PillButton>
-				</div>
-			{:else}
-				<div class="coin-label">
-					{currentCoin.label}
-				</div>
-			{/if}
+			<div class="coin-label">
+				{currentCoin.label}
+			</div>
 		</div>
 		<span class={['bottom-info', { hidden: !(showUsd || error) }]}>
 			{#if error != ''}
@@ -345,25 +307,6 @@
 		.coin-label {
 			width: 4rem;
 			text-align: center;
-		}
-		.coin-button {
-			padding: 0.25rem 0.5rem;
-		}
-		.coin-button-content {
-			display: flex;
-			align-items: center;
-			gap: 0.5rem;
-			width: 108px;
-			justify-content: center;
-			.icon {
-				width: 32px;
-				display: flex;
-				justify-content: center;
-			}
-			.label {
-				width: 4ch;
-				text-align: center;
-			}
 		}
 		.bottom-info {
 			display: flex;

@@ -32,11 +32,10 @@
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import AssetInfo from '../components/info/AssetInfo.svelte';
 	import EditButton from '$lib/components/EditButton.svelte';
-	import SelectAssetTiered from '../components/assetSelection/SelectAssetTiered.svelte';
-	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import Select from '$lib/zag/Select.svelte';
+	import Divider from '$lib/components/Divider.svelte';
 
 	let {
 		id,
@@ -303,36 +302,41 @@
 
 	// DETAILS
 	let memo = $state('');
+	let inputId = $state('');
 </script>
 
 {#snippet transferBar(params: TransferType)}
 	<TransferBar {params} />
 {/snippet}
 
-<h2>Recipient</h2>
+<h2>Send</h2>
 <div class="sections">
 	<div class="contact-search">
 		<RecipientCard edit={openContact} {contact} />
 		<ContactSearchBox bind:value={$SendTxDetails.toUsername} bind:selectedContact={contact} />
 	</div>
+	<Divider text="Amount" />
 	<div class="amounts">
-		<AmountInput
-			bind:amount={fromAmount}
-			coin={$SendTxDetails.fromCoin}
-			network={$SendTxDetails.fromNetwork}
-			maxAmount={max}
-			connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
-		/>
-		<Link2 />
-		<AmountInput
-			bind:amount={inUsd}
-			coin={{
-				coin: coins.usd,
-				networks: []
-			}}
-			network={undefined}
-			connectedCoinAmount={new CoinAmount(fromAmount, $SendTxDetails.fromCoin?.coin ?? Coin.unk)}
-		/>
+		<div class="inputs">
+			<AmountInput
+				bind:amount={fromAmount}
+				coin={$SendTxDetails.fromCoin}
+				network={$SendTxDetails.fromNetwork}
+				maxAmount={max}
+				connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
+				bind:id={inputId}
+			/>
+			<Link2 />
+			<AmountInput
+				bind:amount={inUsd}
+				coin={{
+					coin: coins.usd,
+					networks: []
+				}}
+				network={undefined}
+				connectedCoinAmount={new CoinAmount(fromAmount, $SendTxDetails.fromCoin?.coin ?? Coin.unk)}
+			/>
+		</div>
 	</div>
 	<ClickableCard onclick={() => toggleAsset(true)}>
 		<div class="asset-card">
@@ -340,6 +344,7 @@
 				<AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" />
 			{:else}
 				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+				Select Asset
 			{/if}
 			<span class="more">
 				<EditButton onclick={() => toggleAsset(true)} />
@@ -358,20 +363,19 @@
 			/>
 		{/if}
 	</div>
-</div>
-
-<hr />
-<h2 class="details-header">Details</h2>
-<div class="details">
-	<span class="sm-caption">Memo (optional)</span>
-	<input
-		bind:value={memo}
-		maxlength="300"
-		onchange={() => {
-			$SendTxDetails.memo = memo;
-		}}
-	/>
-	<span>Custom message to the recipient.</span>
+	<Divider text="Details" />
+	<!-- <h4>Details</h4> -->
+	<div class="details">
+		<span class="sm-caption">Memo (optional)</span>
+		<input
+			bind:value={memo}
+			maxlength="300"
+			onchange={() => {
+				$SendTxDetails.memo = memo;
+			}}
+		/>
+		<span>Custom message to the recipient.</span>
+	</div>
 </div>
 
 <Dialog bind:open={contactOpen} bind:toggle={toggleContact}>
@@ -421,22 +425,24 @@
 		gap: 1.5rem;
 	}
 	.amounts {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.5rem;
-		:global(.lucide-link-2) {
-			min-width: 24px;
-			height: 44px;
-		}
-		@media screen and (max-width: 450px) {
-			flex-direction: column;
-			align-items: center;
-			gap: 0.25rem;
-			:global(.amount-wrapper) {
-				width: 100%;
-			}
+		.inputs {
+			display: flex;
+			align-items: flex-start;
+			gap: 0.5rem;
 			:global(.lucide-link-2) {
-				height: auto;
+				min-width: 24px;
+				height: 44px;
+			}
+			@media screen and (max-width: 450px) {
+				flex-direction: column;
+				align-items: center;
+				gap: 0.25rem;
+				:global(.amount-wrapper) {
+					width: 100%;
+				}
+				:global(.lucide-link-2) {
+					height: auto;
+				}
 			}
 		}
 	}
@@ -457,9 +463,6 @@
 	hr {
 		margin: 2rem 0;
 		border-color: var(--neutral-bg-accent);
-	}
-	.details-header {
-		font-size: var(--text-3xl);
 	}
 	.details {
 		display: flex;

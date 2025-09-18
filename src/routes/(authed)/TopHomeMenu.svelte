@@ -2,11 +2,12 @@
 	import type { SharedProps } from '$lib/PillButton.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
 	import StakePopup from '$lib/vscTransactions/hive/vscOperations/StakePopup.svelte';
-	import { Component, LockKeyhole, Send } from '@lucide/svelte';
+	import { Banknote, Component, LockKeyhole, Send } from '@lucide/svelte';
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';
 	import QuickSend from '$lib/sendswap/QuickSend.svelte';
 	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import Deposit from '$lib/sendswap/Deposit.svelte';
 	let { auth }: { auth: Auth } = $props();
 	type PopupAction = {
 		type: 'popup';
@@ -21,9 +22,9 @@
 	});
 	let quickSendOpen = $state(false);
 	let sendSessionId = $state(getTxSessionId());
-	let toggleQuickSend = $state((open?: boolean) => {
-		quickSendOpen = open !== undefined ? open : !quickSendOpen;
-	});
+	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
+	let depositOpen = $state(false);
+	let toggleDeposit = $state<(open?: boolean) => void>(() => {});
 	const menuActions: (NavigationAction | PopupAction)[] = [
 		{
 			type: 'popup',
@@ -37,6 +38,15 @@
 				theme: 'primary',
 				styleType: 'invert'
 			}
+		},
+		{
+			type: 'popup',
+			label: 'Deposit',
+			onclick: () => {
+				sendSessionId = getTxSessionId();
+				toggleDeposit(true);
+			},
+			icon: Banknote
 		},
 		...actions.filter((action) => action.label !== 'Send'),
 		{
@@ -67,6 +77,7 @@
 	bind:toggle={toggleQuickSend}
 	sessionId={sendSessionId}
 />
+<Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={sendSessionId} />
 
 <style>
 	.action-bar {

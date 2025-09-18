@@ -25,7 +25,7 @@
 		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
-				inUsd = amount.toAmountString();
+				inUsd = amount.toMinFigs();
 			});
 	});
 	let today = moment().format('MMM D, YYYY');

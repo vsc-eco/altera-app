@@ -31,7 +31,8 @@ form:has(input:focus) {
 		display: none;
 	}
 }
-label {
+label,
+.label-like {
 	margin-bottom: 0.25rem;
 	display: flex;
 	width: max-content;

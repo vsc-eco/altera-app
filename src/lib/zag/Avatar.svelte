@@ -43,16 +43,13 @@
 		border-radius: 100%;
 		/* width: 2.5rem; */
 		flex-shrink: 0;
-		padding: -0.5rem -0.5rem;
 		box-sizing: border-box;
 		background-color: var(--neutral-bg-accent);
-		margin: 0 0.1rem;
 		aspect-ratio: 1;
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
 	}
-
 	[data-part='fallback'] {
 		width: 100%;
 		display: flex;

@@ -4,18 +4,11 @@
 	import { type AssetObject } from '../info/SendSnippets.svelte';
 	import { untrack, type Snippet } from 'svelte';
 	import AssetList from './AssetList.svelte';
-	import AssetInfo from '../info/AssetInfo.svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import { ArrowLeft, ChevronRight, Delete } from '@lucide/svelte';
-	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
-	import AccBalance from '$lib/AccBalance.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { DHive } from '$lib/vscTransactions/dhive';
 	import { getAuth } from '$lib/auth/store';
-	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
-	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
+	import BalanceInfo from '../info/BalanceInfo.svelte';
 
 	let {
 		availableCoins,
@@ -60,42 +53,25 @@
 	$effect(() => {
 		if (!auth || auth.value?.provider !== 'aioha') return;
 		if (externalNetwork?.value !== Network.hiveMainnet.value) return;
-		loading = true;
 		untrack(() => {
-			const username = getUsernameFromAuth(auth);
-			if (!username) return;
-			DHive.database.getAccounts([username]).then((accounts) => {
-				const acc = accounts[0];
-				const hiveBalance =
-					typeof acc.balance === 'string'
-						? parseFloat(acc.balance.split(' ')[0])
-						: acc.balance.amount;
-				const hbdBalance =
-					typeof acc.hbd_balance === 'string'
-						? parseFloat(acc.hbd_balance.split(' ')[0])
-						: acc.hbd_balance.amount;
-				let result: BalanceObject[] = [];
-				if (hiveBalance > 0) {
-					result.push({
-						...Coin.hive,
-						value: `${Coin.hive.value}:${externalNetwork.value}`,
-						balance: hiveBalance.toString(),
-						onNetwork: externalNetwork,
-						snippet: assetBalance
-					});
-				}
-				if (hbdBalance > 0) {
-					result.push({
-						...Coin.hbd,
-						value: `${Coin.hbd.value}:${externalNetwork.value}`,
-						balance: hbdBalance.toString(),
-						onNetwork: externalNetwork,
-						snippet: assetBalance
-					});
-				}
-				externalItems = result;
-				loading = false;
-			});
+			if (!$accountBalance.connectedBal) return;
+			loading = true;
+
+			let result: BalanceObject[] = [];
+
+			for (const [coinVal, bal] of Object.entries($accountBalance.connectedBal)) {
+				const coin = Object.values(Coin).find((coin) => coin.value === coinVal);
+				if (!coin) continue;
+				result.push({
+					...coin,
+					value: `${coin.value}:${externalNetwork.value}`,
+					balance: new CoinAmount(bal, coin).toPrettyAmountString(),
+					onNetwork: externalNetwork,
+					snippet: assetBalance
+				});
+			}
+			externalItems = result;
+			loading = false;
 		});
 	});
 
@@ -139,16 +115,8 @@
 </script>
 
 {#snippet assetBalance(coin: BalanceObject)}
-	<div class="asset-balance">
-		<span class="img-label">
-			<CoinNetworkIcon {coin} network={coin.onNetwork} size={40} />
-			<span>
-				{coin.label}
-				<span class="sm-caption">on {coin.onNetwork.label}</span>
-			</span>
-		</span>
-		<span class="mono">{coin.balance}</span>
-	</div>
+	{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
+	<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" />
 {/snippet}
 
 <div class="dialog-content">
@@ -178,18 +146,6 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
-	.asset-balance {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 1rem;
-		flex-grow: 1;
-		.img-label {
-			display: flex;
-			align-items: center;
-			gap: 0.5rem;
-		}
 	}
 
 	@keyframes pulse {

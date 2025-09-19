@@ -18,7 +18,7 @@
 	let auth = $derived(getAuth()());
 	$effect(() => {
 		if (!browser || !auth.value) return;
-		startAccountPolling(auth.value.did);
+		startAccountPolling(auth);
 		localStorage.setItem('last_connection', auth.value.provider);
 	});
 	$effect(() => {

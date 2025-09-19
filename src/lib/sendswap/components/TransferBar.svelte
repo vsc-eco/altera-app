@@ -7,8 +7,9 @@
 		value: 'internal' | 'external';
 		to?: Network;
 		from?: Network;
+		disabledMemo?: string;
 	};
-	let { params }: { params: TransferType } = $props();
+	let { value, to, from, disabledMemo }: TransferType = $props();
 
 	const externalPlaceholder: Network = {
 		value: 'external',
@@ -24,24 +25,32 @@
 	</div>
 {/snippet}
 
-<div class="bar">
-	{#if params.to && params.from}
-		{params.value === 'internal' ? 'Internal Transfer' : 'External Transfer'}
-		<div class="net-arrows">
-			{@render basicNetLabel(params.from)}
-			<ArrowRight />
-			{@render basicNetLabel(params.to)}
-		</div>
+<div class={['bar', { disabled: !!disabledMemo }]}>
+	{#if to && from}
+		{value === 'internal' ? 'Internal Transfer' : 'External Transfer'}
+		{#if disabledMemo}
+			<span class="error">{disabledMemo}</span>
+		{:else}
+			<div class="net-arrows">
+				{@render basicNetLabel(from)}
+				<ArrowRight />
+				{@render basicNetLabel(to)}
+			</div>
+		{/if}
 	{:else}
-		{params.value === 'internal' ? 'Internal Transfer' : 'External Transfer'}
-		<div class="net-arrows">
-			<ArrowRight />
-			{#if params.value === 'internal'}
-				{@render basicNetLabel(Network.vsc)}
-			{:else}
-				{@render basicNetLabel(externalPlaceholder)}
-			{/if}
-		</div>
+		{value === 'internal' ? 'Internal Transfer' : 'External Transfer'}
+		{#if disabledMemo}
+			<span class="error">{disabledMemo}</span>
+		{:else}
+			<div class="net-arrows">
+				<ArrowRight />
+				{#if value === 'internal'}
+					{@render basicNetLabel(Network.vsc)}
+				{:else}
+					{@render basicNetLabel(externalPlaceholder)}
+				{/if}
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -62,5 +71,9 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+	}
+	.disabled {
+		filter: grayscale(50%);
+		color: var(--neutral-mid);
 	}
 </style>

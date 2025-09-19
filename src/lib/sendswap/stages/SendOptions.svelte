@@ -10,7 +10,8 @@
 		getRecipientNetworks,
 		SendTxDetails,
 		getFee,
-		solveToNetworks
+		solveToNetworks,
+		type NetworkOptionParam
 	} from '../utils/sendUtils';
 	import swapOptions, { Coin, Network, TransferMethod } from '../utils/sendOptions';
 	import Dialog from '$lib/zag/Dialog.svelte';
@@ -36,6 +37,8 @@
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import Divider from '$lib/components/Divider.svelte';
+	import BalanceInfo from '../components/info/BalanceInfo.svelte';
+	import Card from '$lib/cards/Card.svelte';
 
 	let {
 		id,
@@ -221,8 +224,20 @@
 
 	// INTERNAL/EXTERNAL
 	let currentType: 'internal' | 'external' = $state('internal');
-	let toNetworkOptions: Network[] = $state([]);
+	let toNetworkOptions: NetworkOptionParam[] = $state([]);
 	let transferError = $state('');
+	function getDisabledReason() {
+		if ($SendTxDetails.toUsername === getUsernameFromAuth(auth)) {
+			return 'Cannot send funds to yourself on the same network.';
+		}
+		if (getDidFromUsername($SendTxDetails.toUsername).startsWith('did:pkh:eip155:1:')) {
+			return 'EVM accounts may only receive funds on VSC.';
+		}
+		if ($SendTxDetails.fromCoin?.coin.value === Coin.shbd.value) {
+			return 'Cannot transfer sHBD to external networks.';
+		}
+		return 'This option is not available given your parameters.';
+	}
 	$effect(() => {
 		$SendTxDetails;
 		untrack(() => {
@@ -274,19 +289,23 @@
 			}
 		});
 	});
-	type TransferType = ComponentProps<typeof TransferBar>['params'];
+	type TransferType = ComponentProps<typeof TransferBar>;
 	interface TransferBarItem extends TransferType {
 		label: string;
 		snippet: (params: TransferType) => ReturnType<Snippet>;
+		disabled?: boolean;
+		disabledMemo?: string;
 	}
-	const radioItems: TransferBarItem[] = $derived.by(() => {
+	const transferTypes: TransferBarItem[] = $derived.by(() => {
+		const baseOptions: TransferBarItem[] = [
+			{ value: 'internal', label: 'Internal Transfer', snippet: transferBar },
+			{ value: 'external', label: 'External Transfer', snippet: transferBar }
+		];
 		if (toNetworkOptions.length === 0) {
-			return [
-				{ value: 'internal', label: 'Internal Transfer', snippet: transferBar },
-				{ value: 'external', label: 'External Transfer', snippet: transferBar }
-			];
+			return baseOptions;
 		} else {
-			return toNetworkOptions
+			const disabledReason = getDisabledReason();
+			const options: TransferBarItem[] = toNetworkOptions
 				.map((net) => ({
 					value: (net.value === Network.vsc.value ? 'internal' : 'external') as
 						| 'internal'
@@ -297,6 +316,15 @@
 					snippet: transferBar
 				}))
 				.sort((a, b) => (a.value === b.value ? 0 : a.value === 'internal' ? -1 : 1));
+			if (options.length < 2) {
+				const addOpt = baseOptions.find(
+					(baseOpt) => !options.map((enabledOpt) => enabledOpt.value).includes(baseOpt.value)
+				);
+				if (addOpt) {
+					options.push({ ...addOpt, disabled: true, disabledMemo: disabledReason });
+				}
+			}
+			return options;
 		}
 	});
 
@@ -306,7 +334,7 @@
 </script>
 
 {#snippet transferBar(params: TransferType)}
-	<TransferBar {params} />
+	<TransferBar {...params} />
 {/snippet}
 
 <h2>Send</h2>
@@ -340,8 +368,14 @@
 	</div>
 	<ClickableCard onclick={() => toggleAsset(true)}>
 		<div class="asset-card">
-			{#if $SendTxDetails.fromCoin}
-				<AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" />
+			{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+				<BalanceInfo
+					coin={$SendTxDetails.fromCoin.coin}
+					network={$SendTxDetails.fromNetwork}
+					size="large"
+					styleType="vertical"
+				/>
+				<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
 			{:else}
 				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 				Select Asset
@@ -351,12 +385,12 @@
 			</span>
 		</div>
 	</ClickableCard>
-	<div class="radio-wrapper">
+	<div class="select-wrapper">
 		{#if transferError}
-			<span class="error">{transferError}</span>
+			<div class="transfer-error error">{transferError}</div>
 		{:else}
 			<Select
-				items={radioItems}
+				items={transferTypes}
 				onValueChange={(details) => (currentType = details.value[0] as 'internal' | 'external')}
 				styleType="dropdown"
 				initial={currentType}
@@ -446,23 +480,23 @@
 			}
 		}
 	}
-	.radio-wrapper {
-		:global(.items > label) {
-			width: 100%;
+	.select-wrapper {
+		.transfer-error {
+			filter: grayscale(25%);
+			padding: 0.75rem;
+			border: 1px solid var(--neutral-bg-accent-shifted);
+			background-color: var(--neutral-off-bg);
+			border-radius: 0.5rem;
 		}
 	}
 	.asset-card {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 1.5rem;
 		padding: 0.5rem;
 		.more {
 			margin-left: auto;
 		}
-	}
-	hr {
-		margin: 2rem 0;
-		border-color: var(--neutral-bg-accent);
 	}
 	.details {
 		display: flex;

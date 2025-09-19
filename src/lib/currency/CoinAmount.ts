@@ -69,7 +69,7 @@ export class CoinAmount<C extends Coin> {
 		const formatted = formatter.format(numericValue);
 		return `${isNegative ? '-' : ''}${formatted} ${this.coin.unit}`;
 	}
-	toPrettyMinFigs(figures = 3, decimals = 2) {
+	toMinFigs(figures = this.coin.decimalPlaces + 1, decimals = this.coin.decimalPlaces) {
 		const isNegative = this.isNegative();
 		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
 		const minFigs = numericValue < 1 ? Math.min(this.coin.decimalPlaces, figures) : figures;
@@ -80,7 +80,10 @@ export class CoinAmount<C extends Coin> {
 			maximumSignificantDigits: 21
 		});
 		const formatted = formatter.format(numericValue);
-		return `${isNegative ? '-' : ''}${formatted} ${this.coin.unit}`;
+		return `${isNegative ? '-' : ''}${formatted}`;
+	}
+	toPrettyMinFigs(figures = 3, decimals = 2) {
+		return `${this.toMinFigs(figures, decimals)} ${this.coin.unit}`;
 	}
 	toNumber() {
 		return this.amount / 10 ** this.coin.decimalPlaces;

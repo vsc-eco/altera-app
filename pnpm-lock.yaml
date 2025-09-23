@@ -3174,9 +3174,9 @@ packages:
   hive-keychain-commons@1.9.7:
     resolution: {integrity: sha512-/Rw1yX4UZts32chptEMaEGjLsS3lIeb4wnLwZRJhoTufzN4bV7HvekWLRCk8ZCb+leOOAdZi5DZcq7of4+tO9Q==}
 
-  hive-tx@https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/10d90b3bd7ca11e7d52b0627ea22d7c976f8b6b1:
-    resolution: {tarball: https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/10d90b3bd7ca11e7d52b0627ea22d7c976f8b6b1}
-    version: 4.3.0
+  hive-tx@https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/d54c25900408a0d8cb32a4710a5f92623585f3e5:
+    resolution: {tarball: https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/d54c25900408a0d8cb32a4710a5f92623585f3e5}
+    version: 4.3.1
 
   hive-uri@0.2.8:
     resolution: {integrity: sha512-z04c+XiIxn8LmLyZD/26T5vBhR+EptIIxTnQYu5sODMskY1SjkpVZr6QaHb+6N4vWGVuOtLnK1A89NfyJ7OFfA==}
@@ -9727,7 +9727,7 @@ snapshots:
       '@hiveio/dhive': 1.3.2
       bs58: 6.0.0
       crypto-js: 4.2.0
-      hive-tx: https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/10d90b3bd7ca11e7d52b0627ea22d7c976f8b6b1
+      hive-tx: https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/d54c25900408a0d8cb32a4710a5f92623585f3e5
       jsbi: 4.3.2
       moment: 2.30.1
       secp256k1: 5.0.1
@@ -9736,7 +9736,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  hive-tx@https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/10d90b3bd7ca11e7d52b0627ea22d7c976f8b6b1:
+  hive-tx@https://codeload.github.com/hive-keychain/hive-tx-js/tar.gz/d54c25900408a0d8cb32a4710a5f92623585f3e5:
     dependencies:
       bs58: 6.0.0
       bytebuffer: 5.0.1

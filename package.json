@@ -128,5 +128,5 @@
 		"uuid": "^11.1.0",
 		"wagmi": "^2.16.9"
 	},
-	"packageManager": "pnpm@10.15.1"
+	"packageManager": "pnpm@10.17.0"
 }

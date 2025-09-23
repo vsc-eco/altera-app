@@ -1,5 +1,5 @@
 import type { Point } from '$lib/LineChart.svelte';
-import type { Coin } from '$lib/send/sendOptions';
+import type { Coin } from '$lib/sendswap/utils/sendOptions';
 import axios from 'axios';
 import moment from 'moment';
 import { get, writable } from 'svelte/store';

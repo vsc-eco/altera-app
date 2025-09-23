@@ -1,12 +1,8 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import Balance from '$lib/cards/Balance/Balance.svelte';
-	import PillBtn from '$lib/PillButton.svelte';
 	import TopHomeMenu from './TopHomeMenu.svelte';
-	import { actions } from '../quickActions';
 	import { getAccountNameFromAuth, getUsernameFromAuth } from '$lib/getAccountName';
-	import StakeUnstakeTabsModal from './witness-assistant/StakeUnstakeTabsModal.svelte';
-	import Send from '$lib/send/SendCards.svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Table from './transactions/Table/Table.svelte';
 	import AccBalance from '$lib/AccBalance.svelte';

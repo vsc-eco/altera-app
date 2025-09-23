@@ -52,6 +52,7 @@
 		useMachine(numberInput.machine, {
 			id,
 			min: 0,
+			step: 10 ** -decimals,
 			allowOverflow: false,
 			formatOptions: {
 				style: 'decimal',
@@ -68,7 +69,7 @@
 					invalid = details.value !== '' && !inRange(details.valueAsNumber);
 					if (!invalid) error = '';
 				}
-				amount = inRange(details.valueAsNumber) ? trimOutput(api.valueAsNumber) : '';
+				amount = trimOutput(api.valueAsNumber);
 				setErrors(details.valueAsNumber);
 			}
 		})

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { GetAccountBalanceStore } from '$houdini';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { Coin } from './send/sendOptions';
+	import { Coin } from './sendswap/utils/sendOptions';
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';
 	import { accountBalance, type AccountBalance } from './stores/currentBalance';
 	import moment from 'moment';

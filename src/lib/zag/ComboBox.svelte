@@ -4,7 +4,7 @@
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { untrack, type Snippet } from 'svelte';
 	import { getUniqueId } from './idgen';
-	import type { ImgIconOption } from '$lib/components/ImageIconRenderer.svelte';
+	import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 
 	let {
@@ -26,7 +26,7 @@
 		dropdown?: boolean;
 		value: string | undefined;
 		onBlur?: ((e?: FocusEvent) => any) | null | undefined;
-		icon?: ImgIconOption;
+		icon?: ImageIconOption;
 		placeholder?: string;
 		custom?: boolean;
 		label?: string | ((...args: any[]) => ReturnType<Snippet>);
@@ -309,7 +309,7 @@
 		padding: 0.5rem;
 	}
 	[data-part='item'][data-highlighted] {
-		background-color: var(--bg-accent);
+		background-color: var(--highlighted-bg);
 	}
 	[data-part='item'][data-disabled] {
 		cursor: default;

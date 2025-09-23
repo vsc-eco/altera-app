@@ -3,7 +3,7 @@
 @use './scrollbar.scss';
 @keyframes highlight-in {
 	0% {
-		background-color: var(--primary-bg-accent);
+		background-color: var(--neutral-bg-accent);
 	}
 	100% {
 		background-color: var(--neutral-bg);
@@ -24,6 +24,7 @@
 	--text-4xl: 1.6rem;
 	--text-5xl: 1.8rem;
 	--text-6xl: 2.03rem;
+	--highlighted-bg: var(--neutral-bg-accent);
 }
 form:has(input:focus) {
 	key {
@@ -71,6 +72,15 @@ h1,
 h2,
 h3 {
 	font-weight: 600;
+}
+
+h4 {
+	font-weight: 550;
+}
+
+h5,
+h6 {
+	font-weight: 500;
 }
 
 legend {
@@ -122,11 +132,6 @@ h6 {
 	max-width: 32rem;
 	min-height: 50vh;
 	padding: 1px 0;
-	h4,
-	h5,
-	h6 {
-		font-weight: 450;
-	}
 	@media screen and (max-width: 450px) {
 		width: calc(100vw - 3.5rem);
 		height: calc(100vh - 3.5rem);

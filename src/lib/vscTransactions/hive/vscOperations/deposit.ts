@@ -1,5 +1,5 @@
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import type { Coin } from '$lib/send/sendOptions';
+import type { Coin } from '$lib/sendswap/utils/sendOptions';
 import type { CustomJsonOperation, TransferOperation } from '@hiveio/dhive';
 /**
  *

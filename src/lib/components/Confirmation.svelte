@@ -6,7 +6,7 @@
 	import * as dialog from '@zag-js/dialog';
 	import { portal, normalizeProps, useMachine } from '@zag-js/svelte';
 	import type { Snippet } from 'svelte';
-	import type { ImgIconOption } from './ImageIconRenderer.svelte';
+	import type { ImageIconOption } from './ImageIconRenderer.svelte';
 	import ImageIconRenderer from './ImageIconRenderer.svelte';
 
 	type Props = {
@@ -14,12 +14,12 @@
 		confirm: () => void;
 		toggle: (open?: boolean) => void;
 		customConfirm?: {
-			icon: ImgIconOption;
+			icon: ImageIconOption;
 			text: string;
 			color: 'primary' | 'secondary';
 		};
 		customCancel?: {
-			icon: ImgIconOption;
+			icon: ImageIconOption;
 			text: string;
 		};
 	};

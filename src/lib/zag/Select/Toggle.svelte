@@ -19,16 +19,16 @@
 <div {...api.getControlProps()} class={{ card: styleType !== 'default' }}>
 	{#if styleType === 'default'}
 		<PillButton {...triggerProps} styleType="text" {disabled}>
-			{#if typeof currentItem?.snippet == 'function'}
+			{#if typeof currentItem?.snippet === 'function'}
 				{@const Snippet = currentItem.snippet}
 				{@render Snippet(currentItem.snippetData ?? currentItem)}
 			{:else}
 				{api.valueAsString || placeholder || 'Select option'}
 			{/if}
 			{#if open}
-				<ChevronUp></ChevronUp>
+				<ChevronUp />
 			{:else}
-				<ChevronDown></ChevronDown>
+				<ChevronDown />
 			{/if}
 		</PillButton>
 	{:else}
@@ -37,9 +37,11 @@
 			class={['cardlike', { card: styleType === 'card', dropdown: styleType === 'dropdown' }]}
 		>
 			<div class={['content', { tall: styleType === 'card' }]}>
-				{#if typeof currentItem?.snippet == 'function'}
-					{@const Snippet = currentItem.snippet}
-					{@render Snippet(currentItem.snippetData ?? currentItem)}
+				{#if typeof currentItem?.snippet === 'function'}
+					<svelte:boundary onerror={() => {}}>
+						{@const Snippet = currentItem.snippet}
+						{@render Snippet(currentItem?.snippetData ?? currentItem)}
+					</svelte:boundary>
 				{:else}
 					{api.valueAsString || placeholder || 'Select option'}
 				{/if}

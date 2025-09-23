@@ -11,7 +11,7 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import Amount from '../tds/Amount.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { Coin, Network } from '$lib/send/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import Token from '../tds/Token.svelte';
 	import ContractId from '../tds/ContractId.svelte';
 

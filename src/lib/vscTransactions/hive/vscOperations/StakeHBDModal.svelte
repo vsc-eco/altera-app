@@ -3,7 +3,7 @@
 	import Username from '$lib/auth/Username.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import Amount from '$lib/currency/OldAmountInput.svelte';
-	import { Coin, Network } from '$lib/send/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { sleep } from 'aninest';
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
 	import type { OperationResult, OperationError, OperationSuccess } from '@aioha/aioha/build/types';

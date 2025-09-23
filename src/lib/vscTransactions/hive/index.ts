@@ -8,7 +8,7 @@ import {
 } from '@hiveio/dhive';
 import { getHiveConsensusStakeOp, getHiveConsensusUnstakeOp } from './vscOperations/consensus';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-import { Coin, Network } from '$lib/send/sendOptions';
+import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { getHiveDepositOp } from './vscOperations/deposit';
 import { getHiveTransferOp } from './vscOperations/transfer';
 import { getHiveWithdrawalOp } from './vscOperations/withdrawal';

@@ -5,7 +5,7 @@
 	import Type from '../tds/Type.svelte';
 	import { ExternalLink, X } from '@lucide/svelte';
 	import StatusView from './StatusView.svelte';
-	import { Coin, Network } from '$lib/send/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 	import { untrack, type Snippet } from 'svelte';

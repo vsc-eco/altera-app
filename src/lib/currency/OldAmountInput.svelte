@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Select from '$lib/zag/Select.svelte';
 	import { untrack } from 'svelte';
-	import { Coin, Network } from '../send/sendOptions';
+	import { Coin, Network } from '../sendswap/utils/sendOptions';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';

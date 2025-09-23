@@ -4,7 +4,7 @@ import { getLocalTransactions, removeLocalTransaction } from '$lib/stores/localS
 import { blockSync } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
 import moment from 'moment';
 import { authStore } from '$lib/auth/store';
-import { clearLastPaidCache } from '$lib/send/sendUtils';
+import { clearLastPaidCache } from '$lib/sendswap/utils/sendUtils';
 
 type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 

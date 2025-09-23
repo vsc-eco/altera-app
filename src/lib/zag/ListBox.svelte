@@ -180,7 +180,7 @@
 		[data-part='item']:not([data-disabled]) {
 			&[data-highlighted],
 			&:hover {
-				background-color: var(--bg-accent);
+				background-color: var(--highlighted-bg);
 				.custom-icon.hover {
 					visibility: visible;
 				}

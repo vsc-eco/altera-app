@@ -162,15 +162,6 @@
 
 	let fromCoinValue = $state('');
 
-	const maxField: BalanceOption | undefined = $derived.by(() => {
-		if (isSwap || $SendTxDetails.fromNetwork?.value !== Network.vsc.value) return;
-		const fromCoin = $SendTxDetails.fromCoin?.coin;
-		if (!fromCoin) return undefined;
-		if (isValidBalanceField(fromCoin.value)) {
-			return fromCoin.value as BalanceOption;
-		}
-	});
-
 	let fromAmount = $state('');
 	let inUsd = $state('');
 	let max: CoinAmount<Coin> | undefined = $state();

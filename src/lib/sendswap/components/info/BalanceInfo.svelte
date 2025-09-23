@@ -2,13 +2,13 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
+	import { accountBalance } from '$lib/stores/currentBalance';
 
 	type Props = {
 		coin: Coin;
 		network: Network;
 		size?: 'small' | 'medium' | 'large';
-		styleType?: 'horizontal' | 'vertical';
+		styleType?: 'horizontal' | 'vertical' | 'quiet';
 	};
 	let { coin, network, size = 'small', styleType = 'horizontal' }: Props = $props();
 
@@ -33,7 +33,7 @@
 	});
 </script>
 
-<div class={['asset-balance', { vertical: styleType === 'vertical' }]}>
+<div class={['asset-balance', { vertical: styleType === 'vertical', large: size === 'large' }]}>
 	<span class="coin-icon" style="height: {size === 'large' ? 40 : 24};">
 		{#if size !== 'small'}
 			<CoinNetworkIcon {coin} {network} size={size === 'medium' ? 24 : 40} />
@@ -41,12 +41,14 @@
 			<img src={coin.icon} alt={coin.label} width={24} />
 		{/if}
 	</span>
-	{#if styleType === 'horizontal'}
+	{#if styleType !== 'vertical'}
 		<span class="coin-label">
 			{coin.label}
 			<span class="sm-caption">on {network.label}</span>
 		</span>
-		<span class="balance mono">{balance}</span>
+		{#if styleType === 'horizontal'}
+			<span class="balance mono">{balance}</span>
+		{/if}
 	{:else}
 		<span class="coin-label">
 			{coin.label}
@@ -61,7 +63,7 @@
 		grid-template-columns: auto 1fr auto;
 		grid-template-areas: 'coin-icon coin-label balance-cell';
 		align-items: center;
-		gap: 0 1rem;
+		gap: 0 0.5rem;
 		flex-grow: 1;
 		.coin-icon {
 			grid-area: coin-icon;
@@ -79,6 +81,9 @@
 			grid-template-areas:
 				'coin-icon coin-label'
 				'coin-icon balance-cell';
+		}
+		&.large {
+			gap: 0 1rem;
 		}
 	}
 </style>

@@ -22,6 +22,7 @@
 	});
 	let quickSendOpen = $state(false);
 	let sendSessionId = $state(getTxSessionId());
+	let depositSessionId = $state(getTxSessionId());
 	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
 	let depositOpen = $state(false);
 	let toggleDeposit = $state<(open?: boolean) => void>(() => {});
@@ -43,7 +44,7 @@
 			type: 'popup',
 			label: 'Deposit',
 			onclick: () => {
-				sendSessionId = getTxSessionId();
+				depositSessionId = getTxSessionId();
 				toggleDeposit(true);
 			},
 			icon: Banknote
@@ -77,7 +78,7 @@
 	bind:toggle={toggleQuickSend}
 	sessionId={sendSessionId}
 />
-<Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={sendSessionId} />
+<Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
 
 <style>
 	.action-bar {

@@ -1,21 +1,25 @@
 <script lang="ts">
+	import { getAuth } from '$lib/auth/store';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
+	import Instructions from '$lib/sendswap/components/Instructions.svelte';
 	import swapOptions, {
 		Coin,
 		Network,
 		TransferMethod,
 		type CoinOptions
 	} from '$lib/sendswap/utils/sendOptions';
-	import { getFee, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
 	import { ArrowRightLeft } from '@lucide/svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 
 	let { next, open }: { next: () => void; open: boolean } = $props();
+
+	const auth = $derived(getAuth()());
 
 	let amount = $state('');
 	let inputId = $state('');
@@ -25,13 +29,14 @@
 		if (!$SendTxDetails.fromCoin) return;
 		if (shownCoin.coin.value === $SendTxDetails.fromCoin.coin.value) {
 			const amt = new CoinAmount(amount, $SendTxDetails.fromCoin.coin).toAmountString();
-			if (amt !== $SendTxDetails.fromAmount) $SendTxDetails.fromAmount = amt;
+			if (amt !== $SendTxDetails.fromAmount)
+				$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
 		} else {
 			new CoinAmount(amount, shownCoin.coin)
 				.convertTo($SendTxDetails.fromCoin.coin, Network.lightning)
 				.then((amt) => {
 					if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
-						$SendTxDetails.fromAmount = amt.toAmountString();
+						$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt.toAmountString();
 					}
 				});
 		}
@@ -44,8 +49,7 @@
 			snippet: toOption,
 			snippetData: {
 				coin: Coin.hive,
-				network: Network.vsc,
-				balance: new CoinAmount($accountBalance.bal.hive, Coin.hive, true).toPrettyAmountString()
+				network: Network.hiveMainnet
 			}
 		},
 		{
@@ -54,28 +58,28 @@
 			snippet: toOption,
 			snippetData: {
 				coin: Coin.hbd,
-				network: Network.vsc,
-				balance: new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true).toPrettyAmountString()
+				network: Network.hiveMainnet
 			}
 		}
 	];
 	let allowConfirm = $derived(Number(amount) > 0 && $SendTxDetails.toCoin);
 
-	function confirm() {
-		getFee($SendTxDetails.toAmount).then((fee) => {
-			if (
-				fee?.amount !== $SendTxDetails.fee?.amount ||
-				fee?.coin.value !== $SendTxDetails.fee?.coin.value
-			)
-				$SendTxDetails.fee = fee;
-		});
-		next();
-	}
+	const max = $derived.by(() => {
+		const coin = $SendTxDetails.fromCoin?.coin;
+		if (!coin) return;
+		if ($accountBalance.connectedBal && coin.value in $accountBalance.connectedBal) {
+			return new CoinAmount(
+				$accountBalance.connectedBal[coin.value as keyof typeof $accountBalance.connectedBal],
+				coin,
+				true
+			);
+		}
+	});
 
 	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
 		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
 		if ($SendTxDetails.fromCoin) {
-			result.push($SendTxDetails.fromCoin);
+			result = [$SendTxDetails.fromCoin, ...result];
 		}
 		return result;
 	});
@@ -105,7 +109,6 @@
 			lastPossibleCoins = possibleCoins;
 		});
 	});
-
 	let shownIndex = $state(0);
 	let shownCoin: CoinOptions['coins'][number] = $state(
 		$SendTxDetails.fromCoin ?? { coin: Coin.usd, networks: [] }
@@ -117,55 +120,60 @@
 </script>
 
 {#snippet toOption(params: ComponentProps<typeof BalanceInfo>)}
-	<BalanceInfo {...params} size="medium" styleType="quiet" />
+	<BalanceInfo {...params} size="medium" />
 {/snippet}
 
-<div class="sections">
-	<div class="section">
-		<label for={inputId}>Amount</label>
-		<div class="amount-row">
-			<div class="amount-input">
-				<AmountInput
-					bind:amount
-					coinOpt={shownCoin}
-					network={$SendTxDetails.fromNetwork}
-					bind:id={inputId}
+{#if auth.value?.provider === 'aioha'}
+	<div class="sections">
+		<div class="section">
+			<label for={inputId}>Amount</label>
+			<div class="amount-row">
+				<div class="amount-input">
+					<AmountInput
+						bind:amount
+						coinOpt={shownCoin}
+						network={$SendTxDetails.fromNetwork}
+						maxAmount={max}
+						bind:id={inputId}
+					/>
+				</div>
+				<span class="cycle-button">
+					<PillButton onclick={cycleShown} styleType="icon">
+						<ArrowRightLeft />
+					</PillButton>
+				</span>
+			</div>
+		</div>
+		<div class="section dest-confirm">
+			<div class="select">
+				<span class="label-like">Deposit Asset</span>
+				<Select
+					items={toOptions}
+					initial={$SendTxDetails.toCoin?.coin.value}
+					onValueChange={(details) => {
+						if (open) {
+							$SendTxDetails.toCoin = $SendTxDetails.fromCoin = swapOptions.to.coins.find(
+								(coinOpt) => coinOpt.coin.value === details.value[0]
+							);
+						}
+					}}
+					styleType="dropdown"
+					placeholder="Select Asset"
 				/>
 			</div>
-			<span class="cycle-button">
-				<PillButton onclick={cycleShown} styleType="icon">
-					<ArrowRightLeft />
-				</PillButton>
-			</span>
+			<PillButton
+				onclick={() => next()}
+				disabled={!allowConfirm}
+				theme="primaray"
+				styleType="invert"
+			>
+				Deposit
+			</PillButton>
 		</div>
 	</div>
-	<div class="section dest-confirm">
-		<div class="select">
-			<span class="label-like">Deposit to</span>
-			<Select
-				items={toOptions}
-				initial={$SendTxDetails.toCoin?.coin.value}
-				onValueChange={(details) => {
-					if (open) {
-						$SendTxDetails.toCoin = swapOptions.to.coins.find(
-							(coinOpt) => coinOpt.coin.value === details.value[0]
-						);
-					}
-				}}
-				styleType="dropdown"
-				placeholder="Select Account"
-			/>
-		</div>
-		<PillButton
-			onclick={() => confirm()}
-			disabled={!allowConfirm}
-			theme="primaray"
-			styleType="invert"
-		>
-			Deposit
-		</PillButton>
-	</div>
-</div>
+{:else}
+	<Instructions />
+{/if}
 
 <style lang="scss">
 	.sections {

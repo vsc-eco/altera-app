@@ -8,7 +8,7 @@
 	let { children, defaultBg = false }: Props = $props();
 </script>
 
-<div class={{ defaultBg }}>
+<div class={[{ defaultBg }, 'card']}>
 	{@render children()}
 </div>
 

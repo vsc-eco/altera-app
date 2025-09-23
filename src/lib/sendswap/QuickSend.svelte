@@ -29,6 +29,8 @@
 
 	const auth = $derived(getAuth()());
 
+	let resetInput = $state(0);
+
 	function quickDetails() {
 		return {
 			...blankDetails(),
@@ -42,6 +44,7 @@
 		const _ = sessionId;
 		// set defaults for quicksend
 		SendTxDetails.set(quickDetails());
+		untrack(() => resetInput++);
 	});
 
 	let status: { message: string; isError: boolean } = $state({ message: '', isError: false });
@@ -226,7 +229,9 @@
 			<div {...api.getRootProps()}>
 				{#each stepsData as step, index}
 					<div {...api.getContentProps({ index })} tabindex="-1">
-						{@render step.content(step.value)}
+						{#key resetInput}
+							{@render step.content(step.value)}
+						{/key}
 					</div>
 				{/each}
 			</div>

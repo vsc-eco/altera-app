@@ -203,6 +203,9 @@
 
 	$effect(() => {
 		if (
+			$SendTxDetails.toUsername &&
+			$SendTxDetails.toNetwork &&
+			$SendTxDetails.toCoin &&
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.fromNetwork &&
 			$SendTxDetails.toAmount &&

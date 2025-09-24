@@ -1,12 +1,11 @@
 <script lang="ts">
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Collapsible from '$lib/zag/Collapsible.svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
 	import { SendTxDetails } from '../../utils/sendUtils';
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
 	import LightningDeposit from './LightningDeposit.svelte';
-	import { untrack, type ComponentProps } from 'svelte';
+	import { untrack } from 'svelte';
 
 	let { next }: { next: () => void } = $props();
 

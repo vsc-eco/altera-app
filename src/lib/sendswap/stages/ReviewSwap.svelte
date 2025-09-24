@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { authStore, getAuth } from '$lib/auth/store';
+	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { getDidFromUsername } from '$lib/getAccountName';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';

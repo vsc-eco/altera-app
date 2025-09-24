@@ -3,12 +3,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
-	import swapOptions, {
-		Coin,
-		Network,
-		TransferMethod,
-		type CoinOptions
-	} from '$lib/sendswap/utils/sendOptions';
+	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import { getFee, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
@@ -32,6 +27,22 @@
 				.then((amt) => {
 					if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
 						$SendTxDetails.fromAmount = amt.toAmountString();
+					}
+				});
+		}
+	});
+	$effect(() => {
+		if (!open) return;
+		if (!$SendTxDetails.toCoin) return;
+		if (shownCoin.coin.value === $SendTxDetails.toCoin.coin.value) {
+			const amt = new CoinAmount(amount, $SendTxDetails.toCoin.coin).toAmountString();
+			if (amt !== $SendTxDetails.toAmount) $SendTxDetails.toAmount = amt;
+		} else {
+			new CoinAmount(amount, shownCoin.coin)
+				.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
+				.then((amt) => {
+					if ($SendTxDetails.toAmount !== amt.toAmountString()) {
+						$SendTxDetails.toAmount = amt.toAmountString();
 					}
 				});
 		}
@@ -77,6 +88,9 @@
 		if ($SendTxDetails.fromCoin) {
 			result.push($SendTxDetails.fromCoin);
 		}
+		if ($SendTxDetails.toCoin) {
+			result.push($SendTxDetails.toCoin);
+		}
 		return result;
 	});
 	let lastPossibleCoins: CoinOptions['coins'] = $state([]);
@@ -110,6 +124,13 @@
 	let shownCoin: CoinOptions['coins'][number] = $state(
 		$SendTxDetails.fromCoin ?? { coin: Coin.usd, networks: [] }
 	);
+	let shownNetwork = $derived(
+		shownCoin.coin.value === $SendTxDetails.fromCoin?.coin.value
+			? $SendTxDetails.fromNetwork
+			: shownCoin.coin.value === $SendTxDetails.toCoin?.coin.value
+				? $SendTxDetails.toNetwork
+				: Network.unknown
+	);
 	function cycleShown() {
 		shownIndex = (shownIndex + 1) % possibleCoins.length;
 		shownCoin = possibleCoins[shownIndex];
@@ -125,12 +146,7 @@
 		<label for={inputId}>Amount</label>
 		<div class="amount-row">
 			<div class="amount-input">
-				<AmountInput
-					bind:amount
-					coinOpt={shownCoin}
-					network={$SendTxDetails.fromNetwork}
-					bind:id={inputId}
-				/>
+				<AmountInput bind:amount coinOpt={shownCoin} network={shownNetwork} bind:id={inputId} />
 			</div>
 			<span class="cycle-button">
 				<PillButton onclick={cycleShown} styleType="icon">

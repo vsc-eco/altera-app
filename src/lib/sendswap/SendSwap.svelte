@@ -204,7 +204,7 @@
 	});
 
 	$effect(() => {
-		if (status.message.includes('cancelled')) {
+		if (status.message.includes('cancel')) {
 			waiting = false;
 		}
 	});

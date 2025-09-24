@@ -5,12 +5,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import Instructions from '$lib/sendswap/components/Instructions.svelte';
-	import swapOptions, {
-		Coin,
-		Network,
-		TransferMethod,
-		type CoinOptions
-	} from '$lib/sendswap/utils/sendOptions';
+	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';

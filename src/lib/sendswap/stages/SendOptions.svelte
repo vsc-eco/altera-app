@@ -28,17 +28,14 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import AssetInfo from '../components/info/AssetInfo.svelte';
 	import EditButton from '$lib/components/EditButton.svelte';
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import Divider from '$lib/components/Divider.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
-	import Card from '$lib/cards/Card.svelte';
 
 	let {
 		id,

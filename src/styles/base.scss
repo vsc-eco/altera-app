@@ -131,7 +131,6 @@ h6 {
 	min-width: min-content;
 	width: min(32rem, calc(100vw - 4rem));
 	max-width: 32rem;
-	min-height: 50vh;
 	padding: 1px 0;
 	@media screen and (max-width: 450px) {
 		width: calc(100vw - 3.5rem);

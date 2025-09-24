@@ -11,8 +11,9 @@
 		description?: string;
 		trigger: (attributes: HTMLButtonAttributes) => ReturnType<Snippet>;
 		children?: Snippet;
+		open?: boolean;
 	};
-	const { title, description, trigger, children }: Props = $props();
+	let { title, description, trigger, children, open = $bindable() }: Props = $props();
 	const id = getUniqueId();
 	const service = useMachine(popover.machine, {
 		id,
@@ -24,6 +25,10 @@
 		}
 	});
 	const api = $derived(popover.connect(service, normalizeProps));
+
+	$effect(() => {
+		if (open !== undefined) open = api.open;
+	});
 </script>
 
 <!-- <button {...api.getTriggerProps()}>Click me</button> -->

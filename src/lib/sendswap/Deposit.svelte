@@ -4,12 +4,7 @@
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { untrack } from 'svelte';
 	import DepositOptions from './stages/deposit/DepositOptions.svelte';
-	import swapOptions, {
-		Coin,
-		Network,
-		type NecessarySendDetails,
-		type SendDetails
-	} from './utils/sendOptions';
+	import { Coin, Network, type NecessarySendDetails, type SendDetails } from './utils/sendOptions';
 	import { blankDetails, getTxSessionId, send, SendTxDetails } from './utils/sendUtils';
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
@@ -17,6 +12,10 @@
 	import ReviewDeposit from './stages/deposit/ReviewDeposit.svelte';
 	import Complete from './stages/Complete.svelte';
 	import QuickSendNavButtons from './components/QuickSendNavButtons.svelte';
+	import { sleep } from 'aninest';
+	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
+	import V4VPopup from './V4VPopup.svelte';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 
 	let {
 		dialogOpen = $bindable(),
@@ -193,6 +192,56 @@
 		{/key}
 	{/snippet}
 </Dialog>
+
+{#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
+	{@const toCoin = $SendTxDetails.toCoin}
+	{@const toNetwork = $SendTxDetails.toNetwork}
+	{@const toAmount = $SendTxDetails.toAmount}
+
+	<V4VPopup
+		from={{ coin: Coin.sats, network: Network.lightning }}
+		to={{ coin: toCoin.coin, network: toNetwork }}
+		{toAmount}
+		{auth}
+		toUsername={$SendTxDetails.toUsername}
+		onerror={(v) => {
+			if (v.includes('Bad request')) {
+				setStatus('An error occured, please try again.', true);
+			} else {
+				setStatus(v.startsWith('Error: ') ? v.substring(7) : v, true);
+			}
+			showV4VModal = false;
+		}}
+		onsuccess={(id) => {
+			setStatus('');
+			// TODO: after success notify via a notification
+			// store transaction as pending in local storage
+			addLocalTransaction({
+				ops: [
+					{
+						data: {
+							amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
+							asset: toCoin.coin.unit.toLowerCase(),
+							from: `v4vapp`,
+							to: $SendTxDetails.toUsername,
+							memo: `altera_id=${id}`,
+							type: 'transfer'
+						},
+						type: 'transfer',
+						index: 0
+					}
+				],
+				timestamp: new Date(),
+				id: id,
+				type: 'v4v'
+			});
+			txId = id;
+			setTimeout(() => {
+				showV4VModal = false;
+			}, 10000);
+		}}
+	/>
+{/if}
 
 <div class="deposit-internal-wrapper"></div>
 

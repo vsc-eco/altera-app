@@ -9,13 +9,13 @@
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getIntermediaryNetwork } from './utils/getNetwork';
-	import ReviewDeposit from './stages/deposit/ReviewDeposit.svelte';
 	import Complete from './stages/Complete.svelte';
-	import QuickSendNavButtons from './components/QuickSendNavButtons.svelte';
 	import { sleep } from 'aninest';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import V4VPopup from './V4VPopup.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import ReviewSwap from './stages/ReviewSwap.svelte';
+	import NavButtons from './components/NavButtons.svelte';
 
 	let {
 		dialogOpen = $bindable(),
@@ -128,6 +128,10 @@
 	});
 	const api = $derived(steps.connect(service, normalizeProps));
 
+	let stepComplete = $state(false);
+	function editStage(complete: boolean) {
+		stepComplete = complete;
+	}
 	function next() {
 		if (api.value === api.count) {
 			toggle(false);
@@ -154,28 +158,40 @@
 		}
 	}
 
+	const nextLabel = $derived(
+		stepsData[api.value].value === 'review'
+			? 'Deposit'
+			: api.value === stepsData.length - 1
+				? 'Done'
+				: 'Review Deposit'
+	);
 	const buttons = $derived({
 		fwd: {
-			label: 'Deposit',
-			action: next
+			label: nextLabel,
+			action: next,
+			disabled: !stepComplete
 		},
-		back: {
-			label: 'Back',
-			action: previous
-		}
+		back:
+			api.value !== 0
+				? {
+						label: 'Back',
+						action: previous
+					}
+				: undefined
 	});
 </script>
 
 {#snippet options()}
-	<DepositOptions {next} />
+	<DepositOptions {editStage} />
 {/snippet}
 {#snippet review()}
-	<ReviewDeposit {status} waiting={false} abort={() => {}} />
-	<QuickSendNavButtons {buttons} small={true} />
+	<!-- <ReviewDeposit {status} waiting={false} abort={() => {}} /> -->
+	<ReviewSwap {status} />
 {/snippet}
 {#snippet complete()}
 	<Complete {txId} close={() => toggle(false)} />
 {/snippet}
+<NavButtons {buttons} fixed={false} />
 
 <Dialog bind:toggle bind:open={dialogOpen}>
 	{#snippet content()}

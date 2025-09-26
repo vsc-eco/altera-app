@@ -12,7 +12,7 @@
 	import { ArrowRightLeft } from '@lucide/svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 
-	let { next, open }: { next: () => void; open: boolean } = $props();
+	let { editStage, open }: { editStage: (add: boolean) => void; open: boolean } = $props();
 
 	const auth = $derived(getAuth()());
 
@@ -57,7 +57,6 @@
 			}
 		}
 	];
-	let allowConfirm = $derived(Number(amount) > 0 && $SendTxDetails.toCoin);
 
 	const max = $derived.by(() => {
 		const coin = $SendTxDetails.fromCoin?.coin;
@@ -68,6 +67,21 @@
 				coin,
 				true
 			);
+		}
+	});
+
+	const amountNumber = $derived(parseFloat(amount));
+	$effect(() => {
+		if (
+			$SendTxDetails.fromCoin &&
+			$SendTxDetails.toCoin &&
+			$SendTxDetails.fromAmount &&
+			$SendTxDetails.fromNetwork &&
+			amountNumber > 0 &&
+			amountNumber < (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
+		) {
+			editStage(true);
+		} else {
 		}
 	});
 
@@ -156,14 +170,6 @@
 					placeholder="Select Asset"
 				/>
 			</div>
-			<PillButton
-				onclick={() => next()}
-				disabled={!allowConfirm}
-				theme="primaray"
-				styleType="invert"
-			>
-				Deposit
-			</PillButton>
 		</div>
 	</div>
 {:else}

@@ -142,8 +142,8 @@
 	}
 
 	let stepComplete = $state(false);
-	function editStage(id: string, complete: boolean) {
-		if (id === stepsData[api.value].value) stepComplete = complete;
+	function editStage(complete: boolean) {
+		stepComplete = complete;
 	}
 	function next() {
 		if (api.value === api.count) {
@@ -222,17 +222,17 @@
 </script>
 
 <!-- Swap snippets -->
-{#snippet swapOptions(value: string)}
-	<SwapOptions id={value} {editStage} />
+{#snippet swapOptions()}
+	<SwapOptions {editStage} />
 {/snippet}
 {#snippet swapReview()}
 	<PreviewSwap {status} {waiting} abort={() => {}} />
 {/snippet}
 <!-- Send snippets -->
-{#snippet sendOptions(value: string)}
-	<SendOptions id={value} {editStage} />
+{#snippet sendOptions()}
+	<SendOptions {editStage} />
 {/snippet}
-{#snippet sendReview(value: string)}
+{#snippet sendReview()}
 	<Review {status} {waiting} abort={cancelSend} />
 {/snippet}
 <!-- Both -->
@@ -245,7 +245,7 @@
 		<div {...api.getRootProps()}>
 			{#each stepsData as step, index}
 				<div {...api.getContentProps({ index })} tabindex="-1">
-					{@render step.content(step.value)}
+					{@render step.content()}
 				</div>
 			{/each}
 		</div>

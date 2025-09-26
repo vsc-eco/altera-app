@@ -7,12 +7,14 @@
 		action: () => void;
 	};
 	let {
-		buttons
+		buttons,
+		fixed = true
 	}: {
 		buttons: {
 			back?: navButton;
 			fwd: navButton;
 		};
+		fixed?: boolean;
 	} = $props();
 
 	let barElement = $state<HTMLDivElement>();
@@ -31,7 +33,7 @@
 
 <svelte:window on:resize={calculateOffset} on:visibilitychange={calculateOffset} />
 
-<div class="bar" id="send-footer" bind:this={barElement}>
+<div class={['bar', { fixed }]} id="send-footer" bind:this={barElement}>
 	<div class="button-wrapper">
 		{#if buttons.back}
 			<PillButton
@@ -54,7 +56,7 @@
 </div>
 
 <style lang="scss">
-	.bar {
+	.bar.fixed {
 		position: fixed;
 		bottom: 0;
 		right: 0;

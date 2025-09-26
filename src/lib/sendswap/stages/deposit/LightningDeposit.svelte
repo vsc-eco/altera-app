@@ -10,7 +10,7 @@
 	import { ArrowRightLeft } from '@lucide/svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 
-	let { next, open }: { next: () => void; open: boolean } = $props();
+	let { open }: { open: boolean } = $props();
 
 	let amount = $state('');
 	let inputId = $state('');
@@ -22,13 +22,23 @@
 			const amt = new CoinAmount(amount, $SendTxDetails.fromCoin.coin).toAmountString();
 			if (amt !== $SendTxDetails.fromAmount) $SendTxDetails.fromAmount = amt;
 		} else {
-			new CoinAmount(amount, shownCoin.coin)
-				.convertTo($SendTxDetails.fromCoin.coin, Network.lightning)
-				.then((amt) => {
-					if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
-						$SendTxDetails.fromAmount = amt.toAmountString();
-					}
-				});
+			Promise.all([
+				new CoinAmount(amount, shownCoin.coin).convertTo(
+					$SendTxDetails.fromCoin.coin,
+					Network.lightning
+				),
+				getFee($SendTxDetails.toAmount)
+			]).then(([amt, fee]) => {
+				if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
+					$SendTxDetails.fromAmount = amt.toAmountString();
+				}
+				if (
+					fee?.amount !== $SendTxDetails.fee?.amount ||
+					fee?.coin.value !== $SendTxDetails.fee?.coin.value
+				) {
+					$SendTxDetails.fee = fee;
+				}
+			});
 		}
 	});
 	$effect(() => {
@@ -71,17 +81,6 @@
 		}
 	];
 	let allowConfirm = $derived(Number(amount) > 0 && $SendTxDetails.toCoin);
-
-	function confirm() {
-		getFee($SendTxDetails.toAmount).then((fee) => {
-			if (
-				fee?.amount !== $SendTxDetails.fee?.amount ||
-				fee?.coin.value !== $SendTxDetails.fee?.coin.value
-			)
-				$SendTxDetails.fee = fee;
-		});
-		next();
-	}
 
 	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
 		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
@@ -172,14 +171,6 @@
 				placeholder="Select Account"
 			/>
 		</div>
-		<PillButton
-			onclick={() => confirm()}
-			disabled={!allowConfirm}
-			theme="primaray"
-			styleType="invert"
-		>
-			Deposit
-		</PillButton>
 	</div>
 </div>
 

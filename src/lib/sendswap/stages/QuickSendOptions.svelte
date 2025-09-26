@@ -14,9 +14,15 @@
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
-	import swapOptions, { Coin, Network, networkMap, SendAccount } from '../utils/sendOptions';
+	import swapOptions, {
+		Coin,
+		Network,
+		networkMap,
+		SendAccount,
+		type CoinOptions
+	} from '../utils/sendOptions';
 	import Select from '$lib/zag/Select.svelte';
-	import { assetCard, networkCard } from '../components/info/SendSnippets.svelte';
+	import { assetCard, networkCard, type AssetObject } from '../components/info/SendSnippets.svelte';
 	import { untrack } from 'svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import RecipientCard from '../components/RecipientCard.svelte';
@@ -24,7 +30,12 @@
 	import SelectContact from '../contacts/SelectContact.svelte';
 	import type { Contact } from '../contacts/contacts';
 	import PillButton from '$lib/PillButton.svelte';
-	import { ArrowLeft } from '@lucide/svelte';
+	import { ArrowLeft, ArrowRightLeft, Asterisk, Coins, Info } from '@lucide/svelte';
+	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
+	import BalanceInfo from '../components/info/BalanceInfo.svelte';
+	import EditButton from '$lib/components/EditButton.svelte';
+	import Divider from '$lib/components/Divider.svelte';
 
 	let {
 		id,
@@ -36,8 +47,6 @@
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
 	const auth = $derived(getAuth()());
-	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
-	let isSwap = $derived($SendTxDetails.account?.value === SendAccount.swap.value);
 
 	// EDIT STAGE
 	let toSelf = $derived(
@@ -61,222 +70,103 @@
 	});
 
 	// AMOUNT SECTION
-	let toAmount = $state('');
-	let fromSwapAmount = $state('');
-	let lastFromCoin = $state($SendTxDetails.fromCoin?.coin);
+	let amount = $state('');
 	$effect(() => {
-		const newFromCoin = $SendTxDetails.fromCoin?.coin;
-		if (newFromCoin?.value === lastFromCoin?.value) return;
-		untrack(() => {
-			if (!newFromCoin) return;
-			const amountAvailable =
-				$SendTxDetails.fromCoin && isValidBalanceField(newFromCoin.value)
-					? $accountBalance.bal[newFromCoin.value]
-					: undefined;
-			if (
-				amountAvailable === 0 &&
-				$SendTxDetails.fromNetwork?.value === Network.vsc.value &&
-				networkOptions.find((net) => net.value === Network.hiveMainnet.value)?.disabled === false
-			) {
-				$SendTxDetails.fromNetwork = Network.hiveMainnet;
-			}
-		});
-		lastFromCoin = newFromCoin;
-	});
-
-	const maxAmount: CoinAmount<Coin> | undefined = $derived.by(() => {
-		if (isSwap || $SendTxDetails.fromNetwork?.value !== Network.vsc.value) return;
-		const fromCoin = $SendTxDetails.fromCoin?.coin;
-		if (!fromCoin) return undefined;
-		if (isValidBalanceField(fromCoin.value)) {
-			return new CoinAmount($accountBalance.bal[fromCoin.value as BalanceOption], fromCoin, true);
+		if (!$SendTxDetails.fromCoin) return;
+		if (shownCoin.coin.value === $SendTxDetails.fromCoin.coin.value) {
+			const amt = new CoinAmount(amount, $SendTxDetails.fromCoin.coin).toAmountString();
+			if (amt !== $SendTxDetails.fromAmount)
+				$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
+		} else {
+			new CoinAmount(amount, shownCoin.coin)
+				.convertTo($SendTxDetails.fromCoin.coin, Network.lightning)
+				.then((amt) => {
+					if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
+						$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt.toAmountString();
+					}
+				});
 		}
 	});
 
-	// default to USD if swap
-	$effect(() => {
-		if (isSwap && !$SendTxDetails.toCoin) {
-			$SendTxDetails.toCoin = {
-				coin: coins.usd,
-				networks: []
-			};
-		}
-	});
-
-	// ACCOUNT SECTION
-	const { assetOptions, networkOptions } = $derived(
-		solveNetworkConstraints(
-			$SendTxDetails.method,
-			$SendTxDetails.fromCoin,
-			$SendTxDetails.toNetwork,
-			auth.value?.did,
-			$SendTxDetails.fromNetwork
-		)
-	);
-
-	interface AssetObject extends Coin {
-		snippetData: { fromOpt: CoinOptionParam | undefined; net?: Network };
-		snippet: typeof assetCard;
-		disabled?: boolean;
-		disabledMemo?: string;
-	}
-	const assetObjs: AssetObject[] = $derived(
-		assetOptions.map((opt) => ({
+	const fromAssetObjs: AssetObject[] = $derived(
+		swapOptions.from.coins.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: $SendTxDetails.fromNetwork },
-			disabled: opt.disabled,
-			disabledMemo: opt.disabledMemo
+			snippetData: { fromOpt: opt, net: $SendTxDetails.toNetwork, size: 'medium' }
 		}))
-	);
-	// const fromOptions = $derived(getFromOptions($SendTxDetails.method, auth.value?.did));
-	// interface AccountObject extends AccountOptionParam {
-	// 	snippetData: AccountOptionParam;
-	// 	snippet: typeof accountCard;
-	// }
-	// const accountObjs: AccountObject[] = $derived(
-	// 	accountOptions.map((opt) => ({
-	// 		...opt,
-	// 		snippet: accountCard,
-	// 		snippetData: opt
-	// 	})) ?? []
-	// );
-	interface NetworkObject extends NetworkOptionParam {
-		snippetData: typeof networkCard.arguments;
-		snippet: typeof networkCard;
-	}
-	let networkObjs: NetworkObject[] = $derived(
-		networkOptions.map((opt) => ({
-			...opt,
-			snippet: networkCard,
-			snippetData: { net: opt }
-		}))
-	);
-	let fromCoinOptions = $derived(
-		$SendTxDetails.fromNetwork
-			? (networkMap.get($SendTxDetails.fromNetwork.value)?.map((coin) => ({
-					icon: coin.icon,
-					value: coin.value,
-					label: coin.label
-				})) ?? [])
-			: []
 	);
 
-	let fromCoinValue = $state('');
-	// TODO: replace with logic for multiple coin options
-	// either a radio group or dropdown on the amount
-	$effect(() => {
-		if (fromCoinOptions.length === 1) {
-			fromCoinValue = fromCoinOptions[0].value;
+	let max: CoinAmount<Coin> | undefined = $state();
+
+	let assetOpen = $state(false);
+	const toggleAsset = (open = false) => {
+		assetOpen = open;
+	};
+
+	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
+		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
+		if ($SendTxDetails.fromCoin) {
+			result.push($SendTxDetails.fromCoin);
 		}
+		if ($SendTxDetails.toCoin) {
+			result.push($SendTxDetails.toCoin);
+		}
+		return result;
 	});
-
+	let lastPossibleCoins: CoinOptions['coins'] = $state([]);
 	$effect(() => {
-		if (isSwap && fromCoinValue) {
-			if ($SendTxDetails.fromCoin?.coin.value !== fromCoinValue) {
-				const fromCoinOpt = swapOptions.from.coins.find(
-					(coin) => coin.coin.value === fromCoinValue
+		possibleCoins;
+		untrack(() => {
+			if (!open) return;
+			if (
+				!lastPossibleCoins.some((coinOpt) => coinOpt.coin.value !== Coin.usd.value) &&
+				possibleCoins.some((coinOpt) => coinOpt.coin.value !== Coin.usd.value)
+			) {
+				shownIndex = possibleCoins.findIndex((coinOpt) => coinOpt.coin.value !== Coin.usd.value);
+			} else {
+				const index = possibleCoins.findIndex(
+					(coinOpt) => coinOpt.coin.value === shownCoin.coin.value
 				);
-				if (!fromCoinOpt) return;
-				$SendTxDetails.fromCoin = fromCoinOpt;
-				if ($SendTxDetails.toCoin) {
-					Promise.all([
-						new CoinAmount(toAmount, $SendTxDetails.toCoin!.coin).convertTo(
-							fromCoinOpt.coin,
-							Network.lightning
-						),
-						getFee(toAmount)
-					]).then(([amount, fee]) => {
-						$SendTxDetails.fromAmount = amount.toAmountString();
-						$SendTxDetails.fee = fee;
-					});
-				}
-			}
-		} else if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
-			$SendTxDetails.fromCoin = $SendTxDetails.toCoin;
-			$SendTxDetails.fromAmount = $SendTxDetails.toAmount;
-		}
-	});
-
-	// Reinstate if using account instead of direct network
-	// $effect(() => {
-	// 	if (networkOptions.length === 1) {
-	// 		if ($SendTxDetails.fromNetwork?.value !== networkOptions[0].value) {
-	// 			untrack(() => {
-	// 				SendTxDetails.update((current) => ({
-	// 					...current,
-	// 					fromNetwork: networkOptions[0]
-	// 				}));
-	// 			});
-	// 		}
-	// 	} else if ($SendTxDetails.fromNetwork) {
-	// 		untrack(() => {
-	// 			SendTxDetails.update((current) => ({
-	// 				...current,
-	// 				fromNetwork: undefined
-	// 			}));
-	// 		});
-	// 	}
-	// });
-
-	$effect(() => {
-		if (toAmount !== $SendTxDetails.toAmount) {
-			untrack(() => {
-				if ($SendTxDetails.toCoin && $SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
-					const fromCoin = swapOptions.from.coins.find((coin) => coin.coin.value === fromCoinValue);
-					if (fromCoin && $SendTxDetails.fromCoin) {
-						Promise.all([
-							new CoinAmount(toAmount, $SendTxDetails.toCoin!.coin).convertTo(
-								fromCoin.coin,
-								Network.lightning
-							),
-							getFee(toAmount)
-						]).then(([amount, fee]) => {
-							$SendTxDetails.toAmount = toAmount;
-							$SendTxDetails.fromAmount = amount.toAmountString();
-							$SendTxDetails.fee = fee;
-						});
-						return;
+				if (index >= 0) {
+					shownIndex = index;
+				} else {
+					if (shownIndex > possibleCoins.length - 1) {
+						shownIndex = 0;
 					}
 				}
-				$SendTxDetails.fromAmount = $SendTxDetails.toAmount = toAmount;
-			});
-		}
+			}
+			shownCoin = possibleCoins[shownIndex];
+			lastPossibleCoins = possibleCoins;
+		});
 	});
 
+	let shownIndex = $state(0);
+	let shownCoin: CoinOptions['coins'][number] = $state(
+		$SendTxDetails.fromCoin ?? { coin: Coin.usd, networks: [] }
+	);
+	let shownNetwork = $derived(
+		shownCoin.coin.value === $SendTxDetails.fromCoin?.coin.value
+			? $SendTxDetails.fromNetwork
+			: shownCoin.coin.value === $SendTxDetails.toCoin?.coin.value
+				? $SendTxDetails.toNetwork
+				: Network.unknown
+	);
+	function cycleShown() {
+		shownIndex = (shownIndex + 1) % possibleCoins.length;
+		shownCoin = possibleCoins[shownIndex];
+	}
+
 	// RECIPIENT SECTION
-	let isValidHive = $state(false);
 	let contactOpen = $state(false);
 	$effect(() => {
 		hideNav = contactOpen;
 	});
 
-	const availableNetworks = $derived(
-		getRecipientNetworks(getDidFromUsername($SendTxDetails.toUsername))
-	);
-	let networkItems = $derived(
-		availableNetworks.map((v) => {
-			return {
-				icon: v.icon,
-				value: v.value,
-				label: v.label,
-				disabled: v.disabled,
-				snippet: networkCard,
-				snippetData: { net: v, hideDetails: true }
-			};
-		})
-	);
 	// MEMO SECTION
 	let memo = $state('');
 
-	let warningMsg = $derived(
-		getDidFromUsername($SendTxDetails.toUsername).startsWith('hive:') && !isValidHive
-			? 'Warning: This hive account does not exist. Payment to this address may result in loss of funds.'
-			: undefined
-	);
-
 	let contact = $state<Contact>();
-	let toggleContact = (open = false) => {
+	const toggleContact = (open = false) => {
 		contactOpen = open;
 	};
 	let createNew: string | undefined = $derived(
@@ -304,138 +194,141 @@
 			{createNew}
 		/>
 	</div>
+{:else if assetOpen}
+	<div class="back-button">
+		<PillButton onclick={() => toggleAsset()} styleType="icon-subtle">
+			<ArrowLeft size="32" />
+		</PillButton>
+	</div>
+	<SelectAssetFlattened
+		availableCoins={fromAssetObjs}
+		close={toggleAsset}
+		bind:coin={$SendTxDetails.fromCoin}
+		bind:network={$SendTxDetails.fromNetwork}
+		bind:max
+	/>
 {:else}
 	<h2>Send</h2>
-	<div class="section to">
-		<span class="sm-caption nogap">To</span>
-		<ContactSearchBox
-			bind:value={$SendTxDetails.toUsername}
-			bind:selectedContact={contact}
-			enableContacts={false}
-			placeholder="Enter address"
-		/>
-		<RecipientCard basic edit={openContact} {contact} />
-		<!-- <div class="selected">
-			<input
-				id="send-recipient"
-				bind:value={recipientUsername}
-				placeholder="Find a contact or paste wallet address"
+	<div class="sections">
+		<div class="section to">
+			<ContactSearchBox
+				bind:value={$SendTxDetails.toUsername}
+				bind:selectedContact={contact}
+				enableContacts={false}
+				placeholder="Enter address"
 			/>
-		</div> -->
-
-		<span class="sm-caption gap">Recipient Network</span>
-		<Select
-			items={networkItems}
-			initial={$SendTxDetails.toNetwork?.value}
-			styleType="dropdown"
-			placeholder="Recipient Network"
-			onValueChange={(v) => {
-				$SendTxDetails.toNetwork = Object.values(Network).find((net) => net.value === v.value[0]);
-			}}
-		/>
-	</div>
-
-	<div class="section from">
-		<span class="sm-caption nogap">Asset</span>
-		<Select
-			items={assetObjs}
-			styleType="dropdown"
-			placeholder="Token"
-			onValueChange={(v) => {
-				$SendTxDetails.toCoin = swapOptions.from.coins.find((val) => val.coin.value === v.value[0]);
-			}}
-		/>
-
-		<span class="sm-caption gap">Origin Network</span>
-		<div class="from-network-select">
-			<!-- <Select
-				items={accountObjs}
-				styleType="dropdown"
-				placeholder="Account"
-				onValueChange={(v) => {
-					SendTxDetails.update((current) => ({
-						...current,
-						account: Object.values(SendAccount).find((acc) => acc.value === v.value[0])
-					}));
-				}}
-			/> -->
-			<Select
-				items={networkObjs}
-				styleType="dropdown"
-				placeholder="On Network"
-				initial={$SendTxDetails.fromNetwork?.value}
-				onValueChange={(v) => {
-					$SendTxDetails.fromNetwork = Object.values(Network).find(
-						(net) => net.value === v.value[0]
-					);
-				}}
-			/>
-
-			{#if toSelf}
-				<p class="error to-self-error">
-					Cannot transfer currency to yourself on the same network. Please select a different
-					recipient or network.
-				</p>
-			{/if}
+			<RecipientCard basic edit={openContact} {contact} />
 		</div>
-	</div>
-
-	<div class="section">
-		<label for={inputId} class="sm-caption">Amount</label>
-		<AmountInput
-			bind:amount={toAmount}
-			coinOpt={$SendTxDetails.toCoin}
-			network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}
-			{maxAmount}
-			connectedCoinAmount={$SendTxDetails.fromCoin && isSwap
-				? new CoinAmount(fromSwapAmount, $SendTxDetails.fromCoin.coin)
-				: undefined}
-			bind:id={inputId}
-		/>
-	</div>
-
-	<div class="section">
-		<span class="sm-caption">Memo (optional)</span>
-		<input
-			bind:value={memo}
-			maxlength="300"
-			onchange={() => {
-				$SendTxDetails.memo = memo;
-			}}
-			id="memo-input"
-		/>
+		<Divider text="Amount" />
+		<div class="section">
+			<div class="amount-row">
+				<div class="amount-input">
+					<AmountInput
+						bind:amount
+						coinOpt={shownCoin}
+						network={shownNetwork}
+						maxAmount={max}
+						bind:id={inputId}
+					/>
+				</div>
+				<span class="cycle-button">
+					<PillButton onclick={cycleShown} styleType="icon">
+						<ArrowRightLeft />
+					</PillButton>
+				</span>
+			</div>
+		</div>
+		<ClickableCard onclick={() => toggleAsset(true)}>
+			<div class="asset-card">
+				{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+					<BalanceInfo
+						coin={$SendTxDetails.fromCoin.coin}
+						network={$SendTxDetails.fromNetwork}
+						size="large"
+						styleType="vertical"
+					/>
+					<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
+				{:else}
+					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+					Select Asset
+				{/if}
+				<span class="more">
+					<EditButton onclick={() => toggleAsset(true)} />
+				</span>
+			</div>
+		</ClickableCard>
+		<Divider text="Details" />
+		<div class="section memo">
+			<span class="sm-caption">Memo (optional)</span>
+			<input
+				bind:value={memo}
+				maxlength="300"
+				onchange={() => {
+					$SendTxDetails.memo = memo;
+				}}
+				id="memo-input"
+			/>
+		</div>
+		<div class="section note sm-caption">
+			<div class="info-icon">
+				<Info size={16} />
+			</div>
+			<div class="info-text">
+				Quick send is designed for easy internal transfers. To make an external transfer, please use
+				the <a href="/send">send page</a>.
+			</div>
+		</div>
 	</div>
 {/if}
 
 <style lang="scss">
-	.section {
-		padding: 1rem 0;
+	.sections {
 		display: flex;
 		flex-direction: column;
-		// gap: 0.5rem;
-		&.from {
-			border-top: 1px solid var(--neutral-bg-accent-shifted);
-			padding-top: 1.5rem;
-			.to-self-error {
-				margin-top: 0.25rem;
-				line-height: 1.2;
+		gap: 1.5rem;
+	}
+	.to {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.amount-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		.amount-input {
+			flex-grow: 1;
+			// height: 65px;
+		}
+		.cycle-button {
+			:global(button) {
+				margin: 0;
+				margin-top: 2px;
 			}
 		}
-		&.to {
-			padding-bottom: 1.5rem;
-			display: flex;
-			flex-direction: column;
-			gap: 0.5rem;
+	}
+	.asset-card {
+		display: flex;
+		align-items: center;
+		gap: 1.5rem;
+		padding: 0.5rem;
+		.more {
+			margin-left: auto;
 		}
 	}
-	.sm-caption {
-		&.gap {
-			padding-top: 2rem;
-		}
-		margin-left: 0.25rem;
-		margin-bottom: 0.25rem;
+	.memo {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
 	}
-
+	.note {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.25rem;
+		.info-text {
+			line-height: 1.2;
+		}
+	}
 	.contact-external-wrapper:not(:has(:global(.dialog-list-header))) {
 		.back-button {
 			display: none;

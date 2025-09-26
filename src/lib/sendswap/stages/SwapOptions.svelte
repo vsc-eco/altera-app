@@ -29,11 +29,9 @@
 	import SelectAssetTiered from '$lib/sendswap/components/assetSelection/SelectAssetTiered.svelte';
 
 	let {
-		id,
 		editStage
 	}: {
-		id: string;
-		editStage: (id: string, add: boolean) => void;
+		editStage: (complete: boolean) => void;
 	} = $props();
 
 	onMount(() => {
@@ -56,7 +54,7 @@
 			$SendTxDetails.fromAmount !== '0' &&
 			$SendTxDetails.fromCoin
 		) {
-			editStage(id, true);
+			editStage(true);
 			untrack(() => {
 				getFee($SendTxDetails.toAmount).then((fee) => {
 					if (
@@ -67,7 +65,7 @@
 				});
 			});
 		} else {
-			editStage(id, false);
+			editStage(false);
 		}
 	});
 

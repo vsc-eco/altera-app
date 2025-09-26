@@ -75,19 +75,21 @@
 			return;
 		}
 		(async () => {
+			const originalCoinValue = currentCoin.value;
 			let convertTo = await maxAmount.convertTo(currentCoin, Network.lightning);
 			let convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
 			while (convertBack.toNumber() > maxAmount.toNumber()) {
 				convertTo = new CoinAmount(convertTo.amount - 1, currentCoin, true);
 				convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
 			}
-			max = convertTo.toNumber();
+			if (originalCoinValue === currentCoin.value) max = convertTo.toNumber();
 		})();
 	});
 
 	let showMax = $derived(
 		maxAmount !== undefined &&
-			maxAmount.toAmountString() !== new CoinAmount(amount ?? 0, currentCoin).toAmountString()
+			maxAmount.toAmountString() !== new CoinAmount(amount ?? 0, currentCoin).toAmountString() &&
+			currentCoin.value === maxAmount.coin.value
 	);
 
 	let showUsd = $derived(
@@ -187,11 +189,11 @@
 	<div class="normal-wrapper">
 		<label for={id}>
 			<span>
-				{#if showMax && maxAmount}
+				{#if showMax}
 					<span style="white-space: nowrap;">
 						(Balance:
 						<span class="balance-amount">
-							{maxAmount.toPrettyString()}
+							{maxAmount!.toPrettyString()}
 						</span>)
 					</span>
 				{/if}
@@ -322,6 +324,9 @@
 			line-height: 1.2;
 			&.hidden {
 				visibility: hidden;
+			}
+			.error {
+				font-size: var(--text-sm);
 			}
 		}
 		.approx-usd {

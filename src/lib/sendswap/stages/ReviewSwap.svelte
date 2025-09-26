@@ -2,7 +2,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network, TransferMethod } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { Dot, EqualApproximately, X } from '@lucide/svelte';
@@ -13,12 +13,12 @@
 	const auth = $derived(getAuth()());
 	let {
 		status,
-		waiting,
-		abort
+		waiting = false,
+		abort = () => {}
 	}: {
 		status: { message: string; isError: boolean };
-		waiting: boolean;
-		abort: () => void;
+		waiting?: boolean;
+		abort?: () => void;
 	} = $props();
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
@@ -91,7 +91,9 @@
 						<td class="icon"><Dot size="32" /></td>
 						<td class="sm-caption label">Fee</td>
 						<td class="content">
-							{#if !$SendTxDetails.fee || !feeInUsd}
+							{#if $SendTxDetails.method?.value === TransferMethod.vscTransfer.value}
+								No fee
+							{:else if !$SendTxDetails.fee || !feeInUsd}
 								<div class="fee-loading"><WaveLoading /></div>
 							{:else}
 								{$SendTxDetails.fee.toPrettyString()}
@@ -109,15 +111,17 @@
 							{inUsd?.toPrettyString()}
 						</td>
 					</tr>
-					<tr>
-						<td class="icon"><Dot size="32" /></td>
-						<td class="sm-caption label">Market Rate</td>
-						<td class="content">
-							{new CoinAmount(1, fromCoin).toPrettyMinFigs()}
-							<EqualApproximately size="16" />
-							{fromInTo?.toPrettyString()}
-						</td>
-					</tr>
+					{#if $SendTxDetails.fromCoin?.coin !== $SendTxDetails.toCoin?.coin}
+						<tr>
+							<td class="icon"><Dot size="32" /></td>
+							<td class="sm-caption label">Market Rate</td>
+							<td class="content">
+								{new CoinAmount(1, fromCoin).toPrettyMinFigs()}
+								<EqualApproximately size="16" />
+								{fromInTo?.toPrettyString()}
+							</td>
+						</tr>
+					{/if}
 					{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
 						<tr>
 							<td class="icon">

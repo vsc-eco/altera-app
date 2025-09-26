@@ -38,11 +38,9 @@
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
 
 	let {
-		id,
 		editStage
 	}: {
-		id: string;
-		editStage: (id: string, add: boolean) => void;
+		editStage: (add: boolean) => void;
 	} = $props();
 
 	const auth = $derived(getAuth()());
@@ -84,6 +82,7 @@
 		if (
 			$SendTxDetails.toUsername &&
 			$SendTxDetails.toNetwork &&
+			$SendTxDetails.toCoin &&
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.fromNetwork &&
 			$SendTxDetails.toAmount &&
@@ -91,9 +90,9 @@
 			amountNumber <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER) &&
 			!toSelf
 		) {
-			editStage(id, true);
+			editStage(true);
 		} else {
-			editStage(id, false);
+			editStage(false);
 		}
 	});
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
@@ -158,7 +157,6 @@
 	});
 
 	let fromCoinValue = $state('');
-
 	let fromAmount = $state('');
 	let inUsd = $state('');
 	let max: CoinAmount<Coin> | undefined = $state();
@@ -189,22 +187,6 @@
 		}
 	});
 
-	$effect(() => {
-		if (
-			$SendTxDetails.toUsername &&
-			$SendTxDetails.toNetwork &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.fromNetwork &&
-			$SendTxDetails.toAmount &&
-			$SendTxDetails.toAmount !== '0' &&
-			!toSelf
-		) {
-			editStage(id, true);
-		} else {
-			editStage(id, false);
-		}
-	});
 	let toSelf = $derived(
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value

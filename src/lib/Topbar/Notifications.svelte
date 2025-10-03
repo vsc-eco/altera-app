@@ -47,8 +47,6 @@
 		});
 	});
 
-	$inspect($notifications);
-
 	let open: boolean = $state(false);
 </script>
 

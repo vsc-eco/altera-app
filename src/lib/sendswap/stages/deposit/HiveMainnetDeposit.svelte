@@ -12,7 +12,7 @@
 	import { ArrowRightLeft } from '@lucide/svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 
-	let { editStage, open }: { editStage: (add: boolean) => void; open: boolean } = $props();
+	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
 
 	const auth = $derived(getAuth()());
 
@@ -72,6 +72,7 @@
 
 	const amountNumber = $derived(parseFloat(amount));
 	$effect(() => {
+		if (!open) return;
 		if (
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.toCoin &&
@@ -82,6 +83,7 @@
 		) {
 			editStage(true);
 		} else {
+			editStage(false);
 		}
 	});
 
@@ -203,6 +205,9 @@
 		gap: 1rem;
 		.select {
 			flex-grow: 1;
+			:global([data-scope='select'][data-part='control']) {
+				height: 52px;
+			}
 		}
 	}
 </style>

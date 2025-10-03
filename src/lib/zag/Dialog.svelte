@@ -100,12 +100,9 @@
 		border: none;
 		z-index: 2;
 		outline: none;
-		max-height: 90vh;
+		max-height: 90dvh;
 		position: relative;
 		display: flex;
-		@media screen and (max-width: 450px) {
-			max-height: calc(100vh - 1rem);
-		}
 	}
 
 	[data-part='positioner'] {
@@ -118,15 +115,8 @@
 		left: 50%;
 		top: 50%;
 		z-index: 10;
-		max-height: 90vh;
+		max-height: 90dvh;
 		transform: translate(-50%, -50%);
-
-		@media screen and (max-width: 450px) {
-			width: 100vw;
-			height: 100vh;
-			max-width: none;
-			max-height: 100vh;
-		}
 	}
 
 	[data-part='content'] > :global(div) {
@@ -158,5 +148,18 @@
 
 	.title-and-close.no-title {
 		height: 0;
+	}
+
+	@media screen and (max-width: 36rem) {
+		[data-part='positioner'] {
+			width: 100vw;
+			height: 100dvh;
+			max-width: none;
+			max-height: 100dvh;
+		}
+		[data-part='content'] {
+			max-height: calc(100dvh - 1rem);
+			height: 100%;
+		}
 	}
 </style>

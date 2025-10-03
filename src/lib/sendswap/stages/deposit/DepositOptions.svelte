@@ -8,8 +8,12 @@
 	import LightningDeposit from './LightningDeposit.svelte';
 	import { untrack } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
+	import Divider from '$lib/components/Divider.svelte';
 
-	let { editStage }: { editStage: (complete: boolean) => void } = $props();
+	let {
+		editStage,
+		onHomePage = $bindable()
+	}: { editStage: (complete: boolean) => void; onHomePage: boolean } = $props();
 
 	let toggleLightning: (open?: boolean) => void = (open = false) => {
 		lightningOpen = open;
@@ -42,6 +46,10 @@
 			$SendTxDetails.fromCoin = $SendTxDetails.toCoin;
 		});
 	});
+
+	$effect(() => {
+		onHomePage = lightningOpen || hiveMainnetOpen;
+	});
 </script>
 
 <div class="deposit-internal-wrapper">
@@ -51,7 +59,7 @@
 		</PillButton>
 		<h2>Lightning Deposit</h2>
 		<div class="deposit-content">
-			<LightningDeposit open={lightningOpen} />
+			<LightningDeposit {editStage} open={lightningOpen} />
 		</div>
 	{:else if hiveMainnetOpen}
 		<PillButton onclick={() => toggleHiveMainnet()} styleType="icon-subtle">
@@ -100,7 +108,6 @@
 
 <style lang="scss">
 	.deposit-internal-wrapper {
-		min-height: 20rem;
 		display: flex;
 		flex-direction: column;
 	}

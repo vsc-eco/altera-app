@@ -329,7 +329,7 @@
 	.stages-wrapper {
 		display: flex;
 		flex-direction: column;
-		height: 100vh;
+		height: 100dvh;
 		:global(h2) {
 			margin-bottom: 1rem !important;
 			margin-top: 0 !important;
@@ -338,7 +338,7 @@
 	[data-part='root'] {
 		flex-grow: 1;
 		width: calc(100vw - 1rem);
-		max-height: 100vh;
+		max-height: 100dvh;
 		overflow-y: auto;
 	}
 	[data-part='list'] {

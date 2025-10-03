@@ -10,7 +10,7 @@
 	import { ArrowRightLeft } from '@lucide/svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 
-	let { open }: { open: boolean } = $props();
+	let { editStage, open }: { editStage: (add: boolean) => void; open: boolean } = $props();
 
 	let amount = $state('');
 	let inputId = $state('');
@@ -80,7 +80,22 @@
 			}
 		}
 	];
-	let allowConfirm = $derived(Number(amount) > 0 && $SendTxDetails.toCoin);
+
+	const amountNumber = $derived(parseFloat(amount));
+	$effect(() => {
+		if (!open) return;
+		if (
+			$SendTxDetails.fromCoin &&
+			$SendTxDetails.toCoin &&
+			$SendTxDetails.fromAmount &&
+			$SendTxDetails.fromNetwork &&
+			amountNumber > 0
+		) {
+			editStage(true);
+		} else {
+			editStage(false);
+		}
+	});
 
 	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
 		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
@@ -201,6 +216,9 @@
 		gap: 1rem;
 		.select {
 			flex-grow: 1;
+			:global([data-scope='select'][data-part='control']) {
+				height: 52px;
+			}
 		}
 	}
 </style>

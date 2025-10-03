@@ -25,10 +25,11 @@
 	let lastPaid: string | undefined = $state();
 	let isValid = $state(false);
 	let loading = $state(false);
+	let debounedUsername = $state('');
 	$effect(() => {
 		const addr = $SendTxDetails.toUsername;
 		untrack(() => {
-			if (!addr) return;
+			if (!addr || addr === debounedUsername) return;
 			if (!contact) loading = true;
 			validateAddress(addr).then((result) => {
 				isValid = result.success;
@@ -49,6 +50,7 @@
 			getLastPaidContact(getDidFromUsername(addr)).then((res) => {
 				lastPaid = momentToLastPaidString(res);
 			});
+			debounedUsername = addr;
 		});
 	});
 

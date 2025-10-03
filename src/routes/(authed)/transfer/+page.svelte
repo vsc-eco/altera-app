@@ -6,4 +6,4 @@
 	<title>Send</title>
 </document:head>
 
-<SendSwap type="send" />
+<SendSwap txType="transfer" />

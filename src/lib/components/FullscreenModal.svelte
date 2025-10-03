@@ -18,7 +18,7 @@
 		top: 0;
 		left: 0;
 		width: calc(100vw - 1rem);
-		height: 100vh;
+		height: 100dvh;
 		background-color: var(--neutral-bg);
 		z-index: 500;
 		padding: 0 0.5rem;

@@ -310,7 +310,7 @@
 	<TransferBar {...params} />
 {/snippet}
 
-<h2>Send</h2>
+<h2>Transfer</h2>
 <div class="sections">
 	<div class="contact-search">
 		<RecipientCard edit={openContact} {contact} />
@@ -442,13 +442,14 @@
 			}
 			@media screen and (max-width: 450px) {
 				flex-direction: column;
-				align-items: center;
+				align-items: stretch;
 				gap: 0.25rem;
 				:global(.amount-wrapper) {
 					width: 100%;
 				}
 				:global(.lucide-link-2) {
 					height: auto;
+					align-self: center;
 				}
 			}
 		}

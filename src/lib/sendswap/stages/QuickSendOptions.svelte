@@ -39,11 +39,11 @@
 
 	let {
 		id,
-		hideNav = $bindable(),
+		onHomePage = $bindable(),
 		editStage
 	}: {
 		id: string;
-		hideNav: boolean;
+		onHomePage: boolean;
 		editStage: (id: string, add: boolean) => void;
 	} = $props();
 	const auth = $derived(getAuth()());
@@ -159,7 +159,7 @@
 	// RECIPIENT SECTION
 	let contactOpen = $state(false);
 	$effect(() => {
-		hideNav = contactOpen;
+		onHomePage = !contactOpen && !assetOpen;
 	});
 
 	// MEMO SECTION
@@ -296,6 +296,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 0.5rem;
+		height: 65px;
 		.amount-input {
 			flex-grow: 1;
 			// height: 65px;

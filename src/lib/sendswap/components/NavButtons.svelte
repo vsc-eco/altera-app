@@ -56,6 +56,22 @@
 </div>
 
 <style lang="scss">
+	.bar:not(.fixed) {
+		margin-top: 1rem;
+		@media screen and (max-width: 450px) {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			padding-bottom: 1rem;
+			--background-color: oklch(from var(--neutral-bg) l c h / 0.9);
+			background-color: var(--background-color);
+			box-shadow: 0 -5px 5px -5px var(--background-color);
+			border: 1px solid var(--neutral-bg-accent);
+			border-top: none;
+			border-radius: 0 0 0.75rem 0.75rem;
+		}
+	}
 	.bar.fixed {
 		position: fixed;
 		bottom: 0;

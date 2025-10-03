@@ -33,7 +33,7 @@ import { getIntermediaryNetwork } from './getNetwork';
 
 export const SendTxDetails = writable<SendDetails>(blankDetails());
 
-export function blankDetails() {
+export function blankDetails(): SendDetails {
 	return {
 		fromCoin: undefined,
 		fromNetwork: undefined,

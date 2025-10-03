@@ -9,14 +9,14 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { ArrowDown, EqualApproximately } from '@lucide/svelte';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
+	import { getAuth } from '$lib/auth/store';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
 
 	let timer = $state<PieTimer>();
 
-	let {
-		txId,
-		close,
-		type = 'send'
-	}: { txId: string; close?: () => void; type?: 'send' | 'swap' } = $props();
+	let { txId, close }: { txId: string; close?: () => void } = $props();
+
+	const isSend = $derived($SendTxDetails.toUsername !== getUsernameFromAuth(getAuth()()));
 
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
@@ -25,7 +25,7 @@
 		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
-				inUsd = amount.toAmountString();
+				inUsd = amount.toMinFigs();
 			});
 	});
 	let today = moment().format('MMM D, YYYY');
@@ -60,7 +60,7 @@
 	<h2>Payment Complete</h2>
 	<Card>
 		<div class="amount">
-			{#if type === 'send'}
+			{#if isSend}
 				<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
 				<h4>
 					{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}

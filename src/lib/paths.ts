@@ -12,9 +12,9 @@ export const paths = [
 		href: '/transactions'
 	},
 	{
-		name: 'Send',
+		name: 'Transfer',
 		icon: Send,
-		href: '/send'
+		href: '/transfer'
 	},
 	{
 		name: 'Swap',

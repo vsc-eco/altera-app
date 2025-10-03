@@ -53,7 +53,7 @@
 	{#if display}
 		<!-- Call this stacked and not large so it reuses class from warpper div -->
 		<ul
-			class={{ disabled, medium: size === 'medium', stacked: size === 'large' || isWrapped }}
+			class={{ error: disabled, medium: size === 'medium', stacked: size === 'large' || isWrapped }}
 			bind:this={listEl}
 		>
 			{#each display as item, index}
@@ -80,15 +80,14 @@
 		align-items: center;
 		line-height: 1.2;
 		font-size: var(--text-sm);
-		color: var(--neutral-fg-mid);
+		&:not(.error) {
+			color: var(--neutral-fg-mid);
+		}
 		.dot-wrapper {
 			height: 1rem;
 			display: flex;
 			align-items: center;
 		}
-	}
-	ul.disabled {
-		color: var(--secondary-bg-mid);
 	}
 	ul.medium {
 		padding-top: 0.25rem;

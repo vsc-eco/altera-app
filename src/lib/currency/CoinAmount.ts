@@ -82,7 +82,7 @@ export class CoinAmount<C extends Coin> {
 		const formatted = formatter.format(numericValue);
 		return `${isNegative ? '-' : ''}${formatted}`;
 	}
-	toPrettyMinFigs(figures = 3, decimals = 2) {
+	toPrettyMinFigs(figures = this.coin.decimalPlaces + 1, decimals = this.coin.decimalPlaces) {
 		return `${this.toMinFigs(figures, decimals)} ${this.coin.unit}`;
 	}
 	toNumber() {

@@ -393,7 +393,7 @@
 		<span class="sm-caption">Amount</span>
 		<AmountInput
 			bind:amount={toAmount}
-			coin={$SendTxDetails.toCoin}
+			coinOpt={$SendTxDetails.toCoin}
 			network={$SendTxDetails.toNetwork ?? $SendTxDetails.fromNetwork}
 			{maxField}
 			connectedCoinAmount={$SendTxDetails.fromCoin && isSwap

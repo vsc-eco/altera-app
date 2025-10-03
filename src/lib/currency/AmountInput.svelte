@@ -11,7 +11,7 @@
 	let {
 		amount = $bindable(),
 		connectedCoinAmount,
-		coin,
+		coinOpt,
 		network,
 		maxAmount,
 		minAmount,
@@ -20,7 +20,7 @@
 	}: {
 		amount: string;
 		connectedCoinAmount?: CoinAmount<Coin>;
-		coin: CoinOptions['coins'][number] | undefined;
+		coinOpt: CoinOptions['coins'][number] | undefined;
 		network: Network | undefined;
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
@@ -43,7 +43,7 @@
 		amount = maxAmount?.toAmountString() ?? '0';
 	}
 
-	let decimals = $derived(coin?.coin.decimalPlaces ?? 2);
+	let decimals = $derived(coinOpt?.coin.decimalPlaces ?? 2);
 	let min = $state<number>();
 	let max = $state<number>();
 	$effect(() => {
@@ -75,27 +75,31 @@
 			return;
 		}
 		(async () => {
+			const originalCoinValue = currentCoin.value;
 			let convertTo = await maxAmount.convertTo(currentCoin, Network.lightning);
 			let convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
 			while (convertBack.toNumber() > maxAmount.toNumber()) {
 				convertTo = new CoinAmount(convertTo.amount - 1, currentCoin, true);
 				convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
 			}
-			max = convertTo.toNumber();
+			if (originalCoinValue === currentCoin.value) max = convertTo.toNumber();
 		})();
 	});
 
 	let showMax = $derived(
 		maxAmount !== undefined &&
-			maxAmount.toAmountString() !== new CoinAmount(amount ?? 0, currentCoin).toAmountString()
+			maxAmount.toAmountString() !== new CoinAmount(amount ?? 0, currentCoin).toAmountString() &&
+			currentCoin.value === maxAmount.coin.value
 	);
 
 	let showUsd = $derived(
-		!(connectedCoinAmount?.coin.value === coins.usd.value || coin?.coin.value === coins.usd.value)
+		!(
+			connectedCoinAmount?.coin.value === coins.usd.value || coinOpt?.coin.value === coins.usd.value
+		)
 	);
 
 	$effect(() => {
-		if (connectedCoinAmount && coin) {
+		if (connectedCoinAmount && coinOpt) {
 			untrack(() => {
 				if (!lastConnected) {
 					lastConnected = connectedCoinAmount;
@@ -105,8 +109,11 @@
 					return;
 				}
 				Promise.all([
-					connectedCoinAmount.convertTo(coin.coin, Network.lightning),
-					new CoinAmount(amount, coin.coin).convertTo(connectedCoinAmount.coin, Network.lightning)
+					connectedCoinAmount.convertTo(coinOpt.coin, Network.lightning),
+					new CoinAmount(amount, coinOpt.coin).convertTo(
+						connectedCoinAmount.coin,
+						Network.lightning
+					)
 				]).then(([connectedInThis, thisInConnected]) => {
 					if (thisInConnected.toString() === connectedCoinAmount.toString()) {
 						return;
@@ -120,7 +127,7 @@
 		}
 	});
 	$effect(() => {
-		const newCoinOpt = coin;
+		const newCoinOpt = coinOpt;
 		if (!newCoinOpt) {
 			if (currentCoin !== coins.unk) {
 				currentCoin = coins.unk;
@@ -182,23 +189,23 @@
 	<div class="normal-wrapper">
 		<label for={id}>
 			<span>
-				{#if showMax && maxAmount}
+				{#if showMax}
 					<span style="white-space: nowrap;">
 						(Balance:
 						<span class="balance-amount">
-							{maxAmount.toPrettyString()}
+							{maxAmount!.toPrettyString()}
 						</span>)
 					</span>
 				{/if}
 			</span>
 		</label>
 		<div class="amount-input">
-			{#if coin?.coin.value === coins.usd.value}
+			{#if coinOpt?.coin.value === coins.usd.value}
 				<DollarSign />
 			{:else}
 				<CoinNetworkIcon
 					coin={currentCoin}
-					network={coin ? (network ?? Network.unknown) : Network.unknown}
+					network={coinOpt ? (network ?? Network.unknown) : Network.unknown}
 				/>
 			{/if}
 			{#key [currentCoin, debouncedMax, min]}
@@ -223,10 +230,10 @@
 				<span class="error">
 					{error}
 				</span>
-			{:else if showUsd && coin && amount !== '0'}
+			{:else if showUsd && coinOpt && amount !== '0'}
 				<span class="approx-usd">
 					Approx. USD value:
-					{#if coin?.coin.value != Coin.unk.value}
+					{#if coinOpt?.coin.value != Coin.unk.value}
 						${inUsd}
 					{:else}
 						Unknown
@@ -239,7 +246,7 @@
 	<div class="big-wrapper">
 		<div class="amount-input">
 			<label for={id}>
-				{coin?.coin.label}
+				{coinOpt?.coin.label}
 			</label>
 			{#key [currentCoin, debouncedMax, min]}
 				<BigInput bind:amount bind:inputId={id} {decimals} {min} />
@@ -317,6 +324,9 @@
 			line-height: 1.2;
 			&.hidden {
 				visibility: hidden;
+			}
+			.error {
+				font-size: var(--text-sm);
 			}
 		}
 		.approx-usd {

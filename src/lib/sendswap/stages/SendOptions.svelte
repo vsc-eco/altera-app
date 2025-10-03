@@ -28,24 +28,19 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
 	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import AssetInfo from '../components/info/AssetInfo.svelte';
 	import EditButton from '$lib/components/EditButton.svelte';
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import Divider from '$lib/components/Divider.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
-	import Card from '$lib/cards/Card.svelte';
 
 	let {
-		id,
 		editStage
 	}: {
-		id: string;
-		editStage: (id: string, add: boolean) => void;
+		editStage: (add: boolean) => void;
 	} = $props();
 
 	const auth = $derived(getAuth()());
@@ -87,6 +82,7 @@
 		if (
 			$SendTxDetails.toUsername &&
 			$SendTxDetails.toNetwork &&
+			$SendTxDetails.toCoin &&
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.fromNetwork &&
 			$SendTxDetails.toAmount &&
@@ -94,9 +90,9 @@
 			amountNumber <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER) &&
 			!toSelf
 		) {
-			editStage(id, true);
+			editStage(true);
 		} else {
-			editStage(id, false);
+			editStage(false);
 		}
 	});
 	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
@@ -161,16 +157,6 @@
 	});
 
 	let fromCoinValue = $state('');
-
-	const maxField: BalanceOption | undefined = $derived.by(() => {
-		if (isSwap || $SendTxDetails.fromNetwork?.value !== Network.vsc.value) return;
-		const fromCoin = $SendTxDetails.fromCoin?.coin;
-		if (!fromCoin) return undefined;
-		if (isValidBalanceField(fromCoin.value)) {
-			return fromCoin.value as BalanceOption;
-		}
-	});
-
 	let fromAmount = $state('');
 	let inUsd = $state('');
 	let max: CoinAmount<Coin> | undefined = $state();
@@ -201,22 +187,6 @@
 		}
 	});
 
-	$effect(() => {
-		if (
-			$SendTxDetails.toUsername &&
-			$SendTxDetails.toNetwork &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.fromNetwork &&
-			$SendTxDetails.toAmount &&
-			$SendTxDetails.toAmount !== '0' &&
-			!toSelf
-		) {
-			editStage(id, true);
-		} else {
-			editStage(id, false);
-		}
-	});
 	let toSelf = $derived(
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
@@ -340,7 +310,7 @@
 	<TransferBar {...params} />
 {/snippet}
 
-<h2>Send</h2>
+<h2>Transfer</h2>
 <div class="sections">
 	<div class="contact-search">
 		<RecipientCard edit={openContact} {contact} />
@@ -351,7 +321,7 @@
 		<div class="inputs">
 			<AmountInput
 				bind:amount={fromAmount}
-				coin={$SendTxDetails.fromCoin}
+				coinOpt={$SendTxDetails.fromCoin}
 				network={$SendTxDetails.fromNetwork}
 				maxAmount={max}
 				connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
@@ -360,7 +330,7 @@
 			<Link2 />
 			<AmountInput
 				bind:amount={inUsd}
-				coin={{
+				coinOpt={{
 					coin: coins.usd,
 					networks: []
 				}}
@@ -472,13 +442,14 @@
 			}
 			@media screen and (max-width: 450px) {
 				flex-direction: column;
-				align-items: center;
+				align-items: stretch;
 				gap: 0.25rem;
 				:global(.amount-wrapper) {
 					width: 100%;
 				}
 				:global(.lucide-link-2) {
 					height: auto;
+					align-self: center;
 				}
 			}
 		}

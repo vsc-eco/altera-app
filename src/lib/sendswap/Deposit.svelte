@@ -1,11 +1,13 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
+	import DepositOptions from './stages/deposit/DepositOptions.svelte';
+	import { Network, type SendDetails } from './utils/sendOptions';
 	import { blankDetails, SendTxDetails } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
-	import ReviewSend from './stages/ReviewSend.svelte';
-	import { Network, TransferMethod } from './utils/sendOptions';
-	import QuickSendOptions from './stages/QuickSendOptions.svelte';
+	import ReviewSwap from './stages/ReviewSwap.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
+	import { getAuth } from '$lib/auth/store';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
 
 	let {
 		dialogOpen = $bindable(),
@@ -17,24 +19,32 @@
 		sessionId: number;
 	} = $props();
 
-	function quickDetails() {
+	const auth = $derived(getAuth()());
+
+	function depositDetails(): SendDetails {
 		return {
 			...blankDetails(),
-			fromNetwork: Network.vsc,
 			toNetwork: Network.vsc,
-			method: TransferMethod.vscTransfer
+			toUsername: getUsernameFromAuth(auth) ?? ''
 		};
 	}
 
 	$effect(() => {
 		sessionId;
-		SendTxDetails.set(quickDetails());
+		SendTxDetails.set(depositDetails());
+	});
+	$effect(() => {
+		if (!auth || !dialogOpen) return;
+		const username = getUsernameFromAuth(auth);
+		if (username && username !== $SendTxDetails.toUsername) {
+			$SendTxDetails.toUsername = username;
+		}
 	});
 
 	// STEPS
 	const stepsData: MixedStepsArray = [
-		{ value: 'options', component: QuickSendOptions },
-		{ value: 'review', component: ReviewSend },
+		{ value: 'options', component: DepositOptions },
+		{ value: 'review', component: ReviewSwap },
 		{ value: 'complete', component: Complete }
 	];
 
@@ -49,11 +59,11 @@
 		{#if dialogOpen}
 			<StepsMachine
 				size="dialog"
-				txType="send"
+				txType="deposit"
+				resetDetails={depositDetails}
 				{stepsData}
-				resetDetails={quickDetails}
 				{extraProps}
-				minHeight={544}
+				minHeight={512}
 			/>
 		{/if}
 	{/snippet}

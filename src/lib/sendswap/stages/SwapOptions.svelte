@@ -29,11 +29,9 @@
 	import SelectAssetTiered from '$lib/sendswap/components/assetSelection/SelectAssetTiered.svelte';
 
 	let {
-		id,
 		editStage
 	}: {
-		id: string;
-		editStage: (id: string, add: boolean) => void;
+		editStage: (complete: boolean) => void;
 	} = $props();
 
 	onMount(() => {
@@ -56,7 +54,7 @@
 			$SendTxDetails.fromAmount !== '0' &&
 			$SendTxDetails.fromCoin
 		) {
-			editStage(id, true);
+			editStage(true);
 			untrack(() => {
 				getFee($SendTxDetails.toAmount).then((fee) => {
 					if (
@@ -67,7 +65,7 @@
 				});
 			});
 		} else {
-			editStage(id, false);
+			editStage(false);
 		}
 	});
 
@@ -141,7 +139,7 @@
 		shownIndex = (shownIndex + 1) % possibleCoins.length;
 		shownCoin = possibleCoins[shownIndex];
 	}
-	// for big input
+
 	let inputAmount = $state('');
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin) return;
@@ -158,10 +156,6 @@
 				});
 		}
 	});
-	// end for big input
-	// for double inputs
-	let fromAmount = $state('');
-	let toAmount = $state('');
 
 	$effect(() => {
 		if (!$SendTxDetails.toCoin) return;
@@ -341,7 +335,7 @@
 		<div class="amount-input">
 			<AmountInput
 				bind:amount={inputAmount}
-				coin={shownCoin}
+				coinOpt={shownCoin}
 				network={$SendTxDetails.toNetwork}
 				styleType="big"
 				{minAmount}

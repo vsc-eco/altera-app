@@ -190,15 +190,16 @@
 		z-index: 3;
 	}
 	.dialog-content {
-		:global(.listbox-ul) {
-			margin-top: 2.5rem;
-		}
+		// height: calc(100vh - 5.5rem);
 		&.column {
 			display: flex;
 			flex-direction: column;
 		}
 		&:not(.column) {
 			position: relative;
+		}
+		:global(.listbox-ul) {
+			margin-top: 2.5rem;
 		}
 	}
 </style>

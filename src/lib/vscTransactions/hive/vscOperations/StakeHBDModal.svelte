@@ -3,7 +3,7 @@
 	import Username from '$lib/auth/Username.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import Amount from '$lib/currency/OldAmountInput.svelte';
-	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
+	import swapOptions from '$lib/sendswap/utils/sendOptions';
 	import { sleep } from 'aninest';
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
 	import type { OperationResult, OperationError, OperationSuccess } from '@aioha/aioha/build/types';
@@ -17,13 +17,16 @@
 	} from '$lib/vscTransactions/eth/client';
 	import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
 	import { wagmiConfig } from '$lib/auth/reown';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
+	import { accountBalance } from '$lib/stores/currentBalance';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	let { type }: { type: 'stake' | 'unstake' } = $props();
 	let auth = $derived(getAuth()());
 	let username = $derived(
 		auth.value?.provider == 'aioha' ? auth.value?.username : auth.value?.address
 	);
 	let recipient: string | undefined = $state();
-	let amount: string | undefined = $state('');
+	let amount: string = $state('');
 	let status = $state('');
 	let error = $state('');
 	const allowDeposit = $derived(type === 'stake' && auth.value?.provider === 'aioha');
@@ -172,6 +175,22 @@
 			return res;
 		}
 	};
+	let maxAmount = $derived.by(() => {
+		const amount = (() => {
+			if (type === 'stake') {
+				if (shouldDeposit) {
+					return $accountBalance.connectedBal?.hbd;
+				} else {
+					return $accountBalance.bal.hbd;
+				}
+			} else {
+				return $accountBalance.bal.hbd_savings;
+			}
+		})();
+		return new CoinAmount(amount ?? Number.MAX_SAFE_INTEGER, Coin.hbd, true);
+	});
+
+	let id = $state('');
 </script>
 
 <form
@@ -198,34 +217,40 @@
 	<p>Be sure to be signed in with the account you'd like to deposit and stake HBD from.</p>
 	{#if type === 'unstake'}
 		<p>
-			<b>Note:</b> Unstaked coins will be made available after about three days.
+			<b class="error">Note:</b> Unstaked coins will be made available after about three days.
 		</p>
 	{/if}
-	<p class="error">{error}</p>
-	<Username label="Recipient" id="hbd-stake-recipient" bind:value={recipient} required />
-	<div class="amount-flex">
-		<Amount
-			selectItems={[Coin.hbd]}
-			id="hbd-stake-amount"
-			label="Deposit and Stake Amount:"
-			coin={Coin.hbd}
-			network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
-			bind:originalAmount={amount}
-			required
-			maxField={type === 'stake' ? (shouldDeposit ? undefined : 'hbd') : 'hbd_savings'}
-		/>
+	<div class="spaced-col">
+		<div>
+			<Username label="Recipient" id="hbd-stake-recipient" bind:value={recipient} required />
+		</div>
+		<div>
+			<label for={id}>
+				{type === 'stake' ? (shouldDeposit ? 'Deposit and Stake ' : 'Stake ') : 'Unstake '}Amount:
+			</label>
+			<AmountInput
+				coinOpt={swapOptions.to.coins.find((coinOpt) => coinOpt.coin.value === Coin.hbd.value)}
+				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
+				bind:amount
+				{maxAmount}
+			/>
+		</div>
+		{#if allowDeposit}
+			<label for="hbd-stake-checkbox">
+				<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
+				First Deposit HBD into VSC
+			</label>
+		{/if}
 	</div>
-	{#if allowDeposit}
-		<label for="hbd-stake-checkbox">
-			<input type="checkbox" id="hbd-stake-checkbox" bind:checked={shouldDeposit} />
-			First Deposit HBD into VSC
-		</label>
+	<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}>
+		{#if shouldDeposit}Deposit and{/if}
+		{#if type === 'stake'}Stake{:else}Initialize Unstake{/if}
+	</PillButton>
+	{#if status}
+		<span class="status">{status}</span>
+	{:else}
+		<span class="error">{error}</span>
 	{/if}
-	<PillButton disabled={!!status} styleType="invert" theme="primary" onclick={() => {}}
-		>{#if shouldDeposit}Deposit and{/if}
-		{#if type === 'stake'}Stake{:else}Initialize Unstake{/if}</PillButton
-	>
-	<span class="status">{status}</span>
 </form>
 
 <style>
@@ -238,10 +263,13 @@
 	form {
 		box-sizing: border-box;
 		padding-top: 0;
-		min-height: 333px;
+		min-height: 351px;
 	}
-	.amount-flex {
+	.spaced-col {
 		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		padding: 0.5rem 0;
 	}
 	.status {
 		color: var(--primary-fg-mid);
@@ -250,7 +278,6 @@
 		margin-bottom: 0.5rem;
 	}
 	b {
-		color: var(--secondary-fg-accent-shifted);
 		font-weight: 500;
 	}
 </style>

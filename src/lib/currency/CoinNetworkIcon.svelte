@@ -1,5 +1,4 @@
 <script lang="ts">
-	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import type { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 
 	let { coin, network, size = 24 }: { coin: Coin; network: Network; size?: number } = $props();
@@ -11,8 +10,8 @@
 	aria-label={`${coin.label} on ${network.label}`}
 	style="--size: calc({size}px + 0.5rem)"
 >
-	<img width={size} src={coin.icon} alt={`${coin.unit} on `} />
-	{#if typeof network.icon === 'string'}
+	<img width={size} src={coin.icon} alt={`${coin.unit} on ${network.label}`} />
+	{#if network.icon && typeof network.icon === 'string'}
 		<img width={size / 2} height={size / 2} src={network.icon} alt={`${network.label}`} />
 	{/if}
 </span>

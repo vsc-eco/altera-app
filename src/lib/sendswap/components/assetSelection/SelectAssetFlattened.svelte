@@ -106,7 +106,8 @@
 			network = tmpNetwork;
 			coin = tmpAsset;
 			if (balanceObj) {
-				max = new CoinAmount(balanceObj.balance, balanceObj);
+				const coinObj: Coin = { ...balanceObj, value: assetVal };
+				max = new CoinAmount(balanceObj.balance, coinObj);
 			}
 		}
 		close();

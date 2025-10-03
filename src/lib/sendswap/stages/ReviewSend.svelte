@@ -40,7 +40,7 @@
 		new CoinAmount($SendTxDetails.toAmount, toCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
-				inUsd = amount.toAmountString();
+				inUsd = amount.toMinFigs();
 			});
 	});
 	let isSwap = $derived($SendTxDetails.account?.value === SendAccount.swap.value);

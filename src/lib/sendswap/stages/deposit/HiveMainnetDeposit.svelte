@@ -79,7 +79,7 @@
 			$SendTxDetails.fromAmount &&
 			$SendTxDetails.fromNetwork &&
 			amountNumber > 0 &&
-			amountNumber < (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
+			amountNumber <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
 		) {
 			editStage(true);
 		} else {

@@ -12,8 +12,8 @@ export type NavigationAction = {
 export const actions: NavigationAction[] = [
 	{
 		type: 'navigation',
-		label: 'Send',
-		href: '/send',
+		label: 'Transfer',
+		href: '/transfer',
 		icon: Send,
 		styling: {
 			theme: 'primary',

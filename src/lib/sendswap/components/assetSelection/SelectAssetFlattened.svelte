@@ -65,7 +65,7 @@
 				result.push({
 					...coin,
 					value: `${coin.value}:${externalNetwork.value}`,
-					balance: new CoinAmount(bal, coin).toPrettyAmountString(),
+					balance: new CoinAmount(bal, coin, true).toPrettyAmountString(),
 					onNetwork: externalNetwork,
 					snippet: assetBalance
 				});
@@ -91,6 +91,9 @@
 		});
 	});
 
+	$inspect('vscitems', vscItems);
+	$inspect('externalitems', externalItems);
+
 	function handleAssetClick(balanceVal: string) {
 		const assetVal = balanceVal.split(':')[0];
 		const networkVal = balanceVal.split(':')[1];
@@ -107,6 +110,7 @@
 			coin = tmpAsset;
 			if (balanceObj) {
 				const coinObj: Coin = { ...balanceObj, value: assetVal };
+				console.log(balanceObj.balance);
 				max = new CoinAmount(balanceObj.balance, coinObj);
 			}
 		}

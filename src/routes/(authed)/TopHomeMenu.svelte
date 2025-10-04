@@ -49,7 +49,7 @@
 			},
 			icon: Banknote
 		},
-		...actions.filter((action) => action.label !== 'Send'),
+		...actions.filter((action) => action.label === 'Swap'),
 		{
 			type: 'popup',
 			label: 'Staking',

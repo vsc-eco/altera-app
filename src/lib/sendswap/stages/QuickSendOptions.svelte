@@ -1,36 +1,18 @@
 <script lang="ts">
-	import {
-		momentToLastPaidString,
-		getFee,
-		getLastPaidContact,
-		getRecipientNetworks,
-		SendTxDetails,
-		solveNetworkConstraints,
-		type CoinOptionParam,
-		type NetworkOptionParam
-	} from '../utils/sendUtils';
+	import { SendTxDetails } from '../utils/sendUtils';
 	import { getAuth } from '$lib/auth/store';
-	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { isValidBalanceField, type BalanceOption } from '$lib/stores/balanceHistory';
-	import swapOptions, {
-		Coin,
-		Network,
-		networkMap,
-		SendAccount,
-		type CoinOptions
-	} from '../utils/sendOptions';
-	import Select from '$lib/zag/Select.svelte';
-	import { assetCard, networkCard, type AssetObject } from '../components/info/SendSnippets.svelte';
+	import swapOptions, { Coin, Network, type CoinOptions } from '../utils/sendOptions';
+	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
 	import { untrack } from 'svelte';
-	import { accountBalance } from '$lib/stores/currentBalance';
 	import RecipientCard from '../components/RecipientCard.svelte';
 	import ContactSearchBox from '../contacts/ContactSearchBox.svelte';
 	import SelectContact from '../contacts/SelectContact.svelte';
 	import type { Contact } from '../contacts/contacts';
 	import PillButton from '$lib/PillButton.svelte';
-	import { ArrowLeft, ArrowRightLeft, Asterisk, Coins, Info } from '@lucide/svelte';
+	import { ArrowLeft, ArrowRightLeft, Coins, Info } from '@lucide/svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
@@ -275,7 +257,7 @@
 			</div>
 			<div class="info-text">
 				Quick send is designed for easy internal transfers. To make an external transfer, please use
-				the <a href="/send">send page</a>.
+				the <a href="/transfer">transfer page</a>.
 			</div>
 		</div>
 	</div>

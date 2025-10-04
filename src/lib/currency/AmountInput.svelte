@@ -30,8 +30,8 @@
 
 	let inUsd = $state('');
 	let error = $state('');
-	let currentCoin = $state.raw(Coin.unk);
-	let lastModification = $state.raw(new CoinAmount(amount, Coin.unk));
+	let currentCoin = $state.raw(coinOpt?.coin ?? Coin.unk);
+	let lastModification = $state.raw(new CoinAmount(amount, coinOpt?.coin ?? Coin.unk));
 	// let boundAmount: string = $state('');
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
 	const quiet = $derived(
@@ -82,6 +82,7 @@
 				convertTo = new CoinAmount(convertTo.amount - 1, currentCoin, true);
 				convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
 			}
+			// make sure it hasn't changed again while loop ran
 			if (originalCoinValue === currentCoin.value) max = convertTo.toNumber();
 		})();
 	});
@@ -99,21 +100,18 @@
 	);
 
 	$effect(() => {
-		if (connectedCoinAmount && coinOpt) {
+		if (connectedCoinAmount) {
 			untrack(() => {
 				if (!lastConnected) {
 					lastConnected = connectedCoinAmount;
 					return;
 				}
-				if (connectedCoinAmount.toString() === lastConnected.toString()) {
+				if (connectedCoinAmount.toString() === lastConnected?.toString()) {
 					return;
 				}
 				Promise.all([
-					connectedCoinAmount.convertTo(coinOpt.coin, Network.lightning),
-					new CoinAmount(amount, coinOpt.coin).convertTo(
-						connectedCoinAmount.coin,
-						Network.lightning
-					)
+					connectedCoinAmount.convertTo(currentCoin, Network.lightning),
+					new CoinAmount(amount, currentCoin).convertTo(connectedCoinAmount.coin, Network.lightning)
 				]).then(([connectedInThis, thisInConnected]) => {
 					if (thisInConnected.toString() === connectedCoinAmount.toString()) {
 						return;
@@ -151,7 +149,7 @@
 						amount = amt.toAmountString(true);
 					})
 					.catch((err) => {
-						console.log('error converting', err.message);
+						console.error('error converting', err.message);
 					});
 			}
 		});
@@ -189,7 +187,7 @@
 	<div class="normal-wrapper">
 		<label for={id}>
 			<span>
-				{#if showMax}
+				{#if maxAmount !== undefined && currentCoin.value === maxAmount.coin.value}
 					<span style="white-space: nowrap;">
 						(Balance:
 						<span class="balance-amount">

@@ -20,7 +20,7 @@ export function getHiveDepositOp(
 		{
 			from,
 			to: 'vsc.gateway',
-			amount: amount.toPrettyString(),
+			amount: `${amount.toAmountString(true)} ${amount.coin.unit}`,
 			memo: (memo ? new URLSearchParams([...defaultMemo, ...memo]) : defaultMemo).toString()
 		}
 	];

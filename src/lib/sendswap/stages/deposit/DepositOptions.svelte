@@ -5,6 +5,7 @@
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
 	import { SendTxDetails } from '../../utils/sendUtils';
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
+	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
 	import LightningDeposit from './LightningDeposit.svelte';
 	import { untrack } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -21,9 +22,13 @@
 	let toggleHiveMainnet: (open?: boolean) => void = (open = false) => {
 		hiveMainnetOpen = open;
 	};
+	let toggleCoinbase: (open?: boolean) => void = (open = false) => {
+		coinbaseOpen = open;
+	};
 
 	let lightningOpen = $state(false);
 	let hiveMainnetOpen = $state(false);
+	let coinbaseOpen = $state(false);
 
 	$effect(() => {
 		if (!lightningOpen) return;
@@ -69,6 +74,14 @@
 		<div class="deposit-content">
 			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen} />
 		</div>
+	{:else if coinbaseOpen}
+		<PillButton onclick={() => toggleCoinbase()} styleType="icon-subtle">
+			<ArrowLeft size={32} />
+		</PillButton>
+		<h2>Coinbase Deposit</h2>
+		<div class="deposit-content">
+			<CoinBaseDeposit {editStage} open={coinbaseOpen} />
+		</div>
 	{:else}
 		<h2>Deposit</h2>
 		<div class="types-wrapper">
@@ -96,6 +109,17 @@
 							size={40}
 						/>
 						<span>Hive Mainnet</span>
+						<div class="chevron">
+							<ChevronRight />
+						</div>
+					</div>
+				</ClickableCard>
+			</div>
+			<div class="coinbase">
+				<ClickableCard onclick={() => toggleCoinbase(true)}>
+					<div class="type-header">
+						<ImageIconRenderer icon="/hive/CoinBase_logo.svg" alt="Coinbase" size={40} />
+						<span>Coinbase</span>
 						<div class="chevron">
 							<ChevronRight />
 						</div>

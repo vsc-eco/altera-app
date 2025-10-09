@@ -36,7 +36,8 @@ const changeLogout = (v: Auth) => {
 			clearAllStores();
 			accountBalance.set({
 				loading: true,
-				bal: getDefaultBalance()
+				bal: getDefaultBalance(),
+				connectedBal: undefined
 			});
 			accountBalanceHistory.set([]);
 			goto('/login');

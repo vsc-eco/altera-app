@@ -62,11 +62,6 @@ type Contract {
   tx_id: String
 }
 
-type ContractDiff {
-  diff: JSON
-  previousContractStateId: String!
-}
-
 type ContractOutput {
   block_height: Int64!
   contract_id: String!
@@ -88,14 +83,6 @@ input ContractOutputFilter {
 type ContractOutputResult {
   ok: Boolean!
   ret: String!
-}
-
-type ContractState {
-  id: String
-  state(key: String): JSON
-  stateKeys(key: String): JSON
-  stateQuery(key: String, query: JSON): JSON
-  state_merkle: String
 }
 
 scalar DateTime
@@ -124,10 +111,6 @@ input FindContractFilter {
   byId: String
   limit: Int
   offset: Int
-}
-
-type Gas {
-  IO: Int
 }
 
 scalar Int64
@@ -212,8 +195,6 @@ type PostingJsonKeys {
 }
 
 type Query {
-  contractState(id: String): ContractState
-  contractStateDiff(id: String): ContractDiff
   electionByBlockHeight(blockHeight: Uint64): ElectionResult!
   findContract(filterOptions: FindContractFilter): [Contract!]
   findContractOutput(filterOptions: ContractOutputFilter): [ContractOutput!]
@@ -225,6 +206,7 @@ type Query {
   getAccountRC(account: String!, height: Uint64): RcRecord
   getDagByCID(cidString: String!): JSON!
   getElection(epoch: Uint64!): ElectionResult
+  getStateByKeys(contractId: String!, keys: [String!]!): Map
   getWitness(account: String!, height: Uint64): Witness
   localNodeInfo: LocalNodeInfo
   submitTransactionV1(sig: String!, tx: String!): TransactionSubmitResult
@@ -262,11 +244,12 @@ type TransactionOperation {
 
 type TransactionOutput {
   id: String!
-  index: Int64!
+  index: [Int!]
 }
 
 type TransactionRecord {
   anchr_height: Uint64!
+  anchr_id: String
   anchr_index: Uint64!
   anchr_ts: String
   first_seen: DateTime!
@@ -276,7 +259,7 @@ type TransactionRecord {
   nonce: Uint64!
   op_types: [String!]
   ops: [TransactionOperation]
-  output: TransactionOutput
+  output: [TransactionOutput!]
   rc_limit: Uint64!
   required_auths: [String!]
   required_posting_auths: [String!]

@@ -2,7 +2,8 @@ import axios from 'axios';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { generateJwt } from '@coinbase/cdp-sdk/auth';
-import { COINBASE_ID, COINBASE_PRIVATE_KEY, COINBASE_PROJECT_ID } from '$env/static/private';
+import { COINBASE_ID, COINBASE_PRIVATE_KEY } from '$env/static/private';
+import { currentUserBtcDepositAddress } from '$lib/sendswap/utils/bitcoinAddress';
 
 export interface CoinbaseOnramp {
 	session: Session;
@@ -30,14 +31,13 @@ export interface Session {
 	onrampUrl: string;
 }
 
-const COINBASE_SESSION_EXPIRY_TIME = 120; // 2 minutes
-const projectId = COINBASE_PROJECT_ID;
+const COINBASE_SESSION_EXPIRY_TIME = 30; // 30 seconds
 
 export const GET: RequestHandler = async ({ url, getClientAddress }) => {
-	const walletAddr = url.searchParams.get('wallet');
+	const did = url.searchParams.get('did');
 	const amountURL = url.searchParams.get('amount');
-	if (walletAddr === null || amountURL === null) {
-		return json({ error: "invalid request" }, { status: 400 });
+	if (!amountURL || !did) {
+		return json({ error: 'invalid request' }, { status: 400 });
 	}
 
 	const paymentAmount = Number(amountURL);
@@ -45,14 +45,14 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 		return json({ error: 'invalid fiat amount' }, { status: 400 });
 	}
 
+	const walletAddr = currentUserBtcDepositAddress(did);
 	const clientIp = getClientAddress();
 
 	try {
-		console.log('fetching jwt token');
 		const jwtToken = await generateJwt({
 			apiKeyId: COINBASE_ID,
 			apiKeySecret: COINBASE_PRIVATE_KEY,
-			requestMethod: "POST",
+			requestMethod: 'POST',
 			requestHost: 'api.cdp.coinbase.com',
 			requestPath: '/platform/v2/onramp/sessions',
 			expiresIn: COINBASE_SESSION_EXPIRY_TIME
@@ -70,6 +70,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 				country: 'US',
 				subdivision: 'NY',
 				clientIp: clientIp,
+				redirectUrl: 'https://altera.vsc.eco/' // TODO: create a custom url for purcase receipt
 			},
 			{
 				headers: {
@@ -79,11 +80,10 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 			}
 		);
 
-		const onerampUrl = request.data.session.onrampUrl;
-
-		return json({ onerampUrl }, { status: 200 });
+		return json({ onrampUrl: request.data.session.onrampUrl }, { status: 200 });
 	} catch (error) {
 		console.error(error);
 		return json({ error: 'Something went wrong.' }, { status: 500 });
 	}
 };
+

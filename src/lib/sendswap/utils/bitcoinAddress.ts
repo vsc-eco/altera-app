@@ -3,7 +3,7 @@ import * as crypto from 'crypto';
 
 const PUBLICKEY = '';
 
-function currentUserBtcDepositAddress(did: string) {
+export function currentUserBtcDepositAddress(did: string) {
 	let depositInstruction = new URLSearchParams({ deposit_to: did }).toString();
 	const tag = crypto.hash('sha256', depositInstruction);
 

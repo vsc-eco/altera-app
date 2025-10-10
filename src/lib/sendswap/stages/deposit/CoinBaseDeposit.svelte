@@ -79,22 +79,5 @@
 			flex-grow: 1;
 			height: 65px;
 		}
-		.cycle-button {
-			:global(button) {
-				margin: 0;
-				margin-top: 2px;
-			}
-		}
-	}
-	.dest-confirm {
-		display: flex;
-		align-items: flex-end;
-		gap: 1rem;
-		.select {
-			flex-grow: 1;
-			:global([data-scope='select'][data-part='control']) {
-				height: 52px;
-			}
-		}
 	}
 </style>

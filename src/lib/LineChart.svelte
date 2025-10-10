@@ -19,7 +19,6 @@
 		NO_INTERP
 	} from 'aninest';
 	import { getUpdateLayer } from '@aninest/extensions';
-	import { defaultData } from './defaultLineData';
 	import moment from 'moment';
 	import { Loader } from '@lucide/svelte';
 	import WaveLoading from './components/WaveLoading.svelte';

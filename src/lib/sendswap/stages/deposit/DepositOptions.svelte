@@ -7,14 +7,19 @@
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
 	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
 	import LightningDeposit from './LightningDeposit.svelte';
-	import { untrack } from 'svelte';
+	import { untrack, type ComponentProps } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import Divider from '$lib/components/Divider.svelte';
+	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
 
 	let {
 		editStage,
-		onHomePage = $bindable()
-	}: { editStage: (complete: boolean) => void; onHomePage: boolean } = $props();
+		onHomePage = $bindable(),
+		customButtons = $bindable()
+	}: {
+		editStage: (complete: boolean) => void;
+		onHomePage: boolean;
+		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
+	} = $props();
 
 	let toggleLightning: (open?: boolean) => void = (open = false) => {
 		lightningOpen = open;
@@ -53,7 +58,18 @@
 	});
 
 	$effect(() => {
-		onHomePage = lightningOpen || hiveMainnetOpen;
+		onHomePage = lightningOpen || hiveMainnetOpen || coinbaseOpen;
+	});
+
+	let customButton: NavButton = $state({ label: '', action: () => {} });
+	$effect(() => {
+		if (coinbaseOpen && customButton) {
+			customButtons = {
+				fwd: customButton
+			};
+		} else {
+			customButtons = undefined;
+		}
 	});
 </script>
 
@@ -80,7 +96,7 @@
 		</PillButton>
 		<h2>Coinbase Deposit</h2>
 		<div class="deposit-content">
-			<CoinBaseDeposit {editStage} open={coinbaseOpen} />
+			<CoinBaseDeposit bind:customButton />
 		</div>
 	{:else}
 		<h2>Deposit</h2>

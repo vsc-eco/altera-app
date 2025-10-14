@@ -9,7 +9,7 @@
 	import LedgerIcon from './hive/LedgerIcon.svelte';
 	import PeakVaultIcon from './hive/PeakVaultIcon.svelte';
 	import { browser } from '$app/environment';
-	import HiveUsername from './Username.svelte';
+	import Username from './Username.svelte';
 	import { untrack } from 'svelte';
 	// credit for regex: https://github.com/Mintrawa/hive-username-regex/blob/main/src/index.ts
 	const hiveRegex =
@@ -127,7 +127,7 @@
 		{:else}
 			<form onsubmit={loginOnSubmit} oninvalidcapture={loginOnSubmit}>
 				<div class="error">{aiohaErrorText}</div>
-				<HiveUsername
+				<Username
 					bind:input
 					defaultValue={defaultUsername}
 					required

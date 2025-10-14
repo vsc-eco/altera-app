@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
 
-	type navButton = {
+	export type NavButton = {
 		label: string;
 		disabled?: boolean;
 		action: () => void;
@@ -11,8 +11,8 @@
 		fixed = true
 	}: {
 		buttons: {
-			back?: navButton;
-			fwd: navButton;
+			back?: NavButton;
+			fwd: NavButton;
 		};
 		fixed?: boolean;
 	} = $props();

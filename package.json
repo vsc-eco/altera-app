@@ -30,7 +30,7 @@
 		"@types/dinero.js": "^1.9.4",
 		"@types/node": "^24.6.2",
 		"@vercel/node": "^5.3.24",
-		"esbuild": "^0.25.10",
+		"esbuild": ">=0.25.0",
 		"eslint": "^9.36.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^2.46.1",
@@ -111,7 +111,7 @@
 		"@zag-js/svelte": "^1.25.0",
 		"@zag-js/tabs": "1.22.1",
 		"aninest": "^4.11.0",
-		"axios": "^1.12.2",
+		"axios": ">=1.12.0",
 		"bitcoinjs-lib": "^7.0.0",
 		"cborg": "^4.2.15",
 		"d3-array": "^3.2.4",
@@ -132,5 +132,5 @@
 		"wagmi": "^2.17.5",
 		"zod": "^3.25.76"
 	},
-	"packageManager": "pnpm@10.18.1"
+	"packageManager": "pnpm@10.18.2"
 }

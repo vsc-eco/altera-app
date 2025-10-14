@@ -13,8 +13,22 @@
 </script>
 
 {#if typeof icon === 'string'}
-	<img src={icon} {alt} width={size} />
+	<div class="square" style="--size: {size}px;">
+		<img src={icon} {alt} />
+	</div>
 {:else}
 	{@const Icon = icon}
 	<Icon {size} {color} />
 {/if}
+
+<style>
+	img {
+		width: var(--size);
+		max-height: var(--size);
+	}
+	.square {
+		height: var(--size);
+		display: flex;
+		align-items: center;
+	}
+</style>

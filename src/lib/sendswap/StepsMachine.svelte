@@ -8,10 +8,10 @@
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { sleep } from 'aninest';
-	import NavButtons from './components/NavButtons.svelte';
+	import NavButtons from '$lib/sendswap/components/NavButtons.svelte';
 	import { goto } from '$app/navigation';
 	import { getIntermediaryNetwork } from '$lib/sendswap/utils/getNetwork';
-	import { untrack, type Component } from 'svelte';
+	import { untrack, type Component, type ComponentProps } from 'svelte';
 
 	type TransferComponentTypes =
 		| { editStage: (complete: boolean) => void }
@@ -105,20 +105,23 @@
 				? 'Done'
 				: `Review ${txType.at(0)?.toUpperCase() + txType.slice(1)}`
 	);
-	const buttons = $derived({
-		fwd: {
-			label: nextLabel,
-			action: next,
-			disabled: !stepComplete
-		},
-		back:
-			api.value !== 0
-				? {
-						label: 'Back',
-						action: previous
-					}
-				: undefined
-	});
+	let customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined = $state();
+	const buttons = $derived(
+		customButtons ?? {
+			fwd: {
+				label: nextLabel,
+				action: next,
+				disabled: !stepComplete
+			},
+			back:
+				api.value !== 0
+					? {
+							label: 'Back',
+							action: previous
+						}
+					: undefined
+		}
+	);
 	$effect(() => {
 		if (status.message.includes('cancel') || status.message.includes('reject')) {
 			waiting = false;
@@ -214,6 +217,7 @@
 					{txId}
 					{...extraProps}
 					bind:onHomePage
+					bind:customButtons
 				/>
 			</div>
 		{/each}

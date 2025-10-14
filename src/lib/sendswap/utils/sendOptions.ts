@@ -368,7 +368,7 @@ const swapOptions: {
 			{
 				coin: btc,
 				// networks: [lightning, btcMainnet]
-				networks: [lightning]
+				networks: [lightning, vsc, btcMainnet]
 			}
 		]
 	},
@@ -381,11 +381,11 @@ const swapOptions: {
 			{
 				coin: hbd,
 				networks: [vsc, hiveMainnet]
+			},
+			{
+				coin: btc,
+				networks: [lightning, btcMainnet, vsc]
 			}
-			// {
-			// 	coin: btc,
-			// 	networks: [lightning, btcMainnet]
-			// }
 		]
 	}
 };

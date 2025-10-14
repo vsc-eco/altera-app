@@ -95,5 +95,3 @@
 		<span>{params.address.address}</span>
 	</div>
 {/snippet}
-
-

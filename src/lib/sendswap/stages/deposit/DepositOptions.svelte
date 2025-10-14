@@ -5,15 +5,21 @@
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
 	import { SendTxDetails } from '../../utils/sendUtils';
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
+	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
 	import LightningDeposit from './LightningDeposit.svelte';
-	import { untrack } from 'svelte';
+	import { untrack, type ComponentProps } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import Divider from '$lib/components/Divider.svelte';
+	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
 
 	let {
 		editStage,
-		onHomePage = $bindable()
-	}: { editStage: (complete: boolean) => void; onHomePage: boolean } = $props();
+		onHomePage = $bindable(),
+		customButtons = $bindable()
+	}: {
+		editStage: (complete: boolean) => void;
+		onHomePage: boolean;
+		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
+	} = $props();
 
 	let toggleLightning: (open?: boolean) => void = (open = false) => {
 		lightningOpen = open;
@@ -21,9 +27,13 @@
 	let toggleHiveMainnet: (open?: boolean) => void = (open = false) => {
 		hiveMainnetOpen = open;
 	};
+	let toggleCoinbase: (open?: boolean) => void = (open = false) => {
+		coinbaseOpen = open;
+	};
 
 	let lightningOpen = $state(false);
 	let hiveMainnetOpen = $state(false);
+	let coinbaseOpen = $state(false);
 
 	$effect(() => {
 		if (!lightningOpen) return;
@@ -48,7 +58,18 @@
 	});
 
 	$effect(() => {
-		onHomePage = lightningOpen || hiveMainnetOpen;
+		onHomePage = lightningOpen || hiveMainnetOpen || coinbaseOpen;
+	});
+
+	let customButton: NavButton = $state({ label: '', action: () => {} });
+	$effect(() => {
+		if (coinbaseOpen && customButton) {
+			customButtons = {
+				fwd: customButton
+			};
+		} else {
+			customButtons = undefined;
+		}
 	});
 </script>
 
@@ -68,6 +89,14 @@
 		<h2>Hive Mainnet Deposit</h2>
 		<div class="deposit-content">
 			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen} />
+		</div>
+	{:else if coinbaseOpen}
+		<PillButton onclick={() => toggleCoinbase()} styleType="icon-subtle">
+			<ArrowLeft size={32} />
+		</PillButton>
+		<h2>Coinbase Deposit</h2>
+		<div class="deposit-content">
+			<CoinBaseDeposit bind:customButton />
 		</div>
 	{:else}
 		<h2>Deposit</h2>
@@ -96,6 +125,17 @@
 							size={40}
 						/>
 						<span>Hive Mainnet</span>
+						<div class="chevron">
+							<ChevronRight />
+						</div>
+					</div>
+				</ClickableCard>
+			</div>
+			<div class="coinbase">
+				<ClickableCard onclick={() => toggleCoinbase(true)}>
+					<div class="type-header">
+						<ImageIconRenderer icon="/hive/CoinBase_logo.svg" alt="Coinbase" size={40} />
+						<span>Coinbase</span>
 						<div class="chevron">
 							<ChevronRight />
 						</div>

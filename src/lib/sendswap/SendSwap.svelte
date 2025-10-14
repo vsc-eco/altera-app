@@ -14,7 +14,7 @@
 
 	const auth = $derived(getAuth()());
 	function startDetails(): SendDetails {
-		if (txType === 'swap') {	
+		if (txType === 'swap') {
 			return {
 				...blankDetails(),
 				toNetwork: Network.vsc,

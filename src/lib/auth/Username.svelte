@@ -9,7 +9,12 @@
 		wide,
 		defaultValue,
 		...props
-	}: HTMLInputAttributes & { input?: HTMLInputElement; label?: string; id: string, wide?: boolean } = $props();
+	}: HTMLInputAttributes & {
+		input?: HTMLInputElement;
+		label?: string;
+		id: string;
+		wide?: boolean;
+	} = $props();
 
 	let error = $state('');
 	const evmRegex = '^0x[a-fA-F0-9]{40}$';
@@ -39,6 +44,11 @@
 		pattern={props.pattern ?? combinedRegex}
 		{...props}
 		class={wide ? 'wide' : ''}
+		onblur={() => {
+			if (typeof value === 'string') {
+				value = value.toLowerCase();
+			}
+		}}
 	/>
 </div>
 <label class="error" for={id}>{error}</label>

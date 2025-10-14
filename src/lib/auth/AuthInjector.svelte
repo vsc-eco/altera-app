@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { setContext, untrack } from 'svelte';
 	import { authStore, type Auth } from './store';
-	import { browser } from '$app/environment';
+
 	let authState: Auth = $state({ status: 'pending' });
 	// to enable the getAuth function call
 	setContext('auth', () => authState);
@@ -14,7 +14,7 @@
 	// on load
 	let initialPending = $state(true);
 	$effect(() => {
-		initialPending = initialPending == false ? false : authState.status == 'pending';
+		initialPending = initialPending === false ? false : authState.status === 'pending';
 	});
 	let { children } = $props();
 </script>

@@ -207,6 +207,8 @@ type Query {
   getDagByCID(cidString: String!): JSON!
   getElection(epoch: Uint64!): ElectionResult
   getStateByKeys(contractId: String!, keys: [String!]!): Map
+  getTssKey(keyId: String!): TssKey
+  getTssRequests(keyId: String!, msgHex: [String!]): [TssRequest!]
   getWitness(account: String!, height: Uint64): Witness
   localNodeInfo: LocalNodeInfo
   submitTransactionV1(sig: String!, tx: String!): TransactionSubmitResult
@@ -277,6 +279,23 @@ enum TransactionStatus {
 
 type TransactionSubmitResult {
   id: String
+}
+
+type TssKey {
+  CreatedHeight: Int!
+  Owner: String!
+  PublicKey: String!
+  Type: String!
+  id: String!
+  status: String!
+}
+
+type TssRequest {
+  id: String!
+  keyId: String!
+  msg: String!
+  sig: String!
+  status: String!
 }
 
 scalar Uint64

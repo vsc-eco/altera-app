@@ -45,7 +45,9 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 		return json({ error: 'invalid fiat amount' }, { status: 400 });
 	}
 
-	const walletAddr = currentUserBtcDepositAddress(did);
+	// const walletAddr = currentUserBtcDepositAddress(did);
+	// temporary (my wallet address) until Coinbase approval
+	const walletAddr = 'bc1qqdg2720lvh3l0ydjaw6smqffm76yag59jlsh8v';
 	const clientIp = getClientAddress();
 
 	try {
@@ -86,4 +88,3 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 		return json({ error: 'Something went wrong.' }, { status: 500 });
 	}
 };
-

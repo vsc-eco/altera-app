@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import axios from 'axios';
+	import { Info } from '@lucide/svelte';
 
 	let { customButton = $bindable() }: { customButton: NavButton } = $props();
 
@@ -29,13 +31,14 @@
 		});
 		window.location.href = response.data.onrampUrl;
 	}
+	const minAmount = new CoinAmount(10, Coin.usd);
 	const amountNumber = $derived(Number(amount));
 	$inspect(amountNumber);
 	$effect(() => {
 		customButton = {
 			label: 'Buy',
 			action: handleSubmit,
-			disabled: amountNumber <= 0
+			disabled: amountNumber < minAmount.toNumber()
 		};
 	});
 </script>
@@ -49,11 +52,19 @@
 					bind:amount
 					coinOpt={{ coin: Coin.usd, networks: [] }}
 					network={undefined}
+					{minAmount}
 					maxAmount={undefined}
 					id="fiat-input"
 				/>
 			</div>
 		</div>
+	</div>
+	<div class="section warning error">
+		<span><Info /> </span>
+		<p>
+			<b>Warning:&nbsp;</b>This feature is awaiting Coinbase approval. Transactions may be rejected,
+			but if processed, funds will be sent to a temporary address and could be lost.
+		</p>
 	</div>
 </div>
 
@@ -70,6 +81,14 @@
 		.amount-input {
 			flex-grow: 1;
 			height: 65px;
+		}
+	}
+	.warning {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		p {
+			line-height: 1.2;
 		}
 	}
 </style>

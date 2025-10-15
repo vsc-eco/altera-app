@@ -1,0 +1,3 @@
+query GetContractState($contractId: String!, $keys: [String!]!) {
+	getStateByKeys(contractId: $contractId, keys: $keys)
+}

@@ -112,6 +112,7 @@
 		"@zag-js/tabs": "1.22.1",
 		"aninest": "^4.11.0",
 		"axios": ">=1.12.0",
+		"bitcoin-address-validation": "^3.0.0",
 		"bitcoinjs-lib": "^7.0.0",
 		"cborg": "^4.2.15",
 		"d3-array": "^3.2.4",
@@ -132,5 +133,5 @@
 		"wagmi": "^2.17.5",
 		"zod": "^3.25.76"
 	},
-	"packageManager": "pnpm@10.18.2"
+	"packageManager": "pnpm@10.18.3"
 }

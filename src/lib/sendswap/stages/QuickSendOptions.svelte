@@ -26,7 +26,7 @@
 	}: {
 		id: string;
 		onHomePage: boolean;
-		editStage: (id: string, add: boolean) => void;
+		editStage: (complete: boolean) => void;
 	} = $props();
 	const auth = $derived(getAuth()());
 
@@ -45,9 +45,9 @@
 			$SendTxDetails.toUsername &&
 			$SendTxDetails.toNetwork
 		) {
-			editStage(id, true);
+			editStage(true);
 		} else {
-			editStage(id, false);
+			editStage(false);
 		}
 	});
 
@@ -120,6 +120,12 @@
 			shownCoin = possibleCoins[shownIndex];
 			lastPossibleCoins = possibleCoins;
 		});
+	});
+
+	$effect(() => {
+		if ($SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
+			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
+		}
 	});
 
 	let shownIndex = $state(0);

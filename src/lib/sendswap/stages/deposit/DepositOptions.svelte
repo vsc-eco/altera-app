@@ -10,6 +10,8 @@
 	import { untrack, type ComponentProps } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
+	import { networkCard } from '$lib/sendswap/components/info/SendSnippets.svelte';
+	import BtcMainnetDeposit from './BitcoinMainnetDeposit.svelte';
 
 	let {
 		editStage,
@@ -21,6 +23,11 @@
 		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
 	} = $props();
 
+	let lightningOpen = $state(false);
+	let hiveMainnetOpen = $state(false);
+	let coinbaseOpen = $state(false);
+	let bitcoinMainnetOpen = $state(false);
+
 	let toggleLightning: (open?: boolean) => void = (open = false) => {
 		lightningOpen = open;
 	};
@@ -30,10 +37,9 @@
 	let toggleCoinbase: (open?: boolean) => void = (open = false) => {
 		coinbaseOpen = open;
 	};
-
-	let lightningOpen = $state(false);
-	let hiveMainnetOpen = $state(false);
-	let coinbaseOpen = $state(false);
+	let toggleBitcoinMainnet: (open?: boolean) => void = (open = false) => {
+		bitcoinMainnetOpen = open;
+	};
 
 	$effect(() => {
 		if (!lightningOpen) return;
@@ -98,6 +104,14 @@
 		<div class="deposit-content">
 			<CoinBaseDeposit bind:customButton />
 		</div>
+	{:else if bitcoinMainnetOpen}
+		<PillButton onclick={() => toggleBitcoinMainnet()} styleType="icon-subtle">
+			<ArrowLeft size={32} />
+		</PillButton>
+		<h2>Bitcoin Mainnet Deposit</h2>
+		<div class="deposit-content">
+			<BtcMainnetDeposit />
+		</div>
 	{:else}
 		<h2>Deposit</h2>
 		<div class="types-wrapper">
@@ -134,8 +148,24 @@
 			<div class="coinbase">
 				<ClickableCard onclick={() => toggleCoinbase(true)}>
 					<div class="type-header">
-						<ImageIconRenderer icon="/hive/CoinBase_logo.svg" alt="Coinbase" size={40} />
+						<ImageIconRenderer icon="/btc/CoinBase_logo.svg" alt="Coinbase" size={40} />
 						<span>Coinbase</span>
+						<div class="chevron">
+							<ChevronRight />
+						</div>
+					</div>
+				</ClickableCard>
+			</div>
+			<div class="bitcoin-mainnet">
+				<ClickableCard onclick={() => toggleBitcoinMainnet(true)} disabled={true}>
+					<div class="type-header">
+						<ImageIconRenderer
+							icon={Network.btcMainnet.icon}
+							alt={Network.btcMainnet.label}
+							size={40}
+						/>
+						<span>Bitcoin Mainnet</span>
+						<span class="error">Coming soon</span>
 						<div class="chevron">
 							<ChevronRight />
 						</div>

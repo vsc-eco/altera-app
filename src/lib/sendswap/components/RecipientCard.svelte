@@ -31,7 +31,8 @@
 		untrack(() => {
 			if (!addr || addr === debounedUsername) return;
 			if (!contact) loading = true;
-			validateAddress(addr).then((result) => {
+			// only allow internal transfers for the quicksend (basic) card
+			validateAddress(addr, basic).then((result) => {
 				isValid = result.success;
 				if (result.success) {
 					const newDisplayName = contact

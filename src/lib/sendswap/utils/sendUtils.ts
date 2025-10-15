@@ -30,6 +30,7 @@ import {
 } from '$lib/stores/txStores';
 import moment, { type Moment } from 'moment';
 import { getIntermediaryNetwork } from './getNetwork';
+import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
 
 export const SendTxDetails = writable<SendDetails>(blankDetails());
 
@@ -66,7 +67,10 @@ type ValidationSuccess = {
 	displayName?: string;
 };
 type ValidationResult = ValidationSuccess | ValidationError;
-export async function validateAddress(address: string): Promise<ValidationResult> {
+export async function validateAddress(
+	address: string,
+	internalOnly = false
+): Promise<ValidationResult> {
 	if (address.length < 3) {
 		return {
 			success: false,
@@ -95,10 +99,20 @@ export async function validateAddress(address: string): Promise<ValidationResult
 		return {
 			success: true
 		};
+	} else if (validate(address, BtcNetwork.mainnet)) {
+		if (internalOnly) {
+			return {
+				success: false,
+				error: 'Bitcoin addresses may only be used for external transfers'
+			};
+		}
+		return {
+			success: true
+		};
 	}
 	return {
 		success: false,
-		error: 'Address must be a Hive username or EVM address'
+		error: 'Address must be a Hive username, EVM address, or Bitcoin address'
 	};
 }
 
@@ -641,9 +655,10 @@ export async function send(
 				});
 			return id;
 		}
-		if (!auth.value?.aioha)
-			return new Error("VSC Transactions via an EVM wallet isn't supported yet.");
-		const getSendOp = getSendOpGenerator(fromNetwork, toNetwork);
+		if (!auth.value?.aioha) {
+			return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
+		}
+		const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);
 		const opType = getSendOpType(fromNetwork, toNetwork);
 		setStatus('Waiting for Hive wallet approval…');
 		// note that fromCoin and toCoin should be the same

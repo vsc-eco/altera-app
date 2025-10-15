@@ -53,7 +53,7 @@
 				{stepsData}
 				resetDetails={quickDetails}
 				{extraProps}
-				minHeight={544}
+				minHeight={652}
 			/>
 		{/if}
 	{/snippet}

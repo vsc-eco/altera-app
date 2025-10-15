@@ -62,6 +62,7 @@ export class CoinAmount<C extends Coin> {
 	toPrettyString() {
 		const isNegative = this.isNegative();
 		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
+		// console.log(this.coin.label, this.coin.decimalPlaces);
 		const formatter = new Intl.NumberFormat(navigator.language, {
 			useGrouping: true,
 			minimumFractionDigits: this.coin.decimalPlaces

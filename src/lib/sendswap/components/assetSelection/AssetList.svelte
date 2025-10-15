@@ -100,6 +100,12 @@
 			{/each}
 		{/each}
 	</ul>
+
+	{#if groupedItems.length === 0}
+		<div class="sm-caption no-balance">
+			No balance found on your account. Please make a deposit to get started.
+		</div>
+	{/if}
 </div>
 
 <style lang="scss">
@@ -188,5 +194,8 @@
 	}
 	.listbox-group-header {
 		padding-top: 0.5rem;
+	}
+	.no-balance {
+		text-align: center;
 	}
 </style>

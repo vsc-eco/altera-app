@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 const PUBLICKEY = '';
 
 export function currentUserBtcDepositAddress(did: string) {
-	let depositInstruction = new URLSearchParams({ deposit_to: did }).toString();
+	let depositInstruction = `deposit_to=${did}`;
 	const tag = crypto.hash('sha256', depositInstruction);
 
 	let { address } = createP2WSHAddress(PUBLICKEY, tag);

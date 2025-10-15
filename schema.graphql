@@ -282,10 +282,10 @@ type TransactionSubmitResult {
 }
 
 type TssKey {
+  Algo: String!
   CreatedHeight: Int!
   Owner: String!
   PublicKey: String!
-  Type: String!
   id: String!
   status: String!
 }

@@ -35,18 +35,25 @@
 		onNetwork: Network;
 		snippet: (...args: any[]) => ReturnType<Snippet>;
 	}
-	const vscItems: BalanceObject[] = onVSC.map((coin) => ({
-		...coin,
-		value: `${coin.value}:${Network.vsc.value}`,
-		balance: new CoinAmount(
-			$accountBalance.bal[coin.value as keyof AccountBalance],
-			coin,
-			true
-		).toPrettyAmountString(),
-		onNetwork: Network.vsc,
-		snippet: assetBalance,
-		snippetData: undefined
-	}));
+	const vscItems: BalanceObject[] = onVSC
+		.map((coin) => {
+			const coinAmt = new CoinAmount(
+				$accountBalance.bal[coin.value as keyof AccountBalance],
+				coin,
+				true
+			);
+			if (coinAmt.amount > 0) {
+				return {
+					...coin,
+					value: `${coin.value}:${Network.vsc.value}`,
+					balance: coinAmt.toPrettyAmountString(),
+					onNetwork: Network.vsc,
+					snippet: assetBalance,
+					snippetData: undefined
+				};
+			}
+		})
+		.filter((coin) => coin !== undefined);
 
 	let externalItems: BalanceObject[] = $state([]);
 	let loading = $state(false);
@@ -110,7 +117,6 @@
 			coin = tmpAsset;
 			if (balanceObj) {
 				const coinObj: Coin = { ...balanceObj, value: assetVal };
-				console.log(balanceObj.balance);
 				max = new CoinAmount(balanceObj.balance, coinObj);
 			}
 		}

@@ -106,6 +106,7 @@
 				: `Review ${txType.at(0)?.toUpperCase() + txType.slice(1)}`
 	);
 	let customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined = $state();
+
 	const buttons = $derived(
 		customButtons ?? {
 			fwd: {

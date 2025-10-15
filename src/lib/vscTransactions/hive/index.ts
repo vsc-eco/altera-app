@@ -14,6 +14,7 @@ import { getHiveTransferOp } from './vscOperations/transfer';
 import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
+import { getBitcoinTransferOp, getBitcoinUnmapOp } from './vscOperations/bitcoin';
 
 export const consensusTx = async (
 	amount: string,
@@ -127,13 +128,25 @@ export function getSendOpType(fromNetwork: Network, toNetwork: Network) {
 
 export const getSendOpGenerator = (
 	fromNetwork: Network,
-	toNetwork: Network
+	toNetwork: Network,
+	toCoin: Coin
 ): ((
 	from: string,
 	toDid: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
 	memo?: URLSearchParams
 ) => Operation) => {
+	if (toCoin.value === Coin.btc.value) {
+		if (toNetwork.value === Network.vsc.value) {
+			return getBitcoinTransferOp;
+		} else if (toNetwork.value === Network.btcMainnet.value) {
+			return getBitcoinUnmapOp;
+		} else {
+			throw new Error(
+				`VSC does not currently support sending bitcoin from ${fromNetwork.label} to ${toNetwork.label}`
+			);
+		}
+	}
 	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.vsc.value) {
 		return getHiveTransferOp;
 	}

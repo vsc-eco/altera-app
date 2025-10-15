@@ -43,6 +43,19 @@ export type WithdrawTransaction = {
 	};
 };
 
+export type CallContractTransaction = {
+	op: 'call';
+	payload: {
+		contract_id: string;
+		action: string;
+		payload: string;
+		rc_limit: number;
+		// TODO: add support for intents
+		intents: [];
+		caller: string;
+	};
+};
+
 export type StakeTransaction = {
 	op: 'stake_hbd' | 'unstake_hbd';
 	payload: {
@@ -70,7 +83,8 @@ type Transaction =
 	| WithdrawTransaction
 	| StakeTransaction
 	| ConsensusStakeTransaction
-	| DepositTransaction;
+	| DepositTransaction
+	| CallContractTransaction;
 
 export type VSCTransactionOp = {
 	type: string;
@@ -174,7 +188,13 @@ function createVSCTransactionContainer(
 
 	// Collect all required auths from operations
 	const requiredAuthsSet = new Set<string>();
-	transactions.forEach((tx) => requiredAuthsSet.add(tx.payload.from));
+	transactions.forEach((tx) => {
+		if (tx.op === 'call') {
+			requiredAuthsSet.add(tx.payload.caller);
+		} else {
+			requiredAuthsSet.add(tx.payload.from);
+		}
+	});
 
 	return {
 		__t: 'vsc-tx',

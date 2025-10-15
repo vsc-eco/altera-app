@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { GetAccountBalanceStore } from '$houdini';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from './sendswap/utils/sendOptions';
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';
@@ -56,9 +55,7 @@
 				<td class="coin-cell">
 					<span class="coin-name">Liquid Hive Dollar Savings (sHBD)</span>
 					<span class="tooltip">
-						<InfoToolip>
-							sHBD is HBD that remains transferable while earning 15% APR
-						</InfoToolip>
+						<InfoToolip>sHBD is HBD that remains transferable while earning 15% APR</InfoToolip>
 					</span>
 				</td>
 				<td class="amount-cell"
@@ -110,6 +107,16 @@
 							Coin.hive,
 							true
 						).toPrettyString()}</td
+					>
+				</tr>
+			{/if}
+			<!-- TODO: always show once btc is live -->
+			{#if $accountBalance.bal.btc !== 0}
+				<tr>
+					<th> </th><td><img src={Coin.btc.icon} alt="Bitcoin" /></td>
+					<td class="coin-cell">Bitcoin</td>
+					<td class="amount-cell"
+						>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</td
 					>
 				</tr>
 			{/if}

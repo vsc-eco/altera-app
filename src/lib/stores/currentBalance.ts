@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { GetAccountBalanceStore } from '$houdini';
+import { GetAccountBalanceStore, GetContractStateStore } from '$houdini';
 import { browser } from '$app/environment';
 import { DHive } from '$lib/vscTransactions/dhive';
 import { getAuth, type Auth } from '$lib/auth/store';
@@ -14,6 +14,7 @@ export type AccountBalance = {
 	hive: number;
 	hive_consensus: number;
 	consensus_unstaking: number;
+	btc: number;
 	resource_credits: number;
 	last_tx_height: number;
 };
@@ -42,6 +43,7 @@ export function getDefaultBalance(): AccountBalance {
 		hive: 0,
 		hive_consensus: 0,
 		consensus_unstaking: 0,
+		btc: 0,
 		resource_credits: 0,
 		last_tx_height: 0
 	};
@@ -55,29 +57,42 @@ export function startAccountPolling(auth: Auth) {
 	if (!browser || isPolling) return; // Prevent multiple intervals
 
 	isPolling = true;
-	const graphQlObj = new GetAccountBalanceStore();
 
 	// Initial fetch
-	fetchAccountData(graphQlObj, auth);
+	fetchAccountData(auth);
 
 	// Set up interval
 	intervalId = setInterval(() => {
-		fetchAccountData(graphQlObj, auth);
+		fetchAccountData(auth);
 	}, 2000);
 }
 
-async function fetchAccountData(graphQlObj: any, auth: Auth) {
+// testnet contract
+export const MAPPINGCONTRACTID = 'vsc1BcS12fD42kKqL2SMLeBzaEKtd9QbBWC1dt';
+
+async function fetchAccountData(auth: Auth) {
 	try {
+		if (!auth.value) throw 'Not authenticated';
+		const accBalancesStore = new GetAccountBalanceStore();
+		const contractStateStore = new GetContractStateStore();
+
 		const username = getUsernameFromAuth(auth);
-		const [vscBal, connectedBal] = await Promise.all([
-			graphQlObj.fetch({
+		const [vscBal, contractState, connectedBal] = await Promise.all([
+			accBalancesStore.fetch({
 				variables: { account: auth.value!.did },
+				policy: 'NetworkOnly'
+			}),
+			contractStateStore.fetch({
+				variables: { contractId: MAPPINGCONTRACTID, keys: ['account_balances'] },
 				policy: 'NetworkOnly'
 			}),
 			auth.value?.provider === 'aioha' && username
 				? DHive.database.getAccounts([username])
 				: undefined
 		]);
+
+		const contractBalances = contractState.data?.getStateByKeys['account_balances'];
+		const btcBalance = contractBalances ? contractBalances[auth.value.did] : 0;
 
 		const vscBalanceObj = (() => {
 			if (vscBal.data) {
@@ -91,6 +106,7 @@ async function fetchAccountData(graphQlObj: any, auth: Auth) {
 					hive: resultBal?.hive ?? 0,
 					hive_consensus: resultBal?.hive_consensus ?? 0,
 					consensus_unstaking: resultBal?.consensus_unstaking ?? 0,
+					btc: btcBalance,
 					resource_credits: resultRC?.amount ?? 0,
 					last_tx_height: resultRC?.block_height ?? 0
 				};

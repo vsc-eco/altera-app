@@ -1,9 +1,6 @@
 import type { Auth } from '../../auth/store';
 import { getV4VMetadata } from '../v4v/api-types/metadata';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-import { Record } from '$houdini/runtime/public/record';
-import { BadgeDollarSign, type Icon as LucideIcon } from '@lucide/svelte';
-import type { SvelteComponent } from 'svelte';
 import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte';
 const always: Enabled = () => true;
 const never: Enabled = () => false;
@@ -368,7 +365,7 @@ const swapOptions: {
 			{
 				coin: btc,
 				// networks: [lightning, btcMainnet]
-				networks: [lightning]
+				networks: [lightning, vsc, btcMainnet]
 			}
 		]
 	},
@@ -381,11 +378,11 @@ const swapOptions: {
 			{
 				coin: hbd,
 				networks: [vsc, hiveMainnet]
+			},
+			{
+				coin: btc,
+				networks: [lightning, btcMainnet, vsc]
 			}
-			// {
-			// 	coin: btc,
-			// 	networks: [lightning, btcMainnet]
-			// }
 		]
 	}
 };

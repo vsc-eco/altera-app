@@ -33,7 +33,6 @@
 	}
 	const minAmount = new CoinAmount(10, Coin.usd);
 	const amountNumber = $derived(Number(amount));
-	$inspect(amountNumber);
 	$effect(() => {
 		customButton = {
 			label: 'Buy',

@@ -19,7 +19,7 @@
 					$accountBalance.bal[coin.value as keyof typeof $accountBalance.bal],
 					coin,
 					true
-				).toMinFigs();
+				).toPrettyString();
 			}
 		} else {
 			if ($accountBalance.connectedBal && coin.value in $accountBalance.connectedBal) {
@@ -27,7 +27,7 @@
 					$accountBalance.connectedBal[coin.value as keyof typeof $accountBalance.connectedBal],
 					coin,
 					true
-				).toMinFigs();
+				).toPrettyString();
 			}
 		}
 	});

@@ -36,14 +36,16 @@
 			<td class="sm-caption label">Transfer To</td>
 			<td class="content"><BasicCopy value={'vsc.gateway'}><code>{toAccount}</code></BasicCopy></td>
 		</tr>
-		<tr>
-			<td class="sm-caption label">Amount</td>
-			<td class="content"
-				><BasicCopy value={$SendTxDetails.toAmount}>
-					<code>{$SendTxDetails.toAmount}</code> {$SendTxDetails.fromCoin?.coin.label}</BasicCopy
-				></td
-			>
-		</tr>
+		{#if Number($SendTxDetails.toAmount) > 0}
+			<tr>
+				<td class="sm-caption label">Amount</td>
+				<td class="content"
+					><BasicCopy value={$SendTxDetails.toAmount}>
+						<code>{$SendTxDetails.toAmount}</code> {$SendTxDetails.fromCoin?.coin.label}</BasicCopy
+					></td
+				>
+			</tr>
+		{/if}
 		<tr>
 			<td class="sm-caption label">Memo</td>
 			<td class="content"

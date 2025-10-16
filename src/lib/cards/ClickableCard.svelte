@@ -32,7 +32,8 @@
 			pointer-events: none;
 			opacity: 1;
 			background-color: var(--neutral-off-bg);
-			color: inherit;
+			filter: grayscale(1);
+			color: var(--neutral-mid);
 		}
 		&:not(:disabled) {
 			cursor: pointer;

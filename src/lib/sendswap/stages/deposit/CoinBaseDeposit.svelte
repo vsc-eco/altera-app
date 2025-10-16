@@ -35,7 +35,7 @@
 	const amountNumber = $derived(Number(amount));
 	$effect(() => {
 		customButton = {
-			label: 'Buy',
+			label: 'Deposit',
 			action: handleSubmit,
 			disabled: amountNumber < minAmount.toNumber()
 		};

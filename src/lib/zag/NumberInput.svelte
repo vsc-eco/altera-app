@@ -101,14 +101,14 @@
 <div {...api.getRootProps()}>
 	<div {...api.getScrubberProps()}></div>
 	<input {...api.getInputProps()} class={{ invalid }} />
-	<div class="triggers">
+	<!-- <div class="triggers">
 		<button {...api.getIncrementTriggerProps()}>
 			<ChevronUp />
 		</button>
 		<button {...api.getDecrementTriggerProps()}>
 			<ChevronDown />
 		</button>
-	</div>
+	</div> -->
 </div>
 
 <style lang="scss">

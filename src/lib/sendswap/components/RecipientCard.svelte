@@ -84,7 +84,7 @@
 				icon={contact.image}
 				accounts={contact.addresses}
 				lastPaid={contact.lastPaid}
-				size="large"
+				size={basic ? 'medium' : 'large'}
 				showSelected
 			/>
 		{:else if $SendTxDetails.toUsername}

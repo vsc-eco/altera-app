@@ -28,7 +28,7 @@
 		id?: string;
 	} = $props();
 
-	let inUsd = $state('');
+	let inUsd = $state('0');
 	let error = $state('');
 	let currentCoin = $state.raw(coinOpt?.coin ?? Coin.unk);
 	let lastModification = $state.raw(new CoinAmount(amount, coinOpt?.coin ?? Coin.unk));
@@ -165,7 +165,7 @@
 			}
 			lastModification = new CoinAmount(amount, currentCoin);
 			if (!amount) {
-				inUsd = '';
+				inUsd = '0';
 				return;
 			}
 			new CoinAmount(amount, currentCoin).convertTo(Coin.usd, Network.lightning).then((amount) => {
@@ -314,6 +314,7 @@
 			text-align: center;
 		}
 		.bottom-info {
+			position: absolute;
 			display: flex;
 			flex-wrap: wrap;
 			text-wrap: wrap;

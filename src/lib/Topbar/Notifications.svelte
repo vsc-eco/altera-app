@@ -61,9 +61,9 @@
 			<span class="at">
 				{moment(getTimestamp(tx)).format('MMM DD H:mm')}
 			</span>
-			{#if !tx.read}
+			<!-- {#if !tx.read}
 				<span class="unread"></span>
-			{/if}
+			{/if} -->
 			<span class="delete">
 				<PillButton onclick={() => removeNotification(tx.id)} styleType="icon-subtle">
 					<Trash2 />
@@ -83,9 +83,9 @@
 		styleType="icon"
 	>
 		<Bell />
-		{#if $notifications.some((tx) => !tx.read)}
+		<!-- {#if $notifications.some((tx) => !tx.read)}
 			<span class="unread trigger"></span>
-		{/if}
+		{/if} -->
 	</PillButton>
 {/snippet}
 

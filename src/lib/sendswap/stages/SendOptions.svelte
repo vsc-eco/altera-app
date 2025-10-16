@@ -317,28 +317,6 @@
 		<ContactSearchBox bind:value={$SendTxDetails.toUsername} bind:selectedContact={contact} />
 	</div>
 	<Divider text="Amount" />
-	<div class="amounts">
-		<div class="inputs">
-			<AmountInput
-				bind:amount={fromAmount}
-				coinOpt={$SendTxDetails.fromCoin}
-				network={$SendTxDetails.fromNetwork}
-				maxAmount={max}
-				connectedCoinAmount={new CoinAmount(inUsd, coins.usd)}
-				bind:id={inputId}
-			/>
-			<Link2 />
-			<AmountInput
-				bind:amount={inUsd}
-				coinOpt={{
-					coin: coins.usd,
-					networks: []
-				}}
-				network={undefined}
-				connectedCoinAmount={new CoinAmount(fromAmount, $SendTxDetails.fromCoin?.coin ?? Coin.unk)}
-			/>
-		</div>
-	</div>
 	<ClickableCard onclick={() => toggleAsset(true)}>
 		<div class="asset-card">
 			{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
@@ -358,6 +336,27 @@
 			</span>
 		</div>
 	</ClickableCard>
+	<div class="amounts">
+		<div class="inputs">
+			<AmountInput
+				bind:amount={fromAmount}
+				coinOpt={$SendTxDetails.fromCoin}
+				network={$SendTxDetails.fromNetwork}
+				maxAmount={max}
+				bind:id={inputId}
+			/>
+			<!-- <Link2 />
+			<AmountInput
+				bind:amount={inUsd}
+				coinOpt={{
+					coin: coins.usd,
+					networks: []
+				}}
+				network={undefined}
+				connectedCoinAmount={new CoinAmount(fromAmount, $SendTxDetails.fromCoin?.coin ?? Coin.unk)}
+			/> -->
+		</div>
+	</div>
 	<div class="select-wrapper">
 		{#if transferError}
 			<div class="transfer-error error">{transferError}</div>
@@ -432,6 +431,7 @@
 		gap: 1.5rem;
 	}
 	.amounts {
+		padding: 0.5rem 0;
 		.inputs {
 			display: flex;
 			align-items: flex-start;

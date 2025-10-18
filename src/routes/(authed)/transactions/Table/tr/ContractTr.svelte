@@ -32,8 +32,16 @@
 		}
 	}
 
-	const amt: string = $derived(op.data.intents[0]?.args?.limit ?? '0');
-	const coinVal: string = $derived(op.data.intents[0]?.args?.limit ?? coins.hive.value);
+	const amt: string = $derived.by(() => {
+		const intents = op.data.intents;
+		if (!intents) return '0';
+		return intents[0]?.args?.limit ?? '0';
+	});
+	const coinVal: string = $derived.by(() => {
+		const intents = op.data.intents;
+		if (!intents) return coins.hive.value;
+		return intents[0]?.args?.limit ?? coins.hive.value;
+	});
 	const amount = $derived(
 		new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.hive, true)
 	);

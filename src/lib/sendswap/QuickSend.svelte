@@ -38,10 +38,10 @@
 		{ value: 'complete', component: Complete }
 	];
 
-	let extraProps = {
-		close: toggle,
+	let extraProps = $derived({
+		onClose: toggle,
 		compact: true
-	};
+	});
 </script>
 
 <Dialog bind:toggle bind:open={dialogOpen}>

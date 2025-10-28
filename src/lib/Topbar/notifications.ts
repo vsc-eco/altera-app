@@ -5,6 +5,7 @@ type ToNotification = {
 	type: string;
 	timestamp: string;
 	read: boolean;
+	status: string;
 };
 
 type FromNotification = {
@@ -12,6 +13,7 @@ type FromNotification = {
 	type: string;
 	timestamp: string;
 	read: boolean;
+	status: string;
 };
 
 export type Notification = ToNotification | FromNotification;

@@ -50,7 +50,7 @@ export const checkOpStatus = (tx_id: string, currStatus: string) => {
 	}
 	const store = writable(currStatus, () => {
 		// console.log('statusquery - Store subscribed, starting interval');
-		if (timeout == undefined) {
+		if (timeout === undefined) {
 			timeout = setInterval(updateStatuses, 1000);
 		}
 		return () => {
@@ -61,6 +61,6 @@ export const checkOpStatus = (tx_id: string, currStatus: string) => {
 
 	// console.log('WRITABLE');
 	checkingStores[tx_id] = store;
-	console.log('statusquery - Added to checkingStores:', tx_id, checkingStores);
+	// console.log('statusquery - Added to checkingStores:', tx_id, checkingStores);
 	return readonly(store);
 };

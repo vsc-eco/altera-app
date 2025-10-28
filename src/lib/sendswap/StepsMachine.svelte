@@ -12,6 +12,8 @@
 	import { goto } from '$app/navigation';
 	import { getIntermediaryNetwork } from '$lib/sendswap/utils/getNetwork';
 	import { untrack, type Component, type ComponentProps } from 'svelte';
+	import { getDidFromUsername } from '$lib/getAccountName';
+	import { getSendOpType } from '$lib/vscTransactions/hive';
 
 	type TransferComponentTypes =
 		| { editStage: (complete: boolean) => void }
@@ -74,7 +76,11 @@
 	}
 	function next() {
 		if (api.value === api.count) {
-			goto('/transactions');
+			if (extraProps && 'close' in extraProps) {
+				extraProps.close();
+			} else {
+				goto('/transactions');
+			}
 		} else if (stepsData[api.value].value === 'review') {
 			setStatus('');
 			initSend();
@@ -217,6 +223,7 @@
 					abort={cancelTransaction}
 					{txId}
 					{...extraProps}
+					{close}
 					bind:onHomePage
 					bind:customButtons
 				/>

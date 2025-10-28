@@ -104,16 +104,19 @@
 						const notification: Notification = fromYou
 							? {
 									to: op.data.to,
-									type: tx.type,
+									type: op.type ?? tx.type,
 									timestamp: getTimestamp(tx),
-									read: false
+									read: false,
+									status: tx.status
 								}
 							: {
 									from: op.data.to,
-									type: tx.type,
+									type: op.type ?? tx.type,
 									timestamp: getTimestamp(tx),
-									read: false
+									read: false,
+									status: tx.status
 								};
+						console.log('added notification for tx id:', tx.id);
 						addNotification(tx.id, notification);
 					}
 				}

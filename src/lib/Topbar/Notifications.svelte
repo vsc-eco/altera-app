@@ -6,7 +6,6 @@
 	import { onMount, untrack } from 'svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import {
-		addNotification,
 		getLocalNotifications,
 		notifications,
 		notificationUpdateIndicator,
@@ -79,7 +78,7 @@
 		{formatOpType(ntf.type)}
 		{fromYou ? 'to' : 'from'}
 		{`@${getAccountNameFromDid(fromYou ? ntf.to : ntf.from)}`}
-		completed.
+		{`${ntf.status.toLowerCase()}.`}
 		<span class="at">
 			{moment(ntf.timestamp).format('MMM DD H:mm')}
 		</span>

@@ -14,7 +14,7 @@
 
 	let timer = $state<PieTimer>();
 
-	let { txId, close }: { txId: string; close?: () => void } = $props();
+	let { txId, onClose = redirect }: { txId: string; onClose?: () => void } = $props();
 
 	const isSend = $derived($SendTxDetails.toUsername !== getUsernameFromAuth(getAuth()()));
 
@@ -96,7 +96,7 @@
 	{#if !timerCanceled}
 		<div class="redirect">
 			<p>Closing…</p>
-			<PieTimer bind:this={timer} onComplete={close ?? redirect} />
+			<PieTimer bind:this={timer} onComplete={() => onClose()} />
 			<PillButton onclick={cancelTimer}>Stay</PillButton>
 		</div>
 	{/if}

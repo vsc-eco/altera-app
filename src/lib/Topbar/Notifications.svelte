@@ -6,110 +6,150 @@
 	import { onMount, untrack } from 'svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import {
+		addNotification,
 		getLocalNotifications,
 		notifications,
+		notificationUpdateIndicator,
 		removeNotification,
-		setLocalNotifications
+		setLocalNotifications,
+		type Notification
 	} from './notifications';
-	import { getAuth } from '$lib/auth/store';
-	import { formatOpType, getTimestamp } from '$lib/stores/txStores';
+	import { formatOpType } from '$lib/stores/txStores';
 	import { getAccountNameFromDid } from '$lib/getAccountName';
-	const auth = $derived(getAuth()());
+
 	onMount(() => {
 		notifications.set(getLocalNotifications());
 	});
-	let sortedNotifications: typeof $notifications = $state([]);
+	let sortedNotifications: [string, Notification][] = $state([]);
 
-	$effect(() => {
-		if (!open) return;
-		untrack(() => {
-			sortedNotifications = $state.snapshot($notifications).sort((a, b) => {
-				const timeA = new Date(getTimestamp(a)).getTime();
-				const timeB = new Date(getTimestamp(b)).getTime();
+	let anyUnread = $state(false);
+
+	function checkForUnread() {
+		anyUnread = $notifications
+			.entries()
+			.toArray()
+			.some(([_, tx]) => !tx.read);
+	}
+
+	function updateAndSort() {
+		sortedNotifications = $notifications
+			.entries()
+			.toArray()
+			.sort((a, b) => {
+				const timeA = new Date(a[1].timestamp).getTime();
+				const timeB = new Date(b[1].timestamp).getTime();
 				return timeB - timeA;
 			});
-		});
+		checkForUnread();
+	}
+
+	notificationUpdateIndicator.subscribe(() => {
+		updateAndSort();
 	});
-	let length = $state(3);
+
+	let length = $state(Math.min(3, $notifications.size));
 	function showMore() {
-		length += 10;
+		length = Math.min(length + 10, $notifications.size);
 	}
 	$effect(() => {
-		if (!open) return;
-		length;
-		console.log('running');
-		untrack(() => {
-			notifications.update((current) => {
-				const read = current.slice(0, length).map((notif) => ({ ...notif, read: true }));
-				return [...read, ...current.slice(length)];
+		if (!open) {
+			untrack(() => {
+				for (const [id, _] of sortedNotifications.slice(0, length)) {
+					if ($notifications.has(id)) {
+						$notifications.get(id)!.read = true;
+					}
+				}
+				setLocalNotifications($notifications);
+				checkForUnread();
 			});
-			setLocalNotifications($notifications);
+			return;
+		}
+		length;
+		untrack(() => {
+			updateAndSort();
 		});
 	});
 
 	let open: boolean = $state(false);
+
+	function addDummy() {
+		const tmp: Notification = {
+			from: 'milo',
+			type: 'stake_hbd',
+			timestamp: moment().toISOString(),
+			read: false
+		};
+		addNotification('test_id', tmp);
+	}
 </script>
 
-{#snippet notificationSnippet(tx: (typeof $notifications)[number])}
-	{#if tx.ops && tx.ops[0]?.data}
-		{@const fromYou = tx.ops[0].data.from === auth.value?.did}
-		<div class="notif">
-			{formatOpType(tx.ops[0])}
-			{fromYou ? 'to' : 'from'}
-			{`@${getAccountNameFromDid(fromYou ? tx.ops[0].data.to : tx.ops[0].data.from)}`}
-			completed.
-			<span class="at">
-				{moment(getTimestamp(tx)).format('MMM DD H:mm')}
-			</span>
-			<!-- {#if !tx.read}
-				<span class="unread"></span>
-			{/if} -->
-			<span class="delete">
-				<PillButton onclick={() => removeNotification(tx.id)} styleType="icon-subtle">
-					<Trash2 />
-				</PillButton>
-			</span>
-		</div>
-	{/if}
+{#snippet notificationSnippet(ntf: Notification, id: string)}
+	{@const fromYou = 'to' in ntf}
+	<div class="notif">
+		{formatOpType(ntf.type)}
+		{fromYou ? 'to' : 'from'}
+		{`@${getAccountNameFromDid(fromYou ? ntf.to : ntf.from)}`}
+		completed.
+		<span class="at">
+			{moment(ntf.timestamp).format('MMM DD H:mm')}
+		</span>
+		{#if !ntf.read}
+			<span class="unread"></span>
+		{/if}
+		<span class="delete">
+			<PillButton
+				onclick={() => {
+					removeNotification(id);
+					updateAndSort();
+				}}
+				styleType="icon-subtle"
+			>
+				<Trash2 />
+			</PillButton>
+		</span>
+	</div>
 {/snippet}
 
 {#snippet trigger(attributes: HTMLButtonAttributes)}
 	<PillButton
 		{...attributes}
 		onclick={(e) => {
-			length = 3;
+			length = Math.min(3, $notifications.size);
 			attributes.onclick!(e);
 		}}
 		styleType="icon"
 	>
 		<Bell />
-		<!-- {#if $notifications.some((tx) => !tx.read)}
+		{#if anyUnread}
 			<span class="unread trigger"></span>
-		{/if} -->
+		{/if}
 	</PillButton>
+	<PillButton onclick={() => addDummy()}>Add dummy</PillButton>
 {/snippet}
 
 <Popover {trigger} title="Notifications" bind:open>
-	{#if $notifications.length == 0}
-		No notifications currently.
-	{:else}
-		<table>
-			<tbody>
-				{#each sortedNotifications.slice(0, length) as notification}
-					<tr>
-						<td>{@render notificationSnippet(notification)}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-		<div class="more-button">
-			{#if sortedNotifications.length > length}
-				<PillButton onclick={showMore} styleType="text-subtle">
-					<span class="sm-caption">Show more</span>
-				</PillButton>
-			{/if}
-		</div>
-	{/if}
+	{#key sortedNotifications}
+		{#if $notifications.size === 0}
+			No notifications currently.
+		{:else}
+			<table>
+				<tbody>
+					{#each sortedNotifications.slice(0, length) as [id, notification]}
+						<tr>
+							<td>{@render notificationSnippet(notification, id)}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+			<div class="more-button">
+				{#if sortedNotifications.length > length}
+					<PillButton onclick={showMore} styleType="text-subtle">
+						<span class="sm-caption">Show more</span>
+					</PillButton>
+				{/if}
+			</div>
+		{/if}
+	{/key}
 </Popover>
 
 <style lang="scss">

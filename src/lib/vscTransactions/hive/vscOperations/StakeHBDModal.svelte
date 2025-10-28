@@ -224,7 +224,7 @@
 		<div>
 			<Username label="Recipient" id="hbd-stake-recipient" bind:value={recipient} required />
 		</div>
-		<div>
+		<div class="input-wrapper">
 			<label for={id}>
 				{type === 'stake' ? (shouldDeposit ? 'Deposit and Stake ' : 'Stake ') : 'Unstake '}Amount:
 			</label>
@@ -270,6 +270,9 @@
 		flex-direction: column;
 		gap: 1rem;
 		padding: 0.5rem 0;
+	}
+	.input-wrapper {
+		padding-bottom: 1rem;
 	}
 	.status {
 		color: var(--primary-fg-mid);

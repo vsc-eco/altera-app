@@ -132,7 +132,7 @@ importers:
         specifier: ^4.11.0
         version: 4.11.0
       axios:
-        specifier: ^1.13.0
+        specifier: '>=1.12.0'
         version: 1.13.0(debug@4.4.3)
       bitcoin-address-validation:
         specifier: ^3.0.0
@@ -235,7 +235,7 @@ importers:
         specifier: ^5.5.0
         version: 5.5.0(rollup@4.52.5)
       esbuild:
-        specifier: ^0.25.11
+        specifier: '>=0.25.0'
         version: 0.25.11
       eslint:
         specifier: ^9.38.0

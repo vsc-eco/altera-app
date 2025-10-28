@@ -71,16 +71,6 @@
 	});
 
 	let open: boolean = $state(false);
-
-	function addDummy() {
-		const tmp: Notification = {
-			from: 'milo',
-			type: 'stake_hbd',
-			timestamp: moment().toISOString(),
-			read: false
-		};
-		addNotification('test_id', tmp);
-	}
 </script>
 
 {#snippet notificationSnippet(ntf: Notification, id: string)}
@@ -124,7 +114,6 @@
 			<span class="unread trigger"></span>
 		{/if}
 	</PillButton>
-	<PillButton onclick={() => addDummy()}>Add dummy</PillButton>
 {/snippet}
 
 <Popover {trigger} title="Notifications" bind:open>

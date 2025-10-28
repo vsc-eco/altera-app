@@ -116,7 +116,6 @@
 									read: false,
 									status: tx.status
 								};
-						console.log('added notification for tx id:', tx.id);
 						addNotification(tx.id, notification);
 					}
 				}

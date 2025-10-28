@@ -17,7 +17,7 @@
 		type TransactionOpType
 	} from '$lib/stores/txStores';
 	import moment from 'moment';
-	import { addNotification } from '$lib/Topbar/notifications';
+	import { addNotification, type Notification } from '$lib/Topbar/notifications';
 
 	type Props = {
 		tx: TransactionInter;
@@ -94,10 +94,30 @@
 	$effect(() => {
 		if (!statusStore) return;
 		return untrack(() => statusStore).subscribe((status) => {
-			if (tx.status != status) {
+			if (tx.status !== status) {
 				tx = { ...tx, status };
 				if (['CONFIRMED', 'FAILED'].includes(status)) {
-					addNotification({ ...tx, read: false });
+					if (!tx.ops) return;
+					for (const op of tx.ops) {
+						if (!op) return;
+						const fromYou = op.data.from === did;
+						const notification: Notification = fromYou
+							? {
+									to: op.data.to,
+									type: op.type ?? tx.type,
+									timestamp: getTimestamp(tx),
+									read: false,
+									status: tx.status
+								}
+							: {
+									from: op.data.to,
+									type: op.type ?? tx.type,
+									timestamp: getTimestamp(tx),
+									read: false,
+									status: tx.status
+								};
+						addNotification(tx.id, notification);
+					}
 				}
 			}
 		});

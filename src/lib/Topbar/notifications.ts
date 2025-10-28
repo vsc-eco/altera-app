@@ -1,40 +1,54 @@
-import { writable } from 'svelte/store';
-import { type TransactionInter } from '$lib/stores/txStores';
+import { get, writable } from 'svelte/store';
 
-interface Notification extends TransactionInter {
+type ToNotification = {
+	to: string;
+	type: string;
+	timestamp: string;
 	read: boolean;
+	status: string;
+};
+
+type FromNotification = {
+	from: string;
+	type: string;
+	timestamp: string;
+	read: boolean;
+	status: string;
+};
+
+export type Notification = ToNotification | FromNotification;
+
+export const notifications = writable<Map<string, Notification>>(new Map());
+export const notificationUpdateIndicator = writable<string>('');
+
+function indicateUpdate() {
+	let allIds = '';
+	for (const id of get(notifications).keys()) {
+		allIds += id;
+	}
+	notificationUpdateIndicator.set(allIds);
 }
 
-export const notifications = writable<Notification[]>([]);
+export function addNotification(id: string, tx: Notification) {
+	const ntfs = get(notifications);
+	if (ntfs.has(id)) return;
+	get(notifications).set(id, tx);
+	setLocalNotifications(get(notifications));
+}
 
-export function addNotification(tx: Notification) {
-	notifications.update((current) => {
-		return [tx, ...current];
-	});
+export function getLocalNotifications(): Map<string, Notification> {
 	const txString = localStorage.getItem('notifications');
-	let txList: Notification[] = txString ? JSON.parse(txString) : [];
-	txList.push(tx);
-	localStorage.setItem('notifications', JSON.stringify(txList));
+	if (!txString) return new Map();
+	const kvArray: [string, Notification][] = JSON.parse(txString);
+	return new Map(kvArray);
 }
 
-export function getLocalNotifications(): Notification[] {
-	const txString = localStorage.getItem('notifications');
-	return txString ? JSON.parse(txString) : [];
-}
-
-export function setLocalNotifications(notifications: Notification[]) {
-	localStorage.setItem('notifications', JSON.stringify(notifications));
+export function setLocalNotifications(notifications: Map<string, Notification>) {
+	localStorage.setItem('notifications', JSON.stringify(Array.from(notifications.entries())));
+	indicateUpdate();
 }
 
 export function removeNotification(id: string) {
-	notifications.update((current) => {
-		return current.filter((item) => item.id !== id);
-	});
-	const txString = localStorage.getItem('notifications');
-	const txList: Notification[] = txString ? JSON.parse(txString) : null;
-	if (!txList) {
-		return Error('No items in local storage.');
-	}
-	const newTxList = txList.filter((element, _) => element.id !== id);
-	localStorage.setItem('notifications', JSON.stringify(newTxList));
+	get(notifications).delete(id);
+	setLocalNotifications(get(notifications));
 }

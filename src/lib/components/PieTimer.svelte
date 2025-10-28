@@ -37,6 +37,7 @@
 				progress = 0;
 				isRunning = false;
 				if (remaining <= 0) {
+					stop();
 					onComplete();
 				}
 			}

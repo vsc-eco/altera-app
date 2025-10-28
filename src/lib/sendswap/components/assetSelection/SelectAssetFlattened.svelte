@@ -98,8 +98,8 @@
 		});
 	});
 
-	$inspect('vscitems', vscItems);
-	$inspect('externalitems', externalItems);
+	// $inspect('vscitems', vscItems);
+	// $inspect('externalitems', externalItems);
 
 	function handleAssetClick(balanceVal: string) {
 		const assetVal = balanceVal.split(':')[0];

@@ -23,4 +23,15 @@ export function cleanOldLocalStorage() {
 			}
 		}
 	}
+
+	const notifications = localStorage.getItem('notifications');
+	if (notifications) {
+		const array: [string, Notification][] = JSON.parse(notifications);
+		for (const [_, ntf] of array) {
+			if ('anchr_height' in ntf) {
+				localStorage.removeItem('notifications');
+				break;
+			}
+		}
+	}
 }

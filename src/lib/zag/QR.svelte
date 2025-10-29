@@ -17,7 +17,7 @@
 		<path {...api.getPatternProps()}></path>
 	</svg>
 	<div {...api.getOverlayProps()}>
-		<img src="https://avatars.githubusercontent.com/u/133249767" alt="" />
+		<img src="magi-padded.svg" alt="" />
 	</div>
 </a>
 

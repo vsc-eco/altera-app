@@ -59,27 +59,37 @@
 	let loading = $state(false);
 	$effect(() => {
 		if (!auth || auth.value?.provider !== 'aioha') return;
-		if (externalNetwork?.value !== Network.hiveMainnet.value) return;
-		untrack(() => {
-			if (!$accountBalance.connectedBal) return;
-			loading = true;
+		if (externalNetwork?.value === Network.hiveMainnet.value) {
+			untrack(() => {
+				if (!$accountBalance.connectedBal) return;
+				loading = true;
 
-			let result: BalanceObject[] = [];
+				let result: BalanceObject[] = [];
 
-			for (const [coinVal, bal] of Object.entries($accountBalance.connectedBal)) {
-				const coin = Object.values(Coin).find((coin) => coin.value === coinVal);
-				if (!coin) continue;
-				result.push({
-					...coin,
-					value: `${coin.value}:${externalNetwork.value}`,
-					balance: new CoinAmount(bal, coin, true).toPrettyAmountString(),
-					onNetwork: externalNetwork,
-					snippet: assetBalance
-				});
-			}
-			externalItems = result;
-			loading = false;
-		});
+				for (const [coinVal, bal] of Object.entries($accountBalance.connectedBal)) {
+					const coin = Object.values(Coin).find((coin) => coin.value === coinVal);
+					if (!coin) continue;
+					result.push({
+						...coin,
+						value: `${coin.value}:${externalNetwork.value}`,
+						balance: new CoinAmount(bal, coin, true).toPrettyAmountString(),
+						onNetwork: externalNetwork,
+						snippet: assetBalance
+					});
+				}
+				externalItems = result;
+				loading = false;
+			});
+		} else if (externalNetwork?.value === Network.lightning.value) {
+			externalItems = availableCoins
+				.filter((coinOpt) => coinOpt.snippetData.fromOpt?.networks.includes(Network.lightning))
+				.map((assetObj) => ({
+					...assetObj,
+					value: `${assetObj.value}:${externalNetwork.value}`,
+					onNetwork: Network.lightning,
+					balance: ''
+				}));
+		}
 	});
 
 	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
@@ -115,7 +125,7 @@
 		} else {
 			network = tmpNetwork;
 			coin = tmpAsset;
-			if (balanceObj) {
+			if (balanceObj && 'balance' in balanceObj) {
 				const coinObj: Coin = { ...balanceObj, value: assetVal };
 				max = new CoinAmount(balanceObj.balance, coinObj);
 			}

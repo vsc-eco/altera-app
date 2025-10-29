@@ -55,11 +55,11 @@
 	main {
 		background: linear-gradient(
 			-30deg in oklab,
-			var(--teal-60),
-			var(--teal-80) 20%,
+			var(--pink-70),
+			var(--pink-85) 20%,
 			var(--purple-80),
 			var(--purple-60) 80%,
-			var(--teal-60)
+			var(--pink-70)
 		);
 		height: 100dvh;
 		/* background-image: url(/blue-waves-txt.png);

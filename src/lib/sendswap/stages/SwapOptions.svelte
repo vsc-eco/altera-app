@@ -26,7 +26,7 @@
 	import Card from '$lib/cards/Card.svelte';
 	import moment from 'moment';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import SelectAssetTiered from '$lib/sendswap/components/assetSelection/SelectAssetTiered.svelte';
+	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 
 	let {
 		editStage
@@ -91,15 +91,17 @@
 		}
 	});
 
-	const fromAssetObjs: AssetObject[] = $derived(
-		assetOptions.map((opt) => ({
-			...opt.coin,
+	const fromAssetObjs: AssetObject[] = $derived([
+		{
+			...Coin.btc,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: $SendTxDetails.fromNetwork, size: 'medium' },
-			disabled: opt.disabled,
-			disabledMemo: opt.disabledMemo
-		}))
-	);
+			snippetData: {
+				fromOpt: { coin: Coin.btc, networks: [Network.lightning] },
+				net: Network.lightning,
+				size: 'medium'
+			}
+		}
+	]);
 	const toAssetObjs: AssetObject[] = $derived(
 		swapOptions.to.coins.map((opt) => ({
 			...opt.coin,
@@ -282,19 +284,19 @@
 <Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet content()}
 		{#if currentlyOpen === 'from'}
-			<SelectAssetTiered
+			<SelectAssetFlattened
 				availableCoins={fromAssetObjs}
-				close={toggle}
 				bind:coin={$SendTxDetails.fromCoin}
 				bind:network={$SendTxDetails.fromNetwork}
+				close={toggle}
+				externalNetwork={Network.lightning}
 			/>
 		{:else}
-			<SelectAssetTiered
+			<SelectAssetFlattened
 				availableCoins={toAssetObjs}
 				close={toggle}
 				bind:coin={$SendTxDetails.toCoin}
 				bind:network={$SendTxDetails.toNetwork}
-				lockedNetwork={Network.magi}
 			/>
 		{/if}
 	{/snippet}

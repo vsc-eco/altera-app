@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { GetAccountBalanceStore, GetContractStateStore } from '$houdini';
 import { browser } from '$app/environment';
-import { DHive } from '$lib/vscTransactions/dhive';
+import { DHive } from '$lib/magiTransactions/dhive';
 import { getAuth, type Auth } from '$lib/auth/store';
 import { getUsernameFromAuth } from '$lib/getAccountName';
 import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -77,7 +77,7 @@ async function fetchAccountData(auth: Auth) {
 		const contractStateStore = new GetContractStateStore();
 
 		const username = getUsernameFromAuth(auth);
-		const [vscBal, contractState, connectedBal] = await Promise.all([
+		const [magiBal, contractState, connectedBal] = await Promise.all([
 			accBalancesStore.fetch({
 				variables: { account: auth.value!.did },
 				policy: 'NetworkOnly'
@@ -94,10 +94,10 @@ async function fetchAccountData(auth: Auth) {
 		const contractBalances = contractState.data?.getStateByKeys['account_balances'];
 		const btcBalance = contractBalances ? contractBalances[auth.value.did] : 0;
 
-		const vscBalanceObj = (() => {
-			if (vscBal.data) {
-				const resultBal = vscBal.data.getAccountBalance;
-				const resultRC = vscBal.data.getAccountRC;
+		const magiBalanceObj = (() => {
+			if (magiBal.data) {
+				const resultBal = magiBal.data.getAccountBalance;
+				const resultRC = magiBal.data.getAccountRC;
 
 				const balances: AccountBalance = {
 					hbd: resultBal?.hbd ?? 0,
@@ -133,12 +133,16 @@ async function fetchAccountData(auth: Auth) {
 			}
 		})();
 
-		if (vscBalanceObj && connectedBalanceObj) {
-			accountBalance.set({ bal: vscBalanceObj, connectedBal: connectedBalanceObj, loading: false });
-		} else if (vscBalanceObj) {
+		if (magiBalanceObj && connectedBalanceObj) {
+			accountBalance.set({
+				bal: magiBalanceObj,
+				connectedBal: connectedBalanceObj,
+				loading: false
+			});
+		} else if (magiBalanceObj) {
 			accountBalance.update((current) => ({
 				...current,
-				bal: vscBalanceObj,
+				bal: magiBalanceObj,
 				loading: false
 			}));
 		} else if (connectedBalanceObj) {

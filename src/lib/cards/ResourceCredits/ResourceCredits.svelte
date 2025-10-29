@@ -2,7 +2,7 @@
 	import Card from '../Card.svelte';
 	import Progress from '$lib/zag/Progress.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
-	import { DHive } from '$lib/vscTransactions/dhive';
+	import { DHive } from '$lib/magiTransactions/dhive';
 	import type { Manabar } from '@hiveio/dhive/lib/chain/rc';
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';

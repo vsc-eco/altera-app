@@ -6,9 +6,9 @@ import moment from 'moment';
 import { authStore } from '$lib/auth/store';
 import { clearLastPaidCache } from '$lib/sendswap/utils/sendUtils';
 
-type VscTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
+type MagiTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 
-export interface TransactionInter extends VscTransaction {
+export interface TransactionInter extends MagiTransaction {
 	isPending: boolean;
 }
 
@@ -25,11 +25,11 @@ export function formatOpType(type: string, sequence: string = 'hbd') {
 	return result.replace('_', ' ');
 }
 
-export function toTransactionInter(txs: VscTransaction[]): TransactionInter[] {
+export function toTransactionInter(txs: MagiTransaction[]): TransactionInter[] {
 	return txs.map((tx) => ({ ...tx, isPending: false }));
 }
 
-export const vscTxsStore = writable<TransactionInter[]>([]);
+export const magiTxsStore = writable<TransactionInter[]>([]);
 export const localTxsStore = writable<TransactionInter[]>([]);
 
 function getAlteraID(tx: TransactionInter) {
@@ -57,8 +57,8 @@ export function getTimestamp(tx: TransactionInter): string {
 	return timestamp + 'Z';
 }
 
-// This depends on vsc txs occuring earlier in the array
-// because its [...$vscTxsStore, ...$localTxsStore]
+// This depends on magi txs occuring earlier in the array
+// because its [...$magiTxsStore, ...$localTxsStore]
 function deduplicate(txs: TransactionInter[]) {
 	const noAlteraID: TransactionInter[] = [];
 	const byAlteraID: Record<string, TransactionInter> = {};
@@ -121,10 +121,10 @@ function deduplicate(txs: TransactionInter[]) {
 
 // Create a derived store that combines and sorts transactions
 export const allTransactionsStore = derived(
-	[vscTxsStore, localTxsStore],
-	([$vscTxsStore, $localTxsStore]) => {
+	[magiTxsStore, localTxsStore],
+	([$magiTxsStore, $localTxsStore]) => {
 		// Combine both sources
-		const combined = [...$vscTxsStore, ...$localTxsStore];
+		const combined = [...$magiTxsStore, ...$localTxsStore];
 
 		const uniqueTransactions = deduplicate(combined);
 
@@ -166,7 +166,7 @@ export function updateTxsFromLocalStorage(did: string) {
 }
 
 export function clearAllStores() {
-	vscTxsStore.set([]);
+	magiTxsStore.set([]);
 	localTxsStore.set([]);
 }
 
@@ -188,14 +188,14 @@ export async function fetchTxs(
 			variables: {
 				limit: limit,
 				did,
-				offset: type === 'extend' ? get(vscTxsStore).length : undefined
+				offset: type === 'extend' ? get(magiTxsStore).length : undefined
 			},
 			policy: 'NetworkOnly'
 		})
 		.then((post) => {
 			if (!post.data?.findTransaction) {
 				if (type === 'set') {
-					vscTxsStore.set([]);
+					magiTxsStore.set([]);
 				}
 				if (setLoading) setLoading(false);
 				return true;
@@ -204,14 +204,14 @@ export async function fetchTxs(
 			if (fetchedTxs.length > 0) clearLastPaidCache();
 			switch (type) {
 				case 'set':
-					vscTxsStore.set(fetchedTxs);
+					magiTxsStore.set(fetchedTxs);
 					break;
 				case 'extend':
-					vscTxsStore.update((currentTxs) => currentTxs.concat(fetchedTxs));
+					magiTxsStore.update((currentTxs) => currentTxs.concat(fetchedTxs));
 					break;
 				default: // also case for update, since this is most robust
-					if (get(vscTxsStore).length > 0 && fetchedTxs[0].id == get(vscTxsStore)[0].id) break; // nothing to update
-					vscTxsStore.update((currentTxs) => {
+					if (get(magiTxsStore).length > 0 && fetchedTxs[0].id == get(magiTxsStore)[0].id) break; // nothing to update
+					magiTxsStore.update((currentTxs) => {
 						const fetchedTxs = toTransactionInter(post.data!.findTransaction!);
 						const prevUpdate = fetchedTxs.findIndex((v) => v.id === currentTxs[0]?.id);
 

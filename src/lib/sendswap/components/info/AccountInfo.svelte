@@ -31,7 +31,7 @@
 		}
 	});
 	let display = $derived(
-		account.value === SendAccount.vscAccount.value
+		account.value === SendAccount.magiAccount.value
 			? [balanceString]
 			: account.fee
 				? [account.fee]

@@ -5,7 +5,7 @@
 	import Amount from '$lib/currency/OldAmountInput.svelte';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { sleep } from 'aninest';
-	import { consensusTx } from '$lib/vscTransactions/hive';
+	import { consensusTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type OperationError, type OperationResult } from '@aioha/aioha/build/types';
@@ -108,7 +108,7 @@
 			id="consensus-stake-amount"
 			label="Deposit and Stake Amount:"
 			coin={Coin.hive}
-			network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
+			network={shouldDeposit ? Network.hiveMainnet : Network.magi}
 			bind:originalAmount={amount}
 			required
 			maxField={shouldDeposit ? undefined : 'hive'}

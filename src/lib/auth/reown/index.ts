@@ -5,6 +5,7 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { DOMAIN } from '../url';
 import { browser } from '$app/environment';
 import { get } from 'svelte/store';
+import { cleanUpLogout, loginRetry } from '../store';
 
 // 1. Get a project ID at https://cloud.reown.com
 export const projectId = '55a54e098e74ddb214919fe0da4ac384';
@@ -47,7 +48,7 @@ modal.subscribeAccount(async (value) => {
 				status: 'authenticated',
 				value: {
 					address: value.address!,
-					logout: modal.disconnect,
+					logout: reownLogout,
 					provider: 'reown',
 					did: `did:pkh:eip155:1:${value.address!}`,
 					openSettings: () => modal.open()
@@ -67,3 +68,9 @@ modal.subscribeAccount(async (value) => {
 		}
 	} catch {}
 });
+
+export async function reownLogout() {
+	loginRetry.set('logout');
+	await modal.disconnect();
+	cleanUpLogout();
+}

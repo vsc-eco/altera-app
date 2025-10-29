@@ -17,13 +17,13 @@
 		if (txType === 'swap') {
 			return {
 				...blankDetails(),
-				toNetwork: Network.vsc,
+				toNetwork: Network.magi,
 				method: TransferMethod.lightningTransfer
 			};
 		} else {
 			return {
 				...blankDetails(),
-				toNetwork: Network.vsc
+				toNetwork: Network.magi
 			};
 		}
 	}

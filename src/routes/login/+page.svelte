@@ -32,7 +32,7 @@
 		<hr />
 		<HiveLogin />
 	</Card>
-	<img src="magi.svg" alt="VSC" />
+	<img src="magi-with-name.svg" alt="VSC" />
 </main>
 
 <style>
@@ -55,10 +55,10 @@
 	main {
 		background: linear-gradient(
 			-30deg in oklab,
-			var(--teal-40),
-			var(--teal-80) 30%,
-			var(--salmon-80),
-			var(--salmon-60),
+			var(--teal-60),
+			var(--teal-80) 20%,
+			var(--purple-80),
+			var(--purple-60) 80%,
 			var(--teal-60)
 		);
 		height: 100dvh;

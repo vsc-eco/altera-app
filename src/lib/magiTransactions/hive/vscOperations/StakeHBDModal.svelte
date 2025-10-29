@@ -14,8 +14,8 @@
 		createClient,
 		signAndBrodcastTransaction,
 		type StakeTransaction
-	} from '$lib/vscTransactions/eth/client';
-	import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
+	} from '$lib/magiTransactions/eth/client';
+	import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
 	import { wagmiConfig } from '$lib/auth/reown';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
@@ -230,7 +230,7 @@
 			</label>
 			<AmountInput
 				coinOpt={swapOptions.to.coins.find((coinOpt) => coinOpt.coin.value === Coin.hbd.value)}
-				network={shouldDeposit ? Network.hiveMainnet : Network.vsc}
+				network={shouldDeposit ? Network.hiveMainnet : Network.magi}
 				bind:amount
 				{maxAmount}
 			/>

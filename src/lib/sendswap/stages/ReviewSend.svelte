@@ -46,7 +46,7 @@
 	let isSwap = $derived($SendTxDetails.account?.value === SendAccount.swap.value);
 	let today = moment().format('MMM D, YYYY');
 	// let fromAccount = $derived.by(() => {
-	// 	if ($SendTxDetails.account?.value === SendAccount.vscAccount.value) {
+	// 	if ($SendTxDetails.account?.value === SendAccount.magiAccount.value) {
 	// 		return $SendTxDetails.account.label;
 	// 	}
 	// 	if ($SendTxDetails.account?.value === SendAccount.deposit.value) {

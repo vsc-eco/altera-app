@@ -5,7 +5,7 @@
 	import Amount from '$lib/currency/OldAmountInput.svelte';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { sleep } from 'aninest';
-	import { consensusUnstakeTx } from '$lib/vscTransactions/hive';
+	import { consensusUnstakeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	let auth = $derived(getAuth()());
@@ -87,7 +87,7 @@
 				id="unstake-amount"
 				label="Unstake Amount:"
 				coin={Coin.hive}
-				network={Network.vsc}
+				network={Network.magi}
 				bind:originalAmount={amount}
 				required
 				maxField={'hive_consensus'}

@@ -7,7 +7,7 @@
 	import { Info } from '@lucide/svelte';
 
 	let toAccount = $derived(
-		$SendTxDetails.toNetwork?.value === Network.vsc.value
+		$SendTxDetails.toNetwork?.value === Network.magi.value
 			? 'vsc.gateway'
 			: $SendTxDetails.toUsername
 	);
@@ -19,7 +19,7 @@
 		<p>
 			Transfer {$SendTxDetails.toCoin?.coin.label} to the following Hive account with your favorite wallet
 			or exchange.
-			{#if $SendTxDetails.toNetwork?.value === Network.vsc.value}
+			{#if $SendTxDetails.toNetwork?.value === Network.magi.value}
 				The account vsc.gateway is a dedicated Hive account controlled by the decentralized VSC
 				consensus. Your funds remain within your wallet on VSC at all times. Please make sure to
 				specify the correct memo when sending Hive or HBD.

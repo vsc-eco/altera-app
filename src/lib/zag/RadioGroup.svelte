@@ -2,7 +2,7 @@
 	lang="ts"
 	generics="Item extends {
 			label?: string, 
-			snippet?: Snippet<[Item]>; 
+			snippet?: (item?: Item) => ReturnType<Snippet<[Item]>>; 
 			value: string, 
 			disabled?: boolean 
 		}"

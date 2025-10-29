@@ -244,7 +244,7 @@ export const Network = {
 	btcMainnet,
 	lightning,
 	hiveMainnet,
-	vsc: magi,
+	magi,
 	unknown
 };
 
@@ -288,9 +288,9 @@ export type TransferMethod = {
 	fees: string;
 };
 
-const vscTransfer: TransferMethod = {
-	label: 'VSC Transfer',
-	value: 'vsc-transfer',
+const magiTransfer: TransferMethod = {
+	label: 'Magi Transfer',
+	value: 'magi-transfer',
 	length: 'Instant',
 	fees: 'No Fees'
 };
@@ -303,12 +303,12 @@ const lightningTransfer: TransferMethod = {
 };
 
 export const TransferMethod = {
-	vscTransfer,
+	magiTransfer,
 	lightningTransfer
 };
 
 export const networkMap: Map<string, Coin[]> = new Map([
-	[Network.vsc.value, [Coin.hive, Coin.hbd, Coin.shbd]],
+	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd]],
 	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
 	[Network.lightning.value, [Coin.btc]]
 ]);
@@ -320,9 +320,9 @@ export type SendAccount = {
 	fee?: string;
 };
 
-const vscAccount: SendAccount = {
-	label: 'VSC Account',
-	value: 'vsc-account',
+const magiAccount: SendAccount = {
+	label: 'Magi Account',
+	value: 'magi-account',
 	icon: '/magi.svg'
 };
 
@@ -339,7 +339,7 @@ const swap: SendAccount = {
 };
 
 export const SendAccount = {
-	vscAccount,
+	magiAccount,
 	deposit,
 	swap
 };

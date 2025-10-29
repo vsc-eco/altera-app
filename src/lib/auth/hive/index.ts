@@ -1,7 +1,7 @@
 import { initAioha, KeyTypes, Providers, type Aioha } from '@aioha/aioha';
 import { DOMAIN } from '../url';
 import { browser } from '$app/environment';
-import { _hiveAuthStore } from '../store';
+import { _hiveAuthStore, cleanUpLogout, loginRetry } from '../store';
 import { goto } from '$app/navigation';
 import { getAccounts } from '@aioha/aioha/build/rpc';
 import { postingMetadataFromString, type Account } from './accountTypes';
@@ -11,18 +11,19 @@ async function getProfilePicUrl(username: string) {
 	if (res) return postingMetadataFromString(res.posting_json_metadata).profile.profile_image;
 }
 let aioha: Aioha;
-_hiveAuthStore.subscribe((value) => {
-	if (value.value) {
-		getProfilePicUrl(value.value.address).then((pp) => {
-			if (value.value != undefined && pp && value.value.profilePicUrl == undefined) {
-				value.value.profilePicUrl = pp;
-				_hiveAuthStore.set(value);
-			}
-		});
-	}
-});
 
 if (browser) {
+	_hiveAuthStore.subscribe((value) => {
+		if (value.value) {
+			getProfilePicUrl(value.value.address).then((pp) => {
+				if (value.value != undefined && pp && value.value.profilePicUrl == undefined) {
+					value.value.profilePicUrl = pp;
+					_hiveAuthStore.set(value);
+				}
+			});
+		}
+	});
+
 	aioha = initAioha({
 		hiveauth: {
 			name: "Magi's Altera",
@@ -42,7 +43,7 @@ if (browser) {
 			value: {
 				address: aioha.getCurrentUser()!,
 				username: aioha.getCurrentUser(),
-				logout: logout,
+				logout: hiveLogout,
 				did: `hive:${aioha.getCurrentUser()}`,
 				provider: 'aioha',
 				openSettings: () => goto('/hive-account'),
@@ -61,7 +62,7 @@ if (browser) {
 				value: {
 					address: user,
 					username: user,
-					logout: logout,
+					logout: hiveLogout,
 					did: `hive:${user}`,
 					provider: 'aioha' as const,
 					openSettings: () => goto('/hive-account'),
@@ -124,7 +125,7 @@ export async function login(
 				address: aioha.getCurrentUser()!,
 				username: aioha.getCurrentUser(),
 				did: `hive:${aioha.getCurrentUser()!}`,
-				logout,
+				logout: hiveLogout,
 				provider: 'aioha',
 				openSettings: () => goto('/hive-account'),
 				aioha
@@ -134,7 +135,9 @@ export async function login(
 	return login;
 }
 
-export async function logout() {
+export async function hiveLogout() {
+	loginRetry.set('logout');
 	_hiveAuthStore.set({ status: 'none' });
 	await aioha.logout();
+	cleanUpLogout();
 }

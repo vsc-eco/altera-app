@@ -294,7 +294,7 @@
 				close={toggle}
 				bind:coin={$SendTxDetails.toCoin}
 				bind:network={$SendTxDetails.toNetwork}
-				lockedNetwork={Network.vsc}
+				lockedNetwork={Network.magi}
 			/>
 		{/if}
 	{/snippet}

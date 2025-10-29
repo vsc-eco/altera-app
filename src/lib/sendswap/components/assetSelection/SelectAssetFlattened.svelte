@@ -28,14 +28,14 @@
 
 	const auth = $derived(getAuth()());
 
-	const onVSC = availableCoins.filter((coin) => coin.value in $accountBalance.bal);
+	const onMagi = availableCoins.filter((coin) => coin.value in $accountBalance.bal);
 
 	interface BalanceObject extends Coin {
 		balance: string;
 		onNetwork: Network;
 		snippet: (...args: any[]) => ReturnType<Snippet>;
 	}
-	const vscItems: BalanceObject[] = onVSC
+	const magiItems: BalanceObject[] = onMagi
 		.map((coin) => {
 			const coinAmt = new CoinAmount(
 				$accountBalance.bal[coin.value as keyof AccountBalance],
@@ -45,9 +45,9 @@
 			if (coinAmt.amount > 0) {
 				return {
 					...coin,
-					value: `${coin.value}:${Network.vsc.value}`,
+					value: `${coin.value}:${Network.magi.value}`,
 					balance: coinAmt.toPrettyAmountString(),
-					onNetwork: Network.vsc,
+					onNetwork: Network.magi,
 					snippet: assetBalance,
 					snippetData: undefined
 				};
@@ -104,10 +104,10 @@
 	function handleAssetClick(balanceVal: string) {
 		const assetVal = balanceVal.split(':')[0];
 		const networkVal = balanceVal.split(':')[1];
-		const balanceObj = [...vscItems, ...externalItems].find((item) => item.value === balanceVal);
+		const balanceObj = [...magiItems, ...externalItems].find((item) => item.value === balanceVal);
 		tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === assetVal);
 		tmpNetwork =
-			[Network.vsc, externalNetwork].find((net) => net?.value === networkVal) ?? Network.vsc;
+			[Network.magi, externalNetwork].find((net) => net?.value === networkVal) ?? Network.magi;
 		if (!tmpAsset) {
 			coin = undefined;
 			network = undefined;
@@ -137,7 +137,7 @@
 	{:else}
 		<div class="listbox-wrapper">
 			<AssetList
-				items={[...vscItems, ...externalItems]}
+				items={[...magiItems, ...externalItems]}
 				value={`${coin?.coin.value}:${network?.value}`}
 				clickAsset={handleAssetClick}
 				type="balance"

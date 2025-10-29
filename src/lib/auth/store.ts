@@ -20,41 +20,31 @@ export type Auth = {
 	};
 };
 
+export function cleanUpLogout() {
+	clearAllStores();
+	accountBalance.set({
+		loading: true,
+		bal: getDefaultBalance(),
+		connectedBal: undefined
+	});
+	accountBalanceHistory.set([]);
+	goto('/login');
+}
+
 export const getAuth = () => {
 	const auth = getContext<() => Auth>('auth');
 	return auth;
 };
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });
 export const _reownAuthStore = writable<Auth>({ status: 'pending' });
-const changeLogout = (v: Auth) => {
-	if (v.value) {
-		const oldLogout = v.value.logout;
-		v.value.logout = async () => {
-			loginRetry.set('logout');
-			await oldLogout();
-			// clear svelte stores
-			clearAllStores();
-			accountBalance.set({
-				loading: true,
-				bal: getDefaultBalance(),
-				connectedBal: undefined
-			});
-			accountBalanceHistory.set([]);
-			goto('/login');
-		};
-	}
-};
 
 export const authStore = derived([_hiveAuthStore, _reownAuthStore], ([$hive, $reown]) => {
 	if ($hive.status !== 'none') {
-		changeLogout($hive);
 		return $hive;
 	} else if ($reown.status !== 'none') {
-		changeLogout($reown);
 		return $reown;
 	} else {
 		const noneAuth = { status: 'none' as const };
-		changeLogout(noneAuth);
 		return noneAuth as Auth;
 	}
 });

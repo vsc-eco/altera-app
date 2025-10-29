@@ -17,7 +17,7 @@ export function getEVMOpType(
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>
 ): TransferTransaction | DepositTransaction | WithdrawTransaction | CallContractTransaction {
 	if (amount.coin.value === Coin.btc.value) {
-		if (toNetwork.value === Network.vsc.value) {
+		if (toNetwork.value === Network.magi.value) {
 			const payload: TransferInput = {
 				amount: amount.amount,
 				recipient_vsc_address: toDid
@@ -63,19 +63,19 @@ export function getEVMOpType(
 		amount: amount.toPrettyAmountString(),
 		asset: amount.coin.unit.toLowerCase()
 	};
-	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.vsc.value) {
+	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.magi.value) {
 		return {
 			op: 'transfer',
 			payload: payload
 		};
 	}
-	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.vsc.value) {
+	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.magi.value) {
 		return {
 			op: 'deposit',
 			payload: payload
 		};
 	}
-	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.hiveMainnet.value) {
+	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.hiveMainnet.value) {
 		return {
 			op: 'withdraw',
 			payload: payload

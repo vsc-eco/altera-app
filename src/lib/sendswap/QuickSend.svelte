@@ -20,9 +20,9 @@
 	function quickDetails() {
 		return {
 			...blankDetails(),
-			fromNetwork: Network.vsc,
-			toNetwork: Network.vsc,
-			method: TransferMethod.vscTransfer
+			fromNetwork: Network.magi,
+			toNetwork: Network.magi,
+			method: TransferMethod.magiTransfer
 		};
 	}
 

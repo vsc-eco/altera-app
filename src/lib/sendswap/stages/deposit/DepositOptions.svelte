@@ -57,7 +57,7 @@
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
 			toggleLightning(false);
-			$SendTxDetails.method = TransferMethod.vscTransfer;
+			$SendTxDetails.method = TransferMethod.magiTransfer;
 			$SendTxDetails.fromNetwork = Network.hiveMainnet;
 			$SendTxDetails.fromCoin = $SendTxDetails.toCoin;
 		});

@@ -44,7 +44,7 @@
 	{a.label}
 {/snippet}
 <header>
-	<!-- <img src="/vsc.png" alt="VSC Logo" width="48" />
+	<!-- <img src="/magi.svg" alt="VSC Logo" width="48" />
 	<h2>DeFi</h2> -->
 	<button class="transparent-icon" onclick={onMenuToggle}> <MenuIcon></MenuIcon> </button>
 	<ComboSearch />

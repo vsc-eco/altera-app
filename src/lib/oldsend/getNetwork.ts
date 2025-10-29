@@ -10,7 +10,7 @@ export function getIntermediaryNetwork(
 	if (throughHive(from, to)) {
 		return Network.hiveMainnet;
 	}
-	if (throughVsc(from, to)) {
+	if (throughMagi(from, to)) {
 		return Network.vsc;
 	}
 	return Network.unknown;
@@ -28,7 +28,7 @@ function throughHive(from: CoinOnNetwork, to: CoinOnNetwork) {
 	);
 }
 
-function throughVsc(from: CoinOnNetwork, to: CoinOnNetwork) {
+function throughMagi(from: CoinOnNetwork, to: CoinOnNetwork) {
 	if (throughHive(from, to)) {
 		return false;
 	}

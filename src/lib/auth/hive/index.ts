@@ -25,8 +25,8 @@ _hiveAuthStore.subscribe((value) => {
 if (browser) {
 	aioha = initAioha({
 		hiveauth: {
-			name: "VSC's Altera",
-			description: 'VSC/Hive exchange',
+			name: "Magi's Altera",
+			description: 'Magi/Hive exchange',
 			icon: 'https://avatars.githubusercontent.com/u/133249767'
 		},
 		hivesigner: {

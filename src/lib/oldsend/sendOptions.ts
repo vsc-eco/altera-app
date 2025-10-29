@@ -164,7 +164,7 @@
 // const vsc: IntermediaryNetwork = {
 // 	value: 'vsc',
 // 	label: 'VSC',
-// 	icon: '/vsc.png',
+// 	icon: '/magi.svg',
 // 	enabled: (going, { from, to }) => {
 // 		if (from?.coin == undefined || to?.coin == undefined) return true;
 // 		if (from?.coin == to?.coin) return true;
@@ -325,7 +325,7 @@
 // const vscAccount: SendAccount = {
 // 	label: 'VSC Account',
 // 	value: 'vsc-account',
-// 	icon: '/vsc.png'
+// 	icon: '/magi.svg'
 // };
 
 // const deposit: SendAccount = {

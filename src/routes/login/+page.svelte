@@ -32,7 +32,7 @@
 		<hr />
 		<HiveLogin />
 	</Card>
-	<img src="vsc.png" alt="VSC" />
+	<img src="magi.svg" alt="VSC" />
 </main>
 
 <style>

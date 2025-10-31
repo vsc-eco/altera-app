@@ -26,9 +26,14 @@ export function cleanOldLocalStorage() {
 
 	const notifications = localStorage.getItem('notifications');
 	if (notifications) {
+		console.log('notifications string', notifications);
+		if (notifications.includes('null')) {
+			localStorage.removeItem('notifications');
+			return;
+		}
 		const array: [string, Notification][] = JSON.parse(notifications);
 		for (const [_, ntf] of array) {
-			if ('anchr_height' in ntf) {
+			if (!ntf || 'anchr_height' in ntf) {
 				localStorage.removeItem('notifications');
 				break;
 			}

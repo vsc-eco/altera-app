@@ -40,6 +40,9 @@ export function getLocalNotifications(): Map<string, Notification> {
 	const txString = localStorage.getItem('notifications');
 	if (!txString) return new Map();
 	const kvArray: [string, Notification][] = JSON.parse(txString);
+	if (kvArray.some(([key, val]) => !key || !val)) {
+		return new Map();
+	}
 	return new Map(kvArray);
 }
 

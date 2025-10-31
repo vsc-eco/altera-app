@@ -54,19 +54,11 @@
 	// AMOUNT SECTION
 	let amount = $state('');
 	$effect(() => {
-		if (!$SendTxDetails.fromCoin) return;
-		if (shownCoin.coin.value === $SendTxDetails.fromCoin.coin.value) {
-			const amt = new CoinAmount(amount, $SendTxDetails.fromCoin.coin).toAmountString();
-			if (amt !== $SendTxDetails.fromAmount)
-				$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
-		} else {
-			new CoinAmount(amount, shownCoin.coin)
-				.convertTo($SendTxDetails.fromCoin.coin, Network.lightning)
-				.then((amt) => {
-					if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
-						$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt.toAmountString();
-					}
-				});
+		if ($SendTxDetails.fromAmount !== amount) {
+			$SendTxDetails.fromAmount = amount;
+		}
+		if ($SendTxDetails.toAmount !== amount) {
+			$SendTxDetails.toAmount = amount;
 		}
 	});
 
@@ -85,64 +77,11 @@
 		assetOpen = open;
 	};
 
-	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
-		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
-		if ($SendTxDetails.fromCoin) {
-			result.push($SendTxDetails.fromCoin);
-		}
-		if ($SendTxDetails.toCoin) {
-			result.push($SendTxDetails.toCoin);
-		}
-		return result;
-	});
-	let lastPossibleCoins: CoinOptions['coins'] = $state([]);
 	$effect(() => {
-		possibleCoins;
-		untrack(() => {
-			if (!open) return;
-			if (
-				!lastPossibleCoins.some((coinOpt) => coinOpt.coin.value !== Coin.usd.value) &&
-				possibleCoins.some((coinOpt) => coinOpt.coin.value !== Coin.usd.value)
-			) {
-				shownIndex = possibleCoins.findIndex((coinOpt) => coinOpt.coin.value !== Coin.usd.value);
-			} else {
-				const index = possibleCoins.findIndex(
-					(coinOpt) => coinOpt.coin.value === shownCoin.coin.value
-				);
-				if (index >= 0) {
-					shownIndex = index;
-				} else {
-					if (shownIndex > possibleCoins.length - 1) {
-						shownIndex = 0;
-					}
-				}
-			}
-			shownCoin = possibleCoins[shownIndex];
-			lastPossibleCoins = possibleCoins;
-		});
-	});
-
-	$effect(() => {
-		if ($SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
+		if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
 			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
 		}
 	});
-
-	let shownIndex = $state(0);
-	let shownCoin: CoinOptions['coins'][number] = $state(
-		$SendTxDetails.fromCoin ?? { coin: Coin.usd, networks: [] }
-	);
-	let shownNetwork = $derived(
-		shownCoin.coin.value === $SendTxDetails.fromCoin?.coin.value
-			? $SendTxDetails.fromNetwork
-			: shownCoin.coin.value === $SendTxDetails.toCoin?.coin.value
-				? $SendTxDetails.toNetwork
-				: Network.unknown
-	);
-	function cycleShown() {
-		shownIndex = (shownIndex + 1) % possibleCoins.length;
-		shownCoin = possibleCoins[shownIndex];
-	}
 
 	// RECIPIENT SECTION
 	let contactOpen = $state(false);
@@ -208,24 +147,6 @@
 			<RecipientCard basic edit={openContact} {contact} />
 		</div>
 		<Divider text="Amount" />
-		<div class="section">
-			<div class="amount-row">
-				<div class="amount-input">
-					<AmountInput
-						bind:amount
-						coinOpt={shownCoin}
-						network={shownNetwork}
-						maxAmount={max}
-						bind:id={inputId}
-					/>
-				</div>
-				<span class="cycle-button">
-					<PillButton onclick={cycleShown} styleType="icon">
-						<ArrowRightLeft />
-					</PillButton>
-				</span>
-			</div>
-		</div>
 		<ClickableCard onclick={() => toggleAsset(true)}>
 			<div class="asset-card">
 				{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
@@ -245,6 +166,19 @@
 				</span>
 			</div>
 		</ClickableCard>
+		<div class="section">
+			<div class="amount-row">
+				<div class="amount-input">
+					<AmountInput
+						bind:amount
+						coinOpt={$SendTxDetails.fromCoin ?? { coin: Coin.unk, networks: [] }}
+						network={$SendTxDetails.fromNetwork ?? Network.unknown}
+						maxAmount={max}
+						bind:id={inputId}
+					/>
+				</div>
+			</div>
+		</div>
 		<Divider text="Details" />
 		<div class="section memo">
 			<span class="sm-caption">Memo (optional)</span>
@@ -279,22 +213,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-	}
-	.amount-row {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.5rem;
-		height: 65px;
-		.amount-input {
-			flex-grow: 1;
-			// height: 65px;
-		}
-		.cycle-button {
-			:global(button) {
-				margin: 0;
-				margin-top: 2px;
-			}
-		}
 	}
 	.asset-card {
 		display: flex;

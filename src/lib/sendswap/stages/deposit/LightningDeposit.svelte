@@ -134,6 +134,23 @@
 		});
 	});
 
+	const unkOpt = { coin: Coin.unk, networks: [] };
+	const coinOptions = $derived.by(() => {
+		let result: typeof swapOptions.from.coins = [];
+		if ($SendTxDetails.fromCoin) {
+			result.push($SendTxDetails.fromCoin);
+		}
+		if ($SendTxDetails.toCoin) {
+			result.push($SendTxDetails.toCoin);
+		}
+		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {
+			result.push({ coin: Coin.sats, networks: [Network.lightning, Network.btcMainnet] });
+		}
+		if (result.length === 0) {
+			result.push({ coin: Coin.unk, networks: [] });
+		}
+		return result;
+	});
 	let shownIndex = $state(0);
 	let shownCoin: CoinOptions['coins'][number] = $state(
 		$SendTxDetails.fromCoin ?? { coin: Coin.usd, networks: [] }
@@ -160,13 +177,8 @@
 		<label for={inputId}>Amount</label>
 		<div class="amount-row">
 			<div class="amount-input">
-				<AmountInput bind:amount coinOpt={shownCoin} network={shownNetwork} bind:id={inputId} />
+				<AmountInput bind:amount coinOpts={coinOptions} network={shownNetwork} bind:id={inputId} />
 			</div>
-			<span class="cycle-button">
-				<PillButton onclick={cycleShown} styleType="icon">
-					<ArrowRightLeft />
-				</PillButton>
-			</span>
 		</div>
 	</div>
 	<div class="section dest-confirm">
@@ -203,12 +215,12 @@
 			flex-grow: 1;
 			height: 65px;
 		}
-		.cycle-button {
-			:global(button) {
-				margin: 0;
-				margin-top: 2px;
-			}
-		}
+		// .cycle-button {
+		// 	:global(button) {
+		// 		margin: 0;
+		// 		margin-top: 2px;
+		// 	}
+		// }
 	}
 	.dest-confirm {
 		display: flex;

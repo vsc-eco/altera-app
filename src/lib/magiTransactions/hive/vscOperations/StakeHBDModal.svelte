@@ -229,7 +229,7 @@
 				{type === 'stake' ? (shouldDeposit ? 'Deposit and Stake ' : 'Stake ') : 'Unstake '}Amount:
 			</label>
 			<AmountInput
-				coinOpt={swapOptions.to.coins.find((coinOpt) => coinOpt.coin.value === Coin.hbd.value)}
+				coinOpts={[swapOptions.to.coins.find((coinOpt) => coinOpt.coin.value === Coin.hbd.value)!]}
 				network={shouldDeposit ? Network.hiveMainnet : Network.magi}
 				bind:amount
 				{maxAmount}

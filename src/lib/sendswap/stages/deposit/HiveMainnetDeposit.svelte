@@ -1,18 +1,25 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
+	import SelectAssetFlattened from '$lib/sendswap/components/assetSelection/SelectAssetFlattened.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
+	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import Instructions from '$lib/sendswap/components/Instructions.svelte';
 	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
-	import { ArrowRightLeft } from '@lucide/svelte';
+	import { ArrowLeft, ArrowRightLeft, Coins } from '@lucide/svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 
-	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
+	let {
+		editStage,
+		open,
+		secondaryMenu = $bindable()
+	}: { editStage: (complete: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
 
 	const auth = $derived(getAuth()());
 
@@ -58,17 +65,7 @@
 		}
 	];
 
-	const max = $derived.by(() => {
-		const coin = $SendTxDetails.fromCoin?.coin;
-		if (!coin) return;
-		if ($accountBalance.connectedBal && coin.value in $accountBalance.connectedBal) {
-			return new CoinAmount(
-				$accountBalance.connectedBal[coin.value as keyof typeof $accountBalance.connectedBal],
-				coin,
-				true
-			);
-		}
-	});
+	let max: CoinAmount<Coin> | undefined = $state();
 
 	const amountNumber = $derived(parseFloat(amount));
 	$effect(() => {
@@ -120,57 +117,83 @@
 			lastPossibleCoins = possibleCoins;
 		});
 	});
+	$effect(() => {
+		if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
+			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
+		}
+	});
+	const unkOpt = { coin: Coin.unk, networks: [] };
 	let shownIndex = $state(0);
-	let shownCoin: CoinOptions['coins'][number] = $state(
-		$SendTxDetails.fromCoin ?? { coin: Coin.usd, networks: [] }
-	);
+	let shownCoin: CoinOptions['coins'][number] = $state($SendTxDetails.fromCoin ?? unkOpt);
+	const coinOptions = $derived($SendTxDetails.fromCoin ? [$SendTxDetails.fromCoin] : [unkOpt]);
 	function cycleShown() {
 		shownIndex = (shownIndex + 1) % possibleCoins.length;
 		shownCoin = possibleCoins[shownIndex];
 	}
+
+	let assetOpen = $state(false);
+	const toggleAsset = (open = false) => {
+		assetOpen = open;
+	};
+	$effect(() => {
+		secondaryMenu = assetOpen;
+	});
 </script>
 
 {#snippet toOption(params: ComponentProps<typeof BalanceInfo>)}
 	<BalanceInfo {...params} size="medium" />
 {/snippet}
 
-{#if auth.value?.provider === 'aioha'}
+{#if assetOpen}
+	<div class="back-button">
+		<PillButton onclick={() => toggleAsset()} styleType="icon-subtle">
+			<ArrowLeft size="32" />
+		</PillButton>
+	</div>
+	<SelectAssetFlattened
+		availableCoins={[]}
+		close={toggleAsset}
+		bind:coin={$SendTxDetails.fromCoin}
+		bind:network={$SendTxDetails.fromNetwork}
+		bind:max
+		externalNetwork={Network.hiveMainnet}
+	/>
+{:else if auth.value?.provider === 'aioha'}
 	<div class="sections">
+		<ClickableCard onclick={() => toggleAsset(true)}>
+			<div class="asset-card">
+				{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+					<BalanceInfo
+						coin={$SendTxDetails.fromCoin.coin}
+						network={$SendTxDetails.fromNetwork}
+						size="large"
+						styleType="vertical"
+					/>
+					<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
+				{:else}
+					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+					Select Asset
+				{/if}
+				<span class="edit"> Edit </span>
+			</div>
+		</ClickableCard>
 		<div class="section">
 			<label for={inputId}>Amount</label>
 			<div class="amount-row">
 				<div class="amount-input">
 					<AmountInput
 						bind:amount
-						coinOpt={shownCoin}
+						coinOpts={coinOptions}
 						network={$SendTxDetails.fromNetwork}
 						maxAmount={max}
 						bind:id={inputId}
 					/>
 				</div>
-				<span class="cycle-button">
+				<!-- <span class="cycle-button">
 					<PillButton onclick={cycleShown} styleType="icon">
 						<ArrowRightLeft />
 					</PillButton>
-				</span>
-			</div>
-		</div>
-		<div class="section dest-confirm">
-			<div class="select">
-				<span class="label-like">Deposit Asset</span>
-				<Select
-					items={toOptions}
-					initial={$SendTxDetails.toCoin?.coin.value}
-					onValueChange={(details) => {
-						if (open) {
-							$SendTxDetails.toCoin = $SendTxDetails.fromCoin = swapOptions.to.coins.find(
-								(coinOpt) => coinOpt.coin.value === details.value[0]
-							);
-						}
-					}}
-					styleType="dropdown"
-					placeholder="Select Asset"
-				/>
+				</span> -->
 			</div>
 		</div>
 	</div>
@@ -192,22 +215,31 @@
 			flex-grow: 1;
 			height: 65px;
 		}
-		.cycle-button {
-			:global(button) {
-				margin: 0;
-				margin-top: 2px;
-			}
-		}
+		// .cycle-button {
+		// 	:global(button) {
+		// 		margin: 0;
+		// 		margin-top: 2px;
+		// 	}
+		// }
 	}
-	.dest-confirm {
+	// .dest-confirm {
+	// 	display: flex;
+	// 	align-items: flex-end;
+	// 	gap: 1rem;
+	// 	.select {
+	// 		flex-grow: 1;
+	// 		:global([data-scope='select'][data-part='control']) {
+	// 			height: 52px;
+	// 		}
+	// 	}
+	// }
+	.asset-card {
 		display: flex;
-		align-items: flex-end;
-		gap: 1rem;
-		.select {
-			flex-grow: 1;
-			:global([data-scope='select'][data-part='control']) {
-				height: 52px;
-			}
+		align-items: center;
+		gap: 1.5rem;
+		padding: 0.5rem;
+		.edit {
+			margin-left: auto;
 		}
 	}
 </style>

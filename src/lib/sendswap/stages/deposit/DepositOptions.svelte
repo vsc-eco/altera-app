@@ -80,6 +80,8 @@
 			customButtons = undefined;
 		}
 	});
+
+	let secondaryMenu = $state(false);
 </script>
 
 <div class="deposit-internal-wrapper">
@@ -92,12 +94,14 @@
 			<LightningDeposit {editStage} open={lightningOpen} />
 		</div>
 	{:else if hiveMainnetOpen}
-		<PillButton onclick={() => toggleHiveMainnet()} styleType="icon-subtle">
-			<ArrowLeft size={32} />
-		</PillButton>
-		<h2>Hive Mainnet Deposit</h2>
-		<div class="deposit-content">
-			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen} />
+		{#if !secondaryMenu}
+			<PillButton onclick={() => toggleHiveMainnet()} styleType="icon-subtle">
+				<ArrowLeft size={32} />
+			</PillButton>
+			<h2>Hive Mainnet Deposit</h2>
+		{/if}
+		<div class={{ 'deposit-content': !secondaryMenu }}>
+			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen} bind:secondaryMenu />
 		</div>
 	{:else if coinbaseOpen}
 		<PillButton onclick={() => toggleCoinbase()} styleType="icon-subtle">

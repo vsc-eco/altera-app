@@ -171,7 +171,7 @@
 				<div class="amount-input">
 					<AmountInput
 						bind:amount
-						coinOpt={$SendTxDetails.fromCoin ?? { coin: Coin.unk, networks: [] }}
+						coinOpts={[$SendTxDetails.fromCoin ?? { coin: Coin.unk, networks: [] }]}
 						network={$SendTxDetails.fromNetwork ?? Network.unknown}
 						maxAmount={max}
 						bind:id={inputId}

@@ -49,7 +49,7 @@
 			<div class="amount-input">
 				<AmountInput
 					bind:amount
-					coinOpt={{ coin: Coin.usd, networks: [] }}
+					coinOpts={[{ coin: Coin.usd, networks: [] }]}
 					network={undefined}
 					{minAmount}
 					maxAmount={undefined}

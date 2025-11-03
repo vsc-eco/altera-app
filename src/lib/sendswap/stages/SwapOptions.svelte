@@ -333,13 +333,12 @@
 </div>
 <div class="amount">
 	<div class="amount-row">
-		<span class="spacer"></span>
+		<!-- <span class="spacer"></span> -->
 		<div class="amount-input">
 			<AmountInput
 				bind:amount={inputAmount}
-				coinOpt={shownCoin}
+				coinOpts={[shownCoin]}
 				network={$SendTxDetails.toNetwork}
-				styleType="big"
 				{minAmount}
 			/>
 		</div>
@@ -349,7 +348,7 @@
 			</PillButton>
 		</span>
 	</div>
-	<div class={['enter-prompt', 'sm-caption', { hide: !!inputAmount }]}>Enter Amount</div>
+	<!-- <div class={['enter-prompt', 'sm-caption', { hide: !!inputAmount }]}>Enter Amount</div> -->
 </div>
 {#if possibleCoins.length > 1}
 	<div class="exchange-rates">
@@ -457,28 +456,31 @@
 			text-align: center;
 		}
 	}
-	.amount {
-		&:has(:global(input):focus-visible) {
-			.enter-prompt {
-				visibility: hidden;
-			}
-		}
-	}
-	.enter-prompt {
-		width: 100%;
-		text-align: center;
-		padding-top: 0.25rem;
-		&.hide {
-			visibility: hidden;
-		}
-	}
+	// .amount {
+	// 	&:has(:global(input):focus-visible) {
+	// 		.enter-prompt {
+	// 			visibility: hidden;
+	// 		}
+	// 	}
+	// }
+	// .enter-prompt {
+	// 	width: 100%;
+	// 	text-align: center;
+	// 	padding-top: 0.25rem;
+	// 	&.hide {
+	// 		visibility: hidden;
+	// 	}
+	// }
 	.amount-row {
 		margin-top: 1.5rem;
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		.spacer {
-			width: 2.5rem;
+		gap: 0.5rem;
+		// .spacer {
+		// 	width: 2.5rem;
+		// }
+		.amount-input {
+			flex-grow: 1;
 		}
 		.cycle-button {
 			:global(button) {
@@ -491,7 +493,7 @@
 		justify-content: center;
 		flex-wrap: wrap;
 		width: 100%;
-		margin-top: 0.5rem;
+		margin-top: 1.5rem;
 		:global(.lucide-equal-approximately) {
 			min-width: 16px;
 		}

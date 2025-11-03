@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import { type CoinOptionParam } from '$lib/sendswap/utils/sendUtils';
 	import { type AssetObject } from '../info/SendSnippets.svelte';
 	import { untrack, type Snippet } from 'svelte';
@@ -87,7 +87,9 @@
 					...assetObj,
 					value: `${assetObj.value}:${externalNetwork.value}`,
 					onNetwork: Network.lightning,
-					balance: ''
+					balance: '',
+					snippet: assetBalanceQuiet,
+					snippetData: undefined
 				}));
 		}
 	});
@@ -115,9 +117,10 @@
 		const assetVal = balanceVal.split(':')[0];
 		const networkVal = balanceVal.split(':')[1];
 		const balanceObj = [...magiItems, ...externalItems].find((item) => item.value === balanceVal);
-		tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === assetVal);
+		tmpAsset = swapOptions.from.coins.find((coinOpts) => coinOpts.coin.value === assetVal);
 		tmpNetwork =
 			[Network.magi, externalNetwork].find((net) => net?.value === networkVal) ?? Network.magi;
+		console.log('balanceval:', balanceVal, 'tmpasset', tmpAsset);
 		if (!tmpAsset) {
 			coin = undefined;
 			network = undefined;
@@ -138,6 +141,11 @@
 {#snippet assetBalance(coin: BalanceObject)}
 	{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
 	<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" />
+{/snippet}
+
+{#snippet assetBalanceQuiet(coin: BalanceObject)}
+	{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
+	<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" styleType="quiet" />
 {/snippet}
 
 <div class="dialog-content">

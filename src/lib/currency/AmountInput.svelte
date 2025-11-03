@@ -7,11 +7,12 @@
 	import { DollarSign } from '@lucide/svelte';
 	import NumberInput from '$lib/zag/NumberInput.svelte';
 	import BigInput from './BigInput.svelte';
+	import Select from '$lib/zag/Select.svelte';
 
 	let {
 		amount = $bindable(),
 		connectedCoinAmount,
-		coinOpt,
+		coinOpts,
 		network,
 		maxAmount,
 		minAmount,
@@ -20,7 +21,7 @@
 	}: {
 		amount: string;
 		connectedCoinAmount?: CoinAmount<Coin>;
-		coinOpt: CoinOptions['coins'][number] | undefined;
+		coinOpts: CoinOptions['coins'][number][];
 		network: Network | undefined;
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
@@ -30,8 +31,8 @@
 
 	let inUsd = $state('0');
 	let error = $state('');
-	let currentCoin = $state.raw(coinOpt?.coin ?? Coin.unk);
-	let lastModification = $state.raw(new CoinAmount(amount, coinOpt?.coin ?? Coin.unk));
+	let currentCoin = $state.raw(coinOpts[0]?.coin ?? Coin.unk);
+	let lastModification = $state.raw(new CoinAmount(amount, coinOpts[0]?.coin ?? Coin.unk));
 	// let boundAmount: string = $state('');
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
 	const quiet = $derived(
@@ -43,7 +44,7 @@
 		amount = maxAmount?.toAmountString() ?? '0';
 	}
 
-	let decimals = $derived(coinOpt?.coin.decimalPlaces ?? 2);
+	let decimals = $derived(coinOpts[0]?.coin.decimalPlaces ?? 2);
 	let min = $state<number>();
 	let max = $state<number>();
 	$effect(() => {
@@ -94,9 +95,7 @@
 	);
 
 	let showUsd = $derived(
-		!(
-			connectedCoinAmount?.coin.value === coins.usd.value || coinOpt?.coin.value === coins.usd.value
-		)
+		!(connectedCoinAmount?.coin.value === coins.usd.value || currentCoin.value === coins.usd.value)
 	);
 
 	$effect(() => {
@@ -124,36 +123,42 @@
 			});
 		}
 	});
+	function updateAmount(newCoin: Coin) {
+		if (lastModification.toNumber() === 0) {
+			return;
+		}
+		coinChangeUpdateGuard = true;
+		if (lastModification.coin.value === newCoin.value) {
+			amount = lastModification.toAmountString();
+		} else {
+			lastModification
+				.convertTo(newCoin, Network.lightning)
+				.then((amt) => {
+					amount = amt.toAmountString(true);
+				})
+				.catch((err) => {
+					console.error('error converting', err.message);
+				});
+		}
+	}
 	$effect(() => {
-		const newCoinOpt = coinOpt;
-		if (!newCoinOpt) {
+		const newCoinOpts = coinOpts;
+		if (newCoinOpts.length === 0) {
 			if (currentCoin !== coins.unk) {
 				currentCoin = coins.unk;
 			}
 			return;
 		}
-		if (newCoinOpt.coin.value === currentCoin.value) {
+		const coinValues = newCoinOpts.map((coinOpt) => coinOpt.coin.value);
+		if (coinValues.includes(currentCoin.value)) {
 			return;
 		}
+		// default to first new option on change
+		const newDefaultCoinOpt = newCoinOpts[0];
 		untrack(() => {
-			if (lastModification.toNumber() === 0) {
-				return;
-			}
-			coinChangeUpdateGuard = true;
-			if (lastModification.coin.value === newCoinOpt.coin.value) {
-				amount = lastModification.toAmountString();
-			} else {
-				lastModification
-					.convertTo(newCoinOpt.coin, Network.lightning)
-					.then((amt) => {
-						amount = amt.toAmountString(true);
-					})
-					.catch((err) => {
-						console.error('error converting', err.message);
-					});
-			}
+			updateAmount(newDefaultCoinOpt.coin);
 		});
-		currentCoin = newCoinOpt.coin;
+		currentCoin = newDefaultCoinOpt.coin;
 	});
 	let coinChangeUpdateGuard = false;
 	$effect(() => {
@@ -181,6 +186,21 @@
 			debouncedMax = maxString;
 		}
 	});
+
+	let displayNetwork = $derived.by(() => {
+		if (coinOpts) {
+			if (
+				coinOpts
+					.find((coinOpt) => coinOpt.coin.value === currentCoin.value)
+					?.networks.map((net) => net.value)
+					.includes(network?.value ?? '')
+			) {
+				return network;
+			}
+		} else {
+			return Network.unknown;
+		}
+	});
 </script>
 
 {#if styleType === 'normal'}
@@ -198,13 +218,14 @@
 			</span>
 		</label>
 		<div class="amount-input">
-			{#if coinOpt?.coin.value === coins.usd.value}
+			{#if currentCoin.value === coins.usd.value}
 				<DollarSign />
+			{:else if displayNetwork}
+				<CoinNetworkIcon coin={currentCoin} network={displayNetwork} />
 			{:else}
-				<CoinNetworkIcon
-					coin={currentCoin}
-					network={coinOpt ? (network ?? Network.unknown) : Network.unknown}
-				/>
+				<span class="coin-no-network">
+					<img width={24} src={currentCoin.icon} alt={currentCoin.unit} />
+				</span>
 			{/if}
 			{#key [currentCoin, debouncedMax, min]}
 				{#if quiet}
@@ -219,19 +240,34 @@
 				</div>
 			{/if}
 			<hr />
-			<div class="coin-label">
-				{currentCoin.label}
-			</div>
+			{#if coinOpts.length > 1}
+				<Select
+					items={coinOpts.map((coinOpt) => coinOpt.coin)}
+					initial={currentCoin.value}
+					onValueChange={(v) => {
+						if (v.items[0] === undefined) return;
+						if (v.items[0].value === Coin.unk.value) return;
+						if (currentCoin.value !== v.items[0].value) {
+							currentCoin = v.items[0];
+							updateAmount(currentCoin);
+						}
+					}}
+				/>
+			{:else}
+				<div class="coin-label">
+					{currentCoin.label}
+				</div>
+			{/if}
 		</div>
 		<span class={['bottom-info', { hidden: !(showUsd || error) }]}>
 			{#if error != ''}
 				<span class="error">
 					{error}
 				</span>
-			{:else if showUsd && coinOpt && amount !== '0'}
+			{:else if showUsd && coinOpts && amount !== '0'}
 				<span class="approx-usd">
 					Approx. USD value:
-					{#if coinOpt?.coin.value != Coin.unk.value}
+					{#if currentCoin.value != Coin.unk.value}
 						${inUsd}
 					{:else}
 						Unknown
@@ -244,7 +280,7 @@
 	<div class="big-wrapper">
 		<div class="amount-input">
 			<label for={id}>
-				{coinOpt?.coin.label}
+				{currentCoin.label}
 			</label>
 			{#key [currentCoin, debouncedMax, min]}
 				<BigInput bind:amount bind:inputId={id} {decimals} {min} />
@@ -307,6 +343,12 @@
 					padding: 0.5rem 0.75rem;
 					height: fit-content;
 				}
+			}
+			.coin-no-network {
+				width: 32px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
 			}
 		}
 		.coin-label {

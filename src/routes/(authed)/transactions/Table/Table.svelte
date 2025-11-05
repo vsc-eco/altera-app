@@ -1,7 +1,12 @@
 <script lang="ts">
 	import Tr from './tr/Tr.svelte';
 	import { onMount, type Snippet } from 'svelte';
-	import { allTransactionsStore, vscTxsStore, fetchTxs, waitForExtend } from '$lib/stores/txStores';
+	import {
+		allTransactionsStore,
+		magiTxsStore,
+		fetchTxs,
+		waitForExtend
+	} from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import ContractTr from './tr/ContractTr.svelte';
@@ -54,7 +59,7 @@
 
 		while (!hasFoundAutoOpenTx) {
 			// Check if the transaction is already in the current store
-			const currentTxs = $vscTxsStore;
+			const currentTxs = $magiTxsStore;
 			const foundTx = currentTxs.find((tx) => tx.id === targetTxId);
 
 			let lastOffset = currStoreLen;

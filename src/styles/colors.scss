@@ -26,6 +26,7 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.oklch-palette($color-nums, 'green', 0.01, 147, 0.05, 142, 0.125, 0.65);
 	// @include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 291, 0.02, 300, 0.15, 0.6);
 	@include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 291, 0.02, 310, 0.15, 0.6);
+	@include color-mixins.oklch-palette($color-nums, 'pink', 0.26, 316.97);
 }
 
 @mixin light-mode-colors {

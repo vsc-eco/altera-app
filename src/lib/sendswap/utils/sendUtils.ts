@@ -12,19 +12,19 @@ import swapOptions, {
 	type SendDetails
 } from './sendOptions';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
-import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/vscTransactions/hive';
-import { getEVMOpType } from '$lib/vscTransactions/eth';
+import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
+import { getEVMOpType } from '$lib/magiTransactions/eth';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import type { TransferOperation } from '@hiveio/dhive';
 import { addLocalTransaction } from '../../stores/localStorageTxs';
-import { createClient, signAndBrodcastTransaction } from '$lib/vscTransactions/eth/client';
-import { wagmiSigner } from '$lib/vscTransactions/eth/wagmi';
+import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client';
+import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
 import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
 import {
 	fetchTxs,
 	getTimestamp,
-	vscTxsStore,
+	magiTxsStore,
 	waitForExtend,
 	type TransactionInter
 } from '$lib/stores/txStores';
@@ -135,11 +135,11 @@ export async function getDisplayName(did: string) {
 
 export function getRecipientNetworks(did: string): NetworkOptionParam[] {
 	if (did.startsWith('hive:')) {
-		return [Network.hiveMainnet, Network.vsc];
+		return [Network.hiveMainnet, Network.magi];
 	}
 	if (did.startsWith('did:pkh:eip155:1:')) {
 		return [
-			Network.vsc,
+			Network.magi,
 			{
 				...Network.hiveMainnet,
 				disabled: true,
@@ -151,8 +151,8 @@ export function getRecipientNetworks(did: string): NetworkOptionParam[] {
 }
 
 function getMethodNetworks(method: TransferMethod) {
-	if (method.value === TransferMethod.vscTransfer.value) {
-		return [Network.vsc, Network.hiveMainnet];
+	if (method.value === TransferMethod.magiTransfer.value) {
+		return [Network.magi, Network.hiveMainnet];
 	} else if (method.value === TransferMethod.lightningTransfer.value) {
 		return [Network.lightning];
 	}
@@ -160,7 +160,7 @@ function getMethodNetworks(method: TransferMethod) {
 }
 
 function getDidNetworks(did: string) {
-	let result = [Network.vsc, Network.lightning];
+	let result = [Network.magi, Network.lightning];
 	if (did.startsWith('hive:')) result.push(Network.hiveMainnet);
 	return result;
 }
@@ -193,7 +193,7 @@ export async function getLastPaidContact(toDid: string): Promise<moment.Moment |
 	}
 	let lastChecked = 0;
 	let lastLength = 0;
-	let store = get(vscTxsStore);
+	let store = get(magiTxsStore);
 	let retries = 0;
 	do {
 		if (store.length <= lastLength) {
@@ -215,7 +215,7 @@ export async function getLastPaidContact(toDid: string): Promise<moment.Moment |
 		}
 		lastChecked = Math.max(store.length - 1, 0);
 		await fetchTxs(auth.value.did, 'extend', undefined, 12);
-		store = get(vscTxsStore);
+		store = get(magiTxsStore);
 	} while (store.length > lastLength && retries < 3);
 	return 'Never';
 }
@@ -238,7 +238,7 @@ export async function getRecentContacts(auth: Auth): Promise<RecipientData[]> {
 	let leaveOut = ['v4vapp'];
 	let lastChecked = 0;
 	let lastLength = 0;
-	let store: TransactionInter[] = get(vscTxsStore);
+	let store: TransactionInter[] = get(magiTxsStore);
 	do {
 		lastLength = store.length;
 		for (const tx of store.slice(lastChecked)) {
@@ -266,7 +266,7 @@ export async function getRecentContacts(auth: Auth): Promise<RecipientData[]> {
 		if (!success) {
 			break;
 		}
-		store = get(vscTxsStore);
+		store = get(magiTxsStore);
 	} while (store.length > lastLength);
 
 	for (const tx of store) {
@@ -305,7 +305,7 @@ export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment
 		return moment(cached);
 	}
 	let lastChecked = 0;
-	let store: TransactionInter[] = get(vscTxsStore);
+	let store: TransactionInter[] = get(magiTxsStore);
 	let lastLength = 0;
 
 	do {
@@ -323,7 +323,7 @@ export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment
 		if (!success) {
 			break;
 		}
-		store = get(vscTxsStore);
+		store = get(magiTxsStore);
 	} while (store.length > lastLength);
 	lastPaidCache.networks.set(netVal, 'Never');
 	return 'Never';
@@ -366,8 +366,8 @@ export function getFromOptions(
 	if (!method || !did) {
 		return;
 	}
-	if (method.value === TransferMethod.vscTransfer.value) {
-		let result: AccsNetsPair = { accounts: [SendAccount.vscAccount] };
+	if (method.value === TransferMethod.magiTransfer.value) {
+		let result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
 		if (did.startsWith('hive:')) {
 			result.accounts.push(SendAccount.deposit);
 			result.networks = [Network.hiveMainnet];
@@ -505,7 +505,7 @@ export function solveNetworkConstraints(
 			assetOptions: [],
 			networkOptions: []
 		};
-	const inUseNetworks = [Network.vsc, Network.hiveMainnet, Network.lightning];
+	const inUseNetworks = [Network.magi, Network.hiveMainnet, Network.lightning];
 	const allAssetsSet = createSet(swapOptions.from['coins'].map((item) => item.coin));
 
 	const networksGivenMethod = createSet(method ? getMethodNetworks(method) : undefined);
@@ -593,7 +593,7 @@ export async function send(
 	signal?: AbortSignal | undefined
 ): Promise<Error | { id: string }> {
 	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
-	if (intermediary == Network.vsc) {
+	if (intermediary == Network.magi) {
 		if (auth.value?.provider == 'reown') {
 			// account check in signAndBroadcast
 			const client = createClient(auth.value.did);

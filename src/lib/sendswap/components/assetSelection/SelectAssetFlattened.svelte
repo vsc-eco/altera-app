@@ -28,14 +28,14 @@
 
 	const auth = $derived(getAuth()());
 
-	const onVSC = availableCoins.filter((coin) => coin.value in $accountBalance.bal);
+	const onMagi = availableCoins.filter((coin) => coin.value in $accountBalance.bal);
 
 	interface BalanceObject extends Coin {
 		balance: string;
 		onNetwork: Network;
 		snippet: (...args: any[]) => ReturnType<Snippet>;
 	}
-	const vscItems: BalanceObject[] = onVSC
+	const magiItems: BalanceObject[] = onMagi
 		.map((coin) => {
 			const coinAmt = new CoinAmount(
 				$accountBalance.bal[coin.value as keyof AccountBalance],
@@ -45,9 +45,9 @@
 			if (coinAmt.amount > 0) {
 				return {
 					...coin,
-					value: `${coin.value}:${Network.vsc.value}`,
+					value: `${coin.value}:${Network.magi.value}`,
 					balance: coinAmt.toPrettyAmountString(),
-					onNetwork: Network.vsc,
+					onNetwork: Network.magi,
 					snippet: assetBalance,
 					snippetData: undefined
 				};
@@ -59,27 +59,37 @@
 	let loading = $state(false);
 	$effect(() => {
 		if (!auth || auth.value?.provider !== 'aioha') return;
-		if (externalNetwork?.value !== Network.hiveMainnet.value) return;
-		untrack(() => {
-			if (!$accountBalance.connectedBal) return;
-			loading = true;
+		if (externalNetwork?.value === Network.hiveMainnet.value) {
+			untrack(() => {
+				if (!$accountBalance.connectedBal) return;
+				loading = true;
 
-			let result: BalanceObject[] = [];
+				let result: BalanceObject[] = [];
 
-			for (const [coinVal, bal] of Object.entries($accountBalance.connectedBal)) {
-				const coin = Object.values(Coin).find((coin) => coin.value === coinVal);
-				if (!coin) continue;
-				result.push({
-					...coin,
-					value: `${coin.value}:${externalNetwork.value}`,
-					balance: new CoinAmount(bal, coin, true).toPrettyAmountString(),
-					onNetwork: externalNetwork,
-					snippet: assetBalance
-				});
-			}
-			externalItems = result;
-			loading = false;
-		});
+				for (const [coinVal, bal] of Object.entries($accountBalance.connectedBal)) {
+					const coin = Object.values(Coin).find((coin) => coin.value === coinVal);
+					if (!coin) continue;
+					result.push({
+						...coin,
+						value: `${coin.value}:${externalNetwork.value}`,
+						balance: new CoinAmount(bal, coin, true).toPrettyAmountString(),
+						onNetwork: externalNetwork,
+						snippet: assetBalance
+					});
+				}
+				externalItems = result;
+				loading = false;
+			});
+		} else if (externalNetwork?.value === Network.lightning.value) {
+			externalItems = availableCoins
+				.filter((coinOpt) => coinOpt.snippetData.fromOpt?.networks.includes(Network.lightning))
+				.map((assetObj) => ({
+					...assetObj,
+					value: `${assetObj.value}:${externalNetwork.value}`,
+					onNetwork: Network.lightning,
+					balance: ''
+				}));
+		}
 	});
 
 	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
@@ -104,10 +114,10 @@
 	function handleAssetClick(balanceVal: string) {
 		const assetVal = balanceVal.split(':')[0];
 		const networkVal = balanceVal.split(':')[1];
-		const balanceObj = [...vscItems, ...externalItems].find((item) => item.value === balanceVal);
+		const balanceObj = [...magiItems, ...externalItems].find((item) => item.value === balanceVal);
 		tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === assetVal);
 		tmpNetwork =
-			[Network.vsc, externalNetwork].find((net) => net?.value === networkVal) ?? Network.vsc;
+			[Network.magi, externalNetwork].find((net) => net?.value === networkVal) ?? Network.magi;
 		if (!tmpAsset) {
 			coin = undefined;
 			network = undefined;
@@ -115,7 +125,7 @@
 		} else {
 			network = tmpNetwork;
 			coin = tmpAsset;
-			if (balanceObj) {
+			if (balanceObj && 'balance' in balanceObj) {
 				const coinObj: Coin = { ...balanceObj, value: assetVal };
 				max = new CoinAmount(balanceObj.balance, coinObj);
 			}
@@ -137,7 +147,7 @@
 	{:else}
 		<div class="listbox-wrapper">
 			<AssetList
-				items={[...vscItems, ...externalItems]}
+				items={[...magiItems, ...externalItems]}
 				value={`${coin?.coin.value}:${network?.value}`}
 				clickAsset={handleAssetClick}
 				type="balance"

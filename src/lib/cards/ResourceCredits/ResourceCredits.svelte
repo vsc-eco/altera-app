@@ -2,7 +2,7 @@
 	import Card from '../Card.svelte';
 	import Progress from '$lib/zag/Progress.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
-	import { DHive } from '$lib/vscTransactions/dhive';
+	import { DHive } from '$lib/magiTransactions/dhive';
 	import type { Manabar } from '@hiveio/dhive/lib/chain/rc';
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
@@ -57,15 +57,15 @@
 		if (!rc) return null;
 		return moment.duration((1 - rc.percentage * 1e-4) * HIVE_REGEN_TIME, 'minutes');
 	});
-	let vscRegenTime: moment.Duration | null = $state(null);
+	let magiRegenTime: moment.Duration | null = $state(null);
 	$effect(() => {
 		if (!rc || !$accountBalance?.bal?.last_tx_height) {
-			vscRegenTime = null;
+			magiRegenTime = null;
 			return;
 		}
 
 		const date = getDateFromBlockHeight($accountBalance.bal.last_tx_height);
-		vscRegenTime = moment.duration(
+		magiRegenTime = moment.duration(
 			moment.duration(5, 'days').asSeconds() - moment().diff(moment(date), 'seconds'),
 			'seconds'
 		);
@@ -84,23 +84,23 @@
 
 <Card>
 	<div class="rc-wrapper">
-		<div class="vsc-credits">
-			<h5>VSC Resource Credits</h5>
+		<div>
+			<h5>Magi Resource Credits</h5>
 			<div class="bar-and-info">
 				<div class="bar-wrapper">
 					<Progress
 						boundaries={{ min: 0, max: adjustedMaxRCs }}
 						currentValue={adjustedRCs}
-						timerLabel={vscRegenTime &&
-						vscRegenTime.asSeconds() > 0 &&
+						timerLabel={magiRegenTime &&
+						magiRegenTime.asSeconds() > 0 &&
 						$accountBalance.bal.resource_credits / maxRCs < 0.85
-							? `Full in ${durationToString(vscRegenTime)}`
+							? `Full in ${durationToString(magiRegenTime)}`
 							: undefined}
 					/>
 				</div>
 				<span class="info-button">
 					<InfoToolip>
-						VSC Resource Credits are non-transferable credits that let you perform blockchain
+						Magi Resource Credits are non-transferable credits that let you perform blockchain
 						actions. They regenerate over 5 days after use and are based on your deposited HBD. Hive
 						account holders receive an extra 5.000 credits.
 					</InfoToolip>

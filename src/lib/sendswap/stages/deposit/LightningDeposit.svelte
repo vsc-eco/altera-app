@@ -65,7 +65,7 @@
 			snippet: toOption,
 			snippetData: {
 				coin: Coin.hive,
-				network: Network.vsc,
+				network: Network.magi,
 				balance: new CoinAmount($accountBalance.bal.hive, Coin.hive, true).toPrettyAmountString()
 			}
 		},
@@ -75,7 +75,7 @@
 			snippet: toOption,
 			snippetData: {
 				coin: Coin.hbd,
-				network: Network.vsc,
+				network: Network.magi,
 				balance: new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true).toPrettyAmountString()
 			}
 		}

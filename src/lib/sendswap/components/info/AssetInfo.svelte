@@ -23,7 +23,7 @@
 	} = $props();
 
 	const amount = $derived(
-		isValidBalanceField(coinOpt.coin.value) && network?.value === Network.vsc.value
+		isValidBalanceField(coinOpt.coin.value) && network?.value === Network.magi.value
 			? get(accountBalance).bal[coinOpt.coin.value]
 			: undefined
 	);

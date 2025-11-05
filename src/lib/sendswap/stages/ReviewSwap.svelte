@@ -91,7 +91,7 @@
 						<td class="icon"><Dot size="32" /></td>
 						<td class="sm-caption label">Fee</td>
 						<td class="content">
-							{#if $SendTxDetails.method?.value === TransferMethod.vscTransfer.value}
+							{#if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
 								No fee
 							{:else if !$SendTxDetails.fee || !feeInUsd}
 								<div class="fee-loading"><WaveLoading /></div>

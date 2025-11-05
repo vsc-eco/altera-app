@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SharedProps } from '$lib/PillButton.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
-	import StakePopup from '$lib/vscTransactions/hive/vscOperations/StakePopup.svelte';
+	import StakePopup from '$lib/magiTransactions/hive/vscOperations/StakePopup.svelte';
 	import { Banknote, Component, LockKeyhole, Send } from '@lucide/svelte';
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';

@@ -13,7 +13,7 @@
 	import { getIntermediaryNetwork } from '$lib/sendswap/utils/getNetwork';
 	import { untrack, type Component, type ComponentProps } from 'svelte';
 	import { getDidFromUsername } from '$lib/getAccountName';
-	import { getSendOpType } from '$lib/vscTransactions/hive';
+	import { getSendOpType } from '$lib/magiTransactions/hive';
 
 	type TransferComponentTypes =
 		| { editStage: (complete: boolean) => void }

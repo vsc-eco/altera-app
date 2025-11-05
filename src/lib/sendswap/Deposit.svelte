@@ -24,7 +24,7 @@
 	function depositDetails(): SendDetails {
 		return {
 			...blankDetails(),
-			toNetwork: Network.vsc,
+			toNetwork: Network.magi,
 			toUsername: getUsernameFromAuth(auth) ?? ''
 		};
 	}

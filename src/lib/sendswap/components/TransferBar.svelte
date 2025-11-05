@@ -45,7 +45,7 @@
 			<div class="net-arrows">
 				<ArrowRight />
 				{#if value === 'internal'}
-					{@render basicNetLabel(Network.vsc)}
+					{@render basicNetLabel(Network.magi)}
 				{:else}
 					{@render basicNetLabel(externalPlaceholder)}
 				{/if}

@@ -6,7 +6,7 @@ import {
 	contactRecentCard,
 	type ContactObj
 } from '../components/info/SendSnippets.svelte';
-import { DHive } from '$lib/vscTransactions/dhive';
+import { DHive } from '$lib/magiTransactions/dhive';
 import { getUsernameFromDid } from '$lib/getAccountName';
 
 export type BasicRowSnippet = {

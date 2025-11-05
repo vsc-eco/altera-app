@@ -114,7 +114,7 @@
 		const newNetwork = $SendTxDetails.toNetwork;
 		const userNetworks = getRecipientNetworks(getDidFromUsername($SendTxDetails.toUsername));
 		if (userNetworks.find((net) => net.value === newNetwork?.value)?.disabled) {
-			$SendTxDetails.toNetwork = Network.vsc;
+			$SendTxDetails.toNetwork = Network.magi;
 		}
 	});
 
@@ -204,7 +204,7 @@
 			return 'Cannot send funds to yourself on the same network.';
 		}
 		if (getDidFromUsername($SendTxDetails.toUsername).startsWith('did:pkh:eip155:1:')) {
-			return 'EVM accounts may only receive funds on VSC.';
+			return 'EVM accounts may only receive funds on Magi.';
 		}
 		if ($SendTxDetails.fromCoin?.coin.value === Coin.shbd.value) {
 			return 'Cannot transfer sHBD to external networks.';
@@ -233,7 +233,7 @@
 				return;
 			}
 			if (newOptions.length === 1) {
-				if (newOptions[0].value === Network.vsc.value) {
+				if (newOptions[0].value === Network.magi.value) {
 					currentType = 'internal';
 				} else {
 					currentType = 'external';
@@ -248,8 +248,8 @@
 		untrack(() => {
 			const network =
 				currentType === 'internal'
-					? Network.vsc
-					: toNetworkOptions.find((net) => net.value !== Network.vsc.value);
+					? Network.magi
+					: toNetworkOptions.find((net) => net.value !== Network.magi.value);
 			if (network?.value === $SendTxDetails.toNetwork?.value) return;
 			$SendTxDetails.toNetwork = network;
 		});
@@ -280,10 +280,10 @@
 			const disabledReason = getDisabledReason();
 			const options: TransferBarItem[] = toNetworkOptions
 				.map((net) => ({
-					value: (net.value === Network.vsc.value ? 'internal' : 'external') as
+					value: (net.value === Network.magi.value ? 'internal' : 'external') as
 						| 'internal'
 						| 'external',
-					label: `${net.value === Network.vsc.value ? 'Internal' : 'External'} Transfer`,
+					label: `${net.value === Network.magi.value ? 'Internal' : 'External'} Transfer`,
 					to: net,
 					from: $SendTxDetails.fromNetwork,
 					snippet: transferBar

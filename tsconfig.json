@@ -7,7 +7,7 @@
 		"!*.ts"
 	],
 	"exclude": [
-		"src/lib/vscTransactions/oldVscClient",
+		"src/lib/magiTransactions/oldVscClient",
 		"node_modules",
 		"node_modules/**"
 	],

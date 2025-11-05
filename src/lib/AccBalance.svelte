@@ -38,7 +38,7 @@
 <div class="box">
 	<div class="title-and-tooltip">
 		<h5>Balances</h5>
-		<InfoToolip>Only balance deposited in VSC is listed.</InfoToolip>
+		<InfoToolip>Only balance deposited in Magi is listed.</InfoToolip>
 	</div>
 
 	<table>

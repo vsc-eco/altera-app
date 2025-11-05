@@ -115,13 +115,13 @@ export const executeTx = async (aioha: Aioha, ops: Operation[]) => {
 };
 
 export function getSendOpType(fromNetwork: Network, toNetwork: Network) {
-	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.vsc.value) {
+	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.magi.value) {
 		return 'transfer';
 	}
-	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.vsc.value) {
+	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.magi.value) {
 		return 'deposit';
 	}
-	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.hiveMainnet.value) {
+	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.hiveMainnet.value) {
 		return 'withdrawal';
 	}
 }
@@ -137,7 +137,7 @@ export const getSendOpGenerator = (
 	memo?: URLSearchParams
 ) => Operation) => {
 	if (toCoin.value === Coin.btc.value) {
-		if (toNetwork.value === Network.vsc.value) {
+		if (toNetwork.value === Network.magi.value) {
 			return getBitcoinTransferOp;
 		} else if (toNetwork.value === Network.btcMainnet.value) {
 			return getBitcoinUnmapOp;
@@ -147,13 +147,13 @@ export const getSendOpGenerator = (
 			);
 		}
 	}
-	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.vsc.value) {
+	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.magi.value) {
 		return getHiveTransferOp;
 	}
-	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.vsc.value) {
+	if (fromNetwork.value == Network.hiveMainnet.value && toNetwork.value == Network.magi.value) {
 		return getHiveDepositOp;
 	}
-	if (fromNetwork.value == Network.vsc.value && toNetwork.value == Network.hiveMainnet.value) {
+	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.hiveMainnet.value) {
 		return getHiveWithdrawalOp;
 	}
 	throw new Error(

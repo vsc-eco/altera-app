@@ -13,7 +13,7 @@
 	let { coin, network, size = 'small', styleType = 'horizontal' }: Props = $props();
 
 	const balance = $derived.by(() => {
-		if (network.value === Network.vsc.value) {
+		if (network.value === Network.magi.value) {
 			if (coin.value in $accountBalance.bal) {
 				return new CoinAmount(
 					$accountBalance.bal[coin.value as keyof typeof $accountBalance.bal],

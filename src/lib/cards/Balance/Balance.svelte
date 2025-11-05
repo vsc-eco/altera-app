@@ -107,7 +107,7 @@
 <Card>
 	<div class={['root', { hovered: hoveredIndex }]}>
 		<div class="caption">
-			<h5>VSC Balance</h5>
+			<h5>Magi Balance</h5>
 			<div class="price">
 				{#if loadingBalances}
 					<span class="loading">Loading...</span>

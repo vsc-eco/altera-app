@@ -20,5 +20,5 @@
 		});
 		modal.open();
 		loginRetry.set('idle');
-	}}>Social/EVM Wallet</PillButton
+	}}>EVM Wallet</PillButton
 >

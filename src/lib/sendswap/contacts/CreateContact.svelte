@@ -4,7 +4,7 @@
 	import { addContact, getAllLastPaid, removeContact, setContact, type Contact } from './contacts';
 	import PillButton from '$lib/PillButton.svelte';
 	import ComboBox from '$lib/zag/ComboBox.svelte';
-	import { DHive } from '$lib/vscTransactions/dhive';
+	import { DHive } from '$lib/magiTransactions/dhive';
 	import { untrack } from 'svelte';
 	import { getProfilePicUrl } from '$lib/auth/hive/getProfilePicUrl';
 	import { getDidFromUsername } from '$lib/getAccountName';

@@ -10,8 +10,8 @@
 	import { untrack, type ComponentProps } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
-	import { networkCard } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import BtcMainnetDeposit from './BitcoinMainnetDeposit.svelte';
+	import { getAuth } from '$lib/auth/store';
 
 	let {
 		editStage,
@@ -22,6 +22,8 @@
 		onHomePage: boolean;
 		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
 	} = $props();
+
+	const auth = $derived(getAuth()());
 
 	let lightningOpen = $state(false);
 	let hiveMainnetOpen = $state(false);
@@ -57,14 +59,15 @@
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
 			toggleLightning(false);
-			$SendTxDetails.method = TransferMethod.vscTransfer;
+			$SendTxDetails.method = TransferMethod.magiTransfer;
 			$SendTxDetails.fromNetwork = Network.hiveMainnet;
 			$SendTxDetails.fromCoin = $SendTxDetails.toCoin;
 		});
 	});
 
 	$effect(() => {
-		onHomePage = lightningOpen || hiveMainnetOpen || coinbaseOpen;
+		onHomePage =
+			lightningOpen || (hiveMainnetOpen && auth.value?.provider === 'aioha') || coinbaseOpen;
 	});
 
 	let customButton: NavButton = $state({ label: '', action: () => {} });

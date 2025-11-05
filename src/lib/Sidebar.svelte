@@ -43,7 +43,7 @@
 	>
 		<div class="logo-close">
 			<a class="logo-name" href="/" tabindex="-1">
-				<img src="altera_med.png" alt="VSC" />
+				<img src="altera_med.png" alt="Altera" />
 				<span class="vertical-line"></span>
 				Altera
 			</a>

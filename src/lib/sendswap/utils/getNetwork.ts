@@ -10,8 +10,8 @@ export function getIntermediaryNetwork(
 	if (throughHive(from, to)) {
 		return Network.hiveMainnet;
 	}
-	if (throughVsc(from, to)) {
-		return Network.vsc;
+	if (throughMagi(from, to)) {
+		return Network.magi;
 	}
 	return Network.unknown;
 }
@@ -28,13 +28,13 @@ function throughHive(from: CoinOnNetwork, to: CoinOnNetwork) {
 	);
 }
 
-function throughVsc(from: CoinOnNetwork, to: CoinOnNetwork) {
+function throughMagi(from: CoinOnNetwork, to: CoinOnNetwork) {
 	if (throughHive(from, to)) {
 		return false;
 	}
-	const vscSupportedNetworks: string[] = [Network.vsc.value, Network.hiveMainnet.value];
+	const magiSupportedNetworks: string[] = [Network.magi.value, Network.hiveMainnet.value];
 	return (
-		vscSupportedNetworks.includes(from.network.value) &&
-		vscSupportedNetworks.includes(to.network.value)
+		magiSupportedNetworks.includes(from.network.value) &&
+		magiSupportedNetworks.includes(to.network.value)
 	);
 }

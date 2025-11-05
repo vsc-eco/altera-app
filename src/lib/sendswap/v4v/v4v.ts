@@ -23,7 +23,7 @@ export const createLightningInvoice = async (
 		return 'Unauthorized. Please sign in to continue.';
 	}
 	// if (Number(amount) < 2) return `Not enough. Must be at least 2 ${of}.`;
-	const mainnet_account = on == Network.vsc ? 'vsc.gateway' : username;
+	const mainnet_account = on == Network.magi ? 'vsc.gateway' : username;
 	if (mainnet_account.length > 16) {
 		return 'Invalid hive username.';
 	}

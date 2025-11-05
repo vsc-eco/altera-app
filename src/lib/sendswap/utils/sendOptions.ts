@@ -159,10 +159,10 @@ type Enabled = (
 	mode: 'send' | 'swap'
 ) => boolean;
 
-const vsc: IntermediaryNetwork = {
-	value: 'vsc',
-	label: 'VSC',
-	icon: '/vsc.png',
+const magi: IntermediaryNetwork = {
+	value: 'magi',
+	label: 'Magi',
+	icon: '/magi.svg',
 	enabled: (going, { from, to }) => {
 		if (from?.coin == undefined || to?.coin == undefined) return true;
 		if (from?.coin == to?.coin) return true;
@@ -244,7 +244,7 @@ export const Network = {
 	btcMainnet,
 	lightning,
 	hiveMainnet,
-	vsc,
+	magi,
 	unknown
 };
 
@@ -288,9 +288,9 @@ export type TransferMethod = {
 	fees: string;
 };
 
-const vscTransfer: TransferMethod = {
-	label: 'VSC Transfer',
-	value: 'vsc-transfer',
+const magiTransfer: TransferMethod = {
+	label: 'Magi Transfer',
+	value: 'magi-transfer',
 	length: 'Instant',
 	fees: 'No Fees'
 };
@@ -303,12 +303,12 @@ const lightningTransfer: TransferMethod = {
 };
 
 export const TransferMethod = {
-	vscTransfer,
+	magiTransfer,
 	lightningTransfer
 };
 
 export const networkMap: Map<string, Coin[]> = new Map([
-	[Network.vsc.value, [Coin.hive, Coin.hbd, Coin.shbd]],
+	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd]],
 	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
 	[Network.lightning.value, [Coin.btc]]
 ]);
@@ -320,10 +320,10 @@ export type SendAccount = {
 	fee?: string;
 };
 
-const vscAccount: SendAccount = {
-	label: 'VSC Account',
-	value: 'vsc-account',
-	icon: '/vsc.png'
+const magiAccount: SendAccount = {
+	label: 'Magi Account',
+	value: 'magi-account',
+	icon: '/magi.svg'
 };
 
 const deposit: SendAccount = {
@@ -339,7 +339,7 @@ const swap: SendAccount = {
 };
 
 export const SendAccount = {
-	vscAccount,
+	magiAccount,
 	deposit,
 	swap
 };
@@ -352,20 +352,20 @@ const swapOptions: {
 		coins: [
 			{
 				coin: hive,
-				networks: [vsc, hiveMainnet]
+				networks: [magi, hiveMainnet]
 			},
 			{
 				coin: hbd,
-				networks: [vsc, hiveMainnet]
+				networks: [magi, hiveMainnet]
 			},
 			{
 				coin: shbd,
-				networks: [vsc]
+				networks: [magi]
 			},
 			{
 				coin: btc,
 				// networks: [lightning, btcMainnet]
-				networks: [lightning, vsc, btcMainnet]
+				networks: [lightning, magi, btcMainnet]
 			}
 		]
 	},
@@ -373,15 +373,15 @@ const swapOptions: {
 		coins: [
 			{
 				coin: hive,
-				networks: [vsc, hiveMainnet]
+				networks: [magi, hiveMainnet]
 			},
 			{
 				coin: hbd,
-				networks: [vsc, hiveMainnet]
+				networks: [magi, hiveMainnet]
 			},
 			{
 				coin: btc,
-				networks: [lightning, btcMainnet, vsc]
+				networks: [lightning, btcMainnet, magi]
 			}
 		]
 	}

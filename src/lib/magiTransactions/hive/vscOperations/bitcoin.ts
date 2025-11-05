@@ -3,7 +3,7 @@ import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { json } from '@sveltejs/kit';
 import { MAPPINGCONTRACTID } from '$lib/stores/currentBalance';
-import type { TransferInput, UnmapInput } from '$lib/vscTransactions/bitcoin/bitcoinContractCalls';
+import type { TransferInput, UnmapInput } from '$lib/magiTransactions/bitcoin/bitcoinContractCalls';
 /**
  *
  * @param from Ex. "vaultec"

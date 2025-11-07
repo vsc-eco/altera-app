@@ -2,7 +2,6 @@
 	import { getAuth } from '$lib/auth/store';
 	import Username from '$lib/auth/Username.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import Amount from '$lib/currency/OldAmountInput.svelte';
 	import swapOptions from '$lib/sendswap/utils/sendOptions';
 	import { sleep } from 'aninest';
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
@@ -26,7 +25,7 @@
 		auth.value?.provider == 'aioha' ? auth.value?.username : auth.value?.address
 	);
 	let recipient: string | undefined = $state();
-	let amount: string = $state('');
+	let amount: CoinAmount<Coin> = $state(new CoinAmount(0, Coin.unk));
 	let status = $state('');
 	let error = $state('');
 	const allowDeposit = $derived(type === 'stake' && auth.value?.provider === 'aioha');
@@ -196,7 +195,7 @@
 <form
 	onsubmit={(e) => {
 		e.preventDefault();
-		sendTransaction(amount!, recipient!).then(async (res) => {
+		sendTransaction(amount.toAmountString(), recipient!).then(async (res) => {
 			if (!res.success) {
 				status = '';
 				error = res.error;
@@ -205,7 +204,7 @@
 			status = 'Transaction broadcasted successfully!';
 			await sleep(1);
 			status = '';
-			amount = '';
+			amount = new CoinAmount(0, Coin.unk);
 		});
 	}}
 >

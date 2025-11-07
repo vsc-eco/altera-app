@@ -105,12 +105,12 @@ export class CoinAmount<C extends Coin> {
 		if (this.coin.value == coin.value) return this as unknown as CoinAmount<OtherCoin>;
 		const rates = await getExchangeRates(via, this.coin);
 		const myRate = rates[coin.unit as keyof typeof rates];
-		if (this.coin.value === Coin.sats.value || this.coin.value === Coin.btc.value)
-			console.log(
-				`converted ${this} to ${coin.unit} with conv rate ${myRate} to`,
-				this.toString(),
-				this.mulTo(myRate, coin).toString()
-			);
+		// if (this.coin.value === Coin.sats.value || this.coin.value === Coin.btc.value)
+		// 	console.log(
+		// 		`converted ${this} to ${coin.unit} with conv rate ${myRate} to`,
+		// 		this.toString(),
+		// 		this.mulTo(myRate, coin).toString()
+		// 	);
 		return this.mulTo(myRate, coin);
 	}
 	add(amount: UnkCoinAmount): CoinAmount<C> {

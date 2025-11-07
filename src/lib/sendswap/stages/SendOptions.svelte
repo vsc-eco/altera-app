@@ -86,8 +86,8 @@
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.fromNetwork &&
 			$SendTxDetails.toAmount &&
-			amountNumber > 0 &&
-			amountNumber <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER) &&
+			inputAmt.amount > 0 &&
+			inputAmt.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER) &&
 			!toSelf
 		) {
 			editStage(true);
@@ -156,34 +156,16 @@
 		}
 	});
 
-	let fromCoinValue = $state('');
-	let fromAmount = $state('');
+	let inputAmt = $state(new CoinAmount(0, Coin.unk));
 	let inUsd = $state('');
 	let max: CoinAmount<Coin> | undefined = $state();
-	let amountNumber = $derived(parseFloat(fromAmount));
 
 	$effect(() => {
-		if (fromAmount !== $SendTxDetails.toAmount) {
-			untrack(() => {
-				if ($SendTxDetails.toCoin && $SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
-					const fromCoin = swapOptions.from.coins.find((coin) => coin.coin.value === fromCoinValue);
-					if (fromCoin && $SendTxDetails.fromCoin) {
-						Promise.all([
-							new CoinAmount(fromAmount, $SendTxDetails.toCoin!.coin).convertTo(
-								fromCoin.coin,
-								Network.lightning
-							),
-							getFee(fromAmount)
-						]).then(([amount, fee]) => {
-							$SendTxDetails.toAmount = fromAmount;
-							$SendTxDetails.fromAmount = amount.toAmountString();
-							$SendTxDetails.fee = fee;
-						});
-						return;
-					}
-				}
-				$SendTxDetails.fromAmount = $SendTxDetails.toAmount = fromAmount;
-			});
+		if ($SendTxDetails.fromAmount !== inputAmt.toAmountString()) {
+			$SendTxDetails.fromAmount = inputAmt.toAmountString();
+		}
+		if ($SendTxDetails.toAmount !== inputAmt.toAmountString()) {
+			$SendTxDetails.toAmount = inputAmt.toAmountString();
 		}
 	});
 
@@ -339,7 +321,7 @@
 	<div class="amounts">
 		<div class="inputs">
 			<AmountInput
-				bind:amount={fromAmount}
+				bind:amount={inputAmt}
 				coinOpts={$SendTxDetails.fromCoin ? [$SendTxDetails.fromCoin] : []}
 				network={$SendTxDetails.fromNetwork}
 				maxAmount={max}

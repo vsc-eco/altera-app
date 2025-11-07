@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { Coin, Network, type CoinOptions } from '../sendswap/utils/sendOptions';
+	import {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '../sendswap/utils/sendOptions';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
@@ -10,38 +15,40 @@
 	import Select from '$lib/zag/Select.svelte';
 
 	let {
-		amount = $bindable(),
+		coinAmount = $bindable(),
 		connectedCoinAmount,
 		coinOpts,
-		network,
 		maxAmount,
 		minAmount,
 		styleType = 'normal',
 		id = $bindable('')
 	}: {
-		amount: string;
+		coinAmount: CoinAmount<Coin>;
 		connectedCoinAmount?: CoinAmount<Coin>;
-		coinOpts: CoinOptions['coins'][number][];
-		network: Network | undefined;
+		coinOpts: CoinOnNetwork[];
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
 		styleType?: 'normal' | 'big';
 		id?: string;
 	} = $props();
 
+	let inputAmt: string = $state(coinAmount.toAmountString());
+
 	let inUsd = $state('0');
 	let error = $state('');
-	let currentCoin = $state.raw(coinOpts[0]?.coin ?? Coin.unk);
-	let lastModification = $state.raw(new CoinAmount(amount, coinOpts[0]?.coin ?? Coin.unk));
+	let selected = $state.raw(coinOpts[0] ?? { coin: Coin.unk, network: Network.unknown });
+	let lastModification = $state.raw(
+		new CoinAmount(coinAmount.toAmountString(), coinOpts[0]?.coin ?? Coin.unk)
+	);
 	// let boundAmount: string = $state('');
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
 	const quiet = $derived(
-		currentCoin.value === Coin.unk.value ||
-			(connectedCoinAmount && currentCoin.value === Coin.usd.value)
+		selected.coin.value === Coin.unk.value ||
+			(connectedCoinAmount && selected.coin.value === Coin.usd.value)
 	);
 
 	function setToMax() {
-		amount = maxAmount?.toAmountString() ?? '0';
+		inputAmt = maxAmount?.toAmountString() ?? '0';
 	}
 
 	let decimals = $derived(coinOpts[0]?.coin.decimalPlaces ?? 2);
@@ -52,15 +59,15 @@
 			min = undefined;
 			return;
 		}
-		if (minAmount.coin.value === currentCoin.value) {
+		if (minAmount.coin.value === selected.coin.value) {
 			min = minAmount.toNumber();
 			return;
 		}
 		(async () => {
-			let convertTo = await minAmount.convertTo(currentCoin, Network.lightning);
+			let convertTo = await minAmount.convertTo(selected.coin, Network.lightning);
 			let convertBack = await convertTo.convertTo(minAmount.coin, Network.lightning);
 			while (convertBack.toNumber() < minAmount.toNumber()) {
-				convertTo = new CoinAmount(convertTo.amount + 1, currentCoin, true);
+				convertTo = new CoinAmount(convertTo.amount + 1, selected.coin, true);
 				convertBack = await convertTo.convertTo(minAmount.coin, Network.lightning);
 			}
 			min = convertTo.toNumber();
@@ -71,31 +78,34 @@
 			max = undefined;
 			return;
 		}
-		if (maxAmount.coin.value === currentCoin.value) {
+		if (maxAmount.coin.value === selected.coin.value) {
 			max = maxAmount.toNumber();
 			return;
 		}
 		(async () => {
-			const originalCoinValue = currentCoin.value;
-			let convertTo = await maxAmount.convertTo(currentCoin, Network.lightning);
+			const originalCoinValue = selected.coin.value;
+			let convertTo = await maxAmount.convertTo(selected.coin, Network.lightning);
 			let convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
 			while (convertBack.toNumber() > maxAmount.toNumber()) {
-				convertTo = new CoinAmount(convertTo.amount - 1, currentCoin, true);
+				convertTo = new CoinAmount(convertTo.amount - 1, selected.coin, true);
 				convertBack = await convertTo.convertTo(maxAmount.coin, Network.lightning);
 			}
 			// make sure it hasn't changed again while loop ran
-			if (originalCoinValue === currentCoin.value) max = convertTo.toNumber();
+			if (originalCoinValue === selected.coin.value) max = convertTo.toNumber();
 		})();
 	});
 
 	let showMax = $derived(
 		maxAmount !== undefined &&
-			maxAmount.toAmountString() !== new CoinAmount(amount ?? 0, currentCoin).toAmountString() &&
-			currentCoin.value === maxAmount.coin.value
+			maxAmount.toAmountString() !==
+				new CoinAmount(inputAmt ?? 0, selected.coin).toAmountString() &&
+			selected.coin.value === maxAmount.coin.value
 	);
 
 	let showUsd = $derived(
-		!(connectedCoinAmount?.coin.value === coins.usd.value || currentCoin.value === coins.usd.value)
+		!(
+			connectedCoinAmount?.coin.value === coins.usd.value || selected.coin.value === coins.usd.value
+		)
 	);
 
 	$effect(() => {
@@ -109,8 +119,11 @@
 					return;
 				}
 				Promise.all([
-					connectedCoinAmount.convertTo(currentCoin, Network.lightning),
-					new CoinAmount(amount, currentCoin).convertTo(connectedCoinAmount.coin, Network.lightning)
+					connectedCoinAmount.convertTo(selected.coin, Network.lightning),
+					new CoinAmount(inputAmt, selected.coin).convertTo(
+						connectedCoinAmount.coin,
+						Network.lightning
+					)
 				]).then(([connectedInThis, thisInConnected]) => {
 					if (thisInConnected.toString() === connectedCoinAmount.toString()) {
 						return;
@@ -118,7 +131,7 @@
 					const amtString = connectedInThis.toAmountString();
 					// do this first to stop future effects
 					lastConnected = connectedCoinAmount;
-					amount = amtString;
+					inputAmt = amtString;
 				});
 			});
 		}
@@ -129,12 +142,12 @@
 		}
 		coinChangeUpdateGuard = true;
 		if (lastModification.coin.value === newCoin.value) {
-			amount = lastModification.toAmountString();
+			inputAmt = lastModification.toAmountString();
 		} else {
 			lastModification
 				.convertTo(newCoin, Network.lightning)
 				.then((amt) => {
-					amount = amt.toAmountString(true);
+					inputAmt = amt.toAmountString(true);
 				})
 				.catch((err) => {
 					console.error('error converting', err.message);
@@ -144,13 +157,13 @@
 	$effect(() => {
 		const newCoinOpts = coinOpts;
 		if (newCoinOpts.length === 0) {
-			if (currentCoin !== coins.unk) {
-				currentCoin = coins.unk;
+			if (selected.coin !== coins.unk) {
+				selected = { coin: Coin.unk, network: Network.unknown };
 			}
 			return;
 		}
 		const coinValues = newCoinOpts.map((coinOpt) => coinOpt.coin.value);
-		if (coinValues.includes(currentCoin.value)) {
+		if (coinValues.includes(selected.coin.value)) {
 			return;
 		}
 		// default to first new option on change
@@ -158,24 +171,26 @@
 		untrack(() => {
 			updateAmount(newDefaultCoinOpt.coin);
 		});
-		currentCoin = newDefaultCoinOpt.coin;
+		selected = newDefaultCoinOpt;
 	});
 	let coinChangeUpdateGuard = false;
 	$effect(() => {
-		amount;
+		inputAmt;
 		untrack(() => {
 			if (coinChangeUpdateGuard) {
 				coinChangeUpdateGuard = false;
 				return;
 			}
-			lastModification = new CoinAmount(amount, currentCoin);
-			if (!amount) {
+			lastModification = new CoinAmount(inputAmt, selected.coin);
+			if (!inputAmt) {
 				inUsd = '0';
 				return;
 			}
-			new CoinAmount(amount, currentCoin).convertTo(Coin.usd, Network.lightning).then((amount) => {
-				inUsd = amount.toAmountString();
-			});
+			new CoinAmount(inputAmt, selected.coin)
+				.convertTo(Coin.usd, Network.lightning)
+				.then((amount) => {
+					inUsd = amount.toAmountString();
+				});
 		});
 	});
 
@@ -187,27 +202,20 @@
 		}
 	});
 
-	let displayNetwork = $derived.by(() => {
-		if (coinOpts) {
-			if (
-				coinOpts
-					.find((coinOpt) => coinOpt.coin.value === currentCoin.value)
-					?.networks.map((net) => net.value)
-					.includes(network?.value ?? '')
-			) {
-				return network;
-			}
-		} else {
-			return Network.unknown;
-		}
-	});
+	const selectionItems = $derived(
+		coinOpts.map((coinOpt) => ({
+			...coinOpt,
+			value: coinOpt.coin.value + ':' + coinOpt.network.value,
+			label: coinOpt.coin.label
+		}))
+	);
 </script>
 
 {#if styleType === 'normal'}
 	<div class="normal-wrapper">
 		<label for={id}>
 			<span>
-				{#if maxAmount !== undefined && currentCoin.value === maxAmount.coin.value}
+				{#if maxAmount !== undefined && selected.coin.value === maxAmount.coin.value}
 					<span style="white-space: nowrap;">
 						(Balance:
 						<span class="balance-amount">
@@ -218,20 +226,16 @@
 			</span>
 		</label>
 		<div class="amount-input">
-			{#if currentCoin.value === coins.usd.value}
+			{#if selected.coin.value === coins.usd.value}
 				<DollarSign />
-			{:else if displayNetwork}
-				<CoinNetworkIcon coin={currentCoin} network={displayNetwork} />
 			{:else}
-				<span class="coin-no-network">
-					<img width={24} src={currentCoin.icon} alt={currentCoin.unit} />
-				</span>
+				<CoinNetworkIcon coin={selected.coin} network={selected.network} />
 			{/if}
-			{#key [currentCoin, debouncedMax, min]}
+			{#key [selected, debouncedMax, min]}
 				{#if quiet}
-					<NumberInput bind:amount bind:inputId={id} {max} {decimals} {min} />
+					<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} />
 				{:else}
-					<NumberInput bind:amount bind:error bind:inputId={id} {max} {decimals} {min} />
+					<NumberInput bind:amount={inputAmt} bind:error bind:inputId={id} {max} {decimals} {min} />
 				{/if}
 			{/key}
 			{#if showMax}
@@ -242,20 +246,20 @@
 			<hr />
 			{#if coinOpts.length > 1}
 				<Select
-					items={coinOpts.map((coinOpt) => coinOpt.coin)}
-					initial={currentCoin.value}
+					items={selectionItems}
+					initial={selected.coin.value}
 					onValueChange={(v) => {
 						if (v.items[0] === undefined) return;
 						if (v.items[0].value === Coin.unk.value) return;
-						if (currentCoin.value !== v.items[0].value) {
-							currentCoin = v.items[0];
-							updateAmount(currentCoin);
+						if (selected.coin.value !== v.items[0].value) {
+							selected = v.items[0];
+							updateAmount(selected.coin);
 						}
 					}}
 				/>
 			{:else}
 				<div class="coin-label">
-					{currentCoin.label}
+					{selected.coin.label}
 				</div>
 			{/if}
 		</div>
@@ -264,10 +268,10 @@
 				<span class="error">
 					{error}
 				</span>
-			{:else if showUsd && coinOpts && amount !== '0'}
+			{:else if showUsd && coinOpts && inputAmt !== '0'}
 				<span class="approx-usd">
 					Approx. USD value:
-					{#if currentCoin.value != Coin.unk.value}
+					{#if selected.coin.value != Coin.unk.value}
 						${inUsd}
 					{:else}
 						Unknown
@@ -280,10 +284,10 @@
 	<div class="big-wrapper">
 		<div class="amount-input">
 			<label for={id}>
-				{currentCoin.label}
+				{selected.coin.label}
 			</label>
-			{#key [currentCoin, debouncedMax, min]}
-				<BigInput bind:amount bind:inputId={id} {decimals} {min} />
+			{#key [selected, debouncedMax, min]}
+				<BigInput bind:amount={inputAmt} bind:inputId={id} {decimals} {min} />
 			{/key}
 		</div>
 	</div>

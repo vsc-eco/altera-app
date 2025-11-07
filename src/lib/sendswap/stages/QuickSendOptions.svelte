@@ -4,7 +4,12 @@
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import swapOptions, { Coin, Network, type CoinOptions } from '../utils/sendOptions';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '../utils/sendOptions';
 	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
 	import { untrack } from 'svelte';
 	import RecipientCard from '../components/RecipientCard.svelte';
@@ -52,13 +57,13 @@
 	});
 
 	// AMOUNT SECTION
-	let amount = $state('');
+	let coinAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
-		if ($SendTxDetails.fromAmount !== amount) {
-			$SendTxDetails.fromAmount = amount;
+		if ($SendTxDetails.fromAmount !== coinAmount.toAmountString()) {
+			$SendTxDetails.fromAmount = coinAmount.toAmountString();
 		}
-		if ($SendTxDetails.toAmount !== amount) {
-			$SendTxDetails.toAmount = amount;
+		if ($SendTxDetails.toAmount !== coinAmount.toAmountString()) {
+			$SendTxDetails.toAmount = coinAmount.toAmountString();
 		}
 	});
 
@@ -105,6 +110,12 @@
 		toggleContact(true);
 	}
 	let inputId = $state('');
+
+	const inputCoinOpt: CoinOnNetwork[] = $derived(
+		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
+			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+			: [{ coin: Coin.unk, network: Network.unknown }]
+	);
 </script>
 
 {#if contactOpen}
@@ -169,13 +180,7 @@
 		<div class="section">
 			<div class="amount-row">
 				<div class="amount-input">
-					<AmountInput
-						bind:amount
-						coinOpts={[$SendTxDetails.fromCoin ?? { coin: Coin.unk, networks: [] }]}
-						network={$SendTxDetails.fromNetwork ?? Network.unknown}
-						maxAmount={max}
-						bind:id={inputId}
-					/>
+					<AmountInput bind:coinAmount coinOpts={inputCoinOpt} maxAmount={max} bind:id={inputId} />
 				</div>
 			</div>
 		</div>

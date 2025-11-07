@@ -7,8 +7,6 @@ Dinero.defaultPrecision = 10;
 const getLightningExchangeRates = async (base: Coin) => {
 	const prices = await getCryptoPrices();
 
-	if (base.value === Coin.sats.value) console.log(prices);
-
 	const out = parseToRootedFormat(base, prices);
 	return out;
 };

@@ -109,7 +109,7 @@
 			label="Deposit and Stake Amount:"
 			coin={Coin.hive}
 			network={shouldDeposit ? Network.hiveMainnet : Network.magi}
-			bind:originalAmount={amount}
+			bind:amountOfOriginalCoin={amount}
 			required
 			maxField={shouldDeposit ? undefined : 'hive'}
 		/>

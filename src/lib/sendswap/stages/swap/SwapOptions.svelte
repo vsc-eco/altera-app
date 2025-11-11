@@ -3,6 +3,7 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import {
 		getFee,
+		getTxSessionId,
 		optionsEqual,
 		SendTxDetails,
 		solveNetworkConstraints
@@ -13,7 +14,13 @@
 	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import { ArrowDownRight, ArrowRightLeft, ArrowUpRight, EqualApproximately } from '@lucide/svelte';
+	import {
+		ArrowDownRight,
+		ArrowRightLeft,
+		ArrowUpRight,
+		EqualApproximately,
+		Shuffle
+	} from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import {
 		updateHistoricalData,
@@ -26,7 +33,9 @@
 	import Card from '$lib/cards/Card.svelte';
 	import moment from 'moment';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
+	import SelectAssetFlattened from '../../components/assetSelection/SelectAssetFlattened.svelte';
+	import Liquidity from '$lib/sendswap/Liquidity.svelte';
+	import type { PopupAction } from '../../../../routes/(authed)/TopHomeMenu.svelte';
 
 	let {
 		editStage
@@ -268,6 +277,22 @@
 		currentlyOpen = state;
 		toggle(true);
 	}
+
+	let liquidityOpen = $state(false);
+	let toggleLiquidity = $state<(open?: boolean) => void>(() => {});
+	let liquiditySessionId = $state(getTxSessionId());
+
+	const menuActions: PopupAction[] = [
+		{
+			type: 'popup',
+			label: 'Mange Liquidity',
+			onclick: () => {
+				liquiditySessionId = getTxSessionId();
+				toggleLiquidity(true);
+			},
+			icon: Shuffle
+		}
+	];
 </script>
 
 {#snippet percentArrow(percent: number)}
@@ -303,6 +328,15 @@
 </Dialog>
 
 <h2>Swap</h2>
+<div class="action-bar">
+	{#each menuActions as action}
+		<PillButton {...'styling' in action ? action.styling : {}} onclick={action.onclick}>
+			{@const Icon = action.icon}
+			<Icon />
+			{action.label}
+		</PillButton>
+	{/each}
+</div>
 <div class="coin-options">
 	<ClickableCard onclick={() => openDialog('from')}>
 		<div class="asset-wrapper">
@@ -442,9 +476,22 @@
 		{/if}
 	</div>
 </div>
+<Liquidity
+	bind:dialogOpen={liquidityOpen}
+	bind:toggle={toggleLiquidity}
+	sessionId={liquiditySessionId}
+/>
 
 <style lang="scss">
 	// for big input
+	.action-bar {
+		max-width: 100%;
+		overflow-x: auto;
+		padding-top: 2px;
+		height: 3.5rem;
+		white-space: nowrap;
+		position: relative;
+	}
 	.coin-options {
 		display: flex;
 		gap: 1.5rem;

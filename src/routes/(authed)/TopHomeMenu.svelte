@@ -9,7 +9,7 @@
 	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import Deposit from '$lib/sendswap/Deposit.svelte';
 	let { auth }: { auth: Auth } = $props();
-	type PopupAction = {
+	export type PopupAction = {
 		type: 'popup';
 		label: string;
 		onclick: () => void;

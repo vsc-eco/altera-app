@@ -2,11 +2,11 @@
 	import { getAuth } from '$lib/auth/store';
 	import { Network, TransferMethod, type SendDetails } from '$lib/sendswap/utils/sendOptions';
 	import { blankDetails, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
-	import SwapOptions from './stages/SwapOptions.svelte';
+	import SwapOptions from './stages/swap/SwapOptions.svelte';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Complete from '$lib/sendswap/stages/Complete.svelte';
 	import SendOptions from './stages/SendOptions.svelte';
-	import ReviewSwap from '$lib/sendswap/stages/ReviewSwap.svelte';
+	import ReviewSwap from '$lib/sendswap/stages/swap/ReviewSwap.svelte';
 	import ReviewSend from './stages/ReviewSend.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 

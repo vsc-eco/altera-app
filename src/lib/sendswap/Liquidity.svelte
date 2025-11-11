@@ -1,13 +1,11 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import DepositOptions from './stages/deposit/DepositOptions.svelte';
 	import { Network, type SendDetails } from './utils/sendOptions';
 	import { blankDetails, SendTxDetails } from './utils/sendUtils';
-	import Complete from './stages/Complete.svelte';
-	import ReviewSwap from './stages/swap/ReviewSwap.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import LiquidityOptions from './stages/swap/liquidity/LiquidityOptions.svelte';
 
 	let {
 		dialogOpen = $bindable(),
@@ -42,11 +40,7 @@
 	});
 
 	// STEPS
-	const stepsData: MixedStepsArray = [
-		{ value: 'options', component: DepositOptions },
-		{ value: 'review', component: ReviewSwap },
-		{ value: 'complete', component: Complete }
-	];
+	const stepsData: MixedStepsArray = [{ value: 'options', component: LiquidityOptions }];
 
 	let extraProps = $derived({
 		onClose: toggle,

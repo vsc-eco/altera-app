@@ -8,7 +8,12 @@
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import Instructions from '$lib/sendswap/components/Instructions.svelte';
-	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
@@ -23,25 +28,15 @@
 
 	const auth = $derived(getAuth()());
 
-	let amount = $state('');
+	let coinAmount = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
 	$effect(() => {
 		if (!open) return;
 		if (!$SendTxDetails.fromCoin) return;
-		if (shownCoin.coin.value === $SendTxDetails.fromCoin.coin.value) {
-			const amt = new CoinAmount(amount, $SendTxDetails.fromCoin.coin).toAmountString();
-			if (amt !== $SendTxDetails.fromAmount)
-				$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
-		} else {
-			new CoinAmount(amount, shownCoin.coin)
-				.convertTo($SendTxDetails.fromCoin.coin, Network.lightning)
-				.then((amt) => {
-					if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
-						$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt.toAmountString();
-					}
-				});
-		}
+		const amt = coinAmount.toAmountString();
+		if (amt !== $SendTxDetails.fromAmount)
+			$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
 	});
 
 	let toOptions = [
@@ -66,17 +61,25 @@
 	];
 
 	let max: CoinAmount<Coin> | undefined = $state();
+	$inspect('max:', max);
 
-	const amountNumber = $derived(parseFloat(amount));
 	$effect(() => {
+		console.log(
+			!!$SendTxDetails.fromCoin,
+			!!$SendTxDetails.toCoin,
+			!!$SendTxDetails.fromAmount,
+			!!$SendTxDetails.fromNetwork,
+			coinAmount.amount > 0,
+			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
+		);
 		if (!open) return;
 		if (
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.toCoin &&
 			$SendTxDetails.fromAmount &&
 			$SendTxDetails.fromNetwork &&
-			amountNumber > 0 &&
-			amountNumber <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
+			coinAmount.amount > 0 &&
+			coinAmount.amount <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
 		) {
 			editStage(true);
 		} else {
@@ -84,52 +87,17 @@
 		}
 	});
 
-	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
-		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
-		if ($SendTxDetails.fromCoin) {
-			result = [$SendTxDetails.fromCoin, ...result];
-		}
-		return result;
-	});
-	let lastPossibleCoins: CoinOptions['coins'] = $state([]);
-	$effect(() => {
-		possibleCoins;
-		untrack(() => {
-			if (!open) return;
-			if (
-				!lastPossibleCoins.some((coinOpt) => coinOpt.coin.value !== Coin.usd.value) &&
-				possibleCoins.some((coinOpt) => coinOpt.coin.value !== Coin.usd.value)
-			) {
-				shownIndex = possibleCoins.findIndex((coinOpt) => coinOpt.coin.value !== Coin.usd.value);
-			} else {
-				const index = possibleCoins.findIndex(
-					(coinOpt) => coinOpt.coin.value === shownCoin.coin.value
-				);
-				if (index >= 0) {
-					shownIndex = index;
-				} else {
-					if (shownIndex > possibleCoins.length - 1) {
-						shownIndex = 0;
-					}
-				}
-			}
-			shownCoin = possibleCoins[shownIndex];
-			lastPossibleCoins = possibleCoins;
-		});
-	});
 	$effect(() => {
 		if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
 			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
 		}
 	});
-	const unkOpt = { coin: Coin.unk, networks: [] };
-	let shownIndex = $state(0);
-	let shownCoin: CoinOptions['coins'][number] = $state($SendTxDetails.fromCoin ?? unkOpt);
-	const coinOptions = $derived($SendTxDetails.fromCoin ? [$SendTxDetails.fromCoin] : [unkOpt]);
-	function cycleShown() {
-		shownIndex = (shownIndex + 1) % possibleCoins.length;
-		shownCoin = possibleCoins[shownIndex];
-	}
+	const unkOpt = { coin: Coin.unk, network: Network.unknown };
+	const coinOptions: CoinOnNetwork[] = $derived(
+		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
+			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+			: [unkOpt]
+	);
 
 	let assetOpen = $state(false);
 	const toggleAsset = (open = false) => {
@@ -182,9 +150,9 @@
 			<div class="amount-row">
 				<div class="amount-input">
 					<AmountInput
-						bind:amount
+						bind:coinAmount
 						coinOpts={coinOptions}
-						network={$SendTxDetails.fromNetwork}
+						expressIn={$SendTxDetails.fromCoin?.coin}
 						maxAmount={max}
 						bind:id={inputId}
 					/>

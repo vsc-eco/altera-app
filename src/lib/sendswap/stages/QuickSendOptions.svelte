@@ -58,6 +58,7 @@
 
 	// AMOUNT SECTION
 	let coinAmount = $state(new CoinAmount(0, Coin.unk));
+	$inspect(coinAmount.toString());
 	$effect(() => {
 		if ($SendTxDetails.fromAmount !== coinAmount.toAmountString()) {
 			$SendTxDetails.fromAmount = coinAmount.toAmountString();
@@ -145,7 +146,9 @@
 		bind:network={$SendTxDetails.fromNetwork}
 		bind:max
 	/>
-{:else}
+{/if}
+<!-- keep this always rendered so that it doesn't break amount input reactivity -->
+<div class={['mainopts', { hide: contactOpen || assetOpen }]}>
 	<h2>Send</h2>
 	<div class="sections">
 		<div class="section to">
@@ -156,6 +159,11 @@
 				placeholder="Enter address"
 			/>
 			<RecipientCard basic edit={openContact} {contact} />
+			{#if toSelf}
+				<span class="error">
+					Cannot make an internal transfer to yourself, please select a different recipient.
+				</span>
+			{/if}
 		</div>
 		<Divider text="Amount" />
 		<ClickableCard onclick={() => toggleAsset(true)}>
@@ -180,7 +188,13 @@
 		<div class="section">
 			<div class="amount-row">
 				<div class="amount-input">
-					<AmountInput bind:coinAmount coinOpts={inputCoinOpt} maxAmount={max} bind:id={inputId} />
+					<AmountInput
+						bind:coinAmount
+						coinOpts={inputCoinOpt}
+						expressIn={$SendTxDetails.fromCoin?.coin}
+						maxAmount={max}
+						bind:id={inputId}
+					/>
 				</div>
 			</div>
 		</div>
@@ -206,9 +220,12 @@
 			</div>
 		</div>
 	</div>
-{/if}
+</div>
 
 <style lang="scss">
+	.mainopts.hide {
+		display: none;
+	}
 	.sections {
 		display: flex;
 		flex-direction: column;

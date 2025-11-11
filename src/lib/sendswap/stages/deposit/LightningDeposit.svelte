@@ -4,7 +4,12 @@
 	import OldAmountInput from '$lib/currency/OldAmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
-	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '$lib/sendswap/utils/sendOptions';
 	import { getFee, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
@@ -12,18 +17,18 @@
 
 	let { editStage, open }: { editStage: (add: boolean) => void; open: boolean } = $props();
 
-	let amount: CoinAmount<Coin> = $state(new CoinAmount(0, Coin.unk));
+	let coinAmount: CoinAmount<Coin> = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
 	$effect(() => {
 		if (!open) return;
 		if (!$SendTxDetails.fromCoin) return;
-		if (amount.coin.value === $SendTxDetails.fromCoin.coin.value) {
-			const amt = amount.toAmountString();
+		if (coinAmount.coin.value === $SendTxDetails.fromCoin.coin.value) {
+			const amt = coinAmount.toAmountString();
 			if (amt !== $SendTxDetails.fromAmount) $SendTxDetails.fromAmount = amt;
 		} else {
 			Promise.all([
-				amount.convertTo($SendTxDetails.fromCoin.coin, Network.lightning),
+				coinAmount.convertTo($SendTxDetails.fromCoin.coin, Network.lightning),
 				getFee($SendTxDetails.toAmount)
 			]).then(([amt, fee]) => {
 				if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
@@ -41,11 +46,11 @@
 	$effect(() => {
 		if (!open) return;
 		if (!$SendTxDetails.toCoin) return;
-		if (amount.coin.value === $SendTxDetails.toCoin.coin.value) {
-			const amt = amount.toAmountString();
+		if (coinAmount.coin.value === $SendTxDetails.toCoin.coin.value) {
+			const amt = coinAmount.toAmountString();
 			if (amt !== $SendTxDetails.toAmount) $SendTxDetails.toAmount = amt;
 		} else {
-			amount.convertTo($SendTxDetails.toCoin.coin, Network.lightning).then((amt) => {
+			coinAmount.convertTo($SendTxDetails.toCoin.coin, Network.lightning).then((amt) => {
 				if ($SendTxDetails.toAmount !== amt.toAmountString()) {
 					$SendTxDetails.toAmount = amt.toAmountString();
 				}
@@ -83,7 +88,7 @@
 			$SendTxDetails.toCoin &&
 			$SendTxDetails.fromAmount &&
 			$SendTxDetails.fromNetwork &&
-			amount.amount > 0
+			coinAmount.amount > 0
 		) {
 			editStage(true);
 		} else {
@@ -129,19 +134,25 @@
 	});
 
 	const unkOpt = { coin: Coin.unk, networks: [] };
-	const coinOptions = $derived.by(() => {
-		let result: typeof swapOptions.from.coins = [];
-		if ($SendTxDetails.fromCoin) {
-			result.push($SendTxDetails.fromCoin);
+	const coinOptions: CoinOnNetwork[] = $derived.by(() => {
+		let result: CoinOnNetwork[] = [];
+		if ($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork) {
+			result.push({
+				coin: $SendTxDetails.fromCoin.coin,
+				network: $SendTxDetails.fromNetwork
+			});
 		}
-		if ($SendTxDetails.toCoin) {
-			result.push($SendTxDetails.toCoin);
+		if ($SendTxDetails.toCoin && $SendTxDetails.toNetwork) {
+			result.push({
+				coin: $SendTxDetails.toCoin.coin,
+				network: $SendTxDetails.toNetwork
+			});
 		}
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {
-			result.push({ coin: Coin.sats, networks: [Network.lightning, Network.btcMainnet] });
+			result.push({ coin: Coin.sats, network: Network.lightning });
 		}
 		if (result.length === 0) {
-			result.push({ coin: Coin.unk, networks: [] });
+			result.push({ coin: Coin.unk, network: Network.unknown });
 		}
 		return result;
 	});
@@ -170,7 +181,7 @@
 	<div class="section">
 		<div class="amount-row">
 			<div class="amount-input">
-				<AmountInput bind:amount coinOpts={coinOptions} network={shownNetwork} bind:id={inputId} />
+				<AmountInput bind:coinAmount coinOpts={coinOptions} bind:id={inputId} />
 			</div>
 		</div>
 	</div>

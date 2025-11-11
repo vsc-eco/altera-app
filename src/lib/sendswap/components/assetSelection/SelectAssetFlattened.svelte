@@ -120,7 +120,6 @@
 		tmpAsset = swapOptions.from.coins.find((coinOpts) => coinOpts.coin.value === assetVal);
 		tmpNetwork =
 			[Network.magi, externalNetwork].find((net) => net?.value === networkVal) ?? Network.magi;
-		console.log('balanceval:', balanceVal, 'tmpasset', tmpAsset);
 		if (!tmpAsset) {
 			coin = undefined;
 			network = undefined;

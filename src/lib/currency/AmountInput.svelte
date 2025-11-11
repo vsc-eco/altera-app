@@ -18,6 +18,7 @@
 		coinAmount = $bindable(),
 		connectedCoinAmount,
 		coinOpts,
+		expressIn,
 		maxAmount,
 		minAmount,
 		styleType = 'normal',
@@ -26,13 +27,16 @@
 		coinAmount: CoinAmount<Coin>;
 		connectedCoinAmount?: CoinAmount<Coin>;
 		coinOpts: CoinOnNetwork[];
+		expressIn?: Coin;
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
 		styleType?: 'normal' | 'big';
 		id?: string;
 	} = $props();
 
-	let inputAmt: string = $state(coinAmount.toAmountString());
+	console.log('rendering');
+
+	let inputAmt: string = $state(coinAmount?.amount !== 0 ? coinAmount.toAmountString() : '');
 
 	let inUsd = $state('0');
 	let error = $state('');
@@ -40,6 +44,15 @@
 	let lastModification = $state.raw(
 		new CoinAmount(coinAmount.toAmountString(), coinOpts[0]?.coin ?? Coin.unk)
 	);
+	$effect(() => {
+		if (!expressIn || lastModification.coin.value === expressIn.value) {
+			if (coinAmount.amount !== lastModification.amount) coinAmount = lastModification;
+		} else {
+			lastModification.convertTo(expressIn, Network.lightning).then((coinAmt) => {
+				if (coinAmount.amount !== coinAmt.amount) coinAmount = coinAmt;
+			});
+		}
+	});
 	// let boundAmount: string = $state('');
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
 	const quiet = $derived(
@@ -205,7 +218,7 @@
 	const selectionItems = $derived(
 		coinOpts.map((coinOpt) => ({
 			...coinOpt,
-			value: coinOpt.coin.value + ':' + coinOpt.network.value,
+			value: coinOpt.coin.value,
 			label: coinOpt.coin.label
 		}))
 	);
@@ -249,6 +262,7 @@
 					items={selectionItems}
 					initial={selected.coin.value}
 					onValueChange={(v) => {
+						console.log('selected', v.items[0]);
 						if (v.items[0] === undefined) return;
 						if (v.items[0].value === Coin.unk.value) return;
 						if (selected.coin.value !== v.items[0].value) {
@@ -347,12 +361,6 @@
 					padding: 0.5rem 0.75rem;
 					height: fit-content;
 				}
-			}
-			.coin-no-network {
-				width: 32px;
-				display: flex;
-				align-items: center;
-				justify-content: center;
 			}
 		}
 		.coin-label {

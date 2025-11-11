@@ -4,6 +4,8 @@
 	import { untrack } from 'svelte';
 	import { LiquidityPool } from './liquidity';
 	import LiquiditySelect from './LiquiditySelect.svelte';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
+	import swapOptions, { Network } from '$lib/sendswap/utils/sendOptions';
 
 	let {
 		editStage,
@@ -21,6 +23,15 @@
 		...lp,
 		component: LiquidityPoolInfo
 	}));
+
+	let coin1Amt = $state('');
+	let coin2Amt = $state('');
+	const coinOpt1 = $derived(
+		swapOptions.from.coins.find((coinOpt) => coinOpt.coin.value === currentlySelected.coin1.value)
+	);
+	const coinOpt2 = $derived(
+		swapOptions.from.coins.find((coinOpt) => coinOpt.coin.value === currentlySelected.coin2.value)
+	);
 </script>
 
 {#if poolSelectOpen}
@@ -42,6 +53,10 @@
 				<span class="edit">Edit</span>
 			</div>
 		</ClickableCard>
+		<div class="inputs">
+			<AmountInput amount={coin1Amt} coinOpt={coinOpt1} network={Network.magi} />
+			<AmountInput amount={coin2Amt} coinOpt={coinOpt2} network={Network.magi} />
+		</div>
 	</div>
 {/if}
 
@@ -58,5 +73,11 @@
 				color: var(--primary-fg-mid);
 			}
 		}
+	}
+	.inputs {
+		padding: 0.5rem 0;
+		display: flex;
+		gap: 1rem;
+		align-items: flex-start;
 	}
 </style>

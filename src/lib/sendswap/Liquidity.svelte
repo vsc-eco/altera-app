@@ -1,11 +1,19 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { Network, type SendDetails } from './utils/sendOptions';
+	import { Coin, Network, type SendDetails } from './utils/sendOptions';
 	import { blankDetails, SendTxDetails } from './utils/sendUtils';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import LiquidityOptions from './stages/swap/liquidity/LiquidityOptions.svelte';
+	import {
+		LiquidityPool,
+		type LiquidityDetails,
+		LiquidityTxDetails,
+		blankLiquidityDetails
+	} from './stages/swap/liquidity/liquidity';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import LiquidityReview from './stages/swap/liquidity/LiquidityReview.svelte';
 
 	let {
 		dialogOpen = $bindable(),
@@ -18,6 +26,11 @@
 	} = $props();
 
 	const auth = $derived(getAuth()());
+
+	LiquidityTxDetails.set({
+		...blankLiquidityDetails(),
+		pool: LiquidityPool.btcHbd
+	});
 
 	function depositDetails(): SendDetails {
 		return {
@@ -40,7 +53,10 @@
 	});
 
 	// STEPS
-	const stepsData: MixedStepsArray = [{ value: 'options', component: LiquidityOptions }];
+	const stepsData: MixedStepsArray = [
+		{ value: 'options', component: LiquidityOptions },
+		{ value: 'review', component: LiquidityReview }
+	];
 
 	let extraProps = $derived({
 		onClose: toggle,
@@ -53,7 +69,7 @@
 		{#if dialogOpen}
 			<StepsMachine
 				size="dialog"
-				txType="deposit"
+				txType="Add Liquidity"
 				resetDetails={depositDetails}
 				{stepsData}
 				{extraProps}

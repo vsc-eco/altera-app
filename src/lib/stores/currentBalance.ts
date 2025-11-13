@@ -71,6 +71,9 @@ export function startAccountPolling(auth: Auth) {
 export const MAPPINGCONTRACTID = 'vsc1BcS12fD42kKqL2SMLeBzaEKtd9QbBWC1dt';
 
 async function fetchAccountData(auth: Auth) {
+	if (!auth.value) return;
+	const accKey = 'bal' + auth.value.did;
+
 	try {
 		if (!auth.value) throw 'Not authenticated';
 		const accBalancesStore = new GetAccountBalanceStore();
@@ -83,7 +86,7 @@ async function fetchAccountData(auth: Auth) {
 				policy: 'NetworkOnly'
 			}),
 			contractStateStore.fetch({
-				variables: { contractId: MAPPINGCONTRACTID, keys: ['account_balances'] },
+				variables: { contractId: MAPPINGCONTRACTID, keys: [accKey] },
 				policy: 'NetworkOnly'
 			}),
 			auth.value?.provider === 'aioha' && username
@@ -91,8 +94,8 @@ async function fetchAccountData(auth: Auth) {
 				: undefined
 		]);
 
-		const contractBalances = contractState.data?.getStateByKeys['account_balances'];
-		const btcBalance = contractBalances ? contractBalances[auth.value.did] : 0;
+		const contractBalances = contractState.data?.getStateByKeys[accKey];
+		const btcBalance = contractBalances ?? 0;
 
 		const magiBalanceObj = (() => {
 			if (magiBal.data) {

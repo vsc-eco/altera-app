@@ -1,11 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import {
-		Coin,
-		Network,
-		type CoinOnNetwork,
-		type CoinOptions
-	} from '../sendswap/utils/sendOptions';
+	import { Coin, Network, type CoinOnNetwork } from '../sendswap/utils/sendOptions';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
@@ -33,8 +28,6 @@
 		styleType?: 'normal' | 'big';
 		id?: string;
 	} = $props();
-
-	console.log('rendering');
 
 	let inputAmt: string = $state(coinAmount?.amount !== 0 ? coinAmount.toAmountString() : '');
 
@@ -125,10 +118,12 @@
 		if (connectedCoinAmount) {
 			untrack(() => {
 				if (!lastConnected) {
+					console.log('set last connected branch');
 					lastConnected = connectedCoinAmount;
 					return;
 				}
 				if (connectedCoinAmount.toString() === lastConnected?.toString()) {
+					console.log('nothing branch');
 					return;
 				}
 				Promise.all([
@@ -138,6 +133,7 @@
 						Network.lightning
 					)
 				]).then(([connectedInThis, thisInConnected]) => {
+					console.log('update branch');
 					if (thisInConnected.toString() === connectedCoinAmount.toString()) {
 						return;
 					}
@@ -262,7 +258,6 @@
 					items={selectionItems}
 					initial={selected.coin.value}
 					onValueChange={(v) => {
-						console.log('selected', v.items[0]);
 						if (v.items[0] === undefined) return;
 						if (v.items[0].value === Coin.unk.value) return;
 						if (selected.coin.value !== v.items[0].value) {

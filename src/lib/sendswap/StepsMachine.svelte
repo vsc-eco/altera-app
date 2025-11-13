@@ -147,6 +147,11 @@
 
 	// START TRANSACTION
 	function initSend() {
+		if (txType.toLowerCase().includes('liquidity')) {
+			console.log('call liquidity tx');
+			return;
+		}
+
 		const {
 			fromCoin,
 			fromNetwork,

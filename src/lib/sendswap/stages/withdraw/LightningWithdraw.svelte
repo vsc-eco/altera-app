@@ -214,12 +214,5 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		input {
-			padding: 0.5rem;
-			border: 1px solid var(--neutral-bg-accent);
-			border-radius: 0.5rem;
-			background-color: var(--neutral-bg);
-			color: var(--neutral-fg);
-		}
 	}
 </style>

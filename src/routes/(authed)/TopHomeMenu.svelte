@@ -2,7 +2,9 @@
 	import type { SharedProps } from '$lib/PillButton.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
 	import StakePopup from '$lib/magiTransactions/hive/vscOperations/StakePopup.svelte';
-	import { Banknote, Component, LockKeyhole, Send, ArrowDown } from '@lucide/svelte';
+	import { Component, LockKeyhole, Send } from '@lucide/svelte';
+	// @ts-expect-error - BanknoteArrowDown and BanknoteArrowUp are available in newer versions of lucide-svelte
+	import { BanknoteArrowUp, BanknoteArrowDown } from '@lucide/svelte';
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';
 	import QuickSend from '$lib/sendswap/QuickSend.svelte';
@@ -51,7 +53,7 @@
 				depositSessionId = getTxSessionId();
 				toggleDeposit(true);
 			},
-			icon: Banknote
+			icon: BanknoteArrowUp
 		},
 		{
 			type: 'popup',
@@ -60,7 +62,7 @@
 				withdrawSessionId = getTxSessionId();
 				toggleWithdraw(true);
 			},
-			icon: ArrowDown
+			icon: BanknoteArrowDown
 		},
 		...actions.filter((action) => action.label === 'Swap'),
 		{

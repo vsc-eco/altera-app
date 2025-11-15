@@ -3,6 +3,7 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import {
 		getFee,
+		getTxSessionId,
 		optionsEqual,
 		SendTxDetails,
 		solveNetworkConstraints
@@ -10,17 +11,28 @@
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import AssetInfo from '$lib/sendswap/components/info/AssetInfo.svelte';
-	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import { ArrowDownRight, ArrowRightLeft, ArrowUpRight, EqualApproximately } from '@lucide/svelte';
+	import {
+		ArrowDownRight,
+		ArrowRightLeft,
+		ArrowUpRight,
+		EqualApproximately,
+		Shuffle
+	} from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import {
 		updateHistoricalData,
 		HistoricalCoinData,
+		type CoinMarketMapData,
 		loadHistoricalCoinData,
-		saveHistoricalCoinData,
-		type CoinMarketMapData
+		saveHistoricalCoinData
 	} from '$lib/currency/historical';
 	import LineChart, { type Point } from '$lib/LineChart.svelte';
 	import Card from '$lib/cards/Card.svelte';
@@ -109,69 +121,47 @@
 			snippetData: { fromOpt: opt, net: $SendTxDetails.toNetwork, size: 'medium' }
 		}))
 	);
-	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
-		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
-		if ($SendTxDetails.fromCoin) {
-			result.push($SendTxDetails.fromCoin);
+	let possibleCoins: CoinOnNetwork[] = $derived.by(() => {
+		let result: CoinOnNetwork[] = [];
+		if ($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork) {
+			result.push({ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork });
 		}
-		if ($SendTxDetails.toCoin) {
-			result.push($SendTxDetails.toCoin);
+		if ($SendTxDetails.toCoin && $SendTxDetails.toNetwork) {
+			result.push({ coin: $SendTxDetails.toCoin.coin, network: $SendTxDetails.toNetwork });
+		}
+		const btcIndex = result.findIndex((coinOnNet) => coinOnNet.coin.value === Coin.btc.value);
+		if (btcIndex !== -1) {
+			result.splice(btcIndex + 1, 0, { coin: Coin.sats, network: result[btcIndex].network });
 		}
 		return result;
 	});
-	$effect(() => {
-		possibleCoins;
-		untrack(() => {
-			const index = possibleCoins.findIndex(
-				(coinOpt) => coinOpt.coin.value === shownCoin.coin.value
-			);
-			if (index >= 0) {
-				shownIndex = index;
-			} else {
-				if (shownIndex > possibleCoins.length - 1) {
-					shownIndex = 0;
-				}
-			}
-			shownCoin = possibleCoins[shownIndex];
-		});
-	});
-	let shownIndex = $state(0);
-	let shownCoin: CoinOptions['coins'][number] = $state({ coin: Coin.usd, networks: [] });
-	function cycleShown() {
-		shownIndex = (shownIndex + 1) % possibleCoins.length;
-		shownCoin = possibleCoins[shownIndex];
-	}
 
-	let inputAmount = $state('');
+	let inputAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin) return;
-		if (shownCoin.coin.value === $SendTxDetails.fromCoin.coin.value) {
-			const amt = new CoinAmount(inputAmount, $SendTxDetails.fromCoin.coin).toAmountString();
+		if (inputAmount.coin.value === $SendTxDetails.fromCoin.coin.value) {
+			const amt = inputAmount.toAmountString();
 			if (amt !== $SendTxDetails.fromAmount) $SendTxDetails.fromAmount = amt;
 		} else {
-			new CoinAmount(inputAmount, shownCoin.coin)
-				.convertTo($SendTxDetails.fromCoin.coin, Network.lightning)
-				.then((amt) => {
-					if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
-						$SendTxDetails.fromAmount = amt.toAmountString();
-					}
-				});
+			inputAmount.convertTo($SendTxDetails.fromCoin.coin, Network.lightning).then((amt) => {
+				if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
+					$SendTxDetails.fromAmount = amt.toAmountString();
+				}
+			});
 		}
 	});
 
 	$effect(() => {
 		if (!$SendTxDetails.toCoin) return;
-		if (shownCoin.coin.value === $SendTxDetails.toCoin.coin.value) {
-			const amt = new CoinAmount(inputAmount, $SendTxDetails.toCoin.coin).toAmountString();
+		if (inputAmount.coin.value === $SendTxDetails.toCoin.coin.value) {
+			const amt = inputAmount.toAmountString();
 			if (amt !== $SendTxDetails.toAmount) $SendTxDetails.toAmount = amt;
 		} else {
-			new CoinAmount(inputAmount, shownCoin.coin)
-				.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
-				.then((amt) => {
-					if ($SendTxDetails.toAmount !== amt.toAmountString()) {
-						$SendTxDetails.toAmount = amt.toAmountString();
-					}
-				});
+			inputAmount.convertTo($SendTxDetails.toCoin.coin, Network.lightning).then((amt) => {
+				if ($SendTxDetails.toAmount !== amt.toAmountString()) {
+					$SendTxDetails.toAmount = amt.toAmountString();
+				}
+			});
 		}
 	});
 
@@ -268,6 +258,10 @@
 		currentlyOpen = state;
 		toggle(true);
 	}
+
+	let liquidityOpen = $state(false);
+	let toggleLiquidity = $state<(open?: boolean) => void>(() => {});
+	let liquiditySessionId = $state(getTxSessionId());
 </script>
 
 {#snippet percentArrow(percent: number)}
@@ -335,18 +329,8 @@
 	<div class="amount-row">
 		<!-- <span class="spacer"></span> -->
 		<div class="amount-input">
-			<AmountInput
-				bind:amount={inputAmount}
-				coinOpts={[shownCoin]}
-				network={$SendTxDetails.toNetwork}
-				{minAmount}
-			/>
+			<AmountInput bind:coinAmount={inputAmount} coinOpts={possibleCoins} {minAmount} />
 		</div>
-		<span class="cycle-button">
-			<PillButton onclick={cycleShown} styleType="icon">
-				<ArrowRightLeft />
-			</PillButton>
-		</span>
 	</div>
 	<!-- <div class={['enter-prompt', 'sm-caption', { hide: !!inputAmount }]}>Enter Amount</div> -->
 </div>
@@ -481,11 +465,6 @@
 		// }
 		.amount-input {
 			flex-grow: 1;
-		}
-		.cycle-button {
-			:global(button) {
-				margin: 0;
-			}
 		}
 	}
 	.exchange-rates {

@@ -12,13 +12,21 @@
 		type?: 'asset' | 'network' | 'balance';
 	};
 
+	function normalizeString(str: string): string {
+		return str
+			.replace(/[^a-zA-Z0-9]+/g, ' ') // treat _, -, multiple spaces, etc. as one space
+			.trim();
+	}
+
 	let { items, value, clickAsset, type = 'asset' }: Props = $props();
 
 	const filter = createFilter({ sensitivity: 'base' });
 	let search = $state('');
 
 	const collection = $derived.by(() => {
-		const options = items.filter((item) => filter.contains(item.label + item.value, search));
+		const options = items.filter((item) =>
+			filter.contains(item.label + normalizeString(item.value), search.trim())
+		);
 		// const options = filterDisabled(searchOptions);
 		return listbox.collection({
 			items: options,
@@ -151,9 +159,6 @@
 	[data-part='trigger'] {
 		display: none;
 	}
-	// [data-part='content'] {
-
-	// }
 	[data-part='item'] {
 		border-radius: 0.5rem;
 		padding: 0.5rem;

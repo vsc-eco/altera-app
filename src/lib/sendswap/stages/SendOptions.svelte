@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
-	import { Coins, Link2 } from '@lucide/svelte';
+	import { Coins } from '@lucide/svelte';
 	import { untrack, type ComponentProps, type Snippet } from 'svelte';
 	import {
 		momentToLastPaidString,
@@ -13,7 +13,7 @@
 		solveToNetworks,
 		type NetworkOptionParam
 	} from '../utils/sendUtils';
-	import swapOptions, { Coin, Network, TransferMethod } from '../utils/sendOptions';
+	import swapOptions, { Coin, Network, type CoinOnNetwork } from '../utils/sendOptions';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
 	import RecipientCard from '../components/RecipientCard.svelte';
@@ -286,6 +286,12 @@
 	// DETAILS
 	let memo = $state('');
 	let inputId = $state('');
+
+	const coinOpts: CoinOnNetwork[] = $derived(
+		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
+			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+			: [{ coin: Coin.unk, network: Network.unknown }]
+	);
 </script>
 
 {#snippet transferBar(params: TransferType)}
@@ -321,9 +327,9 @@
 	<div class="amounts">
 		<div class="inputs">
 			<AmountInput
-				bind:amount={inputAmt}
-				coinOpts={$SendTxDetails.fromCoin ? [$SendTxDetails.fromCoin] : []}
-				network={$SendTxDetails.fromNetwork}
+				bind:coinAmount={inputAmt}
+				{coinOpts}
+				expressIn={$SendTxDetails.fromCoin?.coin}
 				maxAmount={max}
 				bind:id={inputId}
 			/>

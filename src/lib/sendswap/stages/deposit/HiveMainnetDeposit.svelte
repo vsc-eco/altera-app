@@ -61,17 +61,8 @@
 	];
 
 	let max: CoinAmount<Coin> | undefined = $state();
-	$inspect('max:', max);
 
 	$effect(() => {
-		console.log(
-			!!$SendTxDetails.fromCoin,
-			!!$SendTxDetails.toCoin,
-			!!$SendTxDetails.fromAmount,
-			!!$SendTxDetails.fromNetwork,
-			coinAmount.amount > 0,
-			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
-		);
 		if (!open) return;
 		if (
 			$SendTxDetails.fromCoin &&
@@ -183,24 +174,7 @@
 			flex-grow: 1;
 			height: 65px;
 		}
-		// .cycle-button {
-		// 	:global(button) {
-		// 		margin: 0;
-		// 		margin-top: 2px;
-		// 	}
-		// }
 	}
-	// .dest-confirm {
-	// 	display: flex;
-	// 	align-items: flex-end;
-	// 	gap: 1rem;
-	// 	.select {
-	// 		flex-grow: 1;
-	// 		:global([data-scope='select'][data-part='control']) {
-	// 			height: 52px;
-	// 		}
-	// 	}
-	// }
 	.asset-card {
 		display: flex;
 		align-items: center;

@@ -86,12 +86,14 @@
 
 <div class="deposit-internal-wrapper">
 	{#if lightningOpen}
-		<PillButton onclick={() => toggleLightning()} styleType="icon-subtle">
-			<ArrowLeft size={32} />
-		</PillButton>
-		<h2>Lightning Deposit</h2>
-		<div class="deposit-content">
-			<LightningDeposit {editStage} open={lightningOpen} />
+		{#if !secondaryMenu}
+			<PillButton onclick={() => toggleLightning()} styleType="icon-subtle">
+				<ArrowLeft size={32} />
+			</PillButton>
+			<h2>Lightning Deposit</h2>
+		{/if}
+		<div class={{ 'deposit-content': !secondaryMenu }}>
+			<LightningDeposit {editStage} open={lightningOpen} bind:secondaryMenu />
 		</div>
 	{:else if hiveMainnetOpen}
 		{#if !secondaryMenu}

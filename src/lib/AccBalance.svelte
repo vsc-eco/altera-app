@@ -2,7 +2,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from './sendswap/utils/sendOptions';
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';
-	import { accountBalance, type AccountBalance } from './stores/currentBalance';
+	import { accountBalance } from './stores/currentBalance';
 	import moment from 'moment';
 	import InfoToolip from './components/InfoTooltip.svelte';
 

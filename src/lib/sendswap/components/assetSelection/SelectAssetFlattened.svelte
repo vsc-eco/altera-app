@@ -1,7 +1,5 @@
 <script lang="ts">
 	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
-	import { type CoinOptionParam } from '$lib/sendswap/utils/sendUtils';
-	import { type AssetObject } from '../info/SendSnippets.svelte';
 	import { untrack, type Snippet } from 'svelte';
 	import AssetList from './AssetList.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
@@ -18,7 +16,7 @@
 		close,
 		externalNetwork
 	}: {
-		availableCoins: AssetObject[];
+		availableCoins: Coin[];
 		coin: CoinOptions['coins'][number] | undefined;
 		network: Network | undefined;
 		max?: CoinAmount<Coin> | undefined;
@@ -82,22 +80,18 @@
 			});
 		} else if (externalNetwork?.value === Network.lightning.value) {
 			externalItems = availableCoins
-				.filter((coinOpt) => coinOpt.snippetData.fromOpt?.networks.includes(Network.lightning))
+				.filter((coinOpt) => coinOpt.value === Coin.btc.value)
 				.map((assetObj) => ({
 					...assetObj,
 					value: `${assetObj.value}:${externalNetwork.value}`,
 					onNetwork: Network.lightning,
 					balance: '',
-					snippet: assetBalanceQuiet,
-					snippetData: undefined
+					snippet: assetBalanceQuiet
 				}));
 		}
 	});
 
 	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
-	const availableCoinOpts: CoinOptionParam[] = availableCoins
-		.map((coin) => coin.snippetData.fromOpt)
-		.filter((item): item is CoinOptionParam => item !== undefined);
 
 	let tmpNetwork: Network | undefined = $state();
 	let tmpNetworkVal: string | undefined = $state();
@@ -135,6 +129,15 @@
 		close();
 		return;
 	}
+
+	$effect(() => {
+		if (coin && !availableCoins.map((coin) => coin.value).includes(coin?.coin.value)) {
+			coin = undefined;
+			if (network) {
+				network = undefined;
+			}
+		}
+	});
 </script>
 
 {#snippet assetBalance(coin: BalanceObject)}

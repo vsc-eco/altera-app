@@ -1,11 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import {
-		Coin,
-		Network,
-		type CoinOnNetwork,
-		type CoinOptions
-	} from '../sendswap/utils/sendOptions';
+	import { Coin, Network, type CoinOnNetwork } from '../sendswap/utils/sendOptions';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
 	import { CoinAmount } from './CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
@@ -33,8 +28,6 @@
 		styleType?: 'normal' | 'big';
 		id?: string;
 	} = $props();
-
-	console.log('rendering');
 
 	let inputAmt: string = $state(coinAmount?.amount !== 0 ? coinAmount.toAmountString() : '');
 
@@ -175,8 +168,14 @@
 			}
 			return;
 		}
-		const coinValues = newCoinOpts.map((coinOpt) => coinOpt.coin.value);
-		if (coinValues.includes(selected.coin.value)) {
+
+		if (
+			newCoinOpts.some(
+				(coinOpt) =>
+					coinOpt.coin.value === selected.coin.value &&
+					coinOpt.network.value === selected.network.value
+			)
+		) {
 			return;
 		}
 		// default to first new option on change
@@ -262,7 +261,6 @@
 					items={selectionItems}
 					initial={selected.coin.value}
 					onValueChange={(v) => {
-						console.log('selected', v.items[0]);
 						if (v.items[0] === undefined) return;
 						if (v.items[0].value === Coin.unk.value) return;
 						if (selected.coin.value !== v.items[0].value) {

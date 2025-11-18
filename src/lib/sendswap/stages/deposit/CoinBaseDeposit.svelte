@@ -3,14 +3,14 @@
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
-	import { Coin } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import axios from 'axios';
 	import { Info } from '@lucide/svelte';
 
 	let { customButton = $bindable() }: { customButton: NavButton } = $props();
 
 	const auth = $derived(getAuth()());
-	let amount = $state('');
+	let coinAmount = $state(new CoinAmount(0, Coin.usd));
 
 	type CoinbaseOnrampURL = {
 		onrampUrl: string;
@@ -26,13 +26,13 @@
 		const response = await axios.get<CoinbaseOnrampURL>('/api/coinbase', {
 			params: {
 				did: did,
-				amount: amount
+				amount: coinAmount
 			}
 		});
 		window.location.href = response.data.onrampUrl;
 	}
 	const minAmount = new CoinAmount(10, Coin.usd);
-	const amountNumber = $derived(Number(amount));
+	const amountNumber = $derived(Number(coinAmount));
 	$effect(() => {
 		customButton = {
 			label: 'Deposit',
@@ -48,9 +48,8 @@
 		<div class="amount-row">
 			<div class="amount-input">
 				<AmountInput
-					bind:amount
-					coinOpt={{ coin: Coin.usd, networks: [] }}
-					network={undefined}
+					bind:coinAmount
+					coinOpts={[{ coin: Coin.usd, network: Network.unknown }]}
 					{minAmount}
 					maxAmount={undefined}
 					id="fiat-input"
@@ -83,6 +82,7 @@
 		}
 	}
 	.warning {
+		padding-top: 0.5rem;
 		display: flex;
 		align-items: center;
 		gap: 1rem;

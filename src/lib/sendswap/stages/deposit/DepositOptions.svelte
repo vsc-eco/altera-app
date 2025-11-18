@@ -43,15 +43,17 @@
 		bitcoinMainnetOpen = open;
 	};
 
+	// using .update() here because it doesn't cause multiple state updates to change multiple values
 	$effect(() => {
 		if (!lightningOpen) return;
 		untrack(() => {
 			toggleHiveMainnet(false);
-			$SendTxDetails.method = TransferMethod.lightningTransfer;
-			$SendTxDetails.fromNetwork = Network.lightning;
-			$SendTxDetails.fromCoin = swapOptions.from.coins.find(
-				(coinOpt) => coinOpt.coin.value === Coin.btc.value
-			);
+			SendTxDetails.update((current) => ({
+				...current,
+				method: TransferMethod.lightningTransfer,
+				fromNetwork: Network.lightning,
+				fromCoin: swapOptions.from.coins.find((coinOpt) => coinOpt.coin.value === Coin.btc.value)
+			}));
 		});
 	});
 
@@ -59,9 +61,11 @@
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
 			toggleLightning(false);
-			$SendTxDetails.method = TransferMethod.magiTransfer;
-			$SendTxDetails.fromNetwork = Network.hiveMainnet;
-			$SendTxDetails.fromCoin = $SendTxDetails.toCoin;
+			SendTxDetails.update((current) => ({
+				...current,
+				method: TransferMethod.magiTransfer,
+				fromNetwork: Network.hiveMainnet
+			}));
 		});
 	});
 
@@ -80,24 +84,30 @@
 			customButtons = undefined;
 		}
 	});
+
+	let secondaryMenu = $state(false);
 </script>
 
 <div class="deposit-internal-wrapper">
 	{#if lightningOpen}
-		<PillButton onclick={() => toggleLightning()} styleType="icon-subtle">
-			<ArrowLeft size={32} />
-		</PillButton>
-		<h2>Lightning Deposit</h2>
-		<div class="deposit-content">
-			<LightningDeposit {editStage} open={lightningOpen} />
+		{#if !secondaryMenu}
+			<PillButton onclick={() => toggleLightning()} styleType="icon-subtle">
+				<ArrowLeft size={32} />
+			</PillButton>
+			<h2>Lightning Deposit</h2>
+		{/if}
+		<div class={{ 'deposit-content': !secondaryMenu }}>
+			<LightningDeposit {editStage} open={lightningOpen} bind:secondaryMenu />
 		</div>
 	{:else if hiveMainnetOpen}
-		<PillButton onclick={() => toggleHiveMainnet()} styleType="icon-subtle">
-			<ArrowLeft size={32} />
-		</PillButton>
-		<h2>Hive Mainnet Deposit</h2>
-		<div class="deposit-content">
-			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen} />
+		{#if !secondaryMenu}
+			<PillButton onclick={() => toggleHiveMainnet()} styleType="icon-subtle">
+				<ArrowLeft size={32} />
+			</PillButton>
+			<h2>Hive Mainnet Deposit</h2>
+		{/if}
+		<div class={{ 'deposit-content': !secondaryMenu }}>
+			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen} bind:secondaryMenu />
 		</div>
 	{:else if coinbaseOpen}
 		<PillButton onclick={() => toggleCoinbase()} styleType="icon-subtle">

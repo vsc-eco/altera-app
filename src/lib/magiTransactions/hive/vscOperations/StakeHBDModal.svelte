@@ -2,14 +2,12 @@
 	import { getAuth } from '$lib/auth/store';
 	import Username from '$lib/auth/Username.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import Amount from '$lib/currency/OldAmountInput.svelte';
-	import swapOptions from '$lib/sendswap/utils/sendOptions';
 	import { sleep } from 'aninest';
 	import { hbdStakeTx, hbdUnstakeTx } from '..';
-	import type { OperationResult, OperationError, OperationSuccess } from '@aioha/aioha/build/types';
+	import type { OperationResult } from '@aioha/aioha/build/types';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
-	import { getDidFromUsername } from '$lib/getAccountName';
+	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
 	import {
 		createClient,
 		signAndBrodcastTransaction,
@@ -22,15 +20,13 @@
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	let { type }: { type: 'stake' | 'unstake' } = $props();
 	let auth = $derived(getAuth()());
-	let username = $derived(
-		auth.value?.provider == 'aioha' ? auth.value?.username : auth.value?.address
-	);
+	let username = $derived(getUsernameFromAuth(auth));
 	let recipient: string | undefined = $state();
-	let amount: string = $state('');
+	let amount: CoinAmount<Coin> = $state(new CoinAmount(0, Coin.unk));
 	let status = $state('');
 	let error = $state('');
 	const allowDeposit = $derived(type === 'stake' && auth.value?.provider === 'aioha');
-	let shouldDeposit = $state(false);
+	let shouldDeposit: boolean = $state(false);
 	$effect(() => {
 		shouldDeposit = allowDeposit;
 	});
@@ -191,12 +187,16 @@
 	});
 
 	let id = $state('');
+
+	let hbdOpt = $derived.by(() => {
+		return [{ coin: Coin.hbd, network: shouldDeposit ? Network.hiveMainnet : Network.magi }];
+	});
 </script>
 
 <form
 	onsubmit={(e) => {
 		e.preventDefault();
-		sendTransaction(amount!, recipient!).then(async (res) => {
+		sendTransaction(amount.toAmountString(), recipient!).then(async (res) => {
 			if (!res.success) {
 				status = '';
 				error = res.error;
@@ -205,7 +205,7 @@
 			status = 'Transaction broadcasted successfully!';
 			await sleep(1);
 			status = '';
-			amount = '';
+			amount = new CoinAmount(0, Coin.unk);
 		});
 	}}
 >
@@ -228,12 +228,7 @@
 			<label for={id}>
 				{type === 'stake' ? (shouldDeposit ? 'Deposit and Stake ' : 'Stake ') : 'Unstake '}Amount:
 			</label>
-			<AmountInput
-				coinOpt={swapOptions.to.coins.find((coinOpt) => coinOpt.coin.value === Coin.hbd.value)}
-				network={shouldDeposit ? Network.hiveMainnet : Network.magi}
-				bind:amount
-				{maxAmount}
-			/>
+			<AmountInput coinOpts={hbdOpt} bind:coinAmount={amount} {maxAmount} />
 		</div>
 		{#if allowDeposit}
 			<label for="hbd-stake-checkbox">

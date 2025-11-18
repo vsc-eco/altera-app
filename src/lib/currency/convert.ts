@@ -48,8 +48,8 @@ function parseToRootedFormat(base: Coin, prices: Cryptoprices) {
 
 		case 'SATS':
 			return {
-				HIVE: satsToBtc(prices.hive.btc),
-				HBD: satsToBtc(prices.hive_dollar.btc),
+				HIVE: satsToBtc(1 / prices.hive.btc),
+				HBD: satsToBtc(1 / prices.hive_dollar.btc),
 				USD: satsToBtc(prices.bitcoin.usd),
 				BTC: satsToBtc(1),
 				SATS: 1

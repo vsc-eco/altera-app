@@ -12,7 +12,7 @@
 	let {
 		coin: originalCoin,
 		network,
-		originalAmount: amountOfOriginalCoin = $bindable(),
+		amountOfOriginalCoin = $bindable(),
 		label,
 		id,
 		required,
@@ -23,7 +23,7 @@
 	}: {
 		coin: Coin;
 		network: Network;
-		originalAmount?: string;
+		amountOfOriginalCoin?: string;
 		id: string;
 		label: string;
 		required?: boolean;
@@ -202,7 +202,7 @@
 				<Select
 					{disabled}
 					items={selectItems}
-					initial={originalCoin.label}
+					initial={originalCoin.value}
 					onValueChange={(v) => {
 						// console.log(v);
 

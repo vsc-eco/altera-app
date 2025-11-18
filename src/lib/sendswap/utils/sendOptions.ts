@@ -89,7 +89,7 @@ const usd: Coin = {
 };
 
 const sats: Coin = {
-	value: 'SATS',
+	value: 'sats',
 	label: 'SATS',
 	icon: '/btc/btc.svg',
 	unit: 'SATS',

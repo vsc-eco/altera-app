@@ -4,7 +4,12 @@
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import swapOptions, { Coin, Network, type CoinOptions } from '../utils/sendOptions';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '../utils/sendOptions';
 	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
 	import { untrack } from 'svelte';
 	import RecipientCard from '../components/RecipientCard.svelte';
@@ -52,13 +57,13 @@
 	});
 
 	// AMOUNT SECTION
-	let amount = $state('');
+	let coinAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
-		if ($SendTxDetails.fromAmount !== amount) {
-			$SendTxDetails.fromAmount = amount;
+		if ($SendTxDetails.fromAmount !== coinAmount.toAmountString()) {
+			$SendTxDetails.fromAmount = coinAmount.toAmountString();
 		}
-		if ($SendTxDetails.toAmount !== amount) {
-			$SendTxDetails.toAmount = amount;
+		if ($SendTxDetails.toAmount !== coinAmount.toAmountString()) {
+			$SendTxDetails.toAmount = coinAmount.toAmountString();
 		}
 	});
 
@@ -105,6 +110,12 @@
 		toggleContact(true);
 	}
 	let inputId = $state('');
+
+	const inputCoinOpt: CoinOnNetwork[] = $derived(
+		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
+			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+			: [{ coin: Coin.unk, network: Network.unknown }]
+	);
 </script>
 
 {#if contactOpen}
@@ -134,7 +145,9 @@
 		bind:network={$SendTxDetails.fromNetwork}
 		bind:max
 	/>
-{:else}
+{/if}
+<!-- keep this always rendered so that it doesn't break amount input reactivity -->
+<div class={['mainopts', { hide: contactOpen || assetOpen }]}>
 	<h2>Send</h2>
 	<div class="sections">
 		<div class="section to">
@@ -145,6 +158,11 @@
 				placeholder="Enter address"
 			/>
 			<RecipientCard basic edit={openContact} {contact} />
+			{#if toSelf}
+				<span class="error">
+					Cannot make an internal transfer to yourself, please select a different recipient.
+				</span>
+			{/if}
 		</div>
 		<Divider text="Amount" />
 		<ClickableCard onclick={() => toggleAsset(true)}>
@@ -170,9 +188,9 @@
 			<div class="amount-row">
 				<div class="amount-input">
 					<AmountInput
-						bind:amount
-						coinOpt={$SendTxDetails.fromCoin ?? { coin: Coin.unk, networks: [] }}
-						network={$SendTxDetails.fromNetwork ?? Network.unknown}
+						bind:coinAmount
+						coinOpts={inputCoinOpt}
+						expressIn={$SendTxDetails.fromCoin?.coin}
 						maxAmount={max}
 						bind:id={inputId}
 					/>
@@ -201,9 +219,12 @@
 			</div>
 		</div>
 	</div>
-{/if}
+</div>
 
 <style lang="scss">
+	.mainopts.hide {
+		display: none;
+	}
 	.sections {
 		display: flex;
 		flex-direction: column;

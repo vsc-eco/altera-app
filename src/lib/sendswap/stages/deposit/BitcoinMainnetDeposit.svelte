@@ -1,14 +1,10 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
-	import swapOptions, { Coin } from '$lib/sendswap/utils/sendOptions';
+	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import axios from 'axios';
 	import { Info } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
-	import { currentUserBtcDepositAddress } from '$lib/sendswap/utils/bitcoinAddress';
 
 	const auth = $derived(getAuth()());
 

@@ -88,7 +88,7 @@
 				label="Unstake Amount:"
 				coin={Coin.hive}
 				network={Network.magi}
-				bind:originalAmount={amount}
+				bind:amountOfOriginalCoin={amount}
 				required
 				maxField={'hive_consensus'}
 			/>

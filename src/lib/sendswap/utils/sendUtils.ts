@@ -2,6 +2,7 @@ import { getAccounts } from '@aioha/aioha/build/rpc';
 import { type Account, postingMetadataFromString } from '$lib/auth/hive/accountTypes';
 import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
 import swapOptions, {
+	Coin,
 	Network,
 	networkMap,
 	SendAccount,
@@ -331,12 +332,7 @@ export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment
 
 export async function getFee(toAmount: string) {
 	const store = get(SendTxDetails);
-	// console.log("getFee called",
-	// 	store.fromCoin,
-	// 	store.fromNetwork,
-	// 	store.toCoin,
-	// 	store.toNetwork
-	// )
+
 	if (
 		store.fromCoin &&
 		store.fromNetwork &&

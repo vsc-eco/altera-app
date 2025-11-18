@@ -64,8 +64,7 @@
 			SendTxDetails.update((current) => ({
 				...current,
 				method: TransferMethod.magiTransfer,
-				fromNetwork: Network.hiveMainnet,
-				fromCoin: $SendTxDetails.toCoin
+				fromNetwork: Network.hiveMainnet
 			}));
 		});
 	});

@@ -137,7 +137,12 @@
 	<div class="section">
 		<div class="amount-row">
 			<div class="amount-input">
-				<AmountInput bind:coinAmount coinOpts={coinOptions} bind:id={inputId} />
+				<AmountInput
+					bind:coinAmount
+					coinOpts={coinOptions}
+					bind:id={inputId}
+					minAmount={new CoinAmount(250, Coin.sats)}
+				/>
 			</div>
 		</div>
 	</div>

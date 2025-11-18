@@ -39,43 +39,18 @@
 			$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
 	});
 
-	let toOptions = [
-		{
-			label: Coin.hive.label,
-			value: Coin.hive.value,
-			snippet: toOption,
-			snippetData: {
-				coin: Coin.hive,
-				network: Network.hiveMainnet
-			}
-		},
-		{
-			label: Coin.hbd.label,
-			value: Coin.hbd.value,
-			snippet: toOption,
-			snippetData: {
-				coin: Coin.hbd,
-				network: Network.hiveMainnet
-			}
-		}
-	];
-
 	let max: CoinAmount<Coin> | undefined = $state();
 
 	$effect(() => {
 		if (!open) return;
-		if (
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromAmount &&
-			$SendTxDetails.fromNetwork &&
+		const stageComplete =
+			!!$SendTxDetails.fromCoin &&
+			!!$SendTxDetails.toCoin &&
+			!!$SendTxDetails.fromAmount &&
+			!!$SendTxDetails.fromNetwork &&
 			coinAmount.amount > 0 &&
-			coinAmount.amount <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
-		) {
-			editStage(true);
-		} else {
-			editStage(false);
-		}
+			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER);
+		editStage(stageComplete);
 	});
 
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
@@ -92,11 +67,18 @@
 	$effect(() => {
 		secondaryMenu = assetOpen;
 	});
-</script>
 
-{#snippet toOption(params: ComponentProps<typeof BalanceInfo>)}
-	<BalanceInfo {...params} size="medium" />
-{/snippet}
+	$effect(() => {
+		if (
+			$SendTxDetails.fromCoin &&
+			![Coin.hive.value, Coin.hbd.value].includes($SendTxDetails.fromCoin.coin.value)
+		) {
+			$SendTxDetails.fromCoin = undefined;
+		} else if ($SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
+			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
+		}
+	});
+</script>
 
 {#if assetOpen}
 	<div class="back-button">
@@ -143,11 +125,6 @@
 						bind:id={inputId}
 					/>
 				</div>
-				<!-- <span class="cycle-button">
-					<PillButton onclick={cycleShown} styleType="icon">
-						<ArrowRightLeft />
-					</PillButton>
-				</span> -->
 			</div>
 		</div>
 	</div>

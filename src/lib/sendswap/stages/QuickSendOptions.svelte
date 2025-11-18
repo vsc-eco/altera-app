@@ -58,7 +58,6 @@
 
 	// AMOUNT SECTION
 	let coinAmount = $state(new CoinAmount(0, Coin.unk));
-	$inspect(coinAmount.toString());
 	$effect(() => {
 		if ($SendTxDetails.fromAmount !== coinAmount.toAmountString()) {
 			$SendTxDetails.fromAmount = coinAmount.toAmountString();

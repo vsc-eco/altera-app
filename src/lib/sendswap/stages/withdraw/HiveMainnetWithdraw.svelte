@@ -1,31 +1,38 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
+	import SelectAssetFlattened from '$lib/sendswap/components/assetSelection/SelectAssetFlattened.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
-	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork
+	} from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance } from '$lib/stores/currentBalance';
-	import Select from '$lib/zag/Select.svelte';
-	import { ArrowRightLeft } from '@lucide/svelte';
-	import { untrack, type ComponentProps } from 'svelte';
+	import { ArrowLeft, Coins } from '@lucide/svelte';
 
-	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
+	let {
+		editStage,
+		open,
+		secondaryMenu = $bindable()
+	}: { editStage: (complete: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
 
 	const auth = $derived(getAuth()());
 
-	let amount = $state('');
+	let coinAmount = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
-
 
 	// For EVM accounts, always start with empty string. For Hive accounts, use SendTxDetails.toUsername
 	let hiveAccount = $state('');
 	let hiveAccountError = $state<string | undefined>(undefined);
 	let isHiveAccountValid = $state(false);
 	let hasInitialized = $state(false);
-	
+
 	// Sync hiveAccount with SendTxDetails only once when component opens
 	$effect(() => {
 		if (open && !hasInitialized) {
@@ -49,59 +56,18 @@
 		}
 	});
 
+	// Update SendTxDetails with coinAmount
 	$effect(() => {
 		if (!open) return;
 		if (!$SendTxDetails.toCoin) return;
-		if (shownCoin.coin.value === $SendTxDetails.toCoin.coin.value) {
-			const amt = new CoinAmount(amount, $SendTxDetails.toCoin.coin).toAmountString();
-			if (amt !== $SendTxDetails.toAmount)
-				$SendTxDetails.toAmount = $SendTxDetails.fromAmount = amt;
-		} else {
-			new CoinAmount(amount, shownCoin.coin)
-				.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
-				.then((amt) => {
-					if ($SendTxDetails.toAmount !== amt.toAmountString()) {
-						$SendTxDetails.toAmount = $SendTxDetails.fromAmount = amt.toAmountString();
-					}
-				});
+		const amt = coinAmount.toAmountString();
+		if (amt !== $SendTxDetails.toAmount) {
+			$SendTxDetails.toAmount = $SendTxDetails.fromAmount = amt;
 		}
 	});
 
-	let toOptions = [
-		{
-			label: Coin.hive.label,
-			value: Coin.hive.value,
-			snippet: toOption,
-			snippetData: {
-				coin: Coin.hive,
-				network: Network.magi
-			}
-		},
-		{
-			label: Coin.hbd.label,
-			value: Coin.hbd.value,
-			snippet: toOption,
-			snippetData: {
-				coin: Coin.hbd,
-				network: Network.magi
-			}
-		}
-	];
+	let max: CoinAmount<Coin> | undefined = $state();
 
-	const max = $derived.by(() => {
-		const coin = $SendTxDetails.fromCoin?.coin;
-		if (!coin) return;
-		if ($accountBalance.bal && coin.value in $accountBalance.bal) {
-			return new CoinAmount(
-				$accountBalance.bal[coin.value as keyof typeof $accountBalance.bal],
-				coin,
-				true
-			);
-		}
-	});
-
-	const amountNumber = $derived(parseFloat(amount));
-	
 	// Validate Hive account for EVM users
 	$effect(() => {
 		if (!open) return;
@@ -110,22 +76,23 @@
 			isHiveAccountValid = true;
 			return;
 		}
-		
+
 		// For EVM accounts, validate the Hive username
 		if (!hiveAccount || hiveAccount.trim() === '') {
 			isHiveAccountValid = false;
 			hiveAccountError = undefined;
 			return;
 		}
-		
+
 		const trimmedAccount = hiveAccount.trim();
 		// Reject EVM addresses (42 chars starting with 0x) - similar to sendUtils.ts#L70
 		if (trimmedAccount.length === 42 && trimmedAccount.startsWith('0x')) {
 			isHiveAccountValid = false;
-			hiveAccountError = 'EVM addresses are not supported for Hive Mainnet withdrawals. Please use a Hive username.';
+			hiveAccountError =
+				'EVM addresses are not supported for Hive Mainnet withdrawals. Please use a Hive username.';
 			return;
 		}
-		
+
 		validateAddress(trimmedAccount).then((result) => {
 			if (result.success) {
 				isHiveAccountValid = true;
@@ -140,7 +107,7 @@
 			}
 		});
 	});
-	
+
 	$effect(() => {
 		if (!open) return;
 		const baseValidation = !!(
@@ -148,10 +115,10 @@
 			$SendTxDetails.toCoin &&
 			$SendTxDetails.toAmount &&
 			$SendTxDetails.toNetwork &&
-			amountNumber > 0 &&
-			amountNumber <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
+			coinAmount.amount > 0 &&
+			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
 		);
-		
+
 		if (auth.value?.provider === 'aioha') {
 			// For Hive accounts, base validation is enough
 			editStage(baseValidation);
@@ -161,144 +128,123 @@
 		}
 	});
 
-	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
-		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
-		if ($SendTxDetails.toCoin) {
-			result = [$SendTxDetails.toCoin, ...result];
-		}
-		return result;
-	});
-	let lastPossibleCoins: CoinOptions['coins'] = $state([]);
-	$effect(() => {
-		possibleCoins;
-		untrack(() => {
-			if (!open) return;
-			if (
-				!lastPossibleCoins.some((coinOpt) => coinOpt.coin.value !== Coin.usd.value) &&
-				possibleCoins.some((coinOpt) => coinOpt.coin.value !== Coin.usd.value)
-			) {
-				shownIndex = possibleCoins.findIndex((coinOpt) => coinOpt.coin.value !== Coin.usd.value);
-			} else {
-				const index = possibleCoins.findIndex(
-					(coinOpt) => coinOpt.coin.value === shownCoin.coin.value
-				);
-				if (index >= 0) {
-					shownIndex = index;
-				} else {
-					if (shownIndex > possibleCoins.length - 1) {
-						shownIndex = 0;
-					}
-				}
-			}
-			shownCoin = possibleCoins[shownIndex];
-			lastPossibleCoins = possibleCoins;
-		});
-	});
-	let shownIndex = $state(0);
-	let shownCoin: CoinOptions['coins'][number] = $state(
-		$SendTxDetails.toCoin ?? { coin: Coin.usd, networks: [] }
+	const unkOpt = { coin: Coin.unk, network: Network.unknown };
+	const coinOptions: CoinOnNetwork[] = $derived(
+		$SendTxDetails.toCoin && $SendTxDetails.toNetwork
+			? [{ coin: $SendTxDetails.toCoin.coin, network: $SendTxDetails.toNetwork }]
+			: [unkOpt]
 	);
-	function cycleShown() {
-		shownIndex = (shownIndex + 1) % possibleCoins.length;
-		shownCoin = possibleCoins[shownIndex];
-	}
+
+	let assetOpen = $state(false);
+	const toggleAsset = (open = false) => {
+		assetOpen = open;
+	};
+	$effect(() => {
+		secondaryMenu = assetOpen;
+	});
+
+	// Ensure toCoin is valid for Hive Mainnet (HIVE or HBD)
+	$effect(() => {
+		if (
+			$SendTxDetails.toCoin &&
+			![Coin.hive.value, Coin.hbd.value].includes($SendTxDetails.toCoin.coin.value)
+		) {
+			$SendTxDetails.toCoin = undefined;
+		}
+	});
 </script>
 
-{#snippet toOption(params: ComponentProps<typeof BalanceInfo>)}
-	<BalanceInfo {...params} size="medium" />
-{/snippet}
-
-{#if auth.value?.provider === 'aioha'}
-<div class="sections">
-	<div class="section">
-		<label for={inputId}>Amount</label>
-		<div class="amount-row">
-			<div class="amount-input">
-				<AmountInput
-					bind:amount
-					coinOpt={shownCoin}
-					network={$SendTxDetails.toNetwork}
-					maxAmount={max}
-					bind:id={inputId}
-				/>
+{#if assetOpen}
+	<div class="back-button">
+		<PillButton onclick={() => toggleAsset()} styleType="icon-subtle">
+			<ArrowLeft size="32" />
+		</PillButton>
+	</div>
+	<SelectAssetFlattened
+		availableCoins={[Coin.hive, Coin.hbd]}
+		close={toggleAsset}
+		bind:coin={$SendTxDetails.toCoin}
+		bind:network={$SendTxDetails.toNetwork}
+		showEmptyAccounts
+	/>
+{:else if auth.value?.provider === 'aioha'}
+	<div class="sections">
+		<ClickableCard onclick={() => toggleAsset(true)}>
+			<div class="asset-card">
+				{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+					<BalanceInfo
+						coin={$SendTxDetails.toCoin.coin}
+						network={$SendTxDetails.toNetwork}
+						size="large"
+						styleType="vertical"
+					/>
+				{:else}
+					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+					Select Withdraw Asset
+				{/if}
+				<span class="edit"> Edit </span>
 			</div>
-			<span class="cycle-button">
-				<PillButton onclick={cycleShown} styleType="icon">
-					<ArrowRightLeft />
-				</PillButton>
-			</span>
-		</div>
-	</div>
-	<div class="section dest-confirm">
-		<div class="select">
-			<span class="label-like">Withdraw Asset</span>
-			<Select
-				items={toOptions}
-				initial={$SendTxDetails.toCoin?.coin.value}
-				onValueChange={(details) => {
-					if (open) {
-						$SendTxDetails.toCoin = $SendTxDetails.fromCoin = swapOptions.to.coins.find(
-							(coinOpt) => coinOpt.coin.value === details.value[0]
-						);
-					}
-				}}
-				styleType="dropdown"
-				placeholder="Select Asset"
-			/>
-		</div>
-	</div>
-</div>
-{:else} <!-- EVM accounts -->
-<div class="sections">
-	<div class="section">
-		<span class="label-like">Hive Account</span>
-		<ContactSearchBox
-			bind:value={hiveAccount}
-			enableContacts={false}
-			placeholder="Enter Hive username"
-		/>
-		{#if hiveAccountError}
-			<span class="error-message">{hiveAccountError}</span>
-		{/if}
-	</div>
-	<div class="section">
-		<label for={inputId}>Amount</label>
-		<div class="amount-row">
-			<div class="amount-input">
-				<AmountInput
-					bind:amount
-					coinOpt={shownCoin}
-					network={$SendTxDetails.toNetwork}
-					maxAmount={max}
-					bind:id={inputId}
-				/>
+		</ClickableCard>
+		<div class="section">
+			<label for={inputId}>Amount</label>
+			<div class="amount-row">
+				<div class="amount-input">
+					<AmountInput
+						bind:coinAmount
+						coinOpts={coinOptions}
+						expressIn={$SendTxDetails.toCoin?.coin}
+						maxAmount={max}
+						bind:id={inputId}
+					/>
+				</div>
 			</div>
-			<span class="cycle-button">
-				<PillButton onclick={cycleShown} styleType="icon">
-					<ArrowRightLeft />
-				</PillButton>
-			</span>
 		</div>
 	</div>
-	<div class="section dest-confirm">
-		<div class="select">
-			<span class="label-like">Withdraw Asset</span>
-			<Select
-				items={toOptions}
-				initial={$SendTxDetails.toCoin?.coin.value}
-				onValueChange={(details) => {
-					if (open) {
-						$SendTxDetails.toCoin = $SendTxDetails.fromCoin = swapOptions.to.coins.find(
-							(coinOpt) => coinOpt.coin.value === details.value[0]
-						);
-					}
-				}}
-				styleType="dropdown"
-				placeholder="Select Asset"
+{:else}
+	<!-- EVM accounts -->
+	<div class="sections">
+		<div class="section">
+			<span class="label-like">Hive Account</span>
+			<ContactSearchBox
+				bind:value={hiveAccount}
+				enableContacts={false}
+				placeholder="Enter Hive username"
 			/>
+			{#if hiveAccountError}
+				<span class="error-message">{hiveAccountError}</span>
+			{/if}
+		</div>
+		<ClickableCard onclick={() => toggleAsset(true)}>
+			<div class="asset-card">
+				{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+					<BalanceInfo
+						coin={$SendTxDetails.toCoin.coin}
+						network={$SendTxDetails.toNetwork}
+						size="large"
+						styleType="vertical"
+					/>
+				{:else}
+					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+					Select Withdraw Asset
+				{/if}
+				<span class="edit"> Edit </span>
+			</div>
+		</ClickableCard>
+		<div class="section">
+			<label for={inputId}>Amount</label>
+			<div class="amount-row">
+				<div class="amount-input">
+					<AmountInput
+						bind:coinAmount
+						coinOpts={coinOptions}
+						expressIn={$SendTxDetails.toCoin?.coin}
+						maxAmount={max}
+						bind:id={inputId}
+					/>
+				</div>
+			</div>
 		</div>
 	</div>
-</div>
 {/if}
 
 <style lang="scss">
@@ -315,22 +261,14 @@
 			flex-grow: 1;
 			height: 65px;
 		}
-		.cycle-button {
-			:global(button) {
-				margin: 0;
-				margin-top: 2px;
-			}
-		}
 	}
-	.dest-confirm {
+	.asset-card {
 		display: flex;
-		align-items: end;
-		gap: 1rem;
-		.select {
-			flex-grow: 1;
-			:global([data-scope='select'][data-part='control']) {
-				height: 52px;
-			}
+		align-items: center;
+		gap: 1.5rem;
+		padding: 0.5rem;
+		.edit {
+			margin-left: auto;
 		}
 	}
 	.error-message {

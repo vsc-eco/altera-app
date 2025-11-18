@@ -126,6 +126,11 @@ h6 {
 	font-size: var(--text-sm);
 }
 
+.edit {
+	font-size: var(--text-sm);
+	color: var(--primary-fg-mid);
+}
+
 .dialog-content {
 	margin: auto;
 	min-width: min-content;

@@ -12,13 +12,21 @@
 		type?: 'asset' | 'network' | 'balance';
 	};
 
+	function normalizeString(str: string): string {
+		return str
+			.replace(/[^a-zA-Z0-9]+/g, ' ') // treat _, -, multiple spaces, etc. as one space
+			.trim();
+	}
+
 	let { items, value, clickAsset, type = 'asset' }: Props = $props();
 
 	const filter = createFilter({ sensitivity: 'base' });
 	let search = $state('');
 
 	const collection = $derived.by(() => {
-		const options = items.filter((item) => filter.contains(item.label + item.value, search));
+		const options = items.filter((item) =>
+			filter.contains(item.label + normalizeString(item.value), search.trim())
+		);
 		// const options = filterDisabled(searchOptions);
 		return listbox.collection({
 			items: options,
@@ -44,16 +52,18 @@
 	const groupedItems = $derived.by(() => {
 		const groups = new Map<string, Option[]>();
 
-		collection.items.forEach((item) => {
-			const value = item.value ?? item.label;
-			const parts = value.split(':');
-			const groupKey = parts.length > 1 ? parts[1] : 'ungrouped';
+		if (collection.items.length > 0) {
+			collection.items.forEach((item) => {
+				const value = item.value ?? item.label;
+				const parts = value.split(':');
+				const groupKey = parts.length > 1 ? parts[1] : 'ungrouped';
 
-			if (!groups.has(groupKey)) {
-				groups.set(groupKey, []);
-			}
-			groups.get(groupKey)!.push(item);
-		});
+				if (!groups.has(groupKey)) {
+					groups.set(groupKey, []);
+				}
+				groups.get(groupKey)!.push(item);
+			});
+		}
 
 		// Convert to array of [groupName, items] pairs
 		return Array.from(groups.entries());
@@ -151,9 +161,6 @@
 	[data-part='trigger'] {
 		display: none;
 	}
-	// [data-part='content'] {
-
-	// }
 	[data-part='item'] {
 		border-radius: 0.5rem;
 		padding: 0.5rem;

@@ -26,7 +26,6 @@ export function cleanOldLocalStorage() {
 
 	const notifications = localStorage.getItem('notifications');
 	if (notifications) {
-		console.log('notifications string', notifications);
 		if (notifications.includes('null')) {
 			localStorage.removeItem('notifications');
 			return;

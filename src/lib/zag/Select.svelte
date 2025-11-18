@@ -1,9 +1,9 @@
 <script lang="ts" generics="Option extends {label: string, [key: string]: any}">
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	import { untrack, type Snippet } from 'svelte';
+	import { untrack } from 'svelte';
 	import type { ValueChangeDetails } from '@zag-js/select';
 	import * as select from '@zag-js/select';
-	import { portal, useMachine, normalizeProps } from '@zag-js/svelte';
+	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import Toggle from './Select/Toggle.svelte';
 	import List from './Select/List.svelte';
 	import { getUniqueId } from './idgen';

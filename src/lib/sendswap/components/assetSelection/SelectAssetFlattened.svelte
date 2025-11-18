@@ -1,7 +1,5 @@
 <script lang="ts">
-	import { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
-	import { type CoinOptionParam } from '$lib/sendswap/utils/sendUtils';
-	import { type AssetObject } from '../info/SendSnippets.svelte';
+	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import { untrack, type Snippet } from 'svelte';
 	import AssetList from './AssetList.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
@@ -16,14 +14,16 @@
 		network = $bindable(),
 		max = $bindable(),
 		close,
-		externalNetwork
+		externalNetwork,
+		showEmptyAccounts = false
 	}: {
-		availableCoins: AssetObject[];
+		availableCoins: Coin[];
 		coin: CoinOptions['coins'][number] | undefined;
 		network: Network | undefined;
 		max?: CoinAmount<Coin> | undefined;
 		close: () => void;
 		externalNetwork?: Network;
+		showEmptyAccounts?: boolean;
 	} = $props();
 
 	const auth = $derived(getAuth()());
@@ -42,7 +42,7 @@
 				coin,
 				true
 			);
-			if (coinAmt.amount > 0) {
+			if (coinAmt.amount > 0 || showEmptyAccounts) {
 				return {
 					...coin,
 					value: `${coin.value}:${Network.magi.value}`,
@@ -81,21 +81,22 @@
 				loading = false;
 			});
 		} else if (externalNetwork?.value === Network.lightning.value) {
+			loading = true;
 			externalItems = availableCoins
-				.filter((coinOpt) => coinOpt.snippetData.fromOpt?.networks.includes(Network.lightning))
+				.filter((coinOpt) => coinOpt.value === Coin.btc.value)
 				.map((assetObj) => ({
 					...assetObj,
 					value: `${assetObj.value}:${externalNetwork.value}`,
 					onNetwork: Network.lightning,
-					balance: ''
+					balance: '',
+					snippet: assetBalanceQuiet,
+					snippetData: undefined
 				}));
+			loading = false;
 		}
 	});
 
 	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
-	const availableCoinOpts: CoinOptionParam[] = availableCoins
-		.map((coin) => coin.snippetData.fromOpt)
-		.filter((item): item is CoinOptionParam => item !== undefined);
 
 	let tmpNetwork: Network | undefined = $state();
 	let tmpNetworkVal: string | undefined = $state();
@@ -108,14 +109,14 @@
 		});
 	});
 
-	// $inspect('vscitems', vscItems);
+	// $inspect('vscitems', magiItems);
 	// $inspect('externalitems', externalItems);
 
 	function handleAssetClick(balanceVal: string) {
 		const assetVal = balanceVal.split(':')[0];
 		const networkVal = balanceVal.split(':')[1];
 		const balanceObj = [...magiItems, ...externalItems].find((item) => item.value === balanceVal);
-		tmpAsset = availableCoinOpts.find((coinOpts) => coinOpts.coin.value === assetVal);
+		tmpAsset = swapOptions.from.coins.find((coinOpts) => coinOpts.coin.value === assetVal);
 		tmpNetwork =
 			[Network.magi, externalNetwork].find((net) => net?.value === networkVal) ?? Network.magi;
 		if (!tmpAsset) {
@@ -133,11 +134,29 @@
 		close();
 		return;
 	}
+
+	$effect(() => {
+		if (coin && !availableCoins.map((coin) => coin.value).includes(coin?.coin.value)) {
+			coin = undefined;
+			if (network) {
+				network = undefined;
+			}
+		}
+	});
 </script>
 
 {#snippet assetBalance(coin: BalanceObject)}
-	{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
-	<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" />
+	{#if coin.value}
+		{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
+		<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" />
+	{/if}
+{/snippet}
+
+{#snippet assetBalanceQuiet(coin: BalanceObject)}
+	{#if coin.value}
+		{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
+		<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" styleType="quiet" />
+	{/if}
 {/snippet}
 
 <div class="dialog-content">

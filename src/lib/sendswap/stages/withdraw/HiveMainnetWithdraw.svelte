@@ -4,9 +4,9 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
-	import Instructions from '$lib/sendswap/components/Instructions.svelte';
+	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
-	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
 	import { ArrowRightLeft } from '@lucide/svelte';
@@ -18,6 +18,36 @@
 
 	let amount = $state('');
 	let inputId = $state('');
+
+
+	// For EVM accounts, always start with empty string. For Hive accounts, use SendTxDetails.toUsername
+	let hiveAccount = $state('');
+	let hiveAccountError = $state<string | undefined>(undefined);
+	let isHiveAccountValid = $state(false);
+	let hasInitialized = $state(false);
+	
+	// Sync hiveAccount with SendTxDetails only once when component opens
+	$effect(() => {
+		if (open && !hasInitialized) {
+			if (auth.value?.provider === 'aioha') {
+				// For Hive accounts, use SendTxDetails.toUsername if available
+				hiveAccount = $SendTxDetails.toUsername || '';
+			} else {
+				// For EVM accounts, always start with empty string
+				// Only use SendTxDetails.toUsername if it's a valid Hive username (not EVM address)
+				const currentUsername = $SendTxDetails.toUsername || '';
+				if (currentUsername && !(currentUsername.length === 42 && currentUsername.startsWith('0x'))) {
+					hiveAccount = currentUsername;
+				} else {
+					hiveAccount = '';
+				}
+			}
+			hasInitialized = true;
+		}
+		if (!open) {
+			hasInitialized = false;
+		}
+	});
 
 	$effect(() => {
 		if (!open) return;
@@ -71,19 +101,63 @@
 	});
 
 	const amountNumber = $derived(parseFloat(amount));
+	
+	// Validate Hive account for EVM users
 	$effect(() => {
 		if (!open) return;
-		if (
+		if (auth.value?.provider === 'aioha') {
+			// For Hive accounts, toUsername is not required in the same way
+			isHiveAccountValid = true;
+			return;
+		}
+		
+		// For EVM accounts, validate the Hive username
+		if (!hiveAccount || hiveAccount.trim() === '') {
+			isHiveAccountValid = false;
+			hiveAccountError = undefined;
+			return;
+		}
+		
+		const trimmedAccount = hiveAccount.trim();
+		// Reject EVM addresses (42 chars starting with 0x) - similar to sendUtils.ts#L70
+		if (trimmedAccount.length === 42 && trimmedAccount.startsWith('0x')) {
+			isHiveAccountValid = false;
+			hiveAccountError = 'EVM addresses are not supported for Hive Mainnet withdrawals. Please use a Hive username.';
+			return;
+		}
+		
+		validateAddress(trimmedAccount).then((result) => {
+			if (result.success) {
+				isHiveAccountValid = true;
+				hiveAccountError = undefined;
+				$SendTxDetails.toUsername = trimmedAccount;
+				if (result.displayName) {
+					$SendTxDetails.toDisplayName = result.displayName;
+				}
+			} else {
+				isHiveAccountValid = false;
+				hiveAccountError = result.error;
+			}
+		});
+	});
+	
+	$effect(() => {
+		if (!open) return;
+		const baseValidation = !!(
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.toCoin &&
 			$SendTxDetails.toAmount &&
 			$SendTxDetails.toNetwork &&
 			amountNumber > 0 &&
 			amountNumber <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
-		) {
-			editStage(true);
+		);
+		
+		if (auth.value?.provider === 'aioha') {
+			// For Hive accounts, base validation is enough
+			editStage(baseValidation);
 		} else {
-			editStage(false);
+			// For EVM accounts, also require valid Hive account
+			editStage(baseValidation && isHiveAccountValid && !!$SendTxDetails.toUsername);
 		}
 	});
 
@@ -174,8 +248,57 @@
 		</div>
 	</div>
 </div>
-{:else}
-	<Instructions />
+{:else} <!-- EVM accounts -->
+<div class="sections">
+	<div class="section">
+		<span class="label-like">Hive Account</span>
+		<ContactSearchBox
+			bind:value={hiveAccount}
+			enableContacts={false}
+			placeholder="Enter Hive username"
+		/>
+		{#if hiveAccountError}
+			<span class="error-message">{hiveAccountError}</span>
+		{/if}
+	</div>
+	<div class="section">
+		<label for={inputId}>Amount</label>
+		<div class="amount-row">
+			<div class="amount-input">
+				<AmountInput
+					bind:amount
+					coinOpt={shownCoin}
+					network={$SendTxDetails.toNetwork}
+					maxAmount={max}
+					bind:id={inputId}
+				/>
+			</div>
+			<span class="cycle-button">
+				<PillButton onclick={cycleShown} styleType="icon">
+					<ArrowRightLeft />
+				</PillButton>
+			</span>
+		</div>
+	</div>
+	<div class="section dest-confirm">
+		<div class="select">
+			<span class="label-like">Withdraw Asset</span>
+			<Select
+				items={toOptions}
+				initial={$SendTxDetails.toCoin?.coin.value}
+				onValueChange={(details) => {
+					if (open) {
+						$SendTxDetails.toCoin = $SendTxDetails.fromCoin = swapOptions.to.coins.find(
+							(coinOpt) => coinOpt.coin.value === details.value[0]
+						);
+					}
+				}}
+				styleType="dropdown"
+				placeholder="Select Asset"
+			/>
+		</div>
+	</div>
+</div>
 {/if}
 
 <style lang="scss">
@@ -201,7 +324,7 @@
 	}
 	.dest-confirm {
 		display: flex;
-		align-items: flex-end;
+		align-items: end;
 		gap: 1rem;
 		.select {
 			flex-grow: 1;
@@ -209,5 +332,11 @@
 				height: 52px;
 			}
 		}
+	}
+	.error-message {
+		color: var(--error-color, #ff4444);
+		font-size: 0.875rem;
+		margin-top: 0.5rem;
+		display: block;
 	}
 </style>

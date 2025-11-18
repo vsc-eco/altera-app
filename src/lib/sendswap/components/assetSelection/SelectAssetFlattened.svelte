@@ -14,7 +14,8 @@
 		network = $bindable(),
 		max = $bindable(),
 		close,
-		externalNetwork
+		externalNetwork,
+		showEmptyAccounts = false
 	}: {
 		availableCoins: Coin[];
 		coin: CoinOptions['coins'][number] | undefined;
@@ -22,6 +23,7 @@
 		max?: CoinAmount<Coin> | undefined;
 		close: () => void;
 		externalNetwork?: Network;
+		showEmptyAccounts?: boolean;
 	} = $props();
 
 	const auth = $derived(getAuth()());
@@ -40,7 +42,7 @@
 				coin,
 				true
 			);
-			if (coinAmt.amount > 0) {
+			if (coinAmt.amount > 0 || showEmptyAccounts) {
 				return {
 					...coin,
 					value: `${coin.value}:${Network.magi.value}`,

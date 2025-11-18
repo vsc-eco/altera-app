@@ -114,6 +114,7 @@
 		close={toggleAsset}
 		bind:coin={$SendTxDetails.toCoin}
 		bind:network={$SendTxDetails.toNetwork}
+		showEmptyAccounts
 	/>
 {/if}
 <div class={['sections', { hide: assetOpen }]}>

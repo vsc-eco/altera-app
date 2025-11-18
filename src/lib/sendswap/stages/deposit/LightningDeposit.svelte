@@ -135,6 +135,7 @@
 		</div>
 	</ClickableCard>
 	<div class="section">
+		<label for={inputId}>Amount</label>
 		<div class="amount-row">
 			<div class="amount-input">
 				<AmountInput

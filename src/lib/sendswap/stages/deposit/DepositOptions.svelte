@@ -43,15 +43,17 @@
 		bitcoinMainnetOpen = open;
 	};
 
+	// using .update() here because it doesn't cause multiple state updates to change multiple values
 	$effect(() => {
 		if (!lightningOpen) return;
 		untrack(() => {
 			toggleHiveMainnet(false);
-			$SendTxDetails.method = TransferMethod.lightningTransfer;
-			$SendTxDetails.fromNetwork = Network.lightning;
-			$SendTxDetails.fromCoin = swapOptions.from.coins.find(
-				(coinOpt) => coinOpt.coin.value === Coin.btc.value
-			);
+			SendTxDetails.update((current) => ({
+				...current,
+				method: TransferMethod.lightningTransfer,
+				fromNetwork: Network.lightning,
+				fromCoin: swapOptions.from.coins.find((coinOpt) => coinOpt.coin.value === Coin.btc.value)
+			}));
 		});
 	});
 
@@ -59,9 +61,12 @@
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
 			toggleLightning(false);
-			$SendTxDetails.method = TransferMethod.magiTransfer;
-			$SendTxDetails.fromNetwork = Network.hiveMainnet;
-			$SendTxDetails.fromCoin = $SendTxDetails.toCoin;
+			SendTxDetails.update((current) => ({
+				...current,
+				method: TransferMethod.magiTransfer,
+				fromNetwork: Network.hiveMainnet,
+				fromCoin: $SendTxDetails.toCoin
+			}));
 		});
 	});
 

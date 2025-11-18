@@ -78,11 +78,6 @@
 		}
 	});
 
-	$effect(() => {
-		if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
-			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
-		}
-	});
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
 	const coinOptions: CoinOnNetwork[] = $derived(
 		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork

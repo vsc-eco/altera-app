@@ -79,6 +79,7 @@
 				loading = false;
 			});
 		} else if (externalNetwork?.value === Network.lightning.value) {
+			loading = true;
 			externalItems = availableCoins
 				.filter((coinOpt) => coinOpt.value === Coin.btc.value)
 				.map((assetObj) => ({
@@ -86,8 +87,10 @@
 					value: `${assetObj.value}:${externalNetwork.value}`,
 					onNetwork: Network.lightning,
 					balance: '',
-					snippet: assetBalanceQuiet
+					snippet: assetBalanceQuiet,
+					snippetData: undefined
 				}));
+			loading = false;
 		}
 	});
 
@@ -104,7 +107,7 @@
 		});
 	});
 
-	// $inspect('vscitems', vscItems);
+	// $inspect('vscitems', magiItems);
 	// $inspect('externalitems', externalItems);
 
 	function handleAssetClick(balanceVal: string) {
@@ -141,13 +144,17 @@
 </script>
 
 {#snippet assetBalance(coin: BalanceObject)}
-	{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
-	<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" />
+	{#if coin.value}
+		{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
+		<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" />
+	{/if}
 {/snippet}
 
 {#snippet assetBalanceQuiet(coin: BalanceObject)}
-	{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
-	<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" styleType="quiet" />
+	{#if coin.value}
+		{@const properCoin: Coin = { ...coin, value: coin.value.split(':')[0] }}
+		<BalanceInfo coin={properCoin} network={coin.onNetwork} size="large" styleType="quiet" />
+	{/if}
 {/snippet}
 
 <div class="dialog-content">

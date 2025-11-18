@@ -57,7 +57,7 @@
 		inputAmt = maxAmount?.toAmountString() ?? '0';
 	}
 
-	let decimals = $derived(coinOpts[0]?.coin.decimalPlaces ?? 2);
+	let decimals = $derived(selected.coin.decimalPlaces);
 	let min = $state<number>();
 	let max = $state<number>();
 	$effect(() => {

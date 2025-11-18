@@ -52,16 +52,18 @@
 	const groupedItems = $derived.by(() => {
 		const groups = new Map<string, Option[]>();
 
-		collection.items.forEach((item) => {
-			const value = item.value ?? item.label;
-			const parts = value.split(':');
-			const groupKey = parts.length > 1 ? parts[1] : 'ungrouped';
+		if (collection.items.length > 0) {
+			collection.items.forEach((item) => {
+				const value = item.value ?? item.label;
+				const parts = value.split(':');
+				const groupKey = parts.length > 1 ? parts[1] : 'ungrouped';
 
-			if (!groups.has(groupKey)) {
-				groups.set(groupKey, []);
-			}
-			groups.get(groupKey)!.push(item);
-		});
+				if (!groups.has(groupKey)) {
+					groups.set(groupKey, []);
+				}
+				groups.get(groupKey)!.push(item);
+			});
+		}
 
 		// Convert to array of [groupName, items] pairs
 		return Array.from(groups.entries());

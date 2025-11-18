@@ -258,10 +258,6 @@
 		currentlyOpen = state;
 		toggle(true);
 	}
-
-	let liquidityOpen = $state(false);
-	let toggleLiquidity = $state<(open?: boolean) => void>(() => {});
-	let liquiditySessionId = $state(getTxSessionId());
 </script>
 
 {#snippet percentArrow(percent: number)}

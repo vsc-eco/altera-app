@@ -31,11 +31,10 @@
 	let hiveAccount = $state('');
 	let hiveAccountError = $state<string | undefined>(undefined);
 	let isHiveAccountValid = $state(false);
-	let hasInitialized = $state(false);
 
-	// Sync hiveAccount with SendTxDetails only once when component opens
+	// Initialize or reset hiveAccount based on open state
 	$effect(() => {
-		if (open && !hasInitialized) {
+		if (open) {
 			if (auth.value?.provider === 'aioha') {
 				// For Hive accounts, use SendTxDetails.toUsername if available
 				hiveAccount = $SendTxDetails.toUsername || '';
@@ -49,10 +48,13 @@
 					hiveAccount = '';
 				}
 			}
-			hasInitialized = true;
-		}
-		if (!open) {
-			hasInitialized = false;
+		} else {
+			// Reset when component closes
+			if (auth.value?.provider === 'aioha') {
+				hiveAccount = $SendTxDetails.toUsername || '';
+			} else {
+				hiveAccount = '';
+			}
 		}
 	});
 
@@ -208,7 +210,7 @@
 			<span class="label-like">Hive Account</span>
 			<ContactSearchBox
 				bind:value={hiveAccount}
-				enableContacts={false}
+				enableContacts={true}
 				placeholder="Enter Hive username"
 			/>
 			{#if hiveAccountError}
@@ -279,3 +281,4 @@
 		display: block;
 	}
 </style>
+

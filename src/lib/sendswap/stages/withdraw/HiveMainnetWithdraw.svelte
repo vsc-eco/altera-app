@@ -165,6 +165,7 @@
 		close={toggleAsset}
 		bind:coin={$SendTxDetails.toCoin}
 		bind:network={$SendTxDetails.toNetwork}
+		bind:max
 		showEmptyAccounts
 	/>
 {:else if auth.value?.provider === 'aioha'}

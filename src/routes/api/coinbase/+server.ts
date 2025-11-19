@@ -2,7 +2,7 @@ import axios from 'axios';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { generateJwt } from '@coinbase/cdp-sdk/auth';
-import { COINBASE_ID, COINBASE_PRIVATE_KEY } from '$env/static/private';
+import { COINBASE_ID, COINBASE_PRIVATE_KEY, ALTERA_ORIGIN } from '$env/static/private';
 import { currentUserBtcDepositAddress } from '$lib/sendswap/utils/bitcoinAddress';
 
 export interface CoinbaseOnramp {
@@ -34,16 +34,27 @@ export interface Session {
 const COINBASE_SESSION_EXPIRY_TIME = 30; // 30 seconds
 
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const responseHeader: HeadersInit = {
+		'Cache-Control': 'no-cache',
+		'Access-Control-Allow-Origin': ALTERA_ORIGIN,
+		'Access-Control-Allow-Methods': 'POST, OPTIONS'
+	};
+
+	const requestOrigin = request.headers.get('origin');
+	if (requestOrigin === null || requestOrigin.toLowerCase() !== ALTERA_ORIGIN) {
+		return new Response('CORS failed', { status: 403, headers: responseHeader });
+	}
+
 	const requestBody = await request.json();
 	if (!requestBody.did || !requestBody.amount) {
-		return json({ error: 'invalid request' }, { status: 400 });
+		return json({ error: 'invalid request' }, { status: 400, headers: responseHeader });
 	}
 
 	const { did, amount } = requestBody;
 
 	const paymentAmount = Number(amount);
 	if (isNaN(paymentAmount)) {
-		return json({ error: 'invalid fiat amount' }, { status: 400 });
+		return json({ error: 'invalid fiat amount' }, { status: 400, headers: responseHeader });
 	}
 
 	// const walletAddr = currentUserBtcDepositAddress(did);
@@ -84,18 +95,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		);
 
 		return json(
-			{
-				onrampUrl: request.data.session.onrampUrl
-			},
-			{
-				status: 200,
-				headers: {
-					'Cache-Control': 'no-cache'
-				}
-			}
+			{ onrampUrl: request.data.session.onrampUrl },
+			{ status: 200, headers: responseHeader }
 		);
 	} catch (error) {
 		console.error(error);
-		return json({ error: 'Something went wrong.' }, { status: 500 });
+		return json({ error: 'Something went wrong.' }, { status: 500, headers: responseHeader });
 	}
 };

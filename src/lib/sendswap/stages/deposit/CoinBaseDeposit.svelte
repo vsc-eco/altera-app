@@ -23,11 +23,9 @@
 		}
 
 		const did = auth.value?.did;
-		const response = await axios.get<CoinbaseOnrampURL>('/api/coinbase', {
-			params: {
-				did: did,
-				amount: coinAmount.toAmountString()
-			}
+		const response = await axios.post<CoinbaseOnrampURL>('/api/coinbase', {
+			did: did,
+			amount: coinAmount.toAmountString()
 		});
 		window.location.href = response.data.onrampUrl;
 	}

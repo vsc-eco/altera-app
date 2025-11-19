@@ -33,14 +33,15 @@ export interface Session {
 
 const COINBASE_SESSION_EXPIRY_TIME = 30; // 30 seconds
 
-export const GET: RequestHandler = async ({ url, getClientAddress }) => {
-	const did = url.searchParams.get('did');
-	const amountURL = url.searchParams.get('amount');
-	if (!amountURL || !did) {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	const requestBody = await request.json();
+	if (!requestBody.did || !requestBody.amount) {
 		return json({ error: 'invalid request' }, { status: 400 });
 	}
 
-	const paymentAmount = Number(amountURL);
+	const { did, amount } = requestBody;
+
+	const paymentAmount = Number(amount);
 	if (isNaN(paymentAmount)) {
 		return json({ error: 'invalid fiat amount' }, { status: 400 });
 	}

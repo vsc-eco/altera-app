@@ -115,8 +115,8 @@
 		const baseValidation = !!(
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.toCoin &&
-			$SendTxDetails.toAmount &&
-			$SendTxDetails.toNetwork &&
+			$SendTxDetails.fromAmount &&
+			$SendTxDetails.fromNetwork &&
 			coinAmount.amount > 0 &&
 			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
 		);
@@ -132,8 +132,8 @@
 
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
 	const coinOptions: CoinOnNetwork[] = $derived(
-		$SendTxDetails.toCoin && $SendTxDetails.toNetwork
-			? [{ coin: $SendTxDetails.toCoin.coin, network: $SendTxDetails.toNetwork }]
+		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
+			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
 			: [unkOpt]
 	);
 
@@ -147,11 +147,8 @@
 
 	// Ensure toCoin is valid for Hive Mainnet (HIVE or HBD)
 	$effect(() => {
-		if (
-			$SendTxDetails.toCoin &&
-			![Coin.hive.value, Coin.hbd.value].includes($SendTxDetails.toCoin.coin.value)
-		) {
-			$SendTxDetails.toCoin = undefined;
+		if ($SendTxDetails.fromCoin !== $SendTxDetails.toCoin) {
+			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
 		}
 	});
 </script>
@@ -165,8 +162,8 @@
 	<SelectAssetFlattened
 		availableCoins={[Coin.hive, Coin.hbd]}
 		close={toggleAsset}
-		bind:coin={$SendTxDetails.toCoin}
-		bind:network={$SendTxDetails.toNetwork}
+		bind:coin={$SendTxDetails.fromCoin}
+		bind:network={$SendTxDetails.fromNetwork}
 		bind:max
 		showEmptyAccounts
 	/>
@@ -174,10 +171,10 @@
 	<div class="sections">
 		<ClickableCard onclick={() => toggleAsset(true)}>
 			<div class="asset-card">
-				{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+				{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
 					<BalanceInfo
-						coin={$SendTxDetails.toCoin.coin}
-						network={$SendTxDetails.toNetwork}
+						coin={$SendTxDetails.fromCoin.coin}
+						network={$SendTxDetails.fromNetwork}
 						size="large"
 						styleType="vertical"
 					/>
@@ -195,7 +192,7 @@
 					<AmountInput
 						bind:coinAmount
 						coinOpts={coinOptions}
-						expressIn={$SendTxDetails.toCoin?.coin}
+						expressIn={$SendTxDetails.fromCoin?.coin}
 						maxAmount={max}
 						bind:id={inputId}
 					/>
@@ -240,7 +237,7 @@
 					<AmountInput
 						bind:coinAmount
 						coinOpts={coinOptions}
-						expressIn={$SendTxDetails.toCoin?.coin}
+						expressIn={$SendTxDetails.fromCoin?.coin}
 						maxAmount={max}
 						bind:id={inputId}
 					/>

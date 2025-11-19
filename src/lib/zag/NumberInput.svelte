@@ -74,7 +74,7 @@
 					invalid = details.value !== '' && !inRange(details.valueAsNumber);
 					if (!invalid) error = '';
 				}
-				amount = trimOutput(api.valueAsNumber);
+				amount = trimOutput(details.valueAsNumber);
 				setErrors(details.valueAsNumber);
 			}
 		})

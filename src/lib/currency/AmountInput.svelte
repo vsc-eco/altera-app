@@ -37,6 +37,7 @@
 	let lastModification = $state.raw(
 		new CoinAmount(coinAmount.toAmountString(), coinOpts[0]?.coin ?? Coin.unk)
 	);
+
 	$effect(() => {
 		if (!expressIn || lastModification.coin.value === expressIn.value) {
 			if (coinAmount.amount !== lastModification.amount) coinAmount = lastModification;

@@ -32,12 +32,11 @@
 		window.location.href = response.data.onrampUrl;
 	}
 	const minAmount = new CoinAmount(10, Coin.usd);
-	const amountNumber = $derived(Number(coinAmount));
 	$effect(() => {
 		customButton = {
 			label: 'Deposit',
 			action: handleSubmit,
-			disabled: amountNumber < minAmount.toNumber()
+			disabled: coinAmount.amount < minAmount.amount
 		};
 	});
 </script>
@@ -51,7 +50,6 @@
 					bind:coinAmount
 					coinOpts={[{ coin: Coin.usd, network: Network.unknown }]}
 					{minAmount}
-					maxAmount={undefined}
 					id="fiat-input"
 				/>
 			</div>

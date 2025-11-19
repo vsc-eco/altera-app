@@ -82,7 +82,17 @@ export const GET: RequestHandler = async ({ url, getClientAddress }) => {
 			}
 		);
 
-		return json({ onrampUrl: request.data.session.onrampUrl }, { status: 200 });
+		return json(
+			{
+				onrampUrl: request.data.session.onrampUrl
+			},
+			{
+				status: 200,
+				headers: {
+					'Cache-Control': 'no-cache'
+				}
+			}
+		);
 	} catch (error) {
 		console.error(error);
 		return json({ error: 'Something went wrong.' }, { status: 500 });

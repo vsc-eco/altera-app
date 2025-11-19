@@ -210,7 +210,7 @@
 			<span class="label-like">Hive Account</span>
 			<ContactSearchBox
 				bind:value={hiveAccount}
-				enableContacts={true}
+				enableContacts={['hive']}
 				placeholder="Enter Hive username"
 			/>
 			{#if hiveAccountError}

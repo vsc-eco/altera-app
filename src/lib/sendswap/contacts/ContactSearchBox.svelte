@@ -31,17 +31,24 @@
 	import Divider from '$lib/components/Divider.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 
+	type Option = 'hive' | 'recent' | 'contacts';
+
 	let {
 		value = $bindable(),
 		selectedContact = $bindable(),
-		enableContacts = true,
+		enableContacts = ['hive', 'recent', 'contacts'],
 		placeholder = 'Search for contact or address'
 	}: {
 		value: string;
 		selectedContact?: Contact | undefined;
-		enableContacts?: boolean;
+		enableContacts?: Option[];
 		placeholder?: string;
 	} = $props();
+
+	const enableHive = $derived(enableContacts.includes('hive'));
+	const enableRecent = $derived(enableContacts.includes('recent'));
+	const enableContactsList = $derived(enableContacts.includes('contacts'));
+	const hasAnyContacts = $derived(enableContactsList || enableRecent);
 
 	const auth = $derived(getAuth()());
 	let recents: RecipientSnippet[] = $state([]);
@@ -113,7 +120,7 @@
 	$effect(() => {
 		value;
 		calculateInputWidth();
-		if (!enableContacts) return;
+		if (!enableContactsList) return;
 		untrack(() => {
 			if (!value) return;
 			if (value === clearString) {
@@ -195,9 +202,15 @@
 			const result = new Map<string, SearchItem>();
 			let addedAddresses = new Set<string>();
 
-			if (!enableContacts) {
+			// If contacts are disabled, show simpler list
+			if (!enableContactsList) {
 				let allOpts = currentlyInput ? [currentlyInput] : [];
-				allOpts.push(...filteredRecents, ...suggestedHive);
+				if (enableRecent) {
+					allOpts.push(...filteredRecents);
+				}
+				if (enableHive) {
+					allOpts.push(...suggestedHive);
+				}
 				allOpts.forEach((acc) => {
 					tryAddItem(acc);
 				});
@@ -219,7 +232,9 @@
 			}
 
 			if (currentlyInput) {
-				const matchingContact = searchContactsForAddress(filteredContacts, currentlyInput.value);
+				const matchingContact = enableContactsList
+					? searchContactsForAddress(filteredContacts, currentlyInput.value)
+					: undefined;
 				if (matchingContact) {
 					const { obj, addresses } = processContact(matchingContact);
 					tryAddItem(obj, addresses);
@@ -227,23 +242,38 @@
 					tryAddItem(currentlyInput);
 				}
 			}
-			[...filteredRecents, ...suggestedHive].forEach((acc) => {
-				const matchingContact = searchContactsForAddress(filteredContacts, acc.value);
+			const itemsToProcess: SearchItem[] = [];
+			if (enableRecent) {
+				itemsToProcess.push(...filteredRecents);
+			}
+			if (enableHive) {
+				itemsToProcess.push(...suggestedHive);
+			}
+			itemsToProcess.forEach((acc) => {
+				const matchingContact = enableContactsList
+					? searchContactsForAddress(filteredContacts, acc.value)
+					: undefined;
 				if (matchingContact) {
 					const { obj, addresses } = processContact(matchingContact);
 					tryAddItem(obj, addresses);
 				}
 			});
-			filteredRecents.forEach((acc) => {
-				tryAddItem(acc);
-			});
-			contactsToSortedObjs(filteredContacts).forEach((contact) => {
-				const addresses = contact.addresses.map((addr) => addr.address);
-				tryAddItem(contact, addresses);
-			});
-			suggestedHive.forEach((acc) => {
-				tryAddItem(acc);
-			});
+			if (enableRecent) {
+				filteredRecents.forEach((acc) => {
+					tryAddItem(acc);
+				});
+			}
+			if (enableContactsList) {
+				contactsToSortedObjs(filteredContacts).forEach((contact) => {
+					const addresses = contact.addresses.map((addr) => addr.address);
+					tryAddItem(contact, addresses);
+				});
+			}
+			if (enableHive) {
+				suggestedHive.forEach((acc) => {
+					tryAddItem(acc);
+				});
+			}
 			if (!selectedContact) {
 				options = [...result.values()];
 			} else {
@@ -319,7 +349,7 @@
 			shift: 0,
 			sameWidth: true
 		},
-		openOnClick: enableContacts,
+		openOnClick: hasAnyContacts,
 		allowCustomValue: true,
 		placeholder: placeholder
 	});
@@ -367,9 +397,9 @@
 	<div {...api.getControlProps()}>
 		<input
 			{...api.getInputProps()}
-			class={{ trigger: enableContacts, both: enableContacts && (inputValue || value) }}
+			class={{ trigger: hasAnyContacts, both: hasAnyContacts && (inputValue || value) }}
 		/>
-		{#if enableContacts}
+		{#if hasAnyContacts}
 			{#if selectedContact && value && !open}
 				{@const label = selectedContact.addresses.find((addr) => addr.address === value)?.label}
 				<span class={['acc-name', { hide: !showAccLabel }]} id="acc-value-label">

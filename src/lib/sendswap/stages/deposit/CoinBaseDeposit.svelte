@@ -26,7 +26,7 @@
 		const response = await axios.get<CoinbaseOnrampURL>('/api/coinbase', {
 			params: {
 				did: did,
-				amount: coinAmount
+				amount: coinAmount.toAmountString()
 			}
 		});
 		window.location.href = response.data.onrampUrl;

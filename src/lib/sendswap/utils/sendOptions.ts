@@ -223,12 +223,6 @@ const btcMainnet: Network = {
 	icon: '/btc/btc.svg',
 	enabled: never
 };
-const coinbaseMainnet: Network = {
-	value: 'coinbase',
-	label: 'Coinbase',
-	icon: '/btc/CoinBase_logo.svg',
-	enabled: always
-};
 const lightning: IntermediaryNetwork = {
 	value: 'lightning',
 	label: 'Lightning',
@@ -248,7 +242,6 @@ const lightning: IntermediaryNetwork = {
 
 export const Network = {
 	btcMainnet,
-	coinbaseMainnet,
 	lightning,
 	hiveMainnet,
 	magi,
@@ -302,13 +295,6 @@ const magiTransfer: TransferMethod = {
 	fees: 'No Fees'
 };
 
-const magiWithdraw: TransferMethod = {
-	label: 'Magi Withdraw',
-	value: 'magi-withdraw',
-	length: 'About a Minute',
-	fees: 'No Fees'
-};
-
 const lightningTransfer: TransferMethod = {
 	label: 'Lightning Network',
 	value: 'lightning',
@@ -318,7 +304,6 @@ const lightningTransfer: TransferMethod = {
 
 export const TransferMethod = {
 	magiTransfer,
-	magiWithdraw,
 	lightningTransfer
 };
 

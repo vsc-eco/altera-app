@@ -304,7 +304,7 @@
 		})
 	);
 
-	const service = useMachine(combobox.machine, {
+	const service = $derived(useMachine(combobox.machine, {
 		id: getUniqueId(),
 		get collection() {
 			return collection;
@@ -352,7 +352,7 @@
 		openOnClick: hasAnyContacts,
 		allowCustomValue: true,
 		placeholder: placeholder
-	});
+	}));
 
 	const api = $derived(combobox.connect(service, normalizeProps));
 	function handleKeyDown(event: KeyboardEvent) {

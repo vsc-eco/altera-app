@@ -20,6 +20,7 @@
 	} = $props();
 
 	let hiveMainnetOpen = $state(false);
+	let secondaryMenu = $state(false);
 
 	let toggleHiveMainnet: (open?: boolean) => void = (open = false) => {
 		hiveMainnetOpen = open;
@@ -41,12 +42,14 @@
 
 <div class="withdraw-internal-wrapper">
 	{#if hiveMainnetOpen}
-		<PillButton onclick={() => toggleHiveMainnet()} styleType="icon-subtle">
-			<ArrowLeft size={32} />
-		</PillButton>
-		<h2>Hive Mainnet Withdraw</h2>
-		<div class="withdraw-content">
-			<HiveMainnetWithdraw {editStage} open={hiveMainnetOpen} />
+		{#if !secondaryMenu}
+			<PillButton onclick={() => toggleHiveMainnet()} styleType="icon-subtle">
+				<ArrowLeft size={32} />
+			</PillButton>
+			<h2>Hive Mainnet Withdraw</h2>
+		{/if}
+		<div class={{ 'withdraw-content': !secondaryMenu }}>
+			<HiveMainnetWithdraw {editStage} open={hiveMainnetOpen} bind:secondaryMenu />
 		</div>
 	{:else}
 		<h2>Withdraw</h2>

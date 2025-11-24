@@ -7,19 +7,23 @@
 	import SelectAssetFlattened from '$lib/sendswap/components/assetSelection/SelectAssetFlattened.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
+	import type { Contact } from '$lib/sendswap/contacts/contacts';
+	import RecipientCard from '$lib/sendswap/components/RecipientCard.svelte';
+	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
 	import swapOptions, {
 		Coin,
 		Network,
 		type CoinOnNetwork
 	} from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
-	import { accountBalance } from '$lib/stores/currentBalance';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
+	import Divider from '$lib/components/Divider.svelte';
+	import { get } from 'svelte/store';
 
 	let {
 		editStage,
 		open,
-		secondaryMenu = $bindable()
+		secondaryMenu = $bindable(false)
 	}: { editStage: (complete: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
 
 	const auth = $derived(getAuth()());
@@ -31,21 +35,55 @@
 	let hiveAccount = $state('');
 	let hiveAccountError = $state<string | undefined>(undefined);
 	let isHiveAccountValid = $state(false);
+	let contact = $state<Contact>();
+	let contactOpen = $state(false);
+	let openToCreate = $state(false);
+	let createNew: string | undefined = $derived(
+		!contact && $SendTxDetails.toUsername ? $SendTxDetails.toUsername : undefined
+	);
+	const toggleContact = (open = false) => {
+		contactOpen = open;
+	};
+	function openContact(create = false) {
+		openToCreate = create;
+		toggleContact(true);
+	}
 
-	// Initialize or reset hiveAccount based on open state
+	function setToUsername(nextValue: string) {
+		SendTxDetails.update((details) => {
+			if (details.toUsername === nextValue) return details;
+			return { ...details, toUsername: nextValue };
+		});
+	}
+
+	let previousOpen: boolean | undefined;
+	let previousProvider: string | undefined;
+	let lastSyncedUsername = '';
+	let lastValidatedAccount = '';
+	let validationRun = 0;
+
+	// Initialize or reset toUsername based on open state and provider.
 	$effect(() => {
+		const provider = auth.value?.provider;
+		if (open === previousOpen && provider === previousProvider) {
+			return;
+		}
+		previousOpen = open;
+		previousProvider = provider;
+
+		const currentUsername = get(SendTxDetails).toUsername || '';
+
 		if (open) {
 			if (auth.value?.provider === 'aioha') {
 				// For Hive accounts, use SendTxDetails.toUsername if available
 				hiveAccount = $SendTxDetails.toUsername || '';
 			} else {
-				// For EVM accounts, always start with empty string
-				// Only use SendTxDetails.toUsername if it's a valid Hive username (not EVM address)
-				const currentUsername = $SendTxDetails.toUsername || '';
-				if (currentUsername && !(currentUsername.length === 42 && currentUsername.startsWith('0x'))) {
-					hiveAccount = currentUsername;
-				} else {
-					hiveAccount = '';
+				const shouldReset =
+					!currentUsername ||
+					(currentUsername.length === 42 && currentUsername.startsWith('0x'));
+				const nextValue = shouldReset ? '' : currentUsername;
+				if (nextValue !== currentUsername) {
+					setToUsername(nextValue);
 				}
 			}
 		} else {
@@ -54,8 +92,29 @@
 				hiveAccount = $SendTxDetails.toUsername || '';
 			} else {
 				hiveAccount = '';
+				setToUsername('');
 			}
 		}
+	});
+
+	// Keep local hiveAccount in sync with SendTxDetails (covers SelectContact updates)
+	$effect(() => {
+		if (!open) return;
+		const current = ($SendTxDetails.toUsername ?? '').trim();
+		if (current === lastSyncedUsername) return;
+		lastSyncedUsername = current;
+		if (hiveAccount !== current) {
+			hiveAccount = current;
+		}
+	});
+
+	// Push local hiveAccount changes back into SendTxDetails
+	$effect(() => {
+		if (!open) return;
+		const trimmed = hiveAccount.trim();
+		if (trimmed === lastSyncedUsername) return;
+		lastSyncedUsername = trimmed;
+		setToUsername(trimmed);
 	});
 
 	// Update SendTxDetails with coinAmount
@@ -80,26 +139,33 @@
 		}
 
 		// For EVM accounts, validate the Hive username
-		if (!hiveAccount || hiveAccount.trim() === '') {
+		const rawAccount = hiveAccount.trim();
+		if (!rawAccount) {
 			isHiveAccountValid = false;
 			hiveAccountError = undefined;
+			lastValidatedAccount = '';
 			return;
 		}
 
-		const trimmedAccount = hiveAccount.trim();
+		if (rawAccount === lastValidatedAccount) {
+			return;
+		}
+		lastValidatedAccount = rawAccount;
+		const validationId = ++validationRun;
 		// Reject EVM addresses (42 chars starting with 0x) - similar to sendUtils.ts#L70
-		if (trimmedAccount.length === 42 && trimmedAccount.startsWith('0x')) {
+		if (rawAccount.length === 42 && rawAccount.startsWith('0x')) {
 			isHiveAccountValid = false;
 			hiveAccountError =
 				'EVM addresses are not supported for Hive Mainnet withdrawals. Please use a Hive username.';
 			return;
 		}
 
-		validateAddress(trimmedAccount).then((result) => {
+		validateAddress(rawAccount).then((result) => {
+			if (validationId !== validationRun) return;
 			if (result.success) {
 				isHiveAccountValid = true;
 				hiveAccountError = undefined;
-				$SendTxDetails.toUsername = trimmedAccount;
+				setToUsername(rawAccount);
 				if (result.displayName) {
 					$SendTxDetails.toDisplayName = result.displayName;
 				}
@@ -142,7 +208,7 @@
 		assetOpen = open;
 	};
 	$effect(() => {
-		secondaryMenu = assetOpen;
+		secondaryMenu = assetOpen || contactOpen;
 	});
 
 	// Ensure toCoin is valid for Hive Mainnet (HIVE or HBD)
@@ -201,50 +267,68 @@
 		</div>
 	</div>
 {:else}
-	<!-- EVM accounts -->
-	<div class="sections">
-		<div class="section">
-			<span class="label-like">Hive Account</span>
-			<ContactSearchBox
-				bind:value={hiveAccount}
-				enableContacts={['hive']}
-				placeholder="Enter Hive username"
-			/>
-			{#if hiveAccountError}
-				<span class="error-message">{hiveAccountError}</span>
-			{/if}
-		</div>
-		<ClickableCard onclick={() => toggleAsset(true)}>
-			<div class="asset-card">
-				{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
-					<BalanceInfo
-						coin={$SendTxDetails.toCoin.coin}
-						network={$SendTxDetails.toNetwork}
-						size="large"
-						styleType="vertical"
-					/>
-				{:else}
-					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-					Select Withdraw Asset
-				{/if}
-				<span class="edit"> Edit </span>
+		<!-- EVM accounts -->
+		{#if contactOpen}
+			<div class="contact-external-wrapper">
+				<div class="back-button">
+					<PillButton onclick={() => toggleContact()} styleType="icon-subtle">
+						<ArrowLeft size="32" />
+					</PillButton>
+				</div>
+				<SelectContact
+					bind:selectedContact={contact}
+					editing={openToCreate}
+					close={() => (contactOpen = false)}
+					{createNew}
+				/>
 			</div>
-		</ClickableCard>
-		<div class="section">
-			<label for={inputId}>Amount</label>
-			<div class="amount-row">
-				<div class="amount-input">
-					<AmountInput
-						bind:coinAmount
-						coinOpts={coinOptions}
-						expressIn={$SendTxDetails.fromCoin?.coin}
-						maxAmount={max}
-						bind:id={inputId}
+		{:else}
+			<div class="sections">
+				<div class="section to">
+					<ContactSearchBox
+						bind:value={hiveAccount}
+						bind:selectedContact={contact}
+						enableContacts={['hive', 'recent', 'contacts']}
+						placeholder="Enter Hive username"
 					/>
+					<RecipientCard basic edit={openContact} {contact} />
+					{#if hiveAccountError}
+						<span class="error-message">{hiveAccountError}</span>
+					{/if}
+				</div>
+				<Divider text="Amount" />
+				<ClickableCard onclick={() => toggleAsset(true)}>
+					<div class="asset-card">
+						{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+							<BalanceInfo
+								coin={$SendTxDetails.toCoin.coin}
+								network={$SendTxDetails.toNetwork}
+								size="large"
+								styleType="vertical"
+							/>
+						{:else}
+							<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+							Select Withdraw Asset
+						{/if}
+						<span class="edit"> Edit </span>
+					</div>
+				</ClickableCard>
+				<div class="section">
+					<label for={inputId}>Amount</label>
+					<div class="amount-row">
+						<div class="amount-input">
+							<AmountInput
+								bind:coinAmount
+								coinOpts={coinOptions}
+								expressIn={$SendTxDetails.fromCoin?.coin}
+								maxAmount={max}
+								bind:id={inputId}
+							/>
+						</div>
+					</div>
 				</div>
 			</div>
-		</div>
-	</div>
+		{/if}
 {/if}
 
 <style lang="scss">
@@ -276,6 +360,16 @@
 		font-size: 0.875rem;
 		margin-top: 0.5rem;
 		display: block;
+	}
+	.to {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.contact-external-wrapper:not(:has(:global(.dialog-list-header))) {
+		.back-button {
+			display: none;
+		}
 	}
 </style>
 

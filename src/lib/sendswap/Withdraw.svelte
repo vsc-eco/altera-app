@@ -22,10 +22,12 @@
 	const auth = $derived(getAuth()());
 
 	function withdrawDetails(): SendDetails {
+		const username =
+			auth.value?.provider === 'aioha' ? getUsernameFromAuth(auth) ?? '' : '';
 		return {
 			...blankDetails(),
 			fromNetwork: Network.magi,
-			toUsername: getUsernameFromAuth(auth) ?? ''
+			toUsername: username
 		};
 	}
 
@@ -35,6 +37,7 @@
 	});
 	$effect(() => {
 		if (!auth || !dialogOpen) return;
+		if (auth.value?.provider !== 'aioha') return;
 		const username = getUsernameFromAuth(auth);
 		if (username && username !== $SendTxDetails.toUsername) {
 			$SendTxDetails.toUsername = username;

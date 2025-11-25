@@ -154,7 +154,6 @@
 			<ContactSearchBox
 				bind:value={$SendTxDetails.toUsername}
 				bind:selectedContact={contact}
-				enableContacts={false}
 				placeholder="Enter address"
 			/>
 			<RecipientCard basic edit={openContact} {contact} />

@@ -2,12 +2,15 @@
 	import type { SharedProps } from '$lib/PillButton.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
 	import StakePopup from '$lib/magiTransactions/hive/vscOperations/StakePopup.svelte';
-	import { Banknote, Component, LockKeyhole, Send } from '@lucide/svelte';
+	import { Component, LockKeyhole, Send } from '@lucide/svelte';
+	// @ts-expect-error - BanknoteArrowDown and BanknoteArrowUp are available in newer versions of lucide-svelte
+	import { BanknoteArrowUp, BanknoteArrowDown } from '@lucide/svelte';
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';
 	import QuickSend from '$lib/sendswap/QuickSend.svelte';
 	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import Deposit from '$lib/sendswap/Deposit.svelte';
+	import Withdraw from '$lib/sendswap/Withdraw.svelte';
 	let { auth }: { auth: Auth } = $props();
 	type PopupAction = {
 		type: 'popup';
@@ -26,6 +29,9 @@
 	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
 	let depositOpen = $state(false);
 	let toggleDeposit = $state<(open?: boolean) => void>(() => {});
+	let withdrawOpen = $state(false);
+	let withdrawSessionId = $state(getTxSessionId());
+	let toggleWithdraw = $state<(open?: boolean) => void>(() => {});
 	const menuActions: (NavigationAction | PopupAction)[] = [
 		{
 			type: 'popup',
@@ -47,7 +53,16 @@
 				depositSessionId = getTxSessionId();
 				toggleDeposit(true);
 			},
-			icon: Banknote
+			icon: BanknoteArrowUp
+		},
+		{
+			type: 'popup',
+			label: 'Withdraw',
+			onclick: () => {
+				withdrawSessionId = getTxSessionId();
+				toggleWithdraw(true);
+			},
+			icon: BanknoteArrowDown
 		},
 		...actions.filter((action) => action.label === 'Swap'),
 		{
@@ -79,6 +94,7 @@
 	sessionId={sendSessionId}
 />
 <Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
+<Withdraw bind:dialogOpen={withdrawOpen} bind:toggle={toggleWithdraw} sessionId={withdrawSessionId} />
 
 <style>
 	.action-bar {

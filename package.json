@@ -84,7 +84,7 @@
 		"@ipld/dag-cbor": "^9.2.5",
 		"@ipld/dag-json": "^10.2.5",
 		"@leeoniya/ufuzzy": "^1.0.19",
-		"@lucide/svelte": "0.474.0-rc.0",
+		"@lucide/svelte": "0.553.0",
 		"@reown/appkit": "^1.8.14",
 		"@reown/appkit-adapter-wagmi": "^1.8.14",
 		"@sveltejs/adapter-vercel": "^5.10.3",

@@ -230,7 +230,7 @@
 	/>
 {:else}
 	<div class="sections">
-		{#if auth.value?.provider === 'reown'}
+		<!-- {#if auth.value?.provider === 'reown'} -->
 			<div class="section to">
 				<ContactSearchBox
 					bind:value={hiveAccount}
@@ -243,7 +243,7 @@
 				{/if}
 			</div>
 			<Divider text="Amount" />
-		{/if}
+		<!-- {/if} -->
 		<div class="sections">
 			<ClickableCard onclick={() => toggleAsset(true)}>
 				<div class="asset-card">

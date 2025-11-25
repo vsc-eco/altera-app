@@ -10,11 +10,7 @@
 	import type { Contact } from '$lib/sendswap/contacts/contacts';
 	import RecipientCard from '$lib/sendswap/components/RecipientCard.svelte';
 	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
-	import swapOptions, {
-		Coin,
-		Network,
-		type CoinOnNetwork
-	} from '$lib/sendswap/utils/sendOptions';
+	import swapOptions, { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
 	import Divider from '$lib/components/Divider.svelte';
@@ -79,8 +75,7 @@
 				hiveAccount = $SendTxDetails.toUsername || '';
 			} else {
 				const shouldReset =
-					!currentUsername ||
-					(currentUsername.length === 42 && currentUsername.startsWith('0x'));
+					!currentUsername || (currentUsername.length === 42 && currentUsername.startsWith('0x'));
 				const nextValue = shouldReset ? '' : currentUsername;
 				if (nextValue !== currentUsername) {
 					setToUsername(nextValue);
@@ -233,102 +228,56 @@
 		bind:max
 		showEmptyAccounts
 	/>
-{:else if auth.value?.provider === 'aioha'}
+{:else}
 	<div class="sections">
-		<ClickableCard onclick={() => toggleAsset(true)}>
-			<div class="asset-card">
-				{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
-					<BalanceInfo
-						coin={$SendTxDetails.fromCoin.coin}
-						network={$SendTxDetails.fromNetwork}
-						size="large"
-						styleType="vertical"
-					/>
-				{:else}
-					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-					Select Withdraw Asset
+		{#if auth.value?.provider === 'reown'}
+			<div class="section to">
+				<ContactSearchBox
+					bind:value={hiveAccount}
+					bind:selectedContact={contact}
+					enableContacts={['hive']}
+					placeholder="Enter Hive username"
+				/>
+				{#if hiveAccountError}
+					<span class="error-message">{hiveAccountError}</span>
 				{/if}
-				<span class="edit"> Edit </span>
 			</div>
-		</ClickableCard>
-		<div class="section">
-			<label for={inputId}>Amount</label>
-			<div class="amount-row">
-				<div class="amount-input">
-					<AmountInput
-						bind:coinAmount
-						coinOpts={coinOptions}
-						expressIn={$SendTxDetails.fromCoin?.coin}
-						maxAmount={max}
-						bind:id={inputId}
-					/>
+			<Divider text="Amount" />
+		{/if}
+		<div class="sections">
+			<ClickableCard onclick={() => toggleAsset(true)}>
+				<div class="asset-card">
+					{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+						<BalanceInfo
+							coin={$SendTxDetails.fromCoin.coin}
+							network={$SendTxDetails.fromNetwork}
+							size="large"
+							styleType="vertical"
+						/>
+					{:else}
+						<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span
+						>
+						Select Withdrawal Asset
+					{/if}
+					<span class="edit"> Edit </span>
+				</div>
+			</ClickableCard>
+			<div class="section">
+				<label for={inputId}>Amount</label>
+				<div class="amount-row">
+					<div class="amount-input">
+						<AmountInput
+							bind:coinAmount
+							coinOpts={coinOptions}
+							expressIn={$SendTxDetails.fromCoin?.coin}
+							maxAmount={max}
+							bind:id={inputId}
+						/>
+					</div>
 				</div>
 			</div>
 		</div>
 	</div>
-{:else}
-		<!-- EVM accounts -->
-		{#if contactOpen}
-			<div class="contact-external-wrapper">
-				<div class="back-button">
-					<PillButton onclick={() => toggleContact()} styleType="icon-subtle">
-						<ArrowLeft size="32" />
-					</PillButton>
-				</div>
-				<SelectContact
-					bind:selectedContact={contact}
-					editing={openToCreate}
-					close={() => (contactOpen = false)}
-					{createNew}
-				/>
-			</div>
-		{:else}
-			<div class="sections">
-				<div class="section to">
-					<ContactSearchBox
-						bind:value={hiveAccount}
-						bind:selectedContact={contact}
-						enableContacts={['hive', 'recent', 'contacts']}
-						placeholder="Enter Hive username"
-					/>
-					<RecipientCard basic edit={openContact} {contact} />
-					{#if hiveAccountError}
-						<span class="error-message">{hiveAccountError}</span>
-					{/if}
-				</div>
-				<Divider text="Amount" />
-				<ClickableCard onclick={() => toggleAsset(true)}>
-					<div class="asset-card">
-						{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
-							<BalanceInfo
-								coin={$SendTxDetails.toCoin.coin}
-								network={$SendTxDetails.toNetwork}
-								size="large"
-								styleType="vertical"
-							/>
-						{:else}
-							<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-							Select Withdraw Asset
-						{/if}
-						<span class="edit"> Edit </span>
-					</div>
-				</ClickableCard>
-				<div class="section">
-					<label for={inputId}>Amount</label>
-					<div class="amount-row">
-						<div class="amount-input">
-							<AmountInput
-								bind:coinAmount
-								coinOpts={coinOptions}
-								expressIn={$SendTxDetails.fromCoin?.coin}
-								maxAmount={max}
-								bind:id={inputId}
-							/>
-						</div>
-					</div>
-				</div>
-			</div>
-		{/if}
 {/if}
 
 <style lang="scss">
@@ -366,10 +315,4 @@
 		flex-direction: column;
 		gap: 0.5rem;
 	}
-	.contact-external-wrapper:not(:has(:global(.dialog-list-header))) {
-		.back-button {
-			display: none;
-		}
-	}
 </style>
-

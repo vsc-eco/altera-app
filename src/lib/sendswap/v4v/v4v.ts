@@ -1,4 +1,5 @@
 import type { Auth } from '$lib/auth/store';
+import { vscGateway } from '$lib/constants';
 import { Network } from '../utils/sendOptions';
 import { sleep } from 'aninest';
 const V4VAPP_API = 'https://api.v4v.app';
@@ -23,17 +24,20 @@ export const createLightningInvoice = async (
 		return 'Unauthorized. Please sign in to continue.';
 	}
 	// if (Number(amount) < 2) return `Not enough. Must be at least 2 ${of}.`;
-	const mainnet_account = on == Network.magi ? 'vsc.gateway' : username;
-	if (mainnet_account.length > 16) {
+	console.log('on', on);
+	const mainnetAccount = on.value == Network.magi.value ? vscGateway : username;
+	console.log('mainnet account', mainnetAccount);
+	if (mainnetAccount.length > 16) {
 		return 'Invalid hive username.';
 	}
 	const url = new URL(`${V4VAPP_API}/v1/new_invoice_hive`);
 	let message = new URLSearchParams(`to=${auth.value.address}`);
+	// let message = new URLSearchParams(`to=${vscGateway}`);
 	if (altera_id) {
 		message.append('altera_id', altera_id);
 	}
 	const searchParams = {
-		hive_accname: mainnet_account,
+		hive_accname: mainnetAccount,
 		amount,
 		currency: into.toUpperCase(),
 		receive_currency: into.toLowerCase(),

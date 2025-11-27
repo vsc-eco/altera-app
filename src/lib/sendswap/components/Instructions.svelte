@@ -5,10 +5,11 @@
 	import { Network } from '../utils/sendOptions';
 	import Card from '$lib/cards/Card.svelte';
 	import { Info } from '@lucide/svelte';
+	import { vscGateway } from '$lib/constants';
 
 	let toAccount = $derived(
 		$SendTxDetails.toNetwork?.value === Network.magi.value
-			? 'vsc.gateway'
+			? vscGateway
 			: $SendTxDetails.toUsername
 	);
 </script>
@@ -20,7 +21,7 @@
 			Transfer {$SendTxDetails.toCoin?.coin.label} to the following Hive account with your favorite wallet
 			or exchange.
 			{#if $SendTxDetails.toNetwork?.value === Network.magi.value}
-				The account vsc.gateway is a dedicated Hive account controlled by the decentralized VSC
+				The account {vscGateway} is a dedicated Hive account controlled by the decentralized VSC
 				consensus. Your funds remain within your wallet on VSC at all times. Please make sure to
 				specify the correct memo when sending Hive or HBD.
 			{:else}
@@ -34,7 +35,7 @@
 	<tbody>
 		<tr>
 			<td class="sm-caption label">Transfer To</td>
-			<td class="content"><BasicCopy value={'vsc.gateway'}><code>{toAccount}</code></BasicCopy></td>
+			<td class="content"><BasicCopy value={vscGateway}><code>{toAccount}</code></BasicCopy></td>
 		</tr>
 		{#if Number($SendTxDetails.toAmount) > 0}
 			<tr>

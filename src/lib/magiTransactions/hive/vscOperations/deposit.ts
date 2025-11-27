@@ -1,3 +1,4 @@
+import { vscGateway } from '$lib/constants';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import type { Coin } from '$lib/sendswap/utils/sendOptions';
 import type { CustomJsonOperation, TransferOperation } from '@hiveio/dhive';
@@ -19,7 +20,7 @@ export function getHiveDepositOp(
 		'transfer',
 		{
 			from,
-			to: 'vsc.gateway',
+			to: vscGateway,
 			amount: `${amount.toAmountString(true)} ${amount.coin.unit}`,
 			memo: (memo ? new URLSearchParams([...defaultMemo, ...memo]) : defaultMemo).toString()
 		}

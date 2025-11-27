@@ -38,6 +38,7 @@
 	$effect(() => {
 		onHomePage = hiveMainnetOpen;
 	});
+
 </script>
 
 <div class="withdraw-internal-wrapper">
@@ -54,6 +55,18 @@
 	{:else}
 		<h2>Withdraw</h2>
 		<div class="types-wrapper">
+			<div class="lightning-transfer">
+				<ClickableCard disabled={true} onclick={() => {}}>
+					<div class="type-header">
+						<ImageIconRenderer icon={'/btc/lightning.svg'} alt={'lightning'} size={40} />
+						<span>Lightning Transfer</span>
+						<span class="error">Coming soon</span>
+						<div class="chevron">
+							<ChevronRight />
+						</div>
+					</div>
+				</ClickableCard>
+			</div>
 			<div class="hive-mainnet">
 				<ClickableCard onclick={() => toggleHiveMainnet(true)}>
 					<div class="type-header">
@@ -63,6 +76,30 @@
 							size={40}
 						/>
 						<span>Hive Mainnet</span>
+						<div class="chevron">
+							<ChevronRight />
+						</div>
+					</div>
+				</ClickableCard>
+			</div>
+			<div class="coinbase">
+				<ClickableCard disabled={true} onclick={() => {}}>
+					<div class="type-header">
+						<ImageIconRenderer icon={'/btc/CoinBase_logo.svg'} alt={'Coinbase'} size={40} />
+						<span>Coinbase</span>
+						<span class="error">Coming soon</span>
+						<div class="chevron">
+							<ChevronRight />
+						</div>
+					</div>
+				</ClickableCard>
+			</div>
+			<div class="btc-mainnet">
+				<ClickableCard disabled={true} onclick={() => {}}>
+					<div class="type-header">
+						<ImageIconRenderer icon={'/btc/btc.svg'} alt={'Bitcoin'} size={40} />
+						<span>Bitcoin Mainnet</span>
+						<span class="error">Coming soon</span>
 						<div class="chevron">
 							<ChevronRight />
 						</div>

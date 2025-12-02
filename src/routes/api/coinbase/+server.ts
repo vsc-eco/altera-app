@@ -94,13 +94,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			}
 		);
 
-		return new Response(null, {
-			status: 302,
-			headers: {
-				Location: request.data.session.onrampUrl,
-				...responseHeader
-			}
-		});
+		return json(
+			{ onrampUrl: request.data.session.onrampUrl },
+			{ status: 200, headers: responseHeader }
+		);
 	} catch (error) {
 		console.error(error);
 		return json({ error: 'Something went wrong.' }, { status: 500, headers: responseHeader });

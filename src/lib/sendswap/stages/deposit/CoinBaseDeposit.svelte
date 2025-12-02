@@ -6,6 +6,7 @@
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import axios from 'axios';
 	import { Info } from '@lucide/svelte';
+	import { is } from '$lib/magiTransactions/eth/cborg_utils/is';
 
 	let { customButton = $bindable() }: { customButton: NavButton } = $props();
 
@@ -16,24 +17,46 @@
 		onrampUrl: string;
 	};
 
+	let isPurchasing = $state(false);
+
 	async function handleSubmit() {
+		if (isPurchasing) {
+			console.log('Purchase already in progress');
+			return;
+		}
+
 		if (!auth.value) {
 			console.error('null auth value');
 			return;
 		}
 
+		isPurchasing = true;
+
 		const did = auth.value?.did;
-		const response = await axios.post<CoinbaseOnrampURL>('/api/coinbase', {
-			did: did,
-			amount: coinAmount.toAmountString()
-		});
-		window.location.href = response.data.onrampUrl;
+
+		try {
+			const response = await axios.post<CoinbaseOnrampURL>('/api/coinbase', {
+				did: did,
+				amount: coinAmount.toAmountString()
+			});
+
+			if (response.data.onrampUrl) {
+				window.location.href = response.data.onrampUrl;
+			} else {
+				isPurchasing = false;
+				console.error('No onramp URL received');
+			}
+		} catch (error) {
+			isPurchasing = false;
+			console.error('Failed to create onramp session:', error);
+		}
 	}
+
 	const minAmount = new CoinAmount(10, Coin.usd);
 	$effect(() => {
 		customButton = {
-			label: 'Deposit',
-			action: handleSubmit,
+			label: isPurchasing ? 'Loading' : 'Deposit',
+			action: isPurchasing ? () => {} : handleSubmit,
 			disabled: coinAmount.amount < minAmount.amount
 		};
 	});

@@ -3,7 +3,6 @@
 	import PillBtn from '$lib/PillButton.svelte';
 	import StakePopup from '$lib/magiTransactions/hive/vscOperations/StakePopup.svelte';
 	import { Component, LockKeyhole, Send } from '@lucide/svelte';
-	// @ts-expect-error - BanknoteArrowDown and BanknoteArrowUp are available in newer versions of lucide-svelte
 	import { BanknoteArrowUp, BanknoteArrowDown } from '@lucide/svelte';
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';
@@ -94,7 +93,11 @@
 	sessionId={sendSessionId}
 />
 <Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
-<Withdraw bind:dialogOpen={withdrawOpen} bind:toggle={toggleWithdraw} sessionId={withdrawSessionId} />
+<Withdraw
+	bind:dialogOpen={withdrawOpen}
+	bind:toggle={toggleWithdraw}
+	sessionId={withdrawSessionId}
+/>
 
 <style>
 	.action-bar {

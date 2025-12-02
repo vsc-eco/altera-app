@@ -22,8 +22,7 @@
 	const auth = $derived(getAuth()());
 
 	function withdrawDetails(): SendDetails {
-		const username =
-			auth.value?.provider === 'aioha' ? getUsernameFromAuth(auth) ?? '' : '';
+		const username = auth.value?.provider === 'aioha' ? (getUsernameFromAuth(auth) ?? '') : '';
 		return {
 			...blankDetails(),
 			fromNetwork: Network.magi,

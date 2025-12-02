@@ -84,7 +84,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				country: 'US',
 				subdivision: 'NY',
 				clientIp: clientIp,
-				redirectUrl: 'https://altera.vsc.eco/' // TODO: create a custom url for purcase receipt
+				redirectUrl: 'https://altera.magi.eco/' // TODO: create a custom url for purcase receipt
 			},
 			{
 				headers: {
@@ -94,10 +94,13 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			}
 		);
 
-		return json(
-			{ onrampUrl: request.data.session.onrampUrl },
-			{ status: 200, headers: responseHeader }
-		);
+		return new Response(null, {
+			status: 302,
+			headers: {
+				Location: request.data.session.onrampUrl,
+				...responseHeader
+			}
+		});
 	} catch (error) {
 		console.error(error);
 		return json({ error: 'Something went wrong.' }, { status: 500, headers: responseHeader });

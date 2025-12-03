@@ -36,18 +36,21 @@ import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
 export const SendTxDetails = writable<SendDetails>(blankDetails());
 
 export function blankDetails(): SendDetails {
+	let selectedCoin: CoinOptions['coins'][number] | undefined;
+
+	selectedCoin = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
 	return {
-		fromCoin: undefined,
-		fromNetwork: undefined,
-		fromAmount: '0',
-		toCoin: undefined,
-		toNetwork: undefined,
+		fromCoin: selectedCoin ?? undefined,
+		fromNetwork: Network.magi,
+		fromAmount: new CoinAmount(0, Coin.hive).toAmountString(),
+		toCoin: swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value),
+		toNetwork: Network.magi,
 		toAmount: '0',
 		toUsername: '',
 		toDisplayName: '',
-		method: undefined,
-		account: undefined,
-		fee: undefined,
+		method: TransferMethod.magiTransfer,
+		account: SendAccount.magiAccount,
+		fee: new CoinAmount(0, Coin.hive),
 		memo: ''
 	};
 }

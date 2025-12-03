@@ -8,8 +8,6 @@
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import type { Contact } from '$lib/sendswap/contacts/contacts';
-	import RecipientCard from '$lib/sendswap/components/RecipientCard.svelte';
-	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
 	import swapOptions, { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
@@ -122,8 +120,20 @@
 		}
 	});
 
-	let max: CoinAmount<Coin> | undefined = $state();
-
+	let max = $state(new CoinAmount(0, Coin.hive));
+	// Initialize default fromCoin and fromNetwork for Hive Mainnet if not set
+	let initialized = $state(false);
+	$effect(() => {
+		if (open && !initialized && !$SendTxDetails.fromCoin && !$SendTxDetails.fromNetwork) {
+			$SendTxDetails.fromCoin = { coin: Coin.hive, networks: [Network.magi] };
+			$SendTxDetails.fromNetwork = Network.magi;
+			$SendTxDetails.toCoin = { coin: Coin.hive, networks: [Network.magi] };
+			initialized = true;
+		}
+		if (!open) {
+			initialized = false;
+		}
+	});
 	// Validate Hive account for EVM users
 	$effect(() => {
 		if (!open) return;

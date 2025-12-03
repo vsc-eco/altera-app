@@ -144,6 +144,7 @@
 		bind:coin={$SendTxDetails.fromCoin}
 		bind:network={$SendTxDetails.fromNetwork}
 		bind:max
+		showEmptyAccounts
 	/>
 {/if}
 <!-- keep this always rendered so that it doesn't break amount input reactivity -->

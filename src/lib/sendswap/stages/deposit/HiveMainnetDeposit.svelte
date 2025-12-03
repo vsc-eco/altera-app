@@ -39,7 +39,20 @@
 			$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
 	});
 
-	let max: CoinAmount<Coin> | undefined = $state();
+	let max = $state(new CoinAmount(0, Coin.hive));
+	// Initialize default fromCoin and fromNetwork for Hive Mainnet if not set
+	let initialized = $state(false);
+	$effect(() => {
+		if (open && !initialized && !$SendTxDetails.fromCoin && !$SendTxDetails.fromNetwork) {
+			$SendTxDetails.fromCoin = { coin: Coin.hive, networks: [Network.hiveMainnet] };
+			$SendTxDetails.fromNetwork = Network.hiveMainnet;
+			$SendTxDetails.toCoin = { coin: Coin.hive, networks: [Network.hiveMainnet] };
+			initialized = true;
+		}
+		if (!open) {
+			initialized = false;
+		}
+	});
 
 	$effect(() => {
 		if (!open) return;

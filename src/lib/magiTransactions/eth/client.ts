@@ -275,6 +275,8 @@ export async function signAndBrodcastTransaction<
 	// Create the transaction container with CBOR-encoded payloads
 	const txContainer = createVSCTransactionContainer(txs, client);
 
+	console.log('net_id', txContainer.headers.net_id);
+
 	// console.log('TX (txContainer) before encoding', txContainer);
 
 	// Create signing shell with decoded payloads for display
@@ -288,6 +290,8 @@ export async function signAndBrodcastTransaction<
 		// @ts-ignore
 		...signerArgs
 	);
+
+	throw new Error(`tmp end here`);
 
 	const sigEncoded = uint8ArrayToBase64(
 		(

@@ -1,7 +1,7 @@
 import { encode } from '@ipld/dag-cbor';
 import { encodePayload } from 'dag-jose-utils';
 import type { Signer } from './client';
-import { type Config, signTypedData, getAccount, getConnection } from '@wagmi/core';
+import { type Config, signTypedData, getAccount, getConnection, signMessage } from '@wagmi/core';
 import { convertCBORToEIP712TypedData } from './cbor_to_eip712_converter';
 import type { VSCTransactionSigningShell, Client } from './client';
 import { hashTypedData } from 'viem';
@@ -42,9 +42,15 @@ export const wagmiSigner: Signer<[Config]> = async (
 
 		// console.log('EIP712 typed data:', JSON.stringify(types, null, 2));
 
-		const signature = await signTypedData(config, types as any);
+		const signaturetyped = await signTypedData(config, types as any);
+		const message = JSON.stringify(encodedShell);
+		const signature = await signMessage(config, {
+			message,
+			account: connection.address
+		});
 
-		// console.log('User signature:', signature);
+		console.log('User signature:', signature);
+		console.log('typed signature:', signaturetyped);
 
 		// backend wants type {alg, kid, sig}, even though struct can take {t, s}
 		const sigs = [

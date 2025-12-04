@@ -60,12 +60,14 @@
 
 	const id = $props.id();
 
-	const service = useMachine(steps.machine, {
-		id,
-		orientation: 'vertical',
-		// linear: true,
-		count: stepsData.length - 1
-	});
+	const service = $derived(
+		useMachine(steps.machine, {
+			id,
+			orientation: 'vertical',
+			// linear: true,
+			count: stepsData.length - 1
+		})
+	);
 
 	const api = $derived(steps.connect(service, normalizeProps));
 
@@ -138,7 +140,6 @@
 	let oldId = '';
 	$effect(() => {
 		if (txId && txId !== untrack(() => oldId)) {
-			waiting = false;
 			setStatus('');
 			api.setStep(stepsData.length - 1);
 			oldId = txId;
@@ -147,7 +148,7 @@
 
 	// START TRANSACTION
 	function initSend() {
-		console.log('initializing send transactions');
+		// console.log('initializing send transactions');
 		const {
 			fromCoin,
 			fromNetwork,
@@ -177,7 +178,7 @@
 			{ coin: toCoin.coin, network: toNetwork }
 		);
 
-		console.log('found intermediary network:', intermediary.label);
+		// console.log('found intermediary network:', intermediary.label);
 
 		if (intermediary === Network.lightning) {
 			setStatus('Generating Lightning transfer');
@@ -186,14 +187,15 @@
 		}
 
 		waiting = true;
-		console.log('waiting for signature');
+		// console.log('waiting for signature');
 		send(importantDetails, auth, intermediary, setStatus, abortSend.signal).then((res) => {
 			if (res instanceof Error) {
 				// log the error if it isn't caught
-				if (!status.isError) console.error(res.message);
+				console.error(res.message);
 			} else {
 				txId = res.id;
 			}
+			waiting = false;
 		});
 		return;
 	}

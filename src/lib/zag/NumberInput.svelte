@@ -21,7 +21,7 @@
 		inputId = $bindable()
 	}: Props = $props();
 
-	let min = minProp ?? 10 ** -decimals;
+	let min = $derived(minProp ?? 10 ** -decimals);
 
 	function inRange(val: number) {
 		return val >= min && val <= max;

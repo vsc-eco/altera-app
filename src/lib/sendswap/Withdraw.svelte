@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import WithdrawOptions from './stages/withdraw/WithdrawOptions.svelte';
-	import { Network, type SendDetails } from './utils/sendOptions';
+	import swapOptions, { Coin, Network, type SendDetails } from './utils/sendOptions';
 	import { blankDetails, SendTxDetails } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
 	import ReviewSwap from './stages/ReviewSwap.svelte';
@@ -23,9 +23,13 @@
 
 	function withdrawDetails(): SendDetails {
 		const username = auth.value?.provider === 'aioha' ? (getUsernameFromAuth(auth) ?? '') : '';
+		const selectedCoin = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
 		return {
 			...blankDetails(),
+			fromCoin: selectedCoin,
 			fromNetwork: Network.magi,
+			toCoin: selectedCoin,
+			toNetwork: Network.magi,
 			toUsername: username
 		};
 	}

@@ -23,6 +23,7 @@
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
 	import EditButton from '$lib/components/EditButton.svelte';
 	import Divider from '$lib/components/Divider.svelte';
+	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 
 	let {
 		id,
@@ -77,6 +78,18 @@
 
 	let max: CoinAmount<Coin> | undefined = $state();
 
+	// Update max when fromCoin changes
+	$effect(() => {
+		if (!$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
+		if ($SendTxDetails.fromNetwork.value !== Network.magi.value) return;
+		
+		const coinValue = $SendTxDetails.fromCoin.coin.value;
+		if (coinValue in $accountBalance.bal) {
+			const balance = $accountBalance.bal[coinValue as keyof AccountBalance];
+			max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+		}
+	});
+
 	let assetOpen = $state(false);
 	const toggleAsset = (open = false) => {
 		assetOpen = open;
@@ -116,6 +129,43 @@
 			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
 			: [{ coin: Coin.unk, network: Network.unknown }]
 	);
+
+	const coinsWithBalance = $derived.by(() => {
+		const result: Array<{ coin: Coin; coinOpt: CoinOptions['coins'][number] }> = [];
+		for (const coinOpt of swapOptions.from.coins) {
+			const coinValue = coinOpt.coin.value;
+			if (coinValue in $accountBalance.bal) {
+				const balance = $accountBalance.bal[coinValue as keyof AccountBalance];
+				const coinAmt = new CoinAmount(balance, coinOpt.coin, true);
+				if (coinAmt.amount > 0.001) {
+					result.push({ coin: coinOpt.coin, coinOpt });
+				}
+			}
+		}
+		return result;
+	});
+
+	const hasAnyBalance = $derived(coinsWithBalance.length > 0);
+
+	$effect(() => {
+		const balanceCount = coinsWithBalance.length;
+		if (balanceCount === 0) return;
+		
+		const currentCoinHasBalance = $SendTxDetails.fromCoin && 
+			coinsWithBalance.some((item) => item.coin.value === $SendTxDetails.fromCoin?.coin.value);
+		
+		if (currentCoinHasBalance) return;
+		
+		const hiveCoin = coinsWithBalance.find((item) => item.coin.value === Coin.hive.value);
+		const coinToSelect = hiveCoin || coinsWithBalance[0];
+		
+		if (coinToSelect) {
+			$SendTxDetails.fromCoin = coinToSelect.coinOpt;
+			$SendTxDetails.fromNetwork = Network.magi;
+			$SendTxDetails.toCoin = coinToSelect.coinOpt;
+			$SendTxDetails.toNetwork = Network.magi;
+		}
+	});
 </script>
 
 {#if contactOpen}
@@ -144,7 +194,6 @@
 		bind:coin={$SendTxDetails.fromCoin}
 		bind:network={$SendTxDetails.fromNetwork}
 		bind:max
-		showEmptyAccounts
 	/>
 {/if}
 <!-- keep this always rendered so that it doesn't break amount input reactivity -->
@@ -165,9 +214,14 @@
 			{/if}
 		</div>
 		<Divider text="Amount" />
-		<ClickableCard onclick={() => toggleAsset(true)}>
+		<ClickableCard onclick={() => hasAnyBalance && toggleAsset(true)}>
 			<div class="asset-card">
-				{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+				{#if !hasAnyBalance}
+					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+					<div class="warning-text">
+						No balance found on your account. Please make a deposit to get started.
+					</div>
+				{:else if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
 					<BalanceInfo
 						coin={$SendTxDetails.fromCoin.coin}
 						network={$SendTxDetails.fromNetwork}
@@ -179,9 +233,11 @@
 					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 					Select Asset
 				{/if}
-				<span class="more">
-					<EditButton onclick={() => toggleAsset(true)} />
-				</span>
+				{#if hasAnyBalance}
+					<span class="more">
+						<EditButton onclick={() => toggleAsset(true)} />
+					</span>
+				{/if}
 			</div>
 		</ClickableCard>
 		<div class="section">
@@ -242,6 +298,11 @@
 		padding: 0.5rem;
 		.more {
 			margin-left: auto;
+		}
+		.warning-text {
+			color: var(--secondary-fg-mid, #888);
+			font-size: 0.875rem;
+			line-height: 1.4;
 		}
 	}
 	.memo {

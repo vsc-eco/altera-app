@@ -2,7 +2,7 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
-	import { Network, TransferMethod } from '../../utils/sendOptions';
+	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
 	import { SendTxDetails } from '../../utils/sendUtils';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
 	import { untrack, type ComponentProps } from 'svelte';
@@ -29,9 +29,29 @@
 	$effect(() => {
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
-			$SendTxDetails.method = TransferMethod.magiTransfer;
-			$SendTxDetails.toNetwork = Network.hiveMainnet;
-			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
+			SendTxDetails.update((current) => {
+				const hiveCoin = swapOptions.from.coins.find((coinOpt) => 
+					coinOpt.coin.value === Coin.hive.value &&
+					coinOpt.networks.some(n => n.value === Network.magi.value)
+				) || swapOptions.from.coins.find((coinOpt) => 
+					coinOpt.coin.value === Coin.hbd.value &&
+					coinOpt.networks.some(n => n.value === Network.magi.value)
+				);
+
+				let fromCoinToUse = hiveCoin; // default
+				if (current.fromCoin && current.fromCoin.networks?.some(n => n.value === Network.magi.value)) {
+					fromCoinToUse = current.fromCoin;
+				}
+				
+				return {
+					...current,
+					method: TransferMethod.magiTransfer,
+					fromNetwork: Network.magi,
+					fromCoin: fromCoinToUse,
+					toNetwork: Network.hiveMainnet,
+					toCoin: fromCoinToUse
+				};
+			});
 		});
 	});
 

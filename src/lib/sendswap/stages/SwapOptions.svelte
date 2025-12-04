@@ -39,6 +39,8 @@
 	import moment from 'moment';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
+	import { accountBalance } from '$lib/stores/currentBalance';
+	import type { AccountBalance } from '$lib/stores/currentBalance';
 
 	let {
 		editStage
@@ -100,6 +102,61 @@
 		}
 		if (!optionsEqual(newNetworkOptions, networkOptions)) {
 			networkOptions = newNetworkOptions;
+		}
+	});
+
+	$effect(() => {
+		// FROM auto selection
+		if (!($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork) && assetOptions.length > 0) {
+			const hiveOption = assetOptions.find(opt => opt.coin.value === Coin.hive.value && !opt.disabled);
+			const firstAvailable = assetOptions.find(opt => !opt.disabled);
+			if (hiveOption) {
+				$SendTxDetails.fromCoin = hiveOption;
+				$SendTxDetails.fromNetwork = Array.isArray(hiveOption.networks) ? hiveOption.networks[0] : undefined;
+			} else if (firstAvailable) {
+				$SendTxDetails.fromCoin = firstAvailable;
+				$SendTxDetails.fromNetwork = Array.isArray(firstAvailable.networks) ? firstAvailable.networks[0] : undefined;
+			}
+		}
+
+		// TO auto selection, update only if value changes!
+		const visibleToObjs = toAssetObjs.filter(obj => {
+			const coinValue = obj.value as keyof AccountBalance;
+			if (!coinValue) return false;
+			const bal = $accountBalance.bal?.[coinValue];
+			return !!bal && Number(bal) > 0.001;
+		});
+		if (!($SendTxDetails.toCoin && $SendTxDetails.toNetwork)) {
+			let nextToCoin, nextToNetwork;
+			if (visibleToObjs.length > 0) {
+				const hiveTo = visibleToObjs.find(obj => obj.value === Coin.hive.value);
+				const firstAvailableTo = visibleToObjs[0];
+				if (hiveTo) {
+					const swapTo = swapOptions.to.coins.find(opt => opt.coin.value === Coin.hive.value);
+					if (swapTo) {
+						nextToCoin = swapTo;
+						nextToNetwork = Array.isArray(swapTo.networks) ? swapTo.networks[0] : undefined;
+					}
+				} else if (firstAvailableTo) {
+					const swapTo = swapOptions.to.coins.find(opt => opt.coin.value === firstAvailableTo.value);
+					if (swapTo) {
+						nextToCoin = swapTo;
+						nextToNetwork = Array.isArray(swapTo.networks) ? swapTo.networks[0] : undefined;
+					}
+				}
+			} else {
+				nextToCoin = undefined;
+				nextToNetwork = undefined;
+			}
+			const prevToCoin = $SendTxDetails.toCoin;
+			const prevToNetwork = $SendTxDetails.toNetwork;
+			const changed =
+				(prevToCoin !== nextToCoin) ||
+				(prevToNetwork !== nextToNetwork);
+			if (changed) {
+				$SendTxDetails.toCoin = nextToCoin;
+				$SendTxDetails.toNetwork = nextToNetwork;
+			}
 		}
 	});
 

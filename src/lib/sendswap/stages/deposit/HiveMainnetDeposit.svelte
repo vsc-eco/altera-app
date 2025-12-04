@@ -40,17 +40,18 @@
 	});
 
 	let max = $state(new CoinAmount(0, Coin.hive));
-	// Initialize default fromCoin and fromNetwork for Hive Mainnet if not set
-	let initialized = $state(false);
+
+	// Update max when fromCoin changes for hiveMainnet
 	$effect(() => {
-		if (open && !initialized && !$SendTxDetails.fromCoin && !$SendTxDetails.fromNetwork) {
-			$SendTxDetails.fromCoin = { coin: Coin.hive, networks: [Network.hiveMainnet] };
-			$SendTxDetails.fromNetwork = Network.hiveMainnet;
-			$SendTxDetails.toCoin = { coin: Coin.hive, networks: [Network.hiveMainnet] };
-			initialized = true;
-		}
-		if (!open) {
-			initialized = false;
+		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
+		if ($SendTxDetails.fromNetwork.value !== Network.hiveMainnet.value) return;
+		
+		const coinValue = $SendTxDetails.fromCoin.coin.value;
+		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
+			const balance = $accountBalance.connectedBal?.[coinValue as 'hive' | 'hbd'];
+			if (balance !== undefined) {
+				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+			}
 		}
 	});
 

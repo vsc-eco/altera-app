@@ -254,13 +254,13 @@ export async function signAndBrodcastTransaction<
 	signal: AbortSignal | undefined,
 	...signerArgs: TupleRemoveFirstTwoValues<Parameters<SigningFunc>>
 ): Promise<TransactionResult> {
-	console.log('start of signAndBroadcastTransaction() function');
+	// console.log('start of signAndBroadcastTransaction() function');
 	const walletConnected = await ensureWalletConnection();
 	if (!walletConnected) {
 		throw new Error(`wallet connection failed`);
 	}
 
-	console.log('wallet connected', walletConnected);
+	// console.log('wallet connected', walletConnected);
 
 	if (client.nonce === null) {
 		const nonceStore = new GetAccountNonceStore();
@@ -275,12 +275,12 @@ export async function signAndBrodcastTransaction<
 	// Create the transaction container with CBOR-encoded payloads
 	const txContainer = createVSCTransactionContainer(txs, client);
 
-	console.log('TX (txContainer) before encoding', txContainer);
+	// console.log('TX (txContainer) before encoding', txContainer);
 
 	// Create signing shell with decoded payloads for display
 	const signingShell = createSigningShell(txContainer);
 
-	console.log('signing shell:', signingShell);
+	// console.log('signing shell:', signingShell);
 
 	const signedTx = await signer(
 		signingShell,
@@ -299,8 +299,8 @@ export async function signAndBrodcastTransaction<
 	);
 	const txEncoded = uint8ArrayToBase64((await encodePayload(txContainer)).linkedBlock);
 
-	console.log('sigEncoded', sigEncoded);
-	console.log('txEncoded', txEncoded);
+	// console.log('sigEncoded', sigEncoded);
+	// console.log('txEncoded', txEncoded);
 
 	if (signal?.aborted) {
 		throw new Error(`Transaction canceled by the user.`);
@@ -319,7 +319,7 @@ export async function signAndBrodcastTransaction<
 			throw new Error(`No transaction ID found.`);
 		}
 		client.nonce!++;
-		console.log('submitResult', submitResult);
+		// console.log('submitResult', submitResult);
 		return {
 			id: submitResult.id
 		};

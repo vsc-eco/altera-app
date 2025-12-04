@@ -159,9 +159,22 @@ body {
 	color: var(--neutral-fg);
 }
 
-*:focus-visible {
+*:focus {
+	outline: none !important;
+}
+
+body.allow-focus-visible *:focus-visible {
 	outline: 2px solid var(--primary-fg-mid);
 	outline-offset: 2px;
+}
+
+body.allow-focus-visible button:focus-visible,
+body.allow-focus-visible input:focus-visible,
+body.allow-focus-visible select:focus-visible,
+body.allow-focus-visible textarea:focus-visible,
+body.allow-focus-visible a:focus-visible {
+	outline: 2px solid var(--primary-fg-mid) !important;
+	outline-offset: 3px !important;
 }
 
 hr {

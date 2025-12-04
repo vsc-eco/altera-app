@@ -1,4 +1,4 @@
-import { getAccount, getConnectors, reconnect } from '@wagmi/core';
+import { getAccount, getConnection, getConnectors, reconnect } from '@wagmi/core';
 import { wagmiConfig } from '.';
 import { browser } from '$app/environment';
 
@@ -9,5 +9,5 @@ export const ensureWalletConnection = async (): Promise<boolean> => {
 	if (status !== 'connected') {
 		await reconnect(wagmiConfig);
 	}
-	return getAccount(wagmiConfig).isConnected;
+	return getConnection(wagmiConfig).isConnected;
 };

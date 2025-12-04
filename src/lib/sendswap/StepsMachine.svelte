@@ -147,6 +147,7 @@
 
 	// START TRANSACTION
 	function initSend() {
+		console.log('initializing send transactions');
 		const {
 			fromCoin,
 			fromNetwork,
@@ -176,6 +177,8 @@
 			{ coin: toCoin.coin, network: toNetwork }
 		);
 
+		console.log('found intermediary network:', intermediary.label);
+
 		if (intermediary === Network.lightning) {
 			setStatus('Generating Lightning transfer');
 			openV4V();
@@ -183,6 +186,7 @@
 		}
 
 		waiting = true;
+		console.log('waiting for signature');
 		send(importantDetails, auth, intermediary, setStatus, abortSend.signal).then((res) => {
 			if (res instanceof Error) {
 				// log the error if it isn't caught

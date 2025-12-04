@@ -588,11 +588,16 @@ export async function send(
 	setStatus: (status: string, isError?: boolean) => void,
 	signal?: AbortSignal | undefined
 ): Promise<Error | { id: string }> {
+	console.log('start of send() function, details:', details);
 	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
 	if (intermediary == Network.magi) {
+		console.log('intermediary network is Magi');
 		if (auth.value?.provider == 'reown') {
+			console.log('auth provider is reown');
 			// account check in signAndBroadcast
 			const client = createClient(auth.value.did);
+
+			console.log('created reown client:', client);
 
 			const sendOp = getEVMOpType(
 				fromNetwork,

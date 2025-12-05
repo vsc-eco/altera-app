@@ -8,10 +8,9 @@
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import type { Contact } from '$lib/sendswap/contacts/contacts';
-	import RecipientCard from '$lib/sendswap/components/RecipientCard.svelte';
-	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
 	import swapOptions, { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
+	import { accountBalance } from '$lib/stores/currentBalance';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
 	import Divider from '$lib/components/Divider.svelte';
 	import { get } from 'svelte/store';
@@ -122,8 +121,21 @@
 		}
 	});
 
-	let max: CoinAmount<Coin> | undefined = $state();
+	let max = $state(new CoinAmount(0, Coin.hive));
 
+	// Update max when fromCoin changes for magi network
+	$effect(() => {
+		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
+		if ($SendTxDetails.fromNetwork.value !== Network.magi.value) return;
+		
+		const coinValue = $SendTxDetails.fromCoin.coin.value;
+		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
+			const balance = $accountBalance.bal[coinValue as 'hive' | 'hbd'];
+			if (balance !== undefined) {
+				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+			}
+		}
+	});
 	// Validate Hive account for EVM users
 	$effect(() => {
 		if (!open) return;

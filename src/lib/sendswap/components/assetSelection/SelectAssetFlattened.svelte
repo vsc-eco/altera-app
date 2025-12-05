@@ -136,7 +136,7 @@
 	}
 
 	$effect(() => {
-		if (coin && !availableCoins.map((coin) => coin.value).includes(coin?.coin.value)) {
+		if (availableCoins.length > 0 && coin && !availableCoins.map((coin) => coin.value).includes(coin?.coin.value)) {
 			coin = undefined;
 			if (network) {
 				network = undefined;

@@ -3,7 +3,7 @@
 	import { blankDetails, SendTxDetails } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
 	import ReviewSend from './stages/ReviewSend.svelte';
-	import { Network, TransferMethod } from './utils/sendOptions';
+	import swapOptions, { Coin, Network, TransferMethod } from './utils/sendOptions';
 	import QuickSendOptions from './stages/QuickSendOptions.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 
@@ -18,9 +18,12 @@
 	} = $props();
 
 	function quickDetails() {
+		const selectedCoin = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
 		return {
 			...blankDetails(),
+			fromCoin: selectedCoin,
 			fromNetwork: Network.magi,
+			toCoin: selectedCoin,
 			toNetwork: Network.magi,
 			method: TransferMethod.magiTransfer
 		};

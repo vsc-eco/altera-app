@@ -39,7 +39,21 @@
 			$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
 	});
 
-	let max: CoinAmount<Coin> | undefined = $state();
+	let max = $state(new CoinAmount(0, Coin.hive));
+
+	// Update max when fromCoin changes for hiveMainnet
+	$effect(() => {
+		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
+		if ($SendTxDetails.fromNetwork.value !== Network.hiveMainnet.value) return;
+		
+		const coinValue = $SendTxDetails.fromCoin.coin.value;
+		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
+			const balance = $accountBalance.connectedBal?.[coinValue as 'hive' | 'hbd'];
+			if (balance !== undefined) {
+				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+			}
+		}
+	});
 
 	$effect(() => {
 		if (!open) return;

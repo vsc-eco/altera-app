@@ -170,6 +170,7 @@
 				value={`${coin?.coin.value}:${network?.value}`}
 				clickAsset={handleAssetClick}
 				type="balance"
+				autofocusInput={true}
 			/>
 		</div>
 	{/if}

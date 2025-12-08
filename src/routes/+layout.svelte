@@ -12,12 +12,36 @@
 
 	let { children } = $props();
 	injectAnalytics();
-
-	// set the theme on load
+	let allowFocusVisible = false;
+		// set the theme on load
 	onMount(() => {
 		const initialTheme = getInitialTheme();
 		themeStore.set(THEMES[initialTheme]);
 		cleanOldLocalStorage();
+		window.addEventListener(
+			"keydown",
+			(e) => {
+				if (e.key === "Tab") {
+					allowFocusVisible = true;
+					document.body.classList.add("allow-focus-visible");
+				}
+				if (e.key === "Escape") {
+					allowFocusVisible = false;
+					document.body.classList.remove("allow-focus-visible");
+					// @ts-ignore
+					document.activeElement?.blur?.();
+				}
+			},
+			true
+		);
+		window.addEventListener(
+				"pointerdown",
+			() => {
+				allowFocusVisible = false;
+				document.body.classList.remove("allow-focus-visible");
+			},
+			true
+		);
 	});
 </script>
 

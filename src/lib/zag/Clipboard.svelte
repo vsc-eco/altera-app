@@ -13,10 +13,12 @@
 		value: string;
 		disabled: boolean;
 	} = $props();
-	const service = useMachine(clipboard.machine, {
-		id: getUniqueId(),
-		value
-	});
+	const service = $derived(
+		useMachine(clipboard.machine, {
+			id: getUniqueId(),
+			value
+		})
+	);
 
 	const api = $derived(clipboard.connect(service, normalizeProps));
 </script>

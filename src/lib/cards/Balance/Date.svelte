@@ -9,7 +9,7 @@
 		onValueChange: (v: DateRange) => void;
 	};
 	let { dateRanges = [], currDate, hourly, onValueChange: onRangeChange }: Props = $props();
-	let initial: string = $state(dateRanges[0].label);
+	let initial: string = $derived(dateRanges[0].label);
 </script>
 
 {#if currDate}

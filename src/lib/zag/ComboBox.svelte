@@ -37,7 +37,7 @@
 	} = $props();
 
 	let inputValue = $state<string>();
-	let options = $state.raw(items);
+	let options = $state.raw(untrack(() => items));
 	let open = $state.raw(false);
 
 	function toPreferredString(item: Option | undefined) {
@@ -124,46 +124,48 @@
 
 	// $inspect(value, inputValue);
 
-	const service = useMachine(combobox.machine, {
-		id: getUniqueId(),
-		get collection() {
-			return collection;
-		},
-		get value() {
-			return value ? [value] : [];
-		},
-		get inputValue() {
-			// if open, allows empty string, otherwise does not
-			if ((inputValue !== undefined && open) || inputValue) return inputValue;
-			const entry = items.find((item) => value && (item.value ?? item.label) === value);
-			if (entry) return toPreferredString(entry);
-			return value;
-		},
-		onOpenChange(details) {
-			open = details.open;
-			if (details.open) onParamChange(inputValue ?? '');
-		},
-		onInputValueChange({ inputValue: val }) {
-			inputValue = val;
-			onParamChange(val);
-		},
-		onValueChange(details) {
-			if (value !== details.value[0]) value = details.value[0];
-			if (onBlur) onBlur();
-		},
-		onFocusOutside: onDefocus,
-		onPointerDownOutside: onDefocus,
-		onInteractOutside: onDefocus,
-		positioning: {
-			placement: 'bottom-start',
-			gutter: 0,
-			flip: false,
-			shift: 0,
-			sameWidth: true
-		},
-		allowCustomValue: custom,
-		placeholder: placeholder
-	});
+	const service = $derived(
+		useMachine(combobox.machine, {
+			id: getUniqueId(),
+			get collection() {
+				return collection;
+			},
+			get value() {
+				return value ? [value] : [];
+			},
+			get inputValue() {
+				// if open, allows empty string, otherwise does not
+				if ((inputValue !== undefined && open) || inputValue) return inputValue;
+				const entry = items.find((item) => value && (item.value ?? item.label) === value);
+				if (entry) return toPreferredString(entry);
+				return value;
+			},
+			onOpenChange(details) {
+				open = details.open;
+				if (details.open) onParamChange(inputValue ?? '');
+			},
+			onInputValueChange({ inputValue: val }) {
+				inputValue = val;
+				onParamChange(val);
+			},
+			onValueChange(details) {
+				if (value !== details.value[0]) value = details.value[0];
+				if (onBlur) onBlur();
+			},
+			onFocusOutside: onDefocus,
+			onPointerDownOutside: onDefocus,
+			onInteractOutside: onDefocus,
+			positioning: {
+				placement: 'bottom-start',
+				gutter: 0,
+				flip: false,
+				shift: 0,
+				sameWidth: true
+			},
+			allowCustomValue: custom,
+			placeholder: placeholder
+		})
+	);
 
 	const api = $derived(combobox.connect(service, normalizeProps));
 	$effect(() => {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as tabs from '@zag-js/tabs';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import { getUniqueId } from './idgen';
 	type Props = {
 		items: {
@@ -18,7 +18,7 @@
 	const id = getUniqueId();
 	const service = useMachine(tabs.machine, {
 		id,
-		defaultValue: defaultValue ?? items[0].value
+		defaultValue: untrack(() => defaultValue ?? items[0].value)
 	});
 
 	const api = $derived(tabs.connect(service, normalizeProps));

@@ -10,7 +10,6 @@
 		value: string | undefined;
 		clickAsset: (assetValue: string) => void;
 		type?: 'asset' | 'network' | 'balance';
-		autofocusInput?: boolean;
 	};
 
 	function normalizeString(str: string): string {
@@ -19,23 +18,7 @@
 			.trim();
 	}
 
-	let itemRefs: Record<string, HTMLElement | null> = {};
-
-	function setItemRef(key: string, el: HTMLElement | null) {
-		if (el) itemRefs[key] = el;
-		else delete itemRefs[key];
-	}
-
-	function itemRefAction(node: HTMLElement, key: string) {
-		itemEls.set(key, node);
-		return {
-			destroy() {
-				itemEls.delete(key);
-			}
-		};
-	}
-
-	let { items, value, clickAsset, type = 'asset', autofocusInput = false }: Props = $props();
+	let { items, value, clickAsset, type = 'asset' }: Props = $props();
 
 	const filter = createFilter({ sensitivity: 'base' });
 	let search = $state('');
@@ -61,6 +44,9 @@
 		},
 		get value() {
 			return value ? [value] : undefined;
+		},
+		onSelect(details) {
+			clickAsset(details.value);
 		}
 	});
 
@@ -86,90 +72,52 @@
 		return Array.from(groups.entries());
 	});
 
-	// KEYBOARD NAV =============
-	let contentEl: HTMLElement | null = null;
-	let inputEl = $state<HTMLInputElement | null>(null);
-
-	const itemsFlat = $derived.by(() => {
-		const flat: Option[] = [];
-		for (const [, groupItems] of groupedItems) {
-			for (const it of groupItems) flat.push(it);
-		}
-		return flat;
-	});
-
-	let highlightedIndex = $state(0);
-	const itemEls = new Map<string, HTMLElement>();
-
-	function setHighlighted(i: number) {
-		const flat = itemsFlat;
-		if (!flat.length) return;
-
-		let n = i % flat.length;
-		if (n < 0) n += flat.length;
-
-		highlightedIndex = n;
-
-		const value = flat[n]?.value ?? flat[n]?.label;
-		const el = itemEls.get(value);
-		if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-	}
-
+	var ul = $state<HTMLUListElement>();
 	$effect(() => {
-		if (!itemsFlat.length) return;
-
-		if (!value) {
-			highlightedIndex = 0;
-			return;
-		}
-
-		const idx = itemsFlat.findIndex((it) => (it.value ?? it.label) === value);
-		if (idx >= 0) highlightedIndex = idx;
-	});
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (!itemsFlat.length) return;
-
-		// Allow keyboard navigation when the component is active
-		if (e.key === 'ArrowDown') {
-			setHighlighted(highlightedIndex + 1);
-			e.preventDefault();
-		} else if (e.key === 'ArrowUp') {
-			setHighlighted(highlightedIndex - 1);
-			e.preventDefault();
-		} else if (e.key === 'Enter') {
-			const sel = itemsFlat[highlightedIndex];
-			if (sel && !sel.disabled) clickAsset(sel.value ?? sel.label);
-			e.preventDefault();
-		}
-	}
-
-	$effect(() => {
-		if (inputEl) {
-			inputEl.addEventListener('keydown', handleKeydown);
-			if (autofocusInput) {
-				inputEl.focus();
+		if (!ul) return;
+		ul.addEventListener('focus', () => {
+			if (ul?.matches(':focus-visible') && !api.highlightedValue) {
+				const firstValue = api.collection.firstValue;
+				if (firstValue) {
+					api.highlightValue(firstValue);
+				}
 			}
-			return () => inputEl!.removeEventListener('keydown', handleKeydown);
-		}
+		});
+		ul.addEventListener('mouseover', (e) => {
+			const target = e.target as HTMLElement;
+			// if (target.closest('.real-item')) {
+			// 	ul?.classList.add('hovering-item');
+			// }
+			if (api.highlightedValue && target.closest('.real-item')) {
+				api.clearHighlightedValue();
+			}
+		});
+
+		// ul.addEventListener('mouseout', (e) => {
+		// 	const target = e.target as HTMLElement;
+		// 	const relatedTarget = e.relatedTarget as HTMLElement;
+
+		// 	// Only remove if we're not moving to another li
+		// 	if (target.closest('.real-item') && !relatedTarget?.closest('.real-item')) {
+		// 		ul?.classList.remove('hovering-item');
+		// 	}
+		// });
 	});
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div {...api.getRootProps()} tabindex="0">
+<div {...api.getRootProps()}>
 	{#if type !== 'network'}
 		<label for={`list-search-${machineId}`} class="search-icon"
 			><Search aria-label="Search" /></label
 		>
 		<input
-			bind:this={inputEl}
 			{...api.getInputProps({ autoHighlight: true })}
 			bind:value={search}
 			id={`list-search-${machineId}`}
 		/>
 	{/if}
 
-	<ul {...api.getContentProps()} tabindex="-1" class="listbox-ul" bind:this={contentEl}>
+	<ul {...api.getContentProps()} class="listbox-ul" bind:this={ul}>
 		{#each groupedItems as [groupName, groupItems]}
 			{#if type === 'balance'}
 				<li class="listbox-group-header">
@@ -179,25 +127,18 @@
 				</li>
 			{/if}
 			{#each groupItems as item (item.value ?? item.label)}
-				{#key item.value ?? item.label}
-					<!-- LOCAL REF ONLY FOR THIS ITEM -->
-					<li
-						{...api.getItemProps({ item })}
-						onclick={item.disabled ? undefined : () => clickAsset(item.value)}
-						use:itemRefAction={item.value ?? item.label}
-						class:selected={(itemsFlat[highlightedIndex]?.value ?? itemsFlat[highlightedIndex]?.label) === (item.value ?? item.label)}
-					>
-						{#if item.snippet}
-							{@render item.snippet(item.snippetData ?? item)}
-						{:else}
-							{item.label}
-						{/if}
-
-						{#if !item.disabled && type === 'asset'}
-							<div class="icons"><ChevronRight /></div>
-						{/if}
-					</li>
-				{/key}
+				<li {...api.getItemProps({ item })} class="real-item">
+					{#if item.snippet}
+						{@render item.snippet(item.snippetData ?? item)}
+					{:else}
+						{item.label}
+					{/if}
+					{#if !item.disabled && type === 'asset'}
+						<div class="icons">
+							<ChevronRight />
+						</div>
+					{/if}
+				</li>
 			{/each}
 		{/each}
 	</ul>
@@ -232,10 +173,6 @@
 			aspect-ratio: 1;
 		}
 	}
-	[data-part='content']:focus-visible {
-		outline: none;
-		z-index: inherit;
-	}
 	[data-part='input'] {
 		width: 100%;
 		box-sizing: border-box;
@@ -264,25 +201,43 @@
 		}
 	}
 	[data-part='content']:not(.disabled) {
+		border-radius: 0.5rem;
+		&:focus-visible {
+			outline: none;
+			z-index: inherit;
+		}
 		[data-part='item'] {
 			cursor: pointer;
 		}
 		[data-part='item']:not([data-disabled]) {
 			&[data-highlighted],
-			&:hover,
-			&.selected {
+			&:hover {
 				background-color: var(--highlighted-bg);
 				.custom-icon.hover {
 					visibility: visible;
 				}
 			}
-			&[data-part='item'][data-selected] {
+			&[data-selected] {
 				background-color: var(--quaternary-bg-accent-shifted);
+				&[data-highlighted],
+				&:hover {
+					background-color: var(--quaternary-bg-mid);
+				}
 			}
 		}
 		[data-part='item'][data-disabled] {
 			cursor: default;
 		}
+		// &.hovering-item {
+		// 	[data-part='item']:not([data-disabled]):not(:hover) {
+		// 		&[data-highlighted] {
+		// 			background-color: inherit;
+		// 			&[data-selected] {
+		// 				background-color: var(--quaternary-bg-mid);
+		// 			}
+		// 		}
+		// 	}
+		// }
 	}
 
 	[data-part='item-indicator'] {

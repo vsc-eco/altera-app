@@ -185,8 +185,12 @@
 					visibility: visible;
 				}
 			}
-			&[data-part='item'][data-selected] {
+			&[data-selected] {
 				background-color: var(--quaternary-bg-accent-shifted);
+				&[data-highlighted],
+				&:hover {
+					background-color: var(--quaternary-bg-mid);
+				}
 			}
 		}
 		[data-part='item'][data-disabled] {

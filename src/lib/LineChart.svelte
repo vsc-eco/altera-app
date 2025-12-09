@@ -22,6 +22,7 @@
 	import moment from 'moment';
 	import { Loader } from '@lucide/svelte';
 	import WaveLoading from './components/WaveLoading.svelte';
+	import { untrack } from 'svelte';
 	const margin = { top: 8, right: 0, bottom: 0, left: 0 };
 	export type Point = {
 		value: number;
@@ -118,7 +119,7 @@
 	let areaPlot = $derived(areaGenerator(data));
 	let linePlot = $derived(lineGenerator(data));
 	let dotX: number = $state(0);
-	let dotY: number = $state(height + 10);
+	let dotY: number = $state(untrack(() => height) + 10);
 	let dotR: number = $state(0);
 	let dotAnimRunningState = { pos: { x: 0, toIdx: 0 }, r: 0 };
 	type DotAnimatable = { pos: { x: number; toIdx: number }; r: number };

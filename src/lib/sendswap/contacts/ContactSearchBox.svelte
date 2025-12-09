@@ -304,55 +304,57 @@
 		})
 	);
 
-	const service = $derived(useMachine(combobox.machine, {
-		id: getUniqueId(),
-		get collection() {
-			return collection;
-		},
-		get value() {
-			return value ? [value] : [];
-		},
-		get inputValue() {
-			return inputValue;
-		},
-		onOpenChange(details) {
-			open = details.open;
-			if (details.open) {
-				if (selectedContact && details.reason === 'trigger-click') {
-					options = [contactDivider!, ...selectedAddrObjs!];
-				} else {
-					onParamChange(inputValue ?? '');
+	const service = $derived(
+		useMachine(combobox.machine, {
+			id: getUniqueId(),
+			get collection() {
+				return collection;
+			},
+			get value() {
+				return value ? [value] : [];
+			},
+			get inputValue() {
+				return inputValue;
+			},
+			onOpenChange(details) {
+				open = details.open;
+				if (details.open) {
+					if (selectedContact && details.reason === 'trigger-click') {
+						options = [contactDivider!, ...selectedAddrObjs!];
+					} else {
+						onParamChange(inputValue ?? '');
+					}
 				}
-			}
-		},
-		onInputValueChange({ inputValue: val }) {
-			if (!isTimedOut) inputValue = val;
-			onParamChange(val);
-		},
-		onValueChange(details) {
-			const val = details.value[0];
-			if (value !== val) {
-				if (selectedContact !== undefined && !getAddresses(selectedContact).includes(val)) {
-					selectedContact = undefined;
+			},
+			onInputValueChange({ inputValue: val }) {
+				if (!isTimedOut) inputValue = val;
+				onParamChange(val);
+			},
+			onValueChange(details) {
+				const val = details.value[0];
+				if (value !== val) {
+					if (selectedContact !== undefined && !getAddresses(selectedContact).includes(val)) {
+						selectedContact = undefined;
+					}
+					inputValue = val;
+					value = val;
 				}
-				inputValue = val;
-				value = val;
-			}
-		},
-		onFocusOutside: onDefocus,
-		onPointerDownOutside: onDefocus,
-		onInteractOutside: onDefocus,
-		positioning: {
-			placement: 'bottom-start',
-			gutter: 0,
-			flip: false,
-			shift: 0,
-			sameWidth: true
-		},
-		openOnClick: hasAnyContacts,
-		allowCustomValue: true,
-		placeholder: placeholder
-	}));
+			},
+			onFocusOutside: onDefocus,
+			onPointerDownOutside: onDefocus,
+			onInteractOutside: onDefocus,
+			positioning: {
+				placement: 'bottom-start',
+				gutter: 0,
+				flip: false,
+				shift: 0,
+				sameWidth: true
+			},
+			openOnClick: hasAnyContacts,
+			allowCustomValue: true,
+			placeholder: placeholder
+		})
+	);
 
 	const api = $derived(combobox.connect(service, normalizeProps));
 	function handleKeyDown(event: KeyboardEvent) {

@@ -32,11 +32,11 @@
 		disabled?: boolean;
 		maxField?: BalanceOption;
 	} = $props();
-	let value: Coin = $state(originalCoin);
+	let value: Coin = $state(untrack(() => originalCoin));
 	$effect(() => {
 		value = originalCoin;
 	});
-	let inputDisabled = $state(disabled);
+	let inputDisabled = $state(untrack(() => disabled));
 	$effect(() => {
 		inputDisabled = disabled;
 	});

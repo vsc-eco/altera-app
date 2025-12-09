@@ -14,10 +14,10 @@
 
 	let { initial, close }: { initial?: Contact; close: () => void } = $props();
 
-	const originalLabel = initial?.label;
+	const originalLabel = untrack(() => initial?.label);
 
 	let contact: Contact = $state(
-		initial ?? {
+		untrack(() => initial) ?? {
 			label: '',
 			addresses: [{ label: 'Primary Address', address: '' }],
 			image: ''

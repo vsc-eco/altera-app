@@ -44,6 +44,9 @@
 		},
 		get value() {
 			return value ? [value] : undefined;
+		},
+		onSelect(details) {
+			clickAsset(details.value);
 		}
 	});
 
@@ -68,6 +71,38 @@
 		// Convert to array of [groupName, items] pairs
 		return Array.from(groups.entries());
 	});
+
+	var ul = $state<HTMLUListElement>();
+	$effect(() => {
+		if (!ul) return;
+		ul.addEventListener('focus', () => {
+			if (ul?.matches(':focus-visible') && !api.highlightedValue) {
+				const firstValue = api.collection.firstValue;
+				if (firstValue) {
+					api.highlightValue(firstValue);
+				}
+			}
+		});
+		ul.addEventListener('mouseover', (e) => {
+			const target = e.target as HTMLElement;
+			// if (target.closest('.real-item')) {
+			// 	ul?.classList.add('hovering-item');
+			// }
+			if (api.highlightedValue && target.closest('.real-item')) {
+				api.clearHighlightedValue();
+			}
+		});
+
+		// ul.addEventListener('mouseout', (e) => {
+		// 	const target = e.target as HTMLElement;
+		// 	const relatedTarget = e.relatedTarget as HTMLElement;
+
+		// 	// Only remove if we're not moving to another li
+		// 	if (target.closest('.real-item') && !relatedTarget?.closest('.real-item')) {
+		// 		ul?.classList.remove('hovering-item');
+		// 	}
+		// });
+	});
 </script>
 
 <div {...api.getRootProps()}>
@@ -82,7 +117,7 @@
 		/>
 	{/if}
 
-	<ul {...api.getContentProps()} tabindex="-1" class="listbox-ul">
+	<ul {...api.getContentProps()} class="listbox-ul" bind:this={ul}>
 		{#each groupedItems as [groupName, groupItems]}
 			{#if type === 'balance'}
 				<li class="listbox-group-header">
@@ -92,10 +127,7 @@
 				</li>
 			{/if}
 			{#each groupItems as item (item.value ?? item.label)}
-				<li
-					{...api.getItemProps({ item })}
-					onclick={item.disabled ? undefined : () => clickAsset(item.value)}
-				>
+				<li {...api.getItemProps({ item })} class="real-item">
 					{#if item.snippet}
 						{@render item.snippet(item.snippetData ?? item)}
 					{:else}
@@ -141,10 +173,6 @@
 			aspect-ratio: 1;
 		}
 	}
-	[data-part='content']:focus-visible {
-		outline: none;
-		z-index: inherit;
-	}
 	[data-part='input'] {
 		width: 100%;
 		box-sizing: border-box;
@@ -173,6 +201,11 @@
 		}
 	}
 	[data-part='content']:not(.disabled) {
+		border-radius: 0.5rem;
+		&:focus-visible {
+			outline: none;
+			z-index: inherit;
+		}
 		[data-part='item'] {
 			cursor: pointer;
 		}
@@ -184,13 +217,27 @@
 					visibility: visible;
 				}
 			}
-			&[data-part='item'][data-selected] {
+			&[data-selected] {
 				background-color: var(--quaternary-bg-accent-shifted);
+				&[data-highlighted],
+				&:hover {
+					background-color: var(--quaternary-bg-mid);
+				}
 			}
 		}
 		[data-part='item'][data-disabled] {
 			cursor: default;
 		}
+		// &.hovering-item {
+		// 	[data-part='item']:not([data-disabled]):not(:hover) {
+		// 		&[data-highlighted] {
+		// 			background-color: inherit;
+		// 			&[data-selected] {
+		// 				background-color: var(--quaternary-bg-mid);
+		// 			}
+		// 		}
+		// 	}
+		// }
 	}
 
 	[data-part='item-indicator'] {

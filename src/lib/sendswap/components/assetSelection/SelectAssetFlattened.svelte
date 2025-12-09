@@ -28,32 +28,34 @@
 
 	const auth = $derived(getAuth()());
 
-	const onMagi = availableCoins.filter((coin) => coin.value in $accountBalance.bal);
+	const onMagi = $derived(availableCoins.filter((coin) => coin.value in $accountBalance.bal));
 
 	interface BalanceObject extends Coin {
 		balance: string;
 		onNetwork: Network;
 		snippet: (...args: any[]) => ReturnType<Snippet>;
 	}
-	const magiItems: BalanceObject[] = onMagi
-		.map((coin) => {
-			const coinAmt = new CoinAmount(
-				$accountBalance.bal[coin.value as keyof AccountBalance],
-				coin,
-				true
-			);
-			if (coinAmt.amount > 0 || showEmptyAccounts) {
-				return {
-					...coin,
-					value: `${coin.value}:${Network.magi.value}`,
-					balance: coinAmt.toPrettyAmountString(),
-					onNetwork: Network.magi,
-					snippet: assetBalance,
-					snippetData: undefined
-				};
-			}
-		})
-		.filter((coin) => coin !== undefined);
+	const magiItems: BalanceObject[] = $derived(
+		onMagi
+			.map((coin) => {
+				const coinAmt = new CoinAmount(
+					$accountBalance.bal[coin.value as keyof AccountBalance],
+					coin,
+					true
+				);
+				if (coinAmt.amount > 0 || showEmptyAccounts) {
+					return {
+						...coin,
+						value: `${coin.value}:${Network.magi.value}`,
+						balance: coinAmt.toPrettyAmountString(),
+						onNetwork: Network.magi,
+						snippet: assetBalance,
+						snippetData: undefined
+					};
+				}
+			})
+			.filter((coin) => coin !== undefined)
+	);
 
 	let externalItems: BalanceObject[] = $state([]);
 	let loading = $state(false);
@@ -136,7 +138,11 @@
 	}
 
 	$effect(() => {
-		if (availableCoins.length > 0 && coin && !availableCoins.map((coin) => coin.value).includes(coin?.coin.value)) {
+		if (
+			availableCoins.length > 0 &&
+			coin &&
+			!availableCoins.map((coin) => coin.value).includes(coin?.coin.value)
+		) {
 			coin = undefined;
 			if (network) {
 				network = undefined;

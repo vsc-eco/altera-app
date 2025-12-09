@@ -3,12 +3,14 @@
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
 	let { data }: { data: string } = $props();
-	const service = useMachine(qrCode.machine, {
-		id: getUniqueId(),
-		value: data,
-		encoding: { ecc: 'Q' },
-		pixelSize: 5
-	});
+	const service = $derived(
+		useMachine(qrCode.machine, {
+			id: getUniqueId(),
+			value: data,
+			encoding: { ecc: 'Q' },
+			pixelSize: 5
+		})
+	);
 	const api = $derived(qrCode.connect(service, normalizeProps));
 </script>
 

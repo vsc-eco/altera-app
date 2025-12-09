@@ -15,15 +15,17 @@
 	};
 	let { title, description, trigger, children, open = $bindable() }: Props = $props();
 	const id = getUniqueId();
-	const service = useMachine(popover.machine, {
-		id,
-		positioning: {
-			placement: title ? 'top-end' : 'bottom',
-			overflowPadding: 5,
-			flip: title ? ['bottom-end'] : ['top'],
-			strategy: 'fixed'
-		}
-	});
+	const service = $derived(
+		useMachine(popover.machine, {
+			id,
+			positioning: {
+				placement: title ? 'top-end' : 'bottom',
+				overflowPadding: 5,
+				flip: title ? ['bottom-end'] : ['top'],
+				strategy: 'fixed'
+			}
+		})
+	);
 	const api = $derived(popover.connect(service, normalizeProps));
 
 	$effect(() => {

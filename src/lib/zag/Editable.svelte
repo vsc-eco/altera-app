@@ -19,18 +19,20 @@
 	} = $props();
 
 	const id = $props.id();
-	const service = useMachine(editable.machine, {
-		id,
-		autoResize: true,
-		defaultValue: value,
-		activationMode: 'click',
-		disabled: disabled,
-		placeholder: defaultValue,
-		submitMode: 'both',
-		onValueCommit(details) {
-			value = details.value;
-		}
-	});
+	const service = $derived(
+		useMachine(editable.machine, {
+			id,
+			autoResize: true,
+			defaultValue: value,
+			activationMode: 'click',
+			disabled: disabled,
+			placeholder: defaultValue,
+			submitMode: 'both',
+			onValueCommit(details) {
+				value = details.value;
+			}
+		})
+	);
 	const api = $derived(editable.connect(service, normalizeProps));
 </script>
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PillButton from '$lib/PillButton.svelte';
 	import { X } from '@lucide/svelte';
-	import { onMount, type Snippet } from 'svelte';
+	import { onMount, untrack, type Snippet } from 'svelte';
 	import { fly } from 'svelte/transition';
 
 	type Props = {
@@ -24,11 +24,13 @@
 		description,
 		toggle,
 		defaultOpen = false,
-		open = $bindable(defaultOpen),
+		open = $bindable(),
 		position = 'right',
 		width = '400px',
 		height = 'auto'
 	}: Props = $props();
+
+	open = !!untrack(() => defaultOpen);
 
 	let remValue = $state(0);
 	onMount(() => {

@@ -38,7 +38,7 @@
 		}
 	});
 
-	const stepsData: MixedStepsArray =
+	const stepsData: MixedStepsArray = $derived(
 		txType === 'swap'
 			? [
 					{ value: 'options', component: SwapOptions },
@@ -49,7 +49,8 @@
 					{ value: 'options', component: SendOptions },
 					{ value: 'review', component: ReviewSend },
 					{ value: 'complete', component: Complete }
-				];
+				]
+	);
 </script>
 
 <div class="send-internal-wrapper">

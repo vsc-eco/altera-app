@@ -25,33 +25,37 @@
 	}: Props = $props();
 	// pass items with snippet and snippetData in order to render a snippet and not just the label
 
-	let currentOptions = options;
+	let currentOptions = untrack(() => options);
 
 	function getValue(opt: Option): string {
 		return opt.value ?? opt.label;
 	}
 
-	const collection = select.collection({
-		items: options,
-		itemToString: (item) => item.label,
-		itemToValue: getValue,
-		isItemDisabled: (item) => item.disabled
-	});
-	const service = useMachine(select.machine, {
-		id: getUniqueId(),
-		defaultValue: initial ? [initial] : undefined,
-		collection,
-		onValueChange,
-		positioning:
-			styleType === 'default'
-				? {}
-				: {
-						placement: 'bottom-start',
-						sameWidth: true,
-						gutter: 0,
-						shift: 0
-					}
-	});
+	const collection = $derived(
+		select.collection({
+			items: options,
+			itemToString: (item) => item.label,
+			itemToValue: getValue,
+			isItemDisabled: (item) => item.disabled
+		})
+	);
+	const service = $derived(
+		useMachine(select.machine, {
+			id: getUniqueId(),
+			defaultValue: initial ? [initial] : undefined,
+			collection,
+			onValueChange,
+			positioning:
+				styleType === 'default'
+					? {}
+					: {
+							placement: 'bottom-start',
+							sameWidth: true,
+							gutter: 0,
+							shift: 0
+						}
+		})
+	);
 	const api = $derived(select.connect(service, normalizeProps));
 
 	$effect(() => {

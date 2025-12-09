@@ -214,7 +214,7 @@
 			{/if}
 		</div>
 		<Divider text="Amount" />
-		<ClickableCard onclick={() => hasAnyBalance && toggleAsset(true)}>
+		<ClickableCard onclick={() => hasAnyBalance && toggleAsset(true)} tabindex={0} onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') { hasAnyBalance && toggleAsset(true); } }}>
 			<div class="asset-card">
 				{#if !hasAnyBalance}
 					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>

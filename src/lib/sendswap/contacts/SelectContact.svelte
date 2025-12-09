@@ -31,9 +31,9 @@
 	contactsVersion.subscribe(() => {
 		contacts = getContacts();
 	});
-	let addOpen = $state(editing);
+	let addOpen = $state(untrack(() => editing));
 	let editingMode = $state(false);
-	let currentlyOpen: Contact | undefined = $state(
+	let currentlyOpen: Contact | undefined = $derived(
 		editing
 			? !selectedContact && createNew
 				? {

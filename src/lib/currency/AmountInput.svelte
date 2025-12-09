@@ -33,9 +33,10 @@
 
 	let inUsd = $state('0');
 	let error = $state('');
-	let selected = $state.raw(coinOpts[0] ?? { coin: Coin.unk, network: Network.unknown });
+	const initialFirstOption = untrack(() => coinOpts[0]);
+	let selected = $state.raw(initialFirstOption ?? { coin: Coin.unk, network: Network.unknown });
 	let lastModification = $state.raw(
-		new CoinAmount(coinAmount.toAmountString(), coinOpts[0]?.coin ?? Coin.unk)
+		new CoinAmount(coinAmount.toAmountString(), initialFirstOption?.coin ?? Coin.unk)
 	);
 
 	$effect(() => {

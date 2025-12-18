@@ -8,13 +8,12 @@
 	import type { Snippet } from 'svelte';
 	import Type from '../tds/Type.svelte';
 	import { ExternalLink } from '@lucide/svelte';
-	import Clipboard from '$lib/zag/Clipboard.svelte';
+	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import Amount from '../tds/Amount.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import Token from '../tds/Token.svelte';
 	import ContractId from '../tds/ContractId.svelte';
-	import { onMount } from 'svelte';
 
 	type Details = {
 		net_id?: string;
@@ -45,6 +44,7 @@
 	let outputId = $state('');
 	let error = $state('');
 	let statusValues = $state('');
+	let result = $state<any>(null);
 
 	const GRAPHQL_QUERY = `query AccHistory ($opts: TransactionFilter) { txns: findTransaction(filterOptions: $opts) { id anchr_height anchr_ts required_auths required_posting_auths nonce status ops { type, index, data } rc_limit ledger { type from to amount asset memo params } ledger_actions { type status to amount asset memo data } output { id index } }}`;
 
@@ -84,8 +84,43 @@
 			}
 
 			// Parse GraphQL response
-			outputId = gqlData.data?.txns?.[0]?.output?.[0]?.id || '';
+			const fetchedOutputId = gqlData.data?.txns?.[0]?.output?.[0]?.id;
+			outputId = fetchedOutputId || '';
 			statusValues = gqlData.data?.txns?.[0]?.status || '';
+			if (fetchedOutputId) {
+				const dagQuery = `query DagByCID($cid0: String!) { d0: getDagByCID(cidString: $cid0) }`;
+				const dagRes = await fetch('https://vsc.techcoderx.com/api/v1/graphql', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						query: dagQuery,
+						variables: { cid0: fetchedOutputId }
+					})
+				});
+				if (dagRes.ok) {
+					const dagData = await dagRes.json();
+					const d0 = dagData.data?.d0;
+					if (d0) {
+						const outputData = JSON.parse(d0);
+						if (outputData.results && outputData.results.length > 0) {
+							const firstResult = outputData.results[0];
+							if (firstResult.ok) {
+								result = firstResult;
+							} else {
+								if (outputData.results.length >= 3) {
+									result = outputData.results[2];
+								} else if (outputData.results.length >= 2) {
+									result = outputData.results[1];
+								} else {
+									result = firstResult;
+								}
+							}
+						}
+					}
+				} else {
+					error = 'Failed to load DAG details';
+				}
+			}
 		} catch (e) {
 			error = 'Failed to load details';
 			console.error(e);
@@ -160,38 +195,47 @@
 		{:else}
 			<div class="amount section">
 				<h3>Amount</h3>
-				{displayAmount.toPrettyString()}
-				<span class="approx-usd">
+				{details?.payload?.amount} BTC
+				<!-- <span class="approx-usd">
 					Approx. ${inUsd} USD
-				</span>
+				</span> -->
 			</div>
 
 			{#if details?.action}
 				<div class="section">
 					<h3>Status</h3>
-					<span>{statusValues==="INCLUDED"?"PENDING":statusValues}</span>
+					<span>{statusValues === 'INCLUDED' ? 'PENDING' : statusValues}</span>
 				</div>
 			{/if}
 
-			{#if details?.payload?.amount !== undefined}
+			{#if result}
 				<div class="section">
-					<h3>Payload Amount</h3>
-					{details.payload.amount}
+					<h3>Message</h3>
+					{#if result.ok}
+						<span class="success">{result.ret || 'Success'}</span>
+					{:else}
+						<span class="error">
+							err: {result.err},<br />
+							{result.errMsg}
+						</span>
+					{/if}
 				</div>
 			{/if}
 
 			{#if details?.payload?.recipient_btc_address}
 				<div class="section">
 					<h3>Recipient BTC Address</h3>
-					<Clipboard value={details.payload.recipient_btc_address} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+					<div class="copyable-text">
+						<BasicCopy value={details.payload.recipient_btc_address} />
+					</div>
 				</div>
 			{/if}
 
 			{#if details?.contract_id}
 				<div class="section">
 					<h3>Contract ID</h3>
-					<div class="clipboard-wrapper">
-						<Clipboard value={details.contract_id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+					<div class="copyable-text">
+						<BasicCopy value={details.contract_id} />
 					</div>
 				</div>
 			{/if}
@@ -199,8 +243,8 @@
 			{#if outputId}
 				<div class="section">
 					<h3>Output ID</h3>
-					<div class="clipboard-wrapper">
-						<Clipboard value={outputId} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+					<div class="copyable-text">
+						<BasicCopy value={outputId} />
 					</div>
 				</div>
 			{/if}
@@ -216,8 +260,8 @@
 
 			<div class="tx-id section">
 				<h3>Transaction Id</h3>
-				<div class="clipboard-wrapper">
-					<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+				<div class="copyable-text">
+					<BasicCopy value={tx.id} />
 				</div>
 			</div>
 			<div class="links section">
@@ -307,10 +351,12 @@
 		color: red;
 	}
 
-	.clipboard-wrapper {
-		max-width: 38ch;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+	.success {
+		color: green;
+	}
+
+	.copyable-text {
+		font-size: var(--text-sm);
+		word-break: break-all;
 	}
 </style>

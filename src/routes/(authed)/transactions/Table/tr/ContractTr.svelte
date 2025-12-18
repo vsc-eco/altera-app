@@ -14,6 +14,24 @@
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import Token from '../tds/Token.svelte';
 	import ContractId from '../tds/ContractId.svelte';
+	import { onMount } from 'svelte';
+
+	type Details = {
+		net_id?: string;
+		contract_id?: string;
+		action?: string;
+		payload?: {
+			amount?: number;
+			recipient_btc_address?: string;
+			tx_data?: {
+				block_height?: number;
+				tx_index?: number;
+				instructions?: string[];
+			};
+		};
+		rc_limit?: number;
+		intents?: any[];
+	};
 
 	type Props = {
 		tx: TransactionInter;
@@ -22,7 +40,59 @@
 	};
 	let { tx, op, onRowClick }: Props = $props();
 
-	function handleTrigger() {
+	let loading = $state(false);
+	let details = $state<Details | null>(null);
+	let outputId = $state('');
+	let error = $state('');
+	let statusValues = $state('');
+
+	const GRAPHQL_QUERY = `query AccHistory ($opts: TransactionFilter) { txns: findTransaction(filterOptions: $opts) { id anchr_height anchr_ts required_auths required_posting_auths nonce status ops { type, index, data } rc_limit ledger { type from to amount asset memo params } ledger_actions { type status to amount asset memo data } output { id index } }}`;
+
+	async function handleTrigger() {
+		loading = true;
+		error = '';
+		try {
+			const [hafRes, gqlRes] = await Promise.all([
+				fetch(`https://techcoderx.com/hafah-api/transactions/${tx.id}?include-virtual=true`),
+				fetch('https://vsc.techcoderx.com/api/v1/graphql', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						query: GRAPHQL_QUERY,
+						variables: { opts: { byId: tx.id, offset: 0, limit: 1 } }
+					})
+				})
+			]);
+
+			if (!hafRes.ok || !gqlRes.ok) throw new Error('Fetch failed');
+
+			const hafData = await hafRes.json();
+			const gqlData = await gqlRes.json();
+
+			// Parse HAF API response
+			const opJson = hafData.transaction_json?.operations?.[0]?.value?.json;
+			if (opJson) {
+				const parsed = JSON.parse(opJson);
+				details = {
+					net_id: parsed.net_id,
+					contract_id: parsed.contract_id,
+					action: parsed.action,
+					payload: parsed.payload,
+					rc_limit: parsed.rc_limit,
+					intents: parsed.intents
+				};
+			}
+
+			// Parse GraphQL response
+			outputId = gqlData.data?.txns?.[0]?.output?.[0]?.id || '';
+			statusValues = gqlData.data?.txns?.[0]?.status || '';
+		} catch (e) {
+			error = 'Failed to load details';
+			console.error(e);
+		} finally {
+			loading = false;
+		}
+
 		onRowClick([tx.id, op.index], contractRowContent);
 	}
 	function handleKeydown(e: KeyboardEvent) {
@@ -51,6 +121,14 @@
 			inUsd = amount.toAmountString();
 		});
 	});
+
+	// Derived display amount prioritizing API payload
+	const displayAmount = $derived.by(() => {
+		if (details?.payload?.amount) {
+			return new CoinAmount(details.payload.amount.toString(), Coin.hive, true);
+		}
+		return amount;
+	});
 </script>
 
 <tr
@@ -75,25 +153,82 @@
 			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase())}
 	</h2>
 	<div class="sections">
-		<div class="amount section">
-			<h3>Limit</h3>
-			{amount.toPrettyString()}
-			<span class="approx-usd">
-				Approx. ${inUsd} USD
-			</span>
-		</div>
-		<div class="tx-id section">
-			<h3>Transaction Id</h3>
-			<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
-		</div>
-		<div class="links section">
-			<h3>External Links</h3>
-			<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-				<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
-					VSC Block Explorer<ExternalLink /></a
-				>
+		{#if loading}
+			<p>Loading details...</p>
+		{:else if error}
+			<p class="error">{error}</p>
+		{:else}
+			<div class="amount section">
+				<h3>Amount</h3>
+				{displayAmount.toPrettyString()}
+				<span class="approx-usd">
+					Approx. ${inUsd} USD
+				</span>
 			</div>
-		</div>
+
+			{#if details?.action}
+				<div class="section">
+					<h3>Status</h3>
+					<span>{statusValues==="INCLUDED"?"PENDING":statusValues}</span>
+				</div>
+			{/if}
+
+			{#if details?.payload?.amount !== undefined}
+				<div class="section">
+					<h3>Payload Amount</h3>
+					{details.payload.amount}
+				</div>
+			{/if}
+
+			{#if details?.payload?.recipient_btc_address}
+				<div class="section">
+					<h3>Recipient BTC Address</h3>
+					<Clipboard value={details.payload.recipient_btc_address} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+				</div>
+			{/if}
+
+			{#if details?.contract_id}
+				<div class="section">
+					<h3>Contract ID</h3>
+					<div class="clipboard-wrapper">
+						<Clipboard value={details.contract_id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+					</div>
+				</div>
+			{/if}
+
+			{#if outputId}
+				<div class="section">
+					<h3>Output ID</h3>
+					<div class="clipboard-wrapper">
+						<Clipboard value={outputId} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+					</div>
+				</div>
+			{/if}
+
+			{#if details?.payload?.tx_data && details.action === 'map'}
+				<div class="section">
+					<h3>Deposit TX Data</h3>
+					<p>Block Height: {details.payload.tx_data.block_height}</p>
+					<p>TX Index: {details.payload.tx_data.tx_index}</p>
+					<p>Instructions: {details.payload.tx_data.instructions?.join(', ')}</p>
+				</div>
+			{/if}
+
+			<div class="tx-id section">
+				<h3>Transaction Id</h3>
+				<div class="clipboard-wrapper">
+					<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
+				</div>
+			</div>
+			<div class="links section">
+				<h3>External Links</h3>
+				<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
+					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
+						VSC Block Explorer<ExternalLink /></a
+					>
+				</div>
+			</div>
+		{/if}
 	</div>
 {/snippet}
 
@@ -166,5 +301,16 @@
 
 	.tx-id.section {
 		margin-top: auto;
+	}
+
+	.error {
+		color: red;
+	}
+
+	.clipboard-wrapper {
+		max-width: 38ch;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 </style>

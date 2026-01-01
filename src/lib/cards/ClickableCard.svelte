@@ -10,13 +10,17 @@
 		tabindex?: number;
 		onkeydown?: (e: KeyboardEvent) => void;
 	};
-	let { onclick, disabled = false, children, defaultBg = false, tabindex, onkeydown }: Props = $props();
-
-	// svelte-ignore state_referenced_locally
-		const disabledActually = !!disabled;
+	let {
+		onclick,
+		disabled = false,
+		children,
+		defaultBg = false,
+		tabindex,
+		onkeydown
+	}: Props = $props();
 </script>
 
-<button disabled={disabledActually} {onclick} {tabindex} {onkeydown} class={{ defaultBg }}>
+<button {disabled} {onclick} {tabindex} {onkeydown} class={{ defaultBg }}>
 	{@render children()}
 </button>
 

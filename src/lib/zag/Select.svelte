@@ -31,36 +31,34 @@
 		return opt.value ?? opt.label;
 	}
 
-	const collection = $derived(
-		select.collection({
-			items: options,
-			itemToString: (item) => item.label,
-			itemToValue: getValue,
-			isItemDisabled: (item) => item.disabled
-		})
-	);
-	const service = $derived(
-		useMachine(select.machine, {
-			id: getUniqueId(),
-			defaultValue: initial ? [initial] : undefined,
-			collection,
-			onValueChange,
-			positioning:
-				styleType === 'default'
-					? {}
-					: {
-							placement: 'bottom-start',
-							sameWidth: true,
-							gutter: 0,
-							shift: 0
-						}
-		})
-	);
+	const collection = select.collection({
+		items: untrack(() => options),
+		itemToString: (item) => item.label,
+		itemToValue: getValue,
+		isItemDisabled: (item) => item.disabled
+	});
+
+	const service = useMachine(select.machine, {
+		id: getUniqueId(),
+		defaultValue: untrack(() => (initial ? [initial] : undefined)),
+		collection,
+		onValueChange: untrack(() => onValueChange),
+		positioning:
+			untrack(() => styleType) === 'default'
+				? {}
+				: {
+						placement: 'bottom-start',
+						sameWidth: true,
+						gutter: 0,
+						shift: 0
+					}
+	});
 	const api = $derived(select.connect(service, normalizeProps));
 
 	$effect(() => {
-		api.collection.items = options;
+		api.collection.setItems(options);
 	});
+
 	$effect(() => {
 		if (initial) {
 			untrack(() => {
@@ -109,7 +107,7 @@
 	/>
 
 	<div {...api.getPositionerProps()} class={{ card: styleType !== 'default' }}>
-		<List {api} selectData={api.collection.items} {styleType} />
+		<List {api} selectData={options} {styleType} />
 	</div>
 </div>
 

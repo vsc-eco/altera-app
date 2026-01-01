@@ -26,10 +26,12 @@
 		defaultOpen,
 		open = $bindable()
 	}: Props = $props();
-	let service = useMachine(dialog.machine, {
-		id: getUniqueId(),
-		defaultOpen
-	});
+	let service = $derived(
+		useMachine(dialog.machine, {
+			id: getUniqueId(),
+			defaultOpen
+		})
+	);
 	const api = $derived(dialog.connect(service, normalizeProps));
 	toggle = (open: boolean = false) => {
 		api.setOpen(open);

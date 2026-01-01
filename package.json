@@ -135,5 +135,5 @@
 		"wagmi": "^3.1.4",
 		"zod": "^3.25.76"
 	},
-	"packageManager": "pnpm@10.24.0"
+	"packageManager": "pnpm@10.27.0"
 }

@@ -10,6 +10,27 @@
 	import { goto } from '$app/navigation';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import ContractTr from './tr/ContractTr.svelte';
+	import BtcMappingTr from './tr/BtcMappingTr.svelte';
+	import { MAPPINGCONTRACTID } from '$lib/stores/currentBalance';
+	import { mappingActionStore, getOpAction, fetchActionForOpKey } from '$lib/mappingAction';
+
+	$effect(() => {
+		for (const txItem of $allTransactionsStore) {
+			const ops = txItem.ops ?? [];
+			ops.forEach((opItem: any, idx: number) => {
+				const localOp = 'data' in opItem ? opItem : { data: opItem, index: idx, type: opItem.type };
+				if (localOp.type === 'call_contract' && localOp.data?.contract_id === MAPPINGCONTRACTID) {
+					const key = `${txItem.id}:${localOp.index}`;
+					const action = getOpAction(localOp);
+					if (action) {
+							if ($mappingActionStore[key] !== action) mappingActionStore.update((s) => ({ ...s, [key]: action }));
+						} else if ($mappingActionStore[key] === undefined) {
+						fetchActionForOpKey(txItem.id, localOp.index);
+					}
+				}
+			});
+		}
+	});
 
 	let {
 		did,
@@ -201,7 +222,14 @@
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
 							{:else if op.type === 'call_contract'}
-								<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
+								{@const actionSync = getOpAction(newOp)}
+								{@const cacheKey = `${tx.id}:${newOp.index}`}
+								{@const actionLocal = actionSync || $mappingActionStore[cacheKey] || ''}
+								{#if (actionLocal === 'map' || actionLocal === 'unmap')}
+									<BtcMappingTr {tx} op={newOp} onRowClick={toggleDetails} />
+								{:else}
+									<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
+								{/if}
 							{:else}
 								<tr>
 									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>

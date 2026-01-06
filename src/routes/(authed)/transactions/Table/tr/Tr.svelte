@@ -12,6 +12,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
 	import {
+		formatOpType,
 		getTimestamp,
 		type TransactionInter,
 		type TransactionOpType
@@ -188,9 +189,7 @@
 
 {#snippet thisRowContent()}
 	<h2>
-		{t
-			.replace('_', ' ')
-			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase())}
+		{formatOpType(t)}
 	</h2>
 	<div class="amount">
 		{amount.toPrettyString()}

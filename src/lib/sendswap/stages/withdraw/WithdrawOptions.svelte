@@ -3,7 +3,7 @@
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
-	import { SendTxDetails } from '../../utils/sendUtils';
+	import { scanForBalance, SendTxDetails } from '../../utils/sendUtils';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -30,19 +30,30 @@
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
 			SendTxDetails.update((current) => {
-				const hiveCoin = swapOptions.from.coins.find((coinOpt) => 
-					coinOpt.coin.value === Coin.hive.value &&
-					coinOpt.networks.some(n => n.value === Network.magi.value)
-				) || swapOptions.from.coins.find((coinOpt) => 
-					coinOpt.coin.value === Coin.hbd.value &&
-					coinOpt.networks.some(n => n.value === Network.magi.value)
-				);
+				const hiveCoin =
+					swapOptions.from.coins.find(
+						(coinOpt) =>
+							coinOpt.coin.value === Coin.hive.value &&
+							coinOpt.networks.some((n) => n.value === Network.magi.value)
+					) ||
+					swapOptions.from.coins.find(
+						(coinOpt) =>
+							coinOpt.coin.value === Coin.hbd.value &&
+							coinOpt.networks.some((n) => n.value === Network.magi.value)
+					);
 
-				let fromCoinToUse = hiveCoin; // default
-				if (current.fromCoin && current.fromCoin.networks?.some(n => n.value === Network.magi.value)) {
+				let fromCoinToUse =
+					hiveCoin &&
+					scanForBalance([{ coin: hiveCoin?.coin, network: Network.magi }]) !== undefined
+						? hiveCoin
+						: undefined;
+				if (
+					current.fromCoin &&
+					current.fromCoin.networks?.some((n) => n.value === Network.magi.value)
+				) {
 					fromCoinToUse = current.fromCoin;
 				}
-				
+
 				return {
 					...current,
 					method: TransferMethod.magiTransfer,
@@ -58,7 +69,6 @@
 	$effect(() => {
 		onHomePage = hiveMainnetOpen;
 	});
-
 </script>
 
 <div class="withdraw-internal-wrapper">

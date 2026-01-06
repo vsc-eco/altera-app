@@ -352,6 +352,7 @@
 				close={toggle}
 				bind:coin={$SendTxDetails.toCoin}
 				bind:network={$SendTxDetails.toNetwork}
+				isTo
 			/>
 		{/if}
 	{/snippet}

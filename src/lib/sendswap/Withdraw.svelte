@@ -8,6 +8,7 @@
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 
 	let {
 		dialogOpen = $bindable(),
@@ -23,13 +24,8 @@
 
 	function withdrawDetails(): SendDetails {
 		const username = auth.value?.provider === 'aioha' ? (getUsernameFromAuth(auth) ?? '') : '';
-		const selectedCoin = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
 		return {
 			...blankDetails(),
-			fromCoin: selectedCoin,
-			fromNetwork: Network.magi,
-			toCoin: selectedCoin,
-			toNetwork: Network.magi,
 			toUsername: username
 		};
 	}

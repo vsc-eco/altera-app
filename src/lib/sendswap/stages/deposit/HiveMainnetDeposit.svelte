@@ -45,7 +45,7 @@
 	$effect(() => {
 		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
 		if ($SendTxDetails.fromNetwork.value !== Network.hiveMainnet.value) return;
-		
+
 		const coinValue = $SendTxDetails.fromCoin.coin.value;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
 			const balance = $accountBalance.connectedBal?.[coinValue as 'hive' | 'hbd'];
@@ -110,23 +110,27 @@
 	/>
 {:else if auth.value?.provider === 'aioha'}
 	<div class="sections">
-		<ClickableCard onclick={() => toggleAsset(true)}>
-			<div class="asset-card">
-				{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
-					<BalanceInfo
-						coin={$SendTxDetails.fromCoin.coin}
-						network={$SendTxDetails.fromNetwork}
-						size="large"
-						styleType="vertical"
-					/>
-					<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
-				{:else}
-					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-					Select Asset
-				{/if}
-				<span class="edit"> Edit </span>
-			</div>
-		</ClickableCard>
+		<div class="section">
+			<label for="asset-card">Deposit From</label>
+			<ClickableCard onclick={() => toggleAsset(true)}>
+				<div class="asset-card">
+					{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+						<BalanceInfo
+							coin={$SendTxDetails.fromCoin.coin}
+							network={$SendTxDetails.fromNetwork}
+							size="large"
+							styleType="vertical"
+						/>
+						<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
+					{:else}
+						<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span
+						>
+						Select Asset
+					{/if}
+					<span class="edit"> Edit </span>
+				</div>
+			</ClickableCard>
+		</div>
 		<div class="section">
 			<label for={inputId}>Amount</label>
 			<div class="amount-row">

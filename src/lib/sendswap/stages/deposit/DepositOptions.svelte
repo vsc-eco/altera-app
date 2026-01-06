@@ -3,7 +3,7 @@
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
-	import { SendTxDetails } from '../../utils/sendUtils';
+	import { scanForBalance, SendTxDetails } from '../../utils/sendUtils';
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
 	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
 	import LightningDeposit from './LightningDeposit.svelte';
@@ -49,21 +49,31 @@
 		untrack(() => {
 			toggleHiveMainnet(false);
 			SendTxDetails.update((current) => {
-				const btcCoin = swapOptions.from.coins.find((coinOpt) => coinOpt.coin.value === Coin.btc.value);
-				const shouldPreserveFromCoin = current.fromCoin && current.fromCoin.networks?.some(n => n.value === Network.lightning.value);
-				
+				const btcCoin = swapOptions.from.coins.find(
+					(coinOpt) => coinOpt.coin.value === Coin.btc.value
+				);
+				const shouldPreserveFromCoin =
+					current.fromCoin &&
+					current.fromCoin.networks?.some((n) => n.value === Network.lightning.value);
+
 				const hiveCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
 				const hbdCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hbd.value);
-				
+
 				let toCoinToUse = hiveCoin; // default
-				if (current.toCoin && 
-					(current.toCoin.coin.value === Coin.hive.value || current.toCoin.coin.value === Coin.hbd.value)) {
+				if (
+					current.toCoin &&
+					(current.toCoin.coin.value === Coin.hive.value ||
+						current.toCoin.coin.value === Coin.hbd.value)
+				) {
 					toCoinToUse = current.toCoin;
-				} else if (current.fromCoin && 
-					(current.fromCoin.coin.value === Coin.hive.value || current.fromCoin.coin.value === Coin.hbd.value)) {
+				} else if (
+					current.fromCoin &&
+					(current.fromCoin.coin.value === Coin.hive.value ||
+						current.fromCoin.coin.value === Coin.hbd.value)
+				) {
 					toCoinToUse = current.fromCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
 				}
-				
+
 				return {
 					...current,
 					method: TransferMethod.lightningTransfer,
@@ -81,26 +91,41 @@
 		untrack(() => {
 			toggleLightning(false);
 			SendTxDetails.update((current) => {
-				const hiveCoin = swapOptions.from.coins.find((coinOpt) => 
-					coinOpt.coin.value === Coin.hive.value &&
-					coinOpt.networks.some(n => n.value === Network.hiveMainnet.value)
-				) || swapOptions.from.coins.find((coinOpt) => 
-					coinOpt.coin.value === Coin.hbd.value &&
-					coinOpt.networks.some(n => n.value === Network.hiveMainnet.value)
+				const hiveCoin =
+					swapOptions.from.coins.find(
+						(coinOpt) =>
+							coinOpt.coin.value === Coin.hive.value &&
+							coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
+					) ||
+					swapOptions.from.coins.find(
+						(coinOpt) =>
+							coinOpt.coin.value === Coin.hbd.value &&
+							coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
+					);
+				const hbdCoin = swapOptions.from.coins.find(
+					(coinOpt) =>
+						coinOpt.coin.value === Coin.hbd.value &&
+						coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
 				);
-				const hbdCoin = swapOptions.from.coins.find((coinOpt) => 
-					coinOpt.coin.value === Coin.hbd.value &&
-					coinOpt.networks.some(n => n.value === Network.hiveMainnet.value)
-				);
-				
-				let fromCoinToUse = hiveCoin; // default
-				if (current.fromCoin && current.fromCoin.networks?.some(n => n.value === Network.hiveMainnet.value)) {
+
+				let fromCoinToUse =
+					hiveCoin &&
+					scanForBalance([{ coin: hiveCoin?.coin, network: Network.magi }]) !== undefined
+						? hiveCoin
+						: undefined;
+				if (
+					current.fromCoin &&
+					current.fromCoin.networks?.some((n) => n.value === Network.hiveMainnet.value)
+				) {
 					fromCoinToUse = current.fromCoin;
-				} else if (current.toCoin && 
-					(current.toCoin.coin.value === Coin.hive.value || current.toCoin.coin.value === Coin.hbd.value)) {
+				} else if (
+					current.toCoin &&
+					(current.toCoin.coin.value === Coin.hive.value ||
+						current.toCoin.coin.value === Coin.hbd.value)
+				) {
 					fromCoinToUse = current.toCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
 				}
-				
+
 				return {
 					...current,
 					method: TransferMethod.magiTransfer,

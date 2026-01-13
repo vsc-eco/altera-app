@@ -225,7 +225,7 @@
 								{@const actionSync = getOpAction(newOp)}
 								{@const cacheKey = `${tx.id}:${newOp.index}`}
 								{@const actionLocal = actionSync || $mappingActionStore[cacheKey] || ''}
-								{#if (actionLocal === 'map' || actionLocal === 'unmap')}
+								{#if (actionLocal === 'map' || actionLocal === 'unmap' || actionLocal === 'transfer')}
 									<BtcMappingTr {tx} op={newOp} onRowClick={toggleDetails} />
 								{:else}
 									<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />

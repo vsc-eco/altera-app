@@ -1,0 +1,39 @@
+query AccHistory($opts: TransactionFilter) {
+	txns: findTransaction(filterOptions: $opts) {
+		id
+		anchr_height
+		anchr_ts
+		required_auths
+		required_posting_auths
+		nonce
+		status
+		ops {
+			type
+			index
+			data
+		}
+		rc_limit
+		ledger {
+			type
+			from
+			to
+			amount
+			asset
+			memo
+			params
+		}
+		ledger_actions {
+			type
+			status
+			to
+			amount
+			asset
+			memo
+			data
+		}
+		output {
+			id
+			index
+		}
+	}
+}

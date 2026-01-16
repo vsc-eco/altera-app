@@ -89,7 +89,7 @@
 		<div class="links section">
 			<h3>External Links</h3>
 			<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-				<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
+				<a href={'https://api.vsc.eco/tx/' + tx.id} target="_blank" rel="noreferrer">
 					VSC Block Explorer<ExternalLink /></a
 				>
 			</div>

@@ -19,7 +19,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromDid } from '$lib/getAccountName';
 	import StatusView from './StatusView.svelte';
-	import { mappingActionStore } from '$lib/mappingAction';
+	import { AccHistoryStore, DagByCIDStore } from '$houdini';
 
 	type Details = {
 		net_id?: string;
@@ -81,109 +81,163 @@
 	};
 });
 
-	const GRAPHQL_QUERY = `query AccHistory ($opts: TransactionFilter) { txns: findTransaction(filterOptions: $opts) { id anchr_height anchr_ts required_auths required_posting_auths nonce status ops { type, index, data } rc_limit ledger { type from to amount asset memo params } ledger_actions { type status to amount asset memo data } output { id index } }}`;
+	/**
+	 * Extract operation data from GraphQL op.data field.
+	 * GraphQL's op.data is a Map type that may contain the operation JSON directly
+	 * or wrapped in a 'json' property as a string.
+	 */
+	function extractOpDataFromGraphQL(opData: any): any | null {
+		if (!opData) return null;
+		
+		try {
+			// Check if data is already parsed (object with action, contract_id, etc.)
+			if (opData.action && typeof opData === 'object') {
+				return opData;
+			}
+			
+			// Check if data has a 'json' property that needs parsing
+			if (typeof opData.json === 'string') {
+				return JSON.parse(opData.json);
+			}
+			
+			// Try to use data directly if it looks like operation data
+			if (opData.contract_id || opData.action) {
+				return opData;
+			}
+		} catch (e) {
+			console.error('Failed to extract op data from GraphQL', e);
+		}
+		
+		return null;
+	}
 
 	async function loadDetails() {
 		error = '';
 		try {
-			const [hafRes, gqlRes] = await Promise.all([
-				fetch(`https://techcoderx.com/hafah-api/transactions/${tx.id}?include-virtual=true`),
-				fetch('https://vsc.techcoderx.com/api/v1/graphql', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						query: GRAPHQL_QUERY,
-						variables: { opts: { byId: tx.id, offset: 0, limit: 1 } }
-					})
-				})
-			]);
+			// Fetch GraphQL data first
+			const gqlRes = await new AccHistoryStore().fetch({
+				variables: { opts: { byId: tx.id, offset: 0, limit: 1 } },
+				policy: 'NetworkOnly'
+			});
 
-			if (!hafRes.ok || !gqlRes.ok) throw new Error('Fetch failed');
+			if (!gqlRes.data) throw new Error('GraphQL fetch failed');
 
-			const hafData = await hafRes.json();
-			const gqlData = await gqlRes.json();
-			const txns = gqlData.data?.txns;
+			const txns = gqlRes.data?.txns;
+			if (!txns || txns.length === 0) throw new Error('No transaction data found');
 
-			const opJson = hafData.transaction_json?.operations?.[0]?.value?.json;
-			if (opJson) {
-				const parsed = JSON.parse(opJson);
-				let payloadContent: Details['payload'];
-				if (parsed.payload && typeof parsed.payload === 'string' && parsed.payload.trim()) {
-					try {
-						payloadContent = JSON.parse(parsed.payload);
-					} catch (e) {
-						console.error('Failed to parse payload JSON string:', parsed.payload, e);
-						error = 'Failed to parse transaction payload.';
-					}
-				} else if (parsed.payload && typeof parsed.payload === 'object') {
-					payloadContent = parsed.payload;
-				}
+			const txn = txns[0];
+			const opData = txn.ops?.[op.index]?.data;
+			
+			// Try to extract operation data from GraphQL first
+			let parsed = extractOpDataFromGraphQL(opData);
+			let needsHafApi = false;
 
-				if (payloadContent && parsed.action === 'map' && txns && txns.length > 0) {
-					const ledgerActions = txns[0].ledger_actions;
-					if (ledgerActions && ledgerActions.length > 0) {
-						const depositAction = ledgerActions.find(
-							(a: any) => a.type === 'deposit' && a.asset === 'sat'
-						);
-						if (depositAction) {
-							payloadContent.amount = depositAction.amount;
+			// Check if we have all required fields from GraphQL
+			if (!parsed || !parsed.action || !parsed.contract_id) {
+				// Missing critical fields, need to fetch from HAF API
+				needsHafApi = true;
+			}
+
+			// Fetch HAF API data if needed (for net_id, intents, or complete payload structure)
+			let hafData: any = null;
+			if (needsHafApi || !parsed.net_id || !parsed.intents || !parsed.payload) {
+				try {
+					const hafRes = await fetch(`https://techcoderx.com/hafah-api/transactions/${tx.id}?include-virtual=true`);
+					if (hafRes.ok) {
+						hafData = await hafRes.json();
+						const opJson = hafData.transaction_json?.operations?.[op.index]?.value?.json;
+						if (opJson) {
+							const hafParsed = JSON.parse(opJson);
+							// Merge HAF API data with GraphQL data (HAF API takes precedence for missing fields)
+							parsed = {
+								...parsed,
+								net_id: hafParsed.net_id ?? parsed?.net_id,
+								contract_id: hafParsed.contract_id ?? parsed?.contract_id,
+								action: hafParsed.action ?? parsed?.action,
+								payload: hafParsed.payload ?? parsed?.payload,
+								rc_limit: hafParsed.rc_limit ?? parsed?.rc_limit ?? txn.rc_limit,
+								intents: hafParsed.intents ?? parsed?.intents
+							};
 						}
 					}
-				}
-
-				const cacheKey = `${tx.id}:${op.index}`;
-				let actionVal = parsed.action ?? $mappingActionStore[cacheKey] ?? '';
-
-				details = {
-					net_id: parsed.net_id,
-					contract_id: parsed.contract_id,
-					action: actionVal || parsed.action,
-					payload: payloadContent,
-					rc_limit: parsed.rc_limit,
-					intents: parsed.intents
-				};
-
-				if (details.action === 'unmap') {
-					fromAccount = did;
-					toAccount = details.payload?.recipient_btc_address ?? 'Unknown';
-				} else if (details.action === 'map') {
-					fromAccount = 'Bitcoin Network';
-					const instruction = details.payload?.tx_data?.instructions?.[0];
-					if (instruction) {
-						try {
-							const params = new URLSearchParams(instruction);
-							const depositTo = params.get('deposit_to') ?? '';
-							if (depositTo) {
-								toAccount = getUsernameFromDid(depositTo);
-							} else {
-								toAccount = 'Unknown';
-							}
-						} catch (e) {
-							console.error('Failed to parse instruction params:', instruction, e);
-							toAccount = 'Unknown';
-						}
-					} else {
-						toAccount = 'Unknown';
-					}
+				} catch (e) {
+					console.warn('HAF API fetch failed, using GraphQL data only', e);
+					// Continue with GraphQL data only
 				}
 			}
 
-			const fetchedOutputId = txns?.[0]?.output?.[0]?.id;
+			// Use rc_limit from GraphQL if available (more reliable)
+			if (!parsed) {
+				throw new Error('Failed to extract operation data');
+			}
+
+			parsed.rc_limit = parsed.rc_limit ?? txn.rc_limit;
+
+			let payloadContent: Details['payload'];
+			if (parsed.payload && typeof parsed.payload === 'string' && parsed.payload.trim()) {
+				try {
+					payloadContent = JSON.parse(parsed.payload);
+				} catch (e) {
+					console.error('Failed to parse payload JSON string:', parsed.payload, e);
+					error = 'Failed to parse transaction payload.';
+				}
+			} else if (parsed.payload && typeof parsed.payload === 'object') {
+				payloadContent = parsed.payload;
+			}
+
+			// Get amount from GraphQL ledger_actions (more reliable than HAF API)
+			if (payloadContent && parsed.action === 'map' && txn.ledger_actions && txn.ledger_actions.length > 0) {
+				const depositAction = txn.ledger_actions.find(
+					(a: any) => a.type === 'deposit' && a.asset === 'sat'
+				);
+				if (depositAction) {
+					payloadContent.amount = depositAction.amount ?? 0;
+				}
+			}
+
+			details = {
+				net_id: parsed.net_id,
+				contract_id: parsed.contract_id,
+				action: parsed.action,
+				payload: payloadContent,
+				rc_limit: parsed.rc_limit,
+				intents: parsed.intents
+			};
+
+			if (details.action === 'unmap') {
+				fromAccount = did;
+				toAccount = details.payload?.recipient_btc_address ?? 'Unknown';
+			} else if (details.action === 'map') {
+				fromAccount = 'Bitcoin Network';
+				const instruction = details.payload?.tx_data?.instructions?.[0];
+				if (instruction) {
+					try {
+						const params = new URLSearchParams(instruction);
+						const depositTo = params.get('deposit_to') ?? '';
+						if (depositTo) {
+							toAccount = getUsernameFromDid(depositTo);
+						} else {
+							toAccount = 'Unknown';
+						}
+					} catch (e) {
+						console.error('Failed to parse instruction params:', instruction, e);
+						toAccount = 'Unknown';
+					}
+				} else {
+					toAccount = 'Unknown';
+				}
+			}
+
+			const fetchedOutputId = txn?.output?.[0]?.id;
 			outputId = fetchedOutputId || '';
-			statusValues = txns?.[0]?.status || '';
+			statusValues = txn?.status || '';
 			if (fetchedOutputId) {
-				const dagQuery = `query DagByCID($cid0: String!) { d0: getDagByCID(cidString: $cid0) }`;
-				const dagRes = await fetch('https://vsc.techcoderx.com/api/v1/graphql', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						query: dagQuery,
-						variables: { cid0: fetchedOutputId }
-					})
+				const dagRes = await new DagByCIDStore().fetch({
+					variables: { cid0: fetchedOutputId },
+					policy: 'NetworkOnly'
 				});
-				if (dagRes.ok) {
-					const dagData = await dagRes.json();
-					const d0 = dagData.data?.d0;
+				if (dagRes.data) {
+					const d0 = dagRes.data?.d0;
 					if (d0) {
 						const outputData = JSON.parse(d0);
 						if (outputData.results && outputData.results.length > 0) {
@@ -315,7 +369,7 @@
 			<div class="links section">
 				<h3>External Links</h3>
 				<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
+					<a href={'https://api.vsc.eco/tx/' + tx.id} target="_blank" rel="noreferrer">
 						VSC Block Explorer<ExternalLink /></a
 					>
 				</div>
@@ -384,7 +438,7 @@
 			<div class="links section">
 				<h3>External Links</h3>
 				<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
+					<a href={'https://api.vsc.eco/tx/' + tx.id} target="_blank" rel="noreferrer">
 						VSC Block Explorer<ExternalLink /></a
 					>
 				</div>

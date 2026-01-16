@@ -46,7 +46,6 @@
 	let { tx, op, onRowClick }: Props = $props();
 
 	let loading = $state(true);
-	let details = $state<Details | null>(null);
 	let outputId = $state('');
 	let error = $state('');
 	let statusValues = $state('');
@@ -81,40 +80,42 @@
 	};
 });
 
-	/**
-	 * Extract operation data from GraphQL op.data field.
-	 * GraphQL's op.data is a Map type that may contain the operation JSON directly
-	 * or wrapped in a 'json' property as a string.
-	 */
-	function extractOpDataFromGraphQL(opData: any): any | null {
-		if (!opData) return null;
-		
+	// Extract payload data from op.data.payload.Data (base64 encoded)
+	const payloadData = $derived.by(() => {
 		try {
-			// Check if data is already parsed (object with action, contract_id, etc.)
-			if (opData.action && typeof opData === 'object') {
-				return opData;
+			const payloadDataBase64 = op.data?.payload?.Data;
+			if (!payloadDataBase64 || typeof payloadDataBase64 !== 'string') {
+				return null;
 			}
-			
-			// Check if data has a 'json' property that needs parsing
-			if (typeof opData.json === 'string') {
-				return JSON.parse(opData.json);
-			}
-			
-			// Try to use data directly if it looks like operation data
-			if (opData.contract_id || opData.action) {
-				return opData;
-			}
+			const decoded = atob(payloadDataBase64);
+			return JSON.parse(decoded);
 		} catch (e) {
-			console.error('Failed to extract op data from GraphQL', e);
+			console.error('Failed to decode payload Data', e);
+			return null;
 		}
-		
-		return null;
-	}
+	});
 
-	async function loadDetails() {
+	// Extract details from op.data directly
+	const details = $derived.by(() => {
+		const action = op.data?.action;
+		const contract_id = op.data?.contract_id;
+		const payload = payloadData;
+		
+		return {
+			action,
+			contract_id,
+			payload: payload ? {
+				amount: payload.amount,
+				recipient_btc_address: payload.recipient_btc_address,
+				tx_data: payload.tx_data
+			} : undefined
+		};
+	});
+
+	// Load outputId, statusValues, and result from GraphQL
+	async function loadOutputData() {
 		error = '';
 		try {
-			// Fetch GraphQL data first
 			const gqlRes = await new AccHistoryStore().fetch({
 				variables: { opts: { byId: tx.id, offset: 0, limit: 1 } },
 				policy: 'NetworkOnly'
@@ -126,111 +127,10 @@
 			if (!txns || txns.length === 0) throw new Error('No transaction data found');
 
 			const txn = txns[0];
-			const opData = txn.ops?.[op.index]?.data;
-			
-			// Try to extract operation data from GraphQL first
-			let parsed = extractOpDataFromGraphQL(opData);
-			let needsHafApi = false;
-
-			// Check if we have all required fields from GraphQL
-			if (!parsed || !parsed.action || !parsed.contract_id) {
-				// Missing critical fields, need to fetch from HAF API
-				needsHafApi = true;
-			}
-
-			// Fetch HAF API data if needed (for net_id, intents, or complete payload structure)
-			let hafData: any = null;
-			if (needsHafApi || !parsed.net_id || !parsed.intents || !parsed.payload) {
-				try {
-					const hafRes = await fetch(`https://techcoderx.com/hafah-api/transactions/${tx.id}?include-virtual=true`);
-					if (hafRes.ok) {
-						hafData = await hafRes.json();
-						const opJson = hafData.transaction_json?.operations?.[op.index]?.value?.json;
-						if (opJson) {
-							const hafParsed = JSON.parse(opJson);
-							// Merge HAF API data with GraphQL data (HAF API takes precedence for missing fields)
-							parsed = {
-								...parsed,
-								net_id: hafParsed.net_id ?? parsed?.net_id,
-								contract_id: hafParsed.contract_id ?? parsed?.contract_id,
-								action: hafParsed.action ?? parsed?.action,
-								payload: hafParsed.payload ?? parsed?.payload,
-								rc_limit: hafParsed.rc_limit ?? parsed?.rc_limit ?? txn.rc_limit,
-								intents: hafParsed.intents ?? parsed?.intents
-							};
-						}
-					}
-				} catch (e) {
-					console.warn('HAF API fetch failed, using GraphQL data only', e);
-					// Continue with GraphQL data only
-				}
-			}
-
-			// Use rc_limit from GraphQL if available (more reliable)
-			if (!parsed) {
-				throw new Error('Failed to extract operation data');
-			}
-
-			parsed.rc_limit = parsed.rc_limit ?? txn.rc_limit;
-
-			let payloadContent: Details['payload'];
-			if (parsed.payload && typeof parsed.payload === 'string' && parsed.payload.trim()) {
-				try {
-					payloadContent = JSON.parse(parsed.payload);
-				} catch (e) {
-					console.error('Failed to parse payload JSON string:', parsed.payload, e);
-					error = 'Failed to parse transaction payload.';
-				}
-			} else if (parsed.payload && typeof parsed.payload === 'object') {
-				payloadContent = parsed.payload;
-			}
-
-			// Get amount from GraphQL ledger_actions (more reliable than HAF API)
-			if (payloadContent && parsed.action === 'map' && txn.ledger_actions && txn.ledger_actions.length > 0) {
-				const depositAction = txn.ledger_actions.find(
-					(a: any) => a.type === 'deposit' && a.asset === 'sat'
-				);
-				if (depositAction) {
-					payloadContent.amount = depositAction.amount ?? 0;
-				}
-			}
-
-			details = {
-				net_id: parsed.net_id,
-				contract_id: parsed.contract_id,
-				action: parsed.action,
-				payload: payloadContent,
-				rc_limit: parsed.rc_limit,
-				intents: parsed.intents
-			};
-
-			if (details.action === 'unmap') {
-				fromAccount = did;
-				toAccount = details.payload?.recipient_btc_address ?? 'Unknown';
-			} else if (details.action === 'map') {
-				fromAccount = 'Bitcoin Network';
-				const instruction = details.payload?.tx_data?.instructions?.[0];
-				if (instruction) {
-					try {
-						const params = new URLSearchParams(instruction);
-						const depositTo = params.get('deposit_to') ?? '';
-						if (depositTo) {
-							toAccount = getUsernameFromDid(depositTo);
-						} else {
-							toAccount = 'Unknown';
-						}
-					} catch (e) {
-						console.error('Failed to parse instruction params:', instruction, e);
-						toAccount = 'Unknown';
-					}
-				} else {
-					toAccount = 'Unknown';
-				}
-			}
-
 			const fetchedOutputId = txn?.output?.[0]?.id;
 			outputId = fetchedOutputId || '';
 			statusValues = txn?.status || '';
+			
 			if (fetchedOutputId) {
 				const dagRes = await new DagByCIDStore().fetch({
 					variables: { cid0: fetchedOutputId },
@@ -267,7 +167,36 @@
 		}
 	}
 
-	loadDetails();
+	// Set fromAccount and toAccount based on action
+	$effect(() => {
+		const action = details.action;
+		if (action === 'unmap') {
+			fromAccount = did;
+			toAccount = details.payload?.recipient_btc_address ?? 'Unknown';
+		} else if (action === 'map') {
+			fromAccount = 'Bitcoin Network';
+			// map = deposit by user himself/herself
+			const instruction = details.payload?.tx_data?.instructions?.[0];
+			if (instruction) {
+				try {
+					const params = new URLSearchParams(instruction);
+					const depositTo = params.get('deposit_to') ?? '';
+					if (depositTo) {
+						toAccount = getUsernameFromDid(depositTo);
+					} else {
+						toAccount = getUsernameFromDid(did);
+					}
+				} catch (e) {
+					console.error('Failed to parse instruction params:', instruction, e);
+					toAccount = getUsernameFromDid(did);
+				}
+			} else {
+				toAccount = getUsernameFromDid(did);
+			}
+		}
+	});
+
+	loadOutputData();
 
 	function handleTrigger() {
 		onRowClick([tx.id, op.index], contractRowContent);

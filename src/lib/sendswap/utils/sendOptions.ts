@@ -62,7 +62,7 @@ const shbd: Coin = {
 	value: 'hbd_savings',
 	label: 'sHBD',
 	icon: '/hive/hbd.svg',
-	unit: 'HBD',
+	unit: 'sHBD',
 	ucid: '5375',
 	enabled: () => false,
 	decimalPlaces: 3

@@ -7,6 +7,8 @@
 	import { getAuth } from '$lib/auth/store';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import BalanceInfo from '../info/BalanceInfo.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 
 	let {
 		availableCoins,
@@ -15,7 +17,7 @@
 		max = $bindable(),
 		close,
 		externalNetwork,
-		showEmptyAccounts = false
+		isTo = false
 	}: {
 		availableCoins: Coin[];
 		coin: CoinOptions['coins'][number] | undefined;
@@ -23,34 +25,41 @@
 		max?: CoinAmount<Coin> | undefined;
 		close: () => void;
 		externalNetwork?: Network;
-		showEmptyAccounts?: boolean;
+		isTo?: boolean;
 	} = $props();
 
 	const auth = $derived(getAuth()());
 
 	const onMagi = $derived(availableCoins.filter((coin) => coin.value in $accountBalance.bal));
 
+	let showEmptyAccounts = $state(untrack(() => isTo));
+
 	interface BalanceObject extends Coin {
 		balance: string;
 		onNetwork: Network;
 		snippet: (...args: any[]) => ReturnType<Snippet>;
+		disabled?: boolean;
 	}
 	const magiItems: BalanceObject[] = $derived(
 		onMagi
 			.map((coin) => {
+				// REMOVE FOR BITCOIN PROD
+				if (coin.value === Coin.btc.value) return;
 				const coinAmt = new CoinAmount(
 					$accountBalance.bal[coin.value as keyof AccountBalance],
 					coin,
 					true
 				);
-				if (coinAmt.amount > 0 || showEmptyAccounts) {
+				const disabled = coinAmt.amount === 0 && !isTo;
+				if (!disabled || showEmptyAccounts) {
 					return {
 						...coin,
 						value: `${coin.value}:${Network.magi.value}`,
 						balance: coinAmt.toPrettyAmountString(),
 						onNetwork: Network.magi,
 						snippet: assetBalance,
-						snippetData: undefined
+						snippetData: undefined,
+						disabled: disabled
 					};
 				}
 			})
@@ -59,7 +68,9 @@
 
 	let externalItems: BalanceObject[] = $state([]);
 	let loading = $state(false);
+	let externalTotalLength = $state(0);
 	$effect(() => {
+		showEmptyAccounts;
 		if (!auth || auth.value?.provider !== 'aioha') return;
 		if (externalNetwork?.value === Network.hiveMainnet.value) {
 			untrack(() => {
@@ -68,15 +79,20 @@
 
 				let result: BalanceObject[] = [];
 
+				externalTotalLength = Object.entries($accountBalance.connectedBal).length;
+
 				for (const [coinVal, bal] of Object.entries($accountBalance.connectedBal)) {
 					const coin = Object.values(Coin).find((coin) => coin.value === coinVal);
 					if (!coin) continue;
+					const disabled = bal === 0 && !isTo;
+					if (!showEmptyAccounts && disabled) continue;
 					result.push({
 						...coin,
 						value: `${coin.value}:${externalNetwork.value}`,
 						balance: new CoinAmount(bal, coin, true).toPrettyAmountString(),
 						onNetwork: externalNetwork,
-						snippet: assetBalance
+						snippet: assetBalance,
+						disabled: disabled
 					});
 				}
 				externalItems = result;
@@ -84,6 +100,7 @@
 			});
 		} else if (externalNetwork?.value === Network.lightning.value) {
 			loading = true;
+			externalTotalLength = 1;
 			externalItems = availableCoins
 				.filter((coinOpt) => coinOpt.value === Coin.btc.value)
 				.map((assetObj) => ({
@@ -97,6 +114,9 @@
 			loading = false;
 		}
 	});
+
+	// REMOVE -1 FOR BITCOIN LAUNCH
+	let maxItems = $derived(onMagi.length - 1 + externalTotalLength);
 
 	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
 
@@ -178,6 +198,24 @@
 				type="balance"
 			/>
 		</div>
+		{#if !isTo && (magiItems.length + externalItems.length < maxItems || showEmptyAccounts)}
+			<div class="show-hide-accs">
+				<PillButton
+					onclick={() => (showEmptyAccounts = !showEmptyAccounts)}
+					styleType="text-subtle"
+				>
+					<span class="edit">
+						{#if showEmptyAccounts}
+							Hide Empty Accounts
+							<ChevronUp size={20} />
+						{:else}
+							Show Empty Accounts
+							<ChevronDown size={20} />
+						{/if}
+					</span>
+				</PillButton>
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -192,6 +230,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+	.show-hide-accs {
+		margin-left: auto;
+		padding-top: 0.25rem;
+		.edit {
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+		}
 	}
 
 	@keyframes pulse {

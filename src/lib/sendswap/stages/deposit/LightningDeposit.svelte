@@ -114,27 +114,30 @@
 		close={toggleAsset}
 		bind:coin={$SendTxDetails.toCoin}
 		bind:network={$SendTxDetails.toNetwork}
-		showEmptyAccounts
+		isTo
 	/>
 {/if}
 <div class={['sections', { hide: assetOpen }]}>
-	<ClickableCard onclick={() => toggleAsset(true)}>
-		<div class="asset-card">
-			{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
-				<BalanceInfo
-					coin={$SendTxDetails.toCoin.coin}
-					network={$SendTxDetails.toNetwork}
-					size="large"
-					styleType="vertical"
-				/>
-				<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
-			{:else}
-				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-				Select Destination Account
-			{/if}
-			<span class="edit"> Edit </span>
-		</div>
-	</ClickableCard>
+	<div class="deposit section">
+		<label for="asset-card">Deposit To</label>
+		<ClickableCard onclick={() => toggleAsset(true)}>
+			<div class="asset-card">
+				{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+					<BalanceInfo
+						coin={$SendTxDetails.toCoin.coin}
+						network={$SendTxDetails.toNetwork}
+						size="large"
+						styleType="vertical"
+					/>
+					<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
+				{:else}
+					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+					Select Destination Account
+				{/if}
+				<span class="edit"> Edit </span>
+			</div>
+		</ClickableCard>
+	</div>
 	<div class="section">
 		<label for={inputId}>Amount</label>
 		<div class="amount-row">

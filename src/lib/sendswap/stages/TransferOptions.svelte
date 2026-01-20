@@ -13,7 +13,12 @@
 		solveToNetworks,
 		type NetworkOptionParam
 	} from '../utils/sendUtils';
-	import swapOptions, { Coin, Network, type CoinOnNetwork } from '../utils/sendOptions';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '../utils/sendOptions';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
 	import RecipientCard from '../components/RecipientCard.svelte';
@@ -30,12 +35,13 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import EditButton from '$lib/components/EditButton.svelte';
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import Select from '$lib/zag/Select.svelte';
 	import Divider from '$lib/components/Divider.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 
 	let {
 		editStage
@@ -292,6 +298,44 @@
 			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
 			: [{ coin: Coin.unk, network: Network.unknown }]
 	);
+
+	const coinsWithBalance = $derived.by(() => {
+		const result: Array<{ coin: Coin; coinOpt: CoinOptions['coins'][number] }> = [];
+		for (const coinOpt of swapOptions.from.coins) {
+			const coinValue = coinOpt.coin.value;
+			if (coinValue in $accountBalance.bal) {
+				const balance = $accountBalance.bal[coinValue as keyof AccountBalance];
+				const coinAmt = new CoinAmount(balance, coinOpt.coin, true);
+				if (coinAmt.amount > 0.001) {
+					result.push({ coin: coinOpt.coin, coinOpt });
+				}
+			}
+		}
+		return result;
+	});
+
+	const hasAnyBalance = $derived(coinsWithBalance.length > 0);
+
+	$effect(() => {
+		const balanceCount = coinsWithBalance.length;
+		if (balanceCount === 0) return;
+
+		const currentCoinHasBalance =
+			$SendTxDetails.fromCoin &&
+			coinsWithBalance.some((item) => item.coin.value === $SendTxDetails.fromCoin?.coin.value);
+
+		if (currentCoinHasBalance) return;
+
+		const hiveCoin = coinsWithBalance.find((item) => item.coin.value === Coin.hive.value);
+		const coinToSelect = hiveCoin || coinsWithBalance[0];
+
+		if (coinToSelect) {
+			$SendTxDetails.fromCoin = coinToSelect.coinOpt;
+			$SendTxDetails.fromNetwork = Network.magi;
+			$SendTxDetails.toCoin = coinToSelect.coinOpt;
+			$SendTxDetails.toNetwork = Network.magi;
+		}
+	});
 </script>
 
 {#snippet transferBar(params: TransferType)}
@@ -307,7 +351,12 @@
 	<Divider text="Amount" />
 	<ClickableCard onclick={() => toggleAsset(true)}>
 		<div class="asset-card">
-			{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+			{#if !hasAnyBalance}
+				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
+				<div class="error">
+					No balance found on your account. Please make a deposit to get started.
+				</div>
+			{:else if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
 				<BalanceInfo
 					coin={$SendTxDetails.fromCoin.coin}
 					network={$SendTxDetails.fromNetwork}
@@ -319,9 +368,8 @@
 				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 				Select Asset
 			{/if}
-			<span class="more">
-				<EditButton onclick={() => toggleAsset(true)} />
-			</span>
+
+			<span class="edit">Edit</span>
 		</div>
 	</ClickableCard>
 	<div class="amounts">
@@ -456,8 +504,11 @@
 		align-items: center;
 		gap: 1.5rem;
 		padding: 0.5rem;
-		.more {
+		.edit {
 			margin-left: auto;
+		}
+		.error {
+			font-size: var(--text-sm);
 		}
 	}
 	.details {

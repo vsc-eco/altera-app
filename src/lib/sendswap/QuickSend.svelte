@@ -1,10 +1,10 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { blankDetails, SendTxDetails } from './utils/sendUtils';
+	import { blankDetails, scanForBalance, SendTxDetails } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
-	import ReviewSend from './stages/ReviewSend.svelte';
+	import ReviewTransfer from './stages/ReviewTransfer.svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from './utils/sendOptions';
-	import QuickSendOptions from './stages/QuickSendOptions.svelte';
+	import QuickTransferOptions from './stages/QuickSendOptions.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 
 	let {
@@ -18,12 +18,18 @@
 	} = $props();
 
 	function quickDetails() {
-		const selectedCoin = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
+		const balOpt = scanForBalance(
+			[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({
+				coin: c,
+				network: Network.magi
+			}))
+		);
+		const coinOpt = swapOptions.from.coins.find((c) => c.coin.value === balOpt?.coin.value);
 		return {
 			...blankDetails(),
-			fromCoin: selectedCoin,
+			fromCoin: coinOpt,
 			fromNetwork: Network.magi,
-			toCoin: selectedCoin,
+			toCoin: coinOpt,
 			toNetwork: Network.magi,
 			method: TransferMethod.magiTransfer
 		};
@@ -36,8 +42,8 @@
 
 	// STEPS
 	const stepsData: MixedStepsArray = [
-		{ value: 'options', component: QuickSendOptions },
-		{ value: 'review', component: ReviewSend },
+		{ value: 'options', component: QuickTransferOptions },
+		{ value: 'review', component: ReviewTransfer },
 		{ value: 'complete', component: Complete }
 	];
 

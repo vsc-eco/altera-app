@@ -227,6 +227,10 @@
 		}
 		[data-part='item'][data-disabled] {
 			cursor: default;
+			pointer-events: none;
+			opacity: 1;
+			filter: grayscale(1);
+			color: var(--neutral-mid);
 		}
 		// &.hovering-item {
 		// 	[data-part='item']:not([data-disabled]):not(:hover) {

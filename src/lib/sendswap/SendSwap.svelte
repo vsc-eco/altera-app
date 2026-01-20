@@ -1,13 +1,18 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import { Network, TransferMethod, type SendDetails } from '$lib/sendswap/utils/sendOptions';
-	import { blankDetails, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import swapOptions, {
+		Coin,
+		Network,
+		TransferMethod,
+		type SendDetails
+	} from '$lib/sendswap/utils/sendOptions';
+	import { blankDetails, scanForBalance, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import SwapOptions from './stages/SwapOptions.svelte';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Complete from '$lib/sendswap/stages/Complete.svelte';
-	import SendOptions from './stages/SendOptions.svelte';
+	import TransferOptions from './stages/TransferOptions.svelte';
 	import ReviewSwap from '$lib/sendswap/stages/ReviewSwap.svelte';
-	import ReviewSend from './stages/ReviewSend.svelte';
+	import ReviewTransfer from './stages/ReviewTransfer.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 
 	const { txType }: { txType: 'transfer' | 'swap' } = $props();
@@ -21,9 +26,20 @@
 				method: TransferMethod.lightningTransfer
 			};
 		} else {
+			const balOpt = scanForBalance(
+				[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({
+					coin: c,
+					network: Network.magi
+				}))
+			);
+			const coinOpt = swapOptions.from.coins.find((c) => c.coin.value === balOpt?.coin.value);
+
 			return {
 				...blankDetails(),
-				toNetwork: Network.magi
+				toNetwork: Network.magi,
+				fromNetwork: Network.magi,
+				fromCoin: coinOpt,
+				toCoin: coinOpt
 			};
 		}
 	}
@@ -46,8 +62,8 @@
 					{ value: 'complete', component: Complete }
 				]
 			: [
-					{ value: 'options', component: SendOptions },
-					{ value: 'review', component: ReviewSend },
+					{ value: 'options', component: TransferOptions },
+					{ value: 'review', component: ReviewTransfer },
 					{ value: 'complete', component: Complete }
 				]
 	);

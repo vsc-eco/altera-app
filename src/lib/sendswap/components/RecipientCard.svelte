@@ -11,7 +11,6 @@
 	import ContactInfo from './info/ContactInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
-	import EditButton from '$lib/components/EditButton.svelte';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import { untrack } from 'svelte';
 
@@ -119,12 +118,15 @@
 						<Plus /> Add Contact
 					</PillButton>
 				{:else}
-					<EditButton
+					<PillButton
 						onclick={(e) => {
 							e.stopPropagation();
 							edit();
 						}}
-					/>
+						styleType="text-subtle"
+					>
+						<span class="edit">Edit</span>
+					</PillButton>
 				{/if}
 			</span>
 		{/if}

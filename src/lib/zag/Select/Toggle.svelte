@@ -3,6 +3,7 @@
 	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 	import type { Api } from '@zag-js/select';
 	import type { PropTypes } from '@zag-js/svelte';
+	import type { MouseEventHandler } from 'svelte/elements';
 	type Props = {
 		api: Api<PropTypes, unknown>;
 		placeholder: string;
@@ -11,21 +12,19 @@
 		styleType?: 'default' | 'card' | 'dropdown';
 	};
 	let { api, placeholder, disabled, items, styleType = 'default' }: Props = $props();
-	const triggerProps: ButtonAttributes = $derived(api.getTriggerProps()) as ButtonAttributes;
-	let open = $derived(api.open);
 	let currentItem = $derived(items?.find((item) => (item.value ?? item.label) === api.value[0]));
 </script>
 
 <div {...api.getControlProps()} class={{ card: styleType !== 'default' }}>
 	{#if styleType === 'default'}
-		<PillButton {...triggerProps} styleType="text" {disabled}>
+		<PillButton {...api.getTriggerProps() as ButtonAttributes} styleType="text" {disabled}>
 			{#if typeof currentItem?.snippet === 'function'}
 				{@const Snippet = currentItem.snippet}
 				{@render Snippet(currentItem.snippetData ?? currentItem)}
 			{:else}
 				{api.valueAsString || placeholder || 'Select option'}
 			{/if}
-			{#if open}
+			{#if api.open}
 				<ChevronUp />
 			{:else}
 				<ChevronDown />
@@ -33,7 +32,7 @@
 		</PillButton>
 	{:else}
 		<button
-			{...triggerProps}
+			{...api.getTriggerProps()}
 			class={['cardlike', { card: styleType === 'card', dropdown: styleType === 'dropdown' }]}
 		>
 			<div class={['content', { tall: styleType === 'card' }]}>
@@ -46,7 +45,7 @@
 					{api.valueAsString || placeholder || 'Select option'}
 				{/if}
 				<span class="arrow">
-					{#if open}
+					{#if api.open}
 						<ChevronUp></ChevronUp>
 					{:else}
 						<ChevronDown></ChevronDown>

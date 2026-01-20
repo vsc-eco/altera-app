@@ -127,7 +127,7 @@
 	$effect(() => {
 		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
 		if ($SendTxDetails.fromNetwork.value !== Network.magi.value) return;
-		
+
 		const coinValue = $SendTxDetails.fromCoin.coin.value;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
 			const balance = $accountBalance.bal[coinValue as 'hive' | 'hbd'];
@@ -238,7 +238,6 @@
 		bind:coin={$SendTxDetails.fromCoin}
 		bind:network={$SendTxDetails.fromNetwork}
 		bind:max
-		showEmptyAccounts
 	/>
 {:else}
 	<div class="sections">
@@ -257,23 +256,27 @@
 			<Divider text="Amount" />
 		{/if}
 		<div class="sections">
-			<ClickableCard onclick={() => toggleAsset(true)}>
-				<div class="asset-card">
-					{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
-						<BalanceInfo
-							coin={$SendTxDetails.fromCoin.coin}
-							network={$SendTxDetails.fromNetwork}
-							size="large"
-							styleType="vertical"
-						/>
-					{:else}
-						<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span
-						>
-						Select Withdrawal Asset
-					{/if}
-					<span class="edit"> Edit </span>
-				</div>
-			</ClickableCard>
+			<div class="section">
+				<label for="asset-card">Withdraw From</label>
+				<ClickableCard onclick={() => toggleAsset(true)}>
+					<div class="asset-card">
+						{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+							<BalanceInfo
+								coin={$SendTxDetails.fromCoin.coin}
+								network={$SendTxDetails.fromNetwork}
+								size="large"
+								styleType="vertical"
+							/>
+						{:else}
+							<span class="user-icon-placeholder"
+								><Coins size="40" absoluteStrokeWidth={true} /></span
+							>
+							Select Withdrawal Asset
+						{/if}
+						<span class="edit"> Edit </span>
+					</div>
+				</ClickableCard>
+			</div>
 			<div class="section">
 				<label for={inputId}>Amount</label>
 				<div class="amount-row">

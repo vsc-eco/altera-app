@@ -14,6 +14,8 @@ export interface TransactionInter extends MagiTransaction {
 
 export type TransactionOpType = NonNullable<NonNullable<TransactionInter['ops']>[number]>;
 
+// formats the title of an operation by capitalizing the first letters of each word and
+// any occurances of the sequence substring, "hbd" by default
 export function formatOpType(type: string, sequence: string = 'hbd') {
 	// First, capitalize the first letter
 	let result = type.charAt(0).toUpperCase() + type.slice(1);

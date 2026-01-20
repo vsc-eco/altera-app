@@ -21,7 +21,6 @@
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
-	import EditButton from '$lib/components/EditButton.svelte';
 	import Divider from '$lib/components/Divider.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 
@@ -82,7 +81,7 @@
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
 		if ($SendTxDetails.fromNetwork.value !== Network.magi.value) return;
-		
+
 		const coinValue = $SendTxDetails.fromCoin.coin.value;
 		if (coinValue in $accountBalance.bal) {
 			const balance = $accountBalance.bal[coinValue as keyof AccountBalance];
@@ -150,15 +149,16 @@
 	$effect(() => {
 		const balanceCount = coinsWithBalance.length;
 		if (balanceCount === 0) return;
-		
-		const currentCoinHasBalance = $SendTxDetails.fromCoin && 
+
+		const currentCoinHasBalance =
+			$SendTxDetails.fromCoin &&
 			coinsWithBalance.some((item) => item.coin.value === $SendTxDetails.fromCoin?.coin.value);
-		
+
 		if (currentCoinHasBalance) return;
-		
+
 		const hiveCoin = coinsWithBalance.find((item) => item.coin.value === Coin.hive.value);
 		const coinToSelect = hiveCoin || coinsWithBalance[0];
-		
+
 		if (coinToSelect) {
 			$SendTxDetails.fromCoin = coinToSelect.coinOpt;
 			$SendTxDetails.fromNetwork = Network.magi;
@@ -214,11 +214,19 @@
 			{/if}
 		</div>
 		<Divider text="Amount" />
-		<ClickableCard onclick={() => hasAnyBalance && toggleAsset(true)} tabindex={0} onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') { hasAnyBalance && toggleAsset(true); } }}>
+		<ClickableCard
+			onclick={() => toggleAsset(true)}
+			tabindex={0}
+			onkeydown={(e: KeyboardEvent) => {
+				if (e.key === 'Enter') {
+					toggleAsset(true);
+				}
+			}}
+		>
 			<div class="asset-card">
 				{#if !hasAnyBalance}
 					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-					<div class="warning-text">
+					<div class="error">
 						No balance found on your account. Please make a deposit to get started.
 					</div>
 				{:else if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
@@ -234,9 +242,7 @@
 					Select Asset
 				{/if}
 				{#if hasAnyBalance}
-					<span class="more">
-						<EditButton onclick={() => toggleAsset(true)} />
-					</span>
+					<span class="edit"> Edit </span>
 				{/if}
 			</div>
 		</ClickableCard>
@@ -296,13 +302,11 @@
 		align-items: center;
 		gap: 1.5rem;
 		padding: 0.5rem;
-		.more {
+		.edit {
 			margin-left: auto;
 		}
-		.warning-text {
-			color: var(--secondary-fg-mid, #888);
-			font-size: 0.875rem;
-			line-height: 1.4;
+		.error {
+			font-size: var(--text-sm);
 		}
 	}
 	.memo {

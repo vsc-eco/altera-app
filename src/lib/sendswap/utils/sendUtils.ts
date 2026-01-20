@@ -7,6 +7,7 @@ import swapOptions, {
 	networkMap,
 	SendAccount,
 	TransferMethod,
+	type CoinOnNetwork,
 	type CoinOptions,
 	type IntermediaryNetwork,
 	type NecessarySendDetails,
@@ -32,6 +33,11 @@ import {
 import moment, { type Moment } from 'moment';
 import { getIntermediaryNetwork } from './getNetwork';
 import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
+import {
+	accountBalance,
+	type AccountBalance,
+	type HiveMainnetBalance
+} from '$lib/stores/currentBalance';
 
 export const SendTxDetails = writable<SendDetails>(blankDetails());
 
@@ -50,6 +56,23 @@ export function blankDetails(): SendDetails {
 		fee: undefined,
 		memo: ''
 	};
+}
+
+export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
+	const accBal = get(accountBalance);
+	for (const opt of opts) {
+		if (opt.network.value === Network.magi.value) {
+			const bal = accBal.bal[opt.coin.value as keyof AccountBalance];
+			if (bal > 0) {
+				return opt;
+			}
+		} else if (opt.network.value === Network.hiveMainnet.value && accBal.connectedBal) {
+			const bal = accBal.connectedBal[opt.coin.value as keyof HiveMainnetBalance];
+			if (bal > 0) {
+				return opt;
+			}
+		}
+	}
 }
 
 let tx_session_id = 0;

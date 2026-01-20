@@ -33,6 +33,23 @@ export interface Session {
 
 const COINBASE_SESSION_EXPIRY_TIME = 30; // 30 seconds
 
+async function getGeoFromIp(
+	ip: string | null
+): Promise<{ country?: string; subdivision?: string }> {
+	if (!ip) return {};
+
+	try {
+		const { data } = await axios.get(`https://ipapi.co/${ip}/json/`);
+		const country = typeof data.country_code === 'string' ? data.country_code : undefined;
+		const subdivision = typeof data.region_code === 'string' ? data.region_code : undefined;
+
+		return { country, subdivision };
+	} catch (error) {
+		console.error('Failed to resolve geo from IP', error);
+		return {};
+	}
+}
+
 export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const responseHeader: HeadersInit = {
 		'Cache-Control': 'no-cache',
@@ -62,6 +79,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const walletAddr = 'bc1qqdg2720lvh3l0ydjaw6smqffm76yag59jlsh8v';
 	const clientIp = getClientAddress();
 
+	const { country, subdivision } = await getGeoFromIp(clientIp);
+
 	try {
 		const jwtToken = await generateJwt({
 			apiKeyId: COINBASE_ID,
@@ -81,8 +100,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 				paymentAmount: paymentAmount.toString(),
 				paymentCurrency: 'USD',
 				paymentMethod: 'CARD',
-				country: 'US',
-				subdivision: 'NY',
+				country: country ?? 'US',
+				subdivision: subdivision ?? 'NY',
 				clientIp: clientIp,
 				redirectUrl: 'https://altera.magi.eco/' // TODO: create a custom url for purcase receipt
 			},

@@ -20,24 +20,6 @@
 	import { getUsernameFromDid } from '$lib/getAccountName';
 	import StatusView from './StatusView.svelte';
 	import { AccHistoryStore, DagByCIDStore } from '$houdini';
-
-	type Details = {
-		net_id?: string;
-		contract_id?: string;
-		action?: string;
-		payload?: {
-			amount?: number;
-			recipient_btc_address?: string;
-			tx_data?: {
-				block_height?: number;
-				tx_index?: number;
-				instructions?: string[];
-			};
-		};
-		rc_limit?: number;
-		intents?: any[];
-	};
-
 	type Props = {
 		tx: TransactionInter;
 		op: TransactionOpType;
@@ -58,7 +40,6 @@
 	const { anchr_height: block_height } = $derived(tx);
 
 	const contractInfo = $derived.by(() => {
-	try {
 		let payload = op.data;
 		if (typeof payload.json === 'string') {
 			payload = JSON.parse(payload.json);
@@ -70,15 +51,12 @@
 		} else if (action === 'unmap') {
 			return { action, displayType: 'withdraw', direction: 'outgoing' as const };
 		}
-	} catch (e) {
-		console.error('Failed to determine contract action in ContractTr', e);
-	}
-	return {
-		action: '',
-		displayType: formatOpType(op.type ?? tx.type),
-		direction: 'contract' as const
-	};
-});
+		return {
+			action: '',
+			displayType: formatOpType(op.type ?? tx.type),
+			direction: 'contract' as const
+		};
+	});
 
 	// Extract payload data from op.data.payload.Data (base64 encoded)
 	const payloadData = $derived.by(() => {
@@ -87,8 +65,23 @@
 			if (!payloadDataBase64 || typeof payloadDataBase64 !== 'string') {
 				return null;
 			}
-			const decoded = atob(payloadDataBase64);
-			return JSON.parse(decoded);
+			let decoded = atob(payloadDataBase64);
+			
+			if (!decoded || decoded.trim() === "") {
+				return null;
+			}
+			
+			let parsed = JSON.parse(decoded);
+			
+			if (typeof parsed === 'string' && parsed.trim() !== "") {
+				try {
+					parsed = JSON.parse(parsed);
+				} catch {
+					return null;
+				}
+			}
+			
+			return parsed;
 		} catch (e) {
 			console.error('Failed to decode payload Data', e);
 			return null;
@@ -182,7 +175,8 @@
 					const params = new URLSearchParams(instruction);
 					const depositTo = params.get('deposit_to') ?? '';
 					if (depositTo) {
-						toAccount = getUsernameFromDid(depositTo);
+						const username = depositTo.includes(':') ? depositTo.split(':')[1] : depositTo;
+						toAccount = username || getUsernameFromDid(did);
 					} else {
 						toAccount = getUsernameFromDid(did);
 					}
@@ -298,7 +292,7 @@
 			<div class="links section">
 				<h3>External Links</h3>
 				<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-					<a href={'https://api.vsc.eco/tx/' + tx.id} target="_blank" rel="noreferrer">
+					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
 						VSC Block Explorer<ExternalLink /></a
 					>
 				</div>
@@ -340,15 +334,6 @@
 				</div>
 			{/if}
 
-			{#if details?.payload?.tx_data && details.action === 'map'}
-				<div class="section">
-					<h3>Deposit TX Data</h3>
-					<p>Block Height: {details.payload.tx_data.block_height}</p>
-					<p>TX Index: {details.payload.tx_data.tx_index}</p>
-					<p>Instructions: {details.payload.tx_data.instructions?.join(', ')}</p>
-				</div>
-			{/if}
-
 			{#if details?.contract_id}
 				<div class="contract-id section">
 					<h3>Contract ID</h3>
@@ -367,7 +352,7 @@
 			<div class="links section">
 				<h3>External Links</h3>
 				<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-					<a href={'https://api.vsc.eco/tx/' + tx.id} target="_blank" rel="noreferrer">
+					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
 						VSC Block Explorer<ExternalLink /></a
 					>
 				</div>

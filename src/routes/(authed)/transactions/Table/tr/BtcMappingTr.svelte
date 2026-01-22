@@ -32,7 +32,7 @@
 	let outputId = $state('');
 	let error = $state('');
 	let statusValues = $state('');
-	let result: string[] = $state([]);
+	let result: { ok: boolean; ret?: string; errMsg?: string; err?: string } | null = $state(null);
 	let fromAccount = $state('');
 	let toAccount = $state('');
 
@@ -356,13 +356,13 @@
 			{#if result}
 				<div class="section">
 					<h3>Message</h3>
-					<!-- {#if result.ok}
+					{#if result.ok}
 						<span class="success">{result.ret || 'Success'}</span>
 					{:else}
 						<span class="error">
 							{parseErrMsg(result.errMsg) || result.err || 'Error'}
 						</span>
-					{/if} -->
+					{/if}
 				</div>
 			{/if}
 

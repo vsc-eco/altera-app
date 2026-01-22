@@ -19,7 +19,8 @@
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromDid } from '$lib/getAccountName';
 	import StatusView from './StatusView.svelte';
-	import { AccHistoryStore, DagByCIDStore } from '$houdini';
+	import { DagByCIDStore, FindContractOutputStore } from '$houdini';
+
 	type Props = {
 		tx: TransactionInter;
 		op: TransactionOpType;
@@ -31,7 +32,7 @@
 	let outputId = $state('');
 	let error = $state('');
 	let statusValues = $state('');
-	let result = $state<any>(null);
+	let result: string[] = $state([]);
 	let fromAccount = $state('');
 	let toAccount = $state('');
 
@@ -66,21 +67,21 @@
 				return null;
 			}
 			let decoded = atob(payloadDataBase64);
-			
-			if (!decoded || decoded.trim() === "") {
+
+			if (!decoded || decoded.trim() === '') {
 				return null;
 			}
-			
+
 			let parsed = JSON.parse(decoded);
-			
-			if (typeof parsed === 'string' && parsed.trim() !== "") {
+
+			if (typeof parsed === 'string' && parsed.trim() !== '') {
 				try {
 					parsed = JSON.parse(parsed);
 				} catch {
 					return null;
 				}
 			}
-			
+
 			return parsed;
 		} catch (e) {
 			console.error('Failed to decode payload Data', e);
@@ -93,15 +94,17 @@
 		const action = op.data?.action;
 		const contract_id = op.data?.contract_id;
 		const payload = payloadData;
-		
+
 		return {
 			action,
 			contract_id,
-			payload: payload ? {
-				amount: payload.amount,
-				recipient_btc_address: payload.recipient_btc_address,
-				tx_data: payload.tx_data
-			} : undefined
+			payload: payload
+				? {
+						amount: payload.amount,
+						recipient_btc_address: payload.recipient_btc_address,
+						tx_data: payload.tx_data
+					}
+				: undefined
 		};
 	});
 
@@ -109,48 +112,81 @@
 	async function loadOutputData() {
 		error = '';
 		try {
-			const gqlRes = await new AccHistoryStore().fetch({
-				variables: { opts: { byId: tx.id, offset: 0, limit: 1 } },
-				policy: 'NetworkOnly'
-			});
+			const fetchedOutputIds = tx?.output?.map((o) => o.id);
 
-			if (!gqlRes.data) throw new Error('GraphQL fetch failed');
+			// const outputStore = new FindContractOutputStore();
+			const dagResultStore = new DagByCIDStore();
+			if (fetchedOutputIds) {
+				// Save for when errors are properly returned here
+				// Promise.allSettled(
+				// 	fetchedOutputIds.map((id) =>
+				// 		outputStore.fetch({
+				// 			variables: {
+				// 				filterOptions: {
+				// 					byId: id
+				// 				}
+				// 			},
+				// 			policy: 'NetworkOnly'
+				// 		})
+				// 	)
+				// ).then((queryResults) => {
+				// 	let allResults: string[] = [];
+				// 	queryResults.forEach((qRes) => {
+				// 		if (qRes.status === 'fulfilled') {
+				// 			const contractResults = qRes.value.data?.findContractOutput?.[0]?.results;
+				// 			contractResults?.forEach((cRes) => {
+				// 				if (cRes.ok) {
+				// 					allResults.push(cRes.ret);
+				// 				}
+				// 			});
+				// 		}
+				// 	});
+				// 	if (allResults.length === 0) {
+				// 		result = ['Transaction failed'];
+				// 	} else {
+				// 		result = allResults;
+				// 	}
+				// });
 
-			const txns = gqlRes.data?.txns;
-			if (!txns || txns.length === 0) throw new Error('No transaction data found');
-
-			const txn = txns[0];
-			const fetchedOutputId = txn?.output?.[0]?.id;
-			outputId = fetchedOutputId || '';
-			statusValues = txn?.status || '';
-			
-			if (fetchedOutputId) {
-				const dagRes = await new DagByCIDStore().fetch({
-					variables: { cid0: fetchedOutputId },
-					policy: 'NetworkOnly'
-				});
-				if (dagRes.data) {
-					const d0 = dagRes.data?.d0;
-					if (d0) {
-						const outputData = JSON.parse(d0);
-						if (outputData.results && outputData.results.length > 0) {
-							const firstResult = outputData.results[0];
-							if (firstResult.ok) {
-								result = firstResult;
-							} else {
-								if (outputData.results.length >= 3) {
-									result = outputData.results[2];
-								} else if (outputData.results.length >= 2) {
-									result = outputData.results[1];
-								} else {
-									result = firstResult;
+				// NOTE: this makes queries for all of the possible outputs so we can combine the results.
+				Promise.allSettled(
+					fetchedOutputIds.map((id) =>
+						dagResultStore.fetch({
+							variables: { cid0: id },
+							policy: 'NetworkOnly'
+						})
+					)
+				).then((queryResults) => {
+					queryResults.forEach((qRes) => {
+						if (qRes.status === 'fulfilled') {
+							const dagRes = qRes.value;
+							if (dagRes.data) {
+								const d0 = dagRes.data?.d0;
+								// NOTE: for this parsing, lets make a type representing what we expect to get, and parse into that.
+								// then we can more easily get errors, too, which seems not to be working
+								if (d0) {
+									const outputData = JSON.parse(d0);
+									if (outputData.results && outputData.results.length > 0) {
+										const firstResult = outputData.results[0];
+										if (firstResult.ok) {
+											result = firstResult;
+										} else {
+											if (outputData.results.length >= 3) {
+												result = outputData.results[2];
+											} else if (outputData.results.length >= 2) {
+												result = outputData.results[1];
+											} else {
+												result = firstResult;
+											}
+										}
+									}
 								}
+							} else {
+								error = 'Failed to load DAG details';
 							}
 						}
-					}
-				} else {
-					error = 'Failed to load DAG details';
-				}
+					});
+				});
 			}
 		} catch (e) {
 			error = 'Failed to load details';
@@ -225,13 +261,19 @@
 	 */
 	function parseErrMsg(errMsg?: string) {
 		if (!errMsg) return '';
-		const lines = errMsg.split('\n').map((l) => l.trim()).filter(Boolean);
+		const lines = errMsg
+			.split('\n')
+			.map((l) => l.trim())
+			.filter(Boolean);
 		for (const line of lines) {
 			if (/^msg:/i.test(line)) return line.replace(/^msg:\s*/i, '').trim();
 			if (/^err:/i.test(line)) return line.replace(/^err:\s*/i, '').trim();
 		}
 		const nonFile = lines.find((l) => !/^file:/i.test(l));
-		return (nonFile || lines[0] || '').replace(/^msg:\s*/i, '').replace(/^err:\s*/i, '').trim();
+		return (nonFile || lines[0] || '')
+			.replace(/^msg:\s*/i, '')
+			.replace(/^err:\s*/i, '')
+			.trim();
 	}
 	const otherAccount = $derived(toAccount === did || !toAccount ? fromAccount : toAccount);
 </script>
@@ -297,7 +339,6 @@
 					>
 				</div>
 			</div>
-
 		{:else}
 			<div class="amount section">
 				{satsToBtc(details?.payload?.amount || 0)} BTC
@@ -315,13 +356,13 @@
 			{#if result}
 				<div class="section">
 					<h3>Message</h3>
-					{#if result.ok}
+					<!-- {#if result.ok}
 						<span class="success">{result.ret || 'Success'}</span>
 					{:else}
 						<span class="error">
 							{parseErrMsg(result.errMsg) || result.err || 'Error'}
 						</span>
-					{/if}
+					{/if} -->
 				</div>
 			{/if}
 
@@ -431,7 +472,6 @@
 	.contract-id.section {
 		margin-top: auto;
 	}
-
 
 	.success {
 		/* min-height: 2rem; */

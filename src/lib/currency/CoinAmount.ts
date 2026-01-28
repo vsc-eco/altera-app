@@ -1,3 +1,4 @@
+import { numberFormatLanguage } from '$lib/constants';
 import { Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
 import { getExchangeRates } from './convert';
 export type UnkCoinAmount = CoinAmount<Coin>;
@@ -63,7 +64,7 @@ export class CoinAmount<C extends Coin> {
 		const isNegative = this.isNegative();
 		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
 		// console.log(this.coin.label, this.coin.decimalPlaces);
-		const formatter = new Intl.NumberFormat(navigator.language, {
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
 			useGrouping: true,
 			minimumFractionDigits: this.coin.decimalPlaces
 		});
@@ -74,7 +75,7 @@ export class CoinAmount<C extends Coin> {
 		const isNegative = this.isNegative();
 		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
 		const minFigs = numericValue < 1 ? Math.min(this.coin.decimalPlaces, figures) : figures;
-		const formatter = new Intl.NumberFormat(navigator.language, {
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
 			useGrouping: true,
 			minimumSignificantDigits: minFigs,
 			minimumFractionDigits: decimals,

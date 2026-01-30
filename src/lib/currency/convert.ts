@@ -131,8 +131,8 @@ function parseToRootedFormatFromCMC(base: Coin, prices: CmcPriceMap): RootedRate
 		case 'SATS': {
 			// 1 sat = 1e-8 BTC
 			return {
-				HIVE: (btcUsd / hiveUsd) / 100_000_000,
-				HBD: (btcUsd / hbdUsd) / 100_000_000,
+				HIVE: btcUsd / hiveUsd / 100_000_000,
+				HBD: btcUsd / hbdUsd / 100_000_000,
 				USD: btcUsd / 100_000_000,
 				BTC: 1 / 100_000_000,
 				SATS: 1
@@ -203,7 +203,8 @@ const getLightningExchangeRates = async (base: Coin) => {
 		const prices = await getCryptoPrices();
 		return parseToRootedFormat(base, prices);
 	} catch (err) {
-		console.warn('v4v cryptoprices API failed, falling back to CoinMarketCap:', err);
+		// commented this out because it kinda spams it a lot if it fails...
+		// console.warn('v4v cryptoprices API failed, falling back to CoinMarketCap:', err);
 		const prices = await getLatestPrices([Coin.btc, Coin.hive, Coin.hbd]);
 		return parseToRootedFormatFromCMC(base, prices);
 	}

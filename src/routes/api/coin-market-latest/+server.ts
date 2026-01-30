@@ -46,7 +46,8 @@ export const GET: RequestHandler = async ({ url }) => {
 					convert
 				},
 				headers: {
-					'X-CMC_PRO_API_KEY': CMC_API_KEY
+					'X-CMC_PRO_API_KEY': CMC_API_KEY,
+					Accept: 'application/json'
 				}
 			}
 		);

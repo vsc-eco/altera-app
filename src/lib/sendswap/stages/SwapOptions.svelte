@@ -41,6 +41,7 @@
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	let {
 		editStage
@@ -290,13 +291,13 @@
 	}
 	function formatGraphValue(value: number) {
 		if (value > 10) {
-			return value.toLocaleString(navigator.language, {
+			return value.toLocaleString(numberFormatLanguage, {
 				useGrouping: true,
 				maximumFractionDigits: 2,
 				minimumFractionDigits: 2
 			});
 		} else {
-			return value.toLocaleString(navigator.language, {
+			return value.toLocaleString(numberFormatLanguage, {
 				useGrouping: true,
 				maximumFractionDigits: 4,
 				minimumFractionDigits: 2

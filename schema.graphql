@@ -76,8 +76,10 @@ input ContractOutputFilter {
   byContract: String
   byId: String
   byInput: String
+  fromBlock: Uint64
   limit: Int
   offset: Int
+  toBlock: Uint64
 }
 
 type ContractOutputResult {
@@ -109,6 +111,7 @@ type ElectionResult {
 input FindContractFilter {
   byCode: String
   byId: String
+  historical: Boolean
   limit: Int
   offset: Int
 }
@@ -233,8 +236,10 @@ input TransactionFilter {
   byLedgerTypes: [String!]
   byStatus: TransactionStatus
   byType: [String!]
+  fromBlock: Uint64
   limit: Int
   offset: Int
+  toBlock: Uint64
 }
 
 type TransactionOperation {

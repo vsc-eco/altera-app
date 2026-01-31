@@ -23,7 +23,7 @@ export function getHbdStakeOp(
 				from: `hive:${from}`,
 				to: `hive:${to}`,
 				asset: amount.coin.unit.toLowerCase(),
-				net_id: 'vsc-mainnet',
+				net_id: vscNetworkId,
 				amount: amount.toPrettyAmountString()
 			})
 		}
@@ -52,7 +52,7 @@ export function getHbdUnstakeOp(
 				from: `hive:${from}`,
 				to: `hive:${to}`,
 				asset: amount.coin.unit.toLowerCase(),
-				net_id: 'vsc-mainnet',
+				net_id: vscNetworkId,
 				amount: amount.toPrettyAmountString()
 			})
 		}

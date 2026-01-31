@@ -7,7 +7,7 @@ type Client = {
 	api: string;
 	userId: string;
 	nonce: number | null;
-	netId: 'vsc-mainnet';
+	netId: vscNetworkId;
 };
 
 export type CallContractTransaction = {
@@ -110,7 +110,7 @@ export interface OffchainTransactionContainerV2 {
 export interface OnchainTransactionContainerV2 {
 	__t: 'vsc-tx';
 	__v: '0.2';
-	net_id: 'vsc-mainnet';
+	net_id: vscNetworkId;
 	headers: {
 		// payer?: string
 		// lock_block?: number
@@ -127,7 +127,7 @@ export function createClient(userId: string, api?: string): Client {
 		api: api ?? 'https://api.vsc.eco',
 		userId,
 		nonce: null,
-		netId: 'vsc-mainnet'
+		netId: vscNetworkId
 	};
 }
 

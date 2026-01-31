@@ -26,7 +26,7 @@ export function getHiveWithdrawalOp(
 		from: `hive:${from}`,
 		to: toDid,
 		asset: amount.coin.unit.toLowerCase(),
-		net_id: 'vsc-mainnet',
+		net_id: vscNetworkId,
 		amount: amount.toPrettyAmountString()
 	};
 	if (memo) {

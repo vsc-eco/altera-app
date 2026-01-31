@@ -24,7 +24,7 @@ export function getHiveConsensusStakeOp(
 		from: `hive:${username}`,
 		to: `hive:${nodeRunnerAccount}`,
 		asset: 'hive',
-		net_id: 'vsc-mainnet',
+		net_id: vscNetworkId,
 		amount: hiveAmount.toPrettyAmountString()
 	};
 
@@ -48,7 +48,7 @@ export function getHiveConsensusUnstakeOp(
 		from: `hive:${username}`,
 		to: `hive:${nodeRunnerAccount}`,
 		asset: 'hive',
-		net_id: 'vsc-mainnet',
+		net_id: vscNetworkId,
 		amount: hiveAmount.toPrettyAmountString()
 	};
 

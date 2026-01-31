@@ -9,7 +9,7 @@ export type Client = {
 	api: string;
 	userId: string;
 	nonce: number | null;
-	netId: 'vsc-mainnet';
+	netId: vscNetworkId;
 };
 
 export type TransferTransaction = {
@@ -162,7 +162,7 @@ export function createClient(userId: string, api?: string): Client {
 		api: api ?? 'https://api.vsc.eco',
 		userId,
 		nonce: null,
-		netId: 'vsc-mainnet'
+		netId: vscNetworkId
 	};
 }
 

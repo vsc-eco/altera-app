@@ -91,7 +91,7 @@ async function fetchAccountData(auth: Auth) {
 				: undefined
 		]);
 
-		const contractBalances = contractState.data?.getStateByKeys['account_balances'];
+		const contractBalances = contractState.data?.getStateByKeys?.['account_balances'];
 		const btcBalance = contractBalances ? contractBalances[auth.value.did] : 0;
 
 		const magiBalanceObj = (() => {

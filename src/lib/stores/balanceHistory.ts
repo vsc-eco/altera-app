@@ -6,6 +6,7 @@ import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import config from '../../../houdini.config';
 import { type Point } from '../LineChart.svelte';
 import { type AccountBalance, getDefaultBalance } from './currentBalance';
+import { currentGqlUrl } from '../../client';
 
 export type BalanceOption =
 	| 'hbd'
@@ -106,15 +107,14 @@ export async function fetchBalancesHTTP(
 	end: Date | moment.Moment,
 	interval: moment.Duration
 ): Promise<BalanceDataPoint[]> {
-	const graphqlEndpoint = config.watchSchema?.url;
-	if (!graphqlEndpoint || typeof graphqlEndpoint !== 'string') {
+	if (!currentGqlUrl || typeof currentGqlUrl !== 'string') {
 		throw new Error('No API availabe.');
 	}
 	const blockHeightSeries = await getBlockHeightSeries(start, end, interval);
 	const blockHeights = blockHeightSeries.map((item) => item.blockHeight);
 	const queryString = buildMultiHeightQuery(account, blockHeights);
 	try {
-		const response = await fetch(graphqlEndpoint, {
+		const response = await fetch(currentGqlUrl, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'

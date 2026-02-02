@@ -1,6 +1,7 @@
 import { vscGateway } from '$lib/constants';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import type { Coin } from '$lib/sendswap/utils/sendOptions';
+import type { Coin, HiveCoin } from '$lib/sendswap/utils/sendOptions';
+import { Aioha } from '@aioha/aioha';
 import type { CustomJsonOperation, TransferOperation } from '@hiveio/dhive';
 /**
  *
@@ -12,17 +13,21 @@ import type { CustomJsonOperation, TransferOperation } from '@hiveio/dhive';
 export function getHiveDepositOp(
 	from: string,
 	toDid: string,
-	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+	amount: CoinAmount<HiveCoin>,
 	memo?: URLSearchParams
 ): TransferOperation {
 	const defaultMemo = new URLSearchParams(`to=${toDid.split(':').at(-1)}`);
-	return [
-		'transfer',
-		{
+	return {
+		type: "transfer_operation",
+		value: {
 			from,
 			to: vscGateway,
-			amount: `${amount.toAmountString(true)} ${amount.coin.unit}`,
+			amount: {
+				amount: amount.amount.toString(),
+				nai: amount.coin.nai,
+				precision: amount.coin.decimalPlaces
+			},
 			memo: (memo ? new URLSearchParams([...defaultMemo, ...memo]) : defaultMemo).toString()
 		}
-	];
+	};
 }

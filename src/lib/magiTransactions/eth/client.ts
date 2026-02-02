@@ -4,12 +4,13 @@ import { decode as decodeCborg } from './cborg_utils/decode';
 import { encode as encodeJson } from '@ipld/dag-json';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 import { GetAccountNonceStore, SubmitTransactionV1Store } from '$houdini';
+import { vscNetworkId } from '../../../client';
 
 export type Client = {
 	api: string;
 	userId: string;
 	nonce: number | null;
-	netId: vscNetworkId;
+	netId: string;
 };
 
 export type TransferTransaction = {

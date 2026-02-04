@@ -14,8 +14,18 @@ import swapOptions, {
 	type SendDetails
 } from './sendOptions';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
-import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
-import { getEVMOpType } from '$lib/magiTransactions/eth';
+import {
+	executeTx,
+	getSendOpGenerator,
+	getSendOpType,
+	getSendOpGeneratorEnhanced
+} from '$lib/magiTransactions/hive';
+import {
+	getEVMOpType,
+	getEVMContractOpType,
+	getEVMLiquidityPoolOp
+} from '$lib/magiTransactions/eth';
+import { getDexSwapCallOp } from '$lib/magiTransactions/hive';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import type { TransferOperation } from '@hiveio/dhive';
 import { addLocalTransaction } from '../../stores/localStorageTxs';
@@ -177,8 +187,12 @@ export function getRecipientNetworks(did: string): NetworkOptionParam[] {
 function getMethodNetworks(method: TransferMethod) {
 	if (method.value === TransferMethod.magiTransfer.value) {
 		return [Network.magi, Network.hiveMainnet];
-	} else if (method.value === TransferMethod.lightningTransfer.value) {
+	}
+	if (method.value === TransferMethod.lightningTransfer.value) {
 		return [Network.lightning];
+	}
+	if (method.value === TransferMethod.magiLiquidityPoolSwap.value) {
+		return [Network.magi];
 	}
 	return [];
 }
@@ -386,16 +400,23 @@ export function getFromOptions(
 		return;
 	}
 	if (method.value === TransferMethod.magiTransfer.value) {
-		let result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
+		const result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
 		if (did.startsWith('hive:')) {
-			result.accounts.push(SendAccount.deposit);
+			result.accounts!.push(SendAccount.deposit);
 			result.networks = [Network.hiveMainnet];
 		}
 		return result;
-	} else if (method.value === TransferMethod.lightningTransfer.value) {
+	}
+	if (method.value === TransferMethod.lightningTransfer.value) {
 		return {
 			accounts: [SendAccount.swap],
 			networks: [Network.lightning]
+		};
+	}
+	if (method.value === TransferMethod.magiLiquidityPoolSwap.value) {
+		return {
+			accounts: [SendAccount.magiAccount],
+			networks: [Network.magi]
 		};
 	}
 	return;
@@ -604,6 +625,367 @@ export function solveToNetworks(): Network[] {
 	}
 }
 
+/**
+ * LIQUIDITY POOL OPERATIONS INTEGRATION
+ * 
+ * The send pipeline now supports liquidity pool operations (addLiquidity, removeLiquidity)
+ * in addition to standard transfers. These operations flow through both authentication paths:
+ * 
+ * 1. Hive Auth Flow (via aioha):
+ *    - LP operations call getSendOpGeneratorEnhanced() with operationType + operationParams
+ *    - Returns a CustomJsonOperation that can be broadcast via executeTx()
+ * 
+ * 2. EVM Wallet Flow (via Reown/Rion to VSC Magi):
+ *    - LP operations call getEVMLiquidityPoolOp() directly
+ *    - Returns a CallContractTransaction that posts to VSC
+ * 
+ * To support LP operations from the UI, extend SendDetails to include:
+ *   - operationType?: 'addLiquidity' | 'removeLiquidity'
+ *   - lpParams?: Record<string, unknown> (dexContractId, amounts, etc.)
+ */
+
+/**
+ * Helper to determine if a send operation is a liquidity pool operation
+ */
+function isLiquidityPoolOperation(
+	operationType?: string,
+	operationParams?: Record<string, unknown>
+): boolean {
+	return (
+		(operationType === 'addLiquidity' || operationType === 'removeLiquidity') &&
+		operationParams !== undefined
+	);
+}
+
+/**
+ * Helper to determine if send is a DEX swap (router execute) operation
+ */
+function isDexSwapOperation(
+	method: { value?: string; isSwap?: boolean } | undefined,
+	swapParams: Record<string, unknown> | undefined
+): boolean {
+	return (method?.isSwap || method?.value === 'magi-liquidity-pool-swap') && !!swapParams;
+}
+
+/**
+ * Execute DEX swap via EVM wallet (router-v2 execute)
+ */
+async function executeDexSwapEVM(
+	auth: Auth,
+	swapParams: Record<string, unknown>,
+	setStatus: (msg: string, isError?: boolean) => void,
+	signal?: AbortSignal
+): Promise<Error | { id: string }> {
+	if (auth.value?.provider !== 'reown' || !auth.value?.did) {
+		return new Error('EVM wallet (Reown) required for swap');
+	}
+	try {
+		setStatus('Preparing router transaction for signing…');
+		const swapTx = getEVMOpType(
+			Network.magi,
+			Network.magi,
+			auth.value.did,
+			'',
+			new CoinAmount('0', Coin.hive),
+			'dex-swap',
+			swapParams
+		);
+		const client = createClient(auth.value.did);
+		const result = await signAndBrodcastTransaction(
+			[swapTx],
+			wagmiSigner,
+			client,
+			signal,
+			wagmiConfig
+		);
+		setStatus('Transaction submitted successfully!');
+		return { id: result.id };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		setStatus(message, true);
+		return new Error(message);
+	}
+}
+
+/**
+ * Execute DEX swap via Hive auth (router-v2 execute)
+ */
+async function executeDexSwapHive(
+	auth: Auth,
+	swapParams: Record<string, unknown>,
+	setStatus: (msg: string, isError?: boolean) => void
+): Promise<Error | { id: string }> {
+	if (!auth.value?.aioha || !auth.value?.username) {
+		return new Error('Hive wallet required for swap');
+	}
+	try {
+		setStatus('Waiting for Hive wallet approval…');
+		const { routerV2ContractId, instruction, amountIn } = swapParams as {
+			routerV2ContractId?: string;
+			instruction?: Record<string, unknown>;
+			amountIn?: number;
+		};
+		if (!routerV2ContractId || !instruction || amountIn === undefined) {
+			return new Error('Missing swap parameters');
+		}
+		const op = getDexSwapCallOp(
+			auth.value.username,
+			routerV2ContractId,
+			instruction as any,
+			amountIn
+		);
+		const res = await executeTx(auth.value.aioha, [op]);
+		if (res.success) {
+			setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+			return { id: res.result };
+		}
+		setStatus(res.error ?? 'Unknown error', true);
+		return new Error(res.error ?? 'Unknown error');
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		setStatus(message, true);
+		return new Error(message);
+	}
+}
+
+/**
+ * Execute Magi transfer via EVM wallet
+ */
+async function executeMagiTransferEVM(
+	auth: Auth,
+	details: NecessarySendDetails,
+	setStatus: (msg: string, isError?: boolean) => void,
+	signal?: AbortSignal
+): Promise<Error | { id: string }> {
+	if (auth.value?.provider !== 'reown' || !auth.value?.did) {
+		return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
+	}
+	const client = createClient(auth.value.did);
+	const sendOp = getEVMOpType(
+		details.fromNetwork,
+		details.toNetwork,
+		auth.value.did,
+		getDidFromUsername(details.toUsername),
+		new CoinAmount(details.amount, details.toCoin.coin)
+	);
+	setStatus('Preparing transaction for signing…');
+	const id = await signAndBrodcastTransaction(
+		[sendOp],
+		wagmiSigner,
+		client,
+		signal,
+		wagmiConfig
+	)
+		.then((result) => {
+			setStatus('Transaction submitted successfully!');
+			return { id: result.id };
+		})
+		.catch((error) => {
+			if (error instanceof Error) {
+				if (error.message.includes('wallet')) {
+					setStatus('Please connect your wallet and try again.', true);
+				} else if (error.message.includes('422')) {
+					setStatus('Transaction format error. Please check your inputs and try again.', true);
+				} else if (error.message.includes('network') || error.message.includes('Network')) {
+					setStatus('Network error. Please check your connection and try again.', true);
+				} else if (error.message.includes('not enough RCS')) {
+					setStatus('Not enough Resource Credits. Please deposit HBD and try again.', true);
+				} else {
+					setStatus(error.message, true);
+				}
+				return error;
+			}
+			setStatus('Transaction failed.', true);
+			return new Error('Transaction failed.');
+		});
+	return id;
+}
+
+/**
+ * Execute Magi transfer via Hive auth
+ */
+async function executeMagiTransferHive(
+	auth: Auth,
+	details: NecessarySendDetails,
+	setStatus: (msg: string, isError?: boolean) => void
+): Promise<Error | { id: string }> {
+	if (!auth.value?.aioha || !auth.value?.username) {
+		return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
+	}
+	const getSendOp = getSendOpGenerator(
+		details.fromNetwork,
+		details.toNetwork,
+		details.toCoin.coin
+	);
+	const opType = getSendOpType(details.fromNetwork, details.toNetwork);
+	setStatus('Waiting for Hive wallet approval…');
+	const sendOp = getSendOp(
+		auth.value.username,
+		getDidFromUsername(details.toUsername),
+		new CoinAmount(details.amount, details.toCoin.coin),
+		details.memo ? new URLSearchParams({ msg: details.memo }) : undefined
+	);
+	const res = await executeTx(auth.value.aioha, [sendOp]);
+	if (res.success) {
+		setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+		addLocalTransaction({
+			ops: [
+				{
+					data: {
+						amount: new CoinAmount(details.amount, details.toCoin.coin).toAmountString(),
+						asset: details.toCoin.coin.unit.toLowerCase(),
+						from: auth.value.did,
+						to: getDidFromUsername(details.toUsername),
+						memo: sendOp[1]?.memo ?? '',
+						type: 'transfer'
+					},
+					type: opType!,
+					index: 0
+				}
+			],
+			timestamp: new Date(),
+			id: res.result,
+			type: 'hive'
+		});
+		return { id: res.result };
+	}
+	setStatus(res.error ?? 'Unknown error', true);
+	return new Error(res.error ?? 'Unknown error');
+}
+
+/**
+ * Execute Hive mainnet transfer (direct Hive chain)
+ */
+async function executeHiveMainnetTransfer(
+	auth: Auth,
+	details: NecessarySendDetails,
+	setStatus: (msg: string, isError?: boolean) => void
+): Promise<Error | { id: string }> {
+	if (!auth.value?.aioha || !auth.value?.username) {
+		return new Error("Hive Mainnet Transactions via an EVM wallet aren't supported yet.");
+	}
+	setStatus('Waiting for Hive wallet approval…');
+	const toCoinAmount = new CoinAmount(details.amount, details.toCoin.coin);
+	const res = await executeTx(auth.value.aioha, [
+		[
+			'transfer',
+			{
+				from: auth.value.username,
+				to: details.toUsername,
+				amount: toCoinAmount.toPrettyString(),
+				memo: details.memo ?? ''
+			}
+		] satisfies TransferOperation
+	]);
+	if (res.success) {
+		setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+		addLocalTransaction({
+			ops: [
+				{
+					data: {
+						amount: new CoinAmount(details.amount, details.toCoin.coin).toAmountString(),
+						asset: details.toCoin.coin.unit.toLowerCase(),
+						from: auth.value.did,
+						to: getDidFromUsername(details.toUsername),
+						memo: details.memo ?? '',
+						type: 'transfer'
+					},
+					type: 'transfer',
+					index: 0
+				}
+			],
+			timestamp: new Date(),
+			id: res.result,
+			type: 'hive'
+		});
+		return { id: res.result };
+	}
+	return new Error(res.error ?? 'Unknown error');
+}
+
+/**
+ * Execute a liquidity pool operation via Hive auth
+ */
+async function executeLPOperationHive(
+	auth: Auth,
+	operationType: string,
+	operationParams: Record<string, unknown>,
+	setStatus: (msg: string, isError?: boolean) => void
+): Promise<Error | { id: string }> {
+	if (!auth.value?.aioha) {
+		return new Error('Hive wallet required for liquidity pool operations');
+	}
+
+	try {
+		setStatus('Waiting for Hive wallet approval…');
+
+		const getSendOp = getSendOpGeneratorEnhanced(
+			Network.magi,
+			Network.magi,
+			undefined,
+			operationType,
+			operationParams
+		);
+
+		if (!getSendOp) {
+			return new Error(`Unknown LP operation type: ${operationType}`);
+		}
+
+		const lpOp = getSendOp(auth.value.username!, '', new CoinAmount('0', Coin.hive), undefined);
+		const res = await executeTx(auth.value.aioha, [lpOp]);
+
+		if (res.success) {
+			setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+			return { id: res.result };
+		}
+		setStatus(res.error, true);
+		return new Error(res.error);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		setStatus(message, true);
+		return new Error(message);
+	}
+}
+
+/**
+ * Execute a liquidity pool operation via EVM wallet
+ */
+async function executeLPOperationEVM(
+	auth: Auth,
+	operationType: string,
+	operationParams: Record<string, unknown>,
+	setStatus: (msg: string, isError?: boolean) => void,
+	signal?: AbortSignal
+): Promise<Error | { id: string }> {
+	if (auth.value?.provider !== 'reown' || !auth.value?.did) {
+		return new Error('EVM wallet (Reown) required for this operation');
+	}
+
+	try {
+		setStatus('Preparing transaction for signing…');
+
+		const lpTx = getEVMLiquidityPoolOp(auth.value.did, operationType as any, operationParams);
+		const client = createClient(auth.value.did);
+
+		const result = await signAndBrodcastTransaction([lpTx], wagmiSigner, client, signal, wagmiConfig)
+			.then((result) => {
+				setStatus('Transaction submitted successfully!');
+				return result;
+			})
+			.catch((error) => {
+				const message = error instanceof Error ? error.message : String(error);
+				setStatus(message, true);
+				throw new Error(message);
+			});
+
+		return { id: result.id };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		setStatus(message, true);
+		return new Error(message);
+	}
+}
+
 export async function send(
 	details: NecessarySendDetails,
 	auth: Auth,
@@ -611,155 +993,54 @@ export async function send(
 	setStatus: (status: string, isError?: boolean) => void,
 	signal?: AbortSignal | undefined
 ): Promise<Error | { id: string }> {
-	// console.log('start of send() function, details:', details);
-	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
-	if (intermediary == Network.magi) {
-		// console.log('intermediary network is Magi');
-		if (auth.value?.provider == 'reown') {
-			// console.log('auth provider is reown');
-			// account check in signAndBroadcast
-			const client = createClient(auth.value.did);
+	const operationType = details.operationType;
+	const operationParams = details.lpParams ?? details.swapParams;
+	const method = details.method;
+	const swapParams = details.swapParams;
 
-			// console.log('created reown client:', client);
-
-			const sendOp = getEVMOpType(
-				fromNetwork,
-				toNetwork,
-				auth.value.did,
-				getDidFromUsername(toUsername),
-				new CoinAmount(amount, toCoin.coin)
-			);
-
-			setStatus('Preparing transaction for signing…');
-
-			const id = await signAndBrodcastTransaction(
-				[sendOp],
-				wagmiSigner,
-				client,
-				signal,
-				wagmiConfig
-			)
-				.then((result) => {
-					setStatus(`Transaction submitted successfully!`);
-					// TODO: add back once backend fixed
-					// addLocalTransaction({
-					// 	ops: [
-					// 		{
-					// 			data: {
-					// 				...sendOp.payload,
-					// 				type: sendOp.op
-					// 			},
-					// 			type: sendOp.op,
-					// 			index: 0
-					// 		}
-					// 	],
-					// 	timestamp: new Date(),
-					// 	id: result.id,
-					// 	type: 'vsc'
-					// });
-					return { id: result.id };
-				})
-				.catch((error) => {
-					if (error instanceof Error) {
-						if (error.message.includes('wallet')) {
-							setStatus('Please connect your wallet and try again.', true);
-						} else if (error.message.includes('422')) {
-							setStatus('Transaction format error. Please check your inputs and try again.', true);
-						} else if (error.message.includes('network') || error.message.includes('Network')) {
-							setStatus('Network error. Please check your connection and try again.', true);
-						} else if (error.message.includes('not enough RCS')) {
-							setStatus('Not enough Resource Credits. Please deposit HBD and try again.', true);
-						} else {
-							setStatus(error.message, true);
-						}
-						return error;
-					}
-					setStatus('Transaction failed.', true);
-					return new Error('Transaction failed.');
-				});
-			return id;
+	// 1. LP add/remove operations (Magi only)
+	if (isLiquidityPoolOperation(operationType, operationParams)) {
+		if (intermediary !== Network.magi) {
+			return new Error('Liquidity pool operations are only supported on Magi network');
 		}
-		if (!auth.value?.aioha) {
-			return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
+		if (auth.value?.provider === 'reown') {
+			return executeLPOperationEVM(auth, operationType!, operationParams!, setStatus, signal);
 		}
-		const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);
-		const opType = getSendOpType(fromNetwork, toNetwork);
-		setStatus('Waiting for Hive wallet approval…');
-		// note that fromCoin and toCoin should be the same
-		const sendOp = getSendOp(
-			auth.value.username!,
-			getDidFromUsername(toUsername),
-			new CoinAmount(amount, toCoin.coin),
-			details.memo ? new URLSearchParams({ msg: details.memo }) : undefined
-		);
-		const res = await executeTx(auth.value.aioha, [sendOp]);
-		if (res.success) {
-			setStatus('Transaction submitted. You will be notified when your transaction is finished.');
-			addLocalTransaction({
-				ops: [
-					{
-						data: {
-							amount: new CoinAmount(amount, toCoin!.coin).toAmountString(),
-							asset: toCoin!.coin.unit.toLowerCase(),
-							from: auth.value.did,
-							to: getDidFromUsername(toUsername),
-							memo: sendOp[1]?.memo ?? '',
-							type: 'transfer'
-						},
-						type: opType!,
-						index: 0
-					}
-				],
-				timestamp: new Date(),
-				id: res.result,
-				type: 'hive'
-			});
-			return { id: res.result };
+		if (auth.value?.aioha) {
+			return executeLPOperationHive(auth, operationType!, operationParams!, setStatus);
 		}
-		setStatus(res.error, true);
-		return new Error(res.error);
+		return new Error('Hive or EVM wallet required for liquidity pool operations');
 	}
 
-	if (intermediary == Network.hiveMainnet) {
-		if (!auth.value?.aioha)
-			return new Error("Hive Mainnet Transactions via an EVM wallet aren't supported yet.");
-		setStatus('Waiting for Hive wallet approval…');
-		const toCoinAmount = new CoinAmount(amount, toCoin!.coin);
-		const res = await executeTx(auth.value?.aioha, [
-			[
-				'transfer',
-				{
-					from: auth.value.username!,
-					to: toUsername,
-					amount: toCoinAmount.toPrettyString(),
-					memo: details.memo ?? ''
-				}
-			] satisfies TransferOperation
-		]);
-		if (res.success) {
-			setStatus('Transaction submitted. You will be notified when your transaction is finished.');
-			addLocalTransaction({
-				ops: [
-					{
-						data: {
-							amount: new CoinAmount(amount, toCoin!.coin).toAmountString(),
-							asset: toCoin!.coin.unit.toLowerCase(),
-							from: auth.value.did,
-							to: getDidFromUsername(toUsername),
-							memo: details.memo ?? '',
-							type: 'transfer'
-						},
-						type: 'transfer',
-						index: 0
-					}
-				],
-				timestamp: new Date(),
-				id: res.result,
-				type: 'hive'
-			});
-			return { id: res.result };
+	// 2. DEX swap operations (router execute, Magi only)
+	if (isDexSwapOperation(method, swapParams)) {
+		if (intermediary !== Network.magi) {
+			return new Error('DEX swap operations are only supported on Magi network');
 		}
-		return new Error(res.error);
+		if (auth.value?.provider === 'reown') {
+			return executeDexSwapEVM(auth, swapParams!, setStatus, signal);
+		}
+		if (auth.value?.aioha) {
+			return executeDexSwapHive(auth, swapParams!, setStatus);
+		}
+		return new Error('Hive or EVM wallet required for DEX swap');
 	}
+
+	// 3. Magi transfers (deposit, withdraw, internal transfer)
+	if (intermediary === Network.magi) {
+		if (auth.value?.provider === 'reown') {
+			return executeMagiTransferEVM(auth, details, setStatus, signal);
+		}
+		if (auth.value?.aioha) {
+			return executeMagiTransferHive(auth, details, setStatus);
+		}
+		return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
+	}
+
+	// 4. Hive mainnet transfers
+	if (intermediary === Network.hiveMainnet) {
+		return executeHiveMainnetTransfer(auth, details, setStatus);
+	}
+
 	return new Error('Unexpected Error: Unsupported transaction.');
 }

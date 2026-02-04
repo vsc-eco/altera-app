@@ -15,6 +15,10 @@ import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp, getBitcoinUnmapOp } from './vscOperations/bitcoin';
+import {
+	getAddLiquidityOp,
+	getRemoveLiquidityOp
+} from './vscOperations/liquidityPool';
 
 export const consensusTx = async (
 	amount: string,
@@ -160,3 +164,105 @@ export const getSendOpGenerator = (
 		`VSC does not currently support going from ${fromNetwork.label} to ${toNetwork.label}`
 	);
 };
+
+// Export liquidity pool operations
+export {
+	getAddLiquidityOp,
+	getRemoveLiquidityOp,
+	getRegisterPoolOp,
+	createLiquidityPoolInstruction
+} from './vscOperations/liquidityPool';
+
+// Export generic contract call operations
+export {
+	getGenericContractCallOp,
+	getGenericContractCallOpWithRcLimit,
+	getGenericContractCallOpWithIntents
+} from './vscOperations/genericContractCall';
+
+// Export swap operations
+export {
+	getSwapCallContractOp,
+	createDexSwapInstruction,
+	getDexSwapCallOp
+} from './vscOperations/swap';
+
+// Export V2 DEX type definitions
+export type { 
+	LiquidityPoolInstruction, 
+	LiquidityPoolExecutePayload,
+	AddLiquidityPayload,
+	RemoveLiquidityPayload,
+	RegisterPoolPayload
+} from './vscOperations/vsc-op-types';
+export type { 
+	GenericContractCallParams, 
+	DexInstruction, 
+	DexExecutePayload,
+	DexReturnAddress
+} from './vscOperations/vsc-op-types';
+
+/**
+ * Enhanced getSendOpGenerator that supports liquidity pool operations.
+ * When operationType is 'addLiquidity' or 'removeLiquidity', additional params are required.
+ * 
+ * @param fromNetwork Source network
+ * @param toNetwork Target network
+ * @param toCoin Target coin (can be undefined for LP operations)
+ * @param operationType Optional operation type ('addLiquidity', 'removeLiquidity', or standard transfer types)
+ * @param operationParams Optional additional parameters for LP operations
+ * @returns Operation builder function or null if operation type cannot be determined
+ */
+export function getSendOpGeneratorEnhanced(
+	fromNetwork: Network,
+	toNetwork: Network,
+	toCoin: Coin | undefined,
+	operationType?: string,
+	operationParams?: Record<string, unknown>
+): ((
+	from: string,
+	toDid: string,
+	amount: CoinAmount<any>,
+	memo?: URLSearchParams
+) => Operation) | null {
+	// Handle liquidity pool operations
+	if (operationType === 'addLiquidity' && operationParams) {
+		return (from: string) => {
+			const { dexContractId, amount0In, amount1In, minLiquidityOut, recipient, deadline } =
+				operationParams as any;
+			return getAddLiquidityOp(
+				from,
+				dexContractId,
+				amount0In,
+				amount1In,
+				minLiquidityOut,
+				recipient,
+				deadline
+			);
+		};
+	}
+
+	if (operationType === 'removeLiquidity' && operationParams) {
+		return (from: string) => {
+			const { dexContractId, lpTokenAmount, minAmount0Out, minAmount1Out, recipient, deadline } =
+				operationParams as any;
+			return getRemoveLiquidityOp(
+				from,
+				dexContractId,
+				lpTokenAmount,
+				minAmount0Out,
+				minAmount1Out,
+				recipient,
+				deadline
+			);
+		};
+	}
+
+	// Fall back to standard getSendOpGenerator for regular transfers
+	if (toCoin) {
+		return getSendOpGenerator(fromNetwork, toNetwork, toCoin);
+	}
+
+	return null;
+}
+

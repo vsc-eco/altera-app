@@ -256,6 +256,27 @@ export type CoinOptions = {
 	}[];
 };
 
+/** Parameters for DEX swap via router-v2 execute (instruction + amount_in) */
+export type SwapParams = {
+	routerV2ContractId: string;
+	instruction: Record<string, unknown>;
+	amountIn: number;
+	rcLimit?: number;
+};
+
+/** Parameters for LP add/remove operations */
+export type LpParams = {
+	dexContractId: string;
+	amount0In?: number;
+	amount1In?: number;
+	minLiquidityOut?: number;
+	lpTokenAmount?: number;
+	minAmount0Out?: number;
+	minAmount1Out?: number;
+	recipient: string;
+	deadline?: number;
+};
+
 export type SendDetails = {
 	fromCoin: CoinOptions['coins'][number] | undefined;
 	fromNetwork: Network | undefined;
@@ -269,6 +290,12 @@ export type SendDetails = {
 	account: SendAccount | undefined;
 	toDisplayName: string;
 	memo: string;
+	/** For addLiquidity / removeLiquidity operations */
+	operationType?: 'addLiquidity' | 'removeLiquidity';
+	/** LP operation parameters (dexContractId, amounts, etc.) */
+	lpParams?: LpParams;
+	/** DEX swap parameters (router execute) when method is magi-liquidity-pool-swap */
+	swapParams?: SwapParams;
 };
 
 export type NecessarySendDetails = {
@@ -279,6 +306,14 @@ export type NecessarySendDetails = {
 	toNetwork: Network;
 	toUsername: string;
 	memo?: string;
+	/** Transfer method (magi-transfer, magi-liquidity-pool-swap, etc.) */
+	method?: TransferMethod;
+	/** For addLiquidity / removeLiquidity operations */
+	operationType?: 'addLiquidity' | 'removeLiquidity';
+	/** LP operation parameters */
+	lpParams?: LpParams;
+	/** DEX swap parameters when method is magi-liquidity-pool-swap */
+	swapParams?: SwapParams;
 };
 
 export type TransferMethod = {
@@ -286,26 +321,26 @@ export type TransferMethod = {
 	value: string;
 	length: string;
 	fees: string;
+	isSwap: boolean;
 };
 
 const magiTransfer: TransferMethod = {
 	label: 'Magi Transfer',
 	value: 'magi-transfer',
 	length: 'Instant',
-	fees: 'No Fees'
+	fees: 'No Fees',
+	isSwap: false
 };
 
 const lightningTransfer: TransferMethod = {
 	label: 'Lightning Network',
 	value: 'lightning',
 	length: 'About a Minute',
-	fees: '2% Fee'
+	fees: '2% Fee',
+	isSwap: false
 };
 
-export const TransferMethod = {
-	magiTransfer,
-	lightningTransfer
-};
+
 
 export const networkMap: Map<string, Coin[]> = new Map([
 	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd]],
@@ -338,10 +373,24 @@ const swap: SendAccount = {
 	fee: '0-3%'
 };
 
+const magiLiquidityPoolSwap: TransferMethod = {
+	label: 'Magi Liquidity Pool Swap',
+	value: 'magi-liquidity-pool-swap',
+ 	length: 'Instant',
+	fees: '0-3%',
+	isSwap: true
+};
+
 export const SendAccount = {
 	magiAccount,
 	deposit,
 	swap
+};
+
+export const TransferMethod = {
+	magiTransfer,
+	lightningTransfer,
+	magiLiquidityPoolSwap
 };
 
 const swapOptions: {

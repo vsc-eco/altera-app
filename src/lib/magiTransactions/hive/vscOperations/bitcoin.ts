@@ -1,9 +1,10 @@
 import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import { json } from '@sveltejs/kit';
 import { MAPPINGCONTRACTID } from '$lib/stores/currentBalance';
 import type { TransferInput, UnmapInput } from '$lib/magiTransactions/bitcoin/bitcoinContractCalls';
+import { getCallContractOp } from './contract';
+
 /**
  *
  * @param from Ex. "vaultec"
@@ -11,14 +12,6 @@ import type { TransferInput, UnmapInput } from '$lib/magiTransactions/bitcoin/bi
  * @param hiveAmount
  * @returns
  */
-type callContractOp = {
-	action: string;
-	contract_id: string;
-	intents: [];
-	payload: string;
-	rc_limit: number;
-	type: 'call';
-};
 
 export function getBitcoinTransferOp(
 	from: string,
@@ -31,24 +24,7 @@ export function getBitcoinTransferOp(
 		recipient_vsc_address: toDid
 	};
 
-	const jsonOutput: callContractOp = {
-		action: 'transfer',
-		contract_id: MAPPINGCONTRACTID,
-		payload: JSON.stringify(payload),
-		rc_limit: 10000,
-		intents: [],
-		type: 'call'
-	};
-
-	return [
-		'custom_json',
-		{
-			required_auths: [from],
-			required_posting_auths: [],
-			id: 'vsc.call',
-			json: JSON.stringify(jsonOutput)
-		}
-	];
+	return getCallContractOp(from, MAPPINGCONTRACTID, 'transfer', payload);
 }
 
 export function getBitcoinUnmapOp(
@@ -61,22 +37,5 @@ export function getBitcoinUnmapOp(
 		recipient_btc_address: toBtcAddress
 	};
 
-	const jsonOutput: callContractOp = {
-		action: 'unmap',
-		contract_id: MAPPINGCONTRACTID,
-		payload: JSON.stringify(payload),
-		rc_limit: 10000,
-		intents: [],
-		type: 'call'
-	};
-
-	return [
-		'custom_json',
-		{
-			required_auths: [from],
-			required_posting_auths: [],
-			id: 'vsc.call',
-			json: JSON.stringify(jsonOutput)
-		}
-	];
+	return getCallContractOp(from, MAPPINGCONTRACTID, 'unmap', payload);
 }

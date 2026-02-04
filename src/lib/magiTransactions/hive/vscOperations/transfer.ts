@@ -1,7 +1,7 @@
 import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import { json } from '@sveltejs/kit';
+import type { TransferOp } from './vsc-op-types';
 /**
  *
  * @param from Ex. "vaultec"
@@ -9,21 +9,13 @@ import { json } from '@sveltejs/kit';
  * @param hiveAmount
  * @returns
  */
-type transferOp = {
-	from: string,
-	to: string,
-	amount: string,
-	asset: string,
-	net_id: string,
-	memo?: string,
-}
 export function getHiveTransferOp(
 	from: string,
 	toDid: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
 	memo?: URLSearchParams,
 ): CustomJsonOperation {
-	const jsonOutput: transferOp = {
+	const jsonOutput: TransferOp = {
 		from: `hive:${from}`,
 		to: toDid,
 		asset: amount.coin.value.toLowerCase(),

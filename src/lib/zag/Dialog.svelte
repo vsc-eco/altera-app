@@ -92,7 +92,7 @@
 		position: fixed;
 		top: 0;
 		left: 0;
-		z-index: 10;
+		z-index: 49;
 		width: 100%;
 		height: 100%;
 		/* styles for the backdrop element */
@@ -105,6 +105,7 @@
 		max-height: 90dvh;
 		position: relative;
 		display: flex;
+		overflow: visible;
 	}
 
 	[data-part='positioner'] {
@@ -116,21 +117,26 @@
 		width: max-content;
 		left: 50%;
 		top: 50%;
-		z-index: 10;
+		z-index: 55;
 		max-height: 90dvh;
 		transform: translate(-50%, -50%);
+		overflow: visible;
 	}
 
 	[data-part='content'] > :global(div) {
 		border-radius: 0.75rem;
-		padding: 1rem;
+		padding: 1.25rem;
+		min-width: 0;
+		overflow: visible;
 	}
 
 	[data-part='title'] {
 		font-size: var(--text-3xl);
 		margin: 0;
 		margin-top: auto;
-		/* styles for the title element */
+		padding-right: 2.5rem;
+		flex: 1;
+		min-width: 0;
 	}
 
 	[data-part='positioner'] :global([data-part='close-trigger']) {
@@ -146,6 +152,8 @@
 	.title-and-close {
 		display: flex;
 		position: relative;
+		align-items: flex-start;
+		gap: 0.5rem;
 	}
 
 	.title-and-close.no-title {

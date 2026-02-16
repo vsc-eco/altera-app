@@ -50,7 +50,8 @@
 						placement: 'bottom-start',
 						sameWidth: true,
 						gutter: 0,
-						shift: 0
+						shift: 0,
+						flip: false
 					}
 	});
 	const api = $derived(select.connect(service, normalizeProps));
@@ -121,9 +122,11 @@
 	// 	margin-right: calc(0.5rem - var(--x));
 	// 	width: calc(var(--reference-width) - 2 * (0.5rem - var(--x))) !important;
 	// }
+	[data-part='positioner'].card {
+		z-index: 51;
+	}
 	.dropdown {
 		background-color: var(--bg-accent);
-		z-index: 5;
 	}
 	div {
 		position: relative;

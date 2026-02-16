@@ -11,7 +11,7 @@
 	let { api, selectData, styleType = 'default' }: Props = $props();
 </script>
 
-<ul {...api.getContentProps()} class={{ card: styleType !== 'default' }}>
+<ul {...api.getContentProps()} class={{ card: styleType !== 'default', dropdown: styleType === 'dropdown' }}>
 	<div class={['content-spacing', { card: styleType === 'card' }]}>
 		{#each selectData as item}
 			<li
@@ -54,6 +54,11 @@
 		border-radius: 0 0 0.5rem 0.5rem;
 		overflow: auto;
 		border-top: none;
+	}
+	[data-part='content'].dropdown {
+		max-height: 16rem;
+		overflow-y: auto;
+		overflow-x: visible;
 	}
 	[data-part='content'][data-placement='top-start'].card {
 		border: 1px solid var(--neutral-bg-accent-shifted);

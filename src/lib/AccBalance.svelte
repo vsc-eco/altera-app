@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { keyTests, keyTbd } from '../client';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from './sendswap/utils/sendOptions';
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';
@@ -10,6 +12,9 @@
 		did: string;
 	};
 	let { did }: Props = $props();
+
+	const hiveAssetName = browser ? (localStorage.getItem(keyTests) || 'Hive') : 'Hive';
+	const hbdAssetName = browser ? (localStorage.getItem(keyTbd) || 'HBD') : 'HBD';
 
 	$effect(() => {
 		(async () => {
@@ -45,7 +50,7 @@
 		<tbody>
 			<tr>
 				<td><img src={Coin.hbd.icon} alt="" /></td>
-				<td class="coin-cell">HBD</td>
+				<td class="coin-cell">{hbdAssetName}</td>
 				<td class="amount-cell"
 					>{new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true).toPrettyString()}&nbsp;</td
 				>
@@ -53,9 +58,9 @@
 			<tr>
 				<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
 				<td class="coin-cell">
-					<span class="coin-name">Liquid Hive Dollar Savings (sHBD)</span>
+					<span class="coin-name">Liquid {hbdAssetName} Savings (s{hbdAssetName})</span>
 					<span class="tooltip">
-						<InfoToolip>sHBD is HBD that remains transferable while earning 15% APR</InfoToolip>
+						<InfoToolip>s{hbdAssetName} is {hbdAssetName} that remains transferable while earning 15% APR</InfoToolip>
 					</span>
 				</td>
 				<td class="amount-cell"
@@ -69,7 +74,7 @@
 			{#if $accountBalance.bal.pending_hbd_unstaking && $accountBalance.bal.pending_hbd_unstaking !== 0}
 				<tr>
 					<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
-					<td class="coin-cell">HBD Unstaking</td>
+					<td class="coin-cell">{hbdAssetName} Unstaking</td>
 					<td class="amount-cell"
 						>{new CoinAmount(
 							$accountBalance.bal.pending_hbd_unstaking,
@@ -81,14 +86,14 @@
 			{/if}
 			<tr>
 				<td><img src={Coin.hive.icon} alt="" /></td>
-				<td class="coin-cell">Hive</td>
+				<td class="coin-cell">{hiveAssetName}</td>
 				<td class="amount-cell"
 					>{new CoinAmount($accountBalance.bal.hive, Coin.hive, true).toPrettyString()}</td
 				>
 			</tr>
 			<tr>
 				<td class="image-cell"><img src={Coin.hive.icon} alt="" /></td>
-				<td class="coin-cell">Hive Consensus</td>
+				<td class="coin-cell">{hiveAssetName} Consensus</td>
 				<td class="amount-cell"
 					>{new CoinAmount(
 						$accountBalance.bal.hive_consensus,
@@ -100,7 +105,7 @@
 			{#if $accountBalance.bal.consensus_unstaking !== 0}
 				<tr>
 					<th> </th><td><img src={Coin.hive.icon} alt="" /></td>
-					<td class="coin-cell">Hive Unstaking</td>
+					<td class="coin-cell">{hiveAssetName} Unstaking</td>
 					<td class="amount-cell"
 						>{new CoinAmount(
 							$accountBalance.bal.consensus_unstaking,

@@ -2,6 +2,7 @@ import { getNonce, uint8ArrayToBase64Url } from '@vsc.eco/client/dist/utils';
 import { submitTxQuery } from '@vsc.eco/client/dist/queries';
 import Axios from 'axios';
 import { encodePayload } from 'dag-jose-utils';
+import { currentGqlUrl } from '../../../client';
 
 type Client = {
 	api: string;
@@ -124,7 +125,7 @@ export interface OnchainTransactionContainerV2 {
 
 export function createClient(userId: string, api?: string): Client {
 	return {
-		api: api ?? 'https://api.vsc.eco',
+		api: api ?? currentGqlUrl,
 		userId,
 		nonce: null,
 		netId: vscNetworkId

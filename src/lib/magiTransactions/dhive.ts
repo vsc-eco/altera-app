@@ -5,11 +5,15 @@ export const keyHiveApiList = 'hive-api';
 export const keyHiveApiAllowBackups = 'hive-api-allow-backup';
 export const keyHiveNetworkId = 'hive-network-id';
 
+// export const DEFAULT_HIVE_APIS = [
+// 	'https://api.hive.blog',
+// 	'https://api.hivekings.com',
+// 	'https://anyx.io',
+// 	'https://api.openhive.network'
+// ];
+
 export const DEFAULT_HIVE_APIS = [
-	'https://api.hive.blog',
-	'https://api.hivekings.com',
-	'https://anyx.io',
-	'https://api.openhive.network'
+	(browser && localStorage.getItem(keyHiveApiList)) || 'https://api.hive.blog'
 ];
 
 const urls: string[] = (() => {

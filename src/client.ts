@@ -5,6 +5,8 @@ export const DEFAULT_GQL_URL = 'https://api.vsc.eco';
 
 export const keyVscGql = 'vsc-gql-url';
 export const keyVscNetworkId = 'vsc-network-id';
+export const keyTests = 'prefs-tests';
+export const keyTbd = 'prefs-tbd';
 
 const DEFAULT_VSC_NET_ID = 'vsc-mainnet';
 

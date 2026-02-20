@@ -4,7 +4,7 @@ import { decode as decodeCborg } from './cborg_utils/decode';
 import { encode as encodeJson } from '@ipld/dag-json';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 import { GetAccountNonceStore, SubmitTransactionV1Store } from '$houdini';
-import { vscNetworkId } from '../../../client';
+import { currentGqlUrl, vscNetworkId } from '../../../client';
 
 export type Client = {
 	api: string;
@@ -160,7 +160,7 @@ export interface SignatureContainer {
 
 export function createClient(userId: string, api?: string): Client {
 	return {
-		api: api ?? 'https://api.vsc.eco',
+		api: api ?? currentGqlUrl,
 		userId,
 		nonce: null,
 		netId: vscNetworkId

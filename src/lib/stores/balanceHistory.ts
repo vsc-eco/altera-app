@@ -114,7 +114,7 @@ export async function fetchBalancesHTTP(
 	const blockHeights = blockHeightSeries.map((item) => item.blockHeight);
 	const queryString = buildMultiHeightQuery(account, blockHeights);
 	try {
-		const response = await fetch(currentGqlUrl, {
+		const response = await fetch(`${currentGqlUrl}/api/v1/graphql`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'

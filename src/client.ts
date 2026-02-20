@@ -11,7 +11,7 @@ export const keyTbd = 'prefs-tbd';
 const DEFAULT_VSC_NET_ID = 'vsc-mainnet';
 
 export const currentGqlUrl =
-	(browser && localStorage.getItem(keyVscGql)) || DEFAULT_GQL_URL || 'https://api.vsc.eco';
+	(browser && localStorage.getItem(keyVscGql)) || DEFAULT_GQL_URL;
 
 export const vscNetworkId =
 	(browser && localStorage.getItem(keyVscNetworkId)) || DEFAULT_VSC_NET_ID;

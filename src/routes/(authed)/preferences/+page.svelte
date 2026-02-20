@@ -9,13 +9,15 @@
 		keyHiveNetworkId
 	} from '$lib/magiTransactions/dhive';
 	import PillButton from '$lib/PillButton.svelte';
-	import { DEFAULT_GQL_URL, keyVscGql, keyVscNetworkId } from '../../../client';
+	import { DEFAULT_GQL_URL, keyVscGql, keyVscNetworkId, keyTests, keyTbd } from '../../../client';
 	import ToggleTheme from './ToggleTheme.svelte';
 	let vscGqlUrlInput: HTMLInputElement = $state()!;
 	let hiveApiUrlInput: HTMLInputElement = $state()!;
 	let hiveAllowBackupsCheckbox: HTMLInputElement = $state()!;
 	let vscNetworkIdInput: HTMLInputElement = $state()!;
 	let hiveNetworkIdInput: HTMLInputElement = $state()!;
+	let testsInput: HTMLInputElement = $state()!;
+	let tbdInput: HTMLInputElement = $state()!;
 
 	let advancedOptions = $state(false);
 </script>
@@ -41,6 +43,8 @@
 			localStorage.setItem(keyHiveApiAllowBackups, allowBackups.toString());
 			localStorage.setItem(keyVscNetworkId, vscNetworkIdInput.value);
 			localStorage.setItem(keyHiveNetworkId, hiveNetworkIdInput.value);
+			localStorage.setItem(keyTests, testsInput.value);
+			localStorage.setItem(keyTbd, tbdInput.value);
 
 			await invalidateAll();
 			location.reload();
@@ -124,6 +128,7 @@
 				value={(browser && localStorage.getItem(keyVscNetworkId)) || 'vsc-mainnet'}
 				type="text"
 			/>
+			<br />
 			<span class="label-tooltip">
 				<label for="hive-network-id">HIVE Custom Network ID</label>
 				<InfoTooltip warning>
@@ -135,6 +140,33 @@
 				id="hive-network-id"
 				bind:this={hiveNetworkIdInput}
 				value={(browser && localStorage.getItem(keyHiveNetworkId)) || ''}
+				type="text"
+			/>
+			<br />
+			<span class="label-tooltip">
+				<label for="prefs-tests">Hive Asset Name</label>
+				<InfoTooltip warning>
+					Change the asset name for Hive.
+				</InfoTooltip>
+			</span>
+			<input
+				id="prefs-tests"
+				bind:this={testsInput}
+				value={(browser && localStorage.getItem(keyTests)) || ''}
+				type="text"
+			/>
+			<br />
+			<span class="label-tooltip">
+				<label for="prefs-tbd">
+					HBD Asset Name</label>
+				<InfoTooltip warning>
+					Change the asset name for HBD.
+				</InfoTooltip>
+			</span>
+			<input
+				id="prefs-tbd"
+				bind:this={tbdInput}
+				value={(browser && localStorage.getItem(keyTbd)) || ''}
 				type="text"
 			/>
 		{/if}

@@ -1,20 +1,29 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { keyTests, keyTbd } from '../client';
+	import { getHiveAssetName, getHbdAssetName } from '../client';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from './sendswap/utils/sendOptions';
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';
 	import { accountBalance } from './stores/currentBalance';
 	import moment from 'moment';
 	import InfoToolip from './components/InfoTooltip.svelte';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	type Props = {
 		did: string;
 	};
 	let { did }: Props = $props();
 
-	const hiveAssetName = browser ? (localStorage.getItem(keyTests) || 'Hive') : 'Hive';
-	const hbdAssetName = browser ? (localStorage.getItem(keyTbd) || 'HBD') : 'HBD';
+	const hiveAssetName = $derived(browser ? getHiveAssetName() : 'HIVE');
+	const hbdAssetName = $derived(browser ? getHbdAssetName() : 'HBD');
+	function formatWithUnit(amt: CoinAmount<typeof Coin.hive | typeof Coin.hbd>, unit: string): string {
+		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: amt.coin.decimalPlaces
+		});
+		return `${amt.amount < 0 ? '-' : ''}${formatter.format(n)} ${unit}`;
+	}
 
 	$effect(() => {
 		(async () => {
@@ -52,7 +61,7 @@
 				<td><img src={Coin.hbd.icon} alt="" /></td>
 				<td class="coin-cell">{hbdAssetName}</td>
 				<td class="amount-cell"
-					>{new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true).toPrettyString()}&nbsp;</td
+					>{formatWithUnit(new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true), hbdAssetName)}&nbsp;</td
 				>
 			</tr>
 			<tr>
@@ -64,11 +73,10 @@
 					</span>
 				</td>
 				<td class="amount-cell"
-					>{new CoinAmount(
-						$accountBalance.bal.hbd_savings,
-						Coin.hbd,
-						true
-					).toPrettyString()}&nbsp;</td
+					>{formatWithUnit(
+						new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true),
+						hbdAssetName
+					)}&nbsp;</td
 				>
 			</tr>
 			{#if $accountBalance.bal.pending_hbd_unstaking && $accountBalance.bal.pending_hbd_unstaking !== 0}
@@ -76,11 +84,10 @@
 					<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
 					<td class="coin-cell">{hbdAssetName} Unstaking</td>
 					<td class="amount-cell"
-						>{new CoinAmount(
-							$accountBalance.bal.pending_hbd_unstaking,
-							Coin.hbd,
-							true
-						).toPrettyString()}&nbsp;</td
+						>{formatWithUnit(
+							new CoinAmount($accountBalance.bal.pending_hbd_unstaking, Coin.hbd, true),
+							hbdAssetName
+						)}&nbsp;</td
 					>
 				</tr>
 			{/if}
@@ -88,18 +95,17 @@
 				<td><img src={Coin.hive.icon} alt="" /></td>
 				<td class="coin-cell">{hiveAssetName}</td>
 				<td class="amount-cell"
-					>{new CoinAmount($accountBalance.bal.hive, Coin.hive, true).toPrettyString()}</td
+					>{formatWithUnit(new CoinAmount($accountBalance.bal.hive, Coin.hive, true), hiveAssetName)}</td
 				>
 			</tr>
 			<tr>
 				<td class="image-cell"><img src={Coin.hive.icon} alt="" /></td>
 				<td class="coin-cell">{hiveAssetName} Consensus</td>
 				<td class="amount-cell"
-					>{new CoinAmount(
-						$accountBalance.bal.hive_consensus,
-						Coin.hive,
-						true
-					).toPrettyString()}</td
+					>{formatWithUnit(
+						new CoinAmount($accountBalance.bal.hive_consensus, Coin.hive, true),
+						hiveAssetName
+					)}</td
 				>
 			</tr>
 			{#if $accountBalance.bal.consensus_unstaking !== 0}
@@ -107,11 +113,10 @@
 					<th> </th><td><img src={Coin.hive.icon} alt="" /></td>
 					<td class="coin-cell">{hiveAssetName} Unstaking</td>
 					<td class="amount-cell"
-						>{new CoinAmount(
-							$accountBalance.bal.consensus_unstaking,
-							Coin.hive,
-							true
-						).toPrettyString()}</td
+						>{formatWithUnit(
+							new CoinAmount($accountBalance.bal.consensus_unstaking, Coin.hive, true),
+							hiveAssetName
+						)}</td
 					>
 				</tr>
 			{/if}

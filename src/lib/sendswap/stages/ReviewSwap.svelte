@@ -9,6 +9,8 @@
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
+	import { getHiveAssetName, getHbdAssetName } from '../../../client';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	const auth = $derived(getAuth()());
 	let {
@@ -23,6 +25,48 @@
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
+	const fromCoinDisplayLabel = $derived(
+		fromCoin.value === Coin.hive.value ? getHiveAssetName() : fromCoin.value === Coin.hbd.value ? getHbdAssetName() : fromCoin.label
+	);
+	const toCoinDisplayLabel = $derived(
+		toCoin.value === Coin.hive.value ? getHiveAssetName() : toCoin.value === Coin.hbd.value ? getHbdAssetName() : toCoin.label
+	);
+	/** Format amount with display unit (TESTS/TBD) for hive/hbd, else use coin.unit */
+	function prettyWithDisplayUnit(amt: CoinAmount<Coin>): string {
+		const isNegative = amt.amount < 0;
+		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: amt.coin.decimalPlaces
+		});
+		const unit =
+			amt.coin.value === Coin.hive.value
+				? getHiveAssetName()
+				: amt.coin.value === Coin.hbd.value
+					? getHbdAssetName()
+					: amt.coin.unit;
+		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
+	}
+	/** Like toPrettyMinFigs but with display unit for hive/hbd */
+	function prettyMinFigsWithDisplayUnit(amt: CoinAmount<Coin>, figures?: number, decimals?: number): string {
+		const isNegative = amt.amount < 0;
+		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
+		const dec = decimals ?? amt.coin.decimalPlaces;
+		const minFigs = n < 1 ? Math.min(amt.coin.decimalPlaces, figures ?? dec + 1) : (figures ?? dec + 1);
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumSignificantDigits: minFigs,
+			minimumFractionDigits: dec,
+			maximumSignificantDigits: 21
+		});
+		const unit =
+			amt.coin.value === Coin.hive.value
+				? getHiveAssetName()
+				: amt.coin.value === Coin.hbd.value
+					? getHbdAssetName()
+					: amt.coin.unit;
+		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
+	}
 	let inUsd = $state<CoinAmount<Coin>>();
 	let feeInUsd = $state<CoinAmount<Coin>>();
 	let total = $derived(
@@ -82,9 +126,9 @@
 								<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork} size={32} />
 							</td>
 							<td class="sm-caption label"
-								>From {fromCoin.label} on {$SendTxDetails.fromNetwork?.label}</td
+								>From {fromCoinDisplayLabel} on {$SendTxDetails.fromNetwork?.label}</td
 							>
-							<td class="content">{total.toPrettyString()}</td>
+							<td class="content">{prettyWithDisplayUnit(total)}</td>
 						</tr>
 					{/if}
 					<tr>
@@ -96,7 +140,7 @@
 							{:else if !$SendTxDetails.fee || !feeInUsd}
 								<div class="fee-loading"><WaveLoading /></div>
 							{:else}
-								{$SendTxDetails.fee.toPrettyString()}
+									{prettyWithDisplayUnit($SendTxDetails.fee)}
 								<EqualApproximately size={16} />
 								{feeInUsd.toPrettyString()}
 							{/if}
@@ -106,7 +150,7 @@
 						<td class="icon"><Dot size="32" /></td>
 						<td class="sm-caption label">Amount</td>
 						<td class="content">
-							{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+							{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
 							<EqualApproximately size={16} />
 							{inUsd?.toPrettyString()}
 						</td>
@@ -116,9 +160,9 @@
 							<td class="icon"><Dot size="32" /></td>
 							<td class="sm-caption label">Market Rate</td>
 							<td class="content">
-								{new CoinAmount(1, fromCoin).toPrettyMinFigs()}
+								{prettyMinFigsWithDisplayUnit(new CoinAmount(1, fromCoin))}
 								<EqualApproximately size="16" />
-								{fromInTo?.toPrettyString()}
+								{fromInTo ? prettyWithDisplayUnit(fromInTo) : ''}
 							</td>
 						</tr>
 					{/if}
@@ -128,10 +172,10 @@
 								<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork} size={32} />
 							</td>
 							<td class="sm-caption label"
-								>To {toCoin.label} on {$SendTxDetails.toNetwork?.label}</td
+								>To {toCoinDisplayLabel} on {$SendTxDetails.toNetwork?.label}</td
 							>
 							<td class="content">
-								{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
+								{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.toAmount, toCoin))}
 							</td>
 						</tr>
 					{/if}

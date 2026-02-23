@@ -16,6 +16,11 @@ export const currentGqlUrl =
 export const vscNetworkId =
 	(browser && localStorage.getItem(keyVscNetworkId)) || DEFAULT_VSC_NET_ID;
 
+/** Display unit for Hive (e.g. TESTS on testnet). Use for UI only. */
+export const getHiveAssetName = (): string => (browser && localStorage.getItem(keyTests)) || 'HIVE';
+/** Display unit for HBD (e.g. TBD on testnet). Use for UI only. */
+export const getHbdAssetName = (): string => (browser && localStorage.getItem(keyTbd)) || 'HBD';
+
 export default new HoudiniClient({
 	url: currentGqlUrl + '/api/v1/graphql'
 

@@ -1,8 +1,8 @@
 import { vscGateway } from '$lib/constants';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import type { Coin, HiveCoin } from '$lib/sendswap/utils/sendOptions';
-import { Aioha } from '@aioha/aioha';
-import type { CustomJsonOperation, TransferOperation } from '@hiveio/dhive';
+import { Coin } from '$lib/sendswap/utils/sendOptions';
+import type { TransferOperation } from '@hiveio/dhive';
+import { getHiveAssetName, getHbdAssetName } from '../../../../client';
 /**
  *
  * @param from ex: "vaultec"
@@ -13,21 +13,20 @@ import type { CustomJsonOperation, TransferOperation } from '@hiveio/dhive';
 export function getHiveDepositOp(
 	from: string,
 	toDid: string,
-	amount: CoinAmount<HiveCoin>,
+	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
 	memo?: URLSearchParams
 ): TransferOperation {
 	const defaultMemo = new URLSearchParams(`to=${toDid.split(':').at(-1)}`);
-	return {
-		type: "transfer_operation",
-		value: {
+	// Use unit from localStorage (e.g. TESTS/TBD for testnet), fallback to HIVE/HBD
+	const chainUnit =
+		amount.coin.value === Coin.hbd.value ? getHbdAssetName() : getHiveAssetName();
+	return [
+		'transfer',
+		{
 			from,
 			to: vscGateway,
-			amount: {
-				amount: amount.amount.toString(),
-				nai: amount.coin.nai,
-				precision: amount.coin.decimalPlaces
-			},
+			amount: `${amount.toAmountString(true)} ${chainUnit}`,
 			memo: (memo ? new URLSearchParams([...defaultMemo, ...memo]) : defaultMemo).toString()
 		}
-	};
+	];
 }

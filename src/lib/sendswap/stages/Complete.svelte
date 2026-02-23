@@ -11,6 +11,8 @@
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	let timer = $state<PieTimer>();
 
@@ -20,6 +22,21 @@
 
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
+	function prettyWithDisplayUnit(amt: CoinAmount<Coin>): string {
+		const isNegative = amt.amount < 0;
+		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: amt.coin.decimalPlaces
+		});
+		const unit =
+			amt.coin.value === Coin.hive.value
+				? getHiveAssetName()
+				: amt.coin.value === Coin.hbd.value
+					? getHbdAssetName()
+					: amt.coin.unit;
+		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
+	}
 	let inUsd = $state('');
 	$effect(() => {
 		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
@@ -63,7 +80,7 @@
 			{#if isSend}
 				<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
 				<h4>
-					{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+					{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
 					{`(\$US ${inUsd})`}
 				</h4>
 			{:else if $SendTxDetails.toNetwork && $SendTxDetails.fromNetwork}
@@ -72,7 +89,7 @@
 						<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork!} size={32} />
 					</span>
 					<span class="from-amt">
-						{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+						{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
 						<EqualApproximately size="16" />
 						{`${inUsd} USD`}
 					</span>
@@ -84,7 +101,7 @@
 						<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork!} size={32} />
 					</span>
 					<span class="to-amt">
-						{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
+						{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.toAmount, toCoin))}
 					</span>
 				</div>
 			{/if}

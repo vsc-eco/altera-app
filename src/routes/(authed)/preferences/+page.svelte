@@ -3,7 +3,6 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
 	import {
-		DEFAULT_HIVE_APIS,
 		keyHiveApiAllowBackups,
 		keyHiveApiList,
 		keyHiveNetworkId
@@ -11,6 +10,12 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { DEFAULT_GQL_URL, keyVscGql, keyVscNetworkId, keyTests, keyTbd } from '../../../client';
 	import ToggleTheme from './ToggleTheme.svelte';
+
+	const DEFAULT_HIVE_API_URL = 'https://api.hive.blog';
+	const DEFAULT_VSC_NETWORK_ID = 'vsc-mainnet';
+	const DEFAULT_HIVE_ASSET_NAME = 'HIVE';
+	const DEFAULT_HBD_ASSET_NAME = 'HBD';
+
 	let vscGqlUrlInput: HTMLInputElement = $state()!;
 	let hiveApiUrlInput: HTMLInputElement = $state()!;
 	let hiveAllowBackupsCheckbox: HTMLInputElement = $state()!;
@@ -26,25 +31,34 @@
 <div class="sections">
 	<form
 		onsubmit={async (e) => {
-			const vscUrl = URL.parse(vscGqlUrlInput.value);
 			e.preventDefault();
+			// Use defaults when field is left empty (HIVE Custom Network ID stays empty if not set)
+			const vscUrlStr = vscGqlUrlInput.value.trim() || DEFAULT_GQL_URL;
+			const hiveUrlStr = hiveApiUrlInput.value.trim() || DEFAULT_HIVE_API_URL;
+			const vscUrl = URL.parse(vscUrlStr);
 			if (!vscUrl) {
-				console.error('Unexpected: form input should have been prevalidated bc type=url');
+				console.error('Unexpected: API URL invalid');
 				return;
 			}
-			const hiveUrl = URL.parse(hiveApiUrlInput.value);
+			const hiveUrl = URL.parse(hiveUrlStr);
 			if (!hiveUrl) {
-				console.error('Unexpected: form input should have been prevalidated bc type=url');
+				console.error('Unexpected: HIVE API URL invalid');
 				return;
 			}
 			const allowBackups = hiveAllowBackupsCheckbox.checked;
 			localStorage.setItem(keyVscGql, vscUrl.origin);
 			localStorage.setItem(keyHiveApiList, hiveUrl.origin);
 			localStorage.setItem(keyHiveApiAllowBackups, allowBackups.toString());
-			localStorage.setItem(keyVscNetworkId, vscNetworkIdInput.value);
-			localStorage.setItem(keyHiveNetworkId, hiveNetworkIdInput.value);
-			localStorage.setItem(keyTests, testsInput.value);
-			localStorage.setItem(keyTbd, tbdInput.value);
+			localStorage.setItem(
+				keyVscNetworkId,
+				vscNetworkIdInput.value.trim() || DEFAULT_VSC_NETWORK_ID
+			);
+			localStorage.setItem(keyHiveNetworkId, hiveNetworkIdInput.value.trim());
+			localStorage.setItem(
+				keyTests,
+				testsInput.value.trim() || DEFAULT_HIVE_ASSET_NAME
+			);
+			localStorage.setItem(keyTbd, tbdInput.value.trim() || DEFAULT_HBD_ASSET_NAME);
 
 			await invalidateAll();
 			location.reload();
@@ -79,14 +93,14 @@
 		<input
 			id="vsc-gql-url"
 			bind:this={hiveApiUrlInput}
-			value={(browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_APIS[0]}
+			value={(browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_API_URL}
 			type="url"
 		/>
 		<PillButton
 			styleType="outline"
 			onclick={(e) => {
-				localStorage.setItem(keyHiveApiList, DEFAULT_HIVE_APIS[0]);
-				hiveApiUrlInput.value = DEFAULT_HIVE_APIS[0];
+				localStorage.setItem(keyHiveApiList, DEFAULT_HIVE_API_URL);
+				hiveApiUrlInput.value = DEFAULT_HIVE_API_URL;
 			}}
 			type="button">Reset</PillButton
 		>
@@ -125,7 +139,7 @@
 			<input
 				id="vsc-network-id"
 				bind:this={vscNetworkIdInput}
-				value={(browser && localStorage.getItem(keyVscNetworkId)) || 'vsc-mainnet'}
+				value={(browser && localStorage.getItem(keyVscNetworkId)) || DEFAULT_VSC_NETWORK_ID}
 				type="text"
 			/>
 			<br />
@@ -152,7 +166,7 @@
 			<input
 				id="prefs-tests"
 				bind:this={testsInput}
-				value={(browser && localStorage.getItem(keyTests)) || ''}
+				value={(browser && localStorage.getItem(keyTests)) || DEFAULT_HIVE_ASSET_NAME}
 				type="text"
 			/>
 			<br />
@@ -166,7 +180,7 @@
 			<input
 				id="prefs-tbd"
 				bind:this={tbdInput}
-				value={(browser && localStorage.getItem(keyTbd)) || ''}
+				value={(browser && localStorage.getItem(keyTbd)) || DEFAULT_HBD_ASSET_NAME}
 				type="text"
 			/>
 		{/if}

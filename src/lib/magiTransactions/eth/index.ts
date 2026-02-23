@@ -8,6 +8,7 @@ import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 import { MAPPINGCONTRACTID } from '$lib/stores/currentBalance';
 import type { TransferInput, UnmapInput } from '../bitcoin/bitcoinContractCalls';
+import { getHiveAssetName, getHbdAssetName } from '../../../client';
 
 export function getEVMOpType(
 	fromNetwork: Network,
@@ -57,11 +58,18 @@ export function getEVMOpType(
 			return tx;
 		}
 	}
+	// Use asset from localStorage (e.g. TESTS/TBD for testnet), fallback to HIVE/HBD
+	const assetName =
+		amount.coin.value === Coin.hbd.value
+			? getHbdAssetName()
+			: amount.coin.value === Coin.hive.value
+				? getHiveAssetName()
+				: amount.coin.unit;
 	let payload = {
 		from: fromDid,
 		to: toDid,
 		amount: amount.toPrettyAmountString(),
-		asset: amount.coin.unit.toLowerCase()
+		asset: assetName.toLowerCase()
 	};
 	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.magi.value) {
 		return {

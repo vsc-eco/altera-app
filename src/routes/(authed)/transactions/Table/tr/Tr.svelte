@@ -19,6 +19,8 @@
 	} from '$lib/stores/txStores';
 	import moment from 'moment';
 	import { addNotification, type Notification } from '$lib/Topbar/notifications';
+	import { getHiveAssetName, getHbdAssetName } from '../../../../../client';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	type Props = {
 		tx: TransactionInter;
@@ -153,6 +155,21 @@
 			e.preventDefault();
 		}
 	}
+	function prettyWithDisplayUnit(amt: UnkCoinAmount): string {
+		const isNegative = amt.amount < 0;
+		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: amt.coin.decimalPlaces
+		});
+		const unit =
+			amt.coin.value === Coin.hive.value
+				? getHiveAssetName()
+				: amt.coin.value === Coin.hbd.value
+					? getHbdAssetName()
+					: amt.coin.unit;
+		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
+	}
 	const direction: 'incoming' | 'outgoing' | 'swap' = $derived.by(() => {
 		if (to === from) {
 			if (t.includes('stake') || t.includes('unstake')) {
@@ -192,7 +209,7 @@
 		{formatOpType(t)}
 	</h2>
 	<div class="amount">
-		{amount.toPrettyString()}
+		{prettyWithDisplayUnit(amount)}
 		<span class="approx-usd">
 			Approx. ${inUsd} USD
 		</span>

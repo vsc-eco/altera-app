@@ -9,6 +9,15 @@
 	import BalanceInfo from '../info/BalanceInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { ChevronDown, ChevronUp } from '@lucide/svelte';
+	import { getHiveAssetName, getHbdAssetName } from '../../../../client';
+
+	function assetDisplayLabel(coin: Coin): string {
+		return coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: coin.label;
+	}
 
 	let {
 		availableCoins,
@@ -54,6 +63,8 @@
 				if (!disabled || showEmptyAccounts) {
 					return {
 						...coin,
+						label: assetDisplayLabel(coin),
+						unit: assetDisplayLabel(coin),
 						value: `${coin.value}:${Network.magi.value}`,
 						balance: coinAmt.toPrettyAmountString(),
 						onNetwork: Network.magi,
@@ -88,6 +99,8 @@
 					if (!showEmptyAccounts && disabled) continue;
 					result.push({
 						...coin,
+						label: assetDisplayLabel(coin),
+						unit: assetDisplayLabel(coin),
 						value: `${coin.value}:${externalNetwork.value}`,
 						balance: new CoinAmount(bal, coin, true).toPrettyAmountString(),
 						onNetwork: externalNetwork,

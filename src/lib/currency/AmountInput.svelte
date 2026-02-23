@@ -8,6 +8,7 @@
 	import NumberInput from '$lib/zag/NumberInput.svelte';
 	import BigInput from './BigInput.svelte';
 	import Select from '$lib/zag/Select.svelte';
+	import { getHiveAssetName, getHbdAssetName } from '../../client';
 
 	let {
 		coinAmount = $bindable(),
@@ -216,11 +217,43 @@
 		}
 	});
 
+	const displayLabel = $derived(
+		selected.coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: selected.coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: selected.coin.label
+	);
+	const displayUnit = $derived(
+		selected.coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: selected.coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: selected.coin.unit
+	);
+	// Balance string with display unit (e.g. TESTS/TBD) for hive/hbd
+	const balanceDisplay = $derived(
+		maxAmount && selected.coin.value === maxAmount.coin.value
+			? (() => {
+					const n = Math.abs(maxAmount.amount) / 10 ** maxAmount.coin.decimalPlaces;
+					const formatter = new Intl.NumberFormat(undefined, {
+						useGrouping: true,
+						minimumFractionDigits: maxAmount.coin.decimalPlaces
+					});
+					return `${formatter.format(n)} ${displayUnit}`;
+				})()
+			: ''
+	);
 	const selectionItems = $derived(
 		coinOpts.map((coinOpt) => ({
 			...coinOpt,
 			value: coinOpt.coin.value,
-			label: coinOpt.coin.label
+			label:
+				coinOpt.coin.value === Coin.hive.value
+					? getHiveAssetName()
+					: coinOpt.coin.value === Coin.hbd.value
+						? getHbdAssetName()
+						: coinOpt.coin.label
 		}))
 	);
 </script>
@@ -233,7 +266,7 @@
 					<span style="white-space: nowrap;">
 						(Balance:
 						<span class="balance-amount">
-							{maxAmount!.toPrettyString()}
+							{balanceDisplay || maxAmount!.toPrettyString()}
 						</span>)
 					</span>
 				{/if}
@@ -273,7 +306,7 @@
 				/>
 			{:else}
 				<div class="coin-label">
-					{selected.coin.label}
+					{displayLabel}
 				</div>
 			{/if}
 		</div>
@@ -298,7 +331,7 @@
 	<div class="big-wrapper">
 		<div class="amount-input">
 			<label for={id}>
-				{selected.coin.label}
+				{displayLabel}
 			</label>
 			{#key [selected, debouncedMax, min]}
 				<BigInput bind:amount={inputAmt} bind:inputId={id} {decimals} {min} />

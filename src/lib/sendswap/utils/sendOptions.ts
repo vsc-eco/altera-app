@@ -22,9 +22,8 @@ const _coinIsOneOf = (source: CoinOnNetwork | undefined, arr: Coin[]) => {
 	return !(source?.coin && !arr.includes(source.coin));
 };
 
-const hive: HiveCoin = {
+const hive: Coin = {
 	value: 'hive',
-	nai: "@@000000021",
 	label: 'HIVE',
 	icon: '/hive/hive.svg',
 	unit: 'HIVE',
@@ -41,9 +40,8 @@ const hive: HiveCoin = {
 	},
 	decimalPlaces: 3
 };
-const hbd: HiveCoin = {
+const hbd: Coin = {
 	value: 'hbd',
-	nai: "@@000000013",
 	label: 'HBD',
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
@@ -150,10 +148,6 @@ export type Coin = {
 	 */
 	decimalPlaces: number;
 };
-
-export interface HiveCoin extends Coin {
-	nai: string;
-}
 
 type Enabled = (
 	going: 'to' | 'from',

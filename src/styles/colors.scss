@@ -17,6 +17,10 @@
 	--light-purple: oklch(0.67 0.27 317);
 	--middle-purple: oklch(0.272 0.086 300);
 	--dark-purple: oklch(0.188 0.0716 291);
+	/* Primary text (headings, key values) */
+	--primary-text: #ffffff;
+	--positive-text: #a7fb8a;
+	--negative-text: #ff6b6b;
 }
 $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 97, 98;
 :root {
@@ -24,8 +28,8 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.oklch-palette($color-nums, 'teal', 0.2, 170, 0.02, 250);
 	@include color-mixins.oklch-palette($color-nums, 'gray', 0, 305.19, 0.005, 385);
 	@include color-mixins.oklch-palette($color-nums, 'green', 0.01, 147, 0.05, 142, 0.125, 0.65);
-	// @include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 291, 0.02, 300, 0.15, 0.6);
-	@include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 291, 0.02, 310, 0.15, 0.6);
+	/* Primary #6F6AF8 ≈ oklch(59% 0.23 283) */
+	@include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 283, 0.02, 283, 0.23, 0.59);
 	@include color-mixins.oklch-palette($color-nums, 'pink', 0.26, 316.97);
 }
 

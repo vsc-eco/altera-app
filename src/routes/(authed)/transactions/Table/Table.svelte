@@ -14,21 +14,30 @@
 	let {
 		did,
 		allowPopup = true,
-		initialOpen
+		initialOpen,
+		limit: limitProp
 	}: {
 		did: string;
 		allowPopup?: boolean;
 		initialOpen?: [string, number];
+		limit?: number;
 	} = $props();
 	let loading = $state(true);
 	let lastLength = $state(0);
 	let currStoreLen = $derived($allTransactionsStore.length);
 	let hitBottom = $derived(lastLength === currStoreLen);
 
+	const displayTxs = $derived(
+		limitProp != null
+			? ($allTransactionsStore ?? []).slice(0, limitProp)
+			: ($allTransactionsStore ?? [])
+	);
+
 	let skeletonRowCount = $state(8);
 	onMount(() => {
-		if (!initialOpen && $allTransactionsStore.length < 20) {
-			fetchTxs(did, 'set', (val) => (loading = val), 20);
+		const fetchLimit = limitProp ?? 20;
+		if (!initialOpen && $allTransactionsStore.length < fetchLimit) {
+			fetchTxs(did, 'set', (val) => (loading = val), fetchLimit);
 		}
 		const rootStyle = getComputedStyle(document.documentElement);
 		const remValue = parseFloat(rootStyle.fontSize);
@@ -133,6 +142,7 @@
 
 <svelte:document
 	onscroll={(_e) => {
+		if (limitProp != null) return;
 		const me = document.documentElement;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1 && !hitBottom && !loading) {
 			lastLength = currStoreLen;
@@ -143,6 +153,7 @@
 <div
 	class="scroll"
 	onscroll={(e) => {
+		if (limitProp != null) return;
 		const me = e.currentTarget;
 		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1 && !hitBottom && !loading) {
 			lastLength = currStoreLen;
@@ -163,9 +174,9 @@
 
 		<tbody
 			id="transactions-tbody"
-			class={!$allTransactionsStore?.length && !loading ? 'no-transactions-container' : ''}
+			class={!displayTxs?.length && !loading ? 'no-transactions-container' : ''}
 		>
-			{#if $allTransactionsStore && $allTransactionsStore.length > 0}
+			{#if displayTxs && displayTxs.length > 0}
 				<!-- {#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id } = tx}
 					{#each ops!.sort((a, b) => {
@@ -184,7 +195,7 @@
 						{/if}
 					{/each}
 				{/each} -->
-				{#each $allTransactionsStore as tx (tx.id)}
+				{#each displayTxs as tx (tx.id)}
 					{@const { ops, id, ledger } = tx}
 					{@const isContract = ops?.find((op) => op?.data.contract_id !== undefined) !== undefined}
 					{@const show =
@@ -234,7 +245,7 @@
 			{/if}
 		</tbody>
 	</table>
-	{#if !$allTransactionsStore?.length && !loading}
+	{#if !displayTxs?.length && !loading}
 		<div class={['no-transactions-overlay', { short: skeletonRowCount <= 5 }]}>
 			<div class="no-transactions-message">No transactions found</div>
 		</div>

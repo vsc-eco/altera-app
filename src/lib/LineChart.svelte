@@ -5,6 +5,7 @@
 	//   if values are not evenly spaced over x then the interp should vary
 	//   from index gap to index gap.
 	// - the mapping from mouse position to hoveredIndex
+	import type { ScaleLinear } from 'd3-scale';
 	import { scaleLinear, scaleTime } from 'd3-scale';
 	import { extent, max } from 'd3-array';
 	import { area, curveMonotoneX } from 'd3-shape';
@@ -23,7 +24,6 @@
 	import { Loader } from '@lucide/svelte';
 	import WaveLoading from './components/WaveLoading.svelte';
 	import { untrack } from 'svelte';
-	const margin = { top: 8, right: 0, bottom: 0, left: 0 };
 	export type Point = {
 		value: number;
 		date: Date;
@@ -36,6 +36,7 @@
 		theme?: string;
 		isLoading?: boolean;
 		styleType?: 'balance' | 'trend';
+		showYAxis?: boolean;
 	};
 	let width = $state(0);
 	let {
@@ -45,8 +46,17 @@
 		data,
 		theme = 'primary',
 		isLoading = false,
-		styleType = 'balance'
+		styleType = 'balance',
+		showYAxis = false
 	}: Props = $props();
+
+	const margin = $derived({
+		top: 8,
+		right: 0,
+		bottom: 0,
+		left: showYAxis && styleType === 'balance' ? 40 : 0
+	});
+
 	const dateExtent = $derived(extent(data, (d) => new Date(d.date)) as [Date, Date]);
 	const xScale = $derived(
 		scaleTime()
@@ -56,29 +66,43 @@
 
 	let minRange = 0.02; // Minimum $0.02 range (2 cents)
 
-	const yScale = $derived.by(() => {
-		let domain;
+	const yScale = $derived.by((): ScaleLinear<number, number> => {
+		let scale: ScaleLinear<number, number>;
 
 		if (styleType === 'trend') {
-			const [min, max] = extent(data, (d) => d.value) as [number, number];
-			const range = max - min;
+			const [min, maxVal] = extent(data, (d) => d.value) as [number, number];
+			const range = maxVal - min;
 
 			if (Math.abs(range) < minRange) {
-				// If actual range is smaller than minimum, expand it
-				const center = (min + max) / 2;
+				const center = (min + maxVal) / 2;
 				const halfMinRange = minRange / 2;
-				domain = [center - halfMinRange, center + halfMinRange];
+				scale = scaleLinear()
+					.domain([center - halfMinRange, center + halfMinRange])
+					.range([height - margin.bottom, margin.top]);
 			} else {
-				domain = [min, max];
+				scale = scaleLinear()
+					.domain([min, maxVal])
+					.range([height - margin.bottom, margin.top]);
 			}
 		} else {
-			domain = [0, max(data, (d) => d.value)!];
+			const maxVal = data.length > 0 ? max(data, (d) => d.value)! : 1;
+			scale = scaleLinear()
+				.domain([0, maxVal])
+				.nice()
+				.range([height - margin.bottom, margin.top]);
 		}
 
-		return scaleLinear()
-			.domain(domain)
-			.range([height - margin.bottom, margin.top]);
+		return scale;
 	});
+
+	const yTicks = $derived(
+		showYAxis && styleType === 'balance' ? yScale.ticks(5) : []
+	);
+
+	function formatYTick(value: number): string {
+		if (value >= 1000) return value / 1000 + 'K';
+		return String(value);
+	}
 
 	// derived(
 	// 	scaleLinear()
@@ -148,14 +172,25 @@
 	);
 	// return signal.abort;
 	// });
-	let chunkSize = $derived((width - margin.left - margin.right) / (data.length - 1));
+	const chunkSize = $derived.by(() => {
+		const usableWidth = width - margin.left - margin.right;
+		if (data.length <= 1) return usableWidth || 1;
+		return usableWidth / (data.length - 1);
+	});
 	function setLinePos(e: MouseEvent) {
-		let bb = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		if (!data || data.length === 0) return;
 
-		let fromLeft = e.clientX - bb.left + margin.left;
+		const bb = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const fromLeft = e.clientX - bb.left + margin.left;
 		let fromLeftChunk = Math.round(fromLeft / chunkSize);
+		const lastIndex = data.length - 1;
+		if (!isFinite(fromLeftChunk)) return;
+		if (fromLeftChunk < 0) fromLeftChunk = 0;
+		if (fromLeftChunk > lastIndex) fromLeftChunk = lastIndex;
+
 		hoveredIndex = fromLeftChunk;
 		hoveredPoint = data[fromLeftChunk];
+		if (!hoveredPoint) return;
 		if (dotR == 0) {
 			changeLocalInterpFunction(dotAnim.children.pos, NO_INTERP);
 		}
@@ -192,6 +227,17 @@
 		role="figure"
 		class={{ loading: isLoading }}
 	>
+		{#each yTicks as tickVal}
+			<text
+				x={margin.left - 8}
+				y={yScale(tickVal)}
+				text-anchor="end"
+				dominant-baseline="middle"
+				class="y-tick"
+			>
+				{formatYTick(tickVal)}
+			</text>
+		{/each}
 		<path d={areaPlot} stroke="none" stroke-width={0} fill="url(#MyGradient)"></path>
 		<path d={linePlot} stroke="var(--fg-mid)" stroke-width={1}></path>
 		<line
@@ -268,6 +314,10 @@
 		color: var(--neutral-fg-mid);
 		font-size: var(--text-xs);
 		white-space: nowrap;
+	}
+	svg .y-tick {
+		fill: var(--neutral-fg-mid);
+		font-size: var(--text-xs);
 	}
 	.loading-overlay {
 		position: absolute;

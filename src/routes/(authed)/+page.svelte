@@ -1,16 +1,21 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import Balance from '$lib/cards/Balance/Balance.svelte';
+	import PortfolioValue from '$lib/cards/Balance/PortfolioValue.svelte';
+	import StakingEarnings from '$lib/cards/StakingEarnings.svelte';
 	import TopHomeMenu from './TopHomeMenu.svelte';
 	import { getAccountNameFromAuth, getUsernameFromAuth } from '$lib/getAccountName';
-	import Card from '$lib/cards/Card.svelte';
 	import Table from './transactions/Table/Table.svelte';
-	import AccBalance from '$lib/AccBalance.svelte';
+	import QuickSwap from '$lib/cards/QuickSwap.svelte';
 	import ResourceCredits from '$lib/cards/ResourceCredits/ResourceCredits.svelte';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
+	import StakePopup from '$lib/magiTransactions/hive/vscOperations/StakePopup.svelte';
+	import { goto } from '$app/navigation';
 	// let { auth }: LayoutData = $props();
 	let auth = $derived(getAuth()());
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
+	let stakeOpen = $state(false);
+	let toggleStake = $state<(open?: boolean) => void>(() => {});
 </script>
 
 <document:head>
@@ -18,7 +23,7 @@
 </document:head>
 
 <h1>
-	Welcome,
+	<span class="welcome-text">Welcome,</span>
 	<span class={['name', { loaded: !!username }]}>
 		{#if username}
 			<BasicCopy value={getUsernameFromAuth(auth)!}>
@@ -32,30 +37,56 @@
 
 <TopHomeMenu {auth} />
 <div class="masonry">
-	<div class="row large">
-		<Balance></Balance>
-		{#if auth.value}
-			<Card>
-				<AccBalance did={auth.value.did}></AccBalance>
-			</Card>
-		{/if}
-	</div>
-	<div class="row small">
-		{#if auth.value}
-			<ResourceCredits
-				{username}
-				isHive={auth.value == undefined || auth.value!.username != undefined}
-			/>
-		{/if}
+	<div class="top-grid">
+		<div class="col-left">
+			<Balance> </Balance>
+		</div>
+		<div class="col-right">
+			{#if auth.value}
+				<PortfolioValue />
+				<div class="staking-card-wrapper">
+					<StakingEarnings onStake={() => toggleStake(true)} />
+				</div>
+			{/if}
+		</div>
 	</div>
 
-	<div class="txs">
-		<h3>Transactions</h3>
-		{#if auth.value}
-			<Table did={auth.value.did} allowPopup={false} />
-		{/if}
+	<div class="txs-row">
+		<div class="txs-col">
+			<div class="txs-header">
+				<h3>Transactions</h3>
+				<select class="filter-select" aria-label="Filter transactions">
+					<option>All</option>
+				</select>
+			</div>
+			{#if auth.value}
+				<Table did={auth.value.did} allowPopup={false} limit={10} />
+			{/if}
+			{#if auth.value}
+				<button type="button" class="more-txs-btn" onclick={() => goto('/transactions')}>
+					More transactions
+				</button>
+			{/if}
+		</div>
+		<div class="right-col">
+			{#if auth.value}
+				<div class="quick-swap-col">
+					<QuickSwap />
+				</div>
+				<div class="resource-credits-col">
+					<ResourceCredits
+						{username}
+						isHive={auth.value == undefined || auth.value!.username != undefined}
+					/>
+				</div>
+			{/if}
+		</div>
 	</div>
 </div>
+
+{#if auth.value}
+	<StakePopup {auth} bind:dialogOpen={stakeOpen} bind:toggle={toggleStake} />
+{/if}
 
 <style>
 	.masonry {
@@ -63,30 +94,118 @@
 		flex-direction: column;
 		gap: 1.5rem;
 	}
-	.txs {
-		flex-basis: 100%;
-		width: 100%;
-	}
-	.row {
+	.top-grid {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 1.5rem;
 		align-items: stretch;
+		width: 100%;
 	}
-	.row > :global(*) {
-		flex-grow: 1;
-		flex-basis: 300px;
+	.col-left {
+		flex: 1 1 40%;
+		min-width: 280px;
+		max-width: 45%;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
 		box-sizing: border-box;
 	}
-	.row.small > :global(*) {
-		max-width: max(300px, min(calc(64rem / 3), (100% - 1rem) / 2));
+	.col-right {
+		flex: 1 1 55%;
+		min-width: 300px;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		box-sizing: border-box;
 	}
-	/* This is the width others shrink to 1 col, but not ideal to hard code it */
-	@media (max-width: 848px) {
-		.row.small > :global(*) {
-			flex-grow: 1;
+	@media (max-width: 900px) {
+		.col-left,
+		.col-right {
+			flex: 1 1 100%;
 			max-width: none;
-			flex-basis: 100%;
+		}
+	}
+	.col-left > :global(*) {
+		flex: 1 1 0;
+		min-height: 0;
+		min-width: 0;
+	}
+	.txs-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1.5rem;
+		align-items: stretch;
+		width: 100%;
+	}
+	.txs-col {
+		flex: 1 1 50%;
+		min-width: 420px;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		background-color: var(--neutral-off-bg);
+		border: 1px solid var(--neutral-bg-accent);
+		border-radius: 0.75rem;
+		padding: 0.5rem;
+		box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
+		box-sizing: border-box;
+	}
+	.right-col {
+		flex: 1 1 340px;
+		min-width: 280px;
+		max-width: 320px;
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		box-sizing: border-box;
+	}
+	.quick-swap-col,
+	.resource-credits-col {
+		width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+	}
+	.more-txs-btn {
+		margin-top: 0.5rem;
+		padding: 0.5rem 1rem;
+		background: transparent;
+		border: 1px solid var(--neutral-bg-accent);
+		border-radius: 2rem;
+		color: var(--primary-text);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		cursor: pointer;
+		width: 100%;
+	}
+	.more-txs-btn:hover {
+		background: var(--neutral-bg-accent);
+	}
+	.txs-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
+	.txs-header h3 {
+		color: var(--primary-text);
+		margin: 0;
+		font-size: var(--text-lg);
+		font-weight: 600;
+	}
+	.filter-select {
+		background: var(--neutral-off-bg);
+		border: 1px solid var(--neutral-bg-accent);
+		border-radius: 0.5rem;
+		color: var(--primary-text);
+		font-size: var(--text-sm);
+		padding: 0.25rem 1.5rem 0.25rem 0.5rem;
+		cursor: pointer;
+	}
+	@media (max-width: 700px) {
+		.txs-col,
+		.right-col {
+			flex: 1 1 100%;
+			max-width: none;
 		}
 	}
 	h1 {
@@ -95,6 +214,9 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
+	}
+	.welcome-text {
+		color: var(--primary-text);
 	}
 	.name {
 		width: 100%;
@@ -115,5 +237,8 @@
 		width: fit-content;
 		color: currentColor;
 		background-color: transparent;
+	}
+	.staking-card-wrapper {
+		width: 100%;
 	}
 </style>

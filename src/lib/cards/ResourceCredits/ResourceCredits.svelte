@@ -85,7 +85,7 @@
 <Card>
 	<div class="rc-wrapper">
 		<div>
-			<h5>Magi Resource Credits</h5>
+			<h5 class="rc-title">Magi Resource Credits</h5>
 			<div class="bar-and-info">
 				<div class="bar-wrapper">
 					<Progress
@@ -143,6 +143,9 @@
 		flex-direction: column;
 		gap: 1.5rem;
 		vertical-align: middle;
+		.rc-title {
+			color: var(--primary-text);
+		}
 		.bar-and-info {
 			display: flex;
 			gap: 0.5rem;

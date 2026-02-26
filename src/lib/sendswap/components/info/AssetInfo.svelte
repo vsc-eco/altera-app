@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { isValidBalanceField } from '$lib/stores/balanceHistory';
 	import { get } from 'svelte/store';
-	import { Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import InfoSegment from './InfoSegment.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 
 	let {
 		coinOpt,
@@ -26,6 +27,14 @@
 		isValidBalanceField(coinOpt.coin.value) && network?.value === Network.magi.value
 			? get(accountBalance).bal[coinOpt.coin.value]
 			: undefined
+	);
+
+	const displayLabel = $derived.by(() =>
+		coinOpt.coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: coinOpt.coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: coinOpt.coin.label
 	);
 
 	let display = $derived.by(() => {
@@ -64,7 +73,7 @@
 		/>
 	</span>
 
-	<InfoSegment label={coinOpt.coin.label} {display} disabled={disabledMemo !== undefined} {size} />
+	<InfoSegment label={displayLabel} {display} disabled={disabledMemo !== undefined} {size} />
 </div>
 
 <style>

@@ -26,7 +26,8 @@
 		max = $bindable(),
 		close,
 		externalNetwork,
-		isTo = false
+		isTo = false,
+		onSelect
 	}: {
 		availableCoins: Coin[];
 		coin: CoinOptions['coins'][number] | undefined;
@@ -35,6 +36,7 @@
 		close: () => void;
 		externalNetwork?: Network;
 		isTo?: boolean;
+		onSelect?: (coin: CoinOptions['coins'][number], network: Network) => void;
 	} = $props();
 
 	const auth = $derived(getAuth()());
@@ -161,6 +163,7 @@
 		} else {
 			network = tmpNetwork;
 			coin = tmpAsset;
+			onSelect?.(tmpAsset, tmpNetwork);
 			if (balanceObj && 'balance' in balanceObj) {
 				const coinObj: Coin = { ...balanceObj, value: assetVal };
 				max = new CoinAmount(balanceObj.balance, coinObj);

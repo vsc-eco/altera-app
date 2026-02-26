@@ -20,10 +20,15 @@
 	const auth = $derived(getAuth()());
 	function startDetails(): SendDetails {
 		if (txType === 'swap') {
+			const hiveOpt = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
+			const hbdOpt = swapOptions.from.coins.find((c) => c.coin.value === Coin.hbd.value);
 			return {
 				...blankDetails(),
 				toNetwork: Network.magi,
-				method: TransferMethod.lightningTransfer
+				method: TransferMethod.lightningTransfer,
+				fromCoin: hiveOpt,
+				fromNetwork: Network.magi,
+				toCoin: hbdOpt
 			};
 		} else {
 			const balOpt = scanForBalance(

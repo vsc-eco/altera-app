@@ -15,9 +15,10 @@ import swapOptions, {
 } from './sendOptions';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
+import { getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap';
 import { getEVMOpType } from '$lib/magiTransactions/eth';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import type { TransferOperation } from '@hiveio/dhive';
+import type { Operation, TransferOperation } from '@hiveio/dhive';
 import { addLocalTransaction } from '../../stores/localStorageTxs';
 import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client';
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
@@ -682,29 +683,57 @@ export async function send(
 		if (!auth.value?.aioha) {
 			return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
 		}
-		const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);
-		const opType = getSendOpType(fromNetwork, toNetwork);
-		setStatus('Waiting for Hive wallet approval…');
-		// note that fromCoin and toCoin should be the same
-		const sendOp = getSendOp(
-			auth.value.username!,
-			getDidFromUsername(toUsername),
-			new CoinAmount(amount, toCoin.coin),
-			details.memo ? new URLSearchParams({ msg: details.memo }) : undefined
-		);
+		const isSwap =
+			fromNetwork.value === Network.magi.value &&
+			toNetwork.value === Network.magi.value &&
+			fromCoin.coin.value !== toCoin.coin.value &&
+			(fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value) &&
+			(toCoin.coin.value === Coin.hive.value || toCoin.coin.value === Coin.hbd.value);
+
+		let sendOp: Operation;
+		let opType: string | undefined;
+
+		if (isSwap) {
+			setStatus('Waiting for Hive wallet approval…');
+			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
+			const tx = get(SendTxDetails);
+			const fromAmountStr = tx.fromAmount && tx.fromAmount !== '0' ? tx.fromAmount : amount;
+			sendOp = getHiveSwapOp(
+				auth.value.username!,
+				new CoinAmount(fromAmountStr, fromCoin.coin),
+				fromCoin.coin as typeof Coin.hive | typeof Coin.hbd,
+				toCoin.coin as typeof Coin.hive | typeof Coin.hbd
+			);
+			opType = 'swap';
+		} else {
+			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);
+			opType = getSendOpType(fromNetwork, toNetwork);
+			setStatus('Waiting for Hive wallet approval…');
+			sendOp = getSendOp(
+				auth.value.username!,
+				getDidFromUsername(toUsername),
+				new CoinAmount(amount, toCoin.coin),
+				details.memo ? new URLSearchParams({ msg: details.memo }) : undefined
+			);
+		}
+
 		const res = await executeTx(auth.value.aioha, [sendOp]);
 		if (res.success) {
 			setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+			// For swaps, the on-screen history should show the OUTPUT asset/amount (to side),
+			// e.g. 43 TESTS instead of 43 TBD when swapping 3 TBD -> 43 TESTS.
+			const dataAsset = toCoin!.coin;
+			const dataAmountStr = amount;
 			addLocalTransaction({
 				ops: [
 					{
 						data: {
-							amount: new CoinAmount(amount, toCoin!.coin).toAmountString(),
-							asset: toCoin!.coin.unit.toLowerCase(),
+							amount: new CoinAmount(dataAmountStr, dataAsset).toAmountString(),
+							asset: dataAsset.unit.toLowerCase(),
 							from: auth.value.did,
-							to: getDidFromUsername(toUsername),
-							memo: sendOp[1]?.memo ?? '',
-							type: 'transfer'
+							to: isSwap ? auth.value.did : getDidFromUsername(toUsername),
+							memo: (sendOp as [string, { memo?: string }])[1]?.memo ?? '',
+							type: isSwap ? 'swap' : 'transfer'
 						},
 						type: opType!,
 						index: 0

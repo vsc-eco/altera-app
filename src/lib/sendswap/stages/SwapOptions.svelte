@@ -42,6 +42,7 @@
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { numberFormatLanguage } from '$lib/constants';
+	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 
 	let {
 		editStage
@@ -113,17 +114,18 @@
 				(opt) => opt.coin.value === Coin.hive.value && !opt.disabled
 			);
 			const firstAvailable = assetOptions.find((opt) => !opt.disabled);
-			if (hiveOption) {
-				$SendTxDetails.fromCoin = hiveOption;
-				$SendTxDetails.fromNetwork = Array.isArray(hiveOption.networks)
-					? hiveOption.networks[0]
-					: undefined;
-			} else if (firstAvailable) {
-				$SendTxDetails.fromCoin = firstAvailable;
-				$SendTxDetails.fromNetwork = Array.isArray(firstAvailable.networks)
-					? firstAvailable.networks[0]
-					: undefined;
-			}
+			const fromOpt = hiveOption ?? firstAvailable;
+			const fromNet = fromOpt
+				? Array.isArray(fromOpt.networks)
+					? fromOpt.networks[0]
+					: undefined
+				: undefined;
+			if (fromOpt)
+				SendTxDetails.update((d) => ({
+					...d,
+					fromCoin: fromOpt,
+					fromNetwork: fromNet
+				}));
 		}
 
 		// TO auto selection, update only if value changes!
@@ -134,7 +136,8 @@
 			return !!bal && Number(bal) > 0.001;
 		});
 		if (!($SendTxDetails.toCoin && $SendTxDetails.toNetwork)) {
-			let nextToCoin, nextToNetwork;
+			let nextToCoin: (typeof swapOptions.to.coins)[number] | undefined;
+			let nextToNetwork: Network | undefined;
 			if (visibleToObjs.length > 0) {
 				const hiveTo = visibleToObjs.find((obj) => obj.value === Coin.hive.value);
 				const firstAvailableTo = visibleToObjs[0];
@@ -162,11 +165,50 @@
 			const changed =
 				prevToCoin?.coin.value !== nextToCoin?.coin.value ||
 				prevToNetwork?.value !== nextToNetwork?.value;
-			if (changed) {
-				$SendTxDetails.toCoin = nextToCoin;
-				$SendTxDetails.toNetwork = nextToNetwork;
-			}
+			if (changed)
+				SendTxDetails.update((d) => ({
+					...d,
+					toCoin: nextToCoin,
+					toNetwork: nextToNetwork
+				}));
 		}
+	});
+
+	// Keep TO side as the opposite Hive asset:
+	// - From HIVE/TESTS -> To HBD/TBD
+	// - From HBD/TBD -> To HIVE/TESTS
+	$effect(() => {
+		const fromOpt = $SendTxDetails.fromCoin;
+		const fromNet = $SendTxDetails.fromNetwork;
+		if (!fromOpt || !fromNet) return;
+
+		let targetValue: string | undefined;
+		if (fromOpt.coin.value === Coin.hive.value) {
+			targetValue = Coin.hbd.value;
+		} else if (fromOpt.coin.value === Coin.hbd.value) {
+			targetValue = Coin.hive.value;
+		} else {
+			return;
+		}
+
+		const currentTo = $SendTxDetails.toCoin;
+		if (currentTo?.coin.value === targetValue) return;
+
+		const targetOpt = swapOptions.to.coins.find((opt) => opt.coin.value === targetValue);
+		if (!targetOpt) return;
+
+		let targetNet: Network | undefined = undefined;
+		if (fromNet && targetOpt.networks.some((n) => n.value === fromNet.value)) {
+			targetNet = fromNet;
+		} else if (Array.isArray(targetOpt.networks)) {
+			targetNet = targetOpt.networks[0];
+		}
+
+		SendTxDetails.update((d) => ({
+			...d,
+			toCoin: targetOpt,
+			toNetwork: targetNet
+		}));
 	});
 
 	const fromAssetObjs: AssetObject[] = $derived([
@@ -178,6 +220,24 @@
 				net: Network.lightning,
 				size: 'medium'
 			}
+		},
+		{
+			...Coin.hive,
+			snippet: assetCard,
+			snippetData: {
+				fromOpt: { coin: Coin.hive, networks: [Network.magi] },
+				net: Network.magi,
+				size: 'medium'
+			}
+		},
+		{
+			...Coin.hbd,
+			snippet: assetCard,
+			snippetData: {
+				fromOpt: { coin: Coin.hbd, networks: [Network.magi] },
+				net: Network.magi,
+				size: 'medium'
+			}
 		}
 	]);
 	const toAssetObjs: AssetObject[] = $derived(
@@ -187,20 +247,12 @@
 			snippetData: { fromOpt: opt, net: $SendTxDetails.toNetwork, size: 'medium' }
 		}))
 	);
-	let possibleCoins: CoinOnNetwork[] = $derived.by(() => {
-		let result: CoinOnNetwork[] = [];
-		if ($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork) {
-			result.push({ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork });
-		}
-		if ($SendTxDetails.toCoin && $SendTxDetails.toNetwork) {
-			result.push({ coin: $SendTxDetails.toCoin.coin, network: $SendTxDetails.toNetwork });
-		}
-		const btcIndex = result.findIndex((coinOnNet) => coinOnNet.coin.value === Coin.btc.value);
-		if (btcIndex !== -1) {
-			result.splice(btcIndex + 1, 0, { coin: Coin.sats, network: result[btcIndex].network });
-		}
-		return result;
-	});
+	// Only the from coin for the amount input – no dropdown; from is changed only via the left card.
+	let amountInputCoinOpts: CoinOnNetwork[] = $derived(
+		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
+			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+			: []
+	);
 
 	let inputAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
@@ -307,9 +359,10 @@
 
 	let minAmount: CoinAmount<Coin> | undefined = $state();
 	$effect(() => {
-		const amt = possibleCoins.some((coin) => coin.coin.value === Coin.btc.value)
-			? new CoinAmount(0.0000025, Coin.btc)
-			: undefined;
+		const amt =
+			$SendTxDetails.fromCoin?.coin.value === Coin.btc.value
+				? new CoinAmount(0.0000025, Coin.btc)
+				: undefined;
 		untrack(() => {
 			if (minAmount?.coin.value !== amt?.coin.value || minAmount?.toNumber() !== amt?.toNumber()) {
 				minAmount = amt;
@@ -317,12 +370,36 @@
 		});
 	});
 
+	// Max = Magi balance when from is hive/hbd so user can tap Max
+	const maxAmount: CoinAmount<Coin> | undefined = $derived.by(() => {
+		const from = $SendTxDetails.fromCoin;
+		if (!from || $SendTxDetails.fromNetwork?.value !== Network.magi.value) return undefined;
+		const key = from.coin.value as keyof AccountBalance;
+		const bal = $accountBalance.bal?.[key];
+		if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
+		return new CoinAmount(bal, from.coin, true);
+	});
+
 	let dialogOpen = $state(false);
 	let toggle = $state<(open?: boolean) => void>(() => {});
 	let currentlyOpen: 'from' | 'to' = $state('from');
 	function openDialog(state: 'from' | 'to') {
+		// To is fixed when from is Hive/HBD (TESTS↔TBD); do not open To picker
+		if (
+			state === 'to' &&
+			($SendTxDetails.fromCoin?.coin.value === Coin.hive.value ||
+				$SendTxDetails.fromCoin?.coin.value === Coin.hbd.value)
+		)
+			return;
 		currentlyOpen = state;
 		toggle(true);
+	}
+	function coinDisplayLabel(coin: (typeof Coin)[keyof typeof Coin]): string {
+		return coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: coin.label;
 	}
 </script>
 
@@ -346,6 +423,7 @@
 				bind:network={$SendTxDetails.fromNetwork}
 				close={toggle}
 				externalNetwork={Network.lightning}
+				onSelect={(c, n) => SendTxDetails.update((d) => ({ ...d, fromCoin: c, fromNetwork: n }))}
 			/>
 		{:else}
 			<SelectAssetFlattened
@@ -354,6 +432,7 @@
 				bind:coin={$SendTxDetails.toCoin}
 				bind:network={$SendTxDetails.toNetwork}
 				isTo
+				onSelect={(c, n) => SendTxDetails.update((d) => ({ ...d, toCoin: c, toNetwork: n }))}
 			/>
 		{/if}
 	{/snippet}
@@ -374,30 +453,47 @@
 			{/if}
 		</div>
 	</ClickableCard>
-	<ClickableCard onclick={() => openDialog('to')}>
-		<div class="asset-wrapper">
-			{#if $SendTxDetails.toCoin}
-				<AssetInfo
-					coinOpt={$SendTxDetails.toCoin}
-					network={$SendTxDetails.toNetwork}
-					size="medium"
-				/>
-			{:else}
-				Select Destination
-			{/if}
+	{#if $SendTxDetails.fromCoin?.coin.value === Coin.hive.value || $SendTxDetails.fromCoin?.coin.value === Coin.hbd.value}
+		<!-- To is fixed to the opposite asset (TESTS↔TBD); same card look, not clickable -->
+		<div class="to-coin-card">
+			<div class="asset-wrapper">
+				{#if $SendTxDetails.toCoin}
+					<AssetInfo
+						coinOpt={$SendTxDetails.toCoin}
+						network={$SendTxDetails.toNetwork}
+						size="medium"
+					/>
+				{:else}
+					Select Source first
+				{/if}
+			</div>
 		</div>
-	</ClickableCard>
+	{:else}
+		<ClickableCard onclick={() => openDialog('to')}>
+			<div class="asset-wrapper">
+				{#if $SendTxDetails.toCoin}
+					<AssetInfo
+						coinOpt={$SendTxDetails.toCoin}
+						network={$SendTxDetails.toNetwork}
+						size="medium"
+					/>
+				{:else}
+					Select Destination
+				{/if}
+			</div>
+		</ClickableCard>
+	{/if}
 </div>
 <div class="amount">
 	<div class="amount-row">
 		<!-- <span class="spacer"></span> -->
 		<div class="amount-input">
-			<AmountInput bind:coinAmount={inputAmount} coinOpts={possibleCoins} {minAmount} />
+			<AmountInput bind:coinAmount={inputAmount} coinOpts={amountInputCoinOpts} {minAmount} maxAmount={maxAmount} />
 		</div>
 	</div>
 	<!-- <div class={['enter-prompt', 'sm-caption', { hide: !!inputAmount }]}>Enter Amount</div> -->
 </div>
-{#if possibleCoins.length > 1}
+{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
 	<div class="exchange-rates">
 		{#if $SendTxDetails.fromCoin}
 			{new CoinAmount(1, $SendTxDetails.fromCoin.coin).toPrettyMinFigs()}
@@ -422,9 +518,9 @@
 				<div class="lc-wrapper">
 					<div class="lc-labels">
 						<div class="coin">
-							<img src={coin.icon} alt={coin.label} />
+							<img src={coin.icon} alt={coinDisplayLabel(coin)} />
 							<div class="label-network">
-								{coin.label}
+								{coinDisplayLabel(coin)}
 								<span class="sm-caption">Native</span>
 							</div>
 						</div>
@@ -459,9 +555,9 @@
 				<div class="lc-wrapper">
 					<div class="lc-labels">
 						<div class="coin">
-							<img src={coin.icon} alt={coin.label} />
+							<img src={coin.icon} alt={coinDisplayLabel(coin)} />
 							<div class="label-network">
-								{coin.label}
+								{coinDisplayLabel(coin)}
 								<span class="sm-caption">Native</span>
 							</div>
 						</div>
@@ -501,6 +597,16 @@
 			display: flex;
 			align-items: center;
 			text-align: center;
+		}
+		// To coin (fixed when From is Hive/HBD): same look as From card, not clickable
+		.to-coin-card {
+			background-color: var(--neutral-off-bg);
+			border: 1px solid var(--neutral-bg-accent);
+			border-radius: 0.75rem;
+			padding: 0.5rem;
+			overflow: auto;
+			width: 100%;
+			box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
 		}
 	}
 	// .amount {

@@ -125,7 +125,9 @@
 		right: 0;
 	}
 	[data-part='input'] {
-		width: 0;
+		width: 90%;
+		max-width: 100%;
+		min-width: 0;
 		flex-grow: 1;
 		padding-right: 2rem;
 		&.invalid {

@@ -29,8 +29,8 @@ const hive: Coin = {
 	unit: 'HIVE',
 	ucid: '5370',
 	enabled: (going, info, auth, mode) => {
-		// currently can't swap from hive to anything else
-		if (going == 'from' && mode == 'swap') return false;
+		// allow swap from hive (e.g. TESTS) to hbd (e.g. TBD) or btc
+		if (going == 'from' && mode == 'swap') return true;
 
 		if (info.from?.network == Network.lightning) return true;
 		if (info.from?.coin == undefined) return true;
@@ -47,8 +47,8 @@ const hbd: Coin = {
 	unit: 'HBD',
 	ucid: '5375',
 	enabled: (going, info, auth, mode) => {
-		// currently can't swap from HBD to anything else
-		if (going == 'from' && mode == 'swap') return false;
+		// allow swap from hbd (e.g. TBD) to hive (e.g. TESTS) or btc
+		if (going == 'from' && mode == 'swap') return true;
 
 		if (info.from?.network == Network.lightning) return true;
 		if (info.from?.coin == undefined) return true;

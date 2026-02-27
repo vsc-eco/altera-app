@@ -34,10 +34,14 @@
 		txType: string;
 		resetDetails?: typeof blankDetails;
 		stepsData: MixedStepsArray;
-		extraProps?: { [key: string]: any };
+	extraProps?: { [key: string]: any };
+	onSubmit?: (
+		setStatus: (s: string, isError?: boolean) => void,
+		signal: AbortSignal
+	) => Promise<Error | { id: string }>;
 	};
 
-	let { size, minHeight, txType, resetDetails, stepsData, extraProps }: Props = $props();
+let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: Props = $props();
 
 	const auth = $derived(getAuth()());
 	let sessionId = $state(getTxSessionId());
@@ -85,7 +89,19 @@
 			}
 		} else if (stepsData[api.value].value === 'review') {
 			setStatus('');
-			initSend();
+			if (onSubmit) {
+				waiting = true;
+				onSubmit(setStatus, abortSend.signal).then((res) => {
+					if (res instanceof Error) {
+						console.error(res.message);
+					} else {
+						txId = res.id;
+					}
+					waiting = false;
+				});
+			} else {
+				initSend();
+			}
 		} else {
 			api.goToNextStep();
 		}

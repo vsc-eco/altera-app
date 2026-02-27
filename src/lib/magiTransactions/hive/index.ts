@@ -1,13 +1,10 @@
 import { Aioha } from '@aioha/aioha';
 import { KeyTypes } from '@aioha/aioha';
 import {
-	Asset,
 	type Operation,
-	type TransferOperation,
-	type CustomJsonOperation
 } from '@hiveio/dhive';
 import { getHiveConsensusStakeOp, getHiveConsensusUnstakeOp } from './vscOperations/consensus';
-import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { getHiveDepositOp } from './vscOperations/deposit';
 import { getHiveTransferOp } from './vscOperations/transfer';
@@ -15,6 +12,7 @@ import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp, getBitcoinUnmapOp } from './vscOperations/bitcoin';
+import { getAddLiquidityOp } from './vscOperations/liquidity';
 
 export const consensusTx = async (
 	amount: string,
@@ -106,6 +104,24 @@ export const hbdUnstakeTx = async (
 	if (shouldDeposit) ops.push(depositOp);
 	ops.push(stakeOp);
 	let res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
+	return res;
+};
+
+export const addLiquidityTx = async (
+	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+	username: string,
+	aioha: Aioha
+): Promise<OperationResult> => {
+	if (amount0.amount === 0 || amount1.amount === 0)
+		return {
+			success: false,
+			error: 'Error: cannot add 0 liquidity.',
+			errorCode: 0
+		};
+
+	const op = getAddLiquidityOp(username, amount0, amount1);
+	const res = await executeTx(aioha, [op]);
 	return res;
 };
 

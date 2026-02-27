@@ -1,0 +1,4 @@
+query GetPoolState($contractId: String!, $keys: [String!]!) {
+  getStateByKeys(contractId: $contractId, keys: $keys)
+}
+

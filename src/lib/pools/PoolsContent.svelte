@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Menu from '$lib/zag/Menu.svelte';
 	import { Zap, Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown } from '@lucide/svelte';
-	import { poolsSampleData, type TimeRange } from './poolsSampleData';
-	import type { PoolRow } from './poolsSampleData';
+	import { fetchPools, type TimeRange } from './poolsData';
+	import type { PoolRow } from './poolsData';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
@@ -13,6 +13,16 @@
 	let removeLiquidityOpen = $state(false);
 	let createPoolOpen = $state(false);
 	let createPoolToggle = $state<(open?: boolean) => void>(() => {});
+
+	let pools = $state<PoolRow[]>([]);
+
+	$effect(() => {
+		if (pools.length === 0) {
+			(async () => {
+				pools = await fetchPools();
+			})();
+		}
+	});
 
 	type SortColumn = 'liquidity' | 'fee' | 'volume';
 	let sortColumn = $state<SortColumn>('liquidity');
@@ -52,7 +62,7 @@
 	];
 
 	const filteredPools = $derived(
-		poolsSampleData.filter((p) => {
+		pools.filter((p) => {
 			const q = searchQuery.trim().toLowerCase();
 			if (!q) return true;
 			return p.pair.toLowerCase().includes(q);
@@ -213,8 +223,8 @@
 	</div>
 </div>
 
-<AddLiquidityPopup bind:open={addLiquidityOpen} />
-<RemoveLiquidityPopup bind:open={removeLiquidityOpen} />
+<AddLiquidityPopup bind:open={addLiquidityOpen} {pools} />
+<RemoveLiquidityPopup bind:open={removeLiquidityOpen} {pools} />
 
 <Dialog bind:open={createPoolOpen} bind:toggle={createPoolToggle}>
 	{#snippet title()}

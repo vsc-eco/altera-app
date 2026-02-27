@@ -1,10 +1,13 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import Select from '$lib/zag/Select.svelte';
-	import { poolsSampleData } from '$lib/pools/poolsSampleData';
-	import type { PoolRow } from '$lib/pools/poolsSampleData';
+	import type { PoolRow } from '$lib/pools/poolsData';
 
-	let { open = $bindable(false), toggle = $bindable() } = $props();
+let {
+	open = $bindable(false),
+	toggle = $bindable(),
+	pools
+}: { open?: boolean; toggle?: (o?: boolean) => void; pools: PoolRow[] } = $props();
 	let dialogToggle = $state<(o?: boolean) => void>(() => {});
 
 	$effect(() => {
@@ -16,14 +19,14 @@
 	let removePercent = $state('100');
 
 	const poolOptions = $derived(
-		poolsSampleData
+		pools
 			.filter((p) => p.pair === 'SWAP.HIVE:SWAP.HBD')
 			.map((p) => ({ value: p.id, label: p.pair }))
 	);
 
 	function onPoolChange(details: { value: string[] }) {
 		const id = details.value[0];
-		selectedPool = poolsSampleData.find((p) => p.id === id) ?? null;
+		selectedPool = pools.find((p) => p.id === id) ?? null;
 		removePercent = '100';
 	}
 

@@ -11,12 +11,18 @@ type AddLiquidityPayload = {
 	recipient: string;
 };
 
+type RemoveLiquidityPayload = {
+	type: 'remove_liquidity';
+	lp_amount: number;
+	recipient: string;
+};
+
 type ExecuteOp = {
 	net_id: string;
 	caller: string;
 	contract_id: string;
 	action: 'execute';
-	payload: AddLiquidityPayload;
+	payload: AddLiquidityPayload | RemoveLiquidityPayload;
 	rc_limit: number;
 	intents: Array<{ type: string; args: Record<string, string> }>;
 };
@@ -63,6 +69,41 @@ export function getAddLiquidityOp(
 				}
 			}
 		]
+	};
+
+	return [
+		'custom_json',
+		{
+			required_auths: [username],
+			required_posting_auths: [],
+			id: 'vsc.call',
+			json: JSON.stringify(op)
+		}
+	];
+}
+
+/**
+ * Build the VSC execute op for removing liquidity from the HIVE/HBD pool.
+ * - lp_amount is an integer amount of LP tokens to burn.
+ * - recipient receives withdrawn assets.
+ */
+export function getRemoveLiquidityOp(username: string, lpAmount: number): CustomJsonOperation {
+	const caller = `hive:${username}`;
+
+	const payload: RemoveLiquidityPayload = {
+		type: 'remove_liquidity',
+		lp_amount: lpAmount,
+		recipient: caller
+	};
+
+	const op: ExecuteOp = {
+		net_id: vscNetworkId,
+		caller,
+		contract_id: HIVE_HBD_POOL_CONTRACT_ID,
+		action: 'execute',
+		payload,
+		rc_limit: 5000,
+		intents: []
 	};
 
 	return [

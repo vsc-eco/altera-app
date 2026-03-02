@@ -12,7 +12,7 @@ import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp, getBitcoinUnmapOp } from './vscOperations/bitcoin';
-import { getAddLiquidityOp } from './vscOperations/liquidity';
+import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
 
 export const consensusTx = async (
 	amount: string,
@@ -121,6 +121,23 @@ export const addLiquidityTx = async (
 		};
 
 	const op = getAddLiquidityOp(username, amount0, amount1);
+	const res = await executeTx(aioha, [op]);
+	return res;
+};
+
+export const removeLiquidityTx = async (
+	lpAmount: number,
+	username: string,
+	aioha: Aioha
+): Promise<OperationResult> => {
+	if (!Number.isInteger(lpAmount) || lpAmount <= 0)
+		return {
+			success: false,
+			error: 'Error: lp_amount must be a positive integer.',
+			errorCode: 0
+		};
+
+	const op = getRemoveLiquidityOp(username, lpAmount);
 	const res = await executeTx(aioha, [op]);
 	return res;
 };

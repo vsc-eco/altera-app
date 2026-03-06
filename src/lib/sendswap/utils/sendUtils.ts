@@ -55,7 +55,13 @@ export function blankDetails(): SendDetails {
 		method: undefined,
 		account: undefined,
 		fee: undefined,
-		memo: ''
+		memo: '',
+		expectedOutput: undefined,
+		slippageBps: 100,
+		minAmountOut: undefined,
+		swapBaseFee: undefined,
+		swapClpFee: undefined,
+		swapTotalFee: undefined
 	};
 }
 
@@ -698,11 +704,13 @@ export async function send(
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
 			const tx = get(SendTxDetails);
 			const fromAmountStr = tx.fromAmount && tx.fromAmount !== '0' ? tx.fromAmount : amount;
+			const minOut = tx.minAmountOut ? Number(tx.minAmountOut) : undefined;
 			sendOp = getHiveSwapOp(
 				auth.value.username!,
 				new CoinAmount(fromAmountStr, fromCoin.coin),
 				fromCoin.coin as typeof Coin.hive | typeof Coin.hbd,
-				toCoin.coin as typeof Coin.hive | typeof Coin.hbd
+				toCoin.coin as typeof Coin.hive | typeof Coin.hbd,
+				minOut
 			);
 			opType = 'swap';
 		} else {

@@ -135,7 +135,9 @@
 						<td class="icon"><Dot size="32" /></td>
 						<td class="sm-caption label">Fee</td>
 						<td class="content">
-							{#if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
+							{#if $SendTxDetails.swapTotalFee && $SendTxDetails.fromCoin}
+								{prettyWithDisplayUnit(new CoinAmount(Number($SendTxDetails.swapTotalFee), fromCoin, true))}
+							{:else if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
 								No fee
 							{:else if !$SendTxDetails.fee || !feeInUsd}
 								<div class="fee-loading"><WaveLoading /></div>
@@ -146,6 +148,15 @@
 							{/if}
 						</td>
 					</tr>
+					{#if $SendTxDetails.slippageBps != null && $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
+						<tr>
+							<td class="icon"><Dot size="32" /></td>
+							<td class="sm-caption label">Slippage ({($SendTxDetails.slippageBps / 100).toFixed($SendTxDetails.slippageBps % 100 === 0 ? 0 : 1)}%)</td>
+							<td class="content">
+								Min. {prettyWithDisplayUnit(new CoinAmount(Number($SendTxDetails.minAmountOut), toCoin, true))}
+							</td>
+						</tr>
+					{/if}
 					<tr>
 						<td class="icon"><Dot size="32" /></td>
 						<td class="sm-caption label">Amount</td>

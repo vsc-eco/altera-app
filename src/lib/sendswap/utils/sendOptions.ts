@@ -269,6 +269,13 @@ export type SendDetails = {
 	account: SendAccount | undefined;
 	toDisplayName: string;
 	memo: string;
+	// Swap-specific fields
+	expectedOutput: string | undefined;
+	slippageBps: number | undefined;
+	minAmountOut: string | undefined;
+	swapBaseFee: string | undefined;
+	swapClpFee: string | undefined;
+	swapTotalFee: string | undefined;
 };
 
 export type NecessarySendDetails = {

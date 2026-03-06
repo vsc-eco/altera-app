@@ -43,6 +43,13 @@
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
+	import {
+		fetchPoolDepths,
+		calculateSwap,
+		getOrderedDepths,
+		type PoolDepths,
+		type SwapCalcResult
+	} from '$lib/pools/swapCalc';
 
 	let {
 		editStage
@@ -52,10 +59,92 @@
 
 	onMount(() => {
 		loadHistoricalCoinData();
+		fetchPoolDepths().then((d) => {
+			if (d) poolDepths = d;
+		});
 	});
 	onDestroy(() => {
 		saveHistoricalCoinData();
 	});
+
+	// Pool depths and swap calculation state
+	let poolDepths: PoolDepths | null = $state(null);
+	let swapResult: SwapCalcResult | null = $state(null);
+	let slippageBps = $state(100); // default 1%
+	const slippageOptions = [50, 100, 200, 300]; // 0.5%, 1%, 2%, 3%
+
+	// Recalculate swap whenever input amount, coins, or slippage changes.
+	$effect(() => {
+		const fromCoin = $SendTxDetails.fromCoin;
+		const toCoin = $SendTxDetails.toCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!poolDepths || !fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
+			swapResult = null;
+			return;
+		}
+
+		const isHiveSwap =
+			(fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value) &&
+			(toCoin.coin.value === Coin.hive.value || toCoin.coin.value === Coin.hbd.value) &&
+			fromCoin.coin.value !== toCoin.coin.value;
+		if (!isHiveSwap) {
+			swapResult = null;
+			return;
+		}
+
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) {
+			swapResult = null;
+			return;
+		}
+
+		const assetIn = fromCoin.coin.value as 'hive' | 'hbd';
+		const { X, Y } = getOrderedDepths(poolDepths, assetIn);
+		const x = BigInt(fromAmountInt);
+		const result = calculateSwap(x, X, Y, slippageBps);
+		swapResult = result;
+
+		untrack(() => {
+			const expectedOutput = result.expectedOutput.toString();
+			const minAmountOut = result.minAmountOut.toString();
+			const swapBaseFee = result.baseFee.toString();
+			const swapClpFee = result.clpFee.toString();
+			const swapTotalFee = result.totalFee.toString();
+			if ($SendTxDetails.expectedOutput !== expectedOutput) {
+				$SendTxDetails.expectedOutput = expectedOutput;
+			}
+			if ($SendTxDetails.slippageBps !== slippageBps) {
+				$SendTxDetails.slippageBps = slippageBps;
+			}
+			if ($SendTxDetails.minAmountOut !== minAmountOut) {
+				$SendTxDetails.minAmountOut = minAmountOut;
+			}
+			if ($SendTxDetails.swapBaseFee !== swapBaseFee) {
+				$SendTxDetails.swapBaseFee = swapBaseFee;
+			}
+			if ($SendTxDetails.swapClpFee !== swapClpFee) {
+				$SendTxDetails.swapClpFee = swapClpFee;
+			}
+			if ($SendTxDetails.swapTotalFee !== swapTotalFee) {
+				$SendTxDetails.swapTotalFee = swapTotalFee;
+			}
+
+			const outputAmt = new CoinAmount(Number(result.expectedOutput), toCoin.coin, true);
+			const outputStr = outputAmt.toAmountString();
+			if ($SendTxDetails.toAmount !== outputStr) {
+				$SendTxDetails.toAmount = outputStr;
+			}
+		});
+	});
+
+	function formatSmallUnits(raw: bigint, decimalPlaces: number): string {
+		const n = Number(raw) / 10 ** decimalPlaces;
+		return n.toLocaleString(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: decimalPlaces,
+			maximumFractionDigits: decimalPlaces
+		});
+	}
 
 	const auth = $derived(getAuth()());
 
@@ -271,6 +360,8 @@
 
 	$effect(() => {
 		if (!$SendTxDetails.toCoin) return;
+		// When pool-based swap calc is active, it sets toAmount directly
+		if (swapResult && swapResult.expectedOutput > 0n) return;
 		if (inputAmount.coin.value === $SendTxDetails.toCoin.coin.value) {
 			const amt = inputAmount.toAmountString();
 			if (amt !== $SendTxDetails.toAmount) $SendTxDetails.toAmount = amt;
@@ -510,6 +601,47 @@
 		{/if}
 	</div>
 {/if}
+{#if swapResult && $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
+	{@const fromDec = $SendTxDetails.fromCoin.coin.decimalPlaces}
+	{@const toDec = $SendTxDetails.toCoin.coin.decimalPlaces}
+	{@const fromUnit = coinDisplayLabel($SendTxDetails.fromCoin.coin)}
+	{@const toUnit = coinDisplayLabel($SendTxDetails.toCoin.coin)}
+	<div class="swap-details">
+		<div class="swap-detail-row">
+			<span class="sm-caption">Expected Output</span>
+			<span>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span>
+		</div>
+		<div class="swap-detail-row">
+			<span class="sm-caption">Base Fee (0.08%)</span>
+			<span>{formatSmallUnits(swapResult.baseFee, fromDec)} {fromUnit}</span>
+		</div>
+		<div class="swap-detail-row">
+			<span class="sm-caption">CLP Fee</span>
+			<span>{formatSmallUnits(swapResult.clpFee, fromDec)} {fromUnit}</span>
+		</div>
+		<div class="swap-detail-row">
+			<span class="sm-caption">Total Fee</span>
+			<span>{formatSmallUnits(swapResult.totalFee, fromDec)} {fromUnit}</span>
+		</div>
+		<div class="swap-detail-row">
+			<span class="sm-caption">Min. Amount Out</span>
+			<span>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
+		</div>
+		<div class="slippage-row">
+			<span class="sm-caption">Slippage Tolerance</span>
+			<div class="slippage-options">
+				{#each slippageOptions as bps}
+					<button
+						class={{ active: slippageBps === bps }}
+						onclick={() => { slippageBps = bps; }}
+					>
+						{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
+					</button>
+				{/each}
+			</div>
+		</div>
+	</div>
+{/if}
 <div class={['graphs', { hide: !$SendTxDetails.fromCoin && !$SendTxDetails.toCoin }]}>
 	<div style="grid-area: from">
 		{#if $SendTxDetails.fromCoin}
@@ -644,6 +776,47 @@
 		margin-top: 1.5rem;
 		:global(.lucide-equal-approximately) {
 			min-width: 16px;
+		}
+	}
+	.swap-details {
+		margin-top: 1.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding: 1rem;
+		border: 1px solid var(--neutral-bg-accent);
+		border-radius: 0.75rem;
+		background-color: var(--neutral-off-bg);
+	}
+	.swap-detail-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.slippage-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-top: 0.25rem;
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--neutral-bg-accent);
+	}
+	.slippage-options {
+		display: flex;
+		gap: 0.25rem;
+		button {
+			padding: 0.25rem 0.5rem;
+			border: 1px solid var(--neutral-bg-accent);
+			border-radius: 0.5rem;
+			background: transparent;
+			color: var(--neutral-fg);
+			cursor: pointer;
+			font-size: 0.85rem;
+			&.active {
+				background-color: var(--primary-bg);
+				color: var(--primary-fg);
+				border-color: var(--primary-bg);
+			}
 		}
 	}
 	.graphs {

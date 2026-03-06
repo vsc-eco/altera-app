@@ -12,6 +12,7 @@ type SwapPayload = {
 	asset_in: 'hive' | 'hbd';
 	asset_out: 'hive' | 'hbd';
 	amount_in: number;
+	min_amount_out: number;
 	recipient: string;
 };
 
@@ -34,7 +35,8 @@ export function getHiveSwapOp(
 	username: string,
 	amount: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
 	assetIn: typeof Coin.hive | typeof Coin.hbd,
-	assetOut: typeof Coin.hive | typeof Coin.hbd
+	assetOut: typeof Coin.hive | typeof Coin.hbd,
+	minAmountOut?: number
 ): CustomJsonOperation {
 	const caller = `hive:${username}`;
 	const payload: SwapPayload = {
@@ -43,6 +45,7 @@ export function getHiveSwapOp(
 		asset_in: assetIn.value as 'hive' | 'hbd',
 		asset_out: assetOut.value as 'hive' | 'hbd',
 		amount_in: amount.amount,
+		min_amount_out: minAmountOut ?? 0,
 		recipient: caller
 	};
 	const executeOp: ExecuteOp = {

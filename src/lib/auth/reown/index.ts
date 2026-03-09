@@ -14,74 +14,79 @@ export const projectId = '55a54e098e74ddb214919fe0da4ac384';
 
 export const networks = [mainnet, bitcoin];
 
-// 2. Set up Wagmi adapter
-const wagmiAdapter = new WagmiAdapter({
-	projectId,
-	networks
-});
-
-export const wagmiConfig = wagmiAdapter.wagmiConfig;
-
-const bitcoinAdapter = new BitcoinAdapter({ projectId });
-
-// 3. Configure the metadata
-const metadata = {
-	name: 'VSC Frontend',
-	description: '',
-	url: `https://${DOMAIN}`, // origin must match your domain & subdomain
-	icons: ['https://avatars.githubusercontent.com/u/133249767']
-};
-
-export const modal = createAppKit({
-	adapters: [wagmiAdapter, bitcoinAdapter],
-	networks: [mainnet, bitcoin],
-	metadata,
-	projectId,
-	features: {
-		analytics: false, // Optional - defaults to your Cloud configuration
-		connectMethodsOrder: ['wallet']
-	}
-});
+export let wagmiConfig: ReturnType<WagmiAdapter['wagmiConfig']> | null = null;
+export let modal: ReturnType<typeof createAppKit> | null = null;
 
 let lastAddress: string | undefined;
 
-modal.subscribeAccount(async (value) => {
-	try {
-		if (value.isConnected && value.address === lastAddress) return;
-		lastAddress = value.isConnected ? value.address : undefined;
+if (browser) {
+	// 2. Set up Wagmi adapter
+	const wagmiAdapter = new WagmiAdapter({
+		projectId,
+		networks
+	});
 
-		const { _reownAuthStore, loginRetry } = await import('../store');
+	wagmiConfig = wagmiAdapter.wagmiConfig;
 
-		if (value.isConnected) {
-			_reownAuthStore.set({
-				status: 'authenticated',
-				value: {
-					address: value.address!,
-					logout: reownLogout,
-					provider: 'reown',
-					did: value.caipAddress?.startsWith('bip122:')
-						? `did:pkh:bip122:000000000019d6689c085ae165831e93/${value.address!}`
-						: `did:pkh:eip155:1:${value.address!}`,
-					openSettings: () => modal.open()
-				}
-			});
-			if (get(loginRetry) !== 'logout') {
-				loginRetry.set('retry');
-			}
-		} else if (value.status == 'connecting') {
-			_reownAuthStore.set({
-				status: 'pending'
-			});
-		} else {
-			_reownAuthStore.set({
-				status: 'none'
-			});
+	const bitcoinAdapter = new BitcoinAdapter({ projectId });
+
+	// 3. Configure the metadata
+	const metadata = {
+		name: 'VSC Frontend',
+		description: '',
+		url: `https://${DOMAIN}`, // origin must match your domain & subdomain
+		icons: ['https://avatars.githubusercontent.com/u/133249767']
+	};
+
+	modal = createAppKit({
+		adapters: [wagmiAdapter, bitcoinAdapter],
+		networks: [mainnet, bitcoin],
+		metadata,
+		projectId,
+		features: {
+			analytics: false, // Optional - defaults to your Cloud configuration
+			connectMethodsOrder: ['wallet']
 		}
-	} catch {}
-});
+	});
+
+	modal.subscribeAccount(async (value) => {
+		try {
+			if (value.isConnected && value.address === lastAddress) return;
+			lastAddress = value.isConnected ? value.address : undefined;
+
+			const { _reownAuthStore, loginRetry } = await import('../store');
+
+			if (value.isConnected) {
+				_reownAuthStore.set({
+					status: 'authenticated',
+					value: {
+						address: value.address!,
+						logout: reownLogout,
+						provider: 'reown',
+						did: value.caipAddress?.startsWith('bip122:')
+							? `did:pkh:bip122:000000000019d6689c085ae165831e93/${value.address!}`
+							: `did:pkh:eip155:1:${value.address!}`,
+						openSettings: () => modal!.open()
+					}
+				});
+				if (get(loginRetry) !== 'logout') {
+					loginRetry.set('retry');
+				}
+			} else if (value.status == 'connecting') {
+				_reownAuthStore.set({
+					status: 'pending'
+				});
+			} else {
+				_reownAuthStore.set({
+					status: 'none'
+				});
+			}
+		} catch {}
+	});
+}
 
 export async function reownLogout() {
 	loginRetry.set('logout');
-	await modal.disconnect();
+	await modal?.disconnect();
 	cleanUpLogout();
 }

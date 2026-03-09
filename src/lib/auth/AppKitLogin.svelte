@@ -20,5 +20,5 @@
 		});
 		modal.open();
 		loginRetry.set('idle');
-	}}>EVM Wallet</PillButton
+	}}>Connect Wallet</PillButton
 >

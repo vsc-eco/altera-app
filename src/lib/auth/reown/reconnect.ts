@@ -1,9 +1,9 @@
 import { getAccount, getConnection, getConnectors, reconnect } from '@wagmi/core';
-import { wagmiConfig, initModal } from '.';
+import { wagmiConfig } from '.';
 import { browser } from '$app/environment';
 
 export const ensureWalletConnection = async (): Promise<boolean> => {
-	initModal();
+	if (!wagmiConfig) return false;
 	const { address, isConnected, status } = getAccount(wagmiConfig);
 	const connnectors = getConnectors(wagmiConfig);
 

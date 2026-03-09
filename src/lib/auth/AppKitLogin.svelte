@@ -18,7 +18,7 @@
 				unsub();
 			}
 		});
-		modal.open();
+		modal?.open();
 		loginRetry.set('idle');
 	}}>Connect Wallet</PillButton
 >

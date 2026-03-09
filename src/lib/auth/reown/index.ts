@@ -5,7 +5,6 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { BitcoinAdapter } from '@reown/appkit-adapter-bitcoin';
 import { bitcoin } from '@reown/appkit/networks';
 import { DOMAIN } from '../url';
-import { browser } from '$app/environment';
 import { get } from 'svelte/store';
 import { cleanUpLogout, loginRetry } from '../store';
 
@@ -19,7 +18,9 @@ export let modal: ReturnType<typeof createAppKit> | null = null;
 
 let lastAddress: string | undefined;
 
-if (browser) {
+export function initModal() {
+	if (modal) return;
+
 	// 2. Set up Wagmi adapter
 	const wagmiAdapter = new WagmiAdapter({
 		projectId,
@@ -83,6 +84,11 @@ if (browser) {
 			}
 		} catch {}
 	});
+}
+
+export function openModal() {
+	initModal();
+	modal!.open();
 }
 
 export async function reownLogout() {

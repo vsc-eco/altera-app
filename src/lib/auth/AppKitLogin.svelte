@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { modal } from '$lib/auth/reown';
+	import { openModal } from '$lib/auth/reown';
 	import PillButton from '../PillButton.svelte';
 	import { _reownAuthStore, loginRetry } from './store';
 </script>
@@ -18,7 +18,7 @@
 				unsub();
 			}
 		});
-		modal?.open();
+		openModal();
 		loginRetry.set('idle');
 	}}>Connect Wallet</PillButton
 >

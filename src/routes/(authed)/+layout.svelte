@@ -35,7 +35,7 @@
 
 		if (
 			!browser ||
-			(auth.value && auth.value?.provider !== 'reown') ||
+			auth.value ||
 			localStorage.getItem('last_connection') !== 'reown'
 		) {
 			return;

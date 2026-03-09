@@ -30,14 +30,16 @@ export const btcSigner: Signer = async (
 		// Sign the CID string using Bitcoin Signed Message format via Reown
 		const signature = await modal.request({
 			method: 'signMessage',
-			params: { message: cidString, address: btcAddress }
+			params: { message: cidString, address: btcAddress, protocol: 'ecdsa' }
 		});
+
+		const sig = typeof signature === 'string' ? signature : (signature as any).signature;
 
 		const sigs = [
 			{
 				alg: 'BIP137',
 				kid: btcAddress,
-				sig: signature as string
+				sig
 			}
 		];
 

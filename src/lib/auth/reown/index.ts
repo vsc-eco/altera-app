@@ -43,8 +43,13 @@ export const modal = createAppKit({
 	}
 });
 
+let lastAddress: string | undefined;
+
 modal.subscribeAccount(async (value) => {
 	try {
+		if (value.isConnected && value.address === lastAddress) return;
+		lastAddress = value.isConnected ? value.address : undefined;
+
 		const { _reownAuthStore, loginRetry } = await import('../store');
 
 		if (value.isConnected) {

@@ -36,7 +36,7 @@ export const getAuth = () => {
 	return auth;
 };
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });
-export const _reownAuthStore = writable<Auth>({ status: 'pending' });
+export const _reownAuthStore = writable<Auth>({ status: 'none' });
 
 export const authStore = derived([_hiveAuthStore, _reownAuthStore], ([$hive, $reown]) => {
 	if ($hive.status !== 'none') {

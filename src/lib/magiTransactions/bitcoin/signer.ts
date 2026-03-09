@@ -7,6 +7,9 @@ export const btcSigner: Signer = async (
 	client: Client
 ) => {
 	// Validate inputs
+	if (!modal) {
+		throw new Error('AppKit not initialized');
+	}
 	if (!signingShell || !client) {
 		throw new Error('Missing required parameters for signing');
 	}

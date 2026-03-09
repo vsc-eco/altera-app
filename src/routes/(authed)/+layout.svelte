@@ -2,7 +2,7 @@
 	import { browser } from '$app/environment';
 	import Sidebar from '$lib/Sidebar.svelte';
 	import Topbar from '$lib/Topbar/Topbar.svelte';
-	import { modal } from '$lib/auth/reown';
+	import { openModal } from '$lib/auth/reown';
 	import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 	import { getAuth } from '$lib/auth/store';
 	import { startAccountPolling, stopAccountPolling } from '$lib/stores/currentBalance';
@@ -45,7 +45,7 @@
 			const success = await ensureWalletConnection();
 			if (!success) {
 				loginRetry.set('cooldown');
-				modal.open();
+				openModal();
 			}
 		})();
 	});

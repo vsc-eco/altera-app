@@ -58,6 +58,13 @@ export function initModal() {
 			const { _reownAuthStore, loginRetry } = await import('../store');
 
 			if (value.isConnected) {
+				// Reject Taproot (bc1p) addresses — backend does not support P2TR yet
+				if (value.address?.startsWith('bc1p')) {
+					console.warn('Taproot (P2TR) addresses are not yet supported');
+					await reownLogout();
+					_reownAuthStore.set({ status: 'none' });
+					return;
+				}
 				_reownAuthStore.set({
 					status: 'authenticated',
 					value: {

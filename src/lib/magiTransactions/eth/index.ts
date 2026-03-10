@@ -37,9 +37,10 @@ export function getEVMOpType(
 
 			return tx;
 		} else if (toNetwork.value === Network.btcMainnet.value) {
+			const btcAddress = toDid.includes('/') ? toDid.split('/').at(-1)! : toDid;
 			const payload: UnmapInput = {
 				amount: amount.amount,
-				recipient_btc_address: toDid
+				recipient_btc_address: btcAddress
 			};
 
 			const tx: CallContractTransaction = {

@@ -1,12 +1,13 @@
-import { getAccount, getConnection, getConnectors, reconnect } from '@wagmi/core';
-import { wagmiConfig } from '.';
-import { browser } from '$app/environment';
+import { getAccount, getConnection, reconnect } from '@wagmi/core';
+import { wagmiConfig, modal } from '.';
 
 export const ensureWalletConnection = async (): Promise<boolean> => {
-	if (!wagmiConfig) return false;
-	const { address, isConnected, status } = getAccount(wagmiConfig);
-	const connnectors = getConnectors(wagmiConfig);
+	// Check Reown modal first — covers both BTC (BitcoinAdapter) and EVM wallets.
+	if (modal?.getAddress()) return true;
 
+	// Fallback: Wagmi reconnect for EVM wallets that lost adapter state.
+	if (!wagmiConfig) return false;
+	const { status } = getAccount(wagmiConfig);
 	if (status !== 'connected') {
 		await reconnect(wagmiConfig);
 	}

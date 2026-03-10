@@ -1,4 +1,5 @@
 import type { Auth } from './auth/store';
+import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
 
 export const getAccountNameFromAuth = (auth: Auth) => {
 	if (auth.value == undefined) {
@@ -43,8 +44,11 @@ export const getDidFromUsername = (username: string) => {
 	if (username.length <= 16) {
 		return `hive:${username}`
 	}
-	if (username.length > 16 && username.startsWith('0x')) {
+	if (username.startsWith('0x')) {
 		return `did:pkh:eip155:1:${username}`
+	}
+	if (validate(username, BtcNetwork.mainnet)) {
+		return `did:pkh:bip122:000000000019d6689c085ae165831e93/${username}`
 	}
 	return ``
 }

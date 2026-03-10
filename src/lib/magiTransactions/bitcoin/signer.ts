@@ -1,6 +1,7 @@
 import { encodePayload } from 'dag-jose-utils';
 import type { Signer, VSCTransactionSigningShell, Client } from '../eth/client';
 import { modal } from '$lib/auth/reown';
+import type { BitcoinConnector } from '@reown/appkit-adapter-bitcoin';
 
 export const btcSigner: Signer = async (
 	signingShell: VSCTransactionSigningShell,
@@ -30,10 +31,17 @@ export const btcSigner: Signer = async (
 		const encoded = await encodePayload(signingShell);
 		const cidString = encoded.cid.toString();
 
-		// Sign the CID string using Bitcoin Signed Message format via Reown
-		const signature = await modal.request({
-			method: 'signMessage',
-			params: { message: cidString, address: btcAddress, protocol: 'ecdsa' }
+		// Get the Bitcoin provider from Reown AppKit
+		const btcProvider = modal.getProvider<BitcoinConnector>('bip122');
+		if (!btcProvider) {
+			throw new Error('Bitcoin provider not available. Is a BTC wallet connected?');
+		}
+
+		// Sign the CID string using Bitcoin Signed Message format
+		const signature = await btcProvider.signMessage({
+			message: cidString,
+			address: btcAddress,
+			protocol: 'ecdsa'
 		});
 
 		const sig = typeof signature === 'string' ? signature : (signature as any).signature;

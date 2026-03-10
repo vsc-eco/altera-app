@@ -21,6 +21,7 @@ import type { TransferOperation } from '@hiveio/dhive';
 import { addLocalTransaction } from '../../stores/localStorageTxs';
 import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client';
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
+import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
 import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
 import {
@@ -167,7 +168,18 @@ export function getRecipientNetworks(did: string): NetworkOptionParam[] {
 			{
 				...Network.hiveMainnet,
 				disabled: true,
-				disabledMemo: `Not available for ${did.startsWith('did:pkh:eip155:1:') ? 'EVM accounts' : "recipient's account type"}`
+				disabledMemo: `Not available for EVM accounts`
+			}
+		];
+	}
+	if (did.startsWith('did:pkh:bip122:')) {
+		return [
+			Network.magi,
+			Network.btcMainnet,
+			{
+				...Network.hiveMainnet,
+				disabled: true,
+				disabledMemo: `Not available for BTC accounts`
 			}
 		];
 	}
@@ -616,11 +628,8 @@ export async function send(
 	if (intermediary == Network.magi) {
 		// console.log('intermediary network is Magi');
 		if (auth.value?.provider == 'reown') {
-			// console.log('auth provider is reown');
-			// account check in signAndBroadcast
+			const isBtcWallet = auth.value.did.startsWith('did:pkh:bip122:');
 			const client = createClient(auth.value.did);
-
-			// console.log('created reown client:', client);
 
 			const sendOp = getEVMOpType(
 				fromNetwork,
@@ -630,14 +639,15 @@ export async function send(
 				new CoinAmount(amount, toCoin.coin)
 			);
 
-			setStatus('Preparing transaction for signing…');
+			setStatus(
+				isBtcWallet
+					? 'Waiting for Bitcoin wallet approval…'
+					: 'Preparing transaction for signing…'
+			);
 
-			const id = await signAndBrodcastTransaction(
-				[sendOp],
-				wagmiSigner,
-				client,
-				signal,
-				wagmiConfig
+			const id = await (isBtcWallet
+				? signAndBrodcastTransaction([sendOp], btcSigner, client, signal)
+				: signAndBrodcastTransaction([sendOp], wagmiSigner, client, signal, wagmiConfig)
 			)
 				.then((result) => {
 					setStatus(`Transaction submitted successfully!`);

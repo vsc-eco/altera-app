@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import {
 		getFee,
 		getTxSessionId,
@@ -10,7 +9,6 @@
 	} from '$lib/sendswap/utils/sendUtils';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import { onDestroy, onMount, untrack } from 'svelte';
-	import AssetInfo from '$lib/sendswap/components/info/AssetInfo.svelte';
 	import swapOptions, {
 		Coin,
 		Network,
@@ -21,10 +19,13 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import {
 		ArrowDownRight,
-		ArrowRightLeft,
+		ArrowLeft,
+		ArrowUpDown,
 		ArrowUpRight,
-		EqualApproximately,
-		Shuffle
+		ChevronDown,
+		ChevronUp,
+		Search,
+		X
 	} from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import {
@@ -38,7 +39,6 @@
 	import Card from '$lib/cards/Card.svelte';
 	import moment from 'moment';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { numberFormatLanguage } from '$lib/constants';
@@ -52,9 +52,11 @@
 	} from '$lib/pools/swapCalc';
 
 	let {
-		editStage
+		editStage,
+		isActive = true
 	}: {
 		editStage: (complete: boolean) => void;
+		isActive?: boolean;
 	} = $props();
 
 	onMount(() => {
@@ -159,7 +161,7 @@
 			$SendTxDetails.fromAmount !== '0' &&
 			$SendTxDetails.fromCoin
 		) {
-			editStage(true);
+			if (isActive) editStage(true);
 			untrack(() => {
 				getFee($SendTxDetails.toAmount).then((fee) => {
 					if (
@@ -170,7 +172,7 @@
 				});
 			});
 		} else {
-			editStage(false);
+			if (isActive) editStage(false);
 		}
 	});
 
@@ -471,9 +473,17 @@
 		return new CoinAmount(bal, from.coin, true);
 	});
 
+	let feesExpanded = $state(false);
+
 	let dialogOpen = $state(false);
 	let toggle = $state<(open?: boolean) => void>(() => {});
 	let currentlyOpen: 'from' | 'to' = $state('from');
+
+	// ── Multi-step dialog state ──
+	let dialogStep: 'tokens' | 'source' = $state('tokens');
+	let tempCoinOpt: CoinOptions['coins'][number] | undefined = $state();
+	let tokenSearch = $state('');
+
 	function openDialog(state: 'from' | 'to') {
 		// To is fixed when from is Hive/HBD (TESTS↔TBD); do not open To picker
 		if (
@@ -483,8 +493,79 @@
 		)
 			return;
 		currentlyOpen = state;
+		dialogStep = 'tokens';
+		tokenSearch = '';
+		tempCoinOpt = undefined;
 		toggle(true);
 	}
+
+	function closeDialog() {
+		toggle(false);
+		dialogStep = 'tokens';
+		tokenSearch = '';
+		tempCoinOpt = undefined;
+	}
+
+	function getFilteredTokens(tokens: AssetObject[]): AssetObject[] {
+		if (!tokenSearch.trim()) return tokens;
+		const s = tokenSearch.toLowerCase().trim();
+		return tokens.filter(
+			(t) => t.label.toLowerCase().includes(s) || t.value.toLowerCase().includes(s)
+		);
+	}
+
+	function getNetworkBalance(coinValue: string, networkValue: string): string {
+		const coinDef = Object.values(Coin).find((c) => c.value === coinValue);
+		if (networkValue === Network.magi.value) {
+			const bal = $accountBalance.bal?.[coinValue as keyof AccountBalance];
+			if (bal != null && typeof bal === 'number' && bal > 0) {
+				return new CoinAmount(bal, coinDef ?? Coin.unk, true).toPrettyAmountString();
+			}
+		} else if ($accountBalance.connectedBal) {
+			const bal =
+				$accountBalance.connectedBal[coinValue as keyof typeof $accountBalance.connectedBal];
+			if (bal != null && typeof bal === 'number' && bal > 0) {
+				return new CoinAmount(bal, coinDef ?? Coin.unk, true).toPrettyAmountString();
+			}
+		}
+		return '0';
+	}
+
+	function getNetworkDescription(networkValue: string): string {
+		if (networkValue === Network.magi.value) return 'Magi Network balance';
+		if (networkValue === Network.hiveMainnet.value) return 'Connected wallet';
+		if (networkValue === Network.lightning.value) return 'Connected wallet';
+		return 'External network';
+	}
+
+	function selectToken(token: AssetObject) {
+		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
+		const coinOpt = source.find((opt) => opt.coin.value === token.value);
+		if (!coinOpt) return;
+		tempCoinOpt = coinOpt;
+
+		if (currentlyOpen === 'from') {
+			if (coinOpt.networks.length <= 1) {
+				confirmFromSelection(coinOpt, coinOpt.networks[0] ?? Network.magi);
+			} else {
+				dialogStep = 'source';
+			}
+		} else {
+			// To selection: pick the first network (destination is chosen in the next step)
+			confirmToSelection(coinOpt, coinOpt.networks[0] ?? Network.magi);
+		}
+	}
+
+	function confirmFromSelection(coinOpt: CoinOptions['coins'][number], network: Network) {
+		SendTxDetails.update((d) => ({ ...d, fromCoin: coinOpt, fromNetwork: network }));
+		closeDialog();
+	}
+
+	function confirmToSelection(coinOpt: CoinOptions['coins'][number], network: Network) {
+		SendTxDetails.update((d) => ({ ...d, toCoin: coinOpt, toNetwork: network }));
+		closeDialog();
+	}
+
 	function coinDisplayLabel(coin: (typeof Coin)[keyof typeof Coin]): string {
 		return coin.value === Coin.hive.value
 			? getHiveAssetName()
@@ -507,141 +588,209 @@
 
 <Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet content()}
-		{#if currentlyOpen === 'from'}
-			<SelectAssetFlattened
-				availableCoins={fromAssetObjs}
-				bind:coin={$SendTxDetails.fromCoin}
-				bind:network={$SendTxDetails.fromNetwork}
-				close={toggle}
-				externalNetwork={Network.lightning}
-				onSelect={(c, n) => SendTxDetails.update((d) => ({ ...d, fromCoin: c, fromNetwork: n }))}
-			/>
-		{:else}
-			<SelectAssetFlattened
-				availableCoins={toAssetObjs}
-				close={toggle}
-				bind:coin={$SendTxDetails.toCoin}
-				bind:network={$SendTxDetails.toNetwork}
-				isTo
-				onSelect={(c, n) => SendTxDetails.update((d) => ({ ...d, toCoin: c, toNetwork: n }))}
-			/>
+		{#if dialogStep === 'tokens'}
+			<!-- Step 1: Token Chip Grid -->
+			<div class="dialog-content">
+				<div class="dialog-title-row">
+					<h5>{currentlyOpen === 'from' ? "You're sending..." : "You're receiving..."}</h5>
+					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
+				</div>
+				<div class="token-search-wrapper">
+					<Search size={16} />
+					<input bind:value={tokenSearch} placeholder="Search token..." />
+				</div>
+				<div class="token-chip-grid">
+					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
+						<button class="token-chip" onclick={() => selectToken(token)}>
+							<img src={token.icon} alt={token.label} class="chip-icon" />
+							<span>{coinDisplayLabel(token)}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+		{:else if dialogStep === 'source' && tempCoinOpt}
+			<!-- Step 2 (From): Where is your TOKEN? -->
+			<div class="dialog-content">
+				<div class="dialog-title-row">
+					<button class="dialog-back-btn" onclick={() => { dialogStep = 'tokens'; tempCoinOpt = undefined; }}>
+						<ArrowLeft size={18} /> Back
+					</button>
+					<img src={tempCoinOpt.coin.icon} alt="" class="dialog-title-icon" />
+					<h5>Where is your {coinDisplayLabel(tempCoinOpt.coin)}?</h5>
+					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
+				</div>
+				<div class="network-cards">
+					{#each tempCoinOpt.networks as net (net.value)}
+						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt!, net)}>
+							<img src={tempCoinOpt.coin.icon} alt="" class="network-card-icon" />
+							<div class="network-card-info">
+								<span class="network-card-name">{coinDisplayLabel(tempCoinOpt.coin)} on {net.label}</span>
+								<span class="network-card-desc sm-caption">{getNetworkDescription(net.value)}</span>
+							</div>
+							<div class="network-card-balance">
+								<span class="balance-amount">{getNetworkBalance(tempCoinOpt.coin.value, net.value)}</span>
+								<span class="balance-label sm-caption">available</span>
+							</div>
+						</button>
+					{/each}
+				</div>
+			</div>
 		{/if}
 	{/snippet}
 </Dialog>
 
-<h2>Swap</h2>
-<div class="coin-options">
-	<ClickableCard onclick={() => openDialog('from')}>
-		<div class="asset-wrapper">
-			{#if $SendTxDetails.fromCoin}
-				<AssetInfo
-					coinOpt={$SendTxDetails.fromCoin}
-					network={$SendTxDetails.fromNetwork}
-					size="medium"
-				/>
+<div class="quick-swap-card">
+	<h2 class="swap-title">Quick swap</h2>
+
+	<!-- From Section -->
+	<div class="swap-section">
+		<div class="section-header">
+			<span class="section-label">From</span>
+			<span class="section-info sm-caption">
+				{#if $SendTxDetails.fromCoin}
+					From {$SendTxDetails.fromCoin.networks.length} network{$SendTxDetails.fromCoin.networks.length !== 1 ? 's' : ''}
+					{#if $SendTxDetails.fromNetwork}
+						&middot; On {$SendTxDetails.fromNetwork.label}
+					{/if}
+				{/if}
+			</span>
+		</div>
+		<div class="section-input-row">
+			<div class="input-field">
+				<AmountInput bind:coinAmount={inputAmount} coinOpts={amountInputCoinOpts} {minAmount} maxAmount={maxAmount} />
+			</div>
+			<button class="token-selector-btn" onclick={() => openDialog('from')}>
+				{#if $SendTxDetails.fromCoin}
+					<img src={$SendTxDetails.fromCoin.coin.icon} alt={coinDisplayLabel($SendTxDetails.fromCoin.coin)} class="token-icon" />
+					<span class="token-name">{coinDisplayLabel($SendTxDetails.fromCoin.coin)}</span>
+				{:else}
+					<span class="token-name">Select</span>
+				{/if}
+				<ChevronDown size={14} />
+			</button>
+		</div>
+	</div>
+
+	<!-- Swap Toggle -->
+	<div class="swap-toggle-wrapper">
+		<button class="swap-toggle-btn" aria-label="Swap direction">
+			<ArrowUpDown size={18} />
+		</button>
+	</div>
+
+	<!-- To Section -->
+	<div class="swap-section">
+		<div class="section-header">
+			<span class="section-label">To</span>
+			<span class="section-info sm-caption">
+				{#if $SendTxDetails.toNetwork}
+					{$SendTxDetails.toNetwork.label}
+				{:else}
+					Select destination
+				{/if}
+			</span>
+		</div>
+		<div class="section-input-row">
+			<div class="to-amount-display">
+				{#if $SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'}
+					<span class="to-amount-value">{$SendTxDetails.toAmount}</span>
+				{:else}
+					<span class="to-amount-placeholder">&mdash;</span>
+				{/if}
+			</div>
+			{#if $SendTxDetails.fromCoin?.coin.value === Coin.hive.value || $SendTxDetails.fromCoin?.coin.value === Coin.hbd.value}
+				<!-- To is fixed (TESTS↔TBD); show token but not clickable -->
+				<div class="token-selector-btn fixed">
+					{#if $SendTxDetails.toCoin}
+						<img src={$SendTxDetails.toCoin.coin.icon} alt={coinDisplayLabel($SendTxDetails.toCoin.coin)} class="token-icon" />
+						<span class="token-name">{coinDisplayLabel($SendTxDetails.toCoin.coin)}</span>
+					{:else}
+						<span class="token-name">Select</span>
+					{/if}
+				</div>
 			{:else}
-				Select Source
+				<button class="token-selector-btn" onclick={() => openDialog('to')}>
+					{#if $SendTxDetails.toCoin}
+						<img src={$SendTxDetails.toCoin.coin.icon} alt={coinDisplayLabel($SendTxDetails.toCoin.coin)} class="token-icon" />
+						<span class="token-name">{coinDisplayLabel($SendTxDetails.toCoin.coin)}</span>
+					{:else}
+						<span class="token-name">Select</span>
+					{/if}
+					<ChevronDown size={14} />
+				</button>
 			{/if}
 		</div>
-	</ClickableCard>
-	{#if $SendTxDetails.fromCoin?.coin.value === Coin.hive.value || $SendTxDetails.fromCoin?.coin.value === Coin.hbd.value}
-		<!-- To is fixed to the opposite asset (TESTS↔TBD); same card look, not clickable -->
-		<div class="to-coin-card">
-			<div class="asset-wrapper">
-				{#if $SendTxDetails.toCoin}
-					<AssetInfo
-						coinOpt={$SendTxDetails.toCoin}
-						network={$SendTxDetails.toNetwork}
-						size="medium"
-					/>
-				{:else}
-					Select Source first
-				{/if}
-			</div>
+	</div>
+
+	<!-- Exchange Rate -->
+	{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
+		<div class="exchange-rate-row">
+			{new CoinAmount(1, $SendTxDetails.fromCoin.coin).toPrettyMinFigs()}
+			= {fromInTo}
 		</div>
-	{:else}
-		<ClickableCard onclick={() => openDialog('to')}>
-			<div class="asset-wrapper">
-				{#if $SendTxDetails.toCoin}
-					<AssetInfo
-						coinOpt={$SendTxDetails.toCoin}
-						network={$SendTxDetails.toNetwork}
-						size="medium"
-					/>
-				{:else}
-					Select Destination
-				{/if}
+	{/if}
+
+	<!-- Fees Section (collapsible) -->
+	{#if swapResult && $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
+		{@const fromDec = $SendTxDetails.fromCoin.coin.decimalPlaces}
+		{@const toDec = $SendTxDetails.toCoin.coin.decimalPlaces}
+		{@const fromUnit = coinDisplayLabel($SendTxDetails.fromCoin.coin)}
+		{@const toUnit = coinDisplayLabel($SendTxDetails.toCoin.coin)}
+		<div class="swap-fees">
+			<!-- Always visible: slippage + toggle header -->
+			<div class="fees-header">
+				<span class="fee-label">Slippage Tolerance</span>
+				<div class="fees-header-right">
+					<div class="slippage-options">
+						{#each slippageOptions as bps}
+							<button
+								class={{ active: slippageBps === bps }}
+								onclick={() => { slippageBps = bps; }}
+							>
+								{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
+							</button>
+						{/each}
+					</div>
+					<button class="fees-toggle-btn" onclick={() => { feesExpanded = !feesExpanded; }} aria-label="Toggle fee details">
+						{#if feesExpanded}
+							<ChevronUp size={16} />
+						{:else}
+							<ChevronDown size={16} />
+						{/if}
+					</button>
+				</div>
 			</div>
-		</ClickableCard>
+
+			<!-- Expandable fee details -->
+			{#if feesExpanded}
+				<div class="fee-details">
+					<div class="fee-row">
+						<span class="fee-label">Expected Output</span>
+						<span class="fee-value">{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span>
+					</div>
+					<div class="fee-row">
+						<span class="fee-label">Base Fee (0.08%)</span>
+						<span class="fee-value">{formatSmallUnits(swapResult.baseFee, fromDec)} {fromUnit}</span>
+					</div>
+					<div class="fee-row">
+						<span class="fee-label">CLP Fee</span>
+						<span class="fee-value">{formatSmallUnits(swapResult.clpFee, fromDec)} {fromUnit}</span>
+					</div>
+					<div class="fee-row highlight">
+						<span class="fee-label">Total Fee</span>
+						<span class="fee-value">{formatSmallUnits(swapResult.totalFee, fromDec)} {fromUnit}</span>
+					</div>
+					<div class="fee-row">
+						<span class="fee-label">Min. Amount Out</span>
+						<span class="fee-value">{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
+					</div>
+				</div>
+			{/if}
+		</div>
 	{/if}
 </div>
-<div class="amount">
-	<div class="amount-row">
-		<!-- <span class="spacer"></span> -->
-		<div class="amount-input">
-			<AmountInput bind:coinAmount={inputAmount} coinOpts={amountInputCoinOpts} {minAmount} maxAmount={maxAmount} />
-		</div>
-	</div>
-	<!-- <div class={['enter-prompt', 'sm-caption', { hide: !!inputAmount }]}>Enter Amount</div> -->
-</div>
-{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
-	<div class="exchange-rates">
-		{#if $SendTxDetails.fromCoin}
-			{new CoinAmount(1, $SendTxDetails.fromCoin.coin).toPrettyMinFigs()}
-			<EqualApproximately size={16} />
-			{fromInUsd}
-			{#if $SendTxDetails.toCoin}
-				<EqualApproximately size={16} />
-				{fromInTo}
-			{/if}
-		{:else if $SendTxDetails.toCoin}
-			{new CoinAmount(1, $SendTxDetails.toCoin.coin).toPrettyMinFigs()}
-			<EqualApproximately size={16} />
-			{toInUsd}
-		{/if}
-	</div>
-{/if}
-{#if swapResult && $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
-	{@const fromDec = $SendTxDetails.fromCoin.coin.decimalPlaces}
-	{@const toDec = $SendTxDetails.toCoin.coin.decimalPlaces}
-	{@const fromUnit = coinDisplayLabel($SendTxDetails.fromCoin.coin)}
-	{@const toUnit = coinDisplayLabel($SendTxDetails.toCoin.coin)}
-	<div class="swap-details">
-		<div class="swap-detail-row">
-			<span class="sm-caption">Expected Output</span>
-			<span>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span>
-		</div>
-		<div class="swap-detail-row">
-			<span class="sm-caption">Base Fee (0.08%)</span>
-			<span>{formatSmallUnits(swapResult.baseFee, fromDec)} {fromUnit}</span>
-		</div>
-		<div class="swap-detail-row">
-			<span class="sm-caption">CLP Fee</span>
-			<span>{formatSmallUnits(swapResult.clpFee, fromDec)} {fromUnit}</span>
-		</div>
-		<div class="swap-detail-row">
-			<span class="sm-caption">Total Fee</span>
-			<span>{formatSmallUnits(swapResult.totalFee, fromDec)} {fromUnit}</span>
-		</div>
-		<div class="swap-detail-row">
-			<span class="sm-caption">Min. Amount Out</span>
-			<span>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
-		</div>
-		<div class="slippage-row">
-			<span class="sm-caption">Slippage Tolerance</span>
-			<div class="slippage-options">
-				{#each slippageOptions as bps}
-					<button
-						class={{ active: slippageBps === bps }}
-						onclick={() => { slippageBps = bps; }}
-					>
-						{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
-					</button>
-				{/each}
-			</div>
-		</div>
-	</div>
-{/if}
+
+<!-- Charts Section (below the card) -->
 <div class={['graphs', { hide: !$SendTxDetails.fromCoin && !$SendTxDetails.toCoin }]}>
 	<div style="grid-area: from">
 		{#if $SendTxDetails.fromCoin}
@@ -719,106 +868,248 @@
 </div>
 
 <style lang="scss">
-	// for big input
-	.coin-options {
+	/* ── Quick Swap Card ── */
+	.quick-swap-card {
+		background-color: var(--swap-card-bg);
+		border: 1px solid var(--swap-card-border);
+		border-radius: 0.75rem;
+		padding: 1.25rem;
+		margin: 1.25rem;
 		display: flex;
-		gap: 1.5rem;
-		.asset-wrapper {
-			min-height: 3.5rem;
-			padding: 0.5rem;
-			display: flex;
-			align-items: center;
-			text-align: center;
-		}
-		// To coin (fixed when From is Hive/HBD): same look as From card, not clickable
-		.to-coin-card {
-			background-color: var(--neutral-off-bg);
-			border: 1px solid var(--neutral-bg-accent);
-			border-radius: 0.75rem;
-			padding: 0.5rem;
-			overflow: auto;
-			width: 100%;
-			box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
-		}
+		flex-direction: column;
+		gap: 0;
+		box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
 	}
-	// .amount {
-	// 	&:has(:global(input):focus-visible) {
-	// 		.enter-prompt {
-	// 			visibility: hidden;
-	// 		}
-	// 	}
-	// }
-	// .enter-prompt {
-	// 	width: 100%;
-	// 	text-align: center;
-	// 	padding-top: 0.25rem;
-	// 	&.hide {
-	// 		visibility: hidden;
-	// 	}
-	// }
-	.amount-row {
-		margin-top: 1.5rem;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		// .spacer {
-		// 	width: 2.5rem;
-		// }
-		.amount-input {
-			flex-grow: 1;
-		}
+	.swap-title {
+		font-size: var(--text-2xl);
+		font-weight: 600;
+		margin: 0 0 1rem 0;
+		color: var(--neutral-fg);
 	}
-	.exchange-rates {
-		display: flex;
-		justify-content: center;
-		flex-wrap: wrap;
-		width: 100%;
-		margin-top: 1.5rem;
-		:global(.lucide-equal-approximately) {
-			min-width: 16px;
-		}
-	}
-	.swap-details {
-		margin-top: 1.5rem;
+
+	/* ── Swap Section (From / To) ── */
+	.swap-section {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		padding: 1rem;
-		border: 1px solid var(--neutral-bg-accent);
-		border-radius: 0.75rem;
-		background-color: var(--neutral-off-bg);
 	}
-	.swap-detail-row {
+	.section-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+	}
+	.section-label {
+		font-size: var(--text-sm);
+		color: var(--neutral-fg-mid);
+		font-weight: 500;
+	}
+	.section-info {
+		font-size: var(--text-xs);
+	}
+	.section-input-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		background-color: var(--swap-section-bg);
+		border: 1px solid var(--swap-input-border);
+		border-radius: 0.5rem;
+		padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+		min-height: 3rem;
+	}
+	.input-field {
+		flex: 1;
+		min-width: 0;
+	}
+	.input-field :global(.normal-wrapper label) {
+		display: none;
+	}
+	.input-field :global(.normal-wrapper .amount-input) {
+		border: none;
+	}
+	.input-field :global(.normal-wrapper .amount-input:has(input:focus-visible)) {
+		box-shadow: none;
+		border-bottom-color: transparent;
+		border-radius: 0;
+	}
+	.input-field :global(.normal-wrapper .bottom-info) {
+		position: static;
+		padding-top: 0;
+	}
+	.to-amount-display {
+		flex: 1;
+		min-width: 0;
+		padding: 0.5rem 0;
+		font-size: var(--text-2xl);
+		font-family: 'Noto Sans Mono Variable', monospace;
+		font-weight: 400;
+	}
+	.to-amount-value {
+		color: var(--neutral-fg);
+	}
+	.to-amount-placeholder {
+		color: var(--neutral-fg-mid);
+		font-size: var(--text-3xl);
+	}
+
+	/* ── Token Selector Button ── */
+	.token-selector-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.625rem;
+		background-color: var(--swap-token-btn-bg);
+		border: 1px solid var(--swap-token-btn-border);
+		border-radius: 2rem;
+		cursor: pointer;
+		color: var(--neutral-fg);
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		white-space: nowrap;
+		transition: background-color 0.15s ease;
+		&:hover {
+			background-color: var(--neutral-bg-accent-shifted);
+		}
+		&.fixed {
+			cursor: default;
+			&:hover {
+				background-color: var(--swap-token-btn-bg);
+			}
+		}
+		.token-icon {
+			width: 1.25rem;
+			height: 1.25rem;
+			border-radius: 50%;
+		}
+		.token-name {
+			font-weight: 500;
+		}
+	}
+
+	/* ── Swap Toggle ── */
+	.swap-toggle-wrapper {
+		display: flex;
+		justify-content: center;
+		padding: 0.5rem 0;
+	}
+	.swap-toggle-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 50%;
+		border: 1px solid var(--swap-card-border);
+		background-color: var(--swap-toggle-bg);
+		color: var(--neutral-fg-mid);
+		cursor: pointer;
+		transition: background-color 0.15s ease, color 0.15s ease;
+		&:hover {
+			background-color: var(--neutral-bg-accent-shifted);
+			color: var(--neutral-fg);
+		}
+	}
+
+	/* ── Exchange Rate ── */
+	.exchange-rate-row {
+		text-align: center;
+		padding: 0.75rem 0 0.25rem;
+		font-size: var(--text-sm);
+		color: var(--swap-rate-color);
+	}
+
+	/* ── Fees Section (collapsible) ── */
+	.swap-fees {
+		margin-top: 0.75rem;
+		display: flex;
+		flex-direction: column;
+		border: 1px solid var(--swap-fee-border);
+		border-radius: 0.5rem;
+		background-color: var(--swap-fee-bg);
+		overflow: hidden;
+	}
+	.fees-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 0.75rem;
 	}
-	.slippage-row {
+	.fees-header-right {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.fees-toggle-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: none;
+		border: none;
+		color: var(--neutral-fg-mid);
+		cursor: pointer;
+		padding: 0.25rem;
+		border-radius: 0.25rem;
+		transition: color 0.15s ease, background-color 0.15s ease;
+		&:hover {
+			color: var(--neutral-fg);
+			background-color: var(--swap-toggle-bg);
+		}
+	}
+	.fee-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		padding: 0 0.75rem 0.75rem;
+		border-top: 1px solid var(--swap-fee-border);
+		padding-top: 0.625rem;
+	}
+	.fee-row {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-top: 0.25rem;
-		padding-top: 0.5rem;
-		border-top: 1px solid var(--neutral-bg-accent);
+		padding: 0.125rem 0;
+		&.highlight {
+			padding-top: 0.375rem;
+			margin-top: 0.125rem;
+			border-top: 1px solid var(--swap-fee-border);
+			font-weight: 500;
+		}
+	}
+	.fee-label {
+		color: var(--neutral-fg-mid);
+		font-size: var(--text-sm);
+	}
+	.fee-value {
+		font-family: 'Noto Sans Mono Variable', monospace;
+		font-weight: 400;
+		font-size: var(--text-sm);
 	}
 	.slippage-options {
 		display: flex;
 		gap: 0.25rem;
 		button {
 			padding: 0.25rem 0.5rem;
-			border: 1px solid var(--neutral-bg-accent);
+			border: 1px solid var(--swap-fee-border);
 			border-radius: 0.5rem;
 			background: transparent;
 			color: var(--neutral-fg);
 			cursor: pointer;
-			font-size: 0.85rem;
+			font-size: var(--text-xs);
+			font-weight: 500;
+			transition: background-color 0.15s ease, border-color 0.15s ease;
 			&.active {
 				background-color: var(--primary-bg);
 				color: var(--primary-fg);
 				border-color: var(--primary-bg);
 			}
+			&:hover:not(.active) {
+				background-color: var(--neutral-bg-accent-shifted);
+			}
 		}
 	}
+
+	/* ── Charts Section ── */
 	.graphs {
 		&.hide {
 			display: none;
@@ -873,9 +1164,169 @@
 			color: var(--secondary-fg-mid);
 		}
 	}
+
+	/* ── Dialog: Token Grid ── */
+	.dialog-title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+		h5 {
+			flex: 1;
+			margin: 0;
+			font-size: var(--text-3xl);
+			font-weight: 600;
+			color: var(--neutral-fg);
+		}
+	}
+	.dialog-close-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: none;
+		border: none;
+		color: var(--neutral-fg-mid);
+		cursor: pointer;
+		padding: 0.25rem;
+		border-radius: 50%;
+		transition: color 0.15s ease;
+		&:hover {
+			color: var(--neutral-fg);
+		}
+	}
+	.dialog-back-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		background: none;
+		border: none;
+		color: var(--neutral-fg-mid);
+		cursor: pointer;
+		font: inherit;
+		font-size: var(--text-sm);
+		padding: 0.25rem 0.5rem 0.25rem 0;
+		transition: color 0.15s ease;
+		&:hover {
+			color: var(--neutral-fg);
+		}
+	}
+	.dialog-title-icon {
+		width: 1.5rem;
+		height: 1.5rem;
+		border-radius: 50%;
+	}
+	.token-search-wrapper {
+		position: relative;
+		margin-bottom: 1rem;
+		:global(svg) {
+			position: absolute;
+			left: 0.75rem;
+			top: 50%;
+			transform: translateY(-50%);
+			color: var(--neutral-fg-mid);
+			pointer-events: none;
+		}
+		input {
+			width: 100%;
+			box-sizing: border-box;
+			padding: 0.625rem 0.75rem 0.625rem 2.25rem;
+			border: 1px solid var(--swap-input-border);
+			border-radius: 0.5rem;
+			background-color: var(--swap-section-bg);
+			color: var(--neutral-fg);
+			font: inherit;
+			font-size: var(--text-sm);
+			&::placeholder {
+				color: var(--neutral-fg-mid);
+			}
+		}
+	}
+	.token-chip-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.token-chip {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.75rem;
+		border: 1px solid var(--swap-token-btn-border);
+		border-radius: 2rem;
+		background-color: var(--swap-token-btn-bg);
+		color: var(--neutral-fg);
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.15s ease, border-color 0.15s ease;
+		&:hover {
+			background-color: var(--neutral-bg-accent-shifted);
+			border-color: var(--neutral-bg-accent-shifted);
+		}
+		.chip-icon {
+			width: 1.25rem;
+			height: 1.25rem;
+			border-radius: 50%;
+		}
+	}
+
+	/* ── Dialog: Network Cards (Source) ── */
+	.network-cards {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	.network-card {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 1rem;
+		border: 1px solid var(--swap-card-border);
+		border-radius: 0.75rem;
+		background-color: var(--swap-section-bg);
+		cursor: pointer;
+		color: var(--neutral-fg);
+		font: inherit;
+		text-align: left;
+		transition: border-color 0.15s ease, background-color 0.15s ease;
+		&:hover {
+			border-color: var(--primary-bg);
+			background-color: var(--swap-card-bg);
+		}
+		.network-card-icon {
+			width: 2.25rem;
+			height: 2.25rem;
+			border-radius: 50%;
+			flex-shrink: 0;
+		}
+		.network-card-info {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			gap: 0.125rem;
+			min-width: 0;
+		}
+		.network-card-name {
+			font-weight: 500;
+		}
+		.network-card-balance {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-end;
+			gap: 0.125rem;
+			flex-shrink: 0;
+		}
+		.balance-amount {
+			font-family: 'Noto Sans Mono Variable', monospace;
+			font-weight: 400;
+		}
+	}
+
+	/* ── Responsive ── */
 	@media screen and (max-width: 450px) {
-		.coin-options {
-			flex-wrap: wrap;
+		.quick-swap-card {
+			padding: 1rem;
 		}
 		.graphs {
 			display: flex;

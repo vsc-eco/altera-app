@@ -157,6 +157,19 @@ body {
 :root {
 	background-color: var(--neutral-bg);
 	color: var(--neutral-fg);
+
+	/* Swap card global variables */
+	--swap-card-bg: var(--neutral-off-bg);
+	--swap-card-border: var(--neutral-bg-accent-shifted);
+	--swap-input-bg: var(--neutral-bg);
+	--swap-input-border: var(--neutral-bg-accent-shifted);
+	--swap-toggle-bg: var(--neutral-bg-accent);
+	--swap-token-btn-bg: var(--neutral-bg-accent);
+	--swap-token-btn-border: var(--neutral-bg-accent-shifted);
+	--swap-section-bg: var(--neutral-bg);
+	--swap-fee-bg: var(--neutral-off-bg);
+	--swap-fee-border: var(--neutral-bg-accent);
+	--swap-rate-color: var(--neutral-fg-mid);
 }
 
 *:focus {

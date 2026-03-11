@@ -240,6 +240,7 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 			<div {...api.getContentProps({ index })} tabindex="-1">
 				<Component
 					{editStage}
+					isActive={api.value === index}
 					{status}
 					{waiting}
 					abort={cancelTransaction}

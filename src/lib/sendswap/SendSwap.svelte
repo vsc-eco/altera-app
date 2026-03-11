@@ -11,7 +11,7 @@
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Complete from '$lib/sendswap/stages/Complete.svelte';
 	import TransferOptions from './stages/TransferOptions.svelte';
-	import ReviewSwap from '$lib/sendswap/stages/ReviewSwap.svelte';
+	import SwapDestination from '$lib/sendswap/stages/SwapDestination.svelte';
 	import ReviewTransfer from './stages/ReviewTransfer.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 
@@ -63,7 +63,7 @@
 		txType === 'swap'
 			? [
 					{ value: 'options', component: SwapOptions },
-					{ value: 'review', component: ReviewSwap },
+					{ value: 'review', component: SwapDestination },
 					{ value: 'complete', component: Complete }
 				]
 			: [

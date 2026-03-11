@@ -27,7 +27,8 @@
 		close,
 		externalNetwork,
 		isTo = false,
-		onSelect
+		onSelect,
+		dialogTitle = 'Select an Asset'
 	}: {
 		availableCoins: Coin[];
 		coin: CoinOptions['coins'][number] | undefined;
@@ -37,6 +38,7 @@
 		externalNetwork?: Network;
 		isTo?: boolean;
 		onSelect?: (coin: CoinOptions['coins'][number], network: Network) => void;
+		dialogTitle?: string;
 	} = $props();
 
 	const auth = $derived(getAuth()());
@@ -202,7 +204,7 @@
 {/snippet}
 
 <div class="dialog-content">
-	<h5>Select an Asset</h5>
+	<h5>{dialogTitle}</h5>
 	{#if loading}
 		<div class="assets-loading"><WaveLoading /></div>
 	{:else}

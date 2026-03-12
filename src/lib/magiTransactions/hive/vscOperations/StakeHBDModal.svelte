@@ -14,6 +14,7 @@
 		type StakeTransaction
 	} from '$lib/magiTransactions/eth/client';
 	import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
+	import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
 	import { wagmiConfig } from '$lib/auth/reown';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
@@ -65,14 +66,11 @@
 				errorCode: 0,
 				error: 'Transaction failed.'
 			};
+			const isBtcWallet = auth.value.did.startsWith('did:pkh:bip122:');
 			try {
-				const result = await signAndBrodcastTransaction(
-					[stakeOp],
-					wagmiSigner, // version with error handling
-					client,
-					undefined,
-					wagmiConfig
-				);
+				const result = isBtcWallet
+					? await signAndBrodcastTransaction([stakeOp], btcSigner, client, undefined)
+					: await signAndBrodcastTransaction([stakeOp], wagmiSigner, client, undefined, wagmiConfig);
 				status = `Transaction submitted successfully! ID: ${result.id}`;
 
 				// TODO: add back when backend fixed

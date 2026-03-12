@@ -1,56 +1,81 @@
 import { encodePayload } from 'dag-jose-utils';
 import type { Signer, VSCTransactionSigningShell, Client } from '../eth/client';
 import { modal } from '$lib/auth/reown';
-import type { BitcoinConnector } from '@reown/appkit-adapter-bitcoin';
 
-export const btcSigner: Signer = async (
+declare global {
+	interface Window {
+		LeatherProvider?: {
+			request(
+				method: string,
+				params: Record<string, unknown>
+			): Promise<{ result: { signature: string } }>;
+		};
+	}
+}
+
+/**
+ * BTC signer for VSC transactions.
+ *
+ * 1. Encodes the signing shell to DAG-CBOR via encodePayload()
+ * 2. Signs the CID string via Leather wallet
+ *    - SegWit (bc1q) addresses: returns BIP-322 "simple" signature (~107 bytes)
+ *    - Legacy addresses: returns BIP-137 compact signature (65 bytes)
+ * 3. Passes the raw base64 signature to the backend, which handles both formats
+ */
+export const btcSigner: Signer<[]> = async (
 	signingShell: VSCTransactionSigningShell,
 	client: Client
 ) => {
-	// Validate inputs
 	if (!modal) {
-		throw new Error('AppKit not initialized');
-	}
-	if (!signingShell || !client) {
-		throw new Error('Missing required parameters for signing');
+		throw new Error('AppKit modal not initialized');
 	}
 
-	// Get connected BTC address from Reown modal
-	const btcAddress = modal.getAddress();
-	if (!btcAddress) {
-		throw new Error('BTC wallet not connected. Please connect your wallet first.');
-	}
-
-	// Validate signing shell structure
-	if (!signingShell.__t || !signingShell.__v || !signingShell.headers || !signingShell.tx) {
-		throw new Error('Invalid signing shell structure');
+	const address = modal.getAddress();
+	if (!address) {
+		throw new Error('BTC wallet not connected');
 	}
 
 	try {
-		// CBOR-encode the signing shell and get CID
+		// Encode signing shell to DAG-CBOR and compute CID
 		const encoded = await encodePayload(signingShell);
 		const cidString = encoded.cid.toString();
 
-		// Get the Bitcoin provider from Reown AppKit
-		const btcProvider = modal.getProvider<BitcoinConnector>('bip122');
-		if (!btcProvider) {
-			throw new Error('Bitcoin provider not available. Is a BTC wallet connected?');
+		// Sign via Leather's native RPC or AppKit provider
+		let rawSignature: string;
+
+		if (window.LeatherProvider) {
+			const res = await window.LeatherProvider.request('signMessage', {
+				message: cidString,
+				protocol: 'ECDSA'
+			});
+			rawSignature = res.result.signature;
+		} else {
+			const provider = modal.getProvider<{
+				signMessage(p: {
+					message: string;
+					address: string;
+					protocol?: string;
+				}): Promise<string>;
+			}>('bip122');
+			if (!provider?.signMessage) {
+				throw new Error('No Bitcoin signing provider available');
+			}
+			rawSignature = await provider.signMessage({
+				message: cidString,
+				address,
+				protocol: 'ECDSA'
+			});
 		}
 
-		// Sign the CID string using Bitcoin Signed Message format
-		const signature = await btcProvider.signMessage({
-			message: cidString,
-			address: btcAddress,
-			protocol: 'ecdsa'
-		});
-
-		const sig = typeof signature === 'string' ? signature : (signature as any).signature;
+		// Pass raw signature directly — backend handles both BIP-137 and BIP-322
+		const sigBytes = Uint8Array.from(atob(rawSignature), (c) => c.charCodeAt(0));
+		console.log(`BTC sig: ${sigBytes.length} bytes (${sigBytes.length === 65 ? 'BIP-137' : 'BIP-322'})`);
 
 		const sigs = [
 			{
-				alg: 'BIP137',
-				kid: btcAddress,
-				sig
+				alg: 'EdDSA',
+				kid: client.userId,
+				sig: rawSignature
 			}
 		];
 
@@ -61,14 +86,9 @@ export const btcSigner: Signer = async (
 			rawTx
 		};
 	} catch (error) {
-		console.error('=== BTC Signing Failed ===');
-		console.error('Error details:', error);
-
 		if (error instanceof Error) {
-			if (error.message.includes('User rejected') || error.message.includes('rejected')) {
+			if (error.message.includes('User rejected') || error.message.includes('denied')) {
 				throw new Error('Transaction was rejected by user');
-			} else if (error.message.includes('network')) {
-				throw new Error('Network error during signing');
 			}
 		}
 

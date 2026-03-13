@@ -1,11 +1,16 @@
 <script>
 	import { browser } from '$app/environment';
+	import { PUBLIC_VSC_NETWORK } from '$env/static/public';
 	import { goto, invalidateAll } from '$app/navigation';
 	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { GQL_URL } from '../../../client';
+	import { vscNetworkId } from '$lib/magiTransactions/eth/client';
 	import ToggleTheme from './ToggleTheme.svelte';
 	let vscGqlUrlInput = $state();
+	let vscNetworkIdInput = $state();
+
+	const defaultNetworkId = PUBLIC_VSC_NETWORK || 'vsc-mainnet';
 </script>
 
 <h1>App Preferences</h1>
@@ -39,6 +44,45 @@
 			onclick={(e) => {
 				localStorage.setItem('vsc-gql-url', GQL_URL);
 				vscGqlUrlInput.value = GQL_URL;
+			}}
+			type="button">Reset</PillButton
+		>
+		<br />
+		<PillButton
+			styleType="invert"
+			theme="primary"
+			onclick={() => {
+				// intentionally left blank
+			}}>Save</PillButton
+		>
+	</form>
+
+	<form
+		onsubmit={async (e) => {
+			e.preventDefault();
+			const val = vscNetworkIdInput.value.trim();
+			if (!val) return;
+			localStorage.setItem('vsc-network-id', val);
+			await invalidateAll();
+			location.reload();
+		}}
+	>
+		<span class="label-tooltip">
+			<label for="vsc-network-id">Network ID</label>
+			<InfoTooltip>Override the VSC network ID used for transactions (e.g. vsc-testnet).</InfoTooltip>
+		</span>
+
+		<input
+			id="vsc-network-id"
+			bind:this={vscNetworkIdInput}
+			value={(browser && localStorage.getItem('vsc-network-id')) || defaultNetworkId}
+			type="text"
+		/>
+		<PillButton
+			styleType="outline"
+			onclick={() => {
+				localStorage.setItem('vsc-network-id', defaultNetworkId);
+				vscNetworkIdInput.value = defaultNetworkId;
 			}}
 			type="button">Reset</PillButton
 		>

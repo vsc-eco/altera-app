@@ -1,14 +1,19 @@
+import { browser } from '$app/environment';
+import { PUBLIC_VSC_NETWORK } from '$env/static/public';
 import { encodePayload } from 'dag-jose-utils';
 import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 import { GetAccountNonceStore, SubmitTransactionV1Store } from '$houdini';
 
+export const vscNetworkId =
+	(browser && localStorage.getItem('vsc-network-id')) || PUBLIC_VSC_NETWORK || 'vsc-mainnet';
+
 export type Client = {
 	api: string;
 	userId: string;
 	nonce: number | null;
-	netId: 'vsc-mainnet';
+	netId: string;
 };
 
 export type TransferTransaction = {
@@ -161,7 +166,7 @@ export function createClient(userId: string, api?: string): Client {
 		api: api ?? 'https://api.vsc.eco',
 		userId,
 		nonce: null,
-		netId: 'vsc-mainnet'
+		netId: vscNetworkId
 	};
 }
 

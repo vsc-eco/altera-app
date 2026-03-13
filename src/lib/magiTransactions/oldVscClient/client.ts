@@ -1,13 +1,18 @@
+import { browser } from '$app/environment';
+import { PUBLIC_VSC_NETWORK } from '$env/static/public';
 import { getNonce, uint8ArrayToBase64Url } from '@vsc.eco/client/dist/utils';
 import { submitTxQuery } from '@vsc.eco/client/dist/queries';
 import Axios from 'axios';
 import { encodePayload } from 'dag-jose-utils';
 
+const vscNetworkId =
+	(browser && localStorage.getItem('vsc-network-id')) || PUBLIC_VSC_NETWORK || 'vsc-mainnet';
+
 type Client = {
 	api: string;
 	userId: string;
 	nonce: number | null;
-	netId: 'vsc-mainnet';
+	netId: string;
 };
 
 export type CallContractTransaction = {
@@ -110,7 +115,7 @@ export interface OffchainTransactionContainerV2 {
 export interface OnchainTransactionContainerV2 {
 	__t: 'vsc-tx';
 	__v: '0.2';
-	net_id: 'vsc-mainnet';
+	net_id: string;
 	headers: {
 		// payer?: string
 		// lock_block?: number
@@ -127,7 +132,7 @@ export function createClient(userId: string, api?: string): Client {
 		api: api ?? 'https://api.vsc.eco',
 		userId,
 		nonce: null,
-		netId: 'vsc-mainnet'
+		netId: vscNetworkId
 	};
 }
 

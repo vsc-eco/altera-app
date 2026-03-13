@@ -94,6 +94,8 @@
 </script>
 
 <div class="swap-dest-wrapper">
+	<span class="deliver-label">DELIVER TO</span>
+
 	{#if $SendTxDetails.toCoin}
 		<div class="dest-header">
 			<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork ?? Network.magi} size={32} />
@@ -109,11 +111,19 @@
 		>
 			<div class="dest-card-icon"><Wallet size={20} /></div>
 			<div class="dest-card-info">
-				<span class="dest-card-name">Keep in my wallet</span>
-				<span class="dest-card-desc sm-caption">{coinDisplayLabel(toCoin)} stays in your Magi wallet</span>
+				<span class="dest-card-name">Keep in my {coinDisplayLabel(toCoin)} wallet (via Magi)</span>
+				<span class="dest-card-desc sm-caption">Swap to yourself &middot; Asset stays in your connected wallet</span>
 			</div>
 			<div class="dest-radio" class:checked={destChoice === 'wallet'}></div>
 		</button>
+
+		{#if destChoice === 'wallet'}
+			<div class="wallet-settle-info">
+				<span class="settle-dot"></span>
+				<span class="settle-text">{coinDisplayLabel(toCoin)} will settle natively in your {coinDisplayLabel(toCoin)} wallet via Magi</span>
+			</div>
+		{/if}
+
 		<button
 			class="dest-card"
 			class:selected={destChoice === 'address'}
@@ -121,8 +131,8 @@
 		>
 			<div class="dest-card-icon"><Send size={20} /></div>
 			<div class="dest-card-info">
-				<span class="dest-card-name">Send to an address</span>
-				<span class="dest-card-desc sm-caption">Hive, BTC, EVM or DASH wallet</span>
+				<span class="dest-card-name">Send to address</span>
+				<span class="dest-card-desc sm-caption">Enter a recipient address &middot; Choose Magi or mainnet settlement</span>
 			</div>
 			<div class="dest-radio" class:checked={destChoice === 'address'}></div>
 		</button>
@@ -181,11 +191,41 @@
 	.swap-dest-wrapper {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 1.25rem;
 		width: 100%;
 		padding: 1.5rem;
 		max-width: 42rem;
 		box-sizing: border-box;
+		margin: 0 auto;
+	}
+	.deliver-label {
+		color: var(--dash-text-muted);
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+	.wallet-settle-info {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.75rem 1rem;
+		background-color: rgba(108, 92, 231, 0.08);
+		border: 1px solid rgba(108, 92, 231, 0.2);
+		border-radius: 0.5rem;
+		margin-top: -0.5rem;
+	}
+	.settle-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background-color: var(--dash-accent-green);
+		flex-shrink: 0;
+	}
+	.settle-text {
+		color: var(--dash-accent-green);
+		font-size: 0.8rem;
+		font-family: 'Noto Sans Mono Variable', monospace;
 	}
 	.dest-header {
 		display: flex;
@@ -196,7 +236,7 @@
 			margin: 0;
 			font-size: var(--text-3xl);
 			font-weight: 600;
-			color: var(--neutral-fg);
+			color: var(--dash-text-primary);
 		}
 	}
 
@@ -210,20 +250,22 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		padding: 1rem;
-		border: 1px solid var(--swap-card-border);
+		padding: 1rem 1.25rem;
+		border: 1px solid var(--dash-card-border);
 		border-radius: 0.75rem;
-		background-color: var(--swap-section-bg);
+		background-color: var(--dash-swap-field-bg);
 		cursor: pointer;
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 		font: inherit;
 		text-align: left;
-		transition: border-color 0.15s ease;
+		transition: border-color 0.15s ease, background-color 0.15s ease;
 		&.selected {
-			border-color: var(--primary);
+			border-color: var(--dash-accent-purple);
+			background-color: var(--dash-card-bg);
 		}
 		&:hover:not(.selected) {
-			border-color: var(--neutral-bg-accent-shifted);
+			border-color: var(--dash-card-border);
+			background-color: var(--dash-surface);
 		}
 		.dest-card-icon {
 			width: 2.25rem;
@@ -232,31 +274,35 @@
 			align-items: center;
 			justify-content: center;
 			border-radius: 0.5rem;
-			background-color: var(--swap-toggle-bg);
+			background-color: var(--dash-surface);
 			flex-shrink: 0;
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-secondary);
 		}
 		.dest-card-info {
 			flex: 1;
 			display: flex;
 			flex-direction: column;
-			gap: 0.125rem;
+			gap: 0.25rem;
 			min-width: 0;
 		}
 		.dest-card-name {
-			font-weight: 500;
+			font-weight: 600;
+			font-size: 0.95rem;
+		}
+		.dest-card-desc {
+			color: var(--dash-text-muted);
 		}
 	}
 	.dest-radio {
 		width: 1.25rem;
 		height: 1.25rem;
-		border: 2px solid var(--neutral-bg-accent-shifted);
+		border: 2px solid var(--dash-card-border);
 		border-radius: 50%;
 		flex-shrink: 0;
 		position: relative;
 		transition: border-color 0.15s ease;
 		&.checked {
-			border-color: var(--neutral-bg-accent-shifted);
+			border-color: var(--dash-accent-purple);
 			&::after {
 				content: '';
 				position: absolute;
@@ -265,7 +311,7 @@
 				width: calc(100% - 6px);
 				height: calc(100% - 6px);
 				border-radius: 50%;
-				background-color: var(--primary-bg);
+				background-color: var(--dash-accent-purple);
 			}
 		}
 	}
@@ -288,15 +334,15 @@
 			width: 100%;
 			box-sizing: border-box;
 			padding: 0.75rem;
-			border: 1px solid var(--swap-input-border);
+			border: 1px solid var(--dash-input-border);
 			border-radius: 0.5rem;
-			background-color: var(--swap-section-bg);
-			color: var(--neutral-fg);
+			background-color: var(--dash-swap-field-bg);
+			color: var(--dash-text-primary);
 			font: inherit;
 			font-size: var(--text-sm);
 			resize: none;
 			&::placeholder {
-				color: var(--neutral-fg-mid);
+				color: var(--dash-text-muted);
 			}
 		}
 	}
@@ -307,12 +353,12 @@
 	}
 	.dest-network-label {
 		font-size: var(--text-sm);
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 	}
 	.dest-network-toggle {
 		display: flex;
 		gap: 0;
-		border: 1px solid var(--swap-input-border);
+		border: 1px solid var(--dash-input-border);
 		border-radius: 0.5rem;
 		overflow: hidden;
 		button {
@@ -320,22 +366,23 @@
 			padding: 0.5rem 0.75rem;
 			border: none;
 			background: transparent;
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 			font: inherit;
 			font-size: var(--text-sm);
 			cursor: pointer;
 			transition: background-color 0.15s ease, color 0.15s ease;
 			&.active {
-				background-color: var(--primary-bg);
-				color: var(--primary-fg);
+				background-color: var(--dash-accent-purple);
+				color: var(--dash-text-primary);
 			}
 			&:not(.active):hover {
-				background-color: var(--swap-toggle-bg);
+				background-color: var(--dash-surface);
 			}
 		}
 	}
 	.dest-hint {
 		margin: 0;
+		color: var(--dash-text-muted);
 	}
 
 	/* ── Status & Waiting ── */
@@ -354,22 +401,23 @@
 		transform: translate(-50dvw, -50dvh);
 		display: flex;
 		justify-content: center;
-		background-color: rgba(58, 46, 57, 0.2);
+		background-color: rgba(10, 10, 18, 0.6);
 		backdrop-filter: blur(4px);
 		pointer-events: none;
 		z-index: 1;
 		.waiting-card {
 			margin-top: 25%;
 			font-weight: 500;
-			padding: 1rem;
+			padding: 1.5rem;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			pointer-events: all;
-			background-color: var(--neutral-bg);
-			border: 1px solid var(--neutral-bg-accent);
-			border-radius: 0.5rem;
+			background-color: var(--dash-card-bg);
+			border: 1px solid var(--dash-card-border);
+			border-radius: 0.75rem;
 			height: min-content;
+			color: var(--dash-text-primary);
 			.info {
 				display: flex;
 				flex-direction: column;

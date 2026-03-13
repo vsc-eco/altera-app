@@ -316,8 +316,7 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 		padding-bottom: 3rem;
 		[data-part='content'] {
 			margin: auto;
-			max-width: 42rem;
-			padding: 0 0.5rem 1rem 0.5rem;
+			padding: 0 0 1rem 0;
 			min-height: calc(100% - 1rem);
 			overflow-y: auto;
 		}

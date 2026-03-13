@@ -123,7 +123,10 @@
 		margin-top: 0;
 	}
 	.caption h5 {
-		color: var(--primary-text);
+		color: var(--dash-text-muted);
+		font-size: 0.85rem;
+		font-weight: 500;
+		margin-bottom: 0.25rem;
 	}
 	.balance-row {
 		display: flex;
@@ -139,36 +142,37 @@
 		font-size: var(--text-7xl);
 		font-family: 'Noto Sans Mono Variable', monospace;
 		box-sizing: border-box;
+		color: var(--dash-text-primary);
 	}
 	.quick-send-btn {
 		flex-shrink: 0;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 54px;
-		height: 54px;
+		width: 48px;
+		height: 48px;
 		border-radius: 50%;
 		border: none;
-		background-color: var(--primary-mid);
-		color: var(--primary-fg-accent);
+		background-color: var(--dash-accent-purple);
+		color: white;
 		cursor: pointer;
 		transition: background-color 0.2s, transform 0.05s;
 		box-sizing: border-box;
 	}
 	.quick-send-btn:hover {
-		background-color: var(--primary-bg-accent-shifted);
-		color: var(--primary-fg-accent);
+		background-color: var(--dash-accent-purple-hover);
 	}
 	.quick-send-btn:active {
 		transform: scale(0.96);
 	}
 	.quick-send-btn :global(svg) {
-		width: 1.25rem;
-		height: 1.25rem;
+		width: 1.125rem;
+		height: 1.125rem;
 	}
 	.price span:last-child {
 		padding-top: 0.125rem;
 		font-size: var(--text-1xl);
+		color: var(--dash-text-muted);
 		span {
 			font-size: var(--text-base);
 			display: inline-flex;
@@ -177,27 +181,28 @@
 		}
 	}
 	.price .loading {
-		color: var(--fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
 	}
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
-		gap: 0.75rem;
+		gap: 0.625rem;
 		margin: 0.75rem 0.75rem 0.5rem;
 	}
 	.actions :global(button),
 	.actions :global(a) {
-		--height: 48px;
-		height: 48px;
-		min-height: 48px;
-		min-width: 166px;
-		padding: 14px 9px;
+		--height: 42px;
+		height: 42px;
+		min-height: 42px;
+		flex: 1;
+		min-width: 120px;
+		padding: 10px 16px;
 		gap: 8px;
-		border-radius: 40px;
+		border-radius: 2rem;
 		border-width: 1px;
-		font-size: var(--text-base);
+		font-size: 0.9rem;
 		box-sizing: border-box;
 	}
 	.balances-wrapper {

@@ -20,8 +20,6 @@
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectAssetFlattened from '$lib/sendswap/components/assetSelection/SelectAssetFlattened.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
-	import Card from '$lib/cards/Card.svelte';
-	import PillButton from '$lib/PillButton.svelte';
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { ChevronDown } from '@lucide/svelte';
@@ -271,17 +269,24 @@
 	});
 </script>
 
-<Card>
-	<div class="quick-swap">
-		<h3 class="title">Quick swap</h3>
+<div class="swap-card">
+	<div class="swap-header">
+		<span class="status-dot"></span>
+		<span class="swap-title">MAGI CROSS-CHAIN</span>
+	</div>
 
-		<div class="field from-field">
-			<div class="field-header">
-				<span class="label">From</span>
-				<span class="subtitle">{fromSubtitle}</span>
+	<div class="swap-body">
+		<!-- From Section -->
+		<div class="swap-section from-section">
+			<div class="section-top">
+				<span class="section-label">From</span>
+				<span class="network-badge">Magi Network</span>
+				<span class="balance-info">
+					Balance: {toBalanceStr || '0'} {$SendTxDetails.fromCoin?.coin.label || ''}
+				</span>
 			</div>
-			<div class="input-row">
-				<div class="amount-wrap">
+			<div class="swap-input-row">
+				<div class="amount-input-wrap">
 					<AmountInput
 						bind:coinAmount={inputAmount}
 						coinOpts={fromOnlyCoinOpts.length > 0 ? fromOnlyCoinOpts : possibleCoins}
@@ -289,60 +294,82 @@
 						styleType="normal"
 					/>
 				</div>
-				<button type="button" class="selector" onclick={() => openDialog('from')}>
+				<button type="button" class="token-selector" onclick={() => openDialog('from')}>
 					{#if $SendTxDetails.fromCoin}
 						<img
 							src={$SendTxDetails.fromCoin.coin.icon}
 							alt={$SendTxDetails.fromCoin.coin.label}
-							class="coin-icon"
+							class="token-icon"
 						/>
-						<span class="coin-label">{$SendTxDetails.fromCoin.coin.label}</span>
+						<div class="token-info">
+							<span class="token-symbol">{$SendTxDetails.fromCoin.coin.label}</span>
+							<span class="token-name">{$SendTxDetails.fromCoin.coin.label}</span>
+						</div>
 					{:else}
 						<span class="placeholder">Select</span>
 					{/if}
-					<ChevronDown class="chevron" size={16} />
+					<ChevronDown size={14} />
 				</button>
 			</div>
 		</div>
 
-		<div class="field">
-			<div class="field-header">
-				<span class="label">To</span>
-				<span class="subtitle">{toSubtitle}</span>
+		<!-- Swap Arrow -->
+		<div class="swap-arrow-wrap">
+			<button type="button" class="swap-arrow-btn" aria-label="Swap direction">
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+					<path d="M8 2v12M8 2L4 6M8 2l4 4M8 14L4 10M8 14l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</button>
+		</div>
+
+		<!-- To Section -->
+		<div class="swap-section to-section">
+			<div class="section-top">
+				<span class="section-label">YOU RECEIVE</span>
 			</div>
-			<div class="input-row">
-				<div class="amount-wrap to-amount">
+			<div class="swap-input-row">
+				<div class="amount-display">
 					<span class="to-amount-text">{toAmountDisplay}</span>
 				</div>
-				<button type="button" class="selector" onclick={() => openDialog('to')}>
+				<button type="button" class="token-selector" onclick={() => openDialog('to')}>
 					{#if $SendTxDetails.toCoin}
 						<img
 							src={$SendTxDetails.toCoin.coin.icon}
 							alt={$SendTxDetails.toCoin.coin.label}
-							class="coin-icon"
+							class="token-icon"
 						/>
-						<span class="coin-label">{$SendTxDetails.toCoin.coin.label}</span>
+						<div class="token-info">
+							<span class="token-symbol">{$SendTxDetails.toCoin.coin.label}</span>
+							<span class="token-name">{$SendTxDetails.toCoin.coin.label === 'BTC' ? 'Bitcoin' : $SendTxDetails.toCoin.coin.label}</span>
+						</div>
 					{:else}
 						<span class="placeholder">Select</span>
 					{/if}
-					<ChevronDown class="chevron" size={16} />
+					<ChevronDown size={14} />
 				</button>
 			</div>
 		</div>
 
-		{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin && fromInTo}
-			<p class="rate">1 {$SendTxDetails.fromCoin.coin.label} ≈ {fromInTo} {$SendTxDetails.toCoin.coin.label}</p>
-		{/if}
+		<!-- Review Button -->
+		<button type="button" class="review-btn" onclick={onExchange}>
+			REVIEW SWAP
+		</button>
 
-		<PillButton
-			theme="primary"
-			class="exchange-btn"
-			onclick={onExchange}
-		>
-			Exchange
-		</PillButton>
+		<!-- Route Info -->
+		{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
+			<div class="route-info">
+				<span class="route-path">
+					{$SendTxDetails.fromCoin.coin.label} &rarr; Magi &rarr; {$SendTxDetails.toCoin.coin.label}
+				</span>
+				<span class="route-tags">
+					<span class="tag native">Native</span>
+					<span class="tag-separator">&middot;</span>
+					<span class="tag nowrap">No wrap</span>
+				</span>
+			</div>
+		{/if}
 	</div>
-</Card>
+</div>
 
 <Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet content()}
@@ -367,110 +394,204 @@
 </Dialog>
 
 <style lang="scss">
-	.quick-swap {
+	.swap-card {
+		background-color: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 0.75rem;
+		overflow: hidden;
+	}
+	.swap-header {
 		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		padding: 0.25rem;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.75rem 1rem;
+		border-bottom: 1px solid var(--dash-divider);
 	}
-	.title {
-		color: var(--primary-text);
-		font-size: var(--text-lg);
+	.status-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background-color: var(--dash-accent-green);
+	}
+	.swap-title {
+		color: var(--dash-text-primary);
+		font-size: 0.8rem;
 		font-weight: 600;
-		margin: 0 0 0.25rem 0;
+		letter-spacing: 0.05em;
 	}
-	.field {
+	.swap-body {
+		padding: 1.25rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
 	}
-	.field.from-field {
-		padding-bottom: 1.25rem;
+	.swap-section {
+		background-color: var(--dash-swap-field-bg);
+		border: 1px solid var(--dash-input-border);
+		border-radius: 0.75rem;
+		padding: 1rem;
 	}
-	.field-header {
+	.section-top {
 		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
+		align-items: center;
 		gap: 0.5rem;
+		margin-bottom: 0.75rem;
+		flex-wrap: wrap;
 	}
-	.label {
-		color: var(--secondary-text);
-		font-size: var(--text-sm);
+	.section-label {
+		color: var(--dash-text-muted);
+		font-size: 0.75rem;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+	.network-badge {
+		background-color: var(--dash-card-border);
+		color: var(--dash-text-secondary);
+		font-size: 0.7rem;
+		padding: 0.2rem 0.5rem;
+		border-radius: 0.25rem;
 		font-weight: 500;
 	}
-	.subtitle {
-		color: var(--secondary-text);
+	.balance-info {
+		color: var(--dash-text-muted);
 		font-size: 0.75rem;
-		margin: 0;
+		margin-left: auto;
 	}
-	.input-row {
+	.swap-input-row {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		margin-top: 0.25rem;
+		gap: 0.75rem;
 	}
-	.amount-wrap {
+	.amount-input-wrap {
 		flex: 1;
 		min-width: 0;
-		background: var(--neutral-off-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		border-radius: 0.5rem;
-		padding: 0.5rem 0.75rem;
 	}
-	.amount-wrap.to-amount {
-		display: flex;
-		align-items: center;
+	.amount-display {
+		flex: 1;
+		min-width: 0;
 	}
 	.to-amount-text {
-		color: var(--primary-text);
-		font-size: var(--text-base);
+		color: var(--dash-text-primary);
+		font-size: 1.5rem;
+		font-weight: 500;
+		font-family: 'Noto Sans Mono Variable', monospace;
 	}
-	.selector {
+	.token-selector {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 0.75rem;
-		background: var(--neutral-off-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		border-radius: 0.5rem;
-		color: var(--primary-text);
-		font-size: var(--text-sm);
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 2rem;
+		color: var(--dash-text-primary);
+		font-size: 0.9rem;
 		cursor: pointer;
 		min-width: fit-content;
+		transition: background-color 0.15s;
 	}
-	.selector:hover {
-		background: var(--neutral-bg-accent);
+	.token-selector:hover {
+		background: var(--dash-card-border);
 	}
-	.coin-icon {
-		width: 1.25rem;
-		height: 1.25rem;
+	.token-icon {
+		width: 1.75rem;
+		height: 1.75rem;
 		border-radius: 50%;
 	}
-	.placeholder {
-		color: var(--secondary-text);
+	.token-info {
+		display: flex;
+		flex-direction: column;
+		text-align: left;
 	}
-	.rate {
-		color: var(--secondary-text);
-		font-size: 0.75rem;
-		margin: 0;
-	}
-	.quick-swap :global(.exchange-btn) {
-		margin-top: 0.5rem;
-		width: 100%;
-		--height: 3rem;
-		height: var(--height);
-		background-color: var(--primary-fg-mid) !important;
-		color: var(--primary-text) !important;
-		border: none !important;
+	.token-symbol {
 		font-weight: 600;
+		font-size: 0.9rem;
+		line-height: 1.2;
 	}
-	.quick-swap :global(.exchange-btn:hover) {
-		background-color: var(--primary-fg-mid) !important;
-		opacity: 0.95;
-		filter: brightness(1.08);
+	.token-name {
+		color: var(--dash-text-muted);
+		font-size: 0.7rem;
+		line-height: 1.2;
 	}
-	.quick-swap :global(.exchange-btn:active) {
-		background-color: var(--primary-fg-mid) !important;
-		opacity: 0.9;
+	.placeholder {
+		color: var(--dash-text-muted);
+	}
+	.swap-arrow-wrap {
+		display: flex;
+		justify-content: center;
+		padding: 0.375rem 0;
+		position: relative;
+		z-index: 1;
+	}
+	.swap-arrow-btn {
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 0.5rem;
+		border: 1px solid var(--dash-card-border);
+		background-color: var(--dash-card-bg);
+		color: var(--dash-text-secondary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: background-color 0.15s;
+	}
+	.swap-arrow-btn:hover {
+		background-color: var(--dash-card-border);
+	}
+	.review-btn {
+		width: 100%;
+		padding: 0.875rem;
+		background-color: var(--dash-btn-primary);
+		color: var(--dash-text-primary);
+		border: none;
+		border-radius: 0.75rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		cursor: pointer;
+		margin-top: 1rem;
+		transition: background-color 0.15s;
+	}
+	.review-btn:hover {
+		background-color: var(--dash-btn-primary-hover);
+	}
+	.route-info {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 0.75rem;
+		font-size: 0.75rem;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.route-path {
+		color: var(--dash-text-muted);
+	}
+	.route-tags {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+	.tag {
+		color: var(--dash-accent-green);
+		font-weight: 500;
+	}
+	.tag.native::before {
+		content: '';
+		display: inline-block;
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background-color: var(--dash-accent-green);
+		margin-right: 0.25rem;
+	}
+	.tag-separator {
+		color: var(--dash-text-muted);
+	}
+	.tag.nowrap {
+		color: var(--dash-text-muted);
 	}
 </style>

@@ -142,9 +142,8 @@
 <style lang="scss">
 	.root {
 		display: block;
-		min-width: min(300px, 100%);
-		flex-basis: 450px;
-		min-height: 360px;
+		min-width: min(280px, 100%);
+		min-height: 300px;
 	}
 	.root > :global(div) {
 		height: 100%;
@@ -156,9 +155,14 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
 	}
 	.header-row h5 {
-		color: var(--primary-text);
+		color: var(--dash-text-primary);
+		font-size: 0.95rem;
+		font-weight: 600;
+		margin: 0;
 	}
 	.title-area {
 		display: flex;
@@ -166,7 +170,7 @@
 		gap: 0.75rem;
 	}
 	.change-pill :global(.diff) {
-		font-size: var(--text-sm);
+		font-size: 0.8rem;
 	}
 	.lc-wrapper {
 		margin: 0 -0.5rem;

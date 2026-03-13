@@ -25,6 +25,8 @@
 		ChevronDown,
 		ChevronUp,
 		Search,
+		Send,
+		Wallet,
 		X
 	} from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -42,7 +44,7 @@
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { numberFormatLanguage } from '$lib/constants';
-	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
+	import { getHiveAssetName, getHbdAssetName, vscNetworkId } from '$lib/../client';
 	import {
 		fetchPoolDepths,
 		calculateSwap,
@@ -50,13 +52,22 @@
 		type PoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
+	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
+	import WaveLoading from '$lib/components/WaveLoading.svelte';
+	import { browser } from '$app/environment';
 
 	let {
 		editStage,
-		isActive = true
+		isActive = true,
+		status = { message: '', isError: false },
+		waiting = false,
+		abort = () => {}
 	}: {
 		editStage: (complete: boolean) => void;
 		isActive?: boolean;
+		status?: { message: string; isError: boolean };
+		waiting?: boolean;
+		abort?: () => void;
 	} = $props();
 
 	onMount(() => {
@@ -150,8 +161,56 @@
 
 	const auth = $derived(getAuth()());
 
+	// ── Destination state (from SwapDestination) ──
+	const DEST_NETWORK_KEY = 'swap-dest-network';
+	const isMainnet = vscNetworkId === 'vsc-mainnet';
+	const chainLabel = isMainnet ? 'Mainnet' : 'Testnet';
+
+	let destChoice: 'wallet' | 'address' = $state('wallet');
+	let destAddress = $state('');
+
+	function getStoredNetwork(): string {
+		if (!browser) return 'mainnet';
+		return localStorage.getItem(DEST_NETWORK_KEY) || 'mainnet';
+	}
+	let destNetworkChoice: string = $state(getStoredNetwork());
+
 	$effect(() => {
-		if (
+		if (browser) {
+			localStorage.setItem(DEST_NETWORK_KEY, destNetworkChoice);
+		}
+	});
+
+	// Update toNetwork based on destination choice
+	$effect(() => {
+		if (destChoice === 'wallet') {
+			if ($SendTxDetails.toNetwork?.value !== Network.magi.value) {
+				$SendTxDetails.toNetwork = Network.magi;
+			}
+		} else {
+			const net =
+				destNetworkChoice === 'magi'
+					? Network.magi
+					: ($SendTxDetails.toCoin?.networks?.find(
+							(n: Network) => n.value !== Network.magi.value
+						) ?? Network.hiveMainnet);
+			if ($SendTxDetails.toNetwork?.value !== net.value) {
+				$SendTxDetails.toNetwork = net;
+			}
+		}
+	});
+
+	// Update toUsername when sending to address
+	$effect(() => {
+		if (destChoice === 'address' && destAddress.trim()) {
+			$SendTxDetails.toUsername = destAddress.trim();
+		}
+	});
+
+	// ── Combined editStage: swap fields valid AND destination valid ──
+	let swapFieldsValid = $state(false);
+	$effect(() => {
+		const valid = !!(
 			$SendTxDetails.toNetwork &&
 			$SendTxDetails.toAmount &&
 			$SendTxDetails.toAmount !== '0' &&
@@ -160,9 +219,10 @@
 			$SendTxDetails.fromAmount &&
 			$SendTxDetails.fromAmount !== '0' &&
 			$SendTxDetails.fromCoin
-		) {
-			if (isActive) editStage(true);
-			untrack(() => {
+		);
+		swapFieldsValid = valid;
+		untrack(() => {
+			if (valid) {
 				getFee($SendTxDetails.toAmount).then((fee) => {
 					if (
 						fee?.amount !== $SendTxDetails.fee?.amount ||
@@ -170,10 +230,17 @@
 					)
 						$SendTxDetails.fee = fee;
 				});
-			});
-		} else {
-			if (isActive) editStage(false);
-		}
+			}
+		});
+	});
+
+	// Destination valid check
+	let destValid = $derived(destChoice === 'wallet' || !!destAddress.trim());
+
+	// Combined: enable button when swap fields valid, destination valid, not same coin, and has balance
+	$effect(() => {
+		if (!isActive) return;
+		editStage(swapFieldsValid && destValid && !sameCoinError && !insufficientBalance);
 	});
 
 	let { assetOptions, networkOptions } = $state<ReturnType<typeof solveNetworkConstraints>>({
@@ -201,21 +268,16 @@
 	$effect(() => {
 		// FROM auto selection
 		if (!($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork) && assetOptions.length > 0) {
-			const hiveOption = assetOptions.find(
-				(opt) => opt.coin.value === Coin.hive.value && !opt.disabled
+			const btcOption = assetOptions.find(
+				(opt) => opt.coin.value === Coin.btc.value && !opt.disabled
 			);
 			const firstAvailable = assetOptions.find((opt) => !opt.disabled);
-			const fromOpt = hiveOption ?? firstAvailable;
-			const fromNet = fromOpt
-				? Array.isArray(fromOpt.networks)
-					? fromOpt.networks[0]
-					: undefined
-				: undefined;
+			const fromOpt = btcOption ?? firstAvailable;
 			if (fromOpt)
 				SendTxDetails.update((d) => ({
 					...d,
 					fromCoin: fromOpt,
-					fromNetwork: fromNet
+					fromNetwork: Network.magi
 				}));
 		}
 
@@ -265,41 +327,24 @@
 		}
 	});
 
-	// Keep TO side as the opposite Hive asset:
-	// - From HIVE/TESTS -> To HBD/TBD
-	// - From HBD/TBD -> To HIVE/TESTS
-	$effect(() => {
-		const fromOpt = $SendTxDetails.fromCoin;
-		const fromNet = $SendTxDetails.fromNetwork;
-		if (!fromOpt || !fromNet) return;
+	// Same-coin error: show when from and to are the same asset
+	let sameCoinError = $derived(
+		$SendTxDetails.fromCoin && $SendTxDetails.toCoin
+			? $SendTxDetails.fromCoin.coin.value === $SendTxDetails.toCoin.coin.value
+			: false
+	);
 
-		let targetValue: string | undefined;
-		if (fromOpt.coin.value === Coin.hive.value) {
-			targetValue = Coin.hbd.value;
-		} else if (fromOpt.coin.value === Coin.hbd.value) {
-			targetValue = Coin.hive.value;
-		} else {
-			return;
-		}
-
-		const currentTo = $SendTxDetails.toCoin;
-		if (currentTo?.coin.value === targetValue) return;
-
-		const targetOpt = swapOptions.to.coins.find((opt) => opt.coin.value === targetValue);
-		if (!targetOpt) return;
-
-		let targetNet: Network | undefined = undefined;
-		if (fromNet && targetOpt.networks.some((n) => n.value === fromNet.value)) {
-			targetNet = fromNet;
-		} else if (Array.isArray(targetOpt.networks)) {
-			targetNet = targetOpt.networks[0];
-		}
-
-		SendTxDetails.update((d) => ({
-			...d,
-			toCoin: targetOpt,
-			toNetwork: targetNet
-		}));
+	// Insufficient balance: check if from amount exceeds available balance
+	let insufficientBalance = $derived.by(() => {
+		const from = $SendTxDetails.fromCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!from || !fromAmount || fromAmount === '0') return false;
+		const key = from.coin.value as keyof AccountBalance;
+		const bal = $accountBalance.bal?.[key];
+		if (bal == null || typeof bal !== 'number') return true;
+		const inputNum = new CoinAmount(fromAmount, from.coin).toNumber();
+		const balNum = new CoinAmount(bal, from.coin, true).toNumber();
+		return inputNum > balNum;
 	});
 
 	const fromAssetObjs: AssetObject[] = $derived([
@@ -307,8 +352,8 @@
 			...Coin.btc,
 			snippet: assetCard,
 			snippetData: {
-				fromOpt: { coin: Coin.btc, networks: [Network.lightning] },
-				net: Network.lightning,
+				fromOpt: { coin: Coin.btc, networks: [Network.magi] },
+				net: Network.magi,
 				size: 'medium'
 			}
 		},
@@ -463,10 +508,10 @@
 		});
 	});
 
-	// Max = Magi balance when from is hive/hbd so user can tap Max
+	// Max = Magi balance for the selected from coin (swap only allows Magi balance)
 	const maxAmount: CoinAmount<Coin> | undefined = $derived.by(() => {
 		const from = $SendTxDetails.fromCoin;
-		if (!from || $SendTxDetails.fromNetwork?.value !== Network.magi.value) return undefined;
+		if (!from) return undefined;
 		const key = from.coin.value as keyof AccountBalance;
 		const bal = $accountBalance.bal?.[key];
 		if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
@@ -485,13 +530,6 @@
 	let tokenSearch = $state('');
 
 	function openDialog(state: 'from' | 'to') {
-		// To is fixed when from is Hive/HBD (TESTS↔TBD); do not open To picker
-		if (
-			state === 'to' &&
-			($SendTxDetails.fromCoin?.coin.value === Coin.hive.value ||
-				$SendTxDetails.fromCoin?.coin.value === Coin.hbd.value)
-		)
-			return;
 		currentlyOpen = state;
 		dialogStep = 'tokens';
 		tokenSearch = '';
@@ -545,14 +583,11 @@
 		tempCoinOpt = coinOpt;
 
 		if (currentlyOpen === 'from') {
-			if (coinOpt.networks.length <= 1) {
-				confirmFromSelection(coinOpt, coinOpt.networks[0] ?? Network.magi);
-			} else {
-				dialogStep = 'source';
-			}
+			// Swap only allows Magi network — skip network selection step
+			confirmFromSelection(coinOpt, Network.magi);
 		} else {
-			// To selection: pick the first network (destination is chosen in the next step)
-			confirmToSelection(coinOpt, coinOpt.networks[0] ?? Network.magi);
+			// To selection: always use Magi network
+			confirmToSelection(coinOpt, Network.magi);
 		}
 	}
 
@@ -573,6 +608,8 @@
 				? getHbdAssetName()
 				: coin.label;
 	}
+
+	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? Coin.unk);
 </script>
 
 {#snippet percentArrow(percent: number)}
@@ -612,8 +649,14 @@
 			<!-- Step 2 (From): Where is your TOKEN? -->
 			<div class="dialog-content">
 				<div class="dialog-title-row">
-					<button class="dialog-back-btn" onclick={() => { dialogStep = 'tokens'; tempCoinOpt = undefined; }}>
-						<ArrowLeft size={18} /> Back
+					<button
+						class="dialog-back-btn"
+						onclick={() => {
+							dialogStep = 'tokens';
+							tempCoinOpt = undefined;
+						}}
+					>
+						<ArrowLeft size={18} />
 					</button>
 					<img src={tempCoinOpt.coin.icon} alt="" class="dialog-title-icon" />
 					<h5>Where is your {coinDisplayLabel(tempCoinOpt.coin)}?</h5>
@@ -624,11 +667,15 @@
 						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt!, net)}>
 							<img src={tempCoinOpt.coin.icon} alt="" class="network-card-icon" />
 							<div class="network-card-info">
-								<span class="network-card-name">{coinDisplayLabel(tempCoinOpt.coin)} on {net.label}</span>
+								<span class="network-card-name"
+									>{coinDisplayLabel(tempCoinOpt.coin)} on {net.label}</span
+								>
 								<span class="network-card-desc sm-caption">{getNetworkDescription(net.value)}</span>
 							</div>
 							<div class="network-card-balance">
-								<span class="balance-amount">{getNetworkBalance(tempCoinOpt.coin.value, net.value)}</span>
+								<span class="balance-amount"
+									>{getNetworkBalance(tempCoinOpt.coin.value, net.value)}</span
+								>
 								<span class="balance-label sm-caption">available</span>
 							</div>
 						</button>
@@ -639,252 +686,443 @@
 	{/snippet}
 </Dialog>
 
-<div class="quick-swap-card">
-	<h2 class="swap-title">Quick swap</h2>
-
-	<!-- From Section -->
-	<div class="swap-section">
-		<div class="section-header">
-			<span class="section-label">From</span>
-			<span class="section-info sm-caption">
-				{#if $SendTxDetails.fromCoin}
-					From {$SendTxDetails.fromCoin.networks.length} network{$SendTxDetails.fromCoin.networks.length !== 1 ? 's' : ''}
-					{#if $SendTxDetails.fromNetwork}
-						&middot; On {$SendTxDetails.fromNetwork.label}
-					{/if}
-				{/if}
-			</span>
-		</div>
-		<div class="section-input-row">
-			<div class="input-field">
-				<AmountInput bind:coinAmount={inputAmount} coinOpts={amountInputCoinOpts} {minAmount} maxAmount={maxAmount} />
-			</div>
-			<button class="token-selector-btn" onclick={() => openDialog('from')}>
-				{#if $SendTxDetails.fromCoin}
-					<img src={$SendTxDetails.fromCoin.coin.icon} alt={coinDisplayLabel($SendTxDetails.fromCoin.coin)} class="token-icon" />
-					<span class="token-name">{coinDisplayLabel($SendTxDetails.fromCoin.coin)}</span>
-				{:else}
-					<span class="token-name">Select</span>
-				{/if}
-				<ChevronDown size={14} />
-			</button>
-		</div>
-	</div>
-
-	<!-- Swap Toggle -->
-	<div class="swap-toggle-wrapper">
-		<button class="swap-toggle-btn" aria-label="Swap direction">
-			<ArrowUpDown size={18} />
-		</button>
-	</div>
-
-	<!-- To Section -->
-	<div class="swap-section">
-		<div class="section-header">
-			<span class="section-label">To</span>
-			<span class="section-info sm-caption">
-				{#if $SendTxDetails.toNetwork}
-					{$SendTxDetails.toNetwork.label}
-				{:else}
-					Select destination
-				{/if}
-			</span>
-		</div>
-		<div class="section-input-row">
-			<div class="to-amount-display">
-				{#if $SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'}
-					<span class="to-amount-value">{$SendTxDetails.toAmount}</span>
-				{:else}
-					<span class="to-amount-placeholder">&mdash;</span>
-				{/if}
-			</div>
-			{#if $SendTxDetails.fromCoin?.coin.value === Coin.hive.value || $SendTxDetails.fromCoin?.coin.value === Coin.hbd.value}
-				<!-- To is fixed (TESTS↔TBD); show token but not clickable -->
-				<div class="token-selector-btn fixed">
-					{#if $SendTxDetails.toCoin}
-						<img src={$SendTxDetails.toCoin.coin.icon} alt={coinDisplayLabel($SendTxDetails.toCoin.coin)} class="token-icon" />
-						<span class="token-name">{coinDisplayLabel($SendTxDetails.toCoin.coin)}</span>
-					{:else}
-						<span class="token-name">Select</span>
-					{/if}
-				</div>
-			{:else}
-				<button class="token-selector-btn" onclick={() => openDialog('to')}>
-					{#if $SendTxDetails.toCoin}
-						<img src={$SendTxDetails.toCoin.coin.icon} alt={coinDisplayLabel($SendTxDetails.toCoin.coin)} class="token-icon" />
-						<span class="token-name">{coinDisplayLabel($SendTxDetails.toCoin.coin)}</span>
-					{:else}
-						<span class="token-name">Select</span>
-					{/if}
-					<ChevronDown size={14} />
-				</button>
-			{/if}
-		</div>
-	</div>
-
-	<!-- Exchange Rate -->
-	{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
-		<div class="exchange-rate-row">
-			{new CoinAmount(1, $SendTxDetails.fromCoin.coin).toPrettyMinFigs()}
-			= {fromInTo}
-		</div>
-	{/if}
-
-	<!-- Fees Section (collapsible) -->
-	{#if swapResult && $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
-		{@const fromDec = $SendTxDetails.fromCoin.coin.decimalPlaces}
-		{@const toDec = $SendTxDetails.toCoin.coin.decimalPlaces}
-		{@const fromUnit = coinDisplayLabel($SendTxDetails.fromCoin.coin)}
-		{@const toUnit = coinDisplayLabel($SendTxDetails.toCoin.coin)}
-		<div class="swap-fees">
-			<!-- Always visible: slippage + toggle header -->
-			<div class="fees-header">
-				<span class="fee-label">Slippage Tolerance</span>
-				<div class="fees-header-right">
-					<div class="slippage-options">
-						{#each slippageOptions as bps}
-							<button
-								class={{ active: slippageBps === bps }}
-								onclick={() => { slippageBps = bps; }}
-							>
-								{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
-							</button>
-						{/each}
-					</div>
-					<button class="fees-toggle-btn" onclick={() => { feesExpanded = !feesExpanded; }} aria-label="Toggle fee details">
-						{#if feesExpanded}
-							<ChevronUp size={16} />
-						{:else}
-							<ChevronDown size={16} />
+<!-- ═══ Two-Column Layout ═══ -->
+<div class="swap-layout">
+	<!-- ── LEFT COLUMN: Swap Card ── -->
+	<div class="swap-col-left">
+		<div class="quick-swap-card">
+			<!-- From Section -->
+			<div class="swap-section">
+				<div class="section-header">
+					<span class="section-label">From</span>
+					<span class="section-info sm-caption">
+						{#if $SendTxDetails.fromCoin}
+							{#if $SendTxDetails.fromNetwork}
+								{$SendTxDetails.fromNetwork.label}
+							{/if}
+							{#if maxAmount}
+								&middot; Balance: {maxAmount.toPrettyAmountString()}
+								{coinDisplayLabel($SendTxDetails.fromCoin.coin)}
+							{/if}
 						{/if}
+					</span>
+				</div>
+				<div class="section-input-row">
+					<div class="input-field">
+						<AmountInput
+							bind:coinAmount={inputAmount}
+							coinOpts={amountInputCoinOpts}
+							{minAmount}
+							{maxAmount}
+							hideUnit
+						/>
+					</div>
+					<button class="token-selector-btn" onclick={() => openDialog('from')}>
+						{#if $SendTxDetails.fromCoin}
+							<img
+								src={$SendTxDetails.fromCoin.coin.icon}
+								alt={coinDisplayLabel($SendTxDetails.fromCoin.coin)}
+								class="token-icon"
+							/>
+							<span class="token-name">{coinDisplayLabel($SendTxDetails.fromCoin.coin)}</span>
+						{:else}
+							<span class="token-name">Select</span>
+						{/if}
+						<ChevronDown size={14} />
 					</button>
 				</div>
 			</div>
 
-			<!-- Expandable fee details -->
-			{#if feesExpanded}
-				<div class="fee-details">
-					<div class="fee-row">
-						<span class="fee-label">Expected Output</span>
-						<span class="fee-value">{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span>
+			<!-- Swap Toggle -->
+			<div class="swap-toggle-wrapper">
+				<button class="swap-toggle-btn" aria-label="Swap direction">
+					<ArrowUpDown size={18} />
+				</button>
+			</div>
+
+			<!-- To Section -->
+			<div class="swap-section">
+				<div class="section-header">
+					<span class="section-label">You Receive</span>
+					<span class="section-info sm-caption">
+						{#if $SendTxDetails.toNetwork}
+							{$SendTxDetails.toNetwork.label}
+						{:else}
+							Select destination
+						{/if}
+					</span>
+				</div>
+				<div class="section-input-row">
+					<div class="to-amount-display">
+						{#if $SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'}
+							<span class="to-amount-value">{$SendTxDetails.toAmount}</span>
+						{:else}
+							<span class="to-amount-placeholder">&mdash;</span>
+						{/if}
 					</div>
-					<div class="fee-row">
-						<span class="fee-label">Base Fee (0.08%)</span>
-						<span class="fee-value">{formatSmallUnits(swapResult.baseFee, fromDec)} {fromUnit}</span>
-					</div>
-					<div class="fee-row">
-						<span class="fee-label">CLP Fee</span>
-						<span class="fee-value">{formatSmallUnits(swapResult.clpFee, fromDec)} {fromUnit}</span>
-					</div>
-					<div class="fee-row highlight">
-						<span class="fee-label">Total Fee</span>
-						<span class="fee-value">{formatSmallUnits(swapResult.totalFee, fromDec)} {fromUnit}</span>
-					</div>
-					<div class="fee-row">
-						<span class="fee-label">Min. Amount Out</span>
-						<span class="fee-value">{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
-					</div>
+					<button class="token-selector-btn" onclick={() => openDialog('to')}>
+						{#if $SendTxDetails.toCoin}
+							<img
+								src={$SendTxDetails.toCoin.coin.icon}
+								alt={coinDisplayLabel($SendTxDetails.toCoin.coin)}
+								class="token-icon"
+							/>
+							<span class="token-name">{coinDisplayLabel($SendTxDetails.toCoin.coin)}</span>
+						{:else}
+							<span class="token-name">Select</span>
+						{/if}
+						<ChevronDown size={14} />
+					</button>
+				</div>
+			</div>
+
+			<!-- Route Info -->
+			{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
+				<div class="route-info">
+					<span class="route-path">
+						{coinDisplayLabel($SendTxDetails.fromCoin.coin)} &rarr; Magi &rarr; {coinDisplayLabel(
+							$SendTxDetails.toCoin.coin
+						)}
+					</span>
+					<span class="route-rate">
+						{new CoinAmount(1, $SendTxDetails.fromCoin.coin).toPrettyMinFigs()} = {fromInTo}
+					</span>
+					<span class="route-tags">
+						<span class="tag native">Native</span>
+						<span class="tag-sep">&middot;</span>
+						<span class="tag muted">No wrap</span>
+					</span>
+				</div>
+			{/if}
+
+			<!-- Same coin error -->
+			{#if sameCoinError}
+				<div class="same-coin-error">
+					<span class="error">Cannot swap the same asset. Please select a different token to receive.</span>
+				</div>
+			{/if}
+
+			<!-- Insufficient balance error -->
+			{#if insufficientBalance && !sameCoinError && $SendTxDetails.fromCoin}
+				<div class="same-coin-error">
+					<span class="error">Insufficient {coinDisplayLabel($SendTxDetails.fromCoin.coin)} balance. You don't have enough funds for this swap.</span>
 				</div>
 			{/if}
 		</div>
-	{/if}
-</div>
 
-<!-- Charts Section (below the card) -->
-<div class={['graphs', { hide: !$SendTxDetails.fromCoin && !$SendTxDetails.toCoin }]}>
-	<div style="grid-area: from">
-		{#if $SendTxDetails.fromCoin}
-			{@const coin = $SendTxDetails.fromCoin.coin}
-			<Card>
-				<div class="lc-wrapper">
-					<div class="lc-labels">
-						<div class="coin">
-							<img src={coin.icon} alt={coinDisplayLabel(coin)} />
-							<div class="label-network">
-								{coinDisplayLabel(coin)}
-								<span class="sm-caption">Native</span>
+		<!-- Charts Section -->
+		<div class={['graphs', { hide: !$SendTxDetails.fromCoin && !$SendTxDetails.toCoin }]}>
+			<div style="grid-area: from">
+				{#if $SendTxDetails.fromCoin}
+					{@const coin = $SendTxDetails.fromCoin.coin}
+					<Card>
+						<div class="lc-wrapper">
+							<div class="lc-labels">
+								<div class="coin">
+									<img src={coin.icon} alt={coinDisplayLabel(coin)} />
+									<div class="label-network">
+										{coinDisplayLabel(coin)}
+										<span class="sm-caption">Native</span>
+									</div>
+								</div>
+								<div class="amount-percent">
+									{#if hoveredFromPoint}
+										<p>
+											{`${formatGraphValue(hoveredFromPoint.value)} ${Coin.usd.unit}`}
+										</p>
+										<p>{moment(hoveredFromPoint.date).format('MMM DD, HH:mm')}</p>
+									{:else}
+										{fromInUsd}
+										{@render percentArrow(getPercentChange(fromData?.quotes))}
+									{/if}
+								</div>
 							</div>
+							<LineChart
+								data={fromData?.quotes ?? []}
+								height={120}
+								isLoading={!graphsLoaded.has(coin.value)}
+								styleType="trend"
+								bind:hoveredPoint={hoveredFromPoint}
+							/>
 						</div>
-						<div class="amount-percent">
-							{#if hoveredFromPoint}
-								<p>
-									{`${formatGraphValue(hoveredFromPoint.value)} ${Coin.usd.unit}`}
-								</p>
-								<p>{moment(hoveredFromPoint.date).format('MMM DD, HH:mm')}</p>
-							{:else}
-								{fromInUsd}
-								{@render percentArrow(getPercentChange(fromData?.quotes))}
-							{/if}
+					</Card>
+				{/if}
+			</div>
+
+			<div style="grid-area: to">
+				{#if $SendTxDetails.toCoin}
+					{@const coin = $SendTxDetails.toCoin.coin}
+					<Card>
+						<div class="lc-wrapper">
+							<div class="lc-labels">
+								<div class="coin">
+									<img src={coin.icon} alt={coinDisplayLabel(coin)} />
+									<div class="label-network">
+										{coinDisplayLabel(coin)}
+										<span class="sm-caption">Native</span>
+									</div>
+								</div>
+								<div class="amount-percent">
+									{#if hoveredToPoint}
+										<p>
+											{`${formatGraphValue(hoveredToPoint.value)} ${Coin.usd.unit}`}
+										</p>
+										<p>{moment(hoveredToPoint.date).format('MMM DD, HH:mm')}</p>
+									{:else}
+										{toInUsd}
+										{@render percentArrow(getPercentChange(toData?.quotes))}
+									{/if}
+								</div>
+							</div>
+							<LineChart
+								data={toData?.quotes ?? []}
+								height={120}
+								isLoading={!graphsLoaded.has(coin.value)}
+								styleType="trend"
+								bind:hoveredPoint={hoveredToPoint}
+							/>
 						</div>
-					</div>
-					<LineChart
-						data={fromData?.quotes ?? []}
-						height={150}
-						isLoading={!graphsLoaded.has(coin.value)}
-						styleType="trend"
-						bind:hoveredPoint={hoveredFromPoint}
-					/>
-				</div>
-			</Card>
-		{/if}
+					</Card>
+				{/if}
+			</div>
+		</div>
 	</div>
 
-	<div style="grid-area: to">
-		{#if $SendTxDetails.toCoin}
-			{@const coin = $SendTxDetails.toCoin.coin}
-			<Card>
-				<div class="lc-wrapper">
-					<div class="lc-labels">
-						<div class="coin">
-							<img src={coin.icon} alt={coinDisplayLabel(coin)} />
-							<div class="label-network">
-								{coinDisplayLabel(coin)}
-								<span class="sm-caption">Native</span>
-							</div>
+	<!-- ── RIGHT COLUMN: Deliver To + Charts ── -->
+	<div class="swap-col-right">
+		<!-- Deliver To Section -->
+		<div class="deliver-to-card">
+			<span class="deliver-label">DELIVER TO</span>
+
+			{#if $SendTxDetails.toCoin}
+				<div class="dest-header">
+					<CoinNetworkIcon
+						coin={toCoin}
+						network={$SendTxDetails.toNetwork ?? Network.magi}
+						size={28}
+					/>
+					<h3>Where should {coinDisplayLabel(toCoin)} go?</h3>
+				</div>
+			{/if}
+
+			<div class="dest-options">
+				<button
+					class="dest-card"
+					class:selected={destChoice === 'wallet'}
+					onclick={() => {
+						destChoice = 'wallet';
+					}}
+				>
+					<div class="dest-card-icon"><Wallet size={18} /></div>
+					<div class="dest-card-info">
+						<span class="dest-card-name"
+							>Keep in my {coinDisplayLabel(toCoin)} wallet (via Magi)</span
+						>
+						<span class="dest-card-desc sm-caption"
+							>Swap to yourself &middot; Asset stays in your connected wallet</span
+						>
+					</div>
+					<div class="dest-radio" class:checked={destChoice === 'wallet'}></div>
+				</button>
+
+				{#if destChoice === 'wallet'}
+					<div class="wallet-settle-info">
+						<span class="settle-dot"></span>
+						<span class="settle-text"
+							>{coinDisplayLabel(toCoin)} will settle natively in your {coinDisplayLabel(toCoin)} wallet
+							via Magi</span
+						>
+					</div>
+				{/if}
+
+				<button
+					class="dest-card"
+					class:selected={destChoice === 'address'}
+					onclick={() => {
+						destChoice = 'address';
+					}}
+				>
+					<div class="dest-card-icon"><Send size={18} /></div>
+					<div class="dest-card-info">
+						<span class="dest-card-name">Send to address</span>
+						<span class="dest-card-desc sm-caption"
+							>Enter a recipient address &middot; Choose Magi or mainnet settlement</span
+						>
+					</div>
+					<div class="dest-radio" class:checked={destChoice === 'address'}></div>
+				</button>
+			</div>
+
+			<!-- Address Section -->
+			<div class="dest-address-section" class:hidden={destChoice !== 'address'}>
+				<textarea
+					bind:value={destAddress}
+					placeholder="Paste Hive, BTC, EVM or DASH address..."
+					rows="2"
+					disabled={destChoice !== 'address'}
+				></textarea>
+				<div class="dest-network-row">
+					<span class="dest-network-label">Network</span>
+					<div class="dest-network-toggle">
+						<button
+							class:active={destNetworkChoice === 'magi'}
+							onclick={() => {
+								destNetworkChoice = 'magi';
+							}}>Magi Network</button
+						>
+						<button
+							class:active={destNetworkChoice === 'mainnet'}
+							onclick={() => {
+								destNetworkChoice = 'mainnet';
+							}}>{chainLabel}</button
+						>
+					</div>
+				</div>
+				<p class="dest-hint sm-caption">
+					{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi' ? 'Magi' : chainLabel} &mdash;
+					accepts Hive, BTC, EVM or DASH addresses
+				</p>
+			</div>
+		</div>
+		<!-- Fees Section (collapsible) -->
+		{#if swapResult && $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
+			{@const fromDec = $SendTxDetails.fromCoin.coin.decimalPlaces}
+			{@const toDec = $SendTxDetails.toCoin.coin.decimalPlaces}
+			{@const fromUnit = coinDisplayLabel($SendTxDetails.fromCoin.coin)}
+			{@const toUnit = coinDisplayLabel($SendTxDetails.toCoin.coin)}
+			<div class="swap-fees">
+				<!-- Always visible: slippage + toggle header -->
+				<div class="fees-header">
+					<span class="fee-label">Slippage Tolerance</span>
+					<div class="fees-header-right">
+						<div class="slippage-options">
+							{#each slippageOptions as bps}
+								<button
+									class={{ active: slippageBps === bps }}
+									onclick={() => {
+										slippageBps = bps;
+									}}
+								>
+									{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
+								</button>
+							{/each}
 						</div>
-						<div class="amount-percent">
-							{#if hoveredToPoint}
-								<p>
-									{`${formatGraphValue(hoveredToPoint.value)} ${Coin.usd.unit}`}
-								</p>
-								<p>{moment(hoveredToPoint.date).format('MMM DD, HH:mm')}</p>
+						<button
+							class="fees-toggle-btn"
+							onclick={() => {
+								feesExpanded = !feesExpanded;
+							}}
+							aria-label="Toggle fee details"
+						>
+							{#if feesExpanded}
+								<ChevronUp size={16} />
 							{:else}
-								{toInUsd}
-								{@render percentArrow(getPercentChange(toData?.quotes))}
+								<ChevronDown size={16} />
 							{/if}
+						</button>
+					</div>
+				</div>
+
+				<!-- Expandable fee details -->
+				{#if feesExpanded}
+					<div class="fee-details">
+						<div class="fee-row">
+							<span class="fee-label">Expected Output</span>
+							<span class="fee-value"
+								>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span
+							>
+						</div>
+						<div class="fee-row">
+							<span class="fee-label">Base Fee (0.08%)</span>
+							<span class="fee-value"
+								>{formatSmallUnits(swapResult.baseFee, fromDec)} {fromUnit}</span
+							>
+						</div>
+						<div class="fee-row">
+							<span class="fee-label">CLP Fee</span>
+							<span class="fee-value"
+								>{formatSmallUnits(swapResult.clpFee, fromDec)} {fromUnit}</span
+							>
+						</div>
+						<div class="fee-row highlight">
+							<span class="fee-label">Total Fee</span>
+							<span class="fee-value"
+								>{formatSmallUnits(swapResult.totalFee, fromDec)} {fromUnit}</span
+							>
+						</div>
+						<div class="fee-row">
+							<span class="fee-label">Min. Amount Out</span>
+							<span class="fee-value"
+								>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span
+							>
 						</div>
 					</div>
-					<LineChart
-						data={toData?.quotes ?? []}
-						height={150}
-						isLoading={!graphsLoaded.has(coin.value)}
-						styleType="trend"
-						bind:hoveredPoint={hoveredToPoint}
-					/>
-				</div>
-			</Card>
+				{/if}
+			</div>
 		{/if}
 	</div>
 </div>
+
+<!-- Status & Waiting Overlay -->
+{#if status.message}
+	<div class="status-wrapper">
+		<span class="sm-caption">Status</span>
+		<p class={{ status: !status.isError, error: status.isError }}>{status.message}</p>
+	</div>
+{/if}
+{#if waiting}
+	<div class="waiting-overlay">
+		<div class="waiting-card">
+			<WaveLoading size={32} />
+			<div class="info">
+				<p>Waiting for signature</p>
+				<span>
+					<PillButton onclick={() => abort()} theme="secondary" styleType="invert">
+						<X /> Cancel
+					</PillButton>
+				</span>
+				{#if auth.value?.provider === 'aioha'}
+					<p class="warning">
+						<b class="error">Warning:</b> Transaction may still occur if it is authorized later via your
+						hive wallet.
+					</p>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style lang="scss">
+	/* ═══ Two-Column Layout ═══ */
+	.swap-layout {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.5rem;
+		max-width: 72rem;
+		width: 100%;
+		margin: 0 auto;
+		padding: 1rem 1.5rem;
+		box-sizing: border-box;
+	}
+	.swap-col-left,
+	.swap-col-right {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		min-width: 0;
+	}
+
 	/* ── Quick Swap Card ── */
 	.quick-swap-card {
-		background-color: var(--swap-card-bg);
-		border: 1px solid var(--swap-card-border);
+		background-color: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
 		border-radius: 0.75rem;
-		padding: 1.25rem;
-		margin: 1.25rem;
+		padding: 1.5rem;
+		width: 100%;
+		box-sizing: border-box;
 		display: flex;
 		flex-direction: column;
 		gap: 0;
-		box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
-	}
-	.swap-title {
-		font-size: var(--text-2xl);
-		font-weight: 600;
-		margin: 0 0 1rem 0;
-		color: var(--neutral-fg);
 	}
 
 	/* ── Swap Section (From / To) ── */
@@ -892,6 +1130,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
+		background-color: var(--dash-swap-field-bg);
+		border: 1px solid var(--dash-input-border);
+		border-radius: 0.75rem;
+		padding: 1rem;
 	}
 	.section-header {
 		display: flex;
@@ -899,21 +1141,20 @@
 		align-items: baseline;
 	}
 	.section-label {
-		font-size: var(--text-sm);
-		color: var(--neutral-fg-mid);
-		font-weight: 500;
+		font-size: 0.8rem;
+		color: var(--dash-text-muted);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
 	}
 	.section-info {
 		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
 	}
 	.section-input-row {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		background-color: var(--swap-section-bg);
-		border: 1px solid var(--swap-input-border);
-		border-radius: 0.5rem;
-		padding: 0.25rem 0.25rem 0.25rem 0.5rem;
 		min-height: 3rem;
 	}
 	.input-field {
@@ -925,6 +1166,7 @@
 	}
 	.input-field :global(.normal-wrapper .amount-input) {
 		border: none;
+		background: transparent;
 	}
 	.input-field :global(.normal-wrapper .amount-input:has(input:focus-visible)) {
 		box-shadow: none;
@@ -944,10 +1186,10 @@
 		font-weight: 400;
 	}
 	.to-amount-value {
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 	}
 	.to-amount-placeholder {
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-3xl);
 	}
 
@@ -955,34 +1197,34 @@
 	.token-selector-btn {
 		display: flex;
 		align-items: center;
-		gap: 0.375rem;
-		padding: 0.375rem 0.625rem;
-		background-color: var(--swap-token-btn-bg);
-		border: 1px solid var(--swap-token-btn-border);
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		background-color: var(--dash-surface);
+		border: 1px solid var(--dash-card-border);
 		border-radius: 2rem;
 		cursor: pointer;
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 		font: inherit;
-		font-size: var(--text-sm);
-		font-weight: 500;
+		font-size: 0.9rem;
+		font-weight: 600;
 		white-space: nowrap;
 		transition: background-color 0.15s ease;
 		&:hover {
-			background-color: var(--neutral-bg-accent-shifted);
+			background-color: var(--dash-card-border);
 		}
 		&.fixed {
 			cursor: default;
 			&:hover {
-				background-color: var(--swap-token-btn-bg);
+				background-color: var(--dash-surface);
 			}
 		}
 		.token-icon {
-			width: 1.25rem;
-			height: 1.25rem;
+			width: 1.5rem;
+			height: 1.5rem;
 			border-radius: 50%;
 		}
 		.token-name {
-			font-weight: 500;
+			font-weight: 600;
 		}
 	}
 
@@ -990,32 +1232,84 @@
 	.swap-toggle-wrapper {
 		display: flex;
 		justify-content: center;
-		padding: 0.5rem 0;
+		padding: 0.375rem 0;
+		position: relative;
+		z-index: 1;
 	}
 	.swap-toggle-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		border-radius: 50%;
-		border: 1px solid var(--swap-card-border);
-		background-color: var(--swap-toggle-bg);
-		color: var(--neutral-fg-mid);
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 0.5rem;
+		border: 1px solid var(--dash-card-border);
+		background-color: var(--dash-card-bg);
+		color: var(--dash-text-secondary);
 		cursor: pointer;
-		transition: background-color 0.15s ease, color 0.15s ease;
+		transition:
+			background-color 0.15s ease,
+			color 0.15s ease;
 		&:hover {
-			background-color: var(--neutral-bg-accent-shifted);
-			color: var(--neutral-fg);
+			background-color: var(--dash-card-border);
+			color: var(--dash-text-primary);
 		}
 	}
 
-	/* ── Exchange Rate ── */
-	.exchange-rate-row {
-		text-align: center;
+	/* ── Same Coin Error ── */
+	.same-coin-error {
+		margin-top: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		border-radius: 0.5rem;
+		background-color: rgba(239, 68, 68, 0.08);
+		border: 1px solid rgba(239, 68, 68, 0.2);
+		.error {
+			color: var(--dash-accent-red);
+			font-size: var(--text-sm);
+			font-weight: 500;
+		}
+	}
+
+	/* ── Route Info ── */
+	.route-info {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.5rem;
 		padding: 0.75rem 0 0.25rem;
-		font-size: var(--text-sm);
-		color: var(--swap-rate-color);
+		font-size: 0.75rem;
+	}
+	.route-path {
+		color: var(--dash-text-muted);
+	}
+	.route-rate {
+		color: var(--dash-text-secondary);
+		font-family: 'Noto Sans Mono Variable', monospace;
+	}
+	.route-tags {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+	.tag.native {
+		color: var(--dash-accent-green);
+		font-weight: 500;
+		&::before {
+			content: '';
+			display: inline-block;
+			width: 6px;
+			height: 6px;
+			border-radius: 50%;
+			background-color: var(--dash-accent-green);
+			margin-right: 0.25rem;
+		}
+	}
+	.tag-sep {
+		color: var(--dash-text-muted);
+	}
+	.tag.muted {
+		color: var(--dash-text-muted);
 	}
 
 	/* ── Fees Section (collapsible) ── */
@@ -1023,9 +1317,9 @@
 		margin-top: 0.75rem;
 		display: flex;
 		flex-direction: column;
-		border: 1px solid var(--swap-fee-border);
-		border-radius: 0.5rem;
-		background-color: var(--swap-fee-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 0.75rem;
+		background-color: var(--dash-surface);
 		overflow: hidden;
 	}
 	.fees-header {
@@ -1033,7 +1327,7 @@
 		justify-content: space-between;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 0.625rem 0.75rem;
+		padding: 0.75rem 1rem;
 	}
 	.fees-header-right {
 		display: flex;
@@ -1046,23 +1340,25 @@
 		justify-content: center;
 		background: none;
 		border: none;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		cursor: pointer;
 		padding: 0.25rem;
 		border-radius: 0.25rem;
-		transition: color 0.15s ease, background-color 0.15s ease;
+		transition:
+			color 0.15s ease,
+			background-color 0.15s ease;
 		&:hover {
-			color: var(--neutral-fg);
-			background-color: var(--swap-toggle-bg);
+			color: var(--dash-text-primary);
+			background-color: var(--dash-card-border);
 		}
 	}
 	.fee-details {
 		display: flex;
 		flex-direction: column;
 		gap: 0.375rem;
-		padding: 0 0.75rem 0.75rem;
-		border-top: 1px solid var(--swap-fee-border);
-		padding-top: 0.625rem;
+		padding: 0 1rem 0.75rem;
+		border-top: 1px solid var(--dash-card-border);
+		padding-top: 0.75rem;
 	}
 	.fee-row {
 		display: flex;
@@ -1072,41 +1368,245 @@
 		&.highlight {
 			padding-top: 0.375rem;
 			margin-top: 0.125rem;
-			border-top: 1px solid var(--swap-fee-border);
+			border-top: 1px solid var(--dash-card-border);
 			font-weight: 500;
 		}
 	}
 	.fee-label {
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
 	}
 	.fee-value {
 		font-family: 'Noto Sans Mono Variable', monospace;
 		font-weight: 400;
 		font-size: var(--text-sm);
+		color: var(--dash-text-primary);
 	}
 	.slippage-options {
 		display: flex;
 		gap: 0.25rem;
 		button {
 			padding: 0.25rem 0.5rem;
-			border: 1px solid var(--swap-fee-border);
+			border: 1px solid var(--dash-card-border);
 			border-radius: 0.5rem;
 			background: transparent;
-			color: var(--neutral-fg);
+			color: var(--dash-text-secondary);
 			cursor: pointer;
 			font-size: var(--text-xs);
 			font-weight: 500;
-			transition: background-color 0.15s ease, border-color 0.15s ease;
+			transition:
+				background-color 0.15s ease,
+				border-color 0.15s ease;
 			&.active {
-				background-color: var(--primary-bg);
-				color: var(--primary-fg);
-				border-color: var(--primary-bg);
+				background-color: var(--dash-accent-purple);
+				color: var(--dash-text-primary);
+				border-color: var(--dash-accent-purple);
 			}
 			&:hover:not(.active) {
-				background-color: var(--neutral-bg-accent-shifted);
+				background-color: var(--dash-card-border);
 			}
 		}
+	}
+
+	/* ═══ Right Column: Deliver To ═══ */
+	.deliver-to-card {
+		background-color: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 0.75rem;
+		padding: 1.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+	.deliver-label {
+		color: var(--dash-text-muted);
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+	.dest-header {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		flex-wrap: wrap;
+		h3 {
+			margin: 0;
+			font-size: var(--text-xl);
+			font-weight: 600;
+			color: var(--dash-text-primary);
+		}
+	}
+
+	/* ── Destination Options ── */
+	.dest-options {
+		display: flex;
+		flex-direction: column;
+		gap: 0.625rem;
+	}
+	.dest-card {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		padding: 0.875rem 1rem;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 0.75rem;
+		background-color: var(--dash-swap-field-bg);
+		cursor: pointer;
+		color: var(--dash-text-primary);
+		font: inherit;
+		text-align: left;
+		transition:
+			border-color 0.15s ease,
+			background-color 0.15s ease;
+		&.selected {
+			border-color: var(--dash-accent-purple);
+			background-color: var(--dash-card-bg);
+		}
+		&:hover:not(.selected) {
+			border-color: var(--dash-card-border);
+			background-color: var(--dash-surface);
+		}
+		.dest-card-icon {
+			width: 2rem;
+			height: 2rem;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 0.5rem;
+			background-color: var(--dash-surface);
+			flex-shrink: 0;
+			color: var(--dash-text-secondary);
+		}
+		.dest-card-info {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			gap: 0.125rem;
+			min-width: 0;
+		}
+		.dest-card-name {
+			font-weight: 600;
+			font-size: 0.875rem;
+		}
+		.dest-card-desc {
+			color: var(--dash-text-muted);
+		}
+	}
+	.dest-radio {
+		width: 1.125rem;
+		height: 1.125rem;
+		border: 2px solid var(--dash-card-border);
+		border-radius: 50%;
+		flex-shrink: 0;
+		position: relative;
+		transition: border-color 0.15s ease;
+		&.checked {
+			border-color: var(--dash-accent-purple);
+			&::after {
+				content: '';
+				position: absolute;
+				top: 3px;
+				left: 3px;
+				width: calc(100% - 6px);
+				height: calc(100% - 6px);
+				border-radius: 50%;
+				background-color: var(--dash-accent-purple);
+			}
+		}
+	}
+	.wallet-settle-info {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 0.875rem;
+		background-color: rgba(108, 92, 231, 0.08);
+		border: 1px solid rgba(108, 92, 231, 0.2);
+		border-radius: 0.5rem;
+		margin-top: -0.25rem;
+	}
+	.settle-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background-color: var(--dash-accent-green);
+		flex-shrink: 0;
+	}
+	.settle-text {
+		color: var(--dash-accent-green);
+		font-size: 0.75rem;
+		font-family: 'Noto Sans Mono Variable', monospace;
+	}
+
+	/* ── Address Section ── */
+	.dest-address-section {
+		display: flex;
+		flex-direction: column;
+		gap: 0.625rem;
+		transition: opacity 0.15s ease;
+		&.hidden {
+			opacity: 0;
+			pointer-events: none;
+			max-height: 0;
+			overflow: hidden;
+			margin: 0;
+			gap: 0;
+		}
+		textarea {
+			width: 100%;
+			box-sizing: border-box;
+			padding: 0.625rem;
+			border: 1px solid var(--dash-input-border);
+			border-radius: 0.5rem;
+			background-color: var(--dash-swap-field-bg);
+			color: var(--dash-text-primary);
+			font: inherit;
+			font-size: var(--text-sm);
+			resize: none;
+			&::placeholder {
+				color: var(--dash-text-muted);
+			}
+		}
+	}
+	.dest-network-row {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+	}
+	.dest-network-label {
+		font-size: var(--text-sm);
+		color: var(--dash-text-muted);
+	}
+	.dest-network-toggle {
+		display: flex;
+		gap: 0;
+		border: 1px solid var(--dash-input-border);
+		border-radius: 0.5rem;
+		overflow: hidden;
+		button {
+			flex: 1;
+			padding: 0.5rem 0.75rem;
+			border: none;
+			background: transparent;
+			color: var(--dash-text-muted);
+			font: inherit;
+			font-size: var(--text-sm);
+			cursor: pointer;
+			transition:
+				background-color 0.15s ease,
+				color 0.15s ease;
+			&.active {
+				background-color: var(--dash-accent-purple);
+				color: var(--dash-text-primary);
+			}
+			&:not(.active):hover {
+				background-color: var(--dash-surface);
+			}
+		}
+	}
+	.dest-hint {
+		margin: 0;
+		color: var(--dash-text-muted);
 	}
 
 	/* ── Charts Section ── */
@@ -1118,8 +1618,9 @@
 		grid-template-columns: 1fr 1fr;
 		grid-template-rows: auto;
 		grid-template-areas: 'from to';
-		gap: 1.5rem;
-		margin-top: 1.5rem;
+		gap: 1rem;
+		width: 100%;
+		box-sizing: border-box;
 		.lc-wrapper {
 			height: 100%;
 			box-sizing: border-box;
@@ -1133,20 +1634,24 @@
 					align-items: center;
 					gap: 0.5rem;
 					img {
-						width: 2rem;
-						height: 2rem;
+						width: 1.75rem;
+						height: 1.75rem;
 					}
 					.label-network {
 						display: flex;
 						flex-direction: column;
-						gap: 0.25rem;
+						gap: 0.125rem;
+						color: var(--dash-text-primary);
+						font-size: 0.85rem;
 					}
 				}
 				.amount-percent {
 					display: flex;
 					flex-direction: column;
 					align-items: flex-end;
-					gap: 0.25rem;
+					gap: 0.125rem;
+					color: var(--dash-text-primary);
+					font-size: 0.85rem;
 				}
 			}
 		}
@@ -1158,10 +1663,10 @@
 			width: fit-content;
 		}
 		.up {
-			color: var(--quaternary-mid);
+			color: var(--dash-accent-green);
 		}
 		.down {
-			color: var(--secondary-fg-mid);
+			color: var(--dash-accent-red);
 		}
 	}
 
@@ -1176,7 +1681,7 @@
 			margin: 0;
 			font-size: var(--text-3xl);
 			font-weight: 600;
-			color: var(--neutral-fg);
+			color: var(--dash-text-primary);
 		}
 	}
 	.dialog-close-btn {
@@ -1185,13 +1690,13 @@
 		justify-content: center;
 		background: none;
 		border: none;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		cursor: pointer;
 		padding: 0.25rem;
 		border-radius: 50%;
 		transition: color 0.15s ease;
 		&:hover {
-			color: var(--neutral-fg);
+			color: var(--dash-text-primary);
 		}
 	}
 	.dialog-back-btn {
@@ -1200,14 +1705,14 @@
 		gap: 0.25rem;
 		background: none;
 		border: none;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		cursor: pointer;
 		font: inherit;
 		font-size: var(--text-sm);
 		padding: 0.25rem 0.5rem 0.25rem 0;
 		transition: color 0.15s ease;
 		&:hover {
-			color: var(--neutral-fg);
+			color: var(--dash-text-primary);
 		}
 	}
 	.dialog-title-icon {
@@ -1223,21 +1728,21 @@
 			left: 0.75rem;
 			top: 50%;
 			transform: translateY(-50%);
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 			pointer-events: none;
 		}
 		input {
 			width: 100%;
 			box-sizing: border-box;
 			padding: 0.625rem 0.75rem 0.625rem 2.25rem;
-			border: 1px solid var(--swap-input-border);
+			border: 1px solid var(--dash-input-border);
 			border-radius: 0.5rem;
-			background-color: var(--swap-section-bg);
-			color: var(--neutral-fg);
+			background-color: var(--dash-swap-field-bg);
+			color: var(--dash-text-primary);
 			font: inherit;
 			font-size: var(--text-sm);
 			&::placeholder {
-				color: var(--neutral-fg-mid);
+				color: var(--dash-text-muted);
 			}
 		}
 	}
@@ -1250,19 +1755,21 @@
 		display: flex;
 		align-items: center;
 		gap: 0.375rem;
-		padding: 0.375rem 0.75rem;
-		border: 1px solid var(--swap-token-btn-border);
+		padding: 0.5rem 0.875rem;
+		border: 1px solid var(--dash-card-border);
 		border-radius: 2rem;
-		background-color: var(--swap-token-btn-bg);
-		color: var(--neutral-fg);
+		background-color: var(--dash-surface);
+		color: var(--dash-text-primary);
 		font: inherit;
 		font-size: var(--text-sm);
 		font-weight: 500;
 		cursor: pointer;
-		transition: background-color 0.15s ease, border-color 0.15s ease;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease;
 		&:hover {
-			background-color: var(--neutral-bg-accent-shifted);
-			border-color: var(--neutral-bg-accent-shifted);
+			background-color: var(--dash-card-border);
+			border-color: var(--dash-accent-purple);
 		}
 		.chip-icon {
 			width: 1.25rem;
@@ -1282,17 +1789,19 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 1rem;
-		border: 1px solid var(--swap-card-border);
+		border: 1px solid var(--dash-card-border);
 		border-radius: 0.75rem;
-		background-color: var(--swap-section-bg);
+		background-color: var(--dash-swap-field-bg);
 		cursor: pointer;
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 		font: inherit;
 		text-align: left;
-		transition: border-color 0.15s ease, background-color 0.15s ease;
+		transition:
+			border-color 0.15s ease,
+			background-color 0.15s ease;
 		&:hover {
-			border-color: var(--primary-bg);
-			background-color: var(--swap-card-bg);
+			border-color: var(--dash-accent-purple);
+			background-color: var(--dash-card-bg);
 		}
 		.network-card-icon {
 			width: 2.25rem;
@@ -1323,14 +1832,93 @@
 		}
 	}
 
-	/* ── Responsive ── */
-	@media screen and (max-width: 450px) {
+	/* ── Status & Waiting ── */
+	.status-wrapper {
+		max-width: 72rem;
+		margin: 1rem auto 0;
+		padding: 0 1.5rem;
+		display: flex;
+		flex-direction: column;
+		line-height: 1.2;
+	}
+	.waiting-overlay {
+		position: fixed;
+		width: 100vw;
+		height: 100vh;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50dvw, -50dvh);
+		display: flex;
+		justify-content: center;
+		background-color: rgba(10, 10, 18, 0.6);
+		backdrop-filter: blur(4px);
+		pointer-events: none;
+		z-index: 1;
+		.waiting-card {
+			margin-top: 25%;
+			font-weight: 500;
+			padding: 1.5rem;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			pointer-events: all;
+			background-color: var(--dash-card-bg);
+			border: 1px solid var(--dash-card-border);
+			border-radius: 0.75rem;
+			height: min-content;
+			color: var(--dash-text-primary);
+			.info {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 0.5rem;
+				.warning {
+					max-width: 20rem;
+					text-align: center;
+				}
+			}
+		}
+	}
+
+	/* ── Responsive: Stack on smaller screens ── */
+	@media screen and (max-width: 56rem) {
+		.swap-layout {
+			grid-template-columns: 1fr;
+			padding: 1rem;
+		}
+		.graphs {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+	@media screen and (max-width: 36rem) {
+		.swap-layout {
+			padding: 0.5rem;
+		}
 		.quick-swap-card {
 			padding: 1rem;
+		}
+		.deliver-to-card {
+			padding: 1rem;
+		}
+		.dest-header h3 {
+			font-size: var(--text-lg);
+		}
+		.dest-card {
+			padding: 0.75rem;
+			gap: 0.5rem;
+		}
+		.dest-network-toggle button {
+			padding: 0.375rem 0.5rem;
+			font-size: var(--text-xs);
 		}
 		.graphs {
 			display: flex;
 			flex-direction: column;
+		}
+		.waiting-overlay .waiting-card {
+			margin-top: 15%;
+			margin-left: 1rem;
+			margin-right: 1rem;
 		}
 	}
 </style>

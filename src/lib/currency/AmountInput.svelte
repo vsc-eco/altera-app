@@ -18,6 +18,7 @@
 		maxAmount,
 		minAmount,
 		styleType = 'normal',
+		hideUnit = false,
 		id = $bindable('')
 	}: {
 		coinAmount: CoinAmount<Coin>;
@@ -27,6 +28,7 @@
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
 		styleType?: 'normal' | 'big';
+		hideUnit?: boolean;
 		id?: string;
 	} = $props();
 
@@ -290,24 +292,26 @@
 					<PillButton type="button" onclick={setToMax}>Max</PillButton>
 				</div>
 			{/if}
-			<hr />
-			{#if coinOpts.length > 1}
-				<Select
-					items={selectionItems}
-					initial={selected.coin.value}
-					onValueChange={(v) => {
-						if (v.items[0] === undefined) return;
-						if (v.items[0].value === Coin.unk.value) return;
-						if (selected.coin.value !== v.items[0].value) {
-							selected = v.items[0];
-							updateAmount(selected.coin);
-						}
-					}}
-				/>
-			{:else}
-				<div class="coin-label">
-					{displayLabel}
-				</div>
+			{#if !hideUnit}
+				<hr />
+				{#if coinOpts.length > 1}
+					<Select
+						items={selectionItems}
+						initial={selected.coin.value}
+						onValueChange={(v) => {
+							if (v.items[0] === undefined) return;
+							if (v.items[0].value === Coin.unk.value) return;
+							if (selected.coin.value !== v.items[0].value) {
+								selected = v.items[0];
+								updateAmount(selected.coin);
+							}
+						}}
+					/>
+				{:else}
+					<div class="coin-label">
+						{displayLabel}
+					</div>
+				{/if}
 			{/if}
 		</div>
 		<span class={['bottom-info', { hidden: !(showUsd || error) }]}>
@@ -369,6 +373,7 @@
 			border-radius: 0.5rem;
 			display: flex;
 			align-items: center;
+			gap: 0.5rem;
 			flex-basis: 1;
 			box-sizing: border-box;
 			&:has(:global(input):focus-visible) {

@@ -60,9 +60,9 @@
 		overflow: hidden;
 	}
 	.up {
-		color: var(--quaternary-mid);
+		color: var(--positive-text);
 	}
 	.down {
-		color: var(--secondary-fg-mid);
+		color: var(--negative-text);
 	}
 </style>

@@ -52,7 +52,9 @@
 <div class="box">
 	<div class="title-and-tooltip">
 		<h5>Balances</h5>
-		<InfoToolip>Only balance deposited in Magi is listed.</InfoToolip>
+		<div class="title-right">
+			<a href="" class="see-all">See all</a>
+		</div>
 	</div>
 
 	<table>
@@ -65,7 +67,7 @@
 				>
 			</tr>
 			<tr>
-				<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
+				<th> </th><td class="icon-cell"><img src={Coin.hbd.icon} alt="" /></td>
 				<td class="coin-cell">
 					<span class="coin-name">Liquid {hbdAssetName} Savings (s{hbdAssetName})</span>
 					<span class="tooltip">
@@ -120,11 +122,12 @@
 					>
 				</tr>
 			{/if}
-			<!-- TODO: always show once btc is live -->
 			{#if $accountBalance.bal.btc !== 0}
 				<tr>
-					<th> </th><td><img src={Coin.btc.icon} alt="Bitcoin" /></td>
-					<td class="coin-cell">Bitcoin</td>
+					<th> </th><td class="icon-cell"><img src={Coin.btc.icon} alt="Bitcoin" /></td>
+					<td class="coin-cell">
+						<span class="coin-title">Bitcoin</span>
+					</td>
 					<td class="amount-cell"
 						>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</td
 					>
@@ -145,6 +148,22 @@
 		align-items: center;
 		justify-content: space-between;
 	}
+	.title-and-tooltip h5 {
+		color: var(--primary-text);
+	}
+	.title-right {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.see-all {
+		color: var(--primary-fg-mid);
+		font-size: var(--text-sm);
+		text-decoration: none;
+	}
+	.see-all:hover {
+		text-decoration: underline;
+	}
 	img {
 		width: 1.25rem;
 		height: 1.25rem;
@@ -153,6 +172,9 @@
 		width: fit-content;
 		white-space: nowrap;
 		vertical-align: middle;
+	}
+	.icon-cell {
+		flex-shrink: 0;
 	}
 	table {
 		width: 100%;
@@ -168,28 +190,40 @@
 	}
 	.coin-cell {
 		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
 		padding-left: 0.5rem;
-		align-items: center;
 		font-weight: 500;
-		.coin-name {
-			display: flex;
-			flex: 0 1 auto;
-			text-align: left;
-			overflow-wrap: break-word;
-			white-space: normal;
-		}
 		min-width: 120px;
+		flex: 1 1 auto;
+		.coin-title-row {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.25rem;
+		}
+		.coin-title {
+			font-weight: 600;
+			line-height: 1.25;
+		}
+		.coin-subtle {
+			font-size: var(--text-xs);
+			color: var(--neutral-fg-mid);
+			font-weight: 400;
+			line-height: 1.2;
+			margin-top: 0.125rem;
+		}
 		.tooltip {
-			padding: 0 0.25rem;
-			flex-grow: 1;
+			display: inline-flex;
+			vertical-align: middle;
 		}
 	}
 	.amount-cell {
 		font-family: 'Noto Sans Mono Variable', monospace;
 		font-weight: 400;
 		margin-left: auto;
-		align-self: right;
+		align-self: center;
 		text-align: right;
+		flex-shrink: 0;
 	}
 	tr:last-child {
 		border-bottom: none;

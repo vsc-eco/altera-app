@@ -1,12 +1,15 @@
 <script lang="ts">
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
-	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
-	import Avatar from '$lib/zag/Avatar.svelte';
 	import { NotebookPen } from '@lucide/svelte';
 	import StatusBadge from '../StatusBadge.svelte';
 
+	const TRUNCATE_AT = 15;
+
 	let isHovered = $state(false);
 	let { address, status }: { address: string; status?: string } = $props();
+
+	const isLong = $derived(address.length > TRUNCATE_AT);
+	const displayText = $derived(isLong ? address.slice(0, TRUNCATE_AT) + '…' : address);
 </script>
 
 <td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
@@ -14,8 +17,10 @@
 		<span class="pfp">
 			<NotebookPen size="24" />
 		</span>
-		<span class="contract-address">
-			<BasicCopy value={address} show={isHovered} />
+		<span class="contract-address" class:small={isLong}>
+			<BasicCopy value={address} show={isHovered}>
+				{displayText}
+			</BasicCopy>
 		</span>
 		{#if status && status != 'CONFIRMED'}
 			<span class="status">
@@ -61,5 +66,8 @@
 	.to-from > .contract-address,
 	.contract-address {
 		grid-area: toFrom;
+	}
+	.contract-address.small {
+		font-size: 0.75rem;
 	}
 </style>

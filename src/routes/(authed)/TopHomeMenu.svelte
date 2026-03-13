@@ -1,83 +1,16 @@
 <script lang="ts">
-	import type { SharedProps } from '$lib/PillButton.svelte';
 	import PillBtn from '$lib/PillButton.svelte';
-	import StakePopup from '$lib/magiTransactions/hive/vscOperations/StakePopup.svelte';
-	import { Component, LockKeyhole, Send } from '@lucide/svelte';
-	import { BanknoteArrowUp, BanknoteArrowDown } from '@lucide/svelte';
 	import { actions, type NavigationAction } from '../quickActions';
 	import type { Auth } from '$lib/auth/store';
-	import QuickSend from '$lib/sendswap/QuickSend.svelte';
-	import { blankDetails, getTxSessionId, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
-	import Deposit from '$lib/sendswap/Deposit.svelte';
-	import Withdraw from '$lib/sendswap/Withdraw.svelte';
 	let { auth }: { auth: Auth } = $props();
-	type PopupAction = {
-		type: 'popup';
-		label: string;
-		onclick: () => void;
-		icon: typeof Component;
-		styling?: SharedProps;
-	};
-	let stakeOpen = $state(false);
-	let toggleStake = $state((open?: boolean) => {
-		stakeOpen = open !== undefined ? open : !stakeOpen;
-	});
-	let quickSendOpen = $state(false);
-	let sendSessionId = $state(getTxSessionId());
-	let depositSessionId = $state(getTxSessionId());
-	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
-	let depositOpen = $state(false);
-	let toggleDeposit = $state<(open?: boolean) => void>(() => {});
-	let withdrawOpen = $state(false);
-	let withdrawSessionId = $state(getTxSessionId());
-	let toggleWithdraw = $state<(open?: boolean) => void>(() => {});
-	const menuActions: (NavigationAction | PopupAction)[] = [
-		{
-			type: 'popup',
-			label: 'Quick Send',
-			onclick: () => {
-				sendSessionId = getTxSessionId();
-				toggleQuickSend(true);
-			},
-			icon: Send,
-			styling: {
-				theme: 'primary',
-				styleType: 'invert'
-			}
-		},
-		{
-			type: 'popup',
-			label: 'Deposit',
-			onclick: () => {
-				depositSessionId = getTxSessionId();
-				toggleDeposit(true);
-			},
-			icon: BanknoteArrowUp
-		},
-		{
-			type: 'popup',
-			label: 'Withdraw',
-			onclick: () => {
-				withdrawSessionId = getTxSessionId();
-				toggleWithdraw(true);
-			},
-			icon: BanknoteArrowDown
-		},
-		...actions.filter((action) => action.label === 'Swap'),
-		{
-			type: 'popup',
-			label: 'Staking',
-			onclick: () => toggleStake(true),
-			icon: LockKeyhole
-		}
-	];
+	const menuActions: NavigationAction[] = [];
 </script>
 
 <div class="action-bar" tabindex="-1">
 	{#each menuActions as action}
 		<PillBtn
-			{...'styling' in action ? action.styling : {}}
-			{...'href' in action ? { href: action.href } : { onclick: action.onclick }}
+			{...(action.styling ?? {})}
+			href={action.href}
 		>
 			{@const Icon = action.icon}
 			<Icon />
@@ -85,19 +18,6 @@
 		</PillBtn>
 	{/each}
 </div>
-
-<StakePopup {auth} bind:dialogOpen={stakeOpen} bind:toggle={toggleStake} />
-<QuickSend
-	bind:dialogOpen={quickSendOpen}
-	bind:toggle={toggleQuickSend}
-	sessionId={sendSessionId}
-/>
-<Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
-<Withdraw
-	bind:dialogOpen={withdrawOpen}
-	bind:toggle={toggleWithdraw}
-	sessionId={withdrawSessionId}
-/>
 
 <style>
 	.action-bar {

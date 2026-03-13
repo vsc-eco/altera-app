@@ -146,6 +146,18 @@
 				background-color: var(--bg-accent);
 				color: var(--fg);
 			}
+			&.primary {
+				border-color: var(--primary-mid);
+				color: var(--primary-text);
+				&:hover {
+					background-color: var(--primary-bg-accent);
+					color: var(--primary-text);
+				}
+				&:active {
+					background-color: var(--primary-bg-accent-shifted);
+					color: var(--primary-text);
+				}
+			}
 		}
 		&.icon {
 			padding: 0.125rem;

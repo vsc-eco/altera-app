@@ -11,7 +11,6 @@
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Complete from '$lib/sendswap/stages/Complete.svelte';
 	import TransferOptions from './stages/TransferOptions.svelte';
-	import SwapDestination from '$lib/sendswap/stages/SwapDestination.svelte';
 	import ReviewTransfer from './stages/ReviewTransfer.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 
@@ -20,15 +19,15 @@
 	const auth = $derived(getAuth()());
 	function startDetails(): SendDetails {
 		if (txType === 'swap') {
-			const hiveOpt = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
-			const hbdOpt = swapOptions.from.coins.find((c) => c.coin.value === Coin.hbd.value);
+			const btcOpt = swapOptions.from.coins.find((c) => c.coin.value === Coin.btc.value);
+			const hiveToOpt = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
 			return {
 				...blankDetails(),
 				toNetwork: Network.magi,
 				method: TransferMethod.lightningTransfer,
-				fromCoin: hiveOpt,
+				fromCoin: btcOpt,
 				fromNetwork: Network.magi,
-				toCoin: hbdOpt
+				toCoin: hiveToOpt
 			};
 		} else {
 			const balOpt = scanForBalance(
@@ -62,8 +61,7 @@
 	const stepsData: MixedStepsArray = $derived(
 		txType === 'swap'
 			? [
-					{ value: 'options', component: SwapOptions },
-					{ value: 'review', component: SwapDestination },
+					{ value: 'review', component: SwapOptions },
 					{ value: 'complete', component: Complete }
 				]
 			: [

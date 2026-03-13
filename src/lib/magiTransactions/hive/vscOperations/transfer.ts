@@ -1,7 +1,7 @@
 import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import { json } from '@sveltejs/kit';
+import { vscNetworkId } from '../../../../client';
 /**
  *
  * @param from Ex. "vaultec"

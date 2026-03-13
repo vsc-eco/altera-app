@@ -160,17 +160,17 @@ body {
 	color: var(--neutral-fg);
 
 	/* Swap card global variables */
-	--swap-card-bg: var(--neutral-off-bg);
-	--swap-card-border: var(--neutral-bg-accent-shifted);
-	--swap-input-bg: var(--neutral-bg);
-	--swap-input-border: var(--neutral-bg-accent-shifted);
-	--swap-toggle-bg: var(--neutral-bg-accent);
-	--swap-token-btn-bg: var(--neutral-bg-accent);
-	--swap-token-btn-border: var(--neutral-bg-accent-shifted);
-	--swap-section-bg: var(--neutral-bg);
-	--swap-fee-bg: var(--neutral-off-bg);
-	--swap-fee-border: var(--neutral-bg-accent);
-	--swap-rate-color: var(--neutral-fg-mid);
+	--swap-card-bg: var(--dash-card-bg);
+	--swap-card-border: var(--dash-card-border);
+	--swap-input-bg: var(--dash-input-bg);
+	--swap-input-border: var(--dash-input-border);
+	--swap-toggle-bg: var(--dash-surface);
+	--swap-token-btn-bg: var(--dash-surface);
+	--swap-token-btn-border: var(--dash-card-border);
+	--swap-section-bg: var(--dash-swap-field-bg);
+	--swap-fee-bg: var(--dash-surface);
+	--swap-fee-border: var(--dash-card-border);
+	--swap-rate-color: var(--dash-text-secondary);
 }
 
 *:focus {

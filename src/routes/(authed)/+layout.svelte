@@ -73,6 +73,8 @@
 <style>
 	.flex {
 		display: flex;
+		background-color: var(--dash-bg);
+		min-height: 100dvh;
 	}
 	@media screen and (max-width: 620px) {
 		.main {
@@ -85,9 +87,9 @@
 		}
 	}
 	.main {
-		padding: 0rem 0.5rem;
+		padding: 0 1.25rem;
 		flex: 1 1 0;
-		max-width: 64rem;
+		max-width: 90rem;
 		margin-left: auto;
 		margin-right: auto;
 		width: 100%;

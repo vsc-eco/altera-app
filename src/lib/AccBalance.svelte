@@ -158,9 +158,13 @@
 		gap: 0.5rem;
 		align-items: center;
 		justify-content: space-between;
+		margin-bottom: 0.25rem;
 	}
 	.title-and-tooltip h5 {
-		color: var(--primary-text);
+		color: var(--dash-text-primary);
+		font-size: 0.95rem;
+		font-weight: 600;
+		margin: 0;
 	}
 	.title-right {
 		display: flex;
@@ -168,16 +172,18 @@
 		gap: 0.5rem;
 	}
 	.see-all {
-		color: var(--primary-fg-mid);
-		font-size: var(--text-sm);
+		color: var(--dash-accent-purple);
+		font-size: 0.8rem;
 		text-decoration: none;
+		font-weight: 500;
 	}
 	.see-all:hover {
 		text-decoration: underline;
 	}
 	img {
-		width: 1.25rem;
-		height: 1.25rem;
+		width: 1.5rem;
+		height: 1.5rem;
+		border-radius: 50%;
 	}
 	td {
 		width: fit-content;
@@ -194,19 +200,23 @@
 		container-type: inline-size;
 		container-name: table-row;
 		display: flex;
-		padding: 1rem 0.5rem;
-		border-bottom: 1px solid var(--neutral-bg-mid);
+		padding: 0.75rem 0.375rem;
+		border-bottom: 1px solid var(--dash-divider);
 		min-width: 200px;
 		align-items: center;
 	}
 	.coin-cell {
 		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		padding-left: 0.5rem;
+		align-items: center;
+		gap: 0.5rem;
+		justify-content: flex-start;
+		flex-wrap: wrap;
+		padding-left: 0.625rem;
 		font-weight: 500;
-		min-width: 120px;
+		min-width: 100px;
 		flex: 1 1 auto;
+		color: var(--dash-text-primary);
+		font-size: 0.9rem;
 		.coin-title-row {
 			display: inline-flex;
 			align-items: center;
@@ -216,9 +226,12 @@
 			font-weight: 600;
 			line-height: 1.25;
 		}
+		.coin-name {
+			font-size: 0.85rem;
+		}
 		.coin-subtle {
 			font-size: var(--text-xs);
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 			font-weight: 400;
 			line-height: 1.2;
 			margin-top: 0.125rem;
@@ -235,6 +248,8 @@
 		align-self: center;
 		text-align: right;
 		flex-shrink: 0;
+		color: var(--dash-text-primary);
+		font-size: 0.85rem;
 	}
 	tr:last-child {
 		border-bottom: none;

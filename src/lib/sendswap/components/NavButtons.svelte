@@ -80,9 +80,9 @@
 		display: flex;
 		justify-content: center;
 		padding-bottom: 1rem;
-		--background-color: oklch(from var(--neutral-bg) l c h / 0.9);
+		--background-color: oklch(from var(--dash-bg) l c h / 0.92);
 		background-color: var(--background-color);
-		box-shadow: 0 -5px 5px var(--background-color);
+		box-shadow: 0 -5px 10px var(--background-color);
 		@media screen and (min-width: 620px) {
 			left: var(--left-offset, 0);
 		}

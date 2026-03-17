@@ -91,7 +91,7 @@
 		"@reown/appkit": "^1.8.17",
 		"@reown/appkit-adapter-wagmi": "^1.8.17",
 		"@sveltejs/adapter-vercel": "^6.3.1",
-		"@sveltejs/kit": "2.21.0",
+		"@sveltejs/kit": "^2.55.0",
 		"@vercel/analytics": "^1.6.1",
 		"@vsc.eco/client": "^0.0.7",
 		"@wagmi/core": "^3.3.1",

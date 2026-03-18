@@ -50,6 +50,24 @@
 			return { ...details, toUsername: nextValue };
 		});
 	}
+	function syncAmountFromInput(nextAmount: CoinAmount<Coin>) {
+		if (!open) return;
+		const amt = nextAmount.toAmountString();
+		SendTxDetails.update((details) => {
+			if (
+				details.toAmount === amt &&
+				details.fromAmount === amt &&
+				details.enteredAmount === amt
+			)
+				return details;
+			return {
+				...details,
+				toAmount: amt,
+				fromAmount: amt,
+				enteredAmount: amt
+			};
+		});
+	}
 
 	let previousOpen: boolean | undefined;
 	let previousProvider: string | undefined;
@@ -114,11 +132,21 @@
 	// Update SendTxDetails with coinAmount
 	$effect(() => {
 		if (!open) return;
-		if (!$SendTxDetails.toCoin) return;
 		const amt = coinAmount.toAmountString();
-		if (amt !== $SendTxDetails.toAmount) {
-			$SendTxDetails.toAmount = $SendTxDetails.fromAmount = amt;
-		}
+		SendTxDetails.update((details) => {
+			if (
+				details.toAmount === amt &&
+				details.fromAmount === amt &&
+				details.enteredAmount === amt
+			)
+				return details;
+			return {
+				...details,
+				toAmount: amt,
+				fromAmount: amt,
+				enteredAmount: amt
+			};
+		});
 	});
 
 	let max = $state(new CoinAmount(0, Coin.hive));
@@ -188,7 +216,6 @@
 		const baseValidation = !!(
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromAmount &&
 			$SendTxDetails.fromNetwork &&
 			coinAmount.amount > 0 &&
 			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
@@ -220,9 +247,15 @@
 
 	// Ensure toCoin is valid for Hive Mainnet (HIVE or HBD)
 	$effect(() => {
-		if ($SendTxDetails.fromCoin !== $SendTxDetails.toCoin) {
-			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
-		}
+		if (!open) return;
+		SendTxDetails.update((details) => {
+			const fromCoin = details.fromCoin;
+			const toCoin = details.toCoin;
+			const fromValue = fromCoin?.coin.value;
+			const toValue = toCoin?.coin.value;
+			if (fromValue === toValue) return details;
+			return { ...details, toCoin: fromCoin };
+		});
 	});
 </script>
 
@@ -286,6 +319,7 @@
 							coinOpts={coinOptions}
 							expressIn={$SendTxDetails.fromCoin?.coin}
 							maxAmount={max}
+							onAmountChange={syncAmountFromInput}
 							bind:id={inputId}
 						/>
 					</div>

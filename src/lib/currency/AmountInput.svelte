@@ -17,6 +17,7 @@
 		expressIn,
 		maxAmount,
 		minAmount,
+		onAmountChange,
 		styleType = 'normal',
 		hideUnit = false,
 		id = $bindable('')
@@ -27,6 +28,7 @@
 		expressIn?: Coin;
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
+		onAmountChange?: (amount: CoinAmount<Coin>) => void;
 		styleType?: 'normal' | 'big';
 		hideUnit?: boolean;
 		id?: string;
@@ -199,6 +201,7 @@
 				return;
 			}
 			lastModification = new CoinAmount(inputAmt, selected.coin);
+			onAmountChange?.(lastModification);
 			if (!inputAmt) {
 				inUsd = '0';
 				return;

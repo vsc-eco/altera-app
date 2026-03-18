@@ -25,6 +25,16 @@
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
+	let effectiveFromAmount = $derived(
+		$SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0'
+			? $SendTxDetails.fromAmount
+			: $SendTxDetails.enteredAmount
+	);
+	let effectiveToAmount = $derived(
+		$SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'
+			? $SendTxDetails.toAmount
+			: $SendTxDetails.enteredAmount
+	);
 	const fromCoinDisplayLabel = $derived(
 		fromCoin.value === Coin.hive.value ? getHiveAssetName() : fromCoin.value === Coin.hbd.value ? getHbdAssetName() : fromCoin.label
 	);
@@ -71,8 +81,8 @@
 	let feeInUsd = $state<CoinAmount<Coin>>();
 	let total = $derived(
 		!$SendTxDetails.fee
-			? new CoinAmount($SendTxDetails.fromAmount, fromCoin)
-			: new CoinAmount($SendTxDetails.fromAmount, fromCoin).add($SendTxDetails.fee)
+			? new CoinAmount(effectiveFromAmount, fromCoin)
+			: new CoinAmount(effectiveFromAmount, fromCoin).add($SendTxDetails.fee)
 	);
 	let fromInTo = $state<CoinAmount<Coin>>();
 	$effect(() => {
@@ -88,7 +98,7 @@
 			$SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value
 	);
 	$effect(() => {
-		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
+		new CoinAmount(effectiveFromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amt) => {
 				inUsd = amt;
@@ -161,7 +171,7 @@
 						<td class="icon"><Dot size="32" /></td>
 						<td class="sm-caption label">Amount</td>
 						<td class="content">
-							{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
+							{prettyWithDisplayUnit(new CoinAmount(effectiveFromAmount, fromCoin))}
 							<EqualApproximately size={16} />
 							{inUsd?.toPrettyString()}
 						</td>
@@ -186,7 +196,7 @@
 								>To {toCoinDisplayLabel} on {$SendTxDetails.toNetwork?.label}</td
 							>
 							<td class="content">
-								{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.toAmount, toCoin))}
+								{prettyWithDisplayUnit(new CoinAmount(effectiveToAmount, toCoin))}
 							</td>
 						</tr>
 					{/if}

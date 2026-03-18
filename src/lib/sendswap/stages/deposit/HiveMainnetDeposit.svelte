@@ -31,12 +31,42 @@
 	let coinAmount = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
+function syncAmountFromInput(nextAmount: CoinAmount<Coin>) {
+	if (!open) return;
+	const amt = nextAmount.toAmountString();
+	SendTxDetails.update((details) => {
+		if (
+			details.fromAmount === amt &&
+			details.toAmount === amt &&
+			details.enteredAmount === amt
+		)
+			return details;
+		return {
+			...details,
+			fromAmount: amt,
+			toAmount: amt,
+			enteredAmount: amt
+		};
+	});
+}
+
 	$effect(() => {
 		if (!open) return;
-		if (!$SendTxDetails.fromCoin) return;
 		const amt = coinAmount.toAmountString();
-		if (amt !== $SendTxDetails.fromAmount)
-			$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
+		SendTxDetails.update((details) => {
+			if (
+				details.fromAmount === amt &&
+				details.toAmount === amt &&
+				details.enteredAmount === amt
+			)
+				return details;
+			return {
+				...details,
+				fromAmount: amt,
+				toAmount: amt,
+				enteredAmount: amt
+			};
+		});
 	});
 
 	let max = $state(new CoinAmount(0, Coin.hive));
@@ -60,7 +90,6 @@
 		const stageComplete =
 			!!$SendTxDetails.fromCoin &&
 			!!$SendTxDetails.toCoin &&
-			!!$SendTxDetails.fromAmount &&
 			!!$SendTxDetails.fromNetwork &&
 			coinAmount.amount > 0 &&
 			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER);
@@ -83,14 +112,21 @@
 	});
 
 	$effect(() => {
-		if (
-			$SendTxDetails.fromCoin &&
-			![Coin.hive.value, Coin.hbd.value].includes($SendTxDetails.fromCoin.coin.value)
-		) {
-			$SendTxDetails.fromCoin = undefined;
-		} else if ($SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
-			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
-		}
+		SendTxDetails.update((details) => {
+			const fromCoin = details.fromCoin;
+			const toCoin = details.toCoin;
+			const fromValue = fromCoin?.coin.value;
+			const toValue = toCoin?.coin.value;
+
+			if (fromCoin && ![Coin.hive.value, Coin.hbd.value].includes(fromCoin.coin.value)) {
+				if (!toCoin) return { ...details, fromCoin: undefined };
+				return { ...details, fromCoin: undefined, toCoin: undefined };
+			}
+			if (toValue !== fromValue) {
+				return { ...details, toCoin: fromCoin };
+			}
+			return details;
+		});
 	});
 </script>
 
@@ -140,6 +176,7 @@
 						coinOpts={coinOptions}
 						expressIn={$SendTxDetails.fromCoin?.coin}
 						maxAmount={max}
+						onAmountChange={syncAmountFromInput}
 						bind:id={inputId}
 					/>
 				</div>

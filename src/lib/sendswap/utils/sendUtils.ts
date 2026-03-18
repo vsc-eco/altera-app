@@ -47,6 +47,7 @@ export function blankDetails(): SendDetails {
 		fromCoin: undefined,
 		fromNetwork: undefined,
 		fromAmount: '0',
+		enteredAmount: '0',
 		toCoin: undefined,
 		toNetwork: undefined,
 		toAmount: '0',

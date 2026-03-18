@@ -260,6 +260,7 @@ export type SendDetails = {
 	fromCoin: CoinOptions['coins'][number] | undefined;
 	fromNetwork: Network | undefined;
 	fromAmount: string;
+	enteredAmount: string;
 	toCoin: CoinOptions['coins'][number] | undefined;
 	toNetwork: Network | undefined;
 	toAmount: string;

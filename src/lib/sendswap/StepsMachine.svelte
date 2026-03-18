@@ -168,12 +168,20 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 		const {
 			fromCoin,
 			fromNetwork,
-			toAmount: amount,
+			toAmount: rawToAmount,
 			toCoin,
 			toNetwork,
 			toUsername,
 			memo
 		} = $SendTxDetails;
+		const amount =
+			rawToAmount && rawToAmount !== '0'
+				? rawToAmount
+				: $SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0'
+					? $SendTxDetails.fromAmount
+					: $SendTxDetails.enteredAmount && $SendTxDetails.enteredAmount !== '0'
+						? $SendTxDetails.enteredAmount
+						: rawToAmount;
 
 		if (!fromCoin || !fromNetwork || !toCoin || !toNetwork) {
 			return new Error('Required field undefined.');

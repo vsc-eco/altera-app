@@ -15,10 +15,12 @@
 
 	let {
 		editStage,
+		isActive = true,
 		onHomePage = $bindable(),
 		customButtons = $bindable()
 	}: {
 		editStage: (complete: boolean) => void;
+		isActive?: boolean;
 		onHomePage: boolean;
 		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
 	} = $props();
@@ -164,7 +166,7 @@
 			<h2>Lightning Deposit</h2>
 		{/if}
 		<div class={{ 'deposit-content': !secondaryMenu }}>
-			<LightningDeposit {editStage} open={lightningOpen} bind:secondaryMenu />
+			<LightningDeposit {editStage} open={lightningOpen && isActive} bind:secondaryMenu />
 		</div>
 	{:else if hiveMainnetOpen}
 		{#if !secondaryMenu}
@@ -174,7 +176,7 @@
 			<h2>Hive Mainnet Deposit</h2>
 		{/if}
 		<div class={{ 'deposit-content': !secondaryMenu }}>
-			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen} bind:secondaryMenu />
+			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen && isActive} bind:secondaryMenu />
 		</div>
 	{:else if coinbaseOpen}
 		<PillButton onclick={() => toggleCoinbase()} styleType="icon-subtle">

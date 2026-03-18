@@ -11,10 +11,12 @@
 
 	let {
 		editStage,
+		isActive = true,
 		onHomePage = $bindable(),
 		customButtons = $bindable()
 	}: {
 		editStage: (complete: boolean) => void;
+		isActive?: boolean;
 		onHomePage: boolean;
 		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
 	} = $props();
@@ -41,15 +43,25 @@
 							coinOpt.coin.value === Coin.hbd.value &&
 							coinOpt.networks.some((n) => n.value === Network.magi.value)
 					);
+				const hbdCoin = swapOptions.from.coins.find(
+					(coinOpt) =>
+						coinOpt.coin.value === Coin.hbd.value &&
+						coinOpt.networks.some((n) => n.value === Network.magi.value)
+				);
 
-				let fromCoinToUse =
-					hiveCoin &&
-					scanForBalance([{ coin: hiveCoin?.coin, network: Network.magi }]) !== undefined
-						? hiveCoin
-						: undefined;
+				const hiveHasBalance = !!(
+					hiveCoin && scanForBalance([{ coin: hiveCoin.coin, network: Network.magi }]) !== undefined
+				);
+				const hbdHasBalance = !!(
+					hbdCoin && scanForBalance([{ coin: hbdCoin.coin, network: Network.magi }]) !== undefined
+				);
+
+				let fromCoinToUse = hiveHasBalance ? hiveCoin : hbdHasBalance ? hbdCoin : hiveCoin;
 				if (
 					current.fromCoin &&
-					current.fromCoin.networks?.some((n) => n.value === Network.magi.value)
+					current.fromCoin.networks?.some((n) => n.value === Network.magi.value) &&
+					(current.fromCoin.coin.value === Coin.hive.value ||
+						current.fromCoin.coin.value === Coin.hbd.value)
 				) {
 					fromCoinToUse = current.fromCoin;
 				}
@@ -80,7 +92,7 @@
 			<h2>Hive Mainnet Withdraw</h2>
 		{/if}
 		<div class={{ 'withdraw-content': !secondaryMenu }}>
-			<HiveMainnetWithdraw {editStage} open={hiveMainnetOpen} bind:secondaryMenu />
+			<HiveMainnetWithdraw {editStage} open={hiveMainnetOpen && isActive} bind:secondaryMenu />
 		</div>
 	{:else}
 		<h2>Withdraw</h2>

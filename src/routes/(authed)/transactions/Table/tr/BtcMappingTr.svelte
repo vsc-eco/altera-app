@@ -51,6 +51,10 @@
 			return { action, displayType: 'deposit', direction: 'incoming' as const };
 		} else if (action === 'unmap') {
 			return { action, displayType: 'withdraw', direction: 'outgoing' as const };
+		} else if (action === 'transfer') {
+			return { action, displayType: 'transfer', direction: 'outgoing' as const };
+		} else if (action === 'transferFrom') {
+			return { action, displayType: 'transfer from', direction: 'outgoing' as const };
 		}
 		return {
 			action: '',
@@ -101,8 +105,12 @@
 			payload: payload
 				? {
 						amount: payload.amount,
-						recipient_btc_address: payload.recipient_btc_address,
-						tx_data: payload.tx_data
+						// unmap/transfer/transferFrom use 'to'; legacy may still have 'recipient_btc_address'
+						to: payload.to ?? payload.recipient_btc_address,
+						// transferFrom includes 'from'
+						from: payload.from,
+						tx_data: payload.tx_data,
+						instructions: payload.instructions
 					}
 				: undefined
 		};
@@ -201,11 +209,17 @@
 		const action = details.action;
 		if (action === 'unmap') {
 			fromAccount = did;
-			toAccount = details.payload?.recipient_btc_address ?? 'Unknown';
+			toAccount = details.payload?.to ?? 'Unknown';
+		} else if (action === 'transfer') {
+			fromAccount = did;
+			toAccount = details.payload?.to ?? 'Unknown';
+		} else if (action === 'transferFrom') {
+			fromAccount = details.payload?.from ?? did;
+			toAccount = details.payload?.to ?? 'Unknown';
 		} else if (action === 'map') {
 			fromAccount = 'Bitcoin Network';
-			// map = deposit by user himself/herself
-			const instruction = details.payload?.tx_data?.instructions?.[0];
+			// map = deposit: parse instructions for deposit_to
+			const instruction = details.payload?.instructions?.[0];
 			if (instruction) {
 				try {
 					const params = new URLSearchParams(instruction);
@@ -299,6 +313,10 @@
 			<h2>Deposit</h2>
 		{:else if details?.action === 'unmap'}
 			<h2>Withdrawal</h2>
+		{:else if details?.action === 'transfer'}
+			<h2>Transfer</h2>
+		{:else if details?.action === 'transferFrom'}
+			<h2>Transfer From</h2>
 		{:else}
 			<h2>
 				{(op.type ?? tx.type)
@@ -366,11 +384,20 @@
 				</div>
 			{/if}
 
-			{#if details?.payload?.recipient_btc_address}
+			{#if details?.payload?.to}
 				<div class="section">
-					<h3>Recipient BTC Address</h3>
+					<h3>Recipient Address</h3>
 					<div class="copyable-text">
-						<BasicCopy value={details.payload.recipient_btc_address} />
+						<BasicCopy value={details.payload.to} />
+					</div>
+				</div>
+			{/if}
+
+			{#if details?.action === 'transferFrom' && details?.payload?.from}
+				<div class="section">
+					<h3>Source Account</h3>
+					<div class="copyable-text">
+						<BasicCopy value={details.payload.from} />
 					</div>
 				</div>
 			{/if}

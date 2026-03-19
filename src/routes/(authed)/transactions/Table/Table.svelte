@@ -203,7 +203,7 @@
 								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
 							{:else if op.type === 'call_contract'}
 								{@const action = newOp.data?.action || ''}
-								{#if (action === 'map' || action === 'unmap' || action === 'transfer')}
+								{#if (action === 'map' || action === 'unmap' || action === 'transfer' || action === 'transferFrom')}
 									<BtcMappingTr {tx} op={newOp} onRowClick={toggleDetails} />
 								{:else}
 									<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />

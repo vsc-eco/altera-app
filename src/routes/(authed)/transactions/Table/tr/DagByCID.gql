@@ -1,0 +1,3 @@
+query DagByCID($cid0: String!) {
+	d0: getDagByCID(cidString: $cid0)
+}

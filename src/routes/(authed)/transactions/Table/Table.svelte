@@ -10,6 +10,7 @@
 	import { goto } from '$app/navigation';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import ContractTr from './tr/ContractTr.svelte';
+	import BtcMappingTr from './tr/BtcMappingTr.svelte';
 
 	let {
 		did,
@@ -212,7 +213,12 @@
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
 							{:else if op.type === 'call_contract'}
-								<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
+								{@const action = newOp.data?.action || ''}
+								{#if (action === 'map' || action === 'unmap' || action === 'transfer' || action === 'transferFrom')}
+									<BtcMappingTr {tx} op={newOp} onRowClick={toggleDetails} />
+								{:else}
+									<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
+								{/if}
 							{:else}
 								<tr>
 									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>

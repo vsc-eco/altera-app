@@ -49,8 +49,10 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 	let waiting = $state(false);
 	let txId = $state('');
 	let showV4VModal = $state.raw(false);
+	let v4vAmount = $state('');
 
-	function openV4V() {
+	function openV4V(amount: string) {
+		v4vAmount = amount;
 		showV4VModal = false;
 		sleep(0).then(() => {
 			showV4VModal = true;
@@ -164,7 +166,11 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 
 	// START TRANSACTION
 	function initSend() {
-		// console.log('initializing send transactions');
+		console.log('[initSend] store snapshot:', {
+			toAmount: $SendTxDetails.toAmount,
+			fromAmount: $SendTxDetails.fromAmount,
+			enteredAmount: $SendTxDetails.enteredAmount
+		});
 		const {
 			fromCoin,
 			fromNetwork,
@@ -206,7 +212,21 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 
 		if (intermediary === Network.lightning) {
 			setStatus('Generating Lightning transfer');
-			openV4V();
+			if (rawToAmount && rawToAmount !== '0') {
+				openV4V(rawToAmount);
+			} else {
+				// toAmount not set — convert enteredAmount (BTC) to toCoin (HBD)
+				const entAmt = $SendTxDetails.enteredAmount;
+				if (entAmt && entAmt !== '0' && fromCoin && toCoin) {
+					new CoinAmount(entAmt, fromCoin.coin)
+						.convertTo(toCoin.coin, Network.lightning)
+						.then((converted) => {
+							openV4V(converted.toAmountString());
+						});
+				} else {
+					openV4V(rawToAmount);
+				}
+			}
 			return;
 		}
 
@@ -269,7 +289,7 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
 	{@const toCoin = $SendTxDetails.toCoin}
 	{@const toNetwork = $SendTxDetails.toNetwork}
-	{@const toAmount = $SendTxDetails.toAmount}
+	{@const toAmount = v4vAmount}
 
 	<V4VPopup
 		from={{ coin: Coin.sats, network: Network.lightning }}

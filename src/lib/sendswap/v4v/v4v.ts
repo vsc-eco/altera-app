@@ -36,9 +36,11 @@ export const createLightningInvoice = async (
 	if (altera_id) {
 		message.append('altera_id', altera_id);
 	}
+	// Round to 3 decimal places (HIVE/HBD precision) to avoid API rejection
+	const roundedAmount = parseFloat(Number(amount).toFixed(3)).toString();
 	const searchParams = {
 		hive_accname: mainnetAccount,
-		amount,
+		amount: roundedAmount,
 		currency: into.toUpperCase(),
 		receive_currency: into.toLowerCase(),
 		// usd_hbd: 'false',
@@ -60,12 +62,19 @@ export const createLightningInvoice = async (
 			amount: data.amount
 		};
 	} else {
-		const data = await ret.json();
-		const splitError = (data.detail as string).split('\n');
-		if (splitError.length < 2) {
-			return splitError[0];
-		} else {
-			return splitError[1].split('[')[0];
+		try {
+			const data = await ret.json();
+			if (typeof data.detail === 'string') {
+				const splitError = data.detail.split('\n');
+				if (splitError.length < 2) {
+					return splitError[0];
+				} else {
+					return splitError[1].split('[')[0];
+				}
+			}
+			return `Bad request: ${ret.status} ${ret.statusText}`;
+		} catch {
+			return `Bad request: ${ret.status} ${ret.statusText}`;
 		}
 	}
 };

@@ -41,10 +41,15 @@
 			const store = get(SendTxDetails);
 			if (!store.fromCoin) return;
 
+			// Always preserve the raw user input as enteredAmount
+			if (amt !== store.enteredAmount) {
+				SendTxDetails.update((s) => ({ ...s, enteredAmount: amt }));
+			}
+
 			// Compute fromAmount
 			if (coinVal === fromCoinVal) {
-				if (amt !== store.fromAmount || amt !== store.enteredAmount) {
-					SendTxDetails.update((s) => ({ ...s, fromAmount: amt, enteredAmount: amt }));
+				if (amt !== store.fromAmount) {
+					SendTxDetails.update((s) => ({ ...s, fromAmount: amt }));
 				}
 			} else {
 				coinAmountSnapshot
@@ -55,8 +60,7 @@
 						if (current.fromAmount !== convertedAmt) {
 							SendTxDetails.update((s) => ({
 								...s,
-								fromAmount: convertedAmt,
-								enteredAmount: convertedAmt
+								fromAmount: convertedAmt
 							}));
 						}
 					});

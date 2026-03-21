@@ -23,8 +23,8 @@
 		abort?: () => void;
 	} = $props();
 
-	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
-	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
+	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? Coin.unk);
+	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? Coin.unk);
 	let effectiveFromAmount = $derived(
 		$SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0'
 			? $SendTxDetails.fromAmount
@@ -35,6 +35,32 @@
 			? $SendTxDetails.toAmount
 			: $SendTxDetails.enteredAmount
 	);
+	// When from/to coins differ, the enteredAmount fallback is in the wrong denomination.
+	// Compute the converted "to" amount reactively so it displays correctly.
+	let convertedToAmount = $state<CoinAmount<Coin> | undefined>();
+	$effect(() => {
+		const toAmt = $SendTxDetails.toAmount;
+		if (toAmt && toAmt !== '0') {
+			convertedToAmount = new CoinAmount(toAmt, toCoin);
+			return;
+		}
+		// toAmount not yet available — convert from the entered amount
+		const entered = $SendTxDetails.enteredAmount;
+		if (!entered || entered === '0' || fromCoin.value === toCoin.value) {
+			convertedToAmount = new CoinAmount(entered || '0', toCoin);
+			return;
+		}
+		// Different coins: convert fromCoin → toCoin
+		new CoinAmount(entered, fromCoin)
+			.convertTo(toCoin, Network.lightning)
+			.then((converted) => {
+				// Only use if toAmount still not set
+				const current = $SendTxDetails.toAmount;
+				if (!current || current === '0') {
+					convertedToAmount = converted;
+				}
+			});
+	});
 	const fromCoinDisplayLabel = $derived(
 		fromCoin.value === Coin.hive.value ? getHiveAssetName() : fromCoin.value === Coin.hbd.value ? getHbdAssetName() : fromCoin.label
 	);
@@ -196,7 +222,7 @@
 								>To {toCoinDisplayLabel} on {$SendTxDetails.toNetwork?.label}</td
 							>
 							<td class="content">
-								{prettyWithDisplayUnit(new CoinAmount(effectiveToAmount, toCoin))}
+								{prettyWithDisplayUnit(convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin))}
 							</td>
 						</tr>
 					{/if}

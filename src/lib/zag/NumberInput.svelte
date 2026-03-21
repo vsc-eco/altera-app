@@ -53,32 +53,37 @@
 	});
 
 	const id = $props.id();
-	const service = $derived(
-		useMachine(numberInput.machine, {
-			id,
-			min: 0,
-			step: 10 ** -decimals,
-			allowOverflow: false,
-			formatOptions: {
-				style: 'decimal',
+	// IMPORTANT: Do NOT wrap useMachine in $derived() — it causes the machine to be
+	// recreated on every value change (infinite loop). The machine handles reactive
+	// context updates internally through the getter pattern.
+	const service = useMachine(numberInput.machine, {
+		id,
+		min: 0,
+		get step() {
+			return 10 ** -decimals;
+		},
+		allowOverflow: false,
+		get formatOptions() {
+			return {
+				style: 'decimal' as const,
 				useGrouping: true,
 				minimumFractionDigits: 0,
 				maximumFractionDigits: decimals
-			},
-			get value() {
-				return value;
-			},
-			onValueChange(details) {
-				value = details.value;
-				if (error !== undefined) {
-					invalid = details.value !== '' && !inRange(details.valueAsNumber);
-					if (!invalid) error = '';
-				}
-				amount = trimOutput(details.valueAsNumber);
-				setErrors(details.valueAsNumber);
+			};
+		},
+		get value() {
+			return value;
+		},
+		onValueChange(details) {
+			value = details.value;
+			if (error !== undefined) {
+				invalid = details.value !== '' && !inRange(details.valueAsNumber);
+				if (!invalid) error = '';
 			}
-		})
-	);
+			amount = trimOutput(details.valueAsNumber);
+			setErrors(details.valueAsNumber);
+		}
+	});
 	const api = $derived(numberInput.connect(service, normalizeProps));
 	$effect(() => {
 		const forId = api.getLabelProps().for ?? undefined;

@@ -19,6 +19,7 @@
 	import Select from '$lib/zag/Select.svelte';
 	import { ArrowLeft, ArrowRightLeft, Coins } from '@lucide/svelte';
 	import { untrack, type ComponentProps } from 'svelte';
+	import { get } from 'svelte/store';
 
 	let {
 		editStage,
@@ -31,25 +32,31 @@
 	let coinAmount = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
-function syncAmountFromInput(nextAmount: CoinAmount<Coin>) {
-	if (!open) return;
-	const amt = nextAmount.toAmountString();
-	SendTxDetails.update((details) => {
-		if (
-			details.fromAmount === amt &&
-			details.toAmount === amt &&
-			details.enteredAmount === amt
-		)
-			return details;
-		return {
-			...details,
-			fromAmount: amt,
-			toAmount: amt,
-			enteredAmount: amt
-		};
-	});
-}
+	// Derived primitives — only change when actual coin/network values change
+	const _fromCoinValue = $derived($SendTxDetails.fromCoin?.coin?.value);
+	const _toCoinValue = $derived($SendTxDetails.toCoin?.coin?.value);
+	const _fromNetwork = $derived($SendTxDetails.fromNetwork?.value);
 
+	function syncAmountFromInput(nextAmount: CoinAmount<Coin>) {
+		if (!open) return;
+		const amt = nextAmount.toAmountString();
+		SendTxDetails.update((details) => {
+			if (
+				details.fromAmount === amt &&
+				details.toAmount === amt &&
+				details.enteredAmount === amt
+			)
+				return details;
+			return {
+				...details,
+				fromAmount: amt,
+				toAmount: amt,
+				enteredAmount: amt
+			};
+		});
+	}
+
+	// Sync coinAmount → store (only re-runs when coinAmount changes, not on every store mutation)
 	$effect(() => {
 		if (!open) return;
 		const amt = coinAmount.toAmountString();
@@ -71,37 +78,40 @@ function syncAmountFromInput(nextAmount: CoinAmount<Coin>) {
 
 	let max = $state(new CoinAmount(0, Coin.hive));
 
-	// Update max when fromCoin changes for hiveMainnet
+	// Update max when fromCoin or balance changes (uses derived primitives to avoid full store subscription)
 	$effect(() => {
-		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
-		if ($SendTxDetails.fromNetwork.value !== Network.hiveMainnet.value) return;
+		if (!open || !_fromCoinValue || !_fromNetwork) return;
+		if (_fromNetwork !== Network.hiveMainnet.value) return;
 
-		const coinValue = $SendTxDetails.fromCoin.coin.value;
+		const coinValue = _fromCoinValue;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
 			const balance = $accountBalance.connectedBal?.[coinValue as 'hive' | 'hbd'];
 			if (balance !== undefined) {
-				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+				if (max.amount !== balance || max.coin.value !== coinValue) {
+					const fromCoin = get(SendTxDetails).fromCoin!.coin;
+					max = new CoinAmount(balance, fromCoin, true);
+				}
 			}
 		}
 	});
 
+	// Validation — uses derived primitives instead of full store subscription
 	$effect(() => {
 		if (!open) return;
-		const stageComplete =
-			!!$SendTxDetails.fromCoin &&
-			!!$SendTxDetails.toCoin &&
-			!!$SendTxDetails.fromNetwork &&
-			coinAmount.amount > 0 &&
-			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER);
-		editStage(stageComplete);
+		const hasCoins = !!_fromCoinValue && !!_toCoinValue;
+		const hasNetwork = !!_fromNetwork;
+		const amt = coinAmount.amount;
+		const maxAmt = max?.amount ?? Number.MAX_SAFE_INTEGER;
+		editStage(hasCoins && hasNetwork && amt > 0 && amt <= maxAmt);
 	});
 
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
-	const coinOptions: CoinOnNetwork[] = $derived(
-		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
-			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
-			: [unkOpt]
-	);
+	const coinOptions: CoinOnNetwork[] = $derived.by(() => {
+		if (!_fromCoinValue || !_fromNetwork) return [unkOpt];
+		const store = get(SendTxDetails);
+		if (!store.fromCoin || !store.fromNetwork) return [unkOpt];
+		return [{ coin: store.fromCoin.coin, network: store.fromNetwork }];
+	});
 
 	let assetOpen = $state(false);
 	const toggleAsset = (open = false) => {
@@ -111,6 +121,7 @@ function syncAmountFromInput(nextAmount: CoinAmount<Coin>) {
 		secondaryMenu = assetOpen;
 	});
 
+	// Ensure toCoin matches fromCoin (runs once on mount)
 	$effect(() => {
 		SendTxDetails.update((details) => {
 			const fromCoin = details.fromCoin;

@@ -117,7 +117,7 @@
 
 	let showUsd = $derived(
 		!(
-			connectedCoinAmount?.coin.value === coins.usd.value || selected.coin.value === coins.usd.value
+			connectedCoinAmount?.coin.value === Coin.usd.value || selected.coin.value === Coin.usd.value
 		)
 	);
 
@@ -170,7 +170,7 @@
 	$effect(() => {
 		const newCoinOpts = coinOpts;
 		if (newCoinOpts.length === 0) {
-			if (selected.coin !== coins.unk) {
+			if (selected.coin !== Coin.unk) {
 				selected = { coin: Coin.unk, network: Network.unknown };
 			}
 			return;
@@ -278,7 +278,7 @@
 			</span>
 		</label>
 		<div class="amount-input">
-			{#if selected.coin.value === coins.usd.value}
+			{#if selected.coin.value === Coin.usd.value}
 				<DollarSign />
 			{:else}
 				<CoinNetworkIcon coin={selected.coin} network={selected.network} />

@@ -15,12 +15,10 @@
 
 	let {
 		editStage,
-		isActive = true,
 		onHomePage = $bindable(),
 		customButtons = $bindable()
 	}: {
 		editStage: (complete: boolean) => void;
-		isActive?: boolean;
 		onHomePage: boolean;
 		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
 	} = $props();
@@ -110,11 +108,10 @@
 						coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
 				);
 
-				let fromCoinToUse =
-					hiveCoin &&
-					scanForBalance([{ coin: hiveCoin?.coin, network: Network.magi }]) !== undefined
-						? hiveCoin
-						: undefined;
+				// For Hive Mainnet deposit, default to HIVE (or HBD) without
+				// requiring a Magi balance — user deposits precisely because
+				// their Magi balance may be 0.
+				let fromCoinToUse = hiveCoin;
 				if (
 					current.fromCoin &&
 					current.fromCoin.networks?.some((n) => n.value === Network.hiveMainnet.value)
@@ -132,7 +129,9 @@
 					...current,
 					method: TransferMethod.magiTransfer,
 					fromNetwork: Network.hiveMainnet,
-					fromCoin: fromCoinToUse
+					toNetwork: Network.magi,
+					fromCoin: fromCoinToUse,
+					toCoin: fromCoinToUse
 				};
 			});
 		});
@@ -166,7 +165,7 @@
 			<h2>Lightning Deposit</h2>
 		{/if}
 		<div class={{ 'deposit-content': !secondaryMenu }}>
-			<LightningDeposit {editStage} open={lightningOpen && isActive} bind:secondaryMenu />
+			<LightningDeposit {editStage} open={lightningOpen} bind:secondaryMenu />
 		</div>
 	{:else if hiveMainnetOpen}
 		{#if !secondaryMenu}
@@ -176,7 +175,7 @@
 			<h2>Hive Mainnet Deposit</h2>
 		{/if}
 		<div class={{ 'deposit-content': !secondaryMenu }}>
-			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen && isActive} bind:secondaryMenu />
+			<HiveMainnetDeposit {editStage} open={hiveMainnetOpen} bind:secondaryMenu />
 		</div>
 	{:else if coinbaseOpen}
 		<PillButton onclick={() => toggleCoinbase()} styleType="icon-subtle">

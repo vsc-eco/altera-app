@@ -34,14 +34,14 @@
 		txType: string;
 		resetDetails?: typeof blankDetails;
 		stepsData: MixedStepsArray;
-	extraProps?: { [key: string]: any };
-	onSubmit?: (
-		setStatus: (s: string, isError?: boolean) => void,
-		signal: AbortSignal
-	) => Promise<Error | { id: string }>;
+		extraProps?: { [key: string]: any };
+		onSubmit?: (
+			setStatus: (s: string, isError?: boolean) => void,
+			signal: AbortSignal
+		) => Promise<Error | { id: string }>;
 	};
 
-let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: Props = $props();
+	let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: Props = $props();
 
 	const auth = $derived(getAuth()());
 	let sessionId = $state(getTxSessionId());
@@ -49,10 +49,8 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 	let waiting = $state(false);
 	let txId = $state('');
 	let showV4VModal = $state.raw(false);
-	let v4vAmount = $state('');
 
-	function openV4V(amount: string) {
-		v4vAmount = amount;
+	function openV4V() {
 		showV4VModal = false;
 		sleep(0).then(() => {
 			showV4VModal = true;
@@ -171,15 +169,22 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 			fromAmount: $SendTxDetails.fromAmount,
 			enteredAmount: $SendTxDetails.enteredAmount
 		});
-		const {
-			fromCoin,
-			fromNetwork,
-			toAmount: rawToAmount,
-			toCoin,
-			toNetwork,
-			toUsername,
-			memo
-		} = $SendTxDetails;
+		const store = $SendTxDetails;
+		const fromCoin = store.fromCoin;
+		const fromNetwork = store.fromNetwork;
+		const rawToAmount = store.toAmount;
+		const toUsername = store.toUsername;
+		const memo = store.memo;
+		// For deposit/withdraw: toCoin mirrors fromCoin; toNetwork defaults based on txType
+		const toCoin = store.toCoin ?? fromCoin;
+		const toNetwork = store.toNetwork ?? (txType === 'deposit' ? Network.magi : txType === 'withdraw' ? Network.hiveMainnet : undefined);
+
+		if (!fromCoin || !fromNetwork || !toCoin || !toNetwork) {
+			return new Error('Required field undefined.');
+		}
+
+		// Use toAmount, but fall back to fromAmount or enteredAmount if toAmount
+		// is stale '0' due to effect timing (e.g. deposit/withdraw sync race)
 		const amount =
 			rawToAmount && rawToAmount !== '0'
 				? rawToAmount
@@ -188,10 +193,6 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 					: $SendTxDetails.enteredAmount && $SendTxDetails.enteredAmount !== '0'
 						? $SendTxDetails.enteredAmount
 						: rawToAmount;
-
-		if (!fromCoin || !fromNetwork || !toCoin || !toNetwork) {
-			return new Error('Required field undefined.');
-		}
 
 		const importantDetails: NecessarySendDetails = {
 			fromCoin,
@@ -212,21 +213,7 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 
 		if (intermediary === Network.lightning) {
 			setStatus('Generating Lightning transfer');
-			if (rawToAmount && rawToAmount !== '0') {
-				openV4V(rawToAmount);
-			} else {
-				// toAmount not set — convert enteredAmount (BTC) to toCoin (HBD)
-				const entAmt = $SendTxDetails.enteredAmount;
-				if (entAmt && entAmt !== '0' && fromCoin && toCoin) {
-					new CoinAmount(entAmt, fromCoin.coin)
-						.convertTo(toCoin.coin, Network.lightning)
-						.then((converted) => {
-							openV4V(converted.toAmountString());
-						});
-				} else {
-					openV4V(rawToAmount);
-				}
-			}
+			openV4V();
 			return;
 		}
 
@@ -289,7 +276,7 @@ let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: 
 {#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
 	{@const toCoin = $SendTxDetails.toCoin}
 	{@const toNetwork = $SendTxDetails.toNetwork}
-	{@const toAmount = v4vAmount}
+	{@const toAmount = $SendTxDetails.toAmount}
 
 	<V4VPopup
 		from={{ coin: Coin.sats, network: Network.lightning }}

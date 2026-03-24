@@ -9,9 +9,7 @@
 	let lpAmount = $state('');
 
 	const poolOptions = $derived(
-		pools
-			.filter((p) => p.pair === 'SWAP.HIVE:SWAP.HBD')
-			.map((p) => ({ value: p.id, label: p.pair }))
+		pools.map((p) => ({ value: p.id, label: p.pair }))
 	);
 
 	function onPoolChange(details: { value: string[] }) {

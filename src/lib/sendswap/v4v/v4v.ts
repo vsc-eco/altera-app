@@ -3,7 +3,13 @@ import { vscGateway } from '$lib/constants';
 import { Network } from '../utils/sendOptions';
 import { sleep } from 'aninest';
 const V4VAPP_API = 'https://api.v4v.app';
-type Token = 'hive' | 'hbd';
+type Token = 'hive' | 'hbd' | 'sats';
+// V4V API only accepts: HIVE, HBD, USD, SATS (uppercase) / hive, hbd, sats (lowercase)
+function toV4VCurrency(token: string): string {
+	const t = token.toLowerCase();
+	if (t === 'btc') return 'sats';
+	return t;
+}
 export const createLightningInvoice = async (
 	amount: string,
 	of: Token,
@@ -36,13 +42,23 @@ export const createLightningInvoice = async (
 	if (altera_id) {
 		message.append('altera_id', altera_id);
 	}
-	// Round to 3 decimal places (HIVE/HBD precision) to avoid API rejection
-	const roundedAmount = parseFloat(Number(amount).toFixed(3)).toString();
+	// Map BTC → SATS for V4V API compatibility
+	const v4vCurrency = toV4VCurrency(into);
+	// Convert amount: if the caller passed BTC but API needs SATS, multiply by 1e8
+	let numericAmount = Number(amount);
+	if (into.toLowerCase() === 'btc') {
+		numericAmount = Math.round(numericAmount * 1e8); // BTC → SATS
+	}
+	// Round to 3 decimal places for HIVE/HBD precision; SATS are integers
+	const roundedAmount =
+		v4vCurrency === 'sats'
+			? Math.round(numericAmount).toString()
+			: parseFloat(numericAmount.toFixed(3)).toString();
 	const searchParams = {
 		hive_accname: mainnetAccount,
 		amount: roundedAmount,
-		currency: into.toUpperCase(),
-		receive_currency: into.toLowerCase(),
+		currency: v4vCurrency.toUpperCase(),
+		receive_currency: v4vCurrency.toLowerCase(),
 		// usd_hbd: 'false',
 		app_name: 'altera.app',
 		expiry: '600',

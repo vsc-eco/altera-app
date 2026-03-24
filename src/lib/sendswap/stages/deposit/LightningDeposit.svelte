@@ -26,6 +26,8 @@
 	const _toCoinValue = $derived($SendTxDetails.toCoin?.coin?.value);
 	const _fromNetwork = $derived($SendTxDetails.fromNetwork?.value);
 	const _toNetwork = $derived($SendTxDetails.toNetwork?.value);
+	// Track toAmount so validation blocks Review until async conversion completes
+	const _toAmount = $derived($SendTxDetails.toAmount);
 
 	// Sync coinAmount → fromAmount, toAmount, fee atomically
 	// Single effect to avoid race conditions between separate from/to effects
@@ -96,15 +98,17 @@
 		});
 	});
 
-	// Validation — only re-runs when coin/network presence or coinAmount changes
+	// Validation — only re-runs when coin/network presence, coinAmount, or toAmount changes
+	// Requires toAmount to be non-zero so Review is blocked until async conversion completes
 	$effect(() => {
 		if (!open) return;
 		const hasCoins = !!_fromCoinValue && !!_toCoinValue;
 		const hasNetwork = !!_fromNetwork;
 		const amt = coinAmount.amount;
+		const hasToAmount = !!_toAmount && _toAmount !== '0';
 		untrack(() => {
 			const store = get(SendTxDetails);
-			if (hasCoins && store.fromAmount && hasNetwork && amt > 0) {
+			if (hasCoins && store.fromAmount && hasNetwork && amt > 0 && hasToAmount) {
 				editStage(true);
 			} else {
 				editStage(false);

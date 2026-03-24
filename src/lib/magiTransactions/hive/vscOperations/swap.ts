@@ -3,8 +3,9 @@ import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId } from '../../../../client';
 
-/** Contract id for swap (same as used in params / execute). */
-export const SWAP_CONTRACT_ID = 'vsc1BoZJMQqpmdLxUfyRt5Tz82YM7Z57r7Dos7';
+/** Contract id for HIVE/HBD DEX swap. */
+// export const SWAP_CONTRACT_ID = 'vsc1BoZJMQqpmdLxUfyRt5Tz82YM7Z57r7Dos7';
+export const SWAP_CONTRACT_ID = 'vsc1Brm1QpGF8WXvRCvwgbpB6fiHtTBJzyZUC9';
 
 type SwapPayload = {
 	type: 'swap';

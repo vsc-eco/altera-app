@@ -67,8 +67,10 @@ export function startAccountPolling(auth: Auth) {
 	}, 2000);
 }
 
-// testnet contract
-export const MAPPINGCONTRACTID = 'vsc1BcS12fD42kKqL2SMLeBzaEKtd9QbBWC1dt';
+// testnet BTC mapping contract
+// export const MAPPINGCONTRACTID = 'vsc1BcS12fD42kKqL2SMLeBzaEKtd9QbBWC1dt';
+// BTC balance is stored in the HBD-BTC pool contract with keys like "a-hive:{username}"
+export const MAPPINGCONTRACTID = 'vsc1BYBwMvsSFwqvwzio352VWp6fGkjVs7t3Dp';
 
 async function fetchAccountData(auth: Auth) {
 	try {
@@ -77,22 +79,30 @@ async function fetchAccountData(auth: Auth) {
 		const contractStateStore = new GetContractStateStore();
 
 		const username = getUsernameFromAuth(auth);
+		const btcBalanceKey = username ? `a-hive:${username}` : null;
+
 		const [magiBal, contractState, connectedBal] = await Promise.all([
 			accBalancesStore.fetch({
 				variables: { account: auth.value!.did },
 				policy: 'NetworkOnly'
 			}),
-			contractStateStore.fetch({
-				variables: { contractId: MAPPINGCONTRACTID, keys: ['account_balances'] },
-				policy: 'NetworkOnly'
-			}),
+			btcBalanceKey
+				? contractStateStore.fetch({
+						variables: {
+							contractId: MAPPINGCONTRACTID,
+							keys: [btcBalanceKey]
+						},
+						policy: 'NetworkOnly'
+					})
+				: undefined,
 			auth.value?.provider === 'aioha' && username
 				? DHive.database.getAccounts([username])
 				: undefined
 		]);
 
-		const contractBalances = contractState.data?.getStateByKeys?.['account_balances'];
-		const btcBalance = contractBalances ? contractBalances[auth.value.did] : 0;
+		const btcBalance = btcBalanceKey && contractState?.data?.getStateByKeys?.[btcBalanceKey]
+			? Number(contractState.data.getStateByKeys[btcBalanceKey])
+			: 0;
 
 		const magiBalanceObj = (() => {
 			if (magiBal.data) {

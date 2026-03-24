@@ -408,7 +408,8 @@
 	$effect(() => {
 		if (!$SendTxDetails.toCoin) return;
 		// When pool-based swap calc is active, it sets toAmount directly
-		if (swapResult && swapResult.expectedOutput > 0n) return;
+		// (even when expectedOutput is 0 — e.g. amount exceeds pool reserves)
+		if (swapResult) return;
 		if (inputAmount.coin.value === $SendTxDetails.toCoin.coin.value) {
 			const amt = inputAmount.toAmountString();
 			if (amt !== $SendTxDetails.toAmount) $SendTxDetails.toAmount = amt;

@@ -28,8 +28,8 @@
 	let invoiceReq = $derived(
 		createLightningInvoice(
 			toAmount,
-			to.coin.label as 'hive' | 'hbd',
-			to.coin.label as 'hive' | 'hbd',
+			to.coin.label.toLowerCase() as 'hive' | 'hbd' | 'sats',
+			to.coin.label.toLowerCase() as 'hive' | 'hbd' | 'sats',
 			to.network,
 			auth,
 			toUsername,

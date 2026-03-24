@@ -122,17 +122,13 @@
 					>
 				</tr>
 			{/if}
-			{#if $accountBalance.bal.btc !== 0}
-				<tr>
-					<th> </th><td class="icon-cell"><img src={Coin.btc.icon} alt="Bitcoin" /></td>
-					<td class="coin-cell">
-						<span class="coin-title">Bitcoin</span>
-					</td>
-					<td class="amount-cell"
-						>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</td
-					>
-				</tr>
-			{/if}
+			<tr>
+				<td><img src={Coin.btc.icon} alt="Bitcoin" /></td>
+				<td class="coin-cell">Bitcoin (SATS)</td>
+				<td class="amount-cell"
+					>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</td
+				>
+			</tr>
 		</tbody>
 	</table>
 </div>

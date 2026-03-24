@@ -17,9 +17,14 @@ export interface PoolRow {
 	volumeAssets: [string, string];
 }
 
+// HIVE/HBD DEX:
 export const HIVE_HBD_POOL_CONTRACT_ID = 'vsc1Brm1QpGF8WXvRCvwgbpB6fiHtTBJzyZUC9';
 
-export const HBD_BTC_POOL_CONTRACT_ID = 'vsc1BYBwMvsSFwqvwzio352VWp6fGkjVs7t3Dp';
+// BTC Testnet3 Mapping:
+// export const HBD_BTC_POOL_CONTRACT_ID = 'vsc1BYBwMvsSFwqvwzio352VWp6fGkjVs7t3Dp';
+
+// BTC/HBD DEX:
+export const HBD_BTC_POOL_CONTRACT_ID = 'vsc1BgwiEg8P5u2qYSV7DL8FCqrj5E7hWSYKmf';
 
 
 export const HBD_BTC_POOL_KEYS = [

@@ -108,8 +108,8 @@ export const hbdUnstakeTx = async (
 };
 
 export const addLiquidityTx = async (
-	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
-	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
 	username: string,
 	aioha: Aioha
 ): Promise<OperationResult> => {

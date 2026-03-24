@@ -19,7 +19,10 @@ export interface PoolRow {
 
 export const HIVE_HBD_POOL_CONTRACT_ID = 'vsc1Brm1QpGF8WXvRCvwgbpB6fiHtTBJzyZUC9';
 
-export const HIVE_HBD_POOL_KEYS = [
+export const HBD_BTC_POOL_CONTRACT_ID = 'vsc1BYBwMvsSFwqvwzio352VWp6fGkjVs7t3Dp';
+
+
+export const HBD_BTC_POOL_KEYS = [
 	'reserve0',
 	'reserve1',
 	'total_lp',
@@ -70,8 +73,8 @@ function mapStateToPoolRow(state: PoolState): PoolRow {
 	const asset1Json = state['asset1'];
 	const asset0 = asset0Json ? JSON.parse(asset0Json) : null;
 	const asset1 = asset1Json ? JSON.parse(asset1Json) : null;
-	const sym0 = (asset0?.asset as string | undefined)?.toUpperCase?.() ?? 'HIVE';
-	const sym1 = (asset1?.asset as string | undefined)?.toUpperCase?.() ?? 'HBD';
+	const sym0 = (asset0?.asset as string | undefined)?.toUpperCase?.() ?? 'HBD';
+	const sym1 = (asset1?.asset as string | undefined)?.toUpperCase?.() ?? 'BTC';
 	const pairSym0 = `SWAP.${sym0}`;
 	const pairSym1 = `SWAP.${sym1}`;
 
@@ -108,7 +111,7 @@ function mapStateToPoolRow(state: PoolState): PoolRow {
 	];
 
 	return {
-		id: 'swap-hive-hbd',
+		id: 'swap-hbd-btc',
 		pair: `${pairSym0}:${pairSym1}`,
 		pairSymbols: [pairSym0, pairSym1],
 		priceRatio,
@@ -137,8 +140,8 @@ export async function fetchPools(): Promise<PoolRow[]> {
 			body: JSON.stringify({
 				query: GET_POOL_STATE_QUERY,
 				variables: {
-					contractId: HIVE_HBD_POOL_CONTRACT_ID,
-					keys: HIVE_HBD_POOL_KEYS
+					contractId: HBD_BTC_POOL_CONTRACT_ID,
+					keys: HBD_BTC_POOL_KEYS
 				}
 			})
 		});

@@ -129,24 +129,14 @@
 		setToUsername(trimmed);
 	});
 
-	// Update SendTxDetails with coinAmount
+	// Sync coinAmount → store. Uses local guard to avoid reading store reactively.
+	let lastSyncedAmt = '';
 	$effect(() => {
 		if (!open) return;
 		const amt = coinAmount.toAmountString();
-		SendTxDetails.update((details) => {
-			if (
-				details.toAmount === amt &&
-				details.fromAmount === amt &&
-				details.enteredAmount === amt
-			)
-				return details;
-			return {
-				...details,
-				toAmount: amt,
-				fromAmount: amt,
-				enteredAmount: amt
-			};
-		});
+		if (amt === lastSyncedAmt) return;
+		lastSyncedAmt = amt;
+		SendTxDetails.update((d) => ({ ...d, fromAmount: amt, toAmount: amt, enteredAmount: amt }));
 	});
 
 	let max = $state(new CoinAmount(0, Coin.hive));
@@ -238,24 +228,18 @@
 	);
 
 	let assetOpen = $state(false);
-	const toggleAsset = (open = false) => {
+	function toggleAsset(open = false) {
 		assetOpen = open;
-	};
+		// When closing asset picker, sync toCoin to match the newly selected fromCoin
+		if (!open) {
+			const store = get(SendTxDetails);
+			if (store.fromCoin && store.toCoin?.coin?.value !== store.fromCoin?.coin?.value) {
+				SendTxDetails.update((d) => ({ ...d, toCoin: d.fromCoin }));
+			}
+		}
+	}
 	$effect(() => {
 		secondaryMenu = assetOpen || contactOpen;
-	});
-
-	// Ensure toCoin is valid for Hive Mainnet (HIVE or HBD)
-	$effect(() => {
-		if (!open) return;
-		SendTxDetails.update((details) => {
-			const fromCoin = details.fromCoin;
-			const toCoin = details.toCoin;
-			const fromValue = fromCoin?.coin.value;
-			const toValue = toCoin?.coin.value;
-			if (fromValue === toValue) return details;
-			return { ...details, toCoin: fromCoin };
-		});
 	});
 </script>
 

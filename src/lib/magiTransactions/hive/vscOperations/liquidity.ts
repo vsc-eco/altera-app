@@ -2,7 +2,7 @@ import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId } from '../../../../client';
-import { HIVE_HBD_POOL_CONTRACT_ID } from '$lib/pools/poolsData';
+import { HBD_BTC_POOL_CONTRACT_ID } from '$lib/pools/poolsData';
 
 type AddLiquidityPayload = {
 	type: 'add_liquidity';
@@ -34,8 +34,8 @@ type ExecuteOp = {
  */
 export function getAddLiquidityOp(
 	username: string,
-	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
-	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd>
+	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>
 ): CustomJsonOperation {
 	const caller = `hive:${username}`;
 
@@ -49,7 +49,7 @@ export function getAddLiquidityOp(
 	const op: ExecuteOp = {
 		net_id: vscNetworkId,
 		caller,
-		contract_id: HIVE_HBD_POOL_CONTRACT_ID,
+		contract_id: HBD_BTC_POOL_CONTRACT_ID,
 		action: 'execute',
 		payload,
 		rc_limit: 5000,
@@ -99,7 +99,7 @@ export function getRemoveLiquidityOp(username: string, lpAmount: number): Custom
 	const op: ExecuteOp = {
 		net_id: vscNetworkId,
 		caller,
-		contract_id: HIVE_HBD_POOL_CONTRACT_ID,
+		contract_id: HBD_BTC_POOL_CONTRACT_ID,
 		action: 'execute',
 		payload,
 		rc_limit: 5000,

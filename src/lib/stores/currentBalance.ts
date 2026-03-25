@@ -79,7 +79,7 @@ async function fetchAccountData(auth: Auth) {
 		const contractStateStore = new GetContractStateStore();
 
 		const username = getUsernameFromAuth(auth);
-		const btcBalanceKey = username ? `a-hive:tibfox` : null;
+		const btcBalanceKey = username ? `a-hive:${username}` : null;
 
 		const [magiBal, contractState, connectedBal] = await Promise.all([
 			accBalancesStore.fetch({

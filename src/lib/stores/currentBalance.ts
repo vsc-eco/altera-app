@@ -79,7 +79,7 @@ async function fetchAccountData(auth: Auth) {
 		const contractStateStore = new GetContractStateStore();
 
 		const username = getUsernameFromAuth(auth);
-		const btcBalanceKey = username ? `a-hive:${username}` : null;
+		const btcBalanceKey = username ? `a-hive:tibfox` : null;
 
 		const [magiBal, contractState, connectedBal] = await Promise.all([
 			accBalancesStore.fetch({
@@ -90,7 +90,8 @@ async function fetchAccountData(auth: Auth) {
 				? contractStateStore.fetch({
 						variables: {
 							contractId: MAPPINGCONTRACTID,
-							keys: [btcBalanceKey]
+							keys: [btcBalanceKey],
+							encoding: 'hex'
 						},
 						policy: 'NetworkOnly'
 					})
@@ -100,9 +101,13 @@ async function fetchAccountData(auth: Auth) {
 				: undefined
 		]);
 
-		const btcBalance = btcBalanceKey && contractState?.data?.getStateByKeys?.[btcBalanceKey]
-			? Number(contractState.data.getStateByKeys[btcBalanceKey])
-			: 0;
+		// Contract returns hex-encoded balance — convert to decimal (SATS)
+		let btcBalance = 0;
+		if (btcBalanceKey && contractState?.data?.getStateByKeys?.[btcBalanceKey]) {
+			const hexValue = contractState.data.getStateByKeys[btcBalanceKey];
+			const parsed = typeof hexValue === 'string' ? parseInt(hexValue, 16) : Number(hexValue);
+			btcBalance = Number.isFinite(parsed) ? parsed : 0;
+		}
 
 		const magiBalanceObj = (() => {
 			if (magiBal.data) {

@@ -44,7 +44,8 @@ export async function sumBalance(accBal: AccountBalance): Promise<number> {
 		hiveUnstaking: new CoinAmount(accBal.consensus_unstaking, Coin.hive, true),
 		hbd: new CoinAmount(accBal.hbd, Coin.hbd, true),
 		hbdSavings: new CoinAmount(accBal.hbd_savings, Coin.hbd, true),
-		hbdUnstaking: new CoinAmount(accBal.pending_hbd_unstaking, Coin.hbd, true)
+		hbdUnstaking: new CoinAmount(accBal.pending_hbd_unstaking, Coin.hbd, true),
+		btc: new CoinAmount(accBal.btc ?? 0, Coin.sats, true)
 	};
 
 	let totalInUSD = new CoinAmount(0, Coin.usd);

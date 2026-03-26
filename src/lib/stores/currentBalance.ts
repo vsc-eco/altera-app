@@ -1,11 +1,38 @@
 import { writable } from 'svelte/store';
-import { GetAccountBalanceStore, GetContractStateStore } from '$houdini';
+import { GetAccountBalanceStore } from '$houdini';
 import { browser } from '$app/environment';
 import { DHive } from '$lib/magiTransactions/dhive';
 import { getAuth, type Auth } from '$lib/auth/store';
 import { getUsernameFromAuth } from '$lib/getAccountName';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
+
+const HASURA_INDEXER_URL = 'https://magidev.okinoko.io/hasura/v1/graphql';
+
+async function fetchBtcBalance(username: string): Promise<number> {
+	const query = `
+		query BTCBalance($account: String!) {
+			btc_mapping_balances(where: {account: {_eq: $account}}) {
+				account
+				balance_sats
+			}
+		}
+	`;
+	const res = await fetch(HASURA_INDEXER_URL, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({
+			query,
+			variables: { account: `hive:${username}` }
+		})
+	});
+	const json = await res.json();
+	const rows = json?.data?.btc_mapping_balances;
+	if (Array.isArray(rows) && rows.length > 0) {
+		return Number(rows[0].balance_sats) || 0;
+	}
+	return 0;
+}
 
 export type AccountBalance = {
 	hbd: number;
@@ -67,47 +94,26 @@ export function startAccountPolling(auth: Auth) {
 	}, 2000);
 }
 
-// testnet BTC mapping contract
-// export const MAPPINGCONTRACTID = 'vsc1BcS12fD42kKqL2SMLeBzaEKtd9QbBWC1dt';
-// BTC balance is stored in the HBD-BTC pool contract with keys like "a-hive:{username}"
-export const MAPPINGCONTRACTID = 'vsc1BYBwMvsSFwqvwzio352VWp6fGkjVs7t3Dp';
+// BTC mapping contract (used by bitcoin.ts for transfer/unmap operations)
+export const MAPPINGCONTRACTID = 'vsc1BcS12fD42kKqL2SMLeBzaEKtd9QbBWC1dt';
 
 async function fetchAccountData(auth: Auth) {
 	try {
 		if (!auth.value) throw 'Not authenticated';
 		const accBalancesStore = new GetAccountBalanceStore();
-		const contractStateStore = new GetContractStateStore();
 
 		const username = getUsernameFromAuth(auth);
-		const btcBalanceKey = username ? `a-hive:${username}` : null;
 
-		const [magiBal, contractState, connectedBal] = await Promise.all([
+		const [magiBal, btcBalance, connectedBal] = await Promise.all([
 			accBalancesStore.fetch({
 				variables: { account: auth.value!.did },
 				policy: 'NetworkOnly'
 			}),
-			btcBalanceKey
-				? contractStateStore.fetch({
-						variables: {
-							contractId: MAPPINGCONTRACTID,
-							keys: [btcBalanceKey],
-							encoding: 'hex'
-						},
-						policy: 'NetworkOnly'
-					})
-				: undefined,
+			username ? fetchBtcBalance(username) : 0,
 			auth.value?.provider === 'aioha' && username
 				? DHive.database.getAccounts([username])
 				: undefined
 		]);
-
-		// Contract returns hex-encoded balance — convert to decimal (SATS)
-		let btcBalance = 0;
-		if (btcBalanceKey && contractState?.data?.getStateByKeys?.[btcBalanceKey]) {
-			const hexValue = contractState.data.getStateByKeys[btcBalanceKey];
-			const parsed = typeof hexValue === 'string' ? parseInt(hexValue, 16) : Number(hexValue);
-			btcBalance = Number.isFinite(parsed) ? parsed : 0;
-		}
 
 		const magiBalanceObj = (() => {
 			if (magiBal.data) {

@@ -3,9 +3,19 @@
 	import { Zap, Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown } from '@lucide/svelte';
 	import { fetchPools, type TimeRange } from './poolsData';
 	import type { PoolRow } from './poolsData';
+	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
+	import PoolDetail from './PoolDetail.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
+
+	function getCoinIcon(symbol: string): string | undefined {
+		const s = symbol.toUpperCase();
+		if (s === 'BTC') return Coin.btc.icon;
+		if (s === 'HBD') return Coin.hbd.icon;
+		if (s === 'HIVE') return Coin.hive.icon;
+		return undefined;
+	}
 
 	let searchQuery = $state('');
 	let timeRange = $state<TimeRange>('30d');
@@ -15,13 +25,16 @@
 	let createPoolToggle = $state<(open?: boolean) => void>(() => {});
 
 	let pools = $state<PoolRow[]>([]);
+	let loading = $state(false);
+	let selectedPool = $state<PoolRow | null>(null);
 
 	$effect(() => {
-		if (pools.length === 0) {
-			(async () => {
-				pools = await fetchPools();
-			})();
-		}
+		const range = timeRange;
+		loading = true;
+		fetchPools(range).then((result) => {
+			pools = result;
+			loading = false;
+		});
 	});
 
 	type SortColumn = 'liquidity' | 'fee' | 'volume';
@@ -91,6 +104,11 @@
 	}
 </script>
 
+{#if selectedPool}
+	<div class="pools-content">
+		<PoolDetail pool={selectedPool} onback={() => (selectedPool = null)} />
+	</div>
+{:else}
 <div class="pools-content">
 	<div class="toolbar">
 		<input
@@ -163,12 +181,20 @@
 			</thead>
 			<tbody>
 				{#each sortedPools as pool (pool.id)}
-					<tr>
+					<tr class="clickable" onclick={() => (selectedPool = pool)}>
 						<td class="col-pair">
 							<div class="pair-cell">
 								<span class="pair-icons" aria-hidden="true">
-									<span class="icon icon-a"></span>
-									<span class="icon icon-b"></span>
+									{#if getCoinIcon(pool.pairSymbols[0])}
+										<img class="coin-icon icon-a" src={getCoinIcon(pool.pairSymbols[0])} alt={pool.pairSymbols[0]} />
+									{:else}
+										<span class="icon icon-a"></span>
+									{/if}
+									{#if getCoinIcon(pool.pairSymbols[1])}
+										<img class="coin-icon icon-b" src={getCoinIcon(pool.pairSymbols[1])} alt={pool.pairSymbols[1]} />
+									{:else}
+										<span class="icon icon-b"></span>
+									{/if}
 								</span>
 								<span class="pair-label">{pool.pair}</span>
 							</div>
@@ -234,6 +260,7 @@
 		<p class="placeholder-text">Create pool form will go here.</p>
 	{/snippet}
 </Dialog>
+{/if}
 
 <style lang="scss">
 	.pools-content {
@@ -327,6 +354,10 @@
 		background-color: var(--neutral-bg-accent);
 	}
 
+	.pools-table tbody tr.clickable {
+		cursor: pointer;
+	}
+
 	.col-heading-btn {
 		display: inline-flex;
 		align-items: center;
@@ -359,18 +390,22 @@
 		align-items: center;
 	}
 
-	.pair-icons .icon {
+	.pair-icons .icon,
+	.pair-icons .coin-icon {
 		width: 1.5rem;
 		height: 1.5rem;
 		border-radius: 50%;
 		border: 2px solid var(--neutral-bg);
 		margin-left: -0.35rem;
+	}
+	.pair-icons .icon {
 		background-color: var(--primary-bg-mid);
 	}
-	.pair-icons .icon:first-child {
+	.pair-icons .icon:first-child,
+	.pair-icons .coin-icon:first-child {
 		margin-left: 0;
 	}
-	.pair-icons .icon-b {
+	.pair-icons .icon-b:not(.coin-icon) {
 		background-color: var(--primary-bg-accent);
 	}
 

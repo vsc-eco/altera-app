@@ -690,12 +690,13 @@ export async function send(
 		if (!auth.value?.aioha) {
 			return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
 		}
+		const swapCoins = [Coin.hive.value, Coin.hbd.value, Coin.btc.value];
 		const isSwap =
 			fromNetwork.value === Network.magi.value &&
 			toNetwork.value === Network.magi.value &&
 			fromCoin.coin.value !== toCoin.coin.value &&
-			(fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value) &&
-			(toCoin.coin.value === Coin.hive.value || toCoin.coin.value === Coin.hbd.value);
+			swapCoins.includes(fromCoin.coin.value) &&
+			swapCoins.includes(toCoin.coin.value);
 
 		let sendOp: Operation;
 		let opType: string | undefined;
@@ -709,8 +710,8 @@ export async function send(
 			sendOp = getHiveSwapOp(
 				auth.value.username!,
 				new CoinAmount(fromAmountStr, fromCoin.coin),
-				fromCoin.coin as typeof Coin.hive | typeof Coin.hbd,
-				toCoin.coin as typeof Coin.hive | typeof Coin.hbd,
+				fromCoin.coin as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+				toCoin.coin as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
 				minOut
 			);
 			opType = 'swap';

@@ -4,49 +4,101 @@ import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId } from '../../../../client';
 import { HIVE_HBD_POOL_CONTRACT_ID } from '$lib/pools/poolsData';
 
-type AddLiquidityPayload = {
-	type: 'add_liquidity';
-	amount0: number;
-	amount1: number;
-	recipient: string;
-};
+// Contract for the BTC/HBD pool router (handles deposit/withdraw with asset routing)
+const BTC_HBD_ROUTER_CONTRACT = 'vsc1BoZJMQqpmdLxUfyRt5Tz82YM7Z57r7Dos7';
 
-type RemoveLiquidityPayload = {
-	type: 'remove_liquidity';
-	lp_amount: number;
-	recipient: string;
-};
-
-type ExecuteOp = {
-	net_id: string;
-	caller: string;
-	contract_id: string;
-	action: 'execute';
-	payload: AddLiquidityPayload | RemoveLiquidityPayload;
-	rc_limit: number;
-	intents: Array<{ type: string; args: Record<string, string> }>;
-};
+type LiquidityCoin = typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc;
 
 /**
- * Build the VSC execute op for adding liquidity to the HIVE/HBD pool.
- * - amount0 / amount1 are integers in the assets' smallest units.
- * - recipient receives the LP tokens.
+ * Determine which contract and payload format to use based on the asset pair.
+ * - BTC/HBD pair uses the router contract with deposit-style payload
+ * - HIVE/HBD pair uses the pool contract directly with add_liquidity payload
+ */
+function isBtcPair(
+	coin0: LiquidityCoin,
+	coin1: LiquidityCoin
+): boolean {
+	const values = [coin0.value, coin1.value];
+	return values.includes(Coin.btc.value);
+}
+
+/**
+ * Build the VSC execute op for adding liquidity.
+ *
+ * For BTC/HBD pools (matches reference tx format):
+ *   payload: { type: "deposit", version: "1.0.0", asset_in: "BTC", asset_out: "HBD",
+ *              recipient: "hive:user", metadata: { amount0: "50000", amount1: "50000" } }
+ *   intents: [{ type: "transfer.allow", args: { limit: "50000", token: "hbd" } }]
+ *
+ * For HIVE/HBD pools:
+ *   payload: { type: "add_liquidity", amount0, amount1, recipient }
+ *   intents: [{ type: "transfer.allow", args: { limit, token } }, ...]
  */
 export function getAddLiquidityOp(
 	username: string,
-	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
-	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>
+	amount0: CoinAmount<LiquidityCoin>,
+	amount1: CoinAmount<LiquidityCoin>
 ): CustomJsonOperation {
 	const caller = `hive:${username}`;
 
-	const payload: AddLiquidityPayload = {
+	if (isBtcPair(amount0.coin, amount1.coin)) {
+		// BTC/HBD pool — use router contract with deposit payload
+		// Both amount0 and amount1 use the HBD value (same raw amount)
+		const isBtc0 = amount0.coin.value === Coin.btc.value;
+		const hbdAmt = isBtc0 ? amount1 : amount0;
+		const hbdRaw = hbdAmt.amount.toString();
+
+		// payload must be a JSON STRING (double-encoded), not an object
+		const payloadStr = JSON.stringify({
+			type: 'deposit',
+			version: '1.0.0',
+			asset_in: 'BTC',
+			asset_out: 'HBD',
+			recipient: caller,
+			metadata: {
+				amount0: hbdRaw,
+				amount1: hbdRaw
+			}
+		});
+
+		const op = {
+			net_id: vscNetworkId,
+			caller,
+			contract_id: BTC_HBD_ROUTER_CONTRACT,
+			action: 'execute',
+			payload: payloadStr,
+			rc_limit: 1000,
+			intents: [
+				{
+					type: 'transfer.allow',
+					args: {
+						limit: hbdRaw,
+						token: 'hbd'
+					}
+				}
+			]
+		};
+
+		return [
+			'custom_json',
+			{
+				required_auths: [username],
+				required_posting_auths: [],
+				id: 'vsc.call',
+				json: JSON.stringify(op)
+			}
+		];
+	}
+
+	// HIVE/HBD pool — use pool contract directly
+	const payload = {
 		type: 'add_liquidity',
 		amount0: amount0.amount,
 		amount1: amount1.amount,
 		recipient: caller
 	};
 
-	const op: ExecuteOp = {
+	const op = {
 		net_id: vscNetworkId,
 		caller,
 		contract_id: HIVE_HBD_POOL_CONTRACT_ID,
@@ -57,14 +109,14 @@ export function getAddLiquidityOp(
 			{
 				type: 'transfer.allow',
 				args: {
-					limit: amount0.toAmountString(true),
+					limit: amount0.amount.toString(),
 					token: amount0.coin.value
 				}
 			},
 			{
 				type: 'transfer.allow',
 				args: {
-					limit: amount1.toAmountString(true),
+					limit: amount1.amount.toString(),
 					token: amount1.coin.value
 				}
 			}
@@ -84,19 +136,17 @@ export function getAddLiquidityOp(
 
 /**
  * Build the VSC execute op for removing liquidity from the HIVE/HBD pool.
- * - lp_amount is an integer amount of LP tokens to burn.
- * - recipient receives withdrawn assets.
  */
 export function getRemoveLiquidityOp(username: string, lpAmount: number): CustomJsonOperation {
 	const caller = `hive:${username}`;
 
-	const payload: RemoveLiquidityPayload = {
+	const payload = {
 		type: 'remove_liquidity',
 		lp_amount: lpAmount,
 		recipient: caller
 	};
 
-	const op: ExecuteOp = {
+	const op = {
 		net_id: vscNetworkId,
 		caller,
 		contract_id: HIVE_HBD_POOL_CONTRACT_ID,

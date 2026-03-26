@@ -21,6 +21,7 @@
 		selectedPool = pools.find((p) => p.id === id) ?? null;
 		amount0Ca = new CoinAmount(0, Coin.hbd);
 		amount1Ca = new CoinAmount(0, Coin.btc);
+		btcDisplayStr = '';
 	}
 
 	const hiveAssetName = $derived(getHiveAssetName());
@@ -40,6 +41,12 @@
 	const coin0 = $derived(selectedPool ? detectCoin(selectedPool.pairSymbols[0]) : Coin.hbd);
 	const coin1 = $derived(selectedPool ? detectCoin(selectedPool.pairSymbols[1]) : Coin.btc);
 
+	// Detect if this is a BTC/HBD pool
+	const isBtcHbdPool = $derived(
+		[coin0.value, coin1.value].includes(Coin.btc.value) &&
+		[coin0.value, coin1.value].includes(Coin.hbd.value)
+	);
+
 	function getMaxForCoin(c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc): CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc> | undefined {
 		if (c.value === Coin.btc.value) return new CoinAmount($accountBalance.bal.btc, Coin.btc, true);
 		if (c.value === Coin.hbd.value) return new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true);
@@ -52,10 +59,32 @@
 	const exceed0 = $derived(maxAmount0 ? amount0Ca.amount > maxAmount0.amount : false);
 	const exceed1 = $derived(maxAmount1 ? amount1Ca.amount > maxAmount1.amount : false);
 
+	// --- BTC/HBD pool: auto-calculate BTC from HBD ---
+	let btcDisplayStr = $state('');
+
+	$effect(() => {
+		if (!selectedPool || !isBtcHbdPool) return;
+		// Find the HBD side
+		const hbdCa = coin0.value === Coin.hbd.value ? amount0Ca : amount1Ca;
+		if (hbdCa.amount === 0) {
+			btcDisplayStr = '';
+			// Keep amount1Ca at 0 for validation
+			const btcCoin = coin0.value === Coin.btc.value ? coin0 : coin1;
+			amount1Ca = new CoinAmount(0, btcCoin);
+			return;
+		}
+		hbdCa.convertTo(Coin.btc, Network.lightning).then((btcAmt) => {
+			btcDisplayStr = btcAmt.toAmountString();
+			// Update amount1Ca so validation and store draft work
+			amount1Ca = btcAmt as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>;
+		});
+	});
+
+	// --- Non BTC/HBD pools: sync via conversion ---
 	const USD_TOLERANCE = 0.005;
 	let usdDiff = $state(0);
 	$effect(() => {
-		if (!selectedPool) {
+		if (!selectedPool || isBtcHbdPool) {
 			usdDiff = 0;
 			return;
 		}
@@ -66,14 +95,14 @@
 			usdDiff = Math.abs(usd0.toNumber() - usd1.toNumber());
 		});
 	});
-	const notInParity = $derived(usdDiff > USD_TOLERANCE);
+	const notInParity = $derived(!isBtcHbdPool && usdDiff > USD_TOLERANCE);
 	const hasError = $derived(exceed0 || exceed1 || notInParity);
 
 	let isSyncing = $state(false);
 	let lastKey0 = $state('');
 	let lastKey1 = $state('');
 	async function syncFromSource(source: '0' | '1') {
-		if (!selectedPool) return;
+		if (!selectedPool || isBtcHbdPool) return;
 		if (isSyncing) return;
 		isSyncing = true;
 		try {
@@ -101,7 +130,7 @@
 		}
 	}
 	$effect(() => {
-		if (!selectedPool || isSyncing) return;
+		if (!selectedPool || isSyncing || isBtcHbdPool) return;
 		const key0 = `${amount0Ca.coin.value}:${amount0Ca.amount}`;
 		const key1 = `${amount1Ca.coin.value}:${amount1Ca.amount}`;
 		const changed0 = key0 !== lastKey0;
@@ -149,6 +178,7 @@
 
 	{#if selectedPool}
 		<div class="form-section">
+			<!-- Token 0 (HBD for BTC/HBD pool) — always editable -->
 			<div class="asset-card">
 				<div class="asset-header">
 					<div class="label">{selectedPool.pairSymbols[0]}</div>
@@ -164,20 +194,40 @@
 				/>
 			</div>
 
-			<div class="asset-card">
-				<div class="asset-header">
-					<div class="label">{selectedPool.pairSymbols[1]}</div>
-					{#if exceed1}
-						<span class="error-text">Exceeds Magi {displayUnitForCoin(coin1)} balance</span>
-					{/if}
+			{#if isBtcHbdPool}
+				<!-- BTC side: read-only auto-calculated field -->
+				<div class="asset-card">
+					<div class="asset-header">
+						<div class="label">BTC (auto-calculated)</div>
+						{#if exceed1}
+							<span class="error-text">Exceeds Magi BTC balance</span>
+						{/if}
+						{#if maxAmount1}
+							<span class="balance-info">(Balance: {maxAmount1.toPrettyString()})</span>
+						{/if}
+					</div>
+					<div class="btc-display">
+						<span class="btc-value">{btcDisplayStr || '0'}</span>
+						<span class="btc-unit">BTC</span>
+					</div>
 				</div>
-				<AmountInput
-					bind:coinAmount={amount1Ca}
-					coinOpts={[{ coin: coin1, network: Network.magi }]}
-					maxAmount={maxAmount1}
-					styleType="normal"
-				/>
-			</div>
+			{:else}
+				<!-- Token 1 — editable for non-BTC pools -->
+				<div class="asset-card">
+					<div class="asset-header">
+						<div class="label">{selectedPool.pairSymbols[1]}</div>
+						{#if exceed1}
+							<span class="error-text">Exceeds Magi {displayUnitForCoin(coin1)} balance</span>
+						{/if}
+					</div>
+					<AmountInput
+						bind:coinAmount={amount1Ca}
+						coinOpts={[{ coin: coin1, network: Network.magi }]}
+						maxAmount={maxAmount1}
+						styleType="normal"
+					/>
+				</div>
+			{/if}
 
 			<div class="rate-info">
 				<p>1 {selectedPool.pairSymbols[0]} = {selectedPool.priceRatio}</p>
@@ -198,6 +248,29 @@
 	.asset-card { background: var(--neutral-bg); border: 1px solid var(--neutral-bg-accent); border-radius: 0.9rem; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
 	.asset-header { display: flex; justify-content: space-between; align-items: center; }
 	.error-text { color: var(--secondary-fg-mid); font-size: 11px; }
+	.balance-info { font-size: 12px; color: var(--neutral-fg-mid); }
 	.rate-info { background: var(--neutral-bg); border: 1px solid var(--neutral-bg-accent); border-radius: 0.8rem; padding: 0.75rem 1rem; font-size: 14px; color: var(--neutral-fg-mid); }
-</style>
 
+	.btc-display {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		border: 1px solid var(--neutral-bg-accent-shifted);
+		border-radius: 0.5rem;
+		padding: 0.625rem 0.75rem;
+		min-height: 2.5rem;
+
+		.btc-value {
+			flex: 1;
+			font-family: 'Noto Sans Mono Variable', monospace;
+			font-size: var(--text-base);
+			color: var(--neutral-fg);
+		}
+
+		.btc-unit {
+			font-weight: 500;
+			color: var(--neutral-fg-mid);
+			white-space: nowrap;
+		}
+	}
+</style>

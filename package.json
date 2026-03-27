@@ -90,7 +90,7 @@
 		"@lucide/svelte": "0.555.0",
 		"@reown/appkit": "^1.8.17",
 		"@reown/appkit-adapter-wagmi": "^1.8.17",
-		"@sveltejs/adapter-vercel": "^6.3.1",
+		"@sveltejs/adapter-vercel": "~6.2.0",
 		"@sveltejs/kit": "2.21.0",
 		"@vercel/analytics": "^1.6.1",
 		"@vsc.eco/client": "^0.0.7",

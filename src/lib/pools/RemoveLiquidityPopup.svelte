@@ -48,7 +48,7 @@
 		}
 
 		setStatus('Waiting for Hive wallet approval…');
-		const res = await removeLiquidityTx(draft.lpAmount, auth.value.username, auth.value.aioha);
+		const res = await removeLiquidityTx(draft.lpAmount, auth.value.username, auth.value.aioha, draft.selectedPool);
 		if (!res.success) {
 			setStatus(res.error ?? 'Transaction failed', true);
 			return new Error(res.error ?? 'Transaction failed');

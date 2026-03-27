@@ -123,6 +123,10 @@
 		});
 	});
 
+	function decimalsForAsset(symbol: string): number {
+		return symbol?.toUpperCase() === 'BTC' ? 8 : 3;
+	}
+
 	function fmtAmt(raw: number, decimals = 3): string {
 		const val = raw / 10 ** decimals;
 		return val.toLocaleString(undefined, {
@@ -230,9 +234,9 @@
 								<td class="addr-cell">
 									<span class="addr" title={s.recipient}>{shortAddr(s.recipient)}</span>
 								</td>
-								<td class="amount-cell mono">{fmtAmt(s.amount_in)}</td>
+								<td class="amount-cell mono">{fmtAmt(s.amount_in, decimalsForAsset(s.asset_in))}</td>
 								<td class="token-cell">{s.asset_in?.toUpperCase() ?? '-'}</td>
-								<td class="amount-cell mono">{fmtAmt(s.amount_out)}</td>
+								<td class="amount-cell mono">{fmtAmt(s.amount_out, decimalsForAsset(s.asset_out))}</td>
 								<td class="token-cell">{s.asset_out?.toUpperCase() ?? '-'}</td>
 								<td class="tx-cell">
 									<Clipboard value={s.indexer_tx_hash} label="" disabled={false} />
@@ -274,8 +278,8 @@
 								<td class="addr-cell">
 									<span class="addr" title={a.provider}>{shortAddr(a.provider)}</span>
 								</td>
-								<td class="amount-cell mono">{fmtAmt(a.amount0)}</td>
-								<td class="amount-cell mono">{fmtAmt(a.amount1)}</td>
+								<td class="amount-cell mono">{fmtAmt(a.amount0, decimalsForAsset(sym0))}</td>
+								<td class="amount-cell mono">{fmtAmt(a.amount1, decimalsForAsset(sym1))}</td>
 								<td class="amount-cell mono">{fmtAmt(a.lp_minted)}</td>
 								<td class="tx-cell">
 									<Clipboard value={a.indexer_tx_hash} label="" disabled={false} />
@@ -317,8 +321,8 @@
 								<td class="addr-cell">
 									<span class="addr" title={r.provider}>{shortAddr(r.provider)}</span>
 								</td>
-								<td class="amount-cell mono">{fmtAmt(r.amount0)} {sym0}</td>
-								<td class="amount-cell mono">{fmtAmt(r.amount1)} {sym1}</td>
+								<td class="amount-cell mono">{fmtAmt(r.amount0, decimalsForAsset(sym0))} {sym0}</td>
+								<td class="amount-cell mono">{fmtAmt(r.amount1, decimalsForAsset(sym1))} {sym1}</td>
 								<td class="amount-cell mono">{fmtAmt(r.lp_burned)}</td>
 								<td class="tx-cell">
 									<Clipboard value={r.indexer_tx_hash} label="" disabled={false} />

@@ -196,8 +196,14 @@ function mapStateToPoolRow(
 	const pairSym0 = `${sym0}`;
 	const pairSym1 = `${sym1}`;
 
-	const reserve0 = parseScaled(state['reserve0']);
-	const reserve1 = parseScaled(state['reserve1']);
+	function decimalPlaces(sym: string): number {
+		return sym.toUpperCase() === 'BTC' ? 8 : 3;
+	}
+	const dec0 = decimalPlaces(sym0);
+	const dec1 = decimalPlaces(sym1);
+
+	const reserve0 = parseScaled(state['reserve0'], dec0);
+	const reserve1 = parseScaled(state['reserve1'], dec1);
 
 	// USD prices per unit — look up by symbol
 	function getUsdPrice(sym: string): number {
@@ -228,32 +234,33 @@ function mapStateToPoolRow(
 
 	// Liquidity from indexer (net adds - removes)
 	const { liquidity, volume, fees } = indexerData;
-	const liqAmt0 = liquidity.netAmount0 / 1000; // scaled by 3 decimals
-	const liqAmt1 = liquidity.netAmount1 / 1000;
+	const liqAmt0 = liquidity.netAmount0 / 10 ** dec0;
+	const liqAmt1 = liquidity.netAmount1 / 10 ** dec1;
 	const totalLiquidityAssets: [string, string] = [
-		formatNum(liqAmt0, sym0),
-		formatNum(liqAmt1, sym1)
+		formatNum(liqAmt0, sym0, dec0),
+		formatNum(liqAmt1, sym1, dec1)
 	];
 
-	// Fees from indexer
-	const feeTotal = fees.totalFee / 1000;
-	const feeLp = fees.lpFee / 1000;
+	// Fees from indexer — all fee values are denominated in sym0 (dec0)
+	const feeTotal = fees.totalFee / 10 ** dec0;
+	const feeLp = fees.lpFee / 10 ** dec0;
+	const feeMagi = fees.magiFee / 10 ** dec0;
 	const feeEarnedAssets: [string, string] = [
-		formatNum(feeLp, sym0),
-		formatNum(feeTotal - feeLp, sym1)
+		formatNum(feeLp, sym0, dec0),
+		formatNum(feeMagi, sym0, dec0)
 	];
 
 	// Volume from indexer
-	const volIn = volume.amountIn / 1000;
-	const volOut = volume.amountOut / 1000;
+	const volIn = volume.amountIn / 10 ** dec0;
+	const volOut = volume.amountOut / 10 ** dec1;
 	const volumeAssets: [string, string] = [
-		formatNum(volIn, sym0),
-		formatNum(volOut, sym1)
+		formatNum(volIn, sym0, dec0),
+		formatNum(volOut, sym1, dec1)
 	];
 
 	// Compute USD totals
 	const totalLiquidityUsd = liqAmt0 * usd0 + liqAmt1 * usd1;
-	const feeEarnedUsdTotal = feeLp * usd0 + (feeTotal - feeLp) * usd1;
+	const feeEarnedUsdTotal = feeTotal * usd0;
 	const volumeUsdTotal = volIn * usd0 + volOut * usd1;
 
 	return {

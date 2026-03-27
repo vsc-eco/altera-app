@@ -135,11 +135,57 @@ export function getAddLiquidityOp(
 }
 
 /**
- * Build the VSC execute op for removing liquidity from the HIVE/HBD pool.
+ * Build the VSC execute op for removing liquidity.
+ *
+ * For BTC/HBD pools (matches reference tx format):
+ *   payload: { type: "withdrawal", version: "1.0.0", asset_in: "BTC", asset_out: "HBD",
+ *              recipient: "hive:user", metadata: { lp_amount: "2594" } }
+ *   intents: []
+ *
+ * For HIVE/HBD pools:
+ *   payload: { type: "remove_liquidity", lp_amount, recipient }
+ *   intents: []
  */
-export function getRemoveLiquidityOp(username: string, lpAmount: number): CustomJsonOperation {
+export function getRemoveLiquidityOp(
+	username: string,
+	lpAmount: number,
+	pairSymbols: [string, string]
+): CustomJsonOperation {
 	const caller = `hive:${username}`;
 
+	if (pairSymbols.some((s) => s.toUpperCase() === 'BTC')) {
+		// BTC/HBD pool — use router contract with withdrawal payload (double-encoded)
+		const payloadStr = JSON.stringify({
+			type: 'withdrawal',
+			version: '1.0.0',
+			asset_in: 'BTC',
+			asset_out: 'HBD',
+			recipient: caller,
+			metadata: { lp_amount: String(lpAmount) }
+		});
+
+		const op = {
+			net_id: vscNetworkId,
+			caller,
+			contract_id: BTC_HBD_ROUTER_CONTRACT,
+			action: 'execute',
+			payload: payloadStr,
+			rc_limit: 1000,
+			intents: [] as Array<{ type: string; args: Record<string, string> }>
+		};
+
+		return [
+			'custom_json',
+			{
+				required_auths: [username],
+				required_posting_auths: [],
+				id: 'vsc.call',
+				json: JSON.stringify(op)
+			}
+		];
+	}
+
+	// HIVE/HBD pool — use pool contract directly
 	const payload = {
 		type: 'remove_liquidity',
 		lp_amount: lpAmount,

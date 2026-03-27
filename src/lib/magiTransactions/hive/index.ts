@@ -13,6 +13,7 @@ import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp, getBitcoinUnmapOp } from './vscOperations/bitcoin';
 import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
+import type { PoolRow } from '$lib/pools/poolsData';
 
 export const consensusTx = async (
 	amount: string,
@@ -128,7 +129,8 @@ export const addLiquidityTx = async (
 export const removeLiquidityTx = async (
 	lpAmount: number,
 	username: string,
-	aioha: Aioha
+	aioha: Aioha,
+	selectedPool: PoolRow
 ): Promise<OperationResult> => {
 	if (!Number.isInteger(lpAmount) || lpAmount <= 0)
 		return {
@@ -137,7 +139,7 @@ export const removeLiquidityTx = async (
 			errorCode: 0
 		};
 
-	const op = getRemoveLiquidityOp(username, lpAmount);
+	const op = getRemoveLiquidityOp(username, lpAmount, selectedPool.pairSymbols);
 	const res = await executeTx(aioha, [op]);
 	return res;
 };

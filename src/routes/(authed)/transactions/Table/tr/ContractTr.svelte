@@ -39,8 +39,8 @@
 	});
 	const coinVal: string = $derived.by(() => {
 		const intents = op.data.intents;
-		if (!intents) return coins.hive.value;
-		return intents[0]?.args?.limit ?? coins.hive.value;
+		if (!intents || intents.length === 0) return Coin.hive.value;
+		return intents[0]?.args?.token ?? Coin.hive.value;
 	});
 	const amount = $derived(
 		new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.hive, true)
@@ -50,6 +50,19 @@
 		amount.convertTo(Coin.usd, Network.lightning).then((amount) => {
 			inUsd = amount.toAmountString();
 		});
+	});
+
+	const displayType: string = $derived.by(() => {
+		try {
+			const payloadStr = op.data.payload;
+			if (typeof payloadStr === 'string') {
+				const parsed = JSON.parse(payloadStr);
+				if (parsed?.type) return parsed.type.replace(/_/g, ' ');
+			}
+		} catch {
+			// ignore parse errors
+		}
+		return op.data.action ?? op.type ?? 'call';
 	});
 </script>
 
@@ -65,13 +78,13 @@
 	<Amount {amount} direction={'contract'} />
 	<Token {amount} direction={'contract'} />
 
-	<Type direction="contract" t={op.type!} />
+	<Type direction="contract" t={displayType} />
 </tr>
 
 {#snippet contractRowContent()}
 	<h2>
-		{(op.type ?? tx.type)
-			.replace('_', ' ')
+		{displayType
+			.replace(/_/g, ' ')
 			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase())}
 	</h2>
 	<div class="sections">

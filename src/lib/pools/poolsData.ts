@@ -25,6 +25,9 @@ export const HIVE_HBD_POOL_CONTRACT_ID = 'vsc1Brm1QpGF8WXvRCvwgbpB6fiHtTBJzyZUC9
 // BTC/HBD DEX:
 export const HBD_BTC_POOL_CONTRACT_ID = 'vsc1BgwiEg8P5u2qYSV7DL8FCqrj5E7hWSYKmf';
 
+// BTC Mapping contract (ERC-20 style approve/transfer for BTC):
+export const BTC_MAPPING_CONTRACT_ID = 'vsc1BYBwMvsSFwqvwzio352VWp6fGkjVs7t3Dp';
+
 export const HBD_BTC_POOL_KEYS = [
 	'reserve0',
 	'reserve1',

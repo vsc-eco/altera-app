@@ -500,7 +500,7 @@
 	$effect(() => {
 		const amt =
 			$SendTxDetails.fromCoin?.coin.value === Coin.btc.value
-				? new CoinAmount(0.0000025, Coin.btc)
+				? new CoinAmount(0.00000001, Coin.btc)
 				: undefined;
 		untrack(() => {
 			if (minAmount?.coin.value !== amt?.coin.value || minAmount?.toNumber() !== amt?.toNumber()) {

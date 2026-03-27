@@ -188,10 +188,6 @@
 							{@const { data } = op}
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} {op} onRowClick={allowPopup ? toggleDetails : openTxsPage} />
-							{:else}
-								<tr>
-									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
-								</tr>
 							{/if}
 						{/if}
 					{/each}
@@ -212,17 +208,13 @@
 							{@const { data } = newOp}
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
-							{:else if op.type === 'call_contract'}
+							{:else if op.type === 'call_contract' || op.type === 'call'}
 								{@const action = newOp.data?.action || ''}
 								{#if (action === 'map' || action === 'unmap' || action === 'transfer' || action === 'transferFrom')}
 									<BtcMappingTr {tx} op={newOp} onRowClick={toggleDetails} />
 								{:else}
 									<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
 								{/if}
-							{:else}
-								<tr>
-									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
-								</tr>
 							{/if}
 						{/if}
 					{/each}

@@ -1,9 +1,9 @@
-import { ArrowRightLeft, Eye, Home, ScrollText, Send } from '@lucide/svelte';
+import { ArrowRightLeft, Eye, LayoutDashboard, ScrollText, Send } from '@lucide/svelte';
 
 export const paths = [
 	{
-		name: 'Home',
-		icon: Home,
+		name: 'Dashboard',
+		icon: LayoutDashboard,
 		href: '/'
 	},
 	{

@@ -16,8 +16,9 @@
 	div {
 		background-color: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
-		padding: 0.5rem;
+		border-radius: 27px;
+		box-shadow: var(--dash-card-shadow);
+		padding: 1.25rem;
 		overflow: auto;
 		max-height: 100%;
 		flex: 1 1 auto;

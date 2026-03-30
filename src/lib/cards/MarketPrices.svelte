@@ -113,24 +113,29 @@
 	.market-prices {
 		background-color: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
-		padding: 1.25rem;
+		border-radius: 27px;
+		padding: 1.25rem 1.5rem;
+		box-shadow: var(--dash-card-shadow);
 	}
 	.section-title {
 		color: var(--dash-text-primary);
-		font-size: 1rem;
+		font-size: 0.85rem;
 		font-weight: 600;
-		margin: 0 0 1rem 0;
+		margin: 0 0 0.625rem 0 !important;
 	}
 	.price-list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.875rem;
 	}
 	.price-item {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		padding: 0.625rem 0;
+		border-bottom: 1px solid var(--dash-divider);
+	}
+	.price-item:last-child {
+		border-bottom: none;
 	}
 	.coin-info {
 		display: flex;
@@ -148,12 +153,11 @@
 		font-size: 0.8rem;
 		color: white;
 		flex-shrink: 0;
-		overflow: hidden;
 	}
 	.coin-icon {
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
+		object-fit: contain;
 	}
 	.coin-details {
 		display: flex;
@@ -162,7 +166,7 @@
 	.coin-symbol {
 		color: var(--dash-text-primary);
 		font-weight: 600;
-		font-size: 0.9rem;
+		font-size: 0.85rem;
 		line-height: 1.2;
 	}
 	.coin-name {
@@ -178,8 +182,8 @@
 	.price {
 		color: var(--dash-text-primary);
 		font-weight: 600;
-		font-size: 0.9rem;
-		font-family: 'Noto Sans Mono Variable', monospace;
+		font-size: 0.85rem;
+		font-family: 'Nunito Sans', sans-serif;
 		line-height: 1.2;
 	}
 	.change {

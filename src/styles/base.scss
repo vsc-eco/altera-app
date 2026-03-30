@@ -1,6 +1,22 @@
 /* Defines spacing, fonts, and sizes */
 @use './fonts/plex/plex.css';
 @use './scrollbar.scss';
+
+@font-face {
+	font-family: 'Nunito Sans';
+	src: url('/fonts/NunitoSans-Variable.ttf') format('truetype');
+	font-weight: 200 1000;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'Nunito Sans';
+	src: url('/fonts/NunitoSans-Italic-Variable.ttf') format('truetype');
+	font-weight: 200 1000;
+	font-style: italic;
+	font-display: swap;
+}
+
 @keyframes highlight-in {
 	0% {
 		background-color: var(--neutral-bg-accent);
@@ -10,10 +26,11 @@
 	}
 }
 :root {
-	font-family: 'IBM Plex Sans', system-ui, sans-serif;
+	font-family: 'Nunito Sans', system-ui, sans-serif;
 	font-optical-sizing: auto;
 	font-style: normal;
-	font-weight: 450;
+	font-weight: 400;
+	letter-spacing: 0.01em;
 	// font-variation-settings: 'wdth' 80;
 	--text-xs: 0.79rem;
 	--text-sm: 0.88rem;
@@ -156,8 +173,8 @@ body {
 	display: block;
 }
 :root {
-	background-color: var(--neutral-bg);
-	color: var(--neutral-fg);
+	background-color: var(--dash-bg);
+	color: var(--dash-text-primary);
 
 	/* Swap card global variables */
 	--swap-card-bg: var(--dash-card-bg);
@@ -256,3 +273,4 @@ input:disabled {
 	font-weight: 400;
 	white-space: nowrap;
 }
+

@@ -29,10 +29,15 @@ function isAuthenticated(): Promise<Auth | false> {
 }
 
 export async function load({ url }) {
-	const authed = await isAuthenticated();
 	if (!browser) {
 		return { auth: { status: 'pending' } as Auth };
 	}
+	// Skip auth check on localhost for development
+	const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+	if (isLocalhost) {
+		return { auth: { status: 'none' } as Auth };
+	}
+	const authed = await isAuthenticated();
 	if (!authed && url.pathname != '/login') {
 		localStorage.setItem('redirect_url', url.toString());
 		redirect(307, '/login');

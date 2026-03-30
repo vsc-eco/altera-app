@@ -17,39 +17,9 @@
 	--light-purple: oklch(0.67 0.27 317);
 	--middle-purple: oklch(0.272 0.086 300);
 	--dark-purple: oklch(0.188 0.0716 291);
-	/* Primary text (headings, key values) */
 	--primary-text: #ffffff;
 	--positive-text: #a7fb8a;
 	--negative-text: #ff6b6b;
-
-	/* Dashboard color palette */
-	--dash-bg: #0a0a12;
-	--dash-surface: #111119;
-	--dash-surface-alt: #16161f;
-	--dash-card-bg: #1a1a25;
-	--dash-card-border: #252533;
-	--dash-sidebar-bg: #0e0e16;
-	--dash-sidebar-border: #1c1c2a;
-	--dash-sidebar-active: #6c5ce7;
-	--dash-sidebar-hover: #1a1a28;
-	--dash-input-bg: #12121c;
-	--dash-input-border: #2a2a3a;
-	--dash-accent-purple: #6c5ce7;
-	--dash-accent-purple-hover: #7c6ef7;
-	--dash-accent-green: #22c55e;
-	--dash-accent-red: #ef4444;
-	--dash-text-primary: #ffffff;
-	--dash-text-secondary: #9ca3af;
-	--dash-text-muted: #6b7280;
-	--dash-badge-green-bg: rgba(34, 197, 94, 0.15);
-	--dash-badge-green-text: #22c55e;
-	--dash-badge-red-bg: rgba(239, 68, 68, 0.15);
-	--dash-badge-red-text: #ef4444;
-	--dash-divider: #1f1f2e;
-	--dash-swap-bg: #111119;
-	--dash-swap-field-bg: #0a0a12;
-	--dash-btn-primary: #6c5ce7;
-	--dash-btn-primary-hover: #7c6ef7;
 }
 $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 97, 98;
 :root {
@@ -57,9 +27,213 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.oklch-palette($color-nums, 'teal', 0.2, 170, 0.02, 250);
 	@include color-mixins.oklch-palette($color-nums, 'gray', 0, 305.19, 0.005, 385);
 	@include color-mixins.oklch-palette($color-nums, 'green', 0.01, 147, 0.05, 142, 0.125, 0.65);
-	/* Primary #6F6AF8 ≈ oklch(59% 0.23 283) */
 	@include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 283, 0.02, 283, 0.23, 0.59);
 	@include color-mixins.oklch-palette($color-nums, 'pink', 0.26, 316.97);
+}
+
+/* ========== DARK THEME (default) — extracted from SVG ========== */
+:root,
+:root.dark-theme {
+	/* Core backgrounds — SVG: #060606 */
+	--dash-bg: #060606;
+	--dash-surface: #12121C;
+	--dash-surface-alt: #1E1E2A;
+
+	/* Cards — lightened ~6% from SVG for contrast */
+	--dash-card-bg: #14141E;
+	--dash-card-border: #22222E;
+	--dash-card-bg-hover: #151520;
+	/* 3D shading — top-left light source */
+	--dash-card-shadow:
+		inset 1px 1px 0px 0px rgba(255, 255, 255, 0.03),
+		inset -1px -1px 0px 0px rgba(0, 0, 0, 0.2),
+		0px 2px 8px 0px rgba(0, 0, 0, 0.3),
+		0px 0px 1px 0px rgba(0, 0, 0, 0.4);
+	--dash-card-border-top: rgba(255, 255, 255, 0.05);
+	--dash-card-border-bottom: rgba(0, 0, 0, 0.3);
+
+	/* Sidebar — SVG: same dark bg */
+	--dash-sidebar-bg: #060606;
+	--dash-sidebar-border: #1A1A23;
+	--dash-sidebar-active-bg: #6F6AF8;
+	--dash-sidebar-active-text: #FFFFFF;
+	--dash-sidebar-hover: #14141E;
+	--dash-sidebar-text: #8A8AA0;
+
+	/* Inputs — SVG: fill=#060606 stroke=#2A2A34 */
+	--dash-input-bg: #060606;
+	--dash-input-border: #2A2A34;
+
+	/* Accent — SVG: #6F6AF8 */
+	--dash-accent-purple: #6F6AF8;
+	--dash-accent-purple-hover: #7E74FF;
+	--dash-accent-purple-light: rgba(111, 106, 248, 0.12);
+	--dash-accent-green: #00960F;
+	--dash-accent-green-light: #A7FB8A;
+	--dash-accent-red: #E31337;
+
+	/* Text */
+	--dash-text-primary: #FFFFFF;
+	--dash-text-secondary: #9CA3AF;
+	--dash-text-muted: #6B7280;
+	--dash-text-accent: #6F6AF8;
+
+	/* Badges — SVG: fill=white@0.1, fill=#A7FB8A@0.1 */
+	--dash-badge-transfer-bg: rgba(255, 255, 255, 0.1);
+	--dash-badge-transfer-text: #FFFFFF;
+	--dash-badge-withdraw-bg: rgba(255, 255, 255, 0.1);
+	--dash-badge-withdraw-text: #FFFFFF;
+	--dash-badge-green-bg: rgba(167, 251, 138, 0.1);
+	--dash-badge-green-text: #A7FB8A;
+
+	/* Dividers */
+	--dash-divider: #22222E;
+
+	/* Swap — SVG: input fields fill=#060606 stroke=#2A2A34 */
+	--dash-swap-bg: #101016;
+	--dash-swap-field-bg: #060606;
+
+	/* Buttons — SVG: stroke=#6F6AF8 for outlines */
+	--dash-btn-primary: #6F6AF8;
+	--dash-btn-primary-hover: #7E74FF;
+	--dash-btn-outline-border: #6F6AF8;
+	--dash-btn-outline-text: #FFFFFF;
+	--dash-btn-outline-hover-bg: rgba(111, 106, 248, 0.15);
+
+	/* Chart — SVG: stroke=#50467E for grid */
+	--dash-chart-line: #6F6AF8;
+	--dash-chart-fill: rgba(111, 106, 248, 0.12);
+	--dash-chart-grid: #50467E;
+
+	/* Topbar — SVG: search fill=#101016 stroke=#2A2A34, RC fill=#060606 stroke=#1A1A23 */
+	--dash-topbar-bg: transparent;
+	--dash-topbar-search-bg: #14141E;
+	--dash-topbar-search-border: #2A2A34;
+	--dash-topbar-badge-bg: #060606;
+	--dash-topbar-badge-border: #1A1A23;
+
+	/* Exchange button — SVG: fill=#6F6AF8 solid */
+	--dash-exchange-gradient: #6F6AF8;
+}
+
+/* ========== LIGHT THEME — extracted from SVG ========== */
+:root.light-theme {
+	--dash-bg: #F4F4F4;
+	--dash-surface: #F9F9F9;
+	--dash-surface-alt: #EDEDED;
+
+	--dash-card-bg: #F9F9F9;
+	--dash-card-border: #CFCFCF;
+	--dash-card-bg-hover: #F5F5FA;
+
+	--dash-sidebar-bg: #FFFFFF;
+	--dash-sidebar-border: #E8E8F0;
+	--dash-sidebar-active-bg: rgba(108, 92, 231, 0.1);
+	--dash-sidebar-active-text: #6C5CE7;
+	--dash-sidebar-hover: #F5F5FA;
+	--dash-sidebar-text: #6B7280;
+
+	--dash-input-bg: #F4F4F8;
+	--dash-input-border: #E0E0E8;
+
+	--dash-accent-purple: #6C5CE7;
+	--dash-accent-purple-hover: #5B4BD6;
+	--dash-accent-purple-light: rgba(108, 92, 231, 0.08);
+	--dash-accent-green: #16A34A;
+	--dash-accent-red: #DC2626;
+
+	--dash-text-primary: #111118;
+	--dash-text-secondary: #6B7280;
+	--dash-text-muted: #9CA3AF;
+	--dash-text-accent: #6C5CE7;
+
+	--dash-badge-transfer-bg: rgba(108, 92, 231, 0.1);
+	--dash-badge-transfer-text: #6C5CE7;
+	--dash-badge-withdraw-bg: rgba(234, 136, 0, 0.1);
+	--dash-badge-withdraw-text: #D97706;
+	--dash-badge-green-bg: rgba(22, 163, 74, 0.1);
+	--dash-badge-green-text: #16A34A;
+
+	--dash-divider: #E8E8F0;
+
+	--dash-swap-bg: #FFFFFF;
+	--dash-swap-field-bg: #F4F4F8;
+
+	--dash-btn-primary: #6C5CE7;
+	--dash-btn-primary-hover: #5B4BD6;
+	--dash-btn-outline-border: #D0D0DC;
+	--dash-btn-outline-text: #111118;
+	--dash-btn-outline-hover-bg: rgba(108, 92, 231, 0.06);
+
+	--dash-chart-line: #6C5CE7;
+	--dash-chart-fill: rgba(108, 92, 231, 0.05);
+	--dash-chart-grid: #E8E8F0;
+
+	--dash-topbar-bg: transparent;
+	--dash-topbar-search-bg: #FFFFFF;
+	--dash-topbar-search-border: #E0E0E8;
+	--dash-topbar-badge-bg: #FFFFFF;
+	--dash-topbar-badge-border: #E0E0E8;
+
+	--dash-exchange-gradient: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
+}
+
+/* System preference fallback */
+@media (prefers-color-scheme: dark) {
+	:root:not(.light-theme):not(.dark-theme) {
+		/* inherits dark defaults from :root */
+	}
+}
+@media (prefers-color-scheme: light) {
+	:root:not(.light-theme):not(.dark-theme) {
+		/* same as .light-theme */
+		--dash-bg: #F4F4F8;
+		--dash-surface: #FFFFFF;
+		--dash-surface-alt: #F9F9FC;
+		--dash-card-bg: #FFFFFF;
+		--dash-card-border: #E8E8F0;
+		--dash-card-bg-hover: #F5F5FA;
+		--dash-sidebar-bg: #FFFFFF;
+		--dash-sidebar-border: #E8E8F0;
+		--dash-sidebar-active-bg: rgba(108, 92, 231, 0.1);
+		--dash-sidebar-active-text: #6C5CE7;
+		--dash-sidebar-hover: #F5F5FA;
+		--dash-sidebar-text: #6B7280;
+		--dash-input-bg: #F4F4F8;
+		--dash-input-border: #E0E0E8;
+		--dash-accent-purple: #6C5CE7;
+		--dash-accent-purple-hover: #5B4BD6;
+		--dash-accent-purple-light: rgba(108, 92, 231, 0.08);
+		--dash-accent-green: #16A34A;
+		--dash-accent-red: #DC2626;
+		--dash-text-primary: #111118;
+		--dash-text-secondary: #6B7280;
+		--dash-text-muted: #9CA3AF;
+		--dash-text-accent: #6C5CE7;
+		--dash-badge-transfer-bg: rgba(108, 92, 231, 0.1);
+		--dash-badge-transfer-text: #6C5CE7;
+		--dash-badge-withdraw-bg: rgba(234, 136, 0, 0.1);
+		--dash-badge-withdraw-text: #D97706;
+		--dash-badge-green-bg: rgba(22, 163, 74, 0.1);
+		--dash-badge-green-text: #16A34A;
+		--dash-divider: #E8E8F0;
+		--dash-swap-bg: #FFFFFF;
+		--dash-swap-field-bg: #F4F4F8;
+		--dash-btn-primary: #6C5CE7;
+		--dash-btn-primary-hover: #5B4BD6;
+		--dash-btn-outline-border: #D0D0DC;
+		--dash-btn-outline-text: #111118;
+		--dash-btn-outline-hover-bg: rgba(108, 92, 231, 0.06);
+		--dash-chart-line: #6C5CE7;
+		--dash-chart-fill: rgba(108, 92, 231, 0.05);
+		--dash-chart-grid: #E8E8F0;
+		--dash-topbar-bg: transparent;
+		--dash-topbar-search-bg: #FFFFFF;
+		--dash-topbar-search-border: #E0E0E8;
+		--dash-topbar-badge-bg: #FFFFFF;
+		--dash-topbar-badge-border: #E0E0E8;
+		--dash-exchange-gradient: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
+	}
 }
 
 @mixin light-mode-colors {
@@ -83,17 +257,14 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.colors('teal', tertiary, color-mixins.$color-dark-shade-names);
 	@include color-mixins.colors('green', quaternary, color-mixins.$color-dark-shade-names);
 }
-/* Defaults to light mode */
 :root {
 	@include light-mode-colors;
 }
-/* uses system preference if not user specified */
 @media (prefers-color-scheme: dark) {
 	:root:not(.light-theme):not(.dark-theme) {
 		@include dark-mode-colors;
 	}
 }
-/* if user specifies */
 :root.dark-theme {
 	@include dark-mode-colors;
 }

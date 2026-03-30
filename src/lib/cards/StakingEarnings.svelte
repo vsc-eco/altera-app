@@ -1,10 +1,7 @@
 <script lang="ts">
-	import PillBtn from '$lib/PillButton.svelte';
-
 	type Props = {
 		onStake: () => void;
 	};
-
 	let { onStake }: Props = $props();
 </script>
 
@@ -26,16 +23,12 @@
 			<span class="label">Earn APR:</span>
 			<span class="value">15%</span>
 		</div>
+		<div class="staking-stat">
+			<span class="label">Next payout in:</span>
+			<span class="value">16h 30m</span>
+		</div>
 		<div class="staking-action">
-			<PillBtn
-				theme="primary"
-				styleType="outline"
-				onclick={() => {
-					onStake();
-				}}
-			>
-				Staking
-			</PillBtn>
+			<button class="staking-btn" onclick={onStake}>Staking</button>
 		</div>
 	</div>
 </div>
@@ -44,11 +37,12 @@
 	.staking-card {
 		background-color: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
+		border-radius: 27px;
+		box-shadow: var(--dash-card-shadow);
 		padding: 1.25rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: 0.875rem;
 	}
 	.staking-header {
 		display: flex;
@@ -64,31 +58,30 @@
 	}
 	.staking-card h5 {
 		color: var(--dash-text-primary);
-		margin: 0;
-		font-size: 0.95rem;
+		margin: 0 !important;
+		font-size: 0.85rem;
 		font-weight: 600;
 	}
 	.staking-details {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 1.25rem;
-		font-size: var(--text-sm);
-		align-items: center;
+		gap: 1.5rem;
+		align-items: flex-end;
 	}
 	.staking-stat {
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
-		min-width: max-content;
 	}
 	.staking-stat .label {
 		color: var(--dash-text-muted);
-		font-size: 0.75rem;
+		font-size: 0.7rem;
+		font-weight: 500;
 	}
 	.staking-stat .value {
 		color: var(--dash-text-primary);
-		font-weight: 600;
-		font-size: 0.95rem;
+		font-weight: 700;
+		font-size: 1.05rem;
 	}
 	.staking-stat .value.up {
 		color: var(--dash-accent-green);
@@ -97,23 +90,27 @@
 		color: var(--dash-accent-red);
 	}
 	.staking-stat .value .arrow {
-		font-size: 0.6rem;
+		font-size: 0.55rem;
 	}
 	.staking-action {
 		margin-left: auto;
 	}
-	.staking-action :global(button),
-	.staking-action :global(a) {
-		--height: 40px;
+	.staking-btn {
 		height: 40px;
-		min-height: 40px;
-		min-width: 120px;
-		padding: 10px 16px;
-		gap: 8px;
-		border-radius: 2rem;
-		border-width: 1px;
-		box-sizing: border-box;
+		min-width: 110px;
+		padding: 0 1.25rem;
+		border-radius: 0.5rem;
+		border: 1px solid var(--dash-btn-outline-border);
+		background: transparent;
+		color: var(--dash-text-primary);
 		font-size: 0.85rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		transition: background-color 0.15s, border-color 0.15s;
+	}
+	.staking-btn:hover {
+		border-color: var(--dash-accent-purple);
+		background-color: var(--dash-accent-purple-light);
 	}
 </style>
-

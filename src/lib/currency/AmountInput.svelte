@@ -367,7 +367,7 @@
 			right: 0.25rem;
 		}
 		.balance-amount {
-			font-family: 'Noto Sans Mono Variable', monospace;
+			font-family: 'Nunito Sans', sans-serif;
 			font-weight: 400;
 		}
 		.amount-input {

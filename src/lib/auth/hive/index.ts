@@ -24,58 +24,66 @@ if (browser) {
 		}
 	});
 
-	aioha = initAioha({
-		hiveauth: {
-			name: "Magi's Altera",
-			description: 'Magi/Hive exchange',
-			icon: 'https://avatars.githubusercontent.com/u/133249767'
-		},
-		hivesigner: {
-			app: 'altera.app',
-			callbackURL: `https://${DOMAIN}/hivesigner`,
-			scope: ['login'],
-			apiURL: 'https://hive-api.web3telekom.xyz/'
-		}
-	});
-	if (aioha.isLoggedIn()) {
-		_hiveAuthStore.set({
-			status: 'authenticated',
-			value: {
-				address: aioha.getCurrentUser()!,
-				username: aioha.getCurrentUser(),
-				logout: hiveLogout,
-				did: `hive:${aioha.getCurrentUser()}`,
-				provider: 'aioha',
-				openSettings: () => goto('/hive-account'),
-				aioha
-			}
+	try {
+		const isLocalhost = DOMAIN.includes('localhost') || DOMAIN.includes('127.0.0.1');
+		aioha = initAioha({
+			hiveauth: {
+				name: "Magi's Altera",
+				description: 'Magi/Hive exchange',
+				icon: 'https://avatars.githubusercontent.com/u/133249767'
+			},
+			...(!isLocalhost ? {
+				hivesigner: {
+					app: 'altera.app',
+					callbackURL: `https://${DOMAIN}/hivesigner`,
+					scope: ['login'],
+					apiURL: 'https://hive-api.web3telekom.xyz/'
+				}
+			} : {})
 		});
-	} else {
-		_hiveAuthStore.set({ status: 'none' });
-	}
-	aioha.on('account_changed', () => {
-		const user = aioha.getCurrentUser();
-		let authStore;
-		if (user != undefined) {
-			authStore = {
-				status: 'authenticated' as const,
+		if (aioha.isLoggedIn()) {
+			_hiveAuthStore.set({
+				status: 'authenticated',
 				value: {
-					address: user,
-					username: user,
+					address: aioha.getCurrentUser()!,
+					username: aioha.getCurrentUser(),
 					logout: hiveLogout,
-					did: `hive:${user}`,
-					provider: 'aioha' as const,
+					did: `hive:${aioha.getCurrentUser()}`,
+					provider: 'aioha',
 					openSettings: () => goto('/hive-account'),
 					aioha
 				}
-			};
+			});
 		} else {
-			authStore = {
-				status: 'none' as const
-			};
+			_hiveAuthStore.set({ status: 'none' });
 		}
-		_hiveAuthStore.set(authStore);
-	});
+		aioha.on('account_changed', () => {
+			const user = aioha.getCurrentUser();
+			let authStore;
+			if (user != undefined) {
+				authStore = {
+					status: 'authenticated' as const,
+					value: {
+						address: user,
+						username: user,
+						logout: hiveLogout,
+						did: `hive:${user}`,
+						provider: 'aioha' as const,
+						openSettings: () => goto('/hive-account'),
+						aioha
+					}
+				};
+			} else {
+				authStore = {
+					status: 'none' as const
+				};
+			}
+			_hiveAuthStore.set(authStore);
+		});
+	} catch (e) {
+		console.warn('Aioha init failed (expected on localhost):', e);
+		_hiveAuthStore.set({ status: 'none' });
+	}
 }
 /**
  *

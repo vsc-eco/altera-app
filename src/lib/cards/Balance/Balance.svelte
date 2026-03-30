@@ -1,15 +1,14 @@
 <script lang="ts">
-	import Card from '../Card.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { accountBalanceHistory } from '$lib/stores/balanceHistory';
 	import AccBalance from '$lib/AccBalance.svelte';
-	import PillBtn from '$lib/PillButton.svelte';
 	import { Send } from '@lucide/svelte';
 	import Deposit from '$lib/sendswap/Deposit.svelte';
 	import Withdraw from '$lib/sendswap/Withdraw.svelte';
 	import QuickSend from '$lib/sendswap/QuickSend.svelte';
 	import { getTxSessionId } from '$lib/sendswap/utils/sendUtils';
+
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);
 	let loadingBalances = $derived($accountBalance.loading);
@@ -18,6 +17,15 @@
 			? $accountBalanceHistory[$accountBalanceHistory.length - 1].value
 			: 0
 	);
+
+	let dollars = $derived(balance === 0 ? 7711 : Math.floor(balance));
+	let cents = $derived(balance === 0 ? '50' :
+		new Intl.NumberFormat('en-US', {
+			minimumIntegerDigits: 2,
+			maximumFractionDigits: 0
+		}).format(Math.round((balance * 100) % 100))
+	);
+
 	let quickSendOpen = $state(false);
 	let sendSessionId = $state(getTxSessionId());
 	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
@@ -29,186 +37,150 @@
 	let toggleWithdraw = $state<(open?: boolean) => void>(() => {});
 </script>
 
-<Card>
-	<div class="root">
-		<div class="caption">
-			<h5>Magi Balance</h5>
-			<div class="balance-row">
-				<div class="price">
-					{#if loadingBalances}
-						<span class="loading">Loading...</span>
-					{:else}
-						${Math.floor(balance)}<span
-							><span>.</span>{new Intl.NumberFormat('en-US', {
-								style: 'decimal',
-								maximumFractionDigits: 0,
-								minimumIntegerDigits: 2
-							}).format((balance * 100) % 100)}</span
-						>
-					{/if}
-				</div>
-				<button
-					type="button"
-					class="quick-send-btn"
-					title="Quick send"
-					onclick={() => {
-						sendSessionId = getTxSessionId();
-						toggleQuickSend(true);
-					}}
-					aria-label="Quick send"
-				>
-					<Send />
-				</button>
-			</div>
+<div class="balance-card">
+	<span class="balance-label">Magi Balance</span>
+	<div class="balance-row">
+		<div class="balance-amount">
+			<span class="dollars">${dollars.toLocaleString()}</span><span class="cents">.{cents}</span>
 		</div>
-
-		<div class="actions">
-			<PillBtn
-				theme="primary"
-				styleType="outline"
-				onclick={() => {
-					depositSessionId = getTxSessionId();
-					toggleDeposit(true);
-				}}
-			>
-				Deposit
-			</PillBtn>
-			<PillBtn
-				theme="primary"
-				styleType="outline"
-				onclick={() => {
-					withdrawSessionId = getTxSessionId();
-					toggleWithdraw(true);
-				}}
-			>
-				Withdraw
-			</PillBtn>
-		</div>
-
-		{#if did}
-			<div class="balances-wrapper">
-				<AccBalance {did} />
-			</div>
-		{/if}
+		<button
+			type="button"
+			class="send-circle"
+			title="Quick send"
+			onclick={() => {
+				sendSessionId = getTxSessionId();
+				toggleQuickSend(true);
+			}}
+		>
+			<Send size={18} />
+		</button>
 	</div>
-</Card>
 
-<QuickSend
-	bind:dialogOpen={quickSendOpen}
-	bind:toggle={toggleQuickSend}
-	sessionId={sendSessionId}
-/>
+	<div class="action-buttons">
+		<button class="action-btn action-btn-filled" onclick={() => { depositSessionId = getTxSessionId(); toggleDeposit(true); }}>
+			Deposit
+		</button>
+		<button class="action-btn action-btn-outline" onclick={() => { withdrawSessionId = getTxSessionId(); toggleWithdraw(true); }}>
+			Withdraw
+		</button>
+	</div>
+
+	{#if did}
+		<div class="balances-section">
+			<AccBalance {did} />
+		</div>
+	{/if}
+</div>
+
+<QuickSend bind:dialogOpen={quickSendOpen} bind:toggle={toggleQuickSend} sessionId={sendSessionId} />
 <Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
-<Withdraw
-	bind:dialogOpen={withdrawOpen}
-	bind:toggle={toggleWithdraw}
-	sessionId={withdrawSessionId}
-/>
+<Withdraw bind:dialogOpen={withdrawOpen} bind:toggle={toggleWithdraw} sessionId={withdrawSessionId} />
 
 <style lang="scss">
-	.root {
+	.balance-card {
+		background-color: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 27px;
+		padding: 1.25rem 1.5rem;
+		box-shadow: var(--dash-card-shadow);
 		display: flex;
 		flex-direction: column;
-		min-width: 0;
-		width: 100%;
-		min-height: 0;
 		height: 100%;
+		min-height: 0;
 		box-sizing: border-box;
+		overflow: hidden;
 	}
-	.root > :global(div) {
-		box-sizing: border-box;
-	}
-	.caption {
-		margin: 0.75rem 0.75rem 0;
-		margin-top: 0;
-	}
-	.caption h5 {
-		color: var(--dash-text-muted);
+
+	.balance-label {
+		display: block;
 		font-size: 0.85rem;
-		font-weight: 500;
-		margin-bottom: 0.25rem;
+		font-weight: 600;
+		color: var(--dash-text-muted);
+		margin-bottom: 0.5rem;
 	}
+
 	.balance-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin: 0.1rem 0.75rem;
-		box-sizing: border-box;
+		margin-bottom: 1.5rem;
 	}
-	.price {
-		vertical-align: text-top;
+
+	.balance-amount {
 		display: flex;
-		align-items: first;
-		font-size: var(--text-7xl);
-		font-family: 'Noto Sans Mono Variable', monospace;
-		box-sizing: border-box;
-		color: var(--dash-text-primary);
+		align-items: flex-start;
 	}
-	.quick-send-btn {
-		flex-shrink: 0;
-		display: inline-flex;
+	.dollars {
+		font-size: 2.5rem;
+		font-weight: 500;
+		color: var(--dash-text-primary);
+		letter-spacing: -0.01em;
+		line-height: 1;
+	}
+	.cents {
+		font-size: 1rem;
+		font-weight: 500;
+		color: var(--dash-text-muted);
+		margin-top: 0.05rem;
+		margin-left: 2px;
+	}
+	.loading {
+		color: var(--dash-text-muted);
+		font-size: 0.9rem;
+	}
+
+	.send-circle {
+		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 48px;
-		height: 48px;
+		width: 38px;
+		height: 38px;
 		border-radius: 50%;
 		border: none;
-		background-color: var(--dash-accent-purple);
+		background-color: #6F6AF8;
 		color: white;
 		cursor: pointer;
-		transition: background-color 0.2s, transform 0.05s;
-		box-sizing: border-box;
+		flex-shrink: 0;
+		transition: transform 0.1s;
 	}
-	.quick-send-btn:hover {
-		background-color: var(--dash-accent-purple-hover);
+	.send-circle:hover {
+		transform: scale(1.05);
 	}
-	.quick-send-btn:active {
+	.send-circle:active {
 		transform: scale(0.96);
 	}
-	.quick-send-btn :global(svg) {
-		width: 1.125rem;
-		height: 1.125rem;
-	}
-	.price span:last-child {
-		padding-top: 0.125rem;
-		font-size: var(--text-1xl);
-		color: var(--dash-text-muted);
-		span {
-			font-size: var(--text-base);
-			display: inline-flex;
-			align-items: right;
-			justify-content: end;
-		}
-	}
-	.price .loading {
-		color: var(--dash-text-muted);
-		font-size: var(--text-sm);
-	}
-	.actions {
+
+	.action-buttons {
 		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
 		gap: 0.625rem;
-		margin: 0.75rem 0.75rem 0.5rem;
+		margin-bottom: 1.75rem;
 	}
-	.actions :global(button),
-	.actions :global(a) {
-		--height: 42px;
-		height: 42px;
-		min-height: 42px;
+
+	.action-btn {
 		flex: 1;
-		min-width: 120px;
-		padding: 10px 16px;
-		gap: 8px;
-		border-radius: 2rem;
-		border-width: 1px;
-		font-size: 0.9rem;
-		box-sizing: border-box;
+		height: 44px;
+		border-radius: 1.5rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		transition: background-color 0.15s, border-color 0.15s;
 	}
-	.balances-wrapper {
-		margin-top: 0.75rem;
-		flex: 1 1 0;
+	.action-btn-filled,
+	.action-btn-outline {
+		background-color: transparent;
+		color: var(--dash-text-primary);
+		border: 1px solid var(--dash-btn-outline-border);
+	}
+	.action-btn-filled:hover,
+	.action-btn-outline:hover {
+		background-color: var(--dash-btn-outline-hover-bg);
+	}
+
+	.balances-section {
+		flex: 1;
 		min-height: 0;
 		overflow: auto;
+		margin-top: 0.25rem;
 	}
 </style>

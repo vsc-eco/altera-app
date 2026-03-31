@@ -303,16 +303,9 @@ button, a[role="button"], .action-btn, .exchange-btn, .staking-btn, .token-selec
 	}
 }
 
-/* ═══ Card glass — only top cards that overlap gradient mesh (dark only) ═══ */
+/* ═══ Card glass — GPU hints for cards with backdrop-filter ═══ */
 .balance-card, .portfolio-card, .staking-card, .market-prices {
-	-webkit-backdrop-filter: blur(10px);
-	backdrop-filter: blur(10px);
-}
-:global(.light-theme) {
-	.balance-card, .portfolio-card, .staking-card, .market-prices {
-		-webkit-backdrop-filter: none;
-		backdrop-filter: none;
-	}
+	will-change: transform;
 }
 /* ═══ All cards — shared border + hover ═══ */
 .balance-card, .portfolio-card, .staking-card, .swap-card, .market-prices,

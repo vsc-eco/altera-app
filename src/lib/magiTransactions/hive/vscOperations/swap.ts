@@ -57,7 +57,7 @@ export function getHiveSwapOp(
 		asset_in: assetIn.value.toUpperCase(),
 		asset_out: assetOut.value.toUpperCase(),
 		amount_in: String(amount.amount),
-		min_amount_out: '0',
+		min_amount_out: minAmountOut ? String(minAmountOut) : '0',
 		recipient: caller
 	});
 

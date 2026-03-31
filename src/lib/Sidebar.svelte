@@ -84,15 +84,7 @@
 		</div>
 
 		<div class="sidebar-footer">
-			<button class="footer-btn" onclick={toggleTheme}>
-				{#if isDark}
-					<span class="nav-icon"><Moon size={20} /></span>
-					<span class="nav-label">Dark Theme</span>
-				{:else}
-					<span class="nav-icon"><Sun size={20} /></span>
-					<span class="nav-label">Light Theme</span>
-				{/if}
-			</button>
+			<!-- Theme toggle hidden — dark theme locked for now -->
 			<button class="footer-btn" onclick={handleLogout}>
 				<span class="nav-icon"><LogOut size={20} /></span>
 				<span class="nav-label">Log out</span>
@@ -120,6 +112,7 @@
 		background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
 		-webkit-backdrop-filter: blur(10px);
 		backdrop-filter: blur(10px);
+		will-change: transform;
 		border-right: none;
 		height: 100svh;
 		width: 200px;

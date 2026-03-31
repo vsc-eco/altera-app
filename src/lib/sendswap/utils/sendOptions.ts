@@ -277,6 +277,9 @@ export type SendDetails = {
 	swapBaseFee: string | undefined;
 	swapClpFee: string | undefined;
 	swapTotalFee: string | undefined;
+	// BTC unmap fields
+	btcDeductFee: boolean;
+	btcMaxFee: number | undefined;
 };
 
 export type NecessarySendDetails = {

@@ -88,6 +88,7 @@
 	[data-part='backdrop'] {
 		background-color: rgba(0, 0, 0, 0.5);
 		backdrop-filter: blur(10px);
+		will-change: transform;
 		position: fixed;
 		top: 0;
 		left: 0;

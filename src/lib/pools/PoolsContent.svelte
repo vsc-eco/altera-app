@@ -1,6 +1,5 @@
 <script lang="ts">
-	import Menu from '$lib/zag/Menu.svelte';
-	import { Zap, Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown } from '@lucide/svelte';
+	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown } from '@lucide/svelte';
 	import { fetchPools, type TimeRange } from './poolsData';
 	import type { PoolRow } from './poolsData';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
@@ -91,17 +90,6 @@
 		})
 	);
 
-	const menuItems = [
-		{ label: 'Create Pool' },
-		{ label: 'Add liquidity' },
-		{ label: 'Remove liquidity' }
-	];
-
-	function handleMenuSelect(e: { value: string }) {
-		if (e.value === 'Create Pool') createPoolToggle(true);
-		if (e.value === 'Add liquidity') addLiquidityOpen = true;
-		if (e.value === 'Remove liquidity') removeLiquidityOpen = true;
-	}
 </script>
 
 {#if selectedPool}
@@ -235,17 +223,10 @@
 		</table>
 	</div>
 
-	<div class="fab-wrapper">
-		<Menu
-			label="Pool actions"
-			styleType="icon"
-			items={menuItems}
-			onSelect={handleMenuSelect}
-		>
-			{#snippet children()}
-				<Zap size={24} aria-hidden="true" />
-			{/snippet}
-		</Menu>
+	<div class="action-buttons">
+		<button class="action-btn" onclick={() => createPoolToggle(true)}>Create Pool</button>
+		<button class="action-btn" onclick={() => (addLiquidityOpen = true)}>Add Liquidity</button>
+		<button class="action-btn" onclick={() => (removeLiquidityOpen = true)}>Remove Liquidity</button>
 	</div>
 </div>
 
@@ -337,6 +318,7 @@
 		width: 100%;
 		border-collapse: collapse;
 		font-size: var(--text-sm);
+		font-family: 'Nunito Sans', sans-serif;
 	}
 
 	.pools-table th,
@@ -345,12 +327,14 @@
 		padding: 1rem 1.25rem;
 		border-bottom: 1px solid var(--dash-card-border);
 		vertical-align: top;
+		font-family: 'Nunito Sans', sans-serif;
 	}
 
 	.pools-table th {
 		color: var(--dash-text-muted);
 		font-weight: 500;
 		white-space: nowrap;
+		background-color: transparent;
 	}
 
 	.pools-table tbody tr:hover {
@@ -446,25 +430,30 @@
 		font-weight: 500;
 	}
 
-	.fab-wrapper {
-		position: fixed;
-		bottom: 2rem;
-		right: 2rem;
-		z-index: 8;
+	.action-buttons {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: flex-end;
+		padding: 0.75rem 0 0;
 	}
 
-	.fab-wrapper :global(button) {
-		width: 3.5rem;
-		height: 3.5rem;
-		border-radius: 50%;
-		padding: 0;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-		background-color: #6F6AF8 !important;
-		color: #FFFFFF !important;
-	}
-	.fab-wrapper :global(button:hover) {
-		background-color: var(--dash-accent-purple-hover) !important;
-		color: #FFFFFF !important;
+	.action-btn {
+		font-family: 'Nunito Sans', sans-serif;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: white;
+		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 40%, #5B54E0 100%);
+		border: none;
+		border-radius: 1.5rem;
+		padding: 0.5rem 1rem;
+		cursor: pointer;
+		box-shadow: 0 4px 16px rgba(111, 106, 248, 0.25);
+		&:hover {
+			box-shadow: 0 6px 24px rgba(111, 106, 248, 0.4);
+		}
+		&:active {
+			transform: scale(0.97);
+		}
 	}
 
 	.placeholder-text {

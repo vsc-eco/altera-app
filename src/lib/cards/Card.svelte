@@ -27,8 +27,9 @@
 		background:
 			linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%),
 			linear-gradient(160deg, rgba(111, 106, 248, 0.15) 0%, rgba(60, 50, 140, 0.08) 50%, transparent 100%);
-		-webkit-backdrop-filter: blur(14px);
-		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
+		will-change: transform;
 	}
 	:global(.light-theme) div.defaultBg {
 		background: #FFFFFF;

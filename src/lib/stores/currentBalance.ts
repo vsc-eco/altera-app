@@ -91,7 +91,7 @@ export function startAccountPolling(auth: Auth) {
 	// Set up interval
 	intervalId = setInterval(() => {
 		fetchAccountData(auth);
-	}, 2000);
+	}, 5000);
 }
 
 // BTC mapping contract (used by bitcoin.ts for transfer/unmap operations)

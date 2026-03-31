@@ -326,13 +326,11 @@
 <style lang="scss">
 	[data-part='root'][data-variant='page'] {
 		flex-grow: 1;
-		// width: calc(100vw - 1rem);
 		overflow-y: auto;
-		padding-bottom: 3rem;
+		padding-bottom: 0;
 		[data-part='content'] {
 			margin: auto;
-			padding: 0 0 1rem 0;
-			min-height: calc(100% - 1rem);
+			padding: 0;
 			overflow-y: auto;
 		}
 		[data-part='list'] {
@@ -353,6 +351,7 @@
 		}
 	}
 	[data-part='content'] {
+		cursor: default;
 		&:focus-visible {
 			outline: none;
 		}

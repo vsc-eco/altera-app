@@ -182,15 +182,14 @@
 			<div class="asset-card">
 				<div class="asset-header">
 					<div class="label">{selectedPool.pairSymbols[0]}</div>
-					{#if exceed0}
-						<span class="error-text">Exceeds Magi {displayUnitForCoin(coin0)} balance</span>
-					{/if}
 				</div>
 				<AmountInput
 					bind:coinAmount={amount0Ca}
 					coinOpts={[{ coin: coin0, network: Network.magi }]}
 					maxAmount={maxAmount0}
 					styleType="normal"
+					hideUnit
+					hideNetwork
 				/>
 			</div>
 
@@ -199,14 +198,12 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">BTC (auto-calculated)</div>
-						{#if exceed1}
-							<span class="error-text">Exceeds Magi BTC balance</span>
-						{/if}
 						{#if maxAmount1}
-							<span class="balance-info">(Balance: {maxAmount1.toPrettyString()})</span>
+							<span class="balance-info">Balance: {maxAmount1.toPrettyString()}</span>
 						{/if}
 					</div>
-					<div class="btc-display">
+					<div class="btc-input-mirror">
+						<img src="/btc/btc.svg" alt="BTC" class="btc-coin-icon" />
 						<span class="btc-value">{btcDisplayStr || '0'}</span>
 						<span class="btc-unit">BTC</span>
 					</div>
@@ -216,15 +213,14 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">{selectedPool.pairSymbols[1]}</div>
-						{#if exceed1}
-							<span class="error-text">Exceeds Magi {displayUnitForCoin(coin1)} balance</span>
-						{/if}
 					</div>
 					<AmountInput
 						bind:coinAmount={amount1Ca}
 						coinOpts={[{ coin: coin1, network: Network.magi }]}
 						maxAmount={maxAmount1}
 						styleType="normal"
+						hideUnit
+						hideNetwork
 					/>
 				</div>
 			{/if}
@@ -241,36 +237,98 @@
 </div>
 
 <style lang="scss">
-	.add-liquidity-form { min-width: 28rem; max-width: 100%; box-sizing: border-box; }
-	.field { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; }
-	.label { font-size: 14px; color: var(--dash-text-muted); display: flex; align-items: center; gap: 0.5rem; font-family: 'Nunito Sans', sans-serif; }
-	.form-section { display: flex; flex-direction: column; gap: 1.25rem; }
-	.asset-card { background: var(--dash-card-bg); border: 1px solid var(--dash-card-border); border-radius: 16px; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; box-shadow: var(--dash-card-shadow); }
-	.asset-header { display: flex; justify-content: space-between; align-items: center; }
-	.error-text { color: var(--dash-accent-red); font-size: 11px; }
-	.balance-info { font-size: 12px; color: var(--dash-text-muted); }
-	.rate-info { background: var(--dash-card-bg); border: 1px solid var(--dash-card-border); border-radius: 16px; padding: 0.75rem 1rem; font-size: 14px; color: var(--dash-text-muted); }
-
-	.btc-display {
+	.add-liquidity-form {
+		min-width: 28rem;
+		max-width: 100%;
+		box-sizing: border-box;
+		min-height: 18rem;
+		font-family: 'Nunito Sans', sans-serif;
+	}
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-bottom: 1.25rem;
+		position: relative;
+		z-index: 10;
+	}
+	.label {
+		font-size: 0.8rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		color: var(--dash-text-muted);
+		font-family: 'Nunito Sans', sans-serif;
+	}
+	.form-section {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+	.asset-card {
+		background-color: var(--dash-swap-field-bg);
+		border: 1px solid var(--dash-input-border);
+		border-radius: 16px;
+		padding: 0.75rem;
+		padding-bottom: 1.75rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		overflow: visible;
+	}
+	.asset-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.error-text {
+		color: var(--dash-accent-red);
+		font-size: var(--text-xs);
+		font-family: 'Nunito Sans', sans-serif;
+	}
+	.balance-info {
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
+		font-family: 'Nunito Sans', sans-serif;
+	}
+	.btc-input-mirror {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		border: 1px solid var(--dash-card-border);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(0, 0, 0, 0.25);
 		border-radius: 12px;
-		padding: 0.625rem 0.75rem;
+		padding: 0.5rem 0.75rem;
 		min-height: 2.5rem;
-
+		box-sizing: border-box;
+		.btc-coin-icon {
+			width: 1.5rem;
+			height: 1.5rem;
+			border-radius: 50%;
+		}
 		.btc-value {
 			flex: 1;
-			font-family: 'Noto Sans Mono Variable', monospace;
-			font-size: var(--text-base);
+			font-family: 'Nunito Sans', sans-serif;
 			color: var(--dash-text-primary);
 		}
-
 		.btc-unit {
 			font-weight: 500;
 			color: var(--dash-text-muted);
-			white-space: nowrap;
+			font-family: 'Nunito Sans', sans-serif;
 		}
 	}
+	.rate-info {
+		background-color: var(--dash-swap-field-bg);
+		border: 1px solid var(--dash-input-border);
+		border-radius: 16px;
+		padding: 0.75rem 1rem;
+		font-size: var(--text-sm);
+		color: var(--dash-text-muted);
+		font-family: 'Nunito Sans', sans-serif;
+		p {
+			margin: 0.2rem 0;
+		}
+	}
+
+
 </style>

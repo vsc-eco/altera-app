@@ -405,6 +405,34 @@
 			/>
 		{/if}
 	</div>
+	{#if $SendTxDetails.fromCoin?.coin.value === Coin.btc.value && $SendTxDetails.toNetwork?.value === Network.btcMainnet.value}
+		<div class="btc-unmap-options">
+			<label class="deduct-fee-row">
+				<input
+					type="checkbox"
+					bind:checked={$SendTxDetails.btcDeductFee}
+				/>
+				<span class="deduct-fee-label">Deduct fee from amount</span>
+				<span class="deduct-fee-hint">Fee is subtracted from your withdrawal instead of added on top</span>
+			</label>
+			<details class="advanced-section">
+				<summary>Advanced</summary>
+				<div class="max-fee-field">
+					<span class="max-fee-label">Max fee (sats)</span>
+					<input
+						type="number"
+						placeholder="No limit"
+						value={$SendTxDetails.btcMaxFee ?? ''}
+						onchange={(e) => {
+							const val = parseInt(e.currentTarget.value);
+							$SendTxDetails.btcMaxFee = isNaN(val) ? undefined : val;
+						}}
+					/>
+					<span class="max-fee-hint">Transaction reverts if total fee exceeds this amount</span>
+				</div>
+			</details>
+		</div>
+	{/if}
 	<Divider text="Details" />
 	<!-- <h4>Details</h4> -->
 	<div class="details">
@@ -469,6 +497,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
+		max-width: 70%;
+		margin: 0 auto;
+		width: 100%;
+		@media screen and (max-width: 450px) {
+			max-width: 100%;
+		}
 	}
 	.amounts {
 		padding: 0.5rem 0;
@@ -514,6 +548,76 @@
 		.error {
 			font-size: var(--text-sm);
 		}
+	}
+	.btc-unmap-options {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 16px;
+		padding: 1rem;
+		font-family: 'Nunito Sans', sans-serif;
+	}
+	.deduct-fee-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		cursor: pointer;
+		input[type='checkbox'] {
+			width: 1rem;
+			height: 1rem;
+			accent-color: #6F6AF8;
+			cursor: pointer;
+		}
+	}
+	.deduct-fee-label {
+		font-weight: 500;
+		color: var(--dash-text-primary);
+		font-size: var(--text-sm);
+	}
+	.deduct-fee-hint {
+		width: 100%;
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
+	}
+	.advanced-section {
+		font-family: 'Nunito Sans', sans-serif;
+		summary {
+			font-size: var(--text-sm);
+			color: var(--dash-text-muted);
+			cursor: pointer;
+			&:hover { color: var(--dash-text-primary); }
+		}
+	}
+	.max-fee-field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		margin-top: 0.5rem;
+		input {
+			width: 100%;
+			box-sizing: border-box;
+			background-color: rgba(0, 0, 0, 0.25);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 12px;
+			padding: 0.625rem 0.75rem;
+			color: var(--dash-text-primary);
+			font-family: 'Nunito Sans', sans-serif;
+			font-size: var(--text-sm);
+			&::placeholder { color: var(--dash-text-muted); }
+			&:focus { outline: none; border-color: #6F6AF8; }
+		}
+	}
+	.max-fee-label {
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--dash-text-primary);
+	}
+	.max-fee-hint {
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
 	}
 	.details {
 		display: flex;

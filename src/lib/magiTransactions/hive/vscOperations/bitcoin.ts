@@ -54,11 +54,15 @@ export function getBitcoinTransferOp(
 export function getBitcoinUnmapOp(
 	from: string,
 	toBtcAddress: string,
-	amount: CoinAmount<typeof Coin.btc>
+	amount: CoinAmount<typeof Coin.btc>,
+	deductFee?: boolean,
+	maxFee?: number
 ): CustomJsonOperation {
 	const payload: UnmapInput = {
 		amount: amount.amount,
-		recipient_btc_address: toBtcAddress
+		recipient_btc_address: toBtcAddress,
+		...(deductFee ? { deduct_fee: true } : {}),
+		...(maxFee != null ? { max_fee: maxFee } : {})
 	};
 
 	const jsonOutput: callContractOp = {

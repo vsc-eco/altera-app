@@ -20,6 +20,8 @@
 		onAmountChange,
 		styleType = 'normal',
 		hideUnit = false,
+		borderless = false,
+		hideNetwork = false,
 		id = $bindable('')
 	}: {
 		coinAmount: CoinAmount<Coin>;
@@ -31,6 +33,8 @@
 		onAmountChange?: (amount: CoinAmount<Coin>) => void;
 		styleType?: 'normal' | 'big';
 		hideUnit?: boolean;
+		borderless?: boolean;
+		hideNetwork?: boolean;
 		id?: string;
 	} = $props();
 
@@ -53,7 +57,17 @@
 			});
 		}
 	});
-	// let boundAmount: string = $state('');
+	// Sync external coinAmount changes back to internal inputAmt
+	$effect.pre(() => {
+		// Read coinAmount to track reassignment from parent
+		const ext = coinAmount;
+		const extAmt = ext.amount;
+		const modAmt = untrack(() => lastModification.amount);
+		if (extAmt !== modAmt) {
+			inputAmt = ext.toAmountString();
+			lastModification = ext;
+		}
+	});
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
 	const quiet = $derived(
 		selected.coin.value === Coin.unk.value ||
@@ -277,11 +291,11 @@
 				{/if}
 			</span>
 		</label>
-		<div class="amount-input">
+		<div class={['amount-input', { borderless }]}>
 			{#if selected.coin.value === Coin.usd.value}
 				<DollarSign />
 			{:else}
-				<CoinNetworkIcon coin={selected.coin} network={selected.network} />
+				<CoinNetworkIcon coin={selected.coin} network={selected.network} {hideNetwork} />
 			{/if}
 			{#key [selected, debouncedMax, min]}
 				{#if quiet}
@@ -411,6 +425,20 @@
 					padding: 0.5rem 0.75rem;
 					height: fit-content;
 				}
+			}
+		}
+		.amount-input.borderless {
+			border: none;
+			background: transparent;
+			box-shadow: none;
+			padding: 0;
+			&:has(:global(input):focus-visible) {
+				box-shadow: none;
+				border: none;
+				border-radius: 0;
+			}
+			:global(.icons img:nth-child(2)) {
+				display: none;
 			}
 		}
 		.coin-label {

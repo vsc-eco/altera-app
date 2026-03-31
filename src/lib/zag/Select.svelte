@@ -123,7 +123,7 @@
 	// 	width: calc(var(--reference-width) - 2 * (0.5rem - var(--x))) !important;
 	// }
 	[data-part='positioner'].card {
-		z-index: 51;
+		z-index: 60;
 	}
 	.dropdown {
 		background: rgba(0, 0, 0, 0.25);

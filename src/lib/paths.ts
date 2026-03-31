@@ -17,7 +17,7 @@ export const paths = [
 		href: '/transfer'
 	},
 	{
-		name: 'Swap',
+		name: 'Cross-chain Swaps',
 		icon: ArrowRightLeft,
 		href: '/swap'
 	},

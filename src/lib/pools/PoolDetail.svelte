@@ -348,6 +348,7 @@
 		flex-direction: column;
 		height: 100%;
 		gap: 1rem;
+		font-family: 'Nunito Sans', sans-serif;
 	}
 
 	.header {
@@ -410,13 +411,14 @@
 		border-spacing: 1rem 0.5rem;
 		border-collapse: collapse;
 		position: relative;
+		font-family: 'Nunito Sans', sans-serif;
 	}
 
 	thead {
 		position: sticky;
 		top: 0;
 		z-index: 1;
-		background-color: var(--dash-bg);
+		background-color: transparent;
 	}
 
 	th {
@@ -425,6 +427,7 @@
 		box-sizing: content-box;
 		padding: 0.5rem min(1rem, 2%);
 		color: var(--dash-text-muted);
+		font-family: 'Nunito Sans', sans-serif;
 		font-weight: 500;
 		white-space: nowrap;
 	}
@@ -455,6 +458,7 @@
 		min-width: 4rem;
 		white-space: nowrap;
 		color: var(--dash-text-primary);
+		font-family: 'Nunito Sans', sans-serif;
 	}
 
 	.addr-cell {

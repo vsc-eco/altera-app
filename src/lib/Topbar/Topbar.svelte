@@ -6,7 +6,6 @@
 	import { Component, MenuIcon, Search, Bell } from '@lucide/svelte';
 	import { getAuth } from '../auth/store';
 	import { accountBalance } from '$lib/stores/currentBalance';
-
 	let { onMenuToggle } = $props();
 	let auth = $derived(getAuth()());
 	let username: string = $derived.by(() => {
@@ -93,8 +92,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		flex: 1;
-		max-width: 628px;
+		flex: 0 1 360px;
 		height: 40px;
 		padding: 0 1rem;
 		background-color: var(--dash-topbar-search-bg);
@@ -124,7 +122,6 @@
 		flex-shrink: 0;
 		color: var(--dash-text-muted);
 	}
-
 	.topbar-right {
 		display: flex;
 		align-items: center;

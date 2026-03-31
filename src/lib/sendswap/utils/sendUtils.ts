@@ -62,7 +62,9 @@ export function blankDetails(): SendDetails {
 		minAmountOut: undefined,
 		swapBaseFee: undefined,
 		swapClpFee: undefined,
-		swapTotalFee: undefined
+		swapTotalFee: undefined,
+		btcDeductFee: false,
+		btcMaxFee: undefined
 	};
 }
 
@@ -715,6 +717,21 @@ export async function send(
 				minOut
 			);
 			opType = 'swap';
+		} else if (
+			toCoin.coin.value === Coin.btc.value &&
+			toNetwork.value === Network.btcMainnet.value
+		) {
+			// BTC unmap — pass deduct_fee and max_fee from store
+			opType = 'withdrawal';
+			setStatus('Waiting for Hive wallet approval…');
+			const { getBitcoinUnmapOp: getUnmapOp } = await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
+			sendOp = getUnmapOp(
+				auth.value.username!,
+				getDidFromUsername(toUsername),
+				new CoinAmount(amount, toCoin.coin),
+				details.btcDeductFee || undefined,
+				details.btcMaxFee
+			);
 		} else {
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);
 			opType = getSendOpType(fromNetwork, toNetwork);

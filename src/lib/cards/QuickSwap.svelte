@@ -21,7 +21,22 @@
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import { ChevronDown } from '@lucide/svelte';
+	import { ChevronDown, Search, ArrowLeft, X } from '@lucide/svelte';
+	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
+	import {
+		fetchPoolDepths,
+		calculateSwap,
+		getOrderedDepths,
+		type PoolDepths,
+		type SwapCalcResult
+	} from '$lib/pools/swapCalc';
+	import { getHiveSwapOp, getBtcApproveOp, SWAP_CONTRACT_ID } from '$lib/magiTransactions/hive/vscOperations/swap';
+	import { executeTx } from '$lib/magiTransactions/hive';
+	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
+	import { getDidFromUsername } from '$lib/getAccountName';
+	import { createClient, signAndBrodcastTransaction, type CallContractTransaction } from '$lib/magiTransactions/eth/client';
+	import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
+	import { wagmiConfig } from '$lib/auth/reown';
 
 	const auth = $derived(getAuth()());
 
@@ -77,25 +92,29 @@
 		if (!optionsEqual(result.networkOptions, networkOptions)) networkOptions = result.networkOptions;
 	});
 
-	// From tokens: all available coins (BTC, HIVE, HBD)
+	// From tokens: all available coins (BTC, HIVE, HBD) — exclude sHBD
 	const fromAssetObjs: AssetObject[] = $derived(
-		swapOptions.from.coins.map((opt) => ({
-			...opt.coin,
-			snippet: assetCard,
-			snippetData: {
-				fromOpt: opt,
-				net: opt.networks?.[0] || Network.magi,
-				size: 'medium'
-			}
-		}))
+		swapOptions.from.coins
+			.filter((opt) => opt.coin.value !== Coin.shbd?.value)
+			.map((opt) => ({
+				...opt.coin,
+				snippet: assetCard,
+				snippetData: {
+					fromOpt: opt,
+					net: opt.networks?.[0] || Network.magi,
+					size: 'medium'
+				}
+			}))
 	);
-	// To tokens: all coins Magi supports (show all, not just those with balance)
+	// To tokens: all coins Magi supports (show all, not just those with balance) — exclude sHBD
 	const toAssetObjs: AssetObject[] = $derived(
-		swapOptions.to.coins.map((opt) => ({
-			...opt.coin,
-			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: Network.magi, size: 'medium' }
-		}))
+		swapOptions.to.coins
+			.filter((opt) => opt.coin.value !== Coin.shbd?.value)
+			.map((opt) => ({
+				...opt.coin,
+				snippet: assetCard,
+				snippetData: { fromOpt: opt, net: Network.magi, size: 'medium' }
+			}))
 	);
 
 
@@ -188,6 +207,38 @@
 			.catch(() => { toUsd = ''; });
 	});
 
+	// Pool-based fee calculation
+	let poolDepths: PoolDepths | null = $state(null);
+	let swapResult: SwapCalcResult | null = $state(null);
+	fetchPoolDepths().then((d) => { if (d) poolDepths = d; });
+
+	$effect(() => {
+		const fromCoin = $SendTxDetails.fromCoin;
+		const toCoin = $SendTxDetails.toCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!poolDepths || !fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
+			swapResult = null;
+			return;
+		}
+		const isHiveSwap =
+			(fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value) &&
+			(toCoin.coin.value === Coin.hive.value || toCoin.coin.value === Coin.hbd.value) &&
+			fromCoin.coin.value !== toCoin.coin.value;
+		if (!isHiveSwap) { swapResult = null; return; }
+
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) { swapResult = null; return; }
+
+		const assetIn = fromCoin.coin.value as 'hive' | 'hbd';
+		const { X, Y } = getOrderedDepths(poolDepths, assetIn);
+		swapResult = calculateSwap(BigInt(fromAmountInt), X, Y, 100);
+	});
+
+	function formatFee(val: bigint | number, decimals: number): string {
+		const n = Number(val) / Math.pow(10, decimals);
+		return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: decimals });
+	}
+
 	let minAmount: CoinAmount<Coin> | undefined = $state();
 	$effect(() => {
 		const amt = possibleCoins.some((c) => c.coin.value === Coin.btc.value)
@@ -203,13 +254,238 @@
 	let dialogOpen = $state(false);
 	let toggle = $state<(open?: boolean) => void>(() => {});
 	let currentlyOpen: 'from' | 'to' = $state('from');
+	let dialogStep: 'tokens' | 'source' = $state('tokens');
+	let tempCoinOpt: CoinOptions['coins'][number] | undefined = $state();
+	let tokenSearch = $state('');
+
 	function openDialog(state: 'from' | 'to') {
 		currentlyOpen = state;
+		dialogStep = 'tokens';
+		tokenSearch = '';
+		tempCoinOpt = undefined;
 		toggle(true);
 	}
 
-	function onExchange() {
-		goto('/swap');
+	function closeDialog() {
+		toggle(false);
+		dialogStep = 'tokens';
+		tokenSearch = '';
+		tempCoinOpt = undefined;
+	}
+
+	function getFilteredTokens(tokens: AssetObject[]): AssetObject[] {
+		if (!tokenSearch.trim()) return tokens;
+		const s = tokenSearch.toLowerCase().trim();
+		return tokens.filter(
+			(t) => t.label.toLowerCase().includes(s) || t.value.toLowerCase().includes(s)
+		);
+	}
+
+	function coinDisplayLabel(coin: (typeof Coin)[keyof typeof Coin]): string {
+		return coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: coin.label;
+	}
+
+	function getNetworkBalance(coinValue: string, networkValue: string): string {
+		const coinDef = Object.values(Coin).find((c) => c.value === coinValue);
+		if (networkValue === Network.magi.value) {
+			const bal = $accountBalance.bal?.[coinValue as keyof AccountBalance];
+			if (bal != null && typeof bal === 'number' && bal > 0) {
+				return new CoinAmount(bal, coinDef ?? Coin.unk, true).toPrettyAmountString();
+			}
+		} else if ($accountBalance.connectedBal) {
+			const bal =
+				$accountBalance.connectedBal[coinValue as keyof typeof $accountBalance.connectedBal];
+			if (bal != null && typeof bal === 'number' && bal > 0) {
+				return new CoinAmount(bal, coinDef ?? Coin.unk, true).toPrettyAmountString();
+			}
+		}
+		return '0';
+	}
+
+	function selectToken(token: AssetObject) {
+		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
+		const coinOpt = source.find((opt) => opt.coin.value === token.value);
+		if (!coinOpt) return;
+		tempCoinOpt = coinOpt;
+
+		if (currentlyOpen === 'from') {
+			dialogStep = 'source';
+		} else {
+			SendTxDetails.update((d) => ({ ...d, toCoin: coinOpt, toNetwork: Network.magi }));
+			closeDialog();
+		}
+	}
+
+	function confirmFromSelection(coinOpt: CoinOptions['coins'][number], network: typeof Network[keyof typeof Network]) {
+		SendTxDetails.update((d) => ({ ...d, fromCoin: coinOpt, fromNetwork: network }));
+		closeDialog();
+	}
+
+	let swapStatus = $state('');
+	let swapLoading = $state(false);
+	let swapError = $state(false);
+
+	async function onExchange() {
+		swapError = false;
+		swapStatus = '';
+
+		if (!auth.value) {
+			swapStatus = 'Connect your wallet first';
+			swapError = true;
+			return;
+		}
+		if (!$SendTxDetails.fromCoin || !$SendTxDetails.toCoin) {
+			swapStatus = 'Select both tokens';
+			swapError = true;
+			return;
+		}
+		if (!$SendTxDetails.fromAmount || $SendTxDetails.fromAmount === '0') {
+			swapStatus = 'Enter an amount';
+			swapError = true;
+			return;
+		}
+
+		const fromCoinDef = $SendTxDetails.fromCoin.coin;
+		const toCoinDef = $SendTxDetails.toCoin.coin;
+		const amount = new CoinAmount($SendTxDetails.fromAmount, fromCoinDef);
+		const caller = auth.value.did;
+		const provider = auth.value.provider;
+
+		// Wallet/token compatibility check — QuickSwap is mainnet to mainnet
+		const isHiveAsset = fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
+		const isBtcAsset = fromCoinDef.value === Coin.btc.value;
+
+		if (provider === 'reown' && isHiveAsset) {
+			swapStatus = 'HIVE/HBD requires a Hive wallet — connect via Hive Keychain or HiveAuth';
+			swapError = true;
+			return;
+		}
+		if (provider === 'reown' && isBtcAsset) {
+			swapStatus = 'BTC requires a Bitcoin wallet — MetaMask cannot send BTC';
+			swapError = true;
+			return;
+		}
+		if (provider === 'aioha' && isBtcAsset) {
+			swapStatus = 'BTC requires a Bitcoin mainnet wallet';
+			swapError = true;
+			return;
+		}
+
+		swapLoading = true;
+
+		try {
+			let txId: string;
+
+			if (auth.value.provider === 'aioha' && auth.value.aioha) {
+				// Hive wallet path
+				const username = auth.value.username ?? getUsernameFromAuth(auth);
+				if (!username) throw new Error('Could not resolve username');
+
+				const ops = [];
+				if (fromCoinDef.value === Coin.btc.value) {
+					ops.push(getBtcApproveOp(username));
+				}
+				ops.push(
+					getHiveSwapOp(
+						username,
+						amount,
+						fromCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+						toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+					)
+				);
+
+				swapStatus = 'Waiting for wallet approval...';
+				const res = await executeTx(auth.value.aioha, ops);
+				if (!res.success) throw new Error(res.error || 'Swap failed');
+				txId = res.result;
+
+			} else {
+				// EVM/Reown wallet path
+				const isNative = fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
+				const swapPayload: CallContractTransaction = {
+					op: 'call',
+					payload: {
+						contract_id: SWAP_CONTRACT_ID,
+						action: 'execute',
+						payload: JSON.stringify({
+							type: 'swap',
+							version: '1.0.0',
+							asset_in: fromCoinDef.value.toUpperCase(),
+							asset_out: toCoinDef.value.toUpperCase(),
+							amount_in: String(amount.amount),
+							min_amount_out: '0',
+							recipient: caller
+						}),
+						rc_limit: 5000,
+						intents: [],
+						caller
+					}
+				};
+
+				const txOps: CallContractTransaction[] = [];
+
+				// BTC needs approval via mapping contract
+				if (fromCoinDef.value === Coin.btc.value) {
+					const { MAPPINGCONTRACTID } = await import('$lib/stores/currentBalance');
+					txOps.push({
+						op: 'call',
+						payload: {
+							contract_id: MAPPINGCONTRACTID,
+							action: 'approve',
+							payload: JSON.stringify({
+								spender: `contract:${SWAP_CONTRACT_ID}`,
+								amount: '999999999'
+							}),
+							rc_limit: 1000,
+							intents: [],
+							caller
+						}
+					});
+				}
+
+				txOps.push(swapPayload);
+
+				swapStatus = 'Waiting for wallet approval...';
+				const client = createClient(caller);
+				const res = await signAndBrodcastTransaction(
+					txOps,
+					wagmiSigner,
+					client,
+					undefined,
+					wagmiConfig
+				);
+				txId = res.id;
+			}
+
+			swapStatus = 'Swap submitted!';
+			addLocalTransaction({
+				ops: [{
+					data: {
+						amount: new CoinAmount($SendTxDetails.toAmount || '0', toCoinDef).toAmountString(),
+						asset: toCoinDef.unit.toLowerCase(),
+						from: caller,
+						to: caller,
+						memo: '',
+						type: 'swap'
+					},
+					type: 'swap',
+					index: 0
+				}],
+				timestamp: new Date(),
+				id: txId,
+				type: auth.value.provider === 'aioha' ? 'hive' : 'evm'
+			});
+
+		} catch (e: any) {
+			swapStatus = e.message || 'Swap failed';
+			swapError = true;
+		} finally {
+			swapLoading = false;
+		}
 	}
 
 	const fromSubtitle = $derived(
@@ -247,6 +523,11 @@
 		<div class="swap-badge">
 			<span class="swap-dot"></span>
 			<span class="swap-badge-text">MAGI CROSS-CHAIN</span>
+		</div>
+		<p class="swap-subtitle">Swap native assets across blockchains</p>
+		<div class="powered-by">
+			<span>Powered by</span>
+			<img src="/magi.svg" alt="Magi" class="magi-logo" />
 		</div>
 	</div>
 
@@ -317,7 +598,13 @@
 			</div>
 			<div class="detail-row">
 				<span class="detail-label">Fee</span>
-				<span class="detail-value">0.08% + CLP</span>
+				<span class="detail-value">
+					{#if swapResult && $SendTxDetails.fromCoin}
+						{formatFee(swapResult.totalFee, $SendTxDetails.fromCoin.coin.decimalPlaces)} {$SendTxDetails.fromCoin.coin.label}
+					{:else}
+						0.08% + CLP
+					{/if}
+				</span>
 			</div>
 			<div class="detail-row">
 				<span class="detail-label">Route</span>
@@ -330,41 +617,90 @@
 					{$SendTxDetails.toCoin.coin.label}
 				</span>
 			</div>
-			<div class="detail-row">
-				<span class="detail-label">Slippage</span>
-				<div class="slippage-pills">
-					{#each [0.5, 1, 2, 3] as pct}
-						<button class="slip-pill" class:active={pct === 1}>{pct}%</button>
-					{/each}
-				</div>
-			</div>
 		</div>
 	{/if}
 
 	<!-- Exchange -->
-	<button type="button" class="exchange-btn" onclick={onExchange}>
-		Swap
+	<button
+		type="button"
+		class="exchange-btn"
+		onclick={onExchange}
+		disabled={swapLoading}
+	>
+		{swapLoading ? 'Swapping...' : 'Swap'}
 	</button>
+	{#if swapStatus}
+		<p class="swap-status" class:error={swapError}>{swapStatus}</p>
+	{/if}
 </div>
 
 <Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet content()}
-		{#if currentlyOpen === 'from'}
-			<SelectAssetFlattened
-				availableCoins={fromAssetObjs}
-				bind:coin={$SendTxDetails.fromCoin}
-				bind:network={$SendTxDetails.fromNetwork}
-				close={toggle}
-				externalNetwork={Network.lightning}
-			/>
-		{:else}
-			<SelectAssetFlattened
-				availableCoins={toAssetObjs}
-				close={toggle}
-				bind:coin={$SendTxDetails.toCoin}
-				bind:network={$SendTxDetails.toNetwork}
-				isTo
-			/>
+		{#if dialogStep === 'tokens'}
+			<div class="dialog-content">
+				<div class="dialog-title-row">
+					<h5>Select a token</h5>
+					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
+				</div>
+				<div class="token-search-wrapper">
+					<Search size={16} />
+					<input bind:value={tokenSearch} placeholder="Search tokens..." />
+				</div>
+				<div class="token-chip-grid">
+					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
+						<button class="token-chip" onclick={() => selectToken(token)}>
+							<img src={token.icon} alt={token.label} class="chip-icon" />
+							<span>{coinDisplayLabel(token)}</span>
+						</button>
+					{/each}
+				</div>
+				<span class="dialog-section-label">ALL ASSETS</span>
+				<p class="dialog-hint">select a token to see your available balances</p>
+			</div>
+		{:else if dialogStep === 'source' && tempCoinOpt}
+			<div class="dialog-content">
+				<div class="dialog-title-row">
+					<button
+						class="dialog-back-btn"
+						onclick={() => {
+							dialogStep = 'tokens';
+							tempCoinOpt = undefined;
+						}}
+					>
+						<ArrowLeft size={18} />
+					</button>
+					<h5>Select a token</h5>
+					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
+				</div>
+				<div class="token-chip-grid">
+					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
+						<button
+							class={['token-chip', { active: token.value === tempCoinOpt.coin.value }]}
+							onclick={() => selectToken(token)}
+						>
+							<img src={token.icon} alt={token.label} class="chip-icon" />
+							<span>{coinDisplayLabel(token)}</span>
+						</button>
+					{/each}
+				</div>
+				<span class="dialog-section-label">ALL ASSETS</span>
+				<div class="network-cards">
+					{#each tempCoinOpt.networks.filter(n => n.value !== Network.lightning.value) as net (net.value)}
+						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt, net)}>
+							<img src={tempCoinOpt.coin.icon} alt="" class="network-card-icon" />
+							<div class="network-card-info">
+								<span class="network-card-name">{net.value === Network.magi.value ? 'Magi Network' : 'Mainnet'}</span>
+							</div>
+							<div class="network-card-balance">
+								<span class="balance-amount"
+									>{getNetworkBalance(tempCoinOpt.coin.value, net.value)}</span
+								>
+								<span class="balance-label sm-caption">available</span>
+							</div>
+						</button>
+					{/each}
+				</div>
+			</div>
 		{/if}
 	{/snippet}
 </Dialog>
@@ -381,29 +717,57 @@
 	/* Header */
 	.swap-header {
 		display: flex;
-		justify-content: center;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.4rem;
 		margin-bottom: 1rem;
 	}
 	.swap-badge {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4rem;
-		padding: 0.25rem 0.65rem;
+		padding: 0.3rem 0.75rem;
 		border: 1px solid rgba(111, 106, 248, 0.25);
 		border-radius: 2rem;
 	}
 	.swap-dot {
-		width: 5px;
-		height: 5px;
+		width: 6px;
+		height: 6px;
 		border-radius: 50%;
-		background: #6F6AF8;
-		box-shadow: 0 0 6px 1px rgba(111, 106, 248, 0.5);
+		background: #4ADE80;
+		box-shadow: 0 0 6px 1px rgba(74, 222, 128, 0.5);
+		animation: dot-pulse 2s ease-in-out infinite;
+	}
+	@keyframes dot-pulse {
+		0%, 100% { box-shadow: 0 0 4px 1px rgba(74, 222, 128, 0.3); }
+		50% { box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.7); }
 	}
 	.swap-badge-text {
-		font-size: 0.6rem;
+		font-size: 0.8rem;
 		font-weight: 700;
 		letter-spacing: 0.1em;
-		color: var(--dash-text-secondary);
+		color: var(--dash-text-primary);
+	}
+	.swap-subtitle {
+		font-size: 0.75rem;
+		color: var(--dash-text-primary);
+		font-family: 'Nunito Sans', sans-serif;
+		margin: 0;
+	}
+	.powered-by {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		margin-top: 0.15rem;
+		span {
+			font-size: 0.75rem;
+			color: var(--dash-text-muted);
+			font-family: 'Nunito Sans', sans-serif;
+		}
+		.magi-logo {
+			height: 20px;
+			width: auto;
+		}
 	}
 
 	/* Fields */
@@ -581,6 +945,178 @@
 		}
 		&:active {
 			transform: scale(0.97);
+		}
+	}
+
+	.swap-status {
+		text-align: center;
+		font-size: var(--text-sm);
+		color: var(--dash-accent-green);
+		margin-top: 0.5rem;
+		&.error { color: var(--dash-accent-red); }
+	}
+	.exchange-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	/* ── Token Dialog ── */
+	.dialog-title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+		h5 {
+			flex: 1;
+			margin: 0;
+			font-size: var(--text-3xl);
+			font-weight: 600;
+			color: var(--dash-text-primary);
+		}
+	}
+	.dialog-close-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: none;
+		border: none;
+		color: var(--dash-text-muted);
+		cursor: pointer;
+		padding: 0.25rem;
+		border-radius: 50%;
+		transition: color 0.15s ease;
+		&:hover { color: var(--dash-text-primary); }
+	}
+	.dialog-back-btn {
+		display: flex;
+		align-items: center;
+		background: none;
+		border: none;
+		color: var(--dash-text-muted);
+		cursor: pointer;
+		padding: 0.25rem 0.5rem 0.25rem 0;
+		transition: color 0.15s ease;
+		&:hover { color: var(--dash-text-primary); }
+	}
+	.token-search-wrapper {
+		position: relative;
+		margin-bottom: 1rem;
+		:global(svg) {
+			position: absolute;
+			left: 0.75rem;
+			top: 50%;
+			transform: translateY(-50%);
+			color: var(--dash-text-muted);
+			pointer-events: none;
+		}
+		input {
+			width: 100%;
+			box-sizing: border-box;
+			padding: 0.625rem 0.75rem 0.625rem 2.25rem;
+			border: 1px solid var(--dash-input-border);
+			border-radius: 12px;
+			background-color: var(--dash-swap-field-bg);
+			color: var(--dash-text-primary);
+			font: inherit;
+			font-size: var(--text-sm);
+			&::placeholder { color: var(--dash-text-muted); }
+		}
+	}
+	.token-chip-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.token-chip {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.5rem 0.875rem;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 2rem;
+		background-color: var(--dash-surface);
+		color: var(--dash-text-primary);
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.15s ease, border-color 0.15s ease;
+		&:hover {
+			background-color: var(--dash-card-border);
+			border-color: var(--dash-accent-purple);
+		}
+		&.active {
+			border-color: var(--dash-accent-purple);
+			background-color: rgba(111, 106, 248, 0.15);
+		}
+		.chip-icon {
+			width: 1.25rem;
+			height: 1.25rem;
+			border-radius: 50%;
+		}
+	}
+	.dialog-section-label {
+		display: block;
+		margin-top: 1.25rem;
+		margin-bottom: 0.5rem;
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--dash-text-muted);
+	}
+	.dialog-hint {
+		color: var(--dash-text-muted);
+		font-size: var(--text-sm);
+		text-align: center;
+		margin: 1rem 0 0;
+	}
+	.network-cards {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	.network-card {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 1rem;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 16px;
+		background-color: var(--dash-swap-field-bg);
+		cursor: pointer;
+		color: var(--dash-text-primary);
+		font: inherit;
+		text-align: left;
+		transition: border-color 0.15s ease, background-color 0.15s ease;
+		&:hover {
+			border-color: var(--dash-accent-purple);
+			background: var(--dash-card-bg);
+		}
+		.network-card-icon {
+			width: 2.25rem;
+			height: 2.25rem;
+			border-radius: 50%;
+			flex-shrink: 0;
+		}
+		.network-card-info {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			gap: 0.125rem;
+			min-width: 0;
+		}
+		.network-card-name { font-weight: 500; }
+		.network-card-balance {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-end;
+			gap: 0.125rem;
+			flex-shrink: 0;
+		}
+		.balance-amount {
+			font-family: 'Noto Sans Mono Variable', monospace;
+			font-weight: 400;
 		}
 	}
 </style>

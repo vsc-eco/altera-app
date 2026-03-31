@@ -7,4 +7,6 @@ export type TransferInput = {
 export type UnmapInput = {
 	amount: number;
 	recipient_btc_address: string;
+	deduct_fee?: boolean;
+	max_fee?: number;
 };

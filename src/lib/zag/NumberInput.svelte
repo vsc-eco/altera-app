@@ -105,7 +105,7 @@
 
 <div {...api.getRootProps()}>
 	<div {...api.getScrubberProps()}></div>
-	<input {...api.getInputProps()} class={{ invalid }} />
+	<input {...api.getInputProps()} class={{ invalid }} placeholder="0" />
 	<!-- <div class="triggers">
 		<button {...api.getIncrementTriggerProps()}>
 			<ChevronUp />

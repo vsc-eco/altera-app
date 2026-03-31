@@ -584,8 +584,8 @@
 		tempCoinOpt = coinOpt;
 
 		if (currentlyOpen === 'from') {
-			// Swap only allows Magi network — skip network selection step
-			confirmFromSelection(coinOpt, Network.magi);
+			// Show balance sources for the selected token
+			dialogStep = 'source';
 		} else {
 			// To selection: always use Magi network
 			confirmToSelection(coinOpt, Network.magi);
@@ -627,15 +627,15 @@
 <Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet content()}
 		{#if dialogStep === 'tokens'}
-			<!-- Step 1: Token Chip Grid -->
+			<!-- Step 1: Select a token -->
 			<div class="dialog-content">
 				<div class="dialog-title-row">
-					<h5>{currentlyOpen === 'from' ? "You're sending..." : "You're receiving..."}</h5>
+					<h5>Select a token</h5>
 					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
 				</div>
 				<div class="token-search-wrapper">
 					<Search size={16} />
-					<input bind:value={tokenSearch} placeholder="Search token..." />
+					<input bind:value={tokenSearch} placeholder="Search tokens..." />
 				</div>
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
@@ -645,9 +645,11 @@
 						</button>
 					{/each}
 				</div>
+				<span class="dialog-section-label">ALL ASSETS</span>
+				<p class="dialog-hint">select a token to see your available balances</p>
 			</div>
 		{:else if dialogStep === 'source' && tempCoinOpt}
-			<!-- Step 2 (From): Where is your TOKEN? -->
+			<!-- Step 2: Show balances for selected token -->
 			<div class="dialog-content">
 				<div class="dialog-title-row">
 					<button
@@ -659,19 +661,27 @@
 					>
 						<ArrowLeft size={18} />
 					</button>
-					<img src={tempCoinOpt.coin.icon} alt="" class="dialog-title-icon" />
-					<h5>Where is your {coinDisplayLabel(tempCoinOpt.coin)}?</h5>
+					<h5>Select a token</h5>
 					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
 				</div>
+				<div class="token-chip-grid">
+					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
+						<button
+							class={['token-chip', { active: token.value === tempCoinOpt.coin.value }]}
+							onclick={() => selectToken(token)}
+						>
+							<img src={token.icon} alt={token.label} class="chip-icon" />
+							<span>{coinDisplayLabel(token)}</span>
+						</button>
+					{/each}
+				</div>
+				<span class="dialog-section-label">ALL ASSETS</span>
 				<div class="network-cards">
-					{#each tempCoinOpt.networks as net (net.value)}
+					{#each tempCoinOpt.networks.filter(n => n.value !== Network.lightning.value) as net (net.value)}
 						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt!, net)}>
 							<img src={tempCoinOpt.coin.icon} alt="" class="network-card-icon" />
 							<div class="network-card-info">
-								<span class="network-card-name"
-									>{coinDisplayLabel(tempCoinOpt.coin)} on {net.label}</span
-								>
-								<span class="network-card-desc sm-caption">{getNetworkDescription(net.value)}</span>
+								<span class="network-card-name">{net.value === Network.magi.value ? 'Magi Network' : 'Mainnet'}</span>
 							</div>
 							<div class="network-card-balance">
 								<span class="balance-amount"
@@ -689,7 +699,45 @@
 
 <!-- ═══ Two-Column Layout ═══ -->
 <div class="swap-layout">
-	<!-- ── LEFT COLUMN: Swap Card ── -->
+	<!-- ── LEFT EAR: From Chart ── -->
+	<div class={['ear left-ear', { hide: !$SendTxDetails.fromCoin }]}>
+		{#if $SendTxDetails.fromCoin}
+			{@const coin = $SendTxDetails.fromCoin.coin}
+			<Card>
+				<div class="lc-wrapper">
+					<div class="lc-labels">
+						<div class="coin">
+							<img src={coin.icon} alt={coinDisplayLabel(coin)} />
+							<div class="label-network">
+								{coinDisplayLabel(coin)}
+								<span class="sm-caption">Native</span>
+							</div>
+						</div>
+						<div class="amount-percent">
+							{#if hoveredFromPoint}
+								<p>
+									{`${formatGraphValue(hoveredFromPoint.value)} ${Coin.usd.unit}`}
+								</p>
+								<p>{moment(hoveredFromPoint.date).format('MMM DD, HH:mm')}</p>
+							{:else}
+								{fromInUsd}
+								{@render percentArrow(getPercentChange(fromData?.quotes))}
+							{/if}
+						</div>
+					</div>
+					<LineChart
+						data={fromData?.quotes ?? []}
+						height={120}
+						isLoading={!graphsLoaded.has(coin.value)}
+						styleType="trend"
+						bind:hoveredPoint={hoveredFromPoint}
+					/>
+				</div>
+			</Card>
+		{/if}
+	</div>
+
+	<!-- ── CENTER LEFT: Swap Card ── -->
 	<div class="swap-col-left">
 		<div class="quick-swap-card">
 			<!-- From Section -->
@@ -734,11 +782,11 @@
 				</div>
 			</div>
 
-			<!-- Swap Toggle -->
+			<!-- Swap Arrow -->
 			<div class="swap-toggle-wrapper">
-				<button class="swap-toggle-btn" aria-label="Swap direction">
-					<ArrowUpDown size={18} />
-				</button>
+				<div class="swap-arrow">
+					<ChevronDown size={18} />
+				</div>
 			</div>
 
 			<!-- To Section -->
@@ -758,7 +806,7 @@
 						{#if $SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'}
 							<span class="to-amount-value">{$SendTxDetails.toAmount}</span>
 						{:else}
-							<span class="to-amount-placeholder">&mdash;</span>
+							<span class="to-amount-placeholder">0</span>
 						{/if}
 					</div>
 					<button class="token-selector-btn" onclick={() => openDialog('to')}>
@@ -780,14 +828,6 @@
 			<!-- Route Info -->
 			{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
 				<div class="route-info">
-					<span class="route-path">
-						{coinDisplayLabel($SendTxDetails.fromCoin.coin)} &rarr; Magi &rarr; {coinDisplayLabel(
-							$SendTxDetails.toCoin.coin
-						)}
-					</span>
-					<span class="route-rate">
-						{new CoinAmount(1, $SendTxDetails.fromCoin.coin).toPrettyMinFigs()} = {fromInTo}
-					</span>
 					<span class="route-tags">
 						<span class="tag native">Native</span>
 						<span class="tag-sep">&middot;</span>
@@ -811,85 +851,9 @@
 			{/if}
 		</div>
 
-		<!-- Charts Section -->
-		<div class={['graphs', { hide: !$SendTxDetails.fromCoin && !$SendTxDetails.toCoin }]}>
-			<div style="grid-area: from">
-				{#if $SendTxDetails.fromCoin}
-					{@const coin = $SendTxDetails.fromCoin.coin}
-					<Card>
-						<div class="lc-wrapper">
-							<div class="lc-labels">
-								<div class="coin">
-									<img src={coin.icon} alt={coinDisplayLabel(coin)} />
-									<div class="label-network">
-										{coinDisplayLabel(coin)}
-										<span class="sm-caption">Native</span>
-									</div>
-								</div>
-								<div class="amount-percent">
-									{#if hoveredFromPoint}
-										<p>
-											{`${formatGraphValue(hoveredFromPoint.value)} ${Coin.usd.unit}`}
-										</p>
-										<p>{moment(hoveredFromPoint.date).format('MMM DD, HH:mm')}</p>
-									{:else}
-										{fromInUsd}
-										{@render percentArrow(getPercentChange(fromData?.quotes))}
-									{/if}
-								</div>
-							</div>
-							<LineChart
-								data={fromData?.quotes ?? []}
-								height={120}
-								isLoading={!graphsLoaded.has(coin.value)}
-								styleType="trend"
-								bind:hoveredPoint={hoveredFromPoint}
-							/>
-						</div>
-					</Card>
-				{/if}
-			</div>
-
-			<div style="grid-area: to">
-				{#if $SendTxDetails.toCoin}
-					{@const coin = $SendTxDetails.toCoin.coin}
-					<Card>
-						<div class="lc-wrapper">
-							<div class="lc-labels">
-								<div class="coin">
-									<img src={coin.icon} alt={coinDisplayLabel(coin)} />
-									<div class="label-network">
-										{coinDisplayLabel(coin)}
-										<span class="sm-caption">Native</span>
-									</div>
-								</div>
-								<div class="amount-percent">
-									{#if hoveredToPoint}
-										<p>
-											{`${formatGraphValue(hoveredToPoint.value)} ${Coin.usd.unit}`}
-										</p>
-										<p>{moment(hoveredToPoint.date).format('MMM DD, HH:mm')}</p>
-									{:else}
-										{toInUsd}
-										{@render percentArrow(getPercentChange(toData?.quotes))}
-									{/if}
-								</div>
-							</div>
-							<LineChart
-								data={toData?.quotes ?? []}
-								height={120}
-								isLoading={!graphsLoaded.has(coin.value)}
-								styleType="trend"
-								bind:hoveredPoint={hoveredToPoint}
-							/>
-						</div>
-					</Card>
-				{/if}
-			</div>
-		</div>
 	</div>
 
-	<!-- ── RIGHT COLUMN: Deliver To + Charts ── -->
+	<!-- ── CENTER RIGHT: Deliver To ── -->
 	<div class="swap-col-right">
 		<!-- Deliver To Section -->
 		<div class="deliver-to-card">
@@ -1061,6 +1025,45 @@
 				{/if}
 			</div>
 		{/if}
+
+	</div>
+
+	<!-- ── RIGHT EAR: To Chart ── -->
+	<div class={['ear right-ear', { hide: !$SendTxDetails.toCoin }]}>
+		{#if $SendTxDetails.toCoin}
+			{@const coin = $SendTxDetails.toCoin.coin}
+			<Card>
+				<div class="lc-wrapper">
+					<div class="lc-labels">
+						<div class="coin">
+							<img src={coin.icon} alt={coinDisplayLabel(coin)} />
+							<div class="label-network">
+								{coinDisplayLabel(coin)}
+								<span class="sm-caption">Native</span>
+							</div>
+						</div>
+						<div class="amount-percent">
+							{#if hoveredToPoint}
+								<p>
+									{`${formatGraphValue(hoveredToPoint.value)} ${Coin.usd.unit}`}
+								</p>
+								<p>{moment(hoveredToPoint.date).format('MMM DD, HH:mm')}</p>
+							{:else}
+								{toInUsd}
+								{@render percentArrow(getPercentChange(toData?.quotes))}
+							{/if}
+						</div>
+					</div>
+					<LineChart
+						data={toData?.quotes ?? []}
+						height={120}
+						isLoading={!graphsLoaded.has(coin.value)}
+						styleType="trend"
+						bind:hoveredPoint={hoveredToPoint}
+					/>
+				</div>
+			</Card>
+		{/if}
 	</div>
 </div>
 
@@ -1097,19 +1100,80 @@
 	/* ═══ Two-Column Layout ═══ */
 	.swap-layout {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 1.5rem;
-		max-width: 72rem;
+		grid-template-columns: minmax(0, 300px) minmax(0, 480px) minmax(0, 300px);
+		grid-template-rows: auto auto;
+		gap: 10px;
+		max-width: 1140px;
 		width: 100%;
 		margin: 0 auto;
-		padding: 1rem 1.5rem;
+		padding: 0.5rem;
 		box-sizing: border-box;
+		justify-content: center;
 	}
-	.swap-col-left,
-	.swap-col-right {
+	.ear {
+		min-width: 0;
+		padding-top: 0.5rem;
+		&.hide { visibility: hidden; }
+		.lc-wrapper {
+			height: 100%;
+			box-sizing: border-box;
+			margin: -0.5rem;
+			.lc-labels {
+				padding: 0.5rem;
+				display: flex;
+				justify-content: space-between;
+				.coin {
+					display: inline-flex;
+					align-items: center;
+					gap: 0.5rem;
+					img {
+						width: 1.75rem;
+						height: 1.75rem;
+					}
+					.label-network {
+						display: flex;
+						flex-direction: column;
+						gap: 0.125rem;
+						color: var(--dash-text-primary);
+						font-size: 0.85rem;
+					}
+				}
+				.amount-percent {
+					display: flex;
+					flex-direction: column;
+					align-items: flex-end;
+					gap: 0.125rem;
+					color: var(--dash-text-primary);
+					font-size: 0.85rem;
+				}
+			}
+		}
+		.up,
+		.down {
+			display: inline-flex;
+			align-items: center;
+			font-family: 'Noto Sans Mono Variable', monospace;
+			width: fit-content;
+		}
+		.up { color: var(--dash-accent-green); }
+		.down { color: var(--dash-accent-red); }
+	}
+	.left-ear { grid-column: 1; grid-row: 1; align-self: start; }
+	.right-ear { grid-column: 3; grid-row: 1; align-self: start; }
+	.swap-col-left {
+		grid-column: 2;
+		grid-row: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
+		gap: 0;
+		min-width: 0;
+	}
+	.swap-col-right {
+		grid-column: 2;
+		grid-row: 2;
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
 		min-width: 0;
 	}
 
@@ -1119,7 +1183,7 @@
 		border: 1px solid var(--dash-card-border);
 		border-radius: 27px;
 		box-shadow: var(--dash-card-shadow);
-		padding: 1.5rem;
+		padding: 1rem;
 		width: 100%;
 		box-sizing: border-box;
 		display: flex;
@@ -1135,7 +1199,7 @@
 		background-color: var(--dash-swap-field-bg);
 		border: 1px solid var(--dash-input-border);
 		border-radius: 16px;
-		padding: 1rem;
+		padding: 0.75rem;
 	}
 	.section-header {
 		display: flex;
@@ -1170,6 +1234,15 @@
 		border: none;
 		background: transparent;
 	}
+	.input-field :global(.normal-wrapper .amount-input > .icons),
+	.input-field :global(.normal-wrapper .amount-input > svg) {
+		display: none;
+	}
+	.input-field :global(.normal-wrapper .amount-input input) {
+		font-size: 1.5rem;
+		font-family: 'Nunito Sans', sans-serif;
+		font-weight: 500;
+	}
 	.input-field :global(.normal-wrapper .amount-input:has(input:focus-visible)) {
 		box-shadow: none;
 		border-bottom-color: transparent;
@@ -1183,16 +1256,15 @@
 		flex: 1;
 		min-width: 0;
 		padding: 0.5rem 0;
-		font-size: var(--text-2xl);
-		font-family: 'Noto Sans Mono Variable', monospace;
-		font-weight: 400;
+		font-size: 1.5rem;
+		font-family: 'Nunito Sans', sans-serif;
+		font-weight: 500;
 	}
 	.to-amount-value {
 		color: var(--dash-text-primary);
 	}
 	.to-amount-placeholder {
 		color: var(--dash-text-muted);
-		font-size: var(--text-3xl);
 	}
 
 	/* ── Token Selector Button ── */
@@ -1234,11 +1306,11 @@
 	.swap-toggle-wrapper {
 		display: flex;
 		justify-content: center;
-		padding: 0.375rem 0;
+		padding: 0.125rem 0;
 		position: relative;
 		z-index: 1;
 	}
-	.swap-toggle-btn {
+	.swap-arrow {
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -1246,16 +1318,9 @@
 		height: 2.25rem;
 		border-radius: 12px;
 		border: 1px solid var(--dash-card-border);
-		background-color: var(--dash-card-bg);
+		background: var(--dash-card-bg);
 		color: var(--dash-text-secondary);
-		cursor: pointer;
-		transition:
-			background-color 0.15s ease,
-			color 0.15s ease;
-		&:hover {
-			background-color: var(--dash-card-border);
-			color: var(--dash-text-primary);
-		}
+		pointer-events: none;
 	}
 
 	/* ── Same Coin Error ── */
@@ -1276,10 +1341,9 @@
 	.route-info {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		flex-wrap: wrap;
+		justify-content: center;
 		gap: 0.5rem;
-		padding: 0.75rem 0 0.25rem;
+		padding: 0.375rem 0 0.125rem;
 		font-size: 0.75rem;
 	}
 	.route-path {
@@ -1316,7 +1380,7 @@
 
 	/* ── Fees Section (collapsible) ── */
 	.swap-fees {
-		margin-top: 0.75rem;
+		margin-top: 0.375rem;
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--dash-card-border);
@@ -1345,7 +1409,7 @@
 		color: var(--dash-text-muted);
 		cursor: pointer;
 		padding: 0.25rem;
-		border-radius: 1.5rem;
+		border-radius: 0.25rem;
 		transition:
 			color 0.15s ease,
 			background-color 0.15s ease;
@@ -1390,7 +1454,7 @@
 		button {
 			padding: 0.25rem 0.5rem;
 			border: 1px solid var(--dash-card-border);
-			border-radius: 1.5rem;
+			border-radius: 12px;
 			background: transparent;
 			color: var(--dash-text-secondary);
 			cursor: pointer;
@@ -1416,7 +1480,7 @@
 		border: 1px solid var(--dash-card-border);
 		border-radius: 27px;
 		box-shadow: var(--dash-card-shadow);
-		padding: 1.5rem;
+		padding: 1rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
@@ -1464,7 +1528,7 @@
 			background-color 0.15s ease;
 		&.selected {
 			border-color: var(--dash-accent-purple);
-			background-color: var(--dash-card-bg);
+			background: var(--dash-card-bg);
 		}
 		&:hover:not(.selected) {
 			border-color: var(--dash-card-border);
@@ -1584,7 +1648,7 @@
 		display: flex;
 		gap: 0;
 		border: 1px solid var(--dash-input-border);
-		border-radius: 1.5rem;
+		border-radius: 12px;
 		overflow: hidden;
 		button {
 			flex: 1;
@@ -1781,6 +1845,27 @@
 		}
 	}
 
+	.dialog-section-label {
+		display: block;
+		margin-top: 1.25rem;
+		margin-bottom: 0.5rem;
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--dash-text-muted);
+	}
+	.dialog-hint {
+		color: var(--dash-text-muted);
+		font-size: var(--text-sm);
+		text-align: center;
+		margin: 1rem 0 0;
+	}
+	.token-chip.active {
+		border-color: var(--dash-accent-purple);
+		background-color: rgba(111, 106, 248, 0.15);
+	}
+
 	/* ── Dialog: Network Cards (Source) ── */
 	.network-cards {
 		display: flex;
@@ -1804,7 +1889,7 @@
 			background-color 0.15s ease;
 		&:hover {
 			border-color: var(--dash-accent-purple);
-			background-color: var(--dash-card-bg);
+			background: var(--dash-card-bg);
 		}
 		.network-card-icon {
 			width: 2.25rem;
@@ -1867,8 +1952,7 @@
 			pointer-events: all;
 			background: var(--dash-card-bg);
 			border: 1px solid var(--dash-card-border);
-			border-radius: 27px;
-			box-shadow: var(--dash-card-shadow);
+			border-radius: 16px;
 			height: min-content;
 			color: var(--dash-text-primary);
 			.info {
@@ -1888,11 +1972,10 @@
 	@media screen and (max-width: 56rem) {
 		.swap-layout {
 			grid-template-columns: 1fr;
-			padding: 1rem;
+			padding: 0.5rem;
 		}
-		.graphs {
-			grid-template-columns: 1fr 1fr;
-		}
+		.ear { display: none; }
+		.swap-col-left, .swap-col-right { grid-column: 1; }
 	}
 	@media screen and (max-width: 36rem) {
 		.swap-layout {

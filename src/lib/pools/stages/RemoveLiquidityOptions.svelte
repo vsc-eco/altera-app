@@ -102,6 +102,8 @@
 		min-width: 28rem;
 		max-width: 100%;
 		box-sizing: border-box;
+		min-height: 18rem;
+		font-family: 'Nunito Sans', sans-serif;
 	}
 	.remove-liquidity-form :global([data-part='root']) {
 		width: 100%;
@@ -134,13 +136,15 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		margin-bottom: 1.5rem;
+		position: relative;
+		z-index: 10;
 	}
 	.label {
-		font-size: 14px;
+		font-size: 0.8rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
 		color: var(--dash-text-muted);
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
 		font-family: 'Nunito Sans', sans-serif;
 	}
 	.form-section {
@@ -151,10 +155,10 @@
 	.input-wrap {
 		display: flex;
 		align-items: center;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		background: rgba(0, 0, 0, 0.25);
-		border-radius: 12px;
-		padding: 0.65rem 0.75rem;
+		border: 1px solid var(--dash-input-border);
+		background-color: var(--dash-swap-field-bg);
+		border-radius: 16px;
+		padding: 0.75rem;
 		gap: 0.5rem;
 	}
 	.input-wrap input {
@@ -162,7 +166,9 @@
 		background: none;
 		border: none;
 		color: var(--dash-text-primary);
-		font-size: 16px;
+		font-size: 1.25rem;
+		font-family: 'Nunito Sans', sans-serif;
+		font-weight: 500;
 		min-width: 0;
 	}
 	.input-wrap input:focus {
@@ -174,13 +180,13 @@
 		gap: 0.5rem;
 	}
 	.asset-card {
-		background: var(--dash-card-bg);
-		border: 1px solid var(--dash-card-border);
+		background-color: var(--dash-swap-field-bg);
+		border: 1px solid var(--dash-input-border);
 		border-radius: 16px;
-		padding: 1rem;
+		padding: 0.75rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: 0.5rem;
 	}
 	.asset-header {
 		display: flex;
@@ -188,8 +194,9 @@
 		align-items: center;
 	}
 	.balance {
-		font-size: 12px;
+		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
+		font-family: 'Nunito Sans', sans-serif;
 	}
 	.asset-icon {
 		width: 22px;

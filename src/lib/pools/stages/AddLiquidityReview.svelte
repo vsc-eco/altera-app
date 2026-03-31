@@ -47,8 +47,8 @@
 />
 
 <style>
-	ul { list-style: none; padding: 0; margin: 0; }
-	li { display: flex; gap: 1rem; padding: 0.75rem 0.5rem; }
+	ul { list-style: none; padding: 0; margin: 0; font-family: 'Nunito Sans', sans-serif; }
+	li { display: flex; gap: 1rem; padding: 0.75rem 0.5rem; color: var(--dash-text-primary); }
 	li:not(:last-child) { border-bottom: 1px solid var(--dash-card-border); }
 	.sm-caption { width: min(12rem, 40%); color: var(--dash-text-muted); }
 </style>

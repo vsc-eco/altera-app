@@ -42,8 +42,8 @@
 		display: block;
 		font: inherit;
 		color: inherit;
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		border-radius: 0.5rem;
+		border: 1px solid var(--dash-input-border);
+		border-radius: 12px;
 		resize: none;
 		padding: 0.5rem;
 		box-sizing: border-box;
@@ -51,13 +51,13 @@
 	}
 
 	textarea:focus-visible {
-		box-shadow: 0 -2px inset var(--primary-bg-mid);
-		border-radius: 0.5rem 0.5rem 0 0;
+		box-shadow: 0 -2px inset var(--dash-accent-purple);
+		border-radius: 12px 12px 0 0;
 		border-bottom: none;
 		outline: none;
 	}
 
 	textarea:disabled {
-		background-color: var(--neutral-bg-accent);
+		background-color: var(--dash-surface-alt);
 	}
 </style>

@@ -338,7 +338,7 @@
 		}
 	}
 	.error-message {
-		color: var(--error-color, #ff4444);
+		color: var(--dash-accent-red);
 		font-size: 0.875rem;
 		margin-top: 0.5rem;
 		display: block;

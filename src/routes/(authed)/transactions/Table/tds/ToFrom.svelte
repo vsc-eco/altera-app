@@ -63,7 +63,7 @@
 	.memo {
 		/* align-self: baseline; */
 		font-weight: 400;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-secondary);
 		font-size: var(--text-sm);
 		margin-left: 0.5rem;
 		line-height: 1.5;

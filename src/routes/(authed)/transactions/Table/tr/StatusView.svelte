@@ -64,7 +64,7 @@
 		top: -0.25rem;
 		left: -0.5px;
 		height: 100%;
-		background-color: var(--neutral-bg-mid);
+		background-color: var(--dash-card-border);
 	}
 	.vertical-line::after {
 		content: '';
@@ -74,7 +74,7 @@
 		width: 2px;
 		position: absolute;
 		bottom: -0.5rem;
-		background-color: var(--neutral-bg-mid);
+		background-color: var(--dash-card-border);
 	}
 	.msg {
 		margin-left: 0.5rem;
@@ -95,7 +95,7 @@
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 0.5rem;
-		background-color: var(--neutral-bg-mid);
+		background-color: var(--dash-card-border);
 	}
 	.to-icon {
 		grid-area: to-icon;
@@ -103,7 +103,7 @@
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 0.5rem;
-		background-color: var(--bg-mid);
+		background-color: var(--dash-accent-purple);
 		position: relative;
 	}
 	.to-icon.secondary::after {
@@ -117,7 +117,7 @@
 		content: '';
 		height: 0;
 		left: 0;
-		color: var(--bg-mid);
+		color: var(--dash-accent-purple);
 		position: absolute;
 		top: calc(0.5rem / 2 + 1px);
 		width: 0;
@@ -134,12 +134,12 @@
 	}
 	.status {
 		grid-area: status;
-		color: var(--fg-accent-shifted);
+		color: var(--dash-text-accent);
 	}
 	.ts {
 		padding-top: 0.25rem;
 		font-size: var(--text-sm);
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 	}
 	.transfer {
 		margin: 1rem 0;

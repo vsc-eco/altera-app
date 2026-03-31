@@ -67,7 +67,7 @@
 	[data-part='input'] {
 		height: 1.5rem;
 		border: none;
-		border-bottom: 1px solid var(--primary-bg-mid);
+		border-bottom: 1px solid var(--dash-accent-purple);
 		box-shadow: none;
 		// box-sizing: border-box;
 	}

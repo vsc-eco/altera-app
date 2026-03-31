@@ -282,17 +282,18 @@
 
 	.search-input {
 		font: inherit;
-		color: var(--neutral-fg);
-		background-color: var(--neutral-bg);
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		border-radius: 0.5rem;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-primary);
+		background-color: rgba(0, 0, 0, 0.25);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 12px;
 		padding: 0.5rem 0.75rem;
 		min-width: 10rem;
 		&::placeholder {
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 		}
 		&:focus {
-			outline: 2px solid var(--primary-fg-mid);
+			outline: 2px solid #6F6AF8;
 			outline-offset: 2px;
 		}
 	}
@@ -304,20 +305,21 @@
 
 	.time-btn {
 		font: inherit;
-		color: var(--neutral-fg);
-		background-color: var(--neutral-bg-accent);
-		border: 1px solid transparent;
-		border-radius: 0.5rem;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-secondary);
+		background-color: var(--dash-surface);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 1.5rem;
 		padding: 0.5rem 0.75rem;
 		cursor: pointer;
 		transition: background-color 0.1s, color 0.1s;
 		&:hover {
-			background-color: var(--neutral-bg-accent-shifted);
-			color: var(--primary-fg-accent);
+			background-color: var(--dash-surface-alt);
+			color: var(--dash-text-primary);
 		}
 		&.active {
-			background-color: var(--primary-bg-mid);
-			color: var(--primary-fg-accent);
+			background-color: #6F6AF8;
+			color: #FFFFFF;
 		}
 	}
 
@@ -325,9 +327,10 @@
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		border-radius: 0.5rem;
-		background-color: var(--neutral-off-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 27px;
+		background: var(--dash-card-bg);
+		box-shadow: var(--dash-card-shadow);
 	}
 
 	.pools-table {
@@ -340,18 +343,18 @@
 	.pools-table td {
 		text-align: left;
 		padding: 1rem 1.25rem;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--dash-card-border);
 		vertical-align: top;
 	}
 
 	.pools-table th {
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-weight: 500;
 		white-space: nowrap;
 	}
 
 	.pools-table tbody tr:hover {
-		background-color: var(--neutral-bg-accent);
+		background-color: var(--dash-surface-alt);
 	}
 
 	.pools-table tbody tr.clickable {
@@ -364,19 +367,19 @@
 		gap: 0.35rem;
 		font: inherit;
 		font-weight: 500;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		background: none;
 		border: none;
 		padding: 0;
 		cursor: pointer;
 		white-space: nowrap;
 		&:hover {
-			color: var(--primary-fg-accent);
+			color: var(--dash-accent-purple);
 		}
 	}
 
 	.pools-table th.sortable.active .col-heading-btn {
-		color: var(--primary-fg-accent);
+		color: var(--dash-accent-purple);
 	}
 
 	.pair-cell {
@@ -395,23 +398,23 @@
 		width: 1.5rem;
 		height: 1.5rem;
 		border-radius: 50%;
-		border: 2px solid var(--neutral-bg);
+		border: 2px solid var(--dash-bg);
 		margin-left: -0.35rem;
 	}
 	.pair-icons .icon {
-		background-color: var(--primary-bg-mid);
+		background-color: var(--dash-surface-alt);
 	}
 	.pair-icons .icon:first-child,
 	.pair-icons .coin-icon:first-child {
 		margin-left: 0;
 	}
 	.pair-icons .icon-b:not(.coin-icon) {
-		background-color: var(--primary-bg-accent);
+		background-color: var(--dash-accent-purple);
 	}
 
 	.pair-label {
 		font-weight: 500;
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 	}
 
 	.price-cell {
@@ -428,18 +431,18 @@
 
 	.price-cell span,
 	.amount-cell .breakdown {
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-xs);
 	}
 
 	.price-usd {
 		font-size: var(--text-xs);
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		margin-top: 0.35rem;
 	}
 
 	.amount-cell .total {
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 		font-weight: 500;
 	}
 
@@ -455,17 +458,17 @@
 		height: 3.5rem;
 		border-radius: 50%;
 		padding: 0;
-		box-shadow: 0 4px 12px oklch(from var(--neutral-fg) l c h / 0.2);
-		background-color: var(--primary-bg-mid) !important;
-		color: var(--primary-fg-accent) !important;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		background-color: #6F6AF8 !important;
+		color: #FFFFFF !important;
 	}
 	.fab-wrapper :global(button:hover) {
-		background-color: var(--primary-bg-accent) !important;
-		color: var(--primary-fg) !important;
+		background-color: var(--dash-accent-purple-hover) !important;
+		color: #FFFFFF !important;
 	}
 
 	.placeholder-text {
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		padding: 0.5rem 0;
 	}
 </style>

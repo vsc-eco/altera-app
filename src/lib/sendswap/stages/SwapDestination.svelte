@@ -212,7 +212,7 @@
 		padding: 0.75rem 1rem;
 		background-color: rgba(108, 92, 231, 0.08);
 		border: 1px solid rgba(108, 92, 231, 0.2);
-		border-radius: 0.5rem;
+		border-radius: 12px;
 		margin-top: -0.5rem;
 	}
 	.settle-dot {
@@ -252,7 +252,7 @@
 		gap: 0.75rem;
 		padding: 1rem 1.25rem;
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
+		border-radius: 16px;
 		background-color: var(--dash-swap-field-bg);
 		cursor: pointer;
 		color: var(--dash-text-primary);
@@ -273,7 +273,7 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			border-radius: 0.5rem;
+			border-radius: 12px;
 			background-color: var(--dash-surface);
 			flex-shrink: 0;
 			color: var(--dash-text-secondary);
@@ -335,7 +335,7 @@
 			box-sizing: border-box;
 			padding: 0.75rem;
 			border: 1px solid var(--dash-input-border);
-			border-radius: 0.5rem;
+			border-radius: 12px;
 			background-color: var(--dash-swap-field-bg);
 			color: var(--dash-text-primary);
 			font: inherit;
@@ -359,7 +359,7 @@
 		display: flex;
 		gap: 0;
 		border: 1px solid var(--dash-input-border);
-		border-radius: 0.5rem;
+		border-radius: 1.5rem;
 		overflow: hidden;
 		button {
 			flex: 1;
@@ -413,9 +413,10 @@
 			flex-direction: column;
 			align-items: center;
 			pointer-events: all;
-			background-color: var(--dash-card-bg);
+			background: var(--dash-card-bg);
 			border: 1px solid var(--dash-card-border);
-			border-radius: 0.75rem;
+			border-radius: 27px;
+			box-shadow: var(--dash-card-shadow);
 			height: min-content;
 			color: var(--dash-text-primary);
 			.info {

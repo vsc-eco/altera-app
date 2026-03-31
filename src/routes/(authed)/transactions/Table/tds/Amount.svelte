@@ -27,12 +27,12 @@
 
 <style>
 	.amount {
-		font-family: 'Noto Sans Mono Variable', monospace;
+		font-family: 'Nunito Sans', sans-serif;
 		font-size: var(--text-sm);
-		color: var(--neutral-off-fg);
+		color: var(--dash-text-primary);
 	}
 	.amount.green {
-		color: var(--quaternary-mid);
+		color: var(--dash-accent-green-light);
 	}
 	td:has(.amount) {
 		padding-right: 0.5rem;

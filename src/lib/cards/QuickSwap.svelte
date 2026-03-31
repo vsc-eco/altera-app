@@ -77,81 +77,34 @@
 		if (!optionsEqual(result.networkOptions, networkOptions)) networkOptions = result.networkOptions;
 	});
 
-	const fromAssetObjs: AssetObject[] = $derived([
-		{
-			...Coin.btc,
-			snippet: assetCard,
-			snippetData: {
-				fromOpt: { coin: Coin.btc, networks: [Network.lightning] },
-				net: Network.lightning,
-				size: 'medium'
-			}
-		}
-	]);
-	// To list: only show coins that have Magi balance (HIVE/HBD when available)
-	const toCoinsWithBalance = $derived.by(() =>
-		swapOptions.to.coins.filter((opt) => {
-			const key = opt.coin.value as keyof AccountBalance;
-			const bal = $accountBalance.bal?.[key];
-			return Number(bal) > 0;
-		})
-	);
-	const toAssetObjs: AssetObject[] = $derived.by(() =>
-		toCoinsWithBalance.map((opt) => ({
+	// From tokens: all available coins (BTC, HIVE, HBD)
+	const fromAssetObjs: AssetObject[] = $derived(
+		swapOptions.from.coins.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: $SendTxDetails.toNetwork, size: 'medium' }
+			snippetData: {
+				fromOpt: opt,
+				net: opt.networks?.[0] || Network.magi,
+				size: 'medium'
+			}
+		}))
+	);
+	// To tokens: all coins Magi supports (show all, not just those with balance)
+	const toAssetObjs: AssetObject[] = $derived(
+		swapOptions.to.coins.map((opt) => ({
+			...opt.coin,
+			snippet: assetCard,
+			snippetData: { fromOpt: opt, net: Network.magi, size: 'medium' }
 		}))
 	);
 
-	// Clear To selection if current coin is no longer in Magi balance
-	$effect(() => {
-		if (!$SendTxDetails.toCoin) return;
-		const stillAvailable = toCoinsWithBalance.some(
-			(opt) => opt.coin.value === $SendTxDetails.toCoin?.coin.value
-		);
-		if (!stillAvailable) {
-			const first = toCoinsWithBalance[0];
-			if (first) {
-				$SendTxDetails.toCoin = first;
-				$SendTxDetails.toNetwork = Array.isArray(first.networks) ? first.networks[0] : undefined;
-			} else {
-				$SendTxDetails.toCoin = undefined;
-				$SendTxDetails.toNetwork = undefined;
-			}
-		}
-	});
 
 	$effect(() => {
-		// Default TO: HIVE if Magi balance available, else HBD (HIVE has priority)
-		const hiveBal = $accountBalance.bal?.hive != null ? Number($accountBalance.bal.hive) : 0;
-		const hbdBal = $accountBalance.bal?.hbd != null ? Number($accountBalance.bal.hbd) : 0;
-		const hasHiveValue = hiveBal > 0;
-		const hasHbdValue = hbdBal > 0;
-
-		if (!($SendTxDetails.toCoin && $SendTxDetails.toNetwork)) {
-			let nextToCoin: CoinOptions['coins'][number] | undefined,
-				nextToNetwork: Network | undefined;
-			if (hasHiveValue) {
-				const swapTo = swapOptions.to.coins.find((opt) => opt.coin.value === Coin.hive.value);
-				if (swapTo) {
-					nextToCoin = swapTo;
-					nextToNetwork = Array.isArray(swapTo.networks) ? swapTo.networks[0] : undefined;
-				}
-			} else if (hasHbdValue) {
-				const swapTo = swapOptions.to.coins.find((opt) => opt.coin.value === Coin.hbd.value);
-				if (swapTo) {
-					nextToCoin = swapTo;
-					nextToNetwork = Array.isArray(swapTo.networks) ? swapTo.networks[0] : undefined;
-				}
-			}
-			const changed =
-				$SendTxDetails.toCoin?.coin.value !== nextToCoin?.coin.value ||
-				$SendTxDetails.toNetwork?.value !== nextToNetwork?.value;
-			if (changed) {
-				$SendTxDetails.toCoin = nextToCoin;
-				$SendTxDetails.toNetwork = nextToNetwork;
-			}
+		if ($SendTxDetails.toCoin && $SendTxDetails.toNetwork) return;
+		const hiveOpt = swapOptions.to.coins.find((opt) => opt.coin.value === Coin.hive.value);
+		if (hiveOpt) {
+			$SendTxDetails.toCoin = hiveOpt;
+			$SendTxDetails.toNetwork = Network.magi;
 		}
 	});
 
@@ -298,34 +251,33 @@
 	</div>
 
 	<!-- From Field -->
-	<div class="swap-field">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="swap-field" onclick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) inp.focus(); }}>
 		<div class="field-top">
-			<span class="field-label">From</span>
-			<span class="field-meta">{fromSubtitle}</span>
-		</div>
-		<div class="field-bottom">
-			<input
-				type="number"
-				class="amount-input"
-				placeholder="0.00"
-				value={$SendTxDetails.fromAmount || ''}
-				oninput={(e) => {
-					$SendTxDetails.fromAmount = e.currentTarget.value;
-					if ($SendTxDetails.fromCoin) {
-						inputAmount = new CoinAmount(parseFloat(e.currentTarget.value) || 0, $SendTxDetails.fromCoin.coin);
-					}
-				}}
-			/>
-			<button type="button" class="token-select" onclick={() => openDialog('from')}>
+			<span class="field-label">From:</span>
+			<button type="button" class="token-select" onclick={(e) => { e.stopPropagation(); openDialog('from'); }}>
 				{#if $SendTxDetails.fromCoin}
 					<img src={$SendTxDetails.fromCoin.coin.icon} alt="" class="token-img" />
 					<span class="token-name">{$SendTxDetails.fromCoin.coin.label}</span>
 				{:else}
-					<span class="token-name muted">Select</span>
+					<span class="token-name muted">Select token</span>
 				{/if}
 				<ChevronDown size={12} />
 			</button>
 		</div>
+		<input
+			type="number"
+			class="amount-input"
+			placeholder="0.00"
+			value={$SendTxDetails.fromAmount || ''}
+			oninput={(e) => {
+				$SendTxDetails.fromAmount = e.currentTarget.value;
+				if ($SendTxDetails.fromCoin) {
+					inputAmount = new CoinAmount(parseFloat(e.currentTarget.value) || 0, $SendTxDetails.fromCoin.coin);
+				}
+			}}
+		/>
 		{#if fromUsd}
 			<span class="usd-value">{fromUsd}</span>
 		{/if}
@@ -337,23 +289,20 @@
 	</div>
 
 	<!-- To Field -->
-	<div class="swap-field">
+	<div class="swap-field to-field">
 		<div class="field-top">
-			<span class="field-label">You receive</span>
-			<span class="field-meta">{toSubtitle}</span>
-		</div>
-		<div class="field-bottom">
-			<span class="output-amount">{toAmountDisplay}</span>
+			<span class="field-label">To:</span>
 			<button type="button" class="token-select" onclick={() => openDialog('to')}>
 				{#if $SendTxDetails.toCoin}
 					<img src={$SendTxDetails.toCoin.coin.icon} alt="" class="token-img" />
 					<span class="token-name">{$SendTxDetails.toCoin.coin.label}</span>
 				{:else}
-					<span class="token-name muted">Select</span>
+					<span class="token-name muted">Select token</span>
 				{/if}
 				<ChevronDown size={12} />
 			</button>
 		</div>
+		<span class="output-amount">{toAmountDisplay}</span>
 		{#if toUsd}
 			<span class="usd-value">{toUsd}</span>
 		{/if}
@@ -463,6 +412,10 @@
 		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 16px;
 		padding: 0.875rem 1rem;
+		cursor: text;
+	}
+	.to-field {
+		cursor: default;
 	}
 	.field-top {
 		display: flex;
@@ -474,16 +427,6 @@
 		color: var(--dash-text-secondary);
 		font-size: 0.75rem;
 		font-weight: 600;
-	}
-	.field-meta {
-		color: var(--dash-text-muted);
-		font-size: 0.65rem;
-	}
-	.field-bottom {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
 	}
 	.amount-input {
 		flex: 1;

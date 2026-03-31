@@ -137,10 +137,11 @@
 	}
 	.label {
 		font-size: 14px;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		font-family: 'Nunito Sans', sans-serif;
 	}
 	.form-section {
 		display: flex;
@@ -150,9 +151,9 @@
 	.input-wrap {
 		display: flex;
 		align-items: center;
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		background: var(--neutral-off-bg);
-		border-radius: 0.6rem;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(0, 0, 0, 0.25);
+		border-radius: 12px;
 		padding: 0.65rem 0.75rem;
 		gap: 0.5rem;
 	}
@@ -160,7 +161,7 @@
 		flex: 1;
 		background: none;
 		border: none;
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 		font-size: 16px;
 		min-width: 0;
 	}
@@ -173,9 +174,9 @@
 		gap: 0.5rem;
 	}
 	.asset-card {
-		background: var(--neutral-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		border-radius: 0.9rem;
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 16px;
 		padding: 1rem;
 		display: flex;
 		flex-direction: column;
@@ -188,27 +189,27 @@
 	}
 	.balance {
 		font-size: 12px;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 	}
 	.asset-icon {
 		width: 22px;
 		height: 22px;
 		border-radius: 50%;
-		background: var(--primary-bg-mid);
+		background: var(--dash-surface-alt);
 	}
 	.asset-icon.icon-b {
-		background: var(--primary-bg-accent);
+		background: var(--dash-accent-purple);
 	}
 	.rate-info {
-		background: var(--neutral-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		border-radius: 0.8rem;
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 16px;
 		padding: 0.75rem 1rem;
 		font-size: 14px;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 	}
 	.error-text {
-		color: var(--secondary-fg-mid);
+		color: var(--dash-accent-red);
 		font-size: 11px;
 	}
 </style>

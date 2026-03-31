@@ -215,19 +215,21 @@
 		align-items: center;
 		label {
 			margin-bottom: 0;
+			color: var(--dash-text-primary);
+			font-family: 'Nunito Sans', sans-serif;
 		}
 	}
 	.theme {
 		span {
 			margin-left: 0.25rem;
 			margin-bottom: 0.25rem;
-			color: var(--primary-fg-mid);
+			color: var(--dash-text-secondary);
 		}
 	}
 	input[type='checkbox'] {
 		width: 1rem;
 		height: 1rem;
-		accent-color: var(--primary-mid);
+		accent-color: #6F6AF8;
 		cursor: pointer;
 	}
 	.backup-box {

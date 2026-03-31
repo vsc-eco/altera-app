@@ -124,7 +124,7 @@
 		height: 100svh;
 		width: 200px;
 		box-sizing: border-box;
-		padding: calc(1.75rem + 1.5vh) 0.5rem 1.25rem 1.5rem;
+		padding: calc(1.75rem + 1.5vh) 1rem 1.25rem 1rem;
 		z-index: 10;
 		transition: transform 0s;
 		font-weight: 500;
@@ -149,7 +149,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0 0.5rem;
+		padding: 0 0.75rem;
 		margin-bottom: 1.5rem;
 	}
 	.logo-link {
@@ -180,7 +180,6 @@
 	.nav-button {
 		display: flex;
 		align-items: center;
-		justify-content: center;
 		gap: 0.75rem;
 		padding: 0.625rem 0.75rem;
 		border-radius: 0.5rem;

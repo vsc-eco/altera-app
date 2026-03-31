@@ -23,7 +23,7 @@
 <TxDoneFooter enabled={!!txId} {onClose} />
 
 <style>
-	.sm-caption { color: var(--neutral-fg-mid); }
+	.sm-caption { color: var(--dash-text-muted); }
 	.line { margin: 0.35rem 0; }
 	.tx { margin-top: 0.75rem; word-break: break-all; }
 </style>

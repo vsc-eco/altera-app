@@ -149,7 +149,7 @@
 					x2="1px"
 					y1="15%"
 					y2="85%"
-					stroke="var(--neutral-bg-accent)"
+					stroke="var(--dash-card-border)"
 					stroke-width="2"
 					stroke-dasharray="5,5"
 				/>
@@ -307,7 +307,7 @@
 		width: calc(100% - 1rem);
 		margin: 0 0.5rem;
 		padding: 1rem 0;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--dash-card-border);
 	}
 	tr {
 		display: grid;
@@ -363,7 +363,7 @@
 		padding-bottom: 0.5rem;
 	}
 	li:not(:last-child) {
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--dash-card-border);
 	}
 	.status-wrapper {
 		margin-top: 1rem;
@@ -380,21 +380,22 @@
 		transform: translate(-50dvw, -50dvh);
 		display: flex;
 		justify-content: center;
-		background-color: rgba(58, 46, 57, 0.2);
+		background-color: rgba(0, 0, 0, 0.6);
 		backdrop-filter: blur(4px);
 		pointer-events: none;
 		z-index: 1;
 		.waiting-card {
 			margin-top: 25%;
 			font-weight: 500;
-			padding: 1rem;
+			padding: 1.5rem;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			pointer-events: all;
-			background-color: var(--neutral-bg);
-			border: 1px solid var(--neutral-bg-accent);
-			border-radius: 0.5rem;
+			background: var(--dash-card-bg);
+			border: 1px solid var(--dash-card-border);
+			border-radius: 16px;
+			box-shadow: var(--dash-card-shadow);
 			height: min-content;
 			.info {
 				display: flex;

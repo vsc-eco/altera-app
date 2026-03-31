@@ -27,6 +27,7 @@
 		height: 3.5rem;
 		white-space: nowrap;
 		position: relative;
+		font-family: 'Nunito Sans', sans-serif;
 	}
 	/* .action-bar::after {
 		content: '';

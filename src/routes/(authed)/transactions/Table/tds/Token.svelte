@@ -34,13 +34,13 @@
 
 <style>
 	.token {
-		color: var(--neutral-off-fg);
+		color: var(--dash-text-secondary);
 		font-family: 'Noto Sans Mono Variable', monospace;
 		font-size: var(--text-sm);
 	}
 
 	.token.green {
-		color: var(--quaternary-mid);
+		color: var(--dash-accent-green-light);
 	}
 
 	td:has(.token) {

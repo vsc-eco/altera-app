@@ -81,8 +81,9 @@
 		--height: 2.5rem;
 		box-sizing: border-box;
 		height: var(--height);
-		border-radius: calc(var(--height) / 2);
+		border-radius: 1.5rem;
 		color: inherit;
+		font-family: 'Nunito Sans', sans-serif;
 		font: inherit;
 		border: none;
 		padding: 0.25rem 0.75rem;
@@ -94,68 +95,70 @@
 		text-decoration: none;
 		vertical-align: middle;
 		position: relative;
-		white-space: nowrap; /* keep on same line */
+		white-space: nowrap;
 		transition: transform 0.05s;
 
-		background-color: var(--bg-accent);
-		color: var(--fg-accent-shifted);
+		background-color: rgba(255, 255, 255, 0.1);
+		color: var(--dash-text-primary);
 		&:hover {
-			background-color: var(--bg-accent-shifted);
-			color: var(--fg-accent);
+			background-color: rgba(255, 255, 255, 0.15);
+			color: var(--dash-text-primary);
 		}
 		&:disabled {
 			cursor: default;
-			color: var(--fg-mid) !important;
+			color: var(--dash-text-muted) !important;
 			transform: scale(0.98) !important;
-			background-color: var(--bg-accent) !important;
+			background-color: rgba(255, 255, 255, 0.05) !important;
 			&:active,
 			&:hover,
 			&:focus {
-				color: var(--fg-mid) !important;
-				background-color: var(--bg-accent) !important;
+				color: var(--dash-text-muted) !important;
+				background-color: rgba(255, 255, 255, 0.05) !important;
 				transform: scale(0.98) !important;
 			}
 		}
 		&:active {
-			background-color: var(--bg-accent-shifted);
-			color: var(--fg);
+			background-color: rgba(255, 255, 255, 0.15);
+			color: var(--dash-text-primary);
 			transform: scale(0.98);
 		}
 		:global(.lucide-check) {
 			height: 18px;
 		}
 		&.invert {
-			background-color: var(--fg-mid);
-			color: var(--bg);
+			background-color: #6F6AF8;
+			color: white;
 			&:hover {
-				color: var(--bg);
+				background-color: #7E74FF;
+				color: white;
 			}
 			&:active {
-				color: var(--bg);
+				color: white;
 			}
 		}
 		&.outline {
 			background-color: transparent;
-			color: var(--fg);
-			border: 1px solid var(--bg-mid);
+			color: var(--dash-text-primary);
+			border: 1px solid rgba(111, 106, 248, 0.4);
 			&:hover {
-				background-color: var(--bg-accent);
-				color: var(--fg);
+				background-color: rgba(111, 106, 248, 0.1);
+				border-color: #6F6AF8;
+				color: var(--dash-text-primary);
 			}
 			&:active {
-				background-color: var(--bg-accent);
-				color: var(--fg);
+				background-color: rgba(111, 106, 248, 0.15);
+				color: var(--dash-text-primary);
 			}
 			&.primary {
-				border-color: var(--primary-mid);
-				color: var(--primary-text);
+				border-color: #6F6AF8;
+				color: var(--dash-text-primary);
 				&:hover {
-					background-color: var(--primary-bg-accent);
-					color: var(--primary-text);
+					background-color: rgba(111, 106, 248, 0.1);
+					color: var(--dash-text-primary);
 				}
 				&:active {
-					background-color: var(--primary-bg-accent-shifted);
-					color: var(--primary-text);
+					background-color: rgba(111, 106, 248, 0.15);
+					color: var(--dash-text-primary);
 				}
 			}
 		}
@@ -169,38 +172,38 @@
 			justify-content: center;
 			align-items: center;
 			&:hover {
-				color: var(--primary-fg-mid);
-				border-color: var(--primary-mid);
+				color: #6F6AF8;
+				border-color: #6F6AF8;
 			}
 		}
 		&.text {
 			background-color: transparent;
-			color: var(--fg-mid);
+			color: var(--dash-text-secondary);
 			border: none;
 			&.neutral {
 				&:hover {
 					text-decoration: none;
 				}
-				color: var(--fg);
+				color: var(--dash-text-primary);
 			}
 			&:hover {
 				text-decoration: underline;
-				background-color: var(--bg-accent);
-				color: var(--fg);
+				background-color: rgba(255, 255, 255, 0.06);
+				color: var(--dash-text-primary);
 			}
 			&:active {
-				background-color: var(--bg-accent);
-				color: var(--fg);
+				background-color: rgba(255, 255, 255, 0.06);
+				color: var(--dash-text-primary);
 			}
 		}
 		&.subtle {
 			background-color: transparent;
-			color: var(--fg-mid);
+			color: var(--dash-text-secondary);
 			padding: 0;
 			height: min-content;
 			width: min-content;
 			&:hover {
-				color: var(--fg);
+				color: var(--dash-text-primary);
 				background-color: transparent;
 			}
 			&:active {

@@ -28,4 +28,8 @@
 		display: grid;
 		gap: 1rem;
 	}
+	:global(h1) {
+		color: var(--dash-text-primary);
+		font-family: 'Nunito Sans', sans-serif;
+	}
 </style>

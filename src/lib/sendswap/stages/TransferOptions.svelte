@@ -449,15 +449,19 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		padding: 1.5rem;
-		background-color: var(--neutral-bg-accent);
-		border-radius: 1rem;
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 16px;
 		@media screen and (min-width: 450px) {
 			:global(input) {
-				background-color: var(--neutral-bg);
+				background-color: rgba(0, 0, 0, 0.25);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				border-radius: 12px;
 			}
 		}
 		@media screen and (max-width: 450px) {
 			background-color: transparent;
+			border: none;
 			padding: 0;
 		}
 	}
@@ -494,9 +498,9 @@
 		.transfer-error {
 			filter: grayscale(25%);
 			padding: 0.75rem;
-			border: 1px solid var(--neutral-bg-accent-shifted);
-			background-color: var(--neutral-off-bg);
-			border-radius: 0.5rem;
+			border: 1px solid var(--dash-card-border);
+			background: var(--dash-surface);
+			border-radius: 12px;
 		}
 	}
 	.asset-card {

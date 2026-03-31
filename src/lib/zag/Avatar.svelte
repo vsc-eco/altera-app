@@ -39,16 +39,16 @@
 	}
 	[data-part='root'] {
 		position: relative;
-		/* Styles for the root part */
 		border-radius: 100%;
-		/* width: 2.5rem; */
 		flex-shrink: 0;
 		box-sizing: border-box;
-		background-color: var(--neutral-bg-accent);
+		background-color: rgba(255, 255, 255, 0.1);
 		aspect-ratio: 1;
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
+		color: var(--dash-text-primary);
+		font-family: 'Nunito Sans', sans-serif;
 	}
 	[data-part='fallback'] {
 		width: 100%;

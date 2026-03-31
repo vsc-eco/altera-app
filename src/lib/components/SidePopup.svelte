@@ -173,14 +173,16 @@
 	}
 
 	.background {
-		background-color: var(--neutral-off-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		border-radius: 0.5rem;
+		background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+		backdrop-filter: blur(10px);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 27px;
 		padding: 0.5rem;
 		overflow: auto;
 		position: relative;
 		height: calc(100% - 2.1rem);
 		display: flex;
+		box-shadow: var(--dash-card-shadow);
 	}
 
 	.close-button {
@@ -200,13 +202,16 @@
 
 	.popup-title {
 		font-size: var(--text-3xl);
-		margin: 0;
+		font-family: 'Nunito Sans', sans-serif;
 		font-weight: 600;
+		color: var(--dash-text-primary);
+		margin: 0;
 	}
 
 	.popup-description {
-		color: var(--text-muted, #666);
-		font-size: 0.9rem;
+		color: var(--dash-text-secondary);
+		font-size: 0.85rem;
+		font-family: 'Nunito Sans', sans-serif;
 		flex-shrink: 0;
 	}
 

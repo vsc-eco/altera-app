@@ -143,8 +143,17 @@
 		flex-direction: column;
 		gap: 1.5rem;
 		vertical-align: middle;
+		font-family: 'Nunito Sans', sans-serif;
 		.rc-title {
-			color: var(--primary-text);
+			color: var(--dash-text-primary);
+			font-size: 0.85rem;
+			font-weight: 600;
+		}
+		h5 {
+			color: var(--dash-text-primary);
+			font-size: 0.85rem;
+			font-weight: 600;
+			font-family: 'Nunito Sans', sans-serif;
 		}
 		.bar-and-info {
 			display: flex;

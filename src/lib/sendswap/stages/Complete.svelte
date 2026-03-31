@@ -129,10 +129,10 @@
 	}
 	.date {
 		padding: 1.5rem 0 1rem;
-		border-top: 1px solid var(--neutral-bg-accent);
+		border-top: 1px solid var(--dash-card-border);
 	}
 	.sm-caption {
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 	}
 	.redirect {
 		margin-top: 2rem;

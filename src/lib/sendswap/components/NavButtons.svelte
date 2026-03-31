@@ -64,12 +64,12 @@
 			left: 0;
 			right: 0;
 			padding-bottom: 1rem;
-			--background-color: oklch(from var(--neutral-bg) l c h / 0.9);
+			--background-color: oklch(from var(--dash-bg) l c h / 0.9);
 			background-color: var(--background-color);
 			box-shadow: 0 -5px 5px -5px var(--background-color);
-			border: 1px solid var(--neutral-bg-accent);
+			border: 1px solid var(--dash-card-border);
 			border-top: none;
-			border-radius: 0 0 0.75rem 0.75rem;
+			border-radius: 0 0 16px 16px;
 		}
 	}
 	.bar.fixed {
@@ -103,7 +103,7 @@
 			box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
 		}
 		:global(button.outline) {
-			background-color: var(--neutral-bg);
+			background-color: var(--dash-bg);
 		}
 	}
 </style>

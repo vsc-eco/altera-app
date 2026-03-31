@@ -74,6 +74,6 @@
 	}
 	.disabled {
 		filter: grayscale(50%);
-		color: var(--neutral-mid);
+		color: var(--dash-text-muted);
 	}
 </style>

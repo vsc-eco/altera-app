@@ -92,6 +92,7 @@
 <style lang="scss">
 	hr {
 		width: 100%;
+		border-color: rgba(255, 255, 255, 0.06);
 	}
 	.confirmation-wrapper {
 		display: flex;
@@ -100,6 +101,8 @@
 		min-width: min-content;
 		width: min(24rem, calc(100vw - 4rem));
 		max-width: 24rem;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-primary);
 		@media screen and (max-width: 24rem) {
 			width: calc(100vw - 3.5rem);
 		}
@@ -124,10 +127,11 @@
 		z-index: 15;
 		width: 100%;
 		height: 100%;
-		/* styles for the backdrop element */
+		background-color: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(10px);
 	}
 	[data-part='positioner'] {
-		border-radius: 0.5rem;
+		border-radius: 27px;
 		position: fixed;
 		padding: 0.5rem;
 		box-sizing: border-box;
@@ -147,7 +151,7 @@
 	}
 	[data-part='content'] {
 		z-index: 15;
-		border-radius: 0.5rem;
+		border-radius: 27px;
 		&.emphasize {
 			border: 2px solid var(--secondary-mid);
 		}

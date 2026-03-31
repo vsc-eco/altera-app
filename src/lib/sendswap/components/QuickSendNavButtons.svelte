@@ -37,8 +37,8 @@
 <style lang="scss">
 	.bar.full {
 		width: 100vw;
-		background-color: var(--neutral-off-bg);
-		border-top: 1px solid var(--neutral-bg-accent);
+		background: var(--dash-surface);
+		border-top: 1px solid var(--dash-card-border);
 		display: flex;
 		justify-content: center;
 		translate: -0.5rem 0;

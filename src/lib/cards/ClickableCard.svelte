@@ -26,28 +26,27 @@
 
 <style lang="scss">
 	button {
-		background-color: var(--neutral-off-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		border-radius: 0.75rem;
-		padding: 0.5rem;
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 16px;
+		padding: 0.75rem;
 		overflow: auto;
 		max-height: 100%;
 		width: 100%;
-		color: inherit;
+		color: var(--dash-text-primary);
 		font: inherit;
 		&:disabled {
 			pointer-events: none;
-			opacity: 1;
-			background-color: var(--neutral-off-bg);
+			opacity: 0.5;
 			filter: grayscale(1);
-			color: var(--neutral-mid);
+			color: var(--dash-text-muted);
 		}
 		&:not(:disabled) {
 			cursor: pointer;
 		}
 		&.defaultBg {
-			background-color: var(--neutral-bg);
+			background: var(--dash-card-bg);
 		}
-		box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
+		box-shadow: var(--dash-card-shadow);
 	}
 </style>

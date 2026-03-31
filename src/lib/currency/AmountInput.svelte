@@ -352,8 +352,13 @@
 	.big-wrapper {
 		:global(input) {
 			border: none;
+			color: var(--dash-text-primary);
+			font-family: 'Nunito Sans', sans-serif;
 			&:focus-visible {
 				box-shadow: none;
+			}
+			&::placeholder {
+				color: var(--dash-text-muted);
 			}
 		}
 	}
@@ -365,34 +370,38 @@
 			position: absolute;
 			top: -1.25rem;
 			right: 0.25rem;
+			color: var(--dash-text-secondary);
+			font-family: 'Nunito Sans', sans-serif;
+			font-size: 0.8rem;
 		}
 		.balance-amount {
 			font-family: 'Nunito Sans', sans-serif;
 			font-weight: 400;
 		}
 		.amount-input {
-			border: 1px solid var(--neutral-bg-accent-shifted);
-			color: var(--neutral-fg);
-			border-radius: 0.5rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(0, 0, 0, 0.25);
+			color: var(--dash-text-primary);
+			border-radius: 12px;
 			display: flex;
 			align-items: center;
 			gap: 0.5rem;
 			flex-basis: 1;
 			box-sizing: border-box;
 			&:has(:global(input):focus-visible) {
-				box-shadow: 0 -1px inset var(--primary-bg-mid);
-				border-bottom-color: var(--primary-bg-mid);
+				box-shadow: 0 -1px inset #6F6AF8;
+				border-bottom-color: #6F6AF8;
 				outline: none;
-				border-radius: 0.5rem 0.5rem 0 0;
+				border-radius: 12px 12px 0 0;
 				hr {
-					border-color: var(--primary-bg-mid);
+					border-color: #6F6AF8;
 					border-width: 1.5px;
 				}
 			}
 
 			hr {
 				height: 1.5rem;
-				border-right: 1px solid var(--neutral-bg-accent-shifted);
+				border-right: 1px solid rgba(255, 255, 255, 0.08);
 			}
 
 			.max-button-wrapper {
@@ -407,6 +416,8 @@
 		.coin-label {
 			width: 4rem;
 			text-align: center;
+			color: var(--dash-text-primary);
+			font-family: 'Nunito Sans', sans-serif;
 		}
 		.bottom-info {
 			position: absolute;
@@ -424,8 +435,9 @@
 			}
 		}
 		.approx-usd {
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 			font-size: var(--text-sm);
+			font-family: 'Nunito Sans', sans-serif;
 		}
 		@media screen and (min-width: 450px) and (max-width: 650px) {
 			.amount-input > .max-button-wrapper > :global(button) {
@@ -452,7 +464,8 @@
 				position: absolute;
 				left: calc(100% + 0.5rem);
 				transform: translateY(-30%);
-				color: inherit;
+				color: var(--dash-text-primary);
+				font-family: 'Nunito Sans', sans-serif;
 			}
 			:global(:input) {
 				padding: 0;

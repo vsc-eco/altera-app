@@ -54,10 +54,11 @@
 		grid-area: pfp;
 		width: 2.5rem;
 		height: 2.5rem;
-		background-color: var(--neutral-bg-accent);
+		background-color: var(--dash-surface-alt);
 		border-radius: 100%;
 		text-align: center;
 		align-content: center;
+		color: var(--dash-text-secondary);
 	}
 	.status {
 		grid-area: status;

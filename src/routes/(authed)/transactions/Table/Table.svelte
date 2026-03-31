@@ -267,19 +267,22 @@
 		width: 100%;
 		flex-grow: 1;
 		position: relative;
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 27px;
+		box-shadow: var(--dash-card-shadow);
+		padding: 1.25rem;
 	}
 	table {
 		width: 100%;
-		border-spacing: 1rem 0.5rem;
+		border-spacing: 0;
 		border-collapse: collapse;
 		position: relative;
+		font-family: 'Nunito Sans', sans-serif;
 	}
-	/* .loading {
-		background-color: var(--neutral-bg-accent);
-	} */
 	.skeleton-cell {
-		background-color: var(--neutral-bg-accent);
-		border-radius: 0.5rem;
+		background-color: var(--dash-surface-alt);
+		border-radius: 12px;
 		height: 3rem;
 		margin: 0.75rem 1rem;
 		animation: pulse 2s ease-in-out infinite;
@@ -288,18 +291,22 @@
 		position: sticky;
 		top: 0;
 		z-index: 1;
-		background-color: var(--neutral-bg);
+		background-color: transparent;
 	}
 	th {
 		text-align: left;
 		min-width: max-content;
 		box-sizing: content-box;
-		padding: 0.5rem min(1rem, 2%);
+		padding: 0.75rem 1rem;
+		color: var(--dash-text-muted);
+		font-weight: 600;
+		font-size: 0.8rem;
 	}
 	table :global(td) {
 		vertical-align: middle;
 		width: max-content;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--dash-card-border);
+		color: var(--dash-text-primary);
 	}
 	.token-header {
 		padding-left: 0;
@@ -331,19 +338,20 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(to bottom, transparent 10%, var(--neutral-bg) 60%);
+		background: linear-gradient(to bottom, transparent 10%, var(--dash-bg) 60%);
 		pointer-events: none;
 		z-index: 1;
 	}
 
 	.no-transactions-overlay.short {
-		background: linear-gradient(to bottom, transparent 10%, var(--neutral-bg) 80%);
+		background: linear-gradient(to bottom, transparent 10%, var(--dash-bg) 80%);
 		align-items: end;
 	}
 
 	.no-transactions-message {
 		font-weight: 500;
 		padding: 1.5rem;
+		color: var(--dash-text-secondary);
 	}
 
 	@keyframes pulse {

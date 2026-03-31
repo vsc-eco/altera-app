@@ -243,20 +243,20 @@
 <style lang="scss">
 	.add-liquidity-form { min-width: 28rem; max-width: 100%; box-sizing: border-box; }
 	.field { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; }
-	.label { font-size: 14px; color: var(--neutral-fg-mid); display: flex; align-items: center; gap: 0.5rem; }
+	.label { font-size: 14px; color: var(--dash-text-muted); display: flex; align-items: center; gap: 0.5rem; font-family: 'Nunito Sans', sans-serif; }
 	.form-section { display: flex; flex-direction: column; gap: 1.25rem; }
-	.asset-card { background: var(--neutral-bg); border: 1px solid var(--neutral-bg-accent); border-radius: 0.9rem; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+	.asset-card { background: var(--dash-card-bg); border: 1px solid var(--dash-card-border); border-radius: 16px; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; box-shadow: var(--dash-card-shadow); }
 	.asset-header { display: flex; justify-content: space-between; align-items: center; }
-	.error-text { color: var(--secondary-fg-mid); font-size: 11px; }
-	.balance-info { font-size: 12px; color: var(--neutral-fg-mid); }
-	.rate-info { background: var(--neutral-bg); border: 1px solid var(--neutral-bg-accent); border-radius: 0.8rem; padding: 0.75rem 1rem; font-size: 14px; color: var(--neutral-fg-mid); }
+	.error-text { color: var(--dash-accent-red); font-size: 11px; }
+	.balance-info { font-size: 12px; color: var(--dash-text-muted); }
+	.rate-info { background: var(--dash-card-bg); border: 1px solid var(--dash-card-border); border-radius: 16px; padding: 0.75rem 1rem; font-size: 14px; color: var(--dash-text-muted); }
 
 	.btc-display {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		border-radius: 0.5rem;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 12px;
 		padding: 0.625rem 0.75rem;
 		min-height: 2.5rem;
 
@@ -264,12 +264,12 @@
 			flex: 1;
 			font-family: 'Noto Sans Mono Variable', monospace;
 			font-size: var(--text-base);
-			color: var(--neutral-fg);
+			color: var(--dash-text-primary);
 		}
 
 		.btc-unit {
 			font-weight: 500;
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 			white-space: nowrap;
 		}
 	}

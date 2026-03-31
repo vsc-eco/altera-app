@@ -122,66 +122,67 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	--dash-exchange-gradient: #6F6AF8;
 }
 
-/* ========== LIGHT THEME — extracted from SVG ========== */
+/* ========== LIGHT THEME — original, to be redesigned later ========== */
 :root.light-theme {
-	--dash-bg: #F4F4F4;
-	--dash-surface: #F9F9F9;
-	--dash-surface-alt: #EDEDED;
-
-	--dash-card-bg: #F9F9F9;
-	--dash-card-border: #CFCFCF;
+	--dash-bg: #F4F4F8;
+	--dash-surface: #FFFFFF;
+	--dash-surface-alt: #F9F9FC;
+	--dash-card-bg: #FFFFFF;
+	--dash-card-border: #E0E0E8;
 	--dash-card-bg-hover: #F5F5FA;
-
+	--dash-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	--dash-card-hover-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 	--dash-sidebar-bg: #FFFFFF;
 	--dash-sidebar-border: #E8E8F0;
-	--dash-sidebar-active-bg: rgba(108, 92, 231, 0.1);
-	--dash-sidebar-active-text: #6C5CE7;
+	--dash-sidebar-active-bg: #6F6AF8;
+	--dash-sidebar-active-text: #FFFFFF;
 	--dash-sidebar-hover: #F5F5FA;
 	--dash-sidebar-text: #6B7280;
-
 	--dash-input-bg: #F4F4F8;
 	--dash-input-border: #E0E0E8;
-
-	--dash-accent-purple: #6C5CE7;
-	--dash-accent-purple-hover: #5B4BD6;
-	--dash-accent-purple-light: rgba(108, 92, 231, 0.08);
+	--dash-accent-purple: #6F6AF8;
+	--dash-accent-purple-hover: #5B54E0;
+	--dash-accent-purple-light: rgba(111, 106, 248, 0.08);
 	--dash-accent-green: #16A34A;
+	--dash-accent-green-light: #22C55E;
 	--dash-accent-red: #DC2626;
-
 	--dash-text-primary: #111118;
 	--dash-text-secondary: #6B7280;
 	--dash-text-muted: #9CA3AF;
-	--dash-text-accent: #6C5CE7;
-
-	--dash-badge-transfer-bg: rgba(108, 92, 231, 0.1);
-	--dash-badge-transfer-text: #6C5CE7;
+	--dash-text-accent: #6F6AF8;
+	--dash-badge-transfer-bg: rgba(111, 106, 248, 0.1);
+	--dash-badge-transfer-text: #6F6AF8;
 	--dash-badge-withdraw-bg: rgba(234, 136, 0, 0.1);
 	--dash-badge-withdraw-text: #D97706;
 	--dash-badge-green-bg: rgba(22, 163, 74, 0.1);
 	--dash-badge-green-text: #16A34A;
-
 	--dash-divider: #E8E8F0;
-
 	--dash-swap-bg: #FFFFFF;
 	--dash-swap-field-bg: #F4F4F8;
-
-	--dash-btn-primary: #6C5CE7;
-	--dash-btn-primary-hover: #5B4BD6;
-	--dash-btn-outline-border: #D0D0DC;
+	--dash-btn-primary: #6F6AF8;
+	--dash-btn-primary-hover: #5B54E0;
+	--dash-btn-outline-border: rgba(111, 106, 248, 0.3);
 	--dash-btn-outline-text: #111118;
-	--dash-btn-outline-hover-bg: rgba(108, 92, 231, 0.06);
-
-	--dash-chart-line: #6C5CE7;
-	--dash-chart-fill: rgba(108, 92, 231, 0.05);
+	--dash-btn-outline-hover-bg: rgba(111, 106, 248, 0.06);
+	--dash-chart-line: #6F6AF8;
+	--dash-chart-fill: rgba(111, 106, 248, 0.08);
 	--dash-chart-grid: #E8E8F0;
-
 	--dash-topbar-bg: transparent;
 	--dash-topbar-search-bg: #FFFFFF;
 	--dash-topbar-search-border: #E0E0E8;
 	--dash-topbar-badge-bg: #FFFFFF;
 	--dash-topbar-badge-border: #E0E0E8;
+	--dash-exchange-gradient: #6F6AF8;
+}
 
-	--dash-exchange-gradient: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
+/* Hide gradient mesh in light theme */
+:root.light-theme .bg-mesh {
+	display: none !important;
+}
+@media (prefers-color-scheme: light) {
+	:root:not(.light-theme):not(.dark-theme) .bg-mesh {
+		display: none !important;
+	}
 }
 
 /* System preference fallback */
@@ -192,53 +193,79 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 }
 @media (prefers-color-scheme: light) {
 	:root:not(.light-theme):not(.dark-theme) {
-		/* same as .light-theme */
-		--dash-bg: #F4F4F8;
+		--dash-bg: #F2F1F6;
 		--dash-surface: #FFFFFF;
-		--dash-surface-alt: #F9F9FC;
+		--dash-surface-alt: #F5F4FA;
 		--dash-card-bg: #FFFFFF;
-		--dash-card-border: #E8E8F0;
-		--dash-card-bg-hover: #F5F5FA;
+		--dash-card-border: rgba(111, 106, 248, 0.08);
+		--dash-card-border-highlight: rgba(111, 106, 248, 0.12);
+		--dash-card-border-shadow: rgba(0, 0, 0, 0.04);
+		--dash-card-bg-hover: #FAFAFF;
+		--dash-card-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(111,106,248,0.04), 0 12px 40px rgba(0,0,0,0.03);
+		--dash-card-hover-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 8px 24px rgba(111,106,248,0.08), 0 16px 48px rgba(0,0,0,0.04);
 		--dash-sidebar-bg: #FFFFFF;
-		--dash-sidebar-border: #E8E8F0;
-		--dash-sidebar-active-bg: rgba(108, 92, 231, 0.1);
-		--dash-sidebar-active-text: #6C5CE7;
-		--dash-sidebar-hover: #F5F5FA;
+		--dash-sidebar-border: rgba(111, 106, 248, 0.06);
+		--dash-sidebar-active-bg: #6F6AF8;
+		--dash-sidebar-active-text: #FFFFFF;
+		--dash-sidebar-hover: rgba(111, 106, 248, 0.04);
 		--dash-sidebar-text: #6B7280;
-		--dash-input-bg: #F4F4F8;
-		--dash-input-border: #E0E0E8;
-		--dash-accent-purple: #6C5CE7;
-		--dash-accent-purple-hover: #5B4BD6;
-		--dash-accent-purple-light: rgba(108, 92, 231, 0.08);
+		--dash-input-bg: #F5F4FA;
+		--dash-input-border: rgba(111, 106, 248, 0.12);
+		--dash-accent-purple: #6F6AF8;
+		--dash-accent-purple-hover: #5B54E0;
+		--dash-accent-purple-light: rgba(111, 106, 248, 0.06);
 		--dash-accent-green: #16A34A;
+		--dash-accent-green-light: #22C55E;
 		--dash-accent-red: #DC2626;
-		--dash-text-primary: #111118;
-		--dash-text-secondary: #6B7280;
+		--dash-text-primary: #0F0E1A;
+		--dash-text-secondary: #4B5563;
 		--dash-text-muted: #9CA3AF;
-		--dash-text-accent: #6C5CE7;
-		--dash-badge-transfer-bg: rgba(108, 92, 231, 0.1);
-		--dash-badge-transfer-text: #6C5CE7;
-		--dash-badge-withdraw-bg: rgba(234, 136, 0, 0.1);
+		--dash-text-accent: #6F6AF8;
+		--dash-badge-transfer-bg: rgba(111, 106, 248, 0.08);
+		--dash-badge-transfer-text: #6F6AF8;
+		--dash-badge-withdraw-bg: rgba(234, 136, 0, 0.08);
 		--dash-badge-withdraw-text: #D97706;
-		--dash-badge-green-bg: rgba(22, 163, 74, 0.1);
+		--dash-badge-green-bg: rgba(22, 163, 74, 0.08);
 		--dash-badge-green-text: #16A34A;
-		--dash-divider: #E8E8F0;
+		--dash-divider: rgba(111, 106, 248, 0.06);
 		--dash-swap-bg: #FFFFFF;
-		--dash-swap-field-bg: #F4F4F8;
-		--dash-btn-primary: #6C5CE7;
-		--dash-btn-primary-hover: #5B4BD6;
-		--dash-btn-outline-border: #D0D0DC;
-		--dash-btn-outline-text: #111118;
-		--dash-btn-outline-hover-bg: rgba(108, 92, 231, 0.06);
-		--dash-chart-line: #6C5CE7;
-		--dash-chart-fill: rgba(108, 92, 231, 0.05);
-		--dash-chart-grid: #E8E8F0;
+		--dash-swap-field-bg: #F5F4FA;
+		--dash-btn-primary: #6F6AF8;
+		--dash-btn-primary-hover: #5B54E0;
+		--dash-btn-outline-border: rgba(111, 106, 248, 0.25);
+		--dash-btn-outline-text: #0F0E1A;
+		--dash-btn-outline-hover-bg: rgba(111, 106, 248, 0.06);
+		--dash-chart-line: #6F6AF8;
+		--dash-chart-fill: rgba(111, 106, 248, 0.06);
+		--dash-chart-grid: rgba(111, 106, 248, 0.06);
 		--dash-topbar-bg: transparent;
 		--dash-topbar-search-bg: #FFFFFF;
-		--dash-topbar-search-border: #E0E0E8;
+		--dash-topbar-search-border: rgba(111, 106, 248, 0.1);
 		--dash-topbar-badge-bg: #FFFFFF;
-		--dash-topbar-badge-border: #E0E0E8;
-		--dash-exchange-gradient: linear-gradient(135deg, #6C5CE7 0%, #8B5CF6 100%);
+		--dash-topbar-badge-border: rgba(111, 106, 248, 0.1);
+		--dash-exchange-gradient: #6F6AF8;
+
+		/* Light theme neutral overrides */
+		--neutral-bg: #FFFFFF;
+		--neutral-off-bg: #F5F4FA;
+		--neutral-off-fg: #4B5563;
+		--neutral-bg-accent: rgba(111, 106, 248, 0.04);
+		--neutral-bg-accent-shifted: rgba(111, 106, 248, 0.06);
+		--neutral-bg-mid: rgba(111, 106, 248, 0.08);
+		--neutral-fg: #0F0E1A;
+		--neutral-fg-mid: #4B5563;
+		--neutral-fg-accent: #9CA3AF;
+		--neutral-fg-accent-shifted: #9CA3AF;
+		--neutral-mid: #9CA3AF;
+		--primary-fg-mid: #0F0E1A;
+		--primary-mid: #6F6AF8;
+		--primary-bg-mid: #6F6AF8;
+		--primary-bg-accent: rgba(111, 106, 248, 0.08);
+		--primary-fg-accent: #6F6AF8;
+		--primary-fg-accent-shifted: #6F6AF8;
+		--secondary-fg-mid: #DC2626;
+		--secondary-mid: #DC2626;
+		--secondary-bg-mid: #DC2626;
 	}
 }
 
@@ -269,10 +296,55 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 @media (prefers-color-scheme: dark) {
 	:root:not(.light-theme):not(.dark-theme) {
 		@include dark-mode-colors;
+
+		--neutral-bg: transparent;
+		--neutral-off-bg: rgba(0, 0, 0, 0.15);
+		--neutral-off-fg: var(--dash-text-secondary);
+		--neutral-bg-accent: rgba(255, 255, 255, 0.06);
+		--neutral-bg-accent-shifted: rgba(255, 255, 255, 0.08);
+		--neutral-bg-mid: rgba(255, 255, 255, 0.1);
+		--neutral-fg: var(--dash-text-primary);
+		--neutral-fg-mid: var(--dash-text-secondary);
+		--neutral-fg-accent: var(--dash-text-muted);
+		--neutral-fg-accent-shifted: var(--dash-text-muted);
+		--neutral-mid: var(--dash-text-muted);
+		--primary-fg-mid: var(--dash-text-primary);
+		--primary-mid: #6F6AF8;
+		--primary-bg-mid: #6F6AF8;
+		--primary-bg-accent: rgba(111, 106, 248, 0.15);
+		--primary-fg-accent: #6F6AF8;
+		--primary-fg-accent-shifted: #6F6AF8;
+		--secondary-fg-mid: var(--dash-accent-red);
+		--secondary-mid: var(--dash-accent-red);
+		--secondary-bg-mid: var(--dash-accent-red);
+		--secondary-fg-accent-shifted: var(--dash-accent-red);
 	}
 }
 :root.dark-theme {
 	@include dark-mode-colors;
+
+	/* Override OKLCH neutral palette with glass-compatible values */
+	--neutral-bg: transparent;
+	--neutral-off-bg: rgba(0, 0, 0, 0.15);
+	--neutral-off-fg: var(--dash-text-secondary);
+	--neutral-bg-accent: rgba(255, 255, 255, 0.06);
+	--neutral-bg-accent-shifted: rgba(255, 255, 255, 0.08);
+	--neutral-bg-mid: rgba(255, 255, 255, 0.1);
+	--neutral-fg: var(--dash-text-primary);
+	--neutral-fg-mid: var(--dash-text-secondary);
+	--neutral-fg-accent: var(--dash-text-muted);
+	--neutral-fg-accent-shifted: var(--dash-text-muted);
+	--neutral-mid: var(--dash-text-muted);
+	--primary-fg-mid: var(--dash-text-primary);
+	--primary-mid: #6F6AF8;
+	--primary-bg-mid: #6F6AF8;
+	--primary-bg-accent: rgba(111, 106, 248, 0.15);
+	--primary-fg-accent: #6F6AF8;
+	--primary-fg-accent-shifted: #6F6AF8;
+	--secondary-fg-mid: var(--dash-accent-red);
+	--secondary-mid: var(--dash-accent-red);
+	--secondary-bg-mid: var(--dash-accent-red);
+	--secondary-fg-accent-shifted: var(--dash-accent-red);
 }
 
 .primary {
@@ -287,3 +359,4 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 .neutral {
 	@include color-mixins.shade-class('neutral');
 }
+

@@ -86,16 +86,14 @@
 
 <style lang="scss">
 	[data-part='backdrop'] {
-		// TODO: change to shade of official color
-		background-color: oklch(from var(--primary-mid) l c h / 0.05);
-		backdrop-filter: blur(4px);
+		background-color: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(10px);
 		position: fixed;
 		top: 0;
 		left: 0;
 		z-index: 49;
 		width: 100%;
 		height: 100%;
-		/* styles for the backdrop element */
 	}
 
 	[data-part='content'] {
@@ -109,7 +107,7 @@
 	}
 
 	[data-part='positioner'] {
-		border-radius: 0.75rem;
+		border-radius: 27px;
 		position: fixed;
 		padding: 0.5rem;
 		box-sizing: border-box;
@@ -124,14 +122,46 @@
 	}
 
 	[data-part='content'] > :global(div) {
-		border-radius: 0.75rem;
+		border-radius: 27px;
 		padding: 1.25rem;
+		color: var(--dash-text-primary);
+	}
+	[data-part='content'] :global(h1),
+	[data-part='content'] :global(h2),
+	[data-part='content'] :global(h3),
+	[data-part='content'] :global(h4),
+	[data-part='content'] :global(h5),
+	[data-part='content'] :global(h6),
+	[data-part='content'] :global(label),
+	[data-part='content'] :global(span),
+	[data-part='content'] :global(p) {
+		color: var(--dash-text-primary);
+	}
+	[data-part='content'] :global(.sm-caption),
+	[data-part='content'] :global(.label-like) {
+		color: var(--dash-text-secondary);
+	}
+	[data-part='content'] :global(hr) {
+		border-color: var(--dash-divider);
+	}
+	[data-part='content'] :global(input),
+	[data-part='content'] :global(textarea) {
+		background: rgba(0, 0, 0, 0.25);
+		border-color: rgba(255, 255, 255, 0.08);
+		color: var(--dash-text-primary);
+	}
+	[data-part='content'] :global(fieldset) {
+		background: rgba(0, 0, 0, 0.15);
+		border-color: rgba(255, 255, 255, 0.08);
 		min-width: 0;
 		overflow: visible;
 	}
 
 	[data-part='title'] {
 		font-size: var(--text-3xl);
+		font-family: 'Nunito Sans', sans-serif;
+		font-weight: 600;
+		color: var(--dash-text-primary);
 		margin: 0;
 		margin-top: auto;
 		padding-right: 2.5rem;
@@ -146,7 +176,6 @@
 		display: flex;
 		overflow: hidden;
 		z-index: 10;
-		/* styles for the close trigger element */
 	}
 
 	.title-and-close {

@@ -192,7 +192,7 @@
 	}
 	label {
 		margin-left: 0.25rem;
-		color: var(--primary-fg-mid);
+		color: var(--dash-text-secondary);
 	}
 	.error {
 		min-height: 1em;

@@ -1115,9 +1115,10 @@
 
 	/* ── Quick Swap Card ── */
 	.quick-swap-card {
-		background-color: var(--dash-card-bg);
+		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
+		border-radius: 27px;
+		box-shadow: var(--dash-card-shadow);
 		padding: 1.5rem;
 		width: 100%;
 		box-sizing: border-box;
@@ -1133,7 +1134,7 @@
 		gap: 0.5rem;
 		background-color: var(--dash-swap-field-bg);
 		border: 1px solid var(--dash-input-border);
-		border-radius: 0.75rem;
+		border-radius: 16px;
 		padding: 1rem;
 	}
 	.section-header {
@@ -1243,7 +1244,7 @@
 		justify-content: center;
 		width: 2.25rem;
 		height: 2.25rem;
-		border-radius: 0.5rem;
+		border-radius: 12px;
 		border: 1px solid var(--dash-card-border);
 		background-color: var(--dash-card-bg);
 		color: var(--dash-text-secondary);
@@ -1261,7 +1262,7 @@
 	.same-coin-error {
 		margin-top: 0.5rem;
 		padding: 0.5rem 0.75rem;
-		border-radius: 0.5rem;
+		border-radius: 12px;
 		background-color: rgba(239, 68, 68, 0.08);
 		border: 1px solid rgba(239, 68, 68, 0.2);
 		.error {
@@ -1319,7 +1320,7 @@
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
+		border-radius: 16px;
 		background-color: var(--dash-surface);
 		overflow: hidden;
 	}
@@ -1344,7 +1345,7 @@
 		color: var(--dash-text-muted);
 		cursor: pointer;
 		padding: 0.25rem;
-		border-radius: 0.25rem;
+		border-radius: 1.5rem;
 		transition:
 			color 0.15s ease,
 			background-color 0.15s ease;
@@ -1389,7 +1390,7 @@
 		button {
 			padding: 0.25rem 0.5rem;
 			border: 1px solid var(--dash-card-border);
-			border-radius: 0.5rem;
+			border-radius: 1.5rem;
 			background: transparent;
 			color: var(--dash-text-secondary);
 			cursor: pointer;
@@ -1411,9 +1412,10 @@
 
 	/* ═══ Right Column: Deliver To ═══ */
 	.deliver-to-card {
-		background-color: var(--dash-card-bg);
+		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
+		border-radius: 27px;
+		box-shadow: var(--dash-card-shadow);
 		padding: 1.5rem;
 		display: flex;
 		flex-direction: column;
@@ -1451,7 +1453,7 @@
 		gap: 0.625rem;
 		padding: 0.875rem 1rem;
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
+		border-radius: 16px;
 		background-color: var(--dash-swap-field-bg);
 		cursor: pointer;
 		color: var(--dash-text-primary);
@@ -1474,7 +1476,7 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			border-radius: 0.5rem;
+			border-radius: 12px;
 			background-color: var(--dash-surface);
 			flex-shrink: 0;
 			color: var(--dash-text-secondary);
@@ -1523,7 +1525,7 @@
 		padding: 0.625rem 0.875rem;
 		background-color: rgba(108, 92, 231, 0.08);
 		border: 1px solid rgba(108, 92, 231, 0.2);
-		border-radius: 0.5rem;
+		border-radius: 12px;
 		margin-top: -0.25rem;
 	}
 	.settle-dot {
@@ -1558,7 +1560,7 @@
 			box-sizing: border-box;
 			padding: 0.625rem;
 			border: 1px solid var(--dash-input-border);
-			border-radius: 0.5rem;
+			border-radius: 12px;
 			background-color: var(--dash-swap-field-bg);
 			color: var(--dash-text-primary);
 			font: inherit;
@@ -1582,7 +1584,7 @@
 		display: flex;
 		gap: 0;
 		border: 1px solid var(--dash-input-border);
-		border-radius: 0.5rem;
+		border-radius: 1.5rem;
 		overflow: hidden;
 		button {
 			flex: 1;
@@ -1737,7 +1739,7 @@
 			box-sizing: border-box;
 			padding: 0.625rem 0.75rem 0.625rem 2.25rem;
 			border: 1px solid var(--dash-input-border);
-			border-radius: 0.5rem;
+			border-radius: 12px;
 			background-color: var(--dash-swap-field-bg);
 			color: var(--dash-text-primary);
 			font: inherit;
@@ -1791,7 +1793,7 @@
 		gap: 0.75rem;
 		padding: 1rem;
 		border: 1px solid var(--dash-card-border);
-		border-radius: 0.75rem;
+		border-radius: 16px;
 		background-color: var(--dash-swap-field-bg);
 		cursor: pointer;
 		color: var(--dash-text-primary);
@@ -1863,9 +1865,10 @@
 			flex-direction: column;
 			align-items: center;
 			pointer-events: all;
-			background-color: var(--dash-card-bg);
+			background: var(--dash-card-bg);
 			border: 1px solid var(--dash-card-border);
-			border-radius: 0.75rem;
+			border-radius: 27px;
+			box-shadow: var(--dash-card-shadow);
 			height: min-content;
 			color: var(--dash-text-primary);
 			.info {

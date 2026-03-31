@@ -135,8 +135,14 @@
 		min-width: 0;
 		flex-grow: 1;
 		padding-right: 2rem;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-primary);
+		background: transparent;
 		&.invalid {
-			color: var(--secondary-fg-mid);
+			color: var(--negative-text);
+		}
+		&::placeholder {
+			color: var(--dash-text-muted);
 		}
 	}
 	[data-part='increment-trigger'],
@@ -147,9 +153,9 @@
 		cursor: pointer;
 		display: flex;
 		align-items: center;
-		color: var(--neutral-fg-accent-shifted);
+		color: var(--dash-text-muted);
 		&:hover {
-			color: var(--neutral-fg-accent);
+			color: var(--dash-text-primary);
 		}
 		&:active {
 			color: var(--fg);

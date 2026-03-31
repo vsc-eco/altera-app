@@ -42,7 +42,7 @@
 	}
 	.redirect {
 		font-family: 'Noto Sans Mono Variable', monospace;
-		color: var(--primary-bg-mid);
+		color: var(--dash-accent-purple);
 		text-decoration: underline;
 	}
 	main {
@@ -91,7 +91,7 @@
 		justify-content: center;
 
 		flex-direction: column;
-		background-color: var(--neutral-bg);
+		background-color: var(--dash-bg);
 		height: 100%;
 		width: 100%;
 		box-sizing: border-box;
@@ -112,7 +112,7 @@
 			aspect-ratio: 1 / 1;
 			padding-top: 1rem;
 			height: max-content;
-			background: linear-gradient(to bottom in oklab, transparent, var(--neutral-bg) 40%);
+			background: linear-gradient(to bottom in oklab, transparent, var(--dash-bg) 40%);
 			border: none;
 			justify-content: center;
 		}
@@ -152,14 +152,14 @@
 		width: calc(100% - 2rem);
 		box-sizing: border-box;
 		flex-shrink: 1;
-		border: 0.5px solid var(--neutral-mid);
+		border: 0.5px solid var(--dash-card-border);
 	}
 
 	hr::after {
 		content: 'or';
-		color: var(--neutral-mid);
+		color: var(--dash-text-muted);
 		position: absolute;
-		background-color: var(--neutral-bg);
+		background-color: var(--dash-bg);
 		left: 50%;
 		top: 50%;
 		padding: 0 0.25rem;

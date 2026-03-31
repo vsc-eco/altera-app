@@ -311,12 +311,12 @@
 		left: var(--position);
 		top: 50%;
 		transform: translate(-50%, -50%);
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-xs);
 		white-space: nowrap;
 	}
 	svg .y-tick {
-		fill: var(--neutral-fg-mid);
+		fill: var(--dash-text-muted);
 		font-size: var(--text-xs);
 	}
 	.loading-overlay {
@@ -332,7 +332,7 @@
 		gap: 0.5rem;
 		z-index: 3;
 		font-size: var(--text-sm);
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		backdrop-filter: blur(1px);
 	}
 </style>

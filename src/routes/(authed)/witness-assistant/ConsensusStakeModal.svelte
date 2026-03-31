@@ -128,7 +128,7 @@
 	input[type='checkbox'] {
 		width: 1rem;
 		height: 1rem;
-		accent-color: var(--primary-mid);
+		accent-color: #6F6AF8;
 		cursor: pointer;
 	}
 	form {
@@ -139,7 +139,7 @@
 		display: flex;
 	}
 	.status {
-		color: var(--primary-fg-mid);
+		color: var(--dash-accent-purple);
 	}
 	p {
 		margin-bottom: 0.5rem;

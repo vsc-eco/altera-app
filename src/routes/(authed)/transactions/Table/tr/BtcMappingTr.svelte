@@ -446,7 +446,7 @@
 	.approx-usd {
 		display: block;
 		text-wrap: wrap;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
 		margin-top: 0.5rem;
 	}
@@ -454,7 +454,7 @@
 		vertical-align: middle;
 		padding: 1rem min(1rem, 2%);
 		width: max-content;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--dash-card-border);
 		min-width: 4rem;
 	}
 	a {
@@ -472,11 +472,10 @@
 	}
 	.section {
 		padding: 0.5rem;
-		border-radius: 0.5rem;
+		border-radius: 12px;
 		position: relative;
 		flex-shrink: 0;
 		flex-basis: auto;
-		/* width: max-content; */
 	}
 	.sections {
 		display: flex;

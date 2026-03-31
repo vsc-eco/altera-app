@@ -126,7 +126,7 @@
 		z-index: 51;
 	}
 	.dropdown {
-		background-color: var(--bg-accent);
+		background: rgba(0, 0, 0, 0.25);
 	}
 	div {
 		position: relative;

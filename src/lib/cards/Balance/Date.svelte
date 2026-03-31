@@ -34,7 +34,11 @@
 </div>
 
 <style>
+	.select-wrapper {
+		min-width: 120px;
+	}
 	.select-wrapper[hidden] {
 		visibility: hidden;
+		pointer-events: none;
 	}
 </style>

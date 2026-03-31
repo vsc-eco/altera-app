@@ -38,20 +38,21 @@
 
 <style lang="scss">
 	[data-part='content'] {
-		border-radius: 0.25rem;
-		background-color: var(--neutral-off-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		// width: 160px;
-		// padding: 0.25rem;
+		border-radius: 16px;
+		background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+		backdrop-filter: blur(10px);
+		border: 1px solid var(--dash-card-border);
 		padding: 0.5rem;
 		z-index: 10;
+		box-shadow: var(--dash-card-shadow);
 	}
 	[data-part='content'].card {
 		box-sizing: border-box;
-		background-color: var(--neutral-bg);
-		border: 1px solid var(--neutral-bg-accent-shifted);
+		background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+		backdrop-filter: blur(10px);
+		border: 1px solid var(--dash-card-border);
 		z-index: 5;
-		border-radius: 0 0 0.5rem 0.5rem;
+		border-radius: 0 0 16px 16px;
 		overflow: auto;
 		border-top: none;
 	}
@@ -61,39 +62,36 @@
 		overflow-x: visible;
 	}
 	[data-part='content'][data-placement='top-start'].card {
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		border-radius: 0.5rem 0.5rem 0 0;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 16px 16px 0 0;
 		border-bottom: none;
 	}
 	[data-part='item'] {
-		border-radius: 0.25rem;
+		border-radius: 12px;
 		padding: 0.5rem 0.75rem;
 		display: flex;
-		// min-height: 32px;
 		align-items: center;
 		justify-content: space-between;
 		cursor: pointer;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-primary);
 	}
 	[data-part='item'][data-disabled] {
 		cursor: default;
+		color: var(--dash-text-muted);
 	}
 	[data-part='item'].card {
-		background-color: var(--neutral-off-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		// height: 3rem;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 	}
 	[data-part='item'].dropdown {
 		display: flex;
 	}
 	[data-part='item-text'].dropdown {
 		flex-grow: 1;
-		// margin-right: 1rem;
-		// &[data-state='unchecked'] {
-		// 	margin-right: 2.25rem;
-		// }
 	}
 	[data-part='item'][data-highlighted] {
-		background-color: var(--highlighted-bg);
+		background-color: rgba(111, 106, 248, 0.1);
 	}
 	.content-spacing.card {
 		display: flex;

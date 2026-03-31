@@ -176,6 +176,25 @@ body {
 	background-color: var(--dash-bg);
 	color: var(--dash-text-primary);
 
+	/* Remap old neutral vars to glass theme */
+	--neutral-bg: transparent;
+	--neutral-off-bg: rgba(0, 0, 0, 0.15);
+	--neutral-bg-accent: rgba(255, 255, 255, 0.06);
+	--neutral-bg-accent-shifted: rgba(255, 255, 255, 0.08);
+	--neutral-bg-mid: rgba(255, 255, 255, 0.1);
+	--neutral-fg: var(--dash-text-primary);
+	--neutral-fg-mid: var(--dash-text-secondary);
+	--neutral-fg-accent: var(--dash-text-muted);
+	--neutral-mid: var(--dash-text-muted);
+	--primary-fg-mid: var(--dash-text-primary);
+	--primary-mid: var(--dash-accent-purple);
+	--primary-bg-mid: var(--dash-accent-purple);
+	--primary-bg-accent: rgba(111, 106, 248, 0.15);
+	--primary-fg-accent: var(--dash-accent-purple);
+	--primary-fg-accent-shifted: #6F6AF8;
+	--secondary-fg-mid: var(--dash-accent-red);
+	--secondary-fg-accent-shifted: var(--dash-accent-red);
+
 	/* Swap card global variables */
 	--swap-card-bg: var(--dash-card-bg);
 	--swap-card-border: var(--dash-card-border);
@@ -284,10 +303,16 @@ button, a[role="button"], .action-btn, .exchange-btn, .staking-btn, .token-selec
 	}
 }
 
-/* ═══ Card glass — only top cards that overlap gradient mesh ═══ */
+/* ═══ Card glass — only top cards that overlap gradient mesh (dark only) ═══ */
 .balance-card, .portfolio-card, .staking-card, .market-prices {
 	-webkit-backdrop-filter: blur(10px);
 	backdrop-filter: blur(10px);
+}
+:global(.light-theme) {
+	.balance-card, .portfolio-card, .staking-card, .market-prices {
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+	}
 }
 /* ═══ All cards — shared border + hover ═══ */
 .balance-card, .portfolio-card, .staking-card, .swap-card, .market-prices,
@@ -297,6 +322,16 @@ button, a[role="button"], .action-btn, .exchange-btn, .staking-btn, .token-selec
 	&:hover {
 		transform: translateY(-1px);
 	}
+}
+:global(.light-theme) .balance-card,
+:global(.light-theme) .portfolio-card,
+:global(.light-theme) .staking-card,
+:global(.light-theme) .swap-card,
+:global(.light-theme) .market-prices,
+:global(.light-theme) .card,
+:global(.light-theme) .transactions-card,
+:global(.light-theme) .recent-txs-card {
+	border-color: var(--dash-card-border) !important;
 }
 
 /* ═══ Smooth page entrance ═══ */

@@ -359,7 +359,7 @@
 			margin: 0;
 			font-size: 1.1rem;
 			font-weight: 600;
-			color: var(--neutral-fg);
+			color: var(--dash-text-primary);
 		}
 	}
 
@@ -372,21 +372,22 @@
 			flex: 1;
 			min-width: 120px;
 			padding: 0.75rem 1rem;
-			border-radius: 0.5rem;
-			background-color: var(--neutral-off-bg);
-			border: 1px solid var(--neutral-bg-accent-shifted);
+			border-radius: 16px;
+			background: var(--dash-card-bg);
+			border: 1px solid var(--dash-card-border);
+			box-shadow: var(--dash-card-shadow);
 
 			.stat-label {
 				display: block;
 				font-size: var(--text-xs);
-				color: var(--neutral-fg-mid);
+				color: var(--dash-text-muted);
 				margin-bottom: 0.25rem;
 			}
 
 			.stat-value {
 				display: block;
 				font-weight: 600;
-				color: var(--neutral-fg);
+				color: var(--dash-text-primary);
 				font-size: var(--text-sm);
 			}
 		}
@@ -415,7 +416,7 @@
 		position: sticky;
 		top: 0;
 		z-index: 1;
-		background-color: var(--neutral-bg);
+		background-color: var(--dash-bg);
 	}
 
 	th {
@@ -423,7 +424,7 @@
 		min-width: max-content;
 		box-sizing: content-box;
 		padding: 0.5rem min(1rem, 2%);
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-weight: 500;
 		white-space: nowrap;
 	}
@@ -432,7 +433,7 @@
 	:global(.pool-detail) td {
 		vertical-align: middle;
 		width: max-content;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--dash-card-border);
 	}
 
 	.amount-header {
@@ -440,13 +441,12 @@
 		padding-right: 1rem;
 	}
 
-	/* Row styles matching Transaction Tr.svelte */
 	.data-row {
 		cursor: default;
 		transition: background-color 0.15s;
 
 		&:hover {
-			background-color: var(--neutral-bg-accent);
+			background-color: var(--dash-surface-alt);
 		}
 	}
 
@@ -454,7 +454,7 @@
 		padding: 1rem min(1rem, 2%);
 		min-width: 4rem;
 		white-space: nowrap;
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 	}
 
 	.addr-cell {
@@ -463,7 +463,7 @@
 		.addr {
 			font-family: 'Noto Sans Mono Variable', monospace;
 			font-size: var(--text-sm);
-			color: var(--neutral-fg);
+			color: var(--dash-text-primary);
 		}
 	}
 
@@ -471,14 +471,14 @@
 		text-align: right;
 		padding: 1rem min(1rem, 2%);
 		padding-right: 1rem;
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 	}
 
 	.token-cell {
 		padding: 1rem min(1rem, 2%);
 		padding-left: 0;
 		font-weight: 500;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
 	}
 
@@ -515,8 +515,8 @@
 
 	/* Skeleton loading — matches Transaction Table.svelte */
 	.skeleton-cell {
-		background-color: var(--neutral-bg-accent);
-		border-radius: 0.5rem;
+		background-color: var(--dash-surface-alt);
+		border-radius: 12px;
 		height: 3rem;
 		margin: 0.75rem 1rem;
 		animation: pulse 2s ease-in-out infinite;
@@ -532,7 +532,7 @@
 
 	.empty-message {
 		font-weight: 500;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 	}
 
 	@keyframes pulse {

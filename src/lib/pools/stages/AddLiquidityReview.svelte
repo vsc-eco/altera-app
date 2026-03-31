@@ -49,7 +49,7 @@
 <style>
 	ul { list-style: none; padding: 0; margin: 0; }
 	li { display: flex; gap: 1rem; padding: 0.75rem 0.5rem; }
-	li:not(:last-child) { border-bottom: 1px solid var(--neutral-bg-accent); }
-	.sm-caption { width: min(12rem, 40%); color: var(--neutral-fg-mid); }
+	li:not(:last-child) { border-bottom: 1px solid var(--dash-card-border); }
+	.sm-caption { width: min(12rem, 40%); color: var(--dash-text-muted); }
 </style>
 

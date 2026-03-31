@@ -111,7 +111,7 @@
 
 <style>
 	.market-prices {
-		background-color: var(--dash-card-bg);
+		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
 		border-radius: 27px;
 		padding: 1.25rem 1.5rem;

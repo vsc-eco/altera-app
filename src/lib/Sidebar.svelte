@@ -117,7 +117,9 @@
 		left: 0;
 		display: flex;
 		flex-direction: column;
-		background-color: var(--dash-sidebar-bg);
+		background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+		-webkit-backdrop-filter: blur(10px);
+		backdrop-filter: blur(10px);
 		border-right: none;
 		height: 100svh;
 		width: 200px;
@@ -178,6 +180,7 @@
 	.nav-button {
 		display: flex;
 		align-items: center;
+		justify-content: center;
 		gap: 0.75rem;
 		padding: 0.625rem 0.75rem;
 		border-radius: 0.5rem;
@@ -193,10 +196,11 @@
 	}
 	.nav-button.current,
 	.nav-button.current:hover {
-		background-color: #6F6AF8;
+		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 50%, #5B54E0 100%);
 		color: #FFFFFF;
 		font-weight: 600;
 		border-radius: 1.25rem;
+		box-shadow: 0 2px 12px rgba(111, 106, 248, 0.3);
 	}
 	.nav-icon {
 		display: flex;

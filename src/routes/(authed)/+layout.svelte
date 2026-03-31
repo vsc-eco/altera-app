@@ -63,6 +63,7 @@
 	});
 </script>
 
+<div class="bg-mesh"></div>
 <div class={['app-shell', { showSidebar }]}>
 	<Sidebar bind:visible={showSidebar} />
 	<div class="main-area">
@@ -81,26 +82,28 @@
 <style lang="scss">
 	.app-shell {
 		display: flex;
-		background: var(--dash-bg);
+		background: transparent;
 		min-height: 100dvh;
 		color: var(--dash-text-primary);
 		position: relative;
+		z-index: 1;
 	}
-	.app-shell::before {
-		content: '';
-		position: absolute;
-		top: 5%;
-		left: 25%;
-		width: 90%;
-		height: 45%;
-		background: radial-gradient(ellipse 70% 50% at 33% 40%, rgba(111, 106, 248, 0.18) 0%, transparent 70%);
-		pointer-events: none;
+	/* Gradient mesh — fixed behind everything for glassmorphism */
+	:global(.bg-mesh) {
+		position: fixed;
+		inset: 0;
 		z-index: 0;
-		transform: rotate(24deg);
+		pointer-events: none;
+		background:
+			radial-gradient(ellipse at 15% 10%, hsla(243, 90%, 65%, 0.45) 0px, transparent 40%),
+			radial-gradient(ellipse at 80% 8%, hsla(238, 60%, 55%, 0.3) 0px, transparent 38%),
+			radial-gradient(ellipse at 88% 50%, hsla(235, 50%, 50%, 0.2) 0px, transparent 40%),
+			radial-gradient(ellipse at 5% 70%, hsla(245, 70%, 55%, 0.25) 0px, transparent 35%),
+			radial-gradient(ellipse at 50% 35%, hsla(230, 50%, 40%, 0.2) 0px, transparent 45%),
+			radial-gradient(ellipse at 75% 80%, hsla(240, 50%, 45%, 0.15) 0px, transparent 35%);
 	}
 	.main-area {
 		position: relative;
-		z-index: 1;
 		flex: 1 1 0;
 		min-width: 0;
 		padding: 0 9.5% 0 9.5%;
@@ -108,7 +111,7 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 100dvh;
-		overflow: hidden;
+		overflow-x: hidden;
 	}
 	main {
 		position: relative;

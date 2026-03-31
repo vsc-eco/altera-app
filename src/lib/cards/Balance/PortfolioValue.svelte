@@ -147,7 +147,7 @@
 
 <style lang="scss">
 	.portfolio-card {
-		background-color: var(--dash-card-bg);
+		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
 		border-radius: 27px;
 		box-shadow: var(--dash-card-shadow);
@@ -170,7 +170,7 @@
 		align-items: center;
 		flex-wrap: nowrap;
 		gap: 0.5rem;
-		margin: 0 0 0.5rem 0;
+		margin: -0.5rem 0 0.5rem 0;
 		min-height: 2rem;
 		flex-shrink: 0;
 	}
@@ -203,7 +203,7 @@
 		min-height: 0;
 		--fg-mid: var(--dash-chart-line);
 		--bg-accent: var(--dash-chart-line);
-		--bg: var(--dash-card-bg);
+		--bg: transparent;
 	}
 </style>
 

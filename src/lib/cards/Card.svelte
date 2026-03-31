@@ -14,7 +14,7 @@
 
 <style>
 	div {
-		background-color: var(--dash-card-bg);
+		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
 		border-radius: 27px;
 		box-shadow: var(--dash-card-shadow);

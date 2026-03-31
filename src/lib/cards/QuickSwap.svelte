@@ -15,7 +15,6 @@
 	} from '$lib/sendswap/utils/sendOptions';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
-	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectAssetFlattened from '$lib/sendswap/components/assetSelection/SelectAssetFlattened.svelte';
@@ -216,6 +215,26 @@
 		}
 	});
 
+	// USD values
+	let fromUsd = $state('');
+	let toUsd = $state('');
+	$effect(() => {
+		const amt = parseFloat($SendTxDetails.fromAmount || '0');
+		if (!$SendTxDetails.fromCoin || amt === 0) { fromUsd = ''; return; }
+		new CoinAmount(amt, $SendTxDetails.fromCoin.coin)
+			.convertTo(Coin.usd, Network.lightning)
+			.then((usd) => { fromUsd = `≈ $${usd.toPrettyAmountString()}`; })
+			.catch(() => { fromUsd = ''; });
+	});
+	$effect(() => {
+		const amt = parseFloat($SendTxDetails.toAmount || '0');
+		if (!$SendTxDetails.toCoin || amt === 0) { toUsd = ''; return; }
+		new CoinAmount(amt, $SendTxDetails.toCoin.coin)
+			.convertTo(Coin.usd, Network.lightning)
+			.then((usd) => { toUsd = `≈ $${usd.toPrettyAmountString()}`; })
+			.catch(() => { toUsd = ''; });
+	});
+
 	let minAmount: CoinAmount<Coin> | undefined = $state();
 	$effect(() => {
 		const amt = possibleCoins.some((c) => c.coin.value === Coin.btc.value)
@@ -276,82 +295,106 @@
 			<span class="swap-dot"></span>
 			<span class="swap-badge-text">MAGI CROSS-CHAIN</span>
 		</div>
-		<h3 class="swap-heading">Swap</h3>
-		<p class="swap-sub">Native assets. Any wallet. One protocol.</p>
 	</div>
 
 	<!-- From Field -->
 	<div class="swap-field">
 		<div class="field-top">
-			<div class="field-top-left">
-				<span class="field-label">From</span>
-				<span class="network-pill">Magi Network</span>
-			</div>
-			<span class="field-balance">Balance: 1,250 HIVE</span>
+			<span class="field-label">From</span>
+			<span class="field-meta">{fromSubtitle}</span>
 		</div>
 		<div class="field-bottom">
-			<div class="input-wrap">
-				<AmountInput
-					bind:coinAmount={inputAmount}
-					coinOpts={fromOnlyCoinOpts.length > 0 ? fromOnlyCoinOpts : possibleCoins}
-					{minAmount}
-					styleType="normal"
-				/>
-			</div>
+			<input
+				type="number"
+				class="amount-input"
+				placeholder="0.00"
+				value={$SendTxDetails.fromAmount || ''}
+				oninput={(e) => {
+					$SendTxDetails.fromAmount = e.currentTarget.value;
+					if ($SendTxDetails.fromCoin) {
+						inputAmount = new CoinAmount(parseFloat(e.currentTarget.value) || 0, $SendTxDetails.fromCoin.coin);
+					}
+				}}
+			/>
 			<button type="button" class="token-select" onclick={() => openDialog('from')}>
 				{#if $SendTxDetails.fromCoin}
 					<img src={$SendTxDetails.fromCoin.coin.icon} alt="" class="token-img" />
-					<div class="token-info">
-						<span class="token-name">{$SendTxDetails.fromCoin.coin.label}</span>
-						<span class="token-sub">{$SendTxDetails.fromCoin.coin.name || 'Hive'}</span>
-					</div>
+					<span class="token-name">{$SendTxDetails.fromCoin.coin.label}</span>
 				{:else}
-					<span class="token-name">Select</span>
+					<span class="token-name muted">Select</span>
 				{/if}
-				<ChevronDown size={14} />
+				<ChevronDown size={12} />
 			</button>
 		</div>
+		{#if fromUsd}
+			<span class="usd-value">{fromUsd}</span>
+		{/if}
 	</div>
 
 	<!-- Swap arrow -->
 	<div class="swap-arrow-wrap">
-		<button type="button" class="swap-arrow-btn">
-			<span>↕</span>
-		</button>
+		<button type="button" class="swap-arrow-btn">↕</button>
 	</div>
 
 	<!-- To Field -->
 	<div class="swap-field">
 		<div class="field-top">
-			<span class="field-label">YOU RECEIVE</span>
+			<span class="field-label">You receive</span>
+			<span class="field-meta">{toSubtitle}</span>
 		</div>
 		<div class="field-bottom">
 			<span class="output-amount">{toAmountDisplay}</span>
 			<button type="button" class="token-select" onclick={() => openDialog('to')}>
 				{#if $SendTxDetails.toCoin}
 					<img src={$SendTxDetails.toCoin.coin.icon} alt="" class="token-img" />
-					<div class="token-info">
-						<span class="token-name">{$SendTxDetails.toCoin.coin.label}</span>
-						<span class="token-sub">{$SendTxDetails.toCoin.coin.name || 'Bitcoin'}</span>
-					</div>
+					<span class="token-name">{$SendTxDetails.toCoin.coin.label}</span>
 				{:else}
-					<span class="token-name">Select</span>
+					<span class="token-name muted">Select</span>
 				{/if}
-				<ChevronDown size={14} />
+				<ChevronDown size={12} />
 			</button>
 		</div>
+		{#if toUsd}
+			<span class="usd-value">{toUsd}</span>
+		{/if}
 	</div>
 
-	<!-- Rate -->
-	{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin && fromInTo}
-		<div class="rate-row">
-			1 {$SendTxDetails.fromCoin.coin.label} ≈ {fromInTo} {$SendTxDetails.toCoin.coin.label}
+	<!-- Swap Details -->
+	{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
+		<div class="swap-details">
+			<div class="detail-row">
+				<span class="detail-label">Rate</span>
+				<span class="detail-value">{fromInTo ? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo} ${$SendTxDetails.toCoin.coin.label}` : '—'}</span>
+			</div>
+			<div class="detail-row">
+				<span class="detail-label">Fee</span>
+				<span class="detail-value">0.08% + CLP</span>
+			</div>
+			<div class="detail-row">
+				<span class="detail-label">Route</span>
+				<span class="detail-value route">
+					{$SendTxDetails.fromCoin.coin.label}
+					→
+					{#if $SendTxDetails.fromCoin.coin.value !== 'hbd' && $SendTxDetails.toCoin.coin.value !== 'hbd'}
+						HBD →
+					{/if}
+					{$SendTxDetails.toCoin.coin.label}
+				</span>
+			</div>
+			<div class="detail-row">
+				<span class="detail-label">Slippage</span>
+				<div class="slippage-pills">
+					{#each [0.5, 1, 2, 3] as pct}
+						<button class="slip-pill" class:active={pct === 1}>{pct}%</button>
+					{/each}
+				</div>
+			</div>
 		</div>
 	{/if}
 
 	<!-- Exchange -->
 	<button type="button" class="exchange-btn" onclick={onExchange}>
-		Exchange
+		Swap
 	</button>
 </div>
 
@@ -379,120 +422,95 @@
 
 <style lang="scss">
 	.swap-card {
-		background-color: var(--dash-card-bg);
+		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
 		border-radius: 27px;
-		padding: 1.75rem 1.5rem;
+		padding: 1.25rem;
 		box-shadow: var(--dash-card-shadow);
 	}
 
 	/* Header */
 	.swap-header {
 		display: flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		margin-bottom: 1.5rem;
+		justify-content: center;
+		margin-bottom: 1rem;
 	}
 	.swap-badge {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4rem;
-		padding: 0.3rem 0.75rem;
-		border: 1px solid rgba(111, 106, 248, 0.3);
+		padding: 0.25rem 0.65rem;
+		border: 1px solid rgba(111, 106, 248, 0.25);
 		border-radius: 2rem;
-		margin-bottom: 0.75rem;
 	}
 	.swap-dot {
-		width: 6px;
-		height: 6px;
+		width: 5px;
+		height: 5px;
 		border-radius: 50%;
-		background: #F5B300;
-		box-shadow: 0 0 6px 1px rgba(245, 179, 0, 0.5);
+		background: #6F6AF8;
+		box-shadow: 0 0 6px 1px rgba(111, 106, 248, 0.5);
 	}
 	.swap-badge-text {
-		font-size: 0.65rem;
+		font-size: 0.6rem;
 		font-weight: 700;
-		letter-spacing: 0.12em;
+		letter-spacing: 0.1em;
 		color: var(--dash-text-secondary);
-	}
-	.swap-heading {
-		font-size: 1.75rem;
-		font-weight: 700;
-		color: white;
-		margin: 0 0 0.25rem;
-	}
-	.swap-sub {
-		font-size: 0.8rem;
-		color: var(--dash-text-muted);
-		margin: 0;
 	}
 
 	/* Fields */
 	.swap-field {
-		background: var(--dash-bg);
-		border: 1px solid var(--dash-card-border);
-		border-radius: 18px;
-		padding: 1rem 1.125rem;
+		background: rgba(0, 0, 0, 0.25);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		border-radius: 16px;
+		padding: 0.875rem 1rem;
 	}
 	.field-top {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 0.75rem;
-	}
-	.field-top-left {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
+		margin-bottom: 0.5rem;
 	}
 	.field-label {
 		color: var(--dash-text-secondary);
-		font-size: 0.8rem;
+		font-size: 0.75rem;
 		font-weight: 600;
 	}
-	.network-pill {
+	.field-meta {
+		color: var(--dash-text-muted);
 		font-size: 0.65rem;
-		color: var(--dash-text-muted);
-		border: 1px solid var(--dash-card-border);
-		border-radius: 0.25rem;
-		padding: 0.15rem 0.4rem;
-	}
-	.field-balance {
-		color: var(--dash-text-muted);
-		font-size: 0.72rem;
 	}
 	.field-bottom {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: 0.5rem;
 	}
-	.input-wrap {
+	.amount-input {
 		flex: 1;
 		min-width: 0;
-		overflow: hidden;
-	}
-	.input-wrap :global(*) {
-		background: transparent !important;
-		border: none !important;
-		box-shadow: none !important;
-		outline: none !important;
-	}
-	.input-wrap :global(input) {
-		width: 100%;
-		max-width: 100%;
+		background: transparent;
+		border: none;
+		outline: none;
 		color: white;
-		font-size: 1.5rem;
-		font-weight: 500;
+		font-size: 1.25rem;
+		font-weight: 600;
 		font-family: 'Nunito Sans', sans-serif;
 		padding: 0;
 		height: auto;
+		&::placeholder {
+			color: var(--dash-text-muted);
+		}
+	}
+	.usd-value {
+		display: block;
+		color: var(--dash-text-muted);
+		font-size: 0.7rem;
+		margin-top: 0.25rem;
 	}
 	.output-amount {
-		color: var(--dash-text-muted);
-		font-size: 1.5rem;
-		font-weight: 500;
+		color: white;
+		font-size: 1.25rem;
+		font-weight: 600;
 		font-family: 'Nunito Sans', sans-serif;
 	}
 
@@ -500,97 +518,126 @@
 	.token-select {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		padding: 0.5rem 0.75rem;
-		background: var(--dash-surface-alt);
-		border: 1px solid var(--dash-card-border);
+		gap: 0.375rem;
+		padding: 0.375rem 0.625rem;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(111, 106, 248, 0.35);
 		border-radius: 2rem;
 		color: white;
 		cursor: pointer;
 		white-space: nowrap;
-		transition: border-color 0.15s;
 		font-family: inherit;
 		&:hover {
 			border-color: #6F6AF8;
+			background: rgba(111, 106, 248, 0.1);
 		}
 	}
 	.token-img {
-		width: 2rem;
-		height: 2rem;
+		width: 1.5rem;
+		height: 1.5rem;
 		border-radius: 50%;
-	}
-	.token-info {
-		display: flex;
-		flex-direction: column;
-		text-align: left;
 	}
 	.token-name {
 		font-weight: 700;
-		font-size: 0.85rem;
-		line-height: 1.2;
-	}
-	.token-sub {
-		font-size: 0.65rem;
-		color: var(--dash-text-muted);
-		line-height: 1.2;
+		font-size: 0.8rem;
+		&.muted { color: var(--dash-text-muted); }
 	}
 
 	/* Swap arrow */
 	.swap-arrow-wrap {
 		display: flex;
 		justify-content: center;
-		padding: 0.25rem 0;
-		position: relative;
-		z-index: 1;
+		padding: 0.125rem 0;
 	}
 	.swap-arrow-btn {
-		width: 36px;
-		height: 36px;
+		width: 30px;
+		height: 30px;
 		border-radius: 50%;
-		background: var(--dash-card-bg);
-		border: 1px solid var(--dash-card-border);
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.1);
 		color: var(--dash-text-secondary);
-		font-size: 1rem;
+		font-size: 0.85rem;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: border-color 0.15s, color 0.15s;
 		&:hover {
 			border-color: #6F6AF8;
 			color: #6F6AF8;
 		}
 	}
 
-	/* Rate */
-	.rate-row {
+	/* Swap details */
+	.swap-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		padding: 0.75rem 0 0.25rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.04);
+		margin-top: 0.5rem;
+	}
+	.detail-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.detail-label {
 		color: var(--dash-text-muted);
-		font-size: 0.72rem;
-		text-align: center;
-		padding: 0.625rem 0 0.25rem;
+		font-size: 0.7rem;
+	}
+	.detail-value {
+		color: var(--dash-text-secondary);
+		font-size: 0.7rem;
+		font-weight: 500;
+	}
+	.detail-value.route {
+		color: #6F6AF8;
+		font-weight: 600;
+	}
+	.slippage-pills {
+		display: flex;
+		gap: 0.25rem;
+	}
+	.slip-pill {
+		padding: 0.15rem 0.4rem;
+		border-radius: 0.75rem;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: transparent;
+		color: var(--dash-text-muted);
+		font-size: 0.6rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		&.active {
+			background: rgba(111, 106, 248, 0.2);
+			border-color: rgba(111, 106, 248, 0.4);
+			color: #6F6AF8;
+		}
+		&:hover:not(.active) {
+			border-color: rgba(255, 255, 255, 0.15);
+			color: var(--dash-text-secondary);
+		}
 	}
 
 	/* Exchange */
 	.exchange-btn {
 		width: 100%;
-		height: 48px;
+		height: 44px;
 		border: none;
-		border-radius: 14px;
-		background: #6F6AF8;
+		border-radius: 1.25rem;
+		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 40%, #5B54E0 100%);
 		color: white;
 		font-weight: 700;
-		font-size: 0.95rem;
+		font-size: 0.9rem;
 		font-family: inherit;
 		cursor: pointer;
 		margin-top: 0.5rem;
-		transition: background-color 0.15s, box-shadow 0.2s;
 		box-shadow: 0 4px 16px rgba(111, 106, 248, 0.25);
 		&:hover {
-			background: #7E74FF;
-			box-shadow: 0 4px 24px rgba(111, 106, 248, 0.45);
+			box-shadow: 0 6px 24px rgba(111, 106, 248, 0.4);
 		}
 		&:active {
-			transform: scale(0.98);
+			transform: scale(0.97);
 		}
 	}
 </style>

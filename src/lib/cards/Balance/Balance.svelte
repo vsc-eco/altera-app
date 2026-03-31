@@ -78,7 +78,7 @@
 
 <style lang="scss">
 	.balance-card {
-		background-color: var(--dash-card-bg);
+		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
 		border-radius: 27px;
 		padding: 1.25rem 1.5rem;
@@ -137,17 +137,21 @@
 		height: 38px;
 		border-radius: 50%;
 		border: none;
-		background-color: #6F6AF8;
+		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 50%, #5B54E0 100%);
 		color: white;
 		cursor: pointer;
 		flex-shrink: 0;
-		transition: transform 0.1s;
+		box-shadow: 0 2px 12px rgba(111, 106, 248, 0.35);
+		transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+					box-shadow 0.2s ease;
 	}
 	.send-circle:hover {
-		transform: scale(1.05);
+		transform: scale(1.08);
+		box-shadow: 0 4px 20px rgba(111, 106, 248, 0.5);
 	}
 	.send-circle:active {
-		transform: scale(0.96);
+		transform: scale(0.94);
+		box-shadow: 0 1px 6px rgba(111, 106, 248, 0.3);
 	}
 
 	.action-buttons {
@@ -164,7 +168,6 @@
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
-		transition: background-color 0.15s, border-color 0.15s;
 	}
 	.action-btn-filled,
 	.action-btn-outline {
@@ -174,7 +177,9 @@
 	}
 	.action-btn-filled:hover,
 	.action-btn-outline:hover {
-		background-color: var(--dash-btn-outline-hover-bg);
+		background-color: rgba(111, 106, 248, 0.08);
+		border-color: rgba(111, 106, 248, 0.4);
+		box-shadow: 0 0 16px -4px rgba(111, 106, 248, 0.2);
 	}
 
 	.balances-section {

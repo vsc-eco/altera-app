@@ -274,3 +274,53 @@ input:disabled {
 	white-space: nowrap;
 }
 
+/* ═══ Haptic button system ═══ */
+button, a[role="button"], .action-btn, .exchange-btn, .staking-btn, .token-select, .filter-btn {
+	transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+				background-color 0.15s ease,
+				border-color 0.15s ease;
+	&:active:not(:disabled) {
+		transform: scale(0.97);
+	}
+}
+
+/* ═══ Card glass — only top cards that overlap gradient mesh ═══ */
+.balance-card, .portfolio-card, .staking-card, .market-prices {
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
+}
+/* ═══ All cards — shared border + hover ═══ */
+.balance-card, .portfolio-card, .staking-card, .swap-card, .market-prices,
+.card, .transactions-card, .recent-txs-card {
+	border-color: rgba(255, 255, 255, 0.12) !important;
+	transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	&:hover {
+		transform: translateY(-1px);
+	}
+}
+
+/* ═══ Smooth page entrance ═══ */
+@keyframes fadeSlideUp {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+main {
+	animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ═══ Custom cursor — subtle ring on interactive elements ═══ */
+* {
+	cursor: default;
+}
+a, button, select, [role="button"], input, textarea,
+.nav-button, .token-select, .action-btn, .exchange-btn,
+.staking-btn, .filter-btn, .send-circle, .see-all, .swap-arrow-btn {
+	cursor: pointer;
+}
+

@@ -144,6 +144,7 @@
 				background-color: rgba(111, 106, 248, 0.1);
 				border-color: #6F6AF8;
 				color: var(--dash-text-primary);
+				box-shadow: 0 0 16px -4px rgba(111, 106, 248, 0.2);
 			}
 			&:active {
 				background-color: rgba(111, 106, 248, 0.15);
@@ -159,6 +160,18 @@
 				&:active {
 					background-color: rgba(111, 106, 248, 0.15);
 					color: var(--dash-text-primary);
+				}
+			}
+			&.primary {
+				border-color: var(--primary-mid);
+				color: var(--primary-text);
+				&:hover {
+					background-color: var(--primary-bg-accent);
+					color: var(--primary-text);
+				}
+				&:active {
+					background-color: var(--primary-bg-accent-shifted);
+					color: var(--primary-text);
 				}
 			}
 		}

@@ -15,11 +15,10 @@
 	} from '$lib/sendswap/utils/sendOptions';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import SelectAssetFlattened from '$lib/sendswap/components/assetSelection/SelectAssetFlattened.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
-	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { ChevronDown, Search, ArrowLeft, X } from '@lucide/svelte';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
@@ -33,7 +32,6 @@
 	import { getHiveSwapOp, getBtcApproveOp, SWAP_CONTRACT_ID } from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { executeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
-	import { getDidFromUsername } from '$lib/getAccountName';
 	import { createClient, signAndBrodcastTransaction, type CallContractTransaction } from '$lib/magiTransactions/eth/client';
 	import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
 	import { wagmiConfig } from '$lib/auth/reown';
@@ -187,17 +185,8 @@
 		}
 	});
 
-	// USD values
-	let fromUsd = $state('');
+	// USD value for To field (AmountInput handles From USD internally)
 	let toUsd = $state('');
-	$effect(() => {
-		const amt = parseFloat($SendTxDetails.fromAmount || '0');
-		if (!$SendTxDetails.fromCoin || amt === 0) { fromUsd = ''; return; }
-		new CoinAmount(amt, $SendTxDetails.fromCoin.coin)
-			.convertTo(Coin.usd, Network.lightning)
-			.then((usd) => { fromUsd = `≈ $${usd.toPrettyAmountString()}`; })
-			.catch(() => { fromUsd = ''; });
-	});
 	$effect(() => {
 		const amt = parseFloat($SendTxDetails.toAmount || '0');
 		if (!$SendTxDetails.toCoin || amt === 0) { toUsd = ''; return; }
@@ -405,7 +394,6 @@
 
 			} else {
 				// EVM/Reown wallet path
-				const isNative = fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
 				const swapPayload: CallContractTransaction = {
 					op: 'call',
 					payload: {
@@ -488,25 +476,6 @@
 		}
 	}
 
-	const fromSubtitle = $derived(
-		$SendTxDetails.fromNetwork ? `On ${$SendTxDetails.fromNetwork.label}` : 'Select source'
-	);
-	const toBalanceStr = $derived.by(() => {
-		if (!$SendTxDetails.toCoin || $SendTxDetails.toNetwork?.value !== Network.magi.value) return '';
-		const bal = $accountBalance.bal?.[$SendTxDetails.toCoin.coin.value as keyof AccountBalance];
-		if (bal == null) return '';
-		return new CoinAmount(bal, $SendTxDetails.toCoin.coin, true).toPrettyAmountString();
-	});
-	const toSubtitle = $derived.by(() => {
-		if (!$SendTxDetails.toCoin) return 'Select destination';
-		const parts: string[] = [];
-		parts.push(
-			`From ${$SendTxDetails.toCoin.networks.length} network${$SendTxDetails.toCoin.networks.length !== 1 ? 's' : ''}`
-		);
-		if (toBalanceStr) parts.push(`${toBalanceStr} on Magi`);
-		else parts.push('On Magi');
-		return parts.join(' \u2022 ');
-	});
 
 	const toAmountDisplay = $derived.by(() => {
 		const amt = $SendTxDetails.toAmount;
@@ -532,9 +501,7 @@
 	</div>
 
 	<!-- From Field -->
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="swap-field" onclick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) inp.focus(); }}>
+	<div class="swap-field">
 		<div class="field-top">
 			<span class="field-label">From:</span>
 			<button type="button" class="token-select" onclick={(e) => { e.stopPropagation(); openDialog('from'); }}>
@@ -547,21 +514,16 @@
 				<ChevronDown size={12} />
 			</button>
 		</div>
-		<input
-			type="number"
-			class="amount-input"
-			placeholder="0.00"
-			value={$SendTxDetails.fromAmount || ''}
-			oninput={(e) => {
-				$SendTxDetails.fromAmount = e.currentTarget.value;
-				if ($SendTxDetails.fromCoin) {
-					inputAmount = new CoinAmount(parseFloat(e.currentTarget.value) || 0, $SendTxDetails.fromCoin.coin);
-				}
-			}}
-		/>
-		{#if fromUsd}
-			<span class="usd-value">{fromUsd}</span>
-		{/if}
+		<div class="from-input-wrap">
+			<AmountInput
+				bind:coinAmount={inputAmount}
+				coinOpts={fromOnlyCoinOpts.length > 0 ? fromOnlyCoinOpts : possibleCoins}
+				{minAmount}
+				borderless
+				hideUnit
+				hideNetwork
+			/>
+		</div>
 	</div>
 
 	<!-- Swap arrow -->
@@ -686,7 +648,7 @@
 				<span class="dialog-section-label">ALL ASSETS</span>
 				<div class="network-cards">
 					{#each tempCoinOpt.networks.filter(n => n.value !== Network.lightning.value) as net (net.value)}
-						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt, net)}>
+						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt!, net)}>
 							<img src={tempCoinOpt.coin.icon} alt="" class="network-card-icon" />
 							<div class="network-card-info">
 								<span class="network-card-name">{net.value === Network.magi.value ? 'Magi Network' : 'Mainnet'}</span>
@@ -776,7 +738,6 @@
 		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 16px;
 		padding: 0.875rem 1rem;
-		cursor: text;
 	}
 	.to-field {
 		cursor: default;
@@ -792,21 +753,8 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 	}
-	.amount-input {
-		flex: 1;
-		min-width: 0;
-		background: transparent;
-		border: none;
-		outline: none;
-		color: white;
-		font-size: 1.25rem;
-		font-weight: 600;
-		font-family: 'Nunito Sans', sans-serif;
-		padding: 0;
-		height: auto;
-		&::placeholder {
-			color: var(--dash-text-muted);
-		}
+	.from-input-wrap {
+		margin: 0 -0.25rem;
 	}
 	.usd-value {
 		display: block;
@@ -900,30 +848,6 @@
 	.detail-value.route {
 		color: #6F6AF8;
 		font-weight: 600;
-	}
-	.slippage-pills {
-		display: flex;
-		gap: 0.25rem;
-	}
-	.slip-pill {
-		padding: 0.15rem 0.4rem;
-		border-radius: 0.75rem;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		background: transparent;
-		color: var(--dash-text-muted);
-		font-size: 0.6rem;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-		&.active {
-			background: rgba(111, 106, 248, 0.2);
-			border-color: rgba(111, 106, 248, 0.4);
-			color: #6F6AF8;
-		}
-		&:hover:not(.active) {
-			border-color: rgba(255, 255, 255, 0.15);
-			color: var(--dash-text-secondary);
-		}
 	}
 
 	/* Exchange */

@@ -153,6 +153,7 @@
 		font-size: 0.8rem;
 		color: white;
 		flex-shrink: 0;
+		overflow: hidden;
 	}
 	.coin-icon {
 		width: 100%;

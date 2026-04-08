@@ -2,6 +2,15 @@
 	import Select from '$lib/zag/Select.svelte';
 	import type { PoolRow } from '$lib/pools/poolsData';
 	import { removeLiquidityDraftStore } from '$lib/pools/removeLiquidityStore';
+	import { Coin } from '$lib/sendswap/utils/sendOptions';
+
+	function getCoinIcon(symbol: string): string | undefined {
+		const s = symbol.toUpperCase();
+		if (s === 'BTC') return Coin.btc.icon;
+		if (s === 'HBD') return Coin.hbd.icon;
+		if (s === 'HIVE') return Coin.hive.icon;
+		return undefined;
+	}
 
 	let { editStage, pools = [] }: { editStage: (complete: boolean) => void; pools: PoolRow[] } = $props();
 
@@ -69,7 +78,11 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">
-							<span class="asset-icon icon-a"></span>
+							{#if getCoinIcon(selectedPool.pairSymbols[0])}
+								<img class="asset-icon" src={getCoinIcon(selectedPool.pairSymbols[0])} alt={selectedPool.pairSymbols[0]} />
+							{:else}
+								<span class="asset-icon icon-a"></span>
+							{/if}
 							{selectedPool.pairSymbols[0]}
 						</div>
 						<span class="balance">~0</span>
@@ -78,7 +91,11 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">
-							<span class="asset-icon icon-b"></span>
+							{#if getCoinIcon(selectedPool.pairSymbols[1])}
+								<img class="asset-icon" src={getCoinIcon(selectedPool.pairSymbols[1])} alt={selectedPool.pairSymbols[1]} />
+							{:else}
+								<span class="asset-icon icon-b"></span>
+							{/if}
 							{selectedPool.pairSymbols[1]}
 						</div>
 						<span class="balance">~0</span>

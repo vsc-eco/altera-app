@@ -1,7 +1,6 @@
 <script lang="ts">
 	import ToFrom from '../tds/ToFrom.svelte';
 	import Amount from '../tds/Amount.svelte';
-	import Token from '../tds/Token.svelte';
 	import Type from '../tds/Type.svelte';
 	import { ExternalLink, X } from '@lucide/svelte';
 	import StatusView from './StatusView.svelte';
@@ -200,7 +199,6 @@
 	<td class="date">{moment(timestamp).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memoNoId?.get('msg') ?? undefined} {status} />
 	<Amount {amount} {direction} />
-	<Token {amount} {direction} />
 	<Type {direction} {t} />
 </tr>
 

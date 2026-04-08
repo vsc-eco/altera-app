@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Card from '../Card.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { accountBalanceHistory } from '$lib/stores/balanceHistory';
@@ -37,52 +38,49 @@
 	let toggleWithdraw = $state<(open?: boolean) => void>(() => {});
 </script>
 
-<div class="balance-card">
-	<span class="balance-label">Magi Balance</span>
-	<div class="balance-row">
-		<div class="balance-amount">
-			<span class="dollars">${dollars.toLocaleString()}</span><span class="cents">.{cents}</span>
+<Card>
+	<div class="balance-inner">
+		<span class="balance-label">Magi Balance</span>
+		<div class="balance-row">
+			<div class="balance-amount">
+				<span class="dollars">${dollars.toLocaleString()}</span><span class="cents">.{cents}</span>
+			</div>
+			<button
+				type="button"
+				class="send-circle"
+				title="Quick send"
+				onclick={() => {
+					sendSessionId = getTxSessionId();
+					toggleQuickSend(true);
+				}}
+			>
+				<Send size={18} />
+			</button>
 		</div>
-		<button
-			type="button"
-			class="send-circle"
-			title="Quick send"
-			onclick={() => {
-				sendSessionId = getTxSessionId();
-				toggleQuickSend(true);
-			}}
-		>
-			<Send size={18} />
-		</button>
-	</div>
 
-	<div class="action-buttons">
-		<button class="action-btn action-btn-filled" onclick={() => { depositSessionId = getTxSessionId(); toggleDeposit(true); }}>
-			Deposit
-		</button>
-		<button class="action-btn action-btn-outline" onclick={() => { withdrawSessionId = getTxSessionId(); toggleWithdraw(true); }}>
-			Withdraw
-		</button>
-	</div>
-
-	{#if did}
-		<div class="balances-section">
-			<AccBalance {did} />
+		<div class="action-buttons">
+			<button class="action-btn action-btn-filled" onclick={() => { depositSessionId = getTxSessionId(); toggleDeposit(true); }}>
+				Deposit
+			</button>
+			<button class="action-btn action-btn-outline" onclick={() => { withdrawSessionId = getTxSessionId(); toggleWithdraw(true); }}>
+				Withdraw
+			</button>
 		</div>
-	{/if}
-</div>
+
+		{#if did}
+			<div class="balances-section">
+				<AccBalance {did} />
+			</div>
+		{/if}
+	</div>
+</Card>
 
 <QuickSend bind:dialogOpen={quickSendOpen} bind:toggle={toggleQuickSend} sessionId={sendSessionId} />
 <Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
 <Withdraw bind:dialogOpen={withdrawOpen} bind:toggle={toggleWithdraw} sessionId={withdrawSessionId} />
 
 <style lang="scss">
-	.balance-card {
-		background: var(--dash-card-bg);
-		border: 1px solid var(--dash-card-border);
-		border-radius: 27px;
-		padding: 1.25rem 1.5rem;
-		box-shadow: var(--dash-card-shadow);
+	.balance-inner {
 		display: flex;
 		flex-direction: column;
 		height: 100%;

@@ -14,7 +14,6 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { satsToBtc } from '$lib/sendswap/utils/units';
-	import Token from '../tds/Token.svelte';
 	import ToFrom from '../tds/ToFrom.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromDid } from '$lib/getAccountName';
@@ -302,8 +301,6 @@
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<ToFrom {otherAccount} status={tx.status} />
 	<Amount amount={displayAmount} direction={contractInfo.direction} />
-	<Token amount={displayAmount} direction={contractInfo.direction} />
-
 	<Type direction={contractInfo.direction} t={contractInfo.displayType} />
 </tr>
 

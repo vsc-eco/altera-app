@@ -69,7 +69,12 @@ export function getHiveSwapOp(
 		payload: payloadStr,
 		rc_limit: 5000,
 		intents: isNative
-			? [{ type: 'transfer.allow', args: { limit: amount.toAmountString(true), token: assetIn.value } }]
+			? [
+					{
+						type: 'transfer.allow',
+						args: { limit: amount.toAmountString(true), token: assetIn.value }
+					}
+				]
 			: ([] as Array<{ type: string; args: Record<string, string> }>)
 	};
 

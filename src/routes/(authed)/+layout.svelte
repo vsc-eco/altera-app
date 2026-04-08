@@ -67,7 +67,11 @@
 <div class={['app-shell', { showSidebar }]}>
 	<Sidebar bind:visible={showSidebar} />
 	<div class="main-area">
-		<Topbar onMenuToggle={() => { showSidebar = !showSidebar; }} />
+		<Topbar
+			onMenuToggle={() => {
+				showSidebar = !showSidebar;
+			}}
+		/>
 		{#if page.url.pathname === '/'}
 			<div class="welcome">
 				Welcome, <span class="welcome-address">{displayAddress}</span>

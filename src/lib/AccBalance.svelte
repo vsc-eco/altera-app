@@ -108,6 +108,15 @@
 			<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.consensus_unstaking, Coin.hive, true), hiveAssetName)}</span>
 		</div>
 	{/if}
+
+	<div class="balance-row">
+		<div class="row-icon btc"><img src={Coin.btc.icon} alt="Bitcoin" /></div>
+		<div class="row-info">
+			<span class="coin-name">Bitcoin (SATS)</span>
+			<span class="coin-sub">Bitcoin via Lightning</span>
+		</div>
+		<span class="row-amount">{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</span>
+	</div>
 </div>
 
 <style lang="scss">

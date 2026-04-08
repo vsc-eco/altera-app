@@ -191,7 +191,7 @@ body {
 	--primary-bg-mid: var(--dash-accent-purple);
 	--primary-bg-accent: rgba(111, 106, 248, 0.15);
 	--primary-fg-accent: var(--dash-accent-purple);
-	--primary-fg-accent-shifted: #6F6AF8;
+	--primary-fg-accent-shifted: #6f6af8;
 	--secondary-fg-mid: var(--dash-accent-red);
 	--secondary-fg-accent-shifted: var(--dash-accent-red);
 
@@ -294,22 +294,38 @@ input:disabled {
 }
 
 /* ═══ Haptic button system ═══ */
-button, a[role="button"], .action-btn, .exchange-btn, .staking-btn, .token-select, .filter-btn {
-	transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
-				background-color 0.15s ease,
-				border-color 0.15s ease;
+button,
+a[role='button'],
+.action-btn,
+.exchange-btn,
+.staking-btn,
+.token-select,
+.filter-btn {
+	transition:
+		transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+		background-color 0.15s ease,
+		border-color 0.15s ease;
 	&:active:not(:disabled) {
 		transform: scale(0.97);
 	}
 }
 
 /* ═══ Card glass — GPU hints for cards with backdrop-filter ═══ */
-.balance-card, .portfolio-card, .staking-card, .market-prices {
+.balance-card,
+.portfolio-card,
+.staking-card,
+.market-prices {
 	will-change: transform;
 }
 /* ═══ All cards — shared border + hover ═══ */
-.balance-card, .portfolio-card, .staking-card, .swap-card, .market-prices,
-.card, .transactions-card, .recent-txs-card {
+.balance-card,
+.portfolio-card,
+.staking-card,
+.swap-card,
+.market-prices,
+.card,
+.transactions-card,
+.recent-txs-card {
 	border-color: rgba(255, 255, 255, 0.12) !important;
 	transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 	&:hover {
@@ -346,9 +362,20 @@ main {
 * {
 	cursor: default;
 }
-a, button, select, [role="button"], input, textarea,
-.nav-button, .token-select, .action-btn, .exchange-btn,
-.staking-btn, .filter-btn, .send-circle, .see-all, .swap-arrow-btn {
+a,
+button,
+select,
+[role='button'],
+input,
+textarea,
+.nav-button,
+.token-select,
+.action-btn,
+.exchange-btn,
+.staking-btn,
+.filter-btn,
+.send-circle,
+.see-all,
+.swap-arrow-btn {
 	cursor: pointer;
 }
-

@@ -12,7 +12,6 @@
 	import Amount from '../tds/Amount.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-	import Token from '../tds/Token.svelte';
 	import ContractId from '../tds/ContractId.svelte';
 
 	type Props = {
@@ -76,8 +75,6 @@
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<ContractId address={op.data.contract_id ?? ''} status={tx.status} />
 	<Amount {amount} direction={'contract'} />
-	<Token {amount} direction={'contract'} />
-
 	<Type direction="contract" t={displayType} />
 </tr>
 

@@ -35,6 +35,9 @@ const config = {
 		},
 		DateTime: {
 			type: 'string'
+		},
+		JSON: {
+			type: 'Record<string, any>'
 		}
 	},
 	defaultPaginateMode: 'Infinite'

@@ -182,6 +182,9 @@
 			<div class="asset-card">
 				<div class="asset-header">
 					<div class="label">{selectedPool.pairSymbols[0]}</div>
+					{#if exceed0}
+						<span class="error-text">Exceeds Magi {displayUnitForCoin(coin0)} balance</span>
+					{/if}
 				</div>
 				<AmountInput
 					bind:coinAmount={amount0Ca}
@@ -198,6 +201,9 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">BTC (auto-calculated)</div>
+						{#if exceed1}
+							<span class="error-text">Exceeds Magi BTC balance</span>
+						{/if}
 						{#if maxAmount1}
 							<span class="balance-info">Balance: {maxAmount1.toPrettyString()}</span>
 						{/if}
@@ -213,6 +219,9 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">{selectedPool.pairSymbols[1]}</div>
+						{#if exceed1}
+							<span class="error-text">Exceeds Magi {displayUnitForCoin(coin1)} balance</span>
+						{/if}
 					</div>
 					<AmountInput
 						bind:coinAmount={amount1Ca}

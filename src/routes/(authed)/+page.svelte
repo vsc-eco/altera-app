@@ -3,8 +3,10 @@
 	import Balance from '$lib/cards/Balance/Balance.svelte';
 	import PortfolioValue from '$lib/cards/Balance/PortfolioValue.svelte';
 	import StakingEarnings from '$lib/cards/StakingEarnings.svelte';
+	import Table from './transactions/Table/Table.svelte';
 	import QuickSwap from '$lib/cards/QuickSwap.svelte';
 	import MarketPrices from '$lib/cards/MarketPrices.svelte';
+	import ResourceCredits from '$lib/cards/ResourceCredits/ResourceCredits.svelte';
 	import StakePopup from '$lib/magiTransactions/hive/vscOperations/StakePopup.svelte';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import { goto } from '$app/navigation';
@@ -42,36 +44,9 @@
 						All <span class="dropdown-arrow">&#9662;</span>
 					</button>
 				</div>
-				<div class="mock-transactions">
-					<div class="mock-header">
-						<span class="th">Date</span>
-						<span class="th">To / From</span>
-						<span class="th">Amount</span>
-						<span class="th">Type</span>
-					</div>
-					{#each [
-						{ date: 'Jan 12', addr: '0x38E...SDF0', amount: '-1.000 HIVE', type: 'TRANSFER' },
-						{ date: 'Jan 11', addr: '0x38E...SDF0', amount: '-53.250 HIVE', type: 'WITHDRAW' },
-						{ date: 'Jan 10', addr: '0x38E...SDF0', amount: '-1.000 HIVE', type: 'TRANSFER' },
-						{ date: 'Jan 09', addr: '0x38E...SDF0', amount: '+0.400 HBD', type: 'TRANSFER', positive: true },
-						{ date: 'Jan 10', addr: '0x38E...SDF0', amount: '-0.400 HBD', type: 'TRANSFER' },
-						{ date: 'Jan 10', addr: '0x38E...SDF0', amount: '+1.000 HIVE', type: 'TRANSFER', positive: true },
-						{ date: 'Jan 10', addr: '0x38E...SDF0', amount: '-0.400 HBD', type: 'TRANSFER' },
-						{ date: 'Jan 10', addr: '0x38E...SDF0', amount: '+1.000 HIVE', type: 'TRANSFER', positive: true }
-					] as row}
-						<div class="mock-row">
-							<span class="td date">{row.date}</span>
-							<span class="td addr">
-								<span class="addr-icon"></span>
-								{row.addr}
-							</span>
-							<span class="td amount" class:positive={row.positive}>{row.amount}</span>
-							<span class="td">
-								<span class="badge" class:withdraw={row.type === 'WITHDRAW'}>{row.type}</span>
-							</span>
-						</div>
-					{/each}
-				</div>
+				{#if auth.value}
+					<Table did={auth.value.did} allowPopup={false} limit={10} size="small" />
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -80,6 +55,12 @@
 	<div class="dashboard-right">
 		<MarketPrices />
 		<QuickSwap />
+		{#if auth.value}
+			<ResourceCredits
+				{username}
+				isHive={auth.value == undefined || auth.value!.username != undefined}
+			/>
+		{/if}
 	</div>
 </div>
 
@@ -187,78 +168,6 @@
 	.dropdown-arrow {
 		font-size: 0.65rem;
 		opacity: 0.6;
-	}
-
-	/* Mock transaction table */
-	.mock-transactions {
-		font-size: 0.8rem;
-	}
-	.mock-header {
-		display: grid;
-		grid-template-columns: 70px 1fr 120px 100px;
-		gap: 0.5rem;
-		padding: 0.5rem 0;
-		border-bottom: 1px solid var(--dash-divider);
-	}
-	.th {
-		color: var(--dash-text-muted);
-		font-size: 0.75rem;
-		font-weight: 500;
-	}
-	.mock-row {
-		display: grid;
-		grid-template-columns: 70px 1fr 120px 100px;
-		gap: 0.5rem;
-		padding: 0.75rem 0;
-		border-bottom: 1px solid var(--dash-divider);
-		align-items: center;
-	}
-	.mock-row:last-child {
-		border-bottom: none;
-	}
-	.td {
-		color: var(--dash-text-primary);
-		font-size: 0.85rem;
-	}
-	.td.date {
-		color: var(--dash-text-secondary);
-	}
-	.td.addr {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: var(--dash-text-secondary);
-		font-family: monospace;
-		font-size: 0.75rem;
-	}
-	.addr-icon {
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		background: var(--dash-surface-alt);
-		flex-shrink: 0;
-	}
-	.td.amount {
-		font-weight: 600;
-		text-align: right;
-	}
-	.td.amount.positive {
-		color: var(--dash-accent-green);
-	}
-	.badge {
-		display: inline-block;
-		padding: 0.2rem 0.6rem;
-		border-radius: 0.8rem;
-		font-size: 0.65rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.02em;
-		background: var(--dash-badge-transfer-bg);
-		color: var(--dash-badge-transfer-text);
-	}
-	.badge.withdraw {
-		background: var(--dash-badge-withdraw-bg);
-		color: var(--dash-badge-withdraw-text);
 	}
 
 	@media (max-width: 1200px) {

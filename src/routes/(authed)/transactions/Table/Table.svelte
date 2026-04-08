@@ -16,12 +16,14 @@
 		did,
 		allowPopup = true,
 		initialOpen,
-		limit: limitProp
+		limit: limitProp,
+		size = 'full'
 	}: {
 		did: string;
 		allowPopup?: boolean;
 		initialOpen?: [string, number];
 		limit?: number;
+		size?: 'small' | 'full';
 	} = $props();
 	let loading = $state(true);
 	let lastLength = $state(0);
@@ -152,7 +154,7 @@
 	}}
 />
 <div
-	class="scroll"
+	class={['scroll', { small: size === 'small' }]}
 	onscroll={(e) => {
 		if (limitProp != null) return;
 		const me = e.currentTarget;
@@ -168,7 +170,6 @@
 				<th>Date</th>
 				<th class="to-from-header">To/From</th>
 				<th class="amount-header">Amount</th>
-				<th class="token-header">Token</th>
 				<th>Type</th>
 			</tr>
 		</thead>
@@ -225,7 +226,6 @@
 						<td><div class="skeleton-cell date"></div></td>
 						<td><div class="skeleton-cell to-from"></div></td>
 						<td><div class="skeleton-cell amount"></div></td>
-						<td><div class="skeleton-cell token"></div></td>
 						<td><div class="skeleton-cell type"></div></td>
 					</tr>
 				{/each}
@@ -236,7 +236,6 @@
 						<td><div class="skeleton-cell date"></div></td>
 						<td><div class="skeleton-cell to-from"></div></td>
 						<td><div class="skeleton-cell amount"></div></td>
-						<td><div class="skeleton-cell token"></div></td>
 						<td><div class="skeleton-cell type"></div></td>
 					</tr>
 				{/each}
@@ -308,9 +307,6 @@
 		border-bottom: 1px solid var(--dash-card-border);
 		color: var(--dash-text-primary);
 	}
-	.token-header {
-		padding-left: 0;
-	}
 	.amount-header {
 		text-align: right;
 		padding-right: 1rem;
@@ -352,6 +348,30 @@
 		font-weight: 500;
 		padding: 1.5rem;
 		color: var(--dash-text-secondary);
+	}
+
+	/* Small variant for dashboard embed */
+	.scroll.small {
+		padding: 0;
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+		background: transparent;
+	}
+	.scroll.small table {
+		font-size: 0.8rem;
+	}
+	.scroll.small th {
+		padding: 0.5rem 0.75rem;
+		font-size: 0.75rem;
+	}
+	.scroll.small :global(td) {
+		padding-top: 0.5rem;
+		padding-bottom: 0.5rem;
+	}
+	.scroll.small .skeleton-cell {
+		height: 2rem;
+		margin: 0.5rem 0.75rem;
 	}
 
 	@keyframes pulse {

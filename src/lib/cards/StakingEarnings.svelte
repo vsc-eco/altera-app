@@ -1,7 +1,10 @@
 <script lang="ts">
+	import PillBtn from '$lib/PillButton.svelte';
+
 	type Props = {
 		onStake: () => void;
 	};
+
 	let { onStake }: Props = $props();
 </script>
 
@@ -28,7 +31,15 @@
 			<span class="value">16h 30m</span>
 		</div>
 		<div class="staking-action">
-			<button class="staking-btn" onclick={onStake}>Staking</button>
+			<PillBtn
+				theme="primary"
+				styleType="outline"
+				onclick={() => {
+					onStake();
+				}}
+			>
+				Staking
+			</PillBtn>
 		</div>
 	</div>
 </div>
@@ -98,24 +109,5 @@
 	}
 	.staking-action {
 		margin-left: auto;
-	}
-	.staking-btn {
-		height: 40px;
-		min-width: 110px;
-		padding: 0 1.25rem;
-		border-radius: 1.5rem;
-		border: 1px solid var(--dash-btn-outline-border);
-		background: transparent;
-		color: var(--dash-text-primary);
-		font-size: 0.85rem;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-		transition: background-color 0.15s, border-color 0.15s;
-	}
-	.staking-btn:hover {
-		border-color: rgba(111, 106, 248, 0.4);
-		background-color: rgba(111, 106, 248, 0.08);
-		box-shadow: 0 0 16px -4px rgba(111, 106, 248, 0.2);
 	}
 </style>

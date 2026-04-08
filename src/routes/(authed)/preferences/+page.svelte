@@ -54,10 +54,7 @@
 				vscNetworkIdInput.value.trim() || DEFAULT_VSC_NETWORK_ID
 			);
 			localStorage.setItem(keyHiveNetworkId, hiveNetworkIdInput.value.trim());
-			localStorage.setItem(
-				keyTests,
-				testsInput.value.trim() || DEFAULT_HIVE_ASSET_NAME
-			);
+			localStorage.setItem(keyTests, testsInput.value.trim() || DEFAULT_HIVE_ASSET_NAME);
 			localStorage.setItem(keyTbd, tbdInput.value.trim() || DEFAULT_HBD_ASSET_NAME);
 
 			await invalidateAll();
@@ -159,9 +156,7 @@
 			<br />
 			<span class="label-tooltip">
 				<label for="prefs-tests">Hive Asset Name</label>
-				<InfoTooltip warning>
-					Change the asset name for Hive.
-				</InfoTooltip>
+				<InfoTooltip warning>Change the asset name for Hive.</InfoTooltip>
 			</span>
 			<input
 				id="prefs-tests"
@@ -171,11 +166,8 @@
 			/>
 			<br />
 			<span class="label-tooltip">
-				<label for="prefs-tbd">
-					HBD Asset Name</label>
-				<InfoTooltip warning>
-					Change the asset name for HBD.
-				</InfoTooltip>
+				<label for="prefs-tbd"> HBD Asset Name</label>
+				<InfoTooltip warning>Change the asset name for HBD.</InfoTooltip>
 			</span>
 			<input
 				id="prefs-tbd"
@@ -229,7 +221,7 @@
 	input[type='checkbox'] {
 		width: 1rem;
 		height: 1rem;
-		accent-color: #6F6AF8;
+		accent-color: #6f6af8;
 		cursor: pointer;
 	}
 	.backup-box {

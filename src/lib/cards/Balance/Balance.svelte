@@ -19,8 +19,8 @@
 			: 0
 	);
 
-	let dollars = $derived(balance === 0 ? 7711 : Math.floor(balance));
-	let cents = $derived(balance === 0 ? '50' :
+	let dollars = $derived(Math.floor(balance));
+	let cents = $derived(
 		new Intl.NumberFormat('en-US', {
 			minimumIntegerDigits: 2,
 			maximumFractionDigits: 0

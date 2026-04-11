@@ -31,7 +31,7 @@
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
 		onAmountChange?: (amount: CoinAmount<Coin>) => void;
-		styleType?: 'normal' | 'big';
+		styleType?: 'normal' | 'big' | 'simple';
 		hideUnit?: boolean;
 		borderless?: boolean;
 		hideNetwork?: boolean;
@@ -223,7 +223,7 @@
 			new CoinAmount(inputAmt, selected.coin)
 				.convertTo(Coin.usd, Network.lightning)
 				.then((amount) => {
-					inUsd = amount.toAmountString();
+					inUsd = amount.toAmountString(true);
 				});
 		});
 	});
@@ -347,6 +347,15 @@
 				</span>
 			{/if}
 		</span>
+	</div>
+{:else if styleType === 'simple'}
+	<div class="simple-wrapper">
+		{#key [selected, debouncedMax, min]}
+			<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} />
+		{/key}
+		{#if showUsd && inputAmt && inputAmt !== '0'}
+			<span class="simple-usd">≈ ${inUsd}</span>
+		{/if}
 	</div>
 {:else}
 	<div class="big-wrapper">
@@ -475,6 +484,33 @@
 			label {
 				visibility: hidden;
 			}
+		}
+	}
+	.simple-wrapper {
+		:global(input) {
+			border: none;
+			background: transparent;
+			color: var(--dash-text-primary);
+			font-family: 'Nunito Sans', sans-serif;
+			font-size: 1.25rem;
+			font-weight: 600;
+			padding: 0;
+			width: 100%;
+			height: auto;
+			&:focus-visible {
+				box-shadow: none;
+				outline: none;
+			}
+			&::placeholder {
+				color: var(--dash-text-muted);
+			}
+		}
+		.simple-usd {
+			display: block;
+			color: var(--dash-text-muted);
+			font-size: 0.7rem;
+			font-family: 'Nunito Sans', sans-serif;
+			margin-top: 0.25rem;
 		}
 	}
 	.big-wrapper {

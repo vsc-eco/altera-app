@@ -57,20 +57,20 @@
 			<Card defaultBg>
 				<div class="title-and-close" class:no-title={!title && !back}>
 					{#if back}
-						<PillButton onclick={back} styleType="icon-subtle">
-							<ArrowLeft size="32" />
-						</PillButton>
+						<button class="dialog-btn" onclick={back}>
+							<ArrowLeft size={20} />
+						</button>
 					{/if}
 					{#if title}
 						<h2 {...api.getTitleProps()}>{@render title()}</h2>
 					{/if}
-					<PillButton
+					<button
+						class="dialog-btn close"
 						{...api.getCloseTriggerProps()}
 						onclick={api.getTriggerProps().onclick!}
-						styleType="icon-subtle"
 					>
-						<X size="32" />
-					</PillButton>
+						<X size={20} />
+					</button>
 				</div>
 
 				{#if description}
@@ -164,30 +164,40 @@
 		font-weight: 600;
 		color: var(--dash-text-primary);
 		margin: 0;
-		margin-top: auto;
-		padding-right: 2.5rem;
 		flex: 1;
 		min-width: 0;
 	}
 
-	[data-part='positioner'] :global([data-part='close-trigger']) {
-		margin-top: 0;
-		margin-left: auto;
-		margin-right: 0;
+	.dialog-btn {
 		display: flex;
-		overflow: hidden;
-		z-index: 10;
+		align-items: center;
+		justify-content: center;
+		background: none;
+		border: none;
+		color: var(--dash-text-muted);
+		cursor: pointer;
+		padding: 0.25rem;
+		border-radius: 50%;
+		transition: color 0.15s ease;
+		&:hover {
+			color: var(--dash-text-primary);
+		}
+		&.close {
+			margin-left: auto;
+		}
 	}
 
 	.title-and-close {
 		display: flex;
 		position: relative;
-		align-items: flex-start;
+		align-items: center;
 		gap: 0.5rem;
+		margin-bottom: 1rem;
 	}
 
 	.title-and-close.no-title {
 		height: 0;
+		margin-bottom: 0;
 	}
 
 	@media screen and (max-width: 36rem) {

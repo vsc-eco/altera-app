@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { GetAccountBalanceStore } from '$houdini';
+import { GetAccountBalanceStore, GetStateByKeysStore } from '$houdini';
 import { browser } from '$app/environment';
 import { DHive } from '$lib/magiTransactions/dhive';
 import { getAuth, type Auth } from '$lib/auth/store';
@@ -7,31 +7,25 @@ import { getUsernameFromAuth } from '$lib/getAccountName';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 
-const HASURA_INDEXER_URL = 'https://magidev.okinoko.io/hasura/v1/graphql';
-
-async function fetchBtcBalance(username: string): Promise<number> {
-	const query = `
-		query BTCBalance($account: String!) {
-			btc_mapping_balances(where: {account: {_eq: $account}}) {
-				account
-				balance_sats
-			}
-		}
-	`;
-	const res = await fetch(HASURA_INDEXER_URL, {
-		method: 'POST',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({
-			query,
-			variables: { account: `hive:${username}` }
-		})
-	});
-	const json = await res.json();
-	const rows = json?.data?.btc_mapping_balances;
-	if (Array.isArray(rows) && rows.length > 0) {
-		return Number(rows[0].balance_sats) || 0;
+async function fetchBtcBalance(did: string): Promise<number> {
+	try {
+		const result = await new GetStateByKeysStore().fetch({
+			variables: {
+				contractId: MAPPINGCONTRACTID,
+				keys: [`a-${did}`],
+				encoding: 'hex'
+			},
+			policy: 'NetworkOnly'
+		});
+		const state = result.data?.getStateByKeys;
+		if (!state) return 0;
+		const hex = state[`a-${did}`];
+		if (!hex || typeof hex !== 'string') return 0;
+		return parseInt(hex, 16) || 0;
+	} catch (err) {
+		console.error('Failed to fetch BTC balance', err);
+		return 0;
 	}
-	return 0;
 }
 
 export type AccountBalance = {
@@ -109,7 +103,7 @@ async function fetchAccountData(auth: Auth) {
 				variables: { account: auth.value!.did },
 				policy: 'NetworkOnly'
 			}),
-			username ? fetchBtcBalance(username) : 0,
+			fetchBtcBalance(auth.value!.did),
 			auth.value?.provider === 'aioha' && username
 				? DHive.database.getAccounts([username])
 				: undefined

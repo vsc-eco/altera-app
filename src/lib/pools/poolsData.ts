@@ -1,4 +1,4 @@
-import { currentGqlUrl } from '../../client';
+import { GetStateByKeysStore } from '$houdini';
 import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 
 export type TimeRange = '1d' | '7d' | '30d' | 'max';
@@ -168,14 +168,6 @@ async function fetchPoolLiquidity(
 	};
 }
 
-// --- VSC contract state query (for reserves, assets, price) ---
-
-const GET_POOL_STATE_QUERY = `
-	query GetPoolState($contractId: String!, $keys: [String!]!) {
-		getStateByKeys(contractId: $contractId, keys: $keys)
-	}
-`;
-
 function mapStateToPoolRow(
 	poolContractId: string,
 	state: PoolState,
@@ -293,20 +285,16 @@ async function fetchSinglePool(
 	usdPrices: { hive: number; hbd: number; btc: number }
 ): Promise<PoolRow> {
 	const [stateRes, volume, fees, liquidity] = await Promise.all([
-		fetch(currentGqlUrl + '/api/v1/graphql', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({
-				query: GET_POOL_STATE_QUERY,
-				variables: { contractId, keys: HBD_BTC_POOL_KEYS }
-			})
-		}).then((r) => r.json()),
+		new GetStateByKeysStore().fetch({
+			variables: { contractId, keys: [...HBD_BTC_POOL_KEYS] },
+			policy: 'NetworkOnly'
+		}),
 		fetchPoolVolume(contractId, range),
 		fetchPoolFees(contractId, range),
 		fetchPoolLiquidity(contractId)
 	]);
 
-	const state = (stateRes?.data?.getStateByKeys ?? {}) as PoolState;
+	const state = (stateRes.data?.getStateByKeys ?? {}) as PoolState;
 	return mapStateToPoolRow(contractId, state, { volume, fees, liquidity }, usdPrices, fallbackSymbols);
 }
 

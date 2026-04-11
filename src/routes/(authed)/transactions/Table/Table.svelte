@@ -300,12 +300,21 @@
 		color: var(--dash-text-muted);
 		font-weight: 600;
 		font-size: 0.8rem;
+		border-bottom: 1px solid var(--dash-divider);
 	}
 	table :global(td) {
 		vertical-align: middle;
 		width: max-content;
-		border-bottom: 1px solid var(--dash-card-border);
+		padding: 0.75rem 1rem;
+		font-size: 0.85rem;
+		border-bottom: 1px solid var(--dash-divider);
 		color: var(--dash-text-primary);
+	}
+	table :global(tr:last-child td) {
+		border-bottom: none;
+	}
+	table :global(.to-from) {
+		padding: 0.75rem 0;
 	}
 	.amount-header {
 		text-align: right;

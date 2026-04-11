@@ -8,8 +8,8 @@
 		src,
 		did,
 		fallback,
-		large
-	}: { src?: string; did?: string; fallback?: string; large?: boolean } = $props();
+		size = "medium"
+	}: { src?: string; did?: string; fallback?: string; size?: "small" | "medium" | "large" } = $props();
 	const service = useMachine(avatar.machine, { id: getUniqueId() });
 	const api = $derived(avatar.connect(service, normalizeProps));
 	$effect(() => {
@@ -23,7 +23,7 @@
 	});
 </script>
 
-<div {...api.getRootProps()} class={['wrapper', { large: large ?? false }]}>
+<div {...api.getRootProps()} class={['wrapper', size ]}>
 	<span {...api.getFallbackProps()} aria-label={`${did ?? ''} PFP`} aria-hidden={api.loaded}
 		>{fallback}</span
 	>
@@ -31,7 +31,10 @@
 </div>
 
 <style>
-	.wrapper {
+	.wrapper.small {
+		width: 1.5rem;
+	}
+	.wrapper.medium {
 		width: 2.5rem;
 	}
 	.wrapper.large {

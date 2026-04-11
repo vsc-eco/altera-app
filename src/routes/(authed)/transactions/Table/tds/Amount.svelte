@@ -42,6 +42,7 @@
 	.amount {
 		font-family: 'Nunito Sans', sans-serif;
 		font-size: var(--text-sm);
+		font-weight: 600;
 		color: var(--dash-text-primary);
 	}
 	.amount.green {

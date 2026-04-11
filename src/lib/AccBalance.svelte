@@ -16,9 +16,8 @@
 
 	const hiveAssetName = $derived(browser ? getHiveAssetName() : 'HIVE');
 	const hbdAssetName = $derived(browser ? getHbdAssetName() : 'HBD');
-	function formatWithUnit(amt: CoinAmount<typeof Coin.hive | typeof Coin.hbd>, unit: string, mockVal?: string): string {
+	function formatWithUnit(amt: CoinAmount<typeof Coin.hive | typeof Coin.hbd>, unit: string): string {
 		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
-		if (n === 0 && mockVal) return mockVal;
 		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
 			useGrouping: true,
 			minimumFractionDigits: amt.coin.decimalPlaces
@@ -56,7 +55,7 @@
 			<span class="coin-name">{hbdAssetName}</span>
 			<span class="coin-sub">Hive Backed Dollar</span>
 		</div>
-		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true), hbdAssetName, '1,250.00 HBD')}</span>
+		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true), hbdAssetName)}</span>
 	</div>
 
 	<div class="balance-row">
@@ -68,7 +67,7 @@
 			</span>
 			<span class="coin-sub">Liquid Hive Dollar Savings</span>
 		</div>
-		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true), hbdAssetName, '5,750.00 HBD')}</span>
+		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true), hbdAssetName)}</span>
 	</div>
 
 	{#if $accountBalance.bal.pending_hbd_unstaking && $accountBalance.bal.pending_hbd_unstaking !== 0}
@@ -87,7 +86,7 @@
 			<span class="coin-name">{hiveAssetName}</span>
 			<span class="coin-sub">Native Hive Token</span>
 		</div>
-		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hive, Coin.hive, true), hiveAssetName, '320.00 HIVE')}</span>
+		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hive, Coin.hive, true), hiveAssetName)}</span>
 	</div>
 
 	<div class="balance-row">
@@ -96,7 +95,7 @@
 			<span class="coin-name">{hiveAssetName} Consensus</span>
 			<span class="coin-sub">Hive Consensus</span>
 		</div>
-		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hive_consensus, Coin.hive, true), hiveAssetName, '1,150.00 HIVE')}</span>
+		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hive_consensus, Coin.hive, true), hiveAssetName)}</span>
 	</div>
 
 	{#if $accountBalance.bal.consensus_unstaking !== 0}

@@ -37,7 +37,7 @@
 		// TODO: change to pending once it's not useful to differentiate for testing
 	} = $derived({
 		...tx,
-		status: tx.status === 'unconfirmed' ? 'unconfirmed' : tx.status,
+		status: tx.status === 'UNCONFIRMED' ? 'unconfirmed' : tx.status,
 		timestamp: getTimestamp(tx)
 	});
 	const { data } = $derived(op);
@@ -342,10 +342,8 @@
 	}
 
 	.date {
-		vertical-align: middle;
-		padding: 1rem min(1rem, 2%);
-		width: max-content;
-		border-bottom: 1px solid var(--dash-card-border);
+		color: var(--dash-text-secondary);
+		white-space: nowrap;
 		min-width: 4rem;
 	}
 </style>

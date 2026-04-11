@@ -32,45 +32,6 @@
 	{#if did}
 		<Table {did} initialOpen={autoOpenOp}></Table>
 	{/if}
-	{#if !did || true}
-		<div class="mock-table">
-			<table>
-				<thead>
-					<tr>
-						<th>Date</th>
-						<th>To / From</th>
-						<th class="amount-h">Amount</th>
-						<th>Token</th>
-						<th>Type</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each [
-						{ date: 'Jan 12, 2026', addr: '0x38E...SDF0', amount: '-1.000', token: 'HIVE', type: 'TRANSFER' },
-						{ date: 'Jan 11, 2026', addr: '0x38E...SDF0', amount: '-53.250', token: 'HIVE', type: 'WITHDRAW' },
-						{ date: 'Jan 10, 2026', addr: '0x38E...SDF0', amount: '-1.000', token: 'HIVE', type: 'TRANSFER' },
-						{ date: 'Jan 09, 2026', addr: '0x38E...SDF0', amount: '+0.400', token: 'HBD', type: 'TRANSFER', positive: true },
-						{ date: 'Jan 10, 2026', addr: '0x38E...SDF0', amount: '-0.400', token: 'HBD', type: 'TRANSFER' },
-						{ date: 'Jan 10, 2026', addr: '0x38E...SDF0', amount: '+1.000', token: 'HIVE', type: 'TRANSFER', positive: true },
-						{ date: 'Jan 09, 2026', addr: '0x38E...SDF0', amount: '-0.400', token: 'HBD', type: 'TRANSFER' },
-						{ date: 'Jan 08, 2026', addr: '0x38E...SDF0', amount: '+1.000', token: 'HIVE', type: 'TRANSFER', positive: true },
-						{ date: 'Jan 07, 2026', addr: '0x38E...SDF0', amount: '-2.500', token: 'HBD', type: 'SWAP' },
-						{ date: 'Jan 06, 2026', addr: '0x38E...SDF0', amount: '+150.000', token: 'HIVE', type: 'DEPOSIT', positive: true },
-						{ date: 'Jan 05, 2026', addr: '0x38E...SDF0', amount: '-25.000', token: 'HIVE', type: 'STAKE' },
-						{ date: 'Jan 04, 2026', addr: '0x38E...SDF0', amount: '+0.180', token: 'HBD', type: 'REWARD', positive: true }
-					] as row}
-						<tr>
-							<td class="date">{row.date}</td>
-							<td class="addr"><span class="addr-dot"></span>{row.addr}</td>
-							<td class="amount" class:positive={row.positive}>{row.amount} {row.token}</td>
-							<td class="token">{row.token}</td>
-							<td><span class="badge" class:withdraw={row.type === 'WITHDRAW'} class:swap={row.type === 'SWAP'} class:deposit={row.type === 'DEPOSIT'} class:stake={row.type === 'STAKE'} class:reward={row.type === 'REWARD'}>{row.type}</span></td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	{/if}
 </div>
 
 <style>

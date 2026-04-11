@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import SendSwap from '$lib/sendswap/SendSwap.svelte';
 	import PoolsContent from '$lib/pools/PoolsContent.svelte';
 	import Tabs from '$lib/zag/Tabs.svelte';

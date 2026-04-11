@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 	import * as numberInput from '@zag-js/number-input';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { untrack } from 'svelte';
@@ -27,6 +26,7 @@
 		return val >= min && val <= max;
 	}
 	let invalid = $state(false);
+	let blurred = $state(false);
 	function trimOutput(val: number) {
 		if (Number.isNaN(val)) {
 			return '';
@@ -105,7 +105,13 @@
 
 <div {...api.getRootProps()}>
 	<div {...api.getScrubberProps()}></div>
-	<input {...api.getInputProps()} class={{ invalid }} placeholder="0" />
+	<input
+		{...api.getInputProps()}
+		class={{ invalid: invalid && blurred }}
+		placeholder="0"
+		onfocus={() => (blurred = false)}
+		onblur={() => (blurred = true)}
+	/>
 	<!-- <div class="triggers">
 		<button {...api.getIncrementTriggerProps()}>
 			<ChevronUp />

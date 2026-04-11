@@ -20,7 +20,7 @@
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 	import { untrack } from 'svelte';
-	import { ChevronDown, Search, ArrowLeft, X } from '@lucide/svelte';
+	import { ChevronDown, Search } from '@lucide/svelte';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import {
 		fetchPoolDepths,
@@ -146,7 +146,14 @@
 		return [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }];
 	});
 
+	// Single-option list for To amount input
+	const toOnlyCoinOpts: CoinOnNetwork[] = $derived.by(() => {
+		if (!$SendTxDetails.toCoin || !$SendTxDetails.toNetwork) return [];
+		return [{ coin: $SendTxDetails.toCoin.coin, network: $SendTxDetails.toNetwork }];
+	});
+
 	let inputAmount = $state(new CoinAmount(0, Coin.unk));
+	let toInputAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin) return;
 		if (inputAmount.coin.value === $SendTxDetails.fromCoin.coin.value) {
@@ -162,11 +169,11 @@
 	});
 	$effect(() => {
 		if (!$SendTxDetails.toCoin) return;
-		if (inputAmount.coin.value === $SendTxDetails.toCoin.coin.value) {
-			const amt = inputAmount.toAmountString();
+		if (toInputAmount.coin.value === $SendTxDetails.toCoin.coin.value) {
+			const amt = toInputAmount.toAmountString();
 			if (amt !== $SendTxDetails.toAmount) $SendTxDetails.toAmount = amt;
 		} else {
-			inputAmount.convertTo($SendTxDetails.toCoin.coin, Network.lightning).then((amt) => {
+			toInputAmount.convertTo($SendTxDetails.toCoin.coin, Network.lightning).then((amt) => {
 				if ($SendTxDetails.toAmount !== amt.toAmountString()) {
 					$SendTxDetails.toAmount = amt.toAmountString();
 				}
@@ -185,16 +192,6 @@
 		}
 	});
 
-	// USD value for To field (AmountInput handles From USD internally)
-	let toUsd = $state('');
-	$effect(() => {
-		const amt = parseFloat($SendTxDetails.toAmount || '0');
-		if (!$SendTxDetails.toCoin || amt === 0) { toUsd = ''; return; }
-		new CoinAmount(amt, $SendTxDetails.toCoin.coin)
-			.convertTo(Coin.usd, Network.lightning)
-			.then((usd) => { toUsd = `≈ $${usd.toPrettyAmountString()}`; })
-			.catch(() => { toUsd = ''; });
-	});
 
 	// Pool-based fee calculation
 	let poolDepths: PoolDepths | null = $state(null);
@@ -477,13 +474,6 @@
 	}
 
 
-	const toAmountDisplay = $derived.by(() => {
-		const amt = $SendTxDetails.toAmount;
-		if (!amt || amt === '0') return '0.00';
-		const n = parseFloat(amt);
-		if (Number.isNaN(n)) return amt;
-		return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-	});
 </script>
 
 <div class="swap-card">
@@ -514,12 +504,13 @@
 				<ChevronDown size={12} />
 			</button>
 		</div>
-		<div class="from-input-wrap">
+		<div class="input-wrap">
 			<AmountInput
 				bind:coinAmount={inputAmount}
+				connectedCoinAmount={toInputAmount}
 				coinOpts={fromOnlyCoinOpts.length > 0 ? fromOnlyCoinOpts : possibleCoins}
 				{minAmount}
-				borderless
+				styleType="simple"
 				hideUnit
 				hideNetwork
 			/>
@@ -545,10 +536,16 @@
 				<ChevronDown size={12} />
 			</button>
 		</div>
-		<span class="output-amount">{toAmountDisplay}</span>
-		{#if toUsd}
-			<span class="usd-value">{toUsd}</span>
-		{/if}
+		<div class="input-wrap">
+			<AmountInput
+				bind:coinAmount={toInputAmount}
+				connectedCoinAmount={inputAmount}
+				coinOpts={toOnlyCoinOpts.length > 0 ? toOnlyCoinOpts : possibleCoins}
+				styleType="simple"
+				hideUnit
+				hideNetwork
+			/>
+		</div>
 	</div>
 
 	<!-- Swap Details -->
@@ -596,14 +593,11 @@
 	{/if}
 </div>
 
-<Dialog bind:open={dialogOpen} bind:toggle>
+<Dialog bind:open={dialogOpen} bind:toggle back={dialogStep === 'source' ? () => { dialogStep = 'tokens'; tempCoinOpt = undefined; } : undefined}>
+	{#snippet title()}Select a token{/snippet}
 	{#snippet content()}
 		{#if dialogStep === 'tokens'}
 			<div class="dialog-content">
-				<div class="dialog-title-row">
-					<h5>Select a token</h5>
-					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
-				</div>
 				<div class="token-search-wrapper">
 					<Search size={16} />
 					<input bind:value={tokenSearch} placeholder="Search tokens..." />
@@ -621,19 +615,6 @@
 			</div>
 		{:else if dialogStep === 'source' && tempCoinOpt}
 			<div class="dialog-content">
-				<div class="dialog-title-row">
-					<button
-						class="dialog-back-btn"
-						onclick={() => {
-							dialogStep = 'tokens';
-							tempCoinOpt = undefined;
-						}}
-					>
-						<ArrowLeft size={18} />
-					</button>
-					<h5>Select a token</h5>
-					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
-				</div>
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
 						<button
@@ -753,20 +734,8 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 	}
-	.from-input-wrap {
-		margin: 0 -0.25rem;
-	}
-	.usd-value {
-		display: block;
-		color: var(--dash-text-muted);
-		font-size: 0.7rem;
-		margin-top: 0.25rem;
-	}
-	.output-amount {
-		color: white;
-		font-size: 1.25rem;
-		font-weight: 600;
-		font-family: 'Nunito Sans', sans-serif;
+	.input-wrap {
+		min-height: 42.2px;
 	}
 
 	/* Token selector */
@@ -885,43 +854,6 @@
 	}
 
 	/* ── Token Dialog ── */
-	.dialog-title-row {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-		h5 {
-			flex: 1;
-			margin: 0;
-			font-size: var(--text-3xl);
-			font-weight: 600;
-			color: var(--dash-text-primary);
-		}
-	}
-	.dialog-close-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: none;
-		border: none;
-		color: var(--dash-text-muted);
-		cursor: pointer;
-		padding: 0.25rem;
-		border-radius: 50%;
-		transition: color 0.15s ease;
-		&:hover { color: var(--dash-text-primary); }
-	}
-	.dialog-back-btn {
-		display: flex;
-		align-items: center;
-		background: none;
-		border: none;
-		color: var(--dash-text-muted);
-		cursor: pointer;
-		padding: 0.25rem 0.5rem 0.25rem 0;
-		transition: color 0.15s ease;
-		&:hover { color: var(--dash-text-primary); }
-	}
 	.token-search-wrapper {
 		position: relative;
 		margin-bottom: 1rem;

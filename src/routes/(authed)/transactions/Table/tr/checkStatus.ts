@@ -1,7 +1,9 @@
-import { GetStatusesStore } from '$houdini';
-import { readonly, writable, type Writable } from 'svelte/store';
+import { GetStatusesStore, TransactionStatus, type ValueOf } from '$houdini';
+import { readonly, writable, type Readable, type Writable } from 'svelte/store';
 
-const checkingStores: { [tx_id: string]: Writable<string> } = {};
+export type TxStatus = ValueOf<typeof TransactionStatus>
+
+const checkingStores: { [tx_id: string]: Writable<TxStatus> } = {};
 
 function updateStatuses() {
 	const idsToFetch = Object.keys(checkingStores);
@@ -43,7 +45,7 @@ function removeFromChecks(tx_id: string) {
 
 let timeout: NodeJS.Timeout | undefined = undefined;
 
-export const checkOpStatus = (tx_id: string, currStatus: string) => {
+export const checkOpStatus = (tx_id: string, currStatus: TxStatus) => {
 	// console.log('statusquery - checkOpStatus called:', tx_id, currStatus);
 	if (checkingStores[tx_id]) {
 		return checkingStores[tx_id];

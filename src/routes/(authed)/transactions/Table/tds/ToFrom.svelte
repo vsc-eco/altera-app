@@ -15,7 +15,7 @@
 <td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
 	<span class="to-from">
 		<span class="pfp">
-			<Avatar did={otherAccount} fallback=""></Avatar>
+			<Avatar did={otherAccount} fallback="" size={"small"}></Avatar>
 		</span>
 		<span class="toFrom">
 			<BasicCopy value={getUsernameFromDid(otherAccount)} show={isHovered}>
@@ -48,7 +48,7 @@
 		column-gap: 0.25rem;
 		align-items: center;
 		align-content: center;
-		height: 4.5rem;
+		/* height: 4.5rem; */
 	}
 
 	.pfp {

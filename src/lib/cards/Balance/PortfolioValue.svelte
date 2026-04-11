@@ -138,7 +138,7 @@
 		<div class="lc-wrapper">
 			<LineChart
 				data={filteredData}
-				height={180}
+				height={280}
 				isLoading={loadingBalances}
 				showYAxis={false}
 			/>
@@ -148,13 +148,10 @@
 
 <style lang="scss">
 	.root {
-		display: block;
+		display: flex;
+		flex-direction: column;
 		min-width: min(280px, 100%);
-		min-height: 300px;
-	}
-	.root > :global(div) {
-		height: 100%;
-		box-sizing: border-box;
+		flex: 1;
 	}
 	.header-row {
 		margin: 0.75rem;
@@ -182,7 +179,7 @@
 		font-size: 0.75rem;
 	}
 	.lc-wrapper {
-		margin: 0 -0.5rem;
+		margin: 0 -1.25rem -1.25rem;
 		overflow-x: auto;
 		flex: 1;
 		min-height: 0;

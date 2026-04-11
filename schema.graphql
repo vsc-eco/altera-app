@@ -336,6 +336,42 @@ input LedgerActionsFilter {
   toBlock: Uint64
 }
 
+"""Filter options for querying ledger claim records."""
+input LedgerClaimFilter {
+  """Include only records from this block height onwards."""
+  fromBlock: Uint64
+
+  """Maximum number of records to return (for pagination)."""
+  limit: Int
+
+  """Number of records to skip (for pagination)."""
+  offset: Int
+
+  """Include only records up to this block height."""
+  toBlock: Uint64
+}
+
+"""A ledger claim record representing an HBD interest claim event."""
+type LedgerClaimRecord {
+  """Amount of HBD interest claimed in smallest unit."""
+  amount: Int64!
+
+  """Hive block height at which the claim occurred."""
+  block_height: Uint64!
+
+  """Observed APR percentage based on network averages."""
+  observed_apr: Float!
+
+  """Number of accounts that received interest in this claim."""
+  received_n: Int!
+
+  """Timestamp of the claim."""
+  timestamp: String!
+
+  """Transaction ID of the claim."""
+  tx_id: String!
+}
+
 """
 A ledger transfer record representing a balance movement between accounts.
 """
@@ -488,6 +524,14 @@ type Query {
     """Filter criteria for the ledger action search."""
     filterOptions: LedgerActionsFilter
   ): [ActionRecord!]
+
+  """
+  Search for ledger claim records (HBD interest claims) matching the given filter criteria.
+  """
+  findLedgerClaims(
+    """Filter criteria for the ledger claim search."""
+    filterOptions: LedgerClaimFilter
+  ): [LedgerClaimRecord!]
 
   """Search for ledger transfer records matching the given filter criteria."""
   findLedgerTXs(

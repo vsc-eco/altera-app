@@ -129,10 +129,8 @@
 		margin-top: 0.5rem;
 	}
 	.date {
-		vertical-align: middle;
-		padding: 1rem min(1rem, 2%);
-		width: max-content;
-		border-bottom: 1px solid var(--dash-card-border);
+		color: var(--dash-text-secondary);
+		white-space: nowrap;
 		min-width: 4rem;
 	}
 	a {

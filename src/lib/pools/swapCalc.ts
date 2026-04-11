@@ -12,7 +12,7 @@
  *   min_amount_out   = y * (10000 - slippageBps) / 10000
  */
 
-import { currentGqlUrl } from '../../client';
+import { GetStateByKeysStore } from '$houdini';
 import { HIVE_HBD_POOL_CONTRACT_ID } from './poolsData';
 
 export interface PoolDepths {
@@ -29,30 +29,19 @@ export interface SwapCalcResult {
 	slippageBps: number; // basis points (e.g. 100 = 1%)
 }
 
-const POOL_DEPTHS_QUERY = `
-	query GetPoolDepths($contractId: String!, $keys: [String!]!) {
-		getStateByKeys(contractId: $contractId, keys: $keys)
-	}
-`;
-
 /**
  * Fetch current pool reserves from the VSC GraphQL endpoint.
  */
 export async function fetchPoolDepths(): Promise<PoolDepths | null> {
 	try {
-		const response = await fetch(currentGqlUrl + '/api/v1/graphql', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({
-				query: POOL_DEPTHS_QUERY,
-				variables: {
-					contractId: HIVE_HBD_POOL_CONTRACT_ID,
-					keys: ['reserve0', 'reserve1']
-				}
-			})
+		const result = await new GetStateByKeysStore().fetch({
+			variables: {
+				contractId: HIVE_HBD_POOL_CONTRACT_ID,
+				keys: ['reserve0', 'reserve1']
+			},
+			policy: 'NetworkOnly'
 		});
-		const json = await response.json();
-		const state = json?.data?.getStateByKeys;
+		const state = result.data?.getStateByKeys;
 		if (!state) return null;
 
 		const r0 = state['reserve0'];

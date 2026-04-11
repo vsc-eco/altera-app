@@ -15,7 +15,7 @@
 <td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
 	<span class="to-from">
 		<span class="pfp">
-			<NotebookPen size="24" />
+			<NotebookPen size="16" />
 		</span>
 		<span class="contract-address" class:small={isLong}>
 			<BasicCopy value={address} show={isHovered}>
@@ -43,7 +43,6 @@
 		column-gap: 0.25rem;
 		align-items: center;
 		align-content: center;
-		height: 4.5rem;
 	}
 	@media screen and (max-width: 450px) {
 		.to-from {
@@ -52,12 +51,13 @@
 	}
 	.pfp {
 		grid-area: pfp;
-		width: 2.5rem;
-		height: 2.5rem;
+		width: 1.5rem;
+		height: 1.5rem;
 		background-color: var(--dash-surface-alt);
 		border-radius: 100%;
-		text-align: center;
-		align-content: center;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		color: var(--dash-text-secondary);
 	}
 	.status {

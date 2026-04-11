@@ -44,12 +44,12 @@ setTimeout(async () => {
 	const { _reownAuthStore } = await import('../store');
 	const { get } = await import('svelte/store');
 	const current = get(_reownAuthStore);
-	if (current.status === 'pending') {
+	if (current?.status === 'pending') {
 		_reownAuthStore.set({ status: 'none' });
 	}
 }, 2000);
 
-modal.subscribeAccount(async (value) => {
+modal.subscribeAccount(async (value: { isConnected: any; address: string; status: string; }) => {
 	try {
 		const { _reownAuthStore, loginRetry } = await import('../store');
 

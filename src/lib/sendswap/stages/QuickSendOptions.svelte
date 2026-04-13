@@ -165,7 +165,6 @@
 		const currentCoinHasBalance =
 			current.fromCoin &&
 			coinsWithBalance.some((item) => item.coin.value === current.fromCoin?.coin.value);
-
 		if (currentCoinHasBalance) return;
 
 		const hiveCoin = coinsWithBalance.find((item) => item.coin.value === Coin.hive.value);

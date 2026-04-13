@@ -143,31 +143,29 @@
 	}
 </script>
 
-<div
-	class={['scroll', { small: size === 'small' }]}
-	onscroll={(e) => {
-		if (limitProp != null) return;
-		const me = e.currentTarget;
-		if (me.scrollHeight - me.scrollTop - me.clientHeight <= 1 && !hitBottom && !loading) {
-			lastLength = currStoreLen;
-			fetchTxs(did, 'extend', (val) => (loading = val), 12);
-		}
-	}}
->
-	<table>
-		<thead>
-			<tr>
-				<th>Date</th>
-				<th class="to-from-header">To/From</th>
-				<th class="amount-header">Amount</th>
-				<th>Type</th>
-			</tr>
-		</thead>
-
-		<tbody
-			id="transactions-tbody"
-			class={!displayTxs?.length && !loading ? 'no-transactions-container' : ''}
-		>
+<div class={['card', { small: size === 'small' }]}>
+	<div class="header-row">
+		<div class="h h-date">Date</div>
+		<div class="h h-to-from">To/From</div>
+		<div class="h h-amount">Amount</div>
+		<div class="h h-type">Type</div>
+	</div>
+	<div
+		class="body-scroll"
+		onscroll={(e) => {
+			if (limitProp != null) return;
+			const me = e.currentTarget;
+			if (me.scrollHeight - me.scrollTop - me.clientHeight <= 1 && !hitBottom && !loading) {
+				lastLength = currStoreLen;
+				fetchTxs(did, 'extend', (val) => (loading = val), 12);
+			}
+		}}
+	>
+		<table>
+			<tbody
+				id="transactions-tbody"
+				class={!displayTxs?.length && !loading ? 'no-transactions-container' : ''}
+			>
 			{#if displayTxs && displayTxs.length > 0}
 				<!-- {#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id } = tx}
@@ -230,13 +228,14 @@
 					</tr>
 				{/each}
 			{/if}
-		</tbody>
-	</table>
-	{#if !displayTxs?.length && !loading}
-		<div class={['no-transactions-overlay', { short: skeletonRowCount <= 5 }]}>
-			<div class="no-transactions-message">No transactions found</div>
-		</div>
-	{/if}
+			</tbody>
+		</table>
+		{#if !displayTxs?.length && !loading}
+			<div class={['no-transactions-overlay', { short: skeletonRowCount <= 5 }]}>
+				<div class="no-transactions-message">No transactions found</div>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <SidePopup
@@ -251,8 +250,10 @@
 />
 
 <style lang="scss">
-	.scroll {
-		overflow: auto;
+	.card {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
+		grid-template-rows: auto minmax(0, 1fr);
 		width: 100%;
 		flex-grow: 1;
 		min-height: 0;
@@ -262,13 +263,45 @@
 		border-radius: 27px;
 		box-shadow: var(--dash-card-shadow);
 		padding: 1.25rem;
-	}
-	table {
-		width: 100%;
-		border-spacing: 0;
-		border-collapse: collapse;
-		position: relative;
 		font-family: 'Nunito Sans', sans-serif;
+	}
+	.header-row {
+		display: contents;
+	}
+	.h {
+		grid-row: 1;
+		padding: 0.75rem 1rem;
+		color: var(--dash-text-muted);
+		font-weight: 600;
+		font-size: 0.8rem;
+		text-align: left;
+		border-bottom: 1px solid var(--dash-divider);
+	}
+	.h-to-from {
+		text-align: left;
+	}
+	.h-amount {
+		text-align: left;
+	}
+	.body-scroll {
+		grid-row: 2;
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: subgrid;
+		grid-auto-rows: min-content;
+		overflow-y: auto;
+		overflow-x: hidden;
+		min-height: 0;
+		position: relative;
+	}
+	.body-scroll > table,
+	.body-scroll > table > :global(tbody) {
+		display: contents;
+	}
+	.body-scroll :global(tr) {
+		display: grid;
+		grid-column: 1 / -1;
+		grid-template-columns: subgrid;
 	}
 	.skeleton-cell {
 		background-color: var(--dash-surface-alt);
@@ -277,43 +310,19 @@
 		margin: 0.75rem 1rem;
 		animation: pulse 2s ease-in-out infinite;
 	}
-	thead {
-		position: sticky;
-		top: 0;
-		z-index: 1;
-		background-color: transparent;
-	}
-	th {
-		text-align: left;
-		min-width: max-content;
-		box-sizing: content-box;
-		padding: 0.75rem 1rem;
-		color: var(--dash-text-muted);
-		font-weight: 600;
-		font-size: 0.8rem;
-		border-bottom: 1px solid var(--dash-divider);
-	}
-	table :global(td) {
-		vertical-align: middle;
-		width: max-content;
+	.body-scroll :global(td) {
+		display: flex;
+		align-items: center;
 		padding: 0.75rem 1rem;
 		font-size: 0.85rem;
 		border-bottom: 1px solid var(--dash-divider);
 		color: var(--dash-text-primary);
 	}
-	table :global(tr:last-child td) {
+	.body-scroll :global(tr:last-child td) {
 		border-bottom: none;
 	}
-	table :global(.to-from) {
+	.body-scroll :global(.to-from) {
 		padding: 0.75rem 0;
-	}
-	.amount-header {
-		text-align: right;
-		padding-right: 1rem;
-	}
-
-	.to-from-header {
-		padding-left: 3rem;
 	}
 
 	.blurred-skeleton {
@@ -351,25 +360,23 @@
 	}
 
 	/* Small variant for dashboard embed */
-	.scroll.small {
+	.card.small {
 		padding: 0;
 		border: none;
 		border-radius: 0;
 		box-shadow: none;
 		background: transparent;
-	}
-	.scroll.small table {
 		font-size: 0.8rem;
 	}
-	.scroll.small th {
-		padding: 0.5rem 0.75rem;
+	.card.small .h {
+		padding: 0.5rem 1rem 0.5rem 1.35rem;
 		font-size: 0.75rem;
 	}
-	.scroll.small :global(td) {
+	.card.small .body-scroll :global(td) {
 		padding-top: 0.5rem;
 		padding-bottom: 0.5rem;
 	}
-	.scroll.small .skeleton-cell {
+	.card.small .skeleton-cell {
 		height: 2rem;
 		margin: 0.5rem 0.75rem;
 	}

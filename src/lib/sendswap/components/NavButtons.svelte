@@ -39,7 +39,7 @@
 			<PillButton
 				onclick={buttons.back.action}
 				disabled={buttons.back.disabled}
-				styleType="outline"
+				styleType="stage outline"
 			>
 				{buttons.back.label}
 			</PillButton>
@@ -47,7 +47,7 @@
 		<PillButton
 			onclick={buttons.fwd.action}
 			disabled={buttons.fwd.disabled}
-			styleType="invert"
+			styleType="stage invert"
 			theme="accent"
 		>
 			{buttons.fwd.label}
@@ -91,30 +91,6 @@
 		:global(button) {
 			margin: 0;
 			flex-grow: 1;
-			border-radius: 1.5rem !important;
-			height: 48px;
-			font-size: 0.95rem;
-			font-weight: 700;
-			box-shadow: 0 4px 20px rgba(111, 106, 248, 0.3);
-			transform: none !important;
-			transition: box-shadow 0.15s ease, background 0.15s ease !important;
-		}
-		:global(button.invert:not(:disabled)) {
-			background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 40%, #5B54E0 100%) !important;
-			color: white !important;
-		}
-		:global(button.invert:hover:not(:disabled)) {
-			box-shadow: 0 6px 24px rgba(111, 106, 248, 0.4) !important;
-			background: linear-gradient(135deg, #8E88FF 0%, #7E78FF 40%, #6B64F0 100%) !important;
-		}
-		:global(button.invert:active:not(:disabled)) {
-			box-shadow: 0 2px 12px rgba(111, 106, 248, 0.25) !important;
-			background: linear-gradient(135deg, #6F6AF8 0%, #6560E8 40%, #5248D0 100%) !important;
-		}
-		:global(button.outline) {
-			background: transparent;
-			box-shadow: none;
-			border: 1px solid rgba(111, 106, 248, 0.4) !important;
 		}
 	}
 </style>

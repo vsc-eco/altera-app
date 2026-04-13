@@ -5,21 +5,12 @@
 		HTMLButtonAttributes,
 		MouseEventHandler
 	} from 'svelte/elements';
+	export type StyleFlag = 'invert' | 'outline' | 'text' | 'icon' | 'subtle' | 'stage';
 	export type SharedProps = {
 		children?: Snippet;
 		theme?: string;
 		hide?: boolean;
-		styleType?:
-			| 'invert'
-			| 'text'
-			| 'text-subtle'
-			| 'outline'
-			| 'center'
-			| 'default'
-			| 'icon'
-			| 'icon-outline'
-			| 'icon-text'
-			| 'icon-subtle';
+		styleType?: StyleFlag | (string & {});
 	};
 	export type AnchorProps = { href: string; onclick?: undefined } & HTMLAnchorAttributes;
 	export type ButtonAttributes = {
@@ -35,11 +26,12 @@
 		class: additionalClasses = '',
 		...rest
 	}: Props = $props();
-	let invertStyle = $derived(styleType === 'invert');
+	let invertStyle = $derived(styleType?.includes('invert'));
 	let textStyle = $derived(styleType?.includes('text'));
 	let outlineStyle = $derived(styleType?.includes('outline'));
 	let iconStyle = $derived(styleType?.includes('icon'));
 	let subtleStyle = $derived(styleType?.includes('subtle'));
+	let stageStyle = $derived(styleType?.includes('stage'));
 	let className = $derived([
 		theme,
 		{
@@ -48,6 +40,7 @@
 			outline: outlineStyle,
 			icon: iconStyle,
 			subtle: subtleStyle,
+			stage: stageStyle,
 			hide: hide
 		},
 		additionalClasses
@@ -96,26 +89,15 @@
 		vertical-align: middle;
 		position: relative;
 		white-space: nowrap;
-		transition: transform 0.05s;
-
+		transition:
+			transform 0.05s,
+			box-shadow 0.15s ease,
+			background 0.15s ease;
 		background-color: rgba(255, 255, 255, 0.1);
 		color: var(--dash-text-primary);
 		&:hover {
 			background-color: rgba(255, 255, 255, 0.15);
 			color: var(--dash-text-primary);
-		}
-		&:disabled {
-			cursor: default;
-			color: var(--dash-text-muted) !important;
-			transform: scale(0.98) !important;
-			background: rgba(255, 255, 255, 0.05) !important;
-			&:active,
-			&:hover,
-			&:focus {
-				color: var(--dash-text-muted) !important;
-				background: rgba(255, 255, 255, 0.05) !important;
-				transform: scale(0.98) !important;
-			}
 		}
 		&:active {
 			background-color: rgba(255, 255, 255, 0.15);
@@ -126,13 +108,17 @@
 			height: 18px;
 		}
 		&.invert {
-			background-color: #6F6AF8;
+			background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 40%, #5b54e0 100%);
+			box-shadow: 0 4px 20px rgba(111, 106, 248, 0.3);
 			color: white;
 			&:hover {
-				background-color: #7E74FF;
+				background: linear-gradient(135deg, #8e88ff 0%, #7e78ff 40%, #6b64f0 100%);
+				box-shadow: 0 6px 24px rgba(111, 106, 248, 0.4);
 				color: white;
 			}
 			&:active {
+				background: linear-gradient(135deg, #6f6af8 0%, #6560e8 40%, #5248d0 100%);
+				box-shadow: 0 2px 12px rgba(111, 106, 248, 0.25);
 				color: white;
 			}
 		}
@@ -142,7 +128,7 @@
 			border: 1px solid rgba(111, 106, 248, 0.4);
 			&:hover {
 				background-color: rgba(111, 106, 248, 0.1);
-				border-color: #6F6AF8;
+				border-color: #6f6af8;
 				color: var(--dash-text-primary);
 				box-shadow: 0 0 16px -4px rgba(111, 106, 248, 0.2);
 			}
@@ -151,7 +137,7 @@
 				color: var(--dash-text-primary);
 			}
 			&.primary {
-				border-color: #6F6AF8;
+				border-color: #6f6af8;
 				color: var(--dash-text-primary);
 				&:hover {
 					background-color: rgba(111, 106, 248, 0.1);
@@ -185,8 +171,8 @@
 			justify-content: center;
 			align-items: center;
 			&:hover {
-				color: #6F6AF8;
-				border-color: #6F6AF8;
+				color: #6f6af8;
+				border-color: #6f6af8;
 			}
 		}
 		&.text {
@@ -209,6 +195,14 @@
 				color: var(--dash-text-primary);
 			}
 		}
+		&.stage {
+			height: 48px;
+			font-size: 0.95rem;
+			font-weight: 700;
+			&:active {
+				transform: none;
+			}
+		}
 		&.subtle {
 			background-color: transparent;
 			color: var(--dash-text-secondary);
@@ -221,6 +215,21 @@
 			}
 			&:active {
 				background-color: transparent;
+			}
+		}
+		&:disabled {
+			cursor: default;
+			color: var(--dash-text-muted);
+			transform: scale(0.98);
+			background: rgba(255, 255, 255, 0.05);
+			box-shadow: none;
+			&:active,
+			&:hover,
+			&:focus {
+				color: var(--dash-text-muted);
+				background: rgba(255, 255, 255, 0.05);
+				box-shadow: none;
+				transform: scale(0.98);
 			}
 		}
 	}

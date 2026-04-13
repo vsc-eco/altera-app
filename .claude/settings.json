@@ -1,5 +1,10 @@
 {
   "enabledPlugins": {
     "frontend-design@claude-code-plugins": true
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:svelte.dev)"
+    ]
   }
 }

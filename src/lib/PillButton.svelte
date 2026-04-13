@@ -108,12 +108,12 @@
 			cursor: default;
 			color: var(--dash-text-muted) !important;
 			transform: scale(0.98) !important;
-			background-color: rgba(255, 255, 255, 0.05) !important;
+			background: rgba(255, 255, 255, 0.05) !important;
 			&:active,
 			&:hover,
 			&:focus {
 				color: var(--dash-text-muted) !important;
-				background-color: rgba(255, 255, 255, 0.05) !important;
+				background: rgba(255, 255, 255, 0.05) !important;
 				transform: scale(0.98) !important;
 			}
 		}

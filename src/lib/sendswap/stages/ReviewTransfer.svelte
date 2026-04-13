@@ -18,16 +18,26 @@
 
 	let auth = $derived(getAuth()());
 	let {
+		editStage,
+		isActive,
 		status,
 		waiting = false,
 		abort,
 		compact
 	}: {
+		editStage: (complete: boolean) => void;
+		isActive?: boolean;
 		status: { message: string; isError: boolean };
 		waiting?: boolean;
 		abort?: () => void;
 		compact?: boolean;
 	} = $props();
+
+	$effect(() => {
+		if (isActive) {
+			editStage(true);
+		}
+	});
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);

@@ -40,31 +40,32 @@
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
-	$effect(() => {
-		if (
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.fromNetwork &&
-			$SendTxDetails.toAmount &&
+	let stageComplete = $derived(
+		!!$SendTxDetails.fromCoin &&
+			!!$SendTxDetails.fromNetwork &&
+			!!$SendTxDetails.toAmount &&
 			$SendTxDetails.toAmount !== '0' &&
 			!toSelf &&
-			$SendTxDetails.toUsername &&
-			$SendTxDetails.toNetwork
-		) {
-			editStage(true);
-		} else {
-			editStage(false);
-		}
+			!!$SendTxDetails.toUsername &&
+			!!$SendTxDetails.toNetwork
+	);
+	$effect(() => {
+		editStage(stageComplete);
 	});
 
 	// AMOUNT SECTION
-	let coinAmount = $state(new CoinAmount(0, Coin.unk));
+	let coinAmount = $state(new CoinAmount(0, Coin.hive));
 	$effect(() => {
-		if ($SendTxDetails.fromAmount !== coinAmount.toAmountString()) {
-			$SendTxDetails.fromAmount = coinAmount.toAmountString();
-		}
-		if ($SendTxDetails.toAmount !== coinAmount.toAmountString()) {
-			$SendTxDetails.toAmount = coinAmount.toAmountString();
-		}
+		const amtStr = coinAmount.toAmountString();
+		untrack(() => {
+			if ($SendTxDetails.fromAmount !== amtStr || $SendTxDetails.toAmount !== amtStr) {
+				SendTxDetails.update((s) => {
+					s.fromAmount = amtStr;
+					s.toAmount = amtStr;
+					return s;
+				});
+			}
+		});
 	});
 
 	const fromAssetObjs: AssetObject[] = $derived(
@@ -77,7 +78,9 @@
 
 	let max: CoinAmount<Coin> | undefined = $state();
 
-	// Update max when fromCoin changes
+	// Update max when fromCoin or balance changes
+	let lastMaxBalance = -1;
+	let lastMaxCoin = '';
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
 		if ($SendTxDetails.fromNetwork.value !== Network.magi.value) return;
@@ -85,7 +88,11 @@
 		const coinValue = $SendTxDetails.fromCoin.coin.value;
 		if (coinValue in $accountBalance.bal) {
 			const balance = $accountBalance.bal[coinValue as keyof AccountBalance];
-			max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+			if (balance !== lastMaxBalance || coinValue !== lastMaxCoin) {
+				lastMaxBalance = balance;
+				lastMaxCoin = coinValue;
+				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+			}
 		}
 	});
 
@@ -95,9 +102,12 @@
 	};
 
 	$effect(() => {
-		if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
-			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
-		}
+		const fromCoin = $SendTxDetails.fromCoin;
+		untrack(() => {
+			if ($SendTxDetails.toCoin?.coin.value !== fromCoin?.coin.value) {
+				$SendTxDetails.toCoin = fromCoin;
+			}
+		});
 	});
 
 	// RECIPIENT SECTION
@@ -150,9 +160,13 @@
 		const balanceCount = coinsWithBalance.length;
 		if (balanceCount === 0) return;
 
-		const currentCoinHasBalance =
-			$SendTxDetails.fromCoin &&
-			coinsWithBalance.some((item) => item.coin.value === $SendTxDetails.fromCoin?.coin.value);
+		const currentCoinHasBalance = untrack(
+			() =>
+				$SendTxDetails.fromCoin &&
+				coinsWithBalance.some(
+					(item) => item.coin.value === $SendTxDetails.fromCoin?.coin.value
+				)
+		);
 
 		if (currentCoinHasBalance) return;
 
@@ -160,10 +174,13 @@
 		const coinToSelect = hiveCoin || coinsWithBalance[0];
 
 		if (coinToSelect) {
-			$SendTxDetails.fromCoin = coinToSelect.coinOpt;
-			$SendTxDetails.fromNetwork = Network.magi;
-			$SendTxDetails.toCoin = coinToSelect.coinOpt;
-			$SendTxDetails.toNetwork = Network.magi;
+			SendTxDetails.update((s) => {
+				s.fromCoin = coinToSelect.coinOpt;
+				s.fromNetwork = Network.magi;
+				s.toCoin = coinToSelect.coinOpt;
+				s.toNetwork = Network.magi;
+				return s;
+			});
 		}
 	});
 </script>

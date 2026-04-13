@@ -48,12 +48,26 @@
 		new CoinAmount(coinAmount.toAmountString(), initialFirstOption?.coin ?? Coin.unk)
 	);
 
+	let externalSync = false;
 	$effect(() => {
-		if (!expressIn || lastModification.coin.value === expressIn.value) {
-			if (coinAmount.amount !== lastModification.amount) coinAmount = lastModification;
+		// Always read dependencies to maintain tracking even when guard fires
+		const currentMod = lastModification;
+		const currentExpressIn = expressIn;
+		const currentCoinAmtStr = coinAmount.toAmountString();
+
+		if (externalSync) {
+			externalSync = false;
+			return;
+		}
+		if (!currentExpressIn || currentMod.coin.value === currentExpressIn.value) {
+			if (currentCoinAmtStr !== currentMod.toAmountString())
+				coinAmount = currentMod;
 		} else {
-			lastModification.convertTo(expressIn, Network.lightning).then((coinAmt) => {
-				if (coinAmount.amount !== coinAmt.amount) coinAmount = coinAmt;
+			const capturedMod = currentMod;
+			capturedMod.convertTo(currentExpressIn, Network.lightning).then((coinAmt) => {
+				if (untrack(() => lastModification) !== capturedMod) return;
+				if (untrack(() => coinAmount.toAmountString()) !== coinAmt.toAmountString())
+					coinAmount = coinAmt;
 			});
 		}
 	});
@@ -64,6 +78,7 @@
 		const extAmt = ext.amount;
 		const modAmt = untrack(() => lastModification.amount);
 		if (extAmt !== modAmt) {
+			externalSync = true;
 			inputAmt = ext.toAmountString();
 			lastModification = ext;
 		}

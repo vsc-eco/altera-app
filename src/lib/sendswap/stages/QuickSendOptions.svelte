@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { SendTxDetails } from '../utils/sendUtils';
+	import { get } from 'svelte/store';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
@@ -40,32 +41,28 @@
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
-	let stageComplete = $derived(
-		!!$SendTxDetails.fromCoin &&
+	// AMOUNT SECTION
+	let coinAmount = $state(new CoinAmount(0, Coin.hive));
+	$effect.pre(() => {
+		const amtStr = coinAmount.toAmountString();
+		const current = get(SendTxDetails);
+		if (current.fromAmount !== amtStr || current.toAmount !== amtStr) {
+			current.fromAmount = amtStr;
+			current.toAmount = amtStr;
+			SendTxDetails.set(current);
+		}
+	});
+
+	// EDIT STAGE
+	$effect(() => {
+		editStage(
+			!!$SendTxDetails.fromCoin &&
 			!!$SendTxDetails.fromNetwork &&
-			!!$SendTxDetails.toAmount &&
-			$SendTxDetails.toAmount !== '0' &&
+			coinAmount.amount !== 0 &&
 			!toSelf &&
 			!!$SendTxDetails.toUsername &&
 			!!$SendTxDetails.toNetwork
-	);
-	$effect(() => {
-		editStage(stageComplete);
-	});
-
-	// AMOUNT SECTION
-	let coinAmount = $state(new CoinAmount(0, Coin.hive));
-	$effect(() => {
-		const amtStr = coinAmount.toAmountString();
-		untrack(() => {
-			if ($SendTxDetails.fromAmount !== amtStr || $SendTxDetails.toAmount !== amtStr) {
-				SendTxDetails.update((s) => {
-					s.fromAmount = amtStr;
-					s.toAmount = amtStr;
-					return s;
-				});
-			}
-		});
+		);
 	});
 
 	const fromAssetObjs: AssetObject[] = $derived(
@@ -103,11 +100,10 @@
 
 	$effect(() => {
 		const fromCoin = $SendTxDetails.fromCoin;
-		untrack(() => {
-			if ($SendTxDetails.toCoin?.coin.value !== fromCoin?.coin.value) {
-				$SendTxDetails.toCoin = fromCoin;
-			}
-		});
+		const current = get(SendTxDetails);
+		if (current.toCoin?.coin.value !== fromCoin?.coin.value) {
+			SendTxDetails.set({ ...current, toCoin: fromCoin });
+		}
 	});
 
 	// RECIPIENT SECTION
@@ -160,13 +156,12 @@
 		const balanceCount = coinsWithBalance.length;
 		if (balanceCount === 0) return;
 
-		const currentCoinHasBalance = untrack(
-			() =>
-				$SendTxDetails.fromCoin &&
-				coinsWithBalance.some(
-					(item) => item.coin.value === $SendTxDetails.fromCoin?.coin.value
-				)
-		);
+		const current = get(SendTxDetails);
+		const currentCoinHasBalance =
+			current.fromCoin &&
+			coinsWithBalance.some(
+				(item) => item.coin.value === current.fromCoin?.coin.value
+			);
 
 		if (currentCoinHasBalance) return;
 
@@ -174,12 +169,12 @@
 		const coinToSelect = hiveCoin || coinsWithBalance[0];
 
 		if (coinToSelect) {
-			SendTxDetails.update((s) => {
-				s.fromCoin = coinToSelect.coinOpt;
-				s.fromNetwork = Network.magi;
-				s.toCoin = coinToSelect.coinOpt;
-				s.toNetwork = Network.magi;
-				return s;
+			SendTxDetails.set({
+				...current,
+				fromCoin: coinToSelect.coinOpt,
+				fromNetwork: Network.magi,
+				toCoin: coinToSelect.coinOpt,
+				toNetwork: Network.magi
 			});
 		}
 	});

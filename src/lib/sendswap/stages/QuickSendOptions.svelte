@@ -47,11 +47,11 @@
 	// EDIT STAGE
 	let stageComplete = $derived(
 		!!$SendTxDetails.fromCoin &&
-		!!$SendTxDetails.fromNetwork &&
-		coinAmount.amount !== 0 &&
-		!toSelf &&
-		!!$SendTxDetails.toUsername &&
-		!!$SendTxDetails.toNetwork
+			!!$SendTxDetails.fromNetwork &&
+			coinAmount.amount !== 0 &&
+			!toSelf &&
+			!!$SendTxDetails.toUsername &&
+			!!$SendTxDetails.toNetwork
 	);
 	$effect(() => {
 		editStage(stageComplete);
@@ -164,9 +164,7 @@
 		const current = get(SendTxDetails);
 		const currentCoinHasBalance =
 			current.fromCoin &&
-			coinsWithBalance.some(
-				(item) => item.coin.value === current.fromCoin?.coin.value
-			);
+			coinsWithBalance.some((item) => item.coin.value === current.fromCoin?.coin.value);
 
 		if (currentCoinHasBalance) return;
 

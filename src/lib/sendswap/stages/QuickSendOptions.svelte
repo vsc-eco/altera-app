@@ -43,26 +43,31 @@
 	);
 	// AMOUNT SECTION
 	let coinAmount = $state(new CoinAmount(0, Coin.hive));
-	$effect.pre(() => {
-		const amtStr = coinAmount.toAmountString();
-		const current = get(SendTxDetails);
-		if (current.fromAmount !== amtStr || current.toAmount !== amtStr) {
-			current.fromAmount = amtStr;
-			current.toAmount = amtStr;
-			SendTxDetails.set(current);
-		}
-	});
 
 	// EDIT STAGE
+	let stageComplete = $derived(
+		!!$SendTxDetails.fromCoin &&
+		!!$SendTxDetails.fromNetwork &&
+		coinAmount.amount !== 0 &&
+		!toSelf &&
+		!!$SendTxDetails.toUsername &&
+		!!$SendTxDetails.toNetwork
+	);
 	$effect(() => {
-		editStage(
-			!!$SendTxDetails.fromCoin &&
-			!!$SendTxDetails.fromNetwork &&
-			coinAmount.amount !== 0 &&
-			!toSelf &&
-			!!$SendTxDetails.toUsername &&
-			!!$SendTxDetails.toNetwork
-		);
+		editStage(stageComplete);
+	});
+	// Sync amount to store whenever coinAmount changes (outside reactive graph)
+	$effect(() => {
+		const amtStr = coinAmount.toAmountString();
+		queueMicrotask(() => {
+			const current = get(SendTxDetails);
+			if (current.fromAmount !== amtStr || current.toAmount !== amtStr) {
+				current.fromAmount = amtStr;
+				current.toAmount = amtStr;
+				current.enteredAmount = amtStr;
+				SendTxDetails.set({ ...current });
+			}
+		});
 	});
 
 	const fromAssetObjs: AssetObject[] = $derived(

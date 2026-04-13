@@ -99,7 +99,7 @@
 			transform: none !important;
 			transition: box-shadow 0.15s ease, background 0.15s ease !important;
 		}
-		:global(button.invert) {
+		:global(button.invert:not(:disabled)) {
 			background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 40%, #5B54E0 100%) !important;
 			color: white !important;
 		}

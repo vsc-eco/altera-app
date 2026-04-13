@@ -143,22 +143,12 @@
 	}
 </script>
 
-<svelte:document
-	onscroll={(_e) => {
-		if (limitProp != null) return;
-		const me = document.documentElement;
-		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1 && !hitBottom && !loading) {
-			lastLength = currStoreLen;
-			fetchTxs(did, 'extend', (val) => (loading = val), 12);
-		}
-	}}
-/>
 <div
 	class={['scroll', { small: size === 'small' }]}
 	onscroll={(e) => {
 		if (limitProp != null) return;
 		const me = e.currentTarget;
-		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1 && !hitBottom && !loading) {
+		if (me.scrollHeight - me.scrollTop - me.clientHeight <= 1 && !hitBottom && !loading) {
 			lastLength = currStoreLen;
 			fetchTxs(did, 'extend', (val) => (loading = val), 12);
 		}
@@ -265,6 +255,7 @@
 		overflow: auto;
 		width: 100%;
 		flex-grow: 1;
+		min-height: 0;
 		position: relative;
 		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);

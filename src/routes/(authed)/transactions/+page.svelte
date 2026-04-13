@@ -46,7 +46,7 @@
 	.flex {
 		display: flex;
 		flex-direction: column;
-		height: calc(100vh - 4.5rem);
+		height: calc(100vh - 6.5rem);
 	}
 	.mock-table {
 		background: var(--dash-card-bg);

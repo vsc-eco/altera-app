@@ -101,6 +101,15 @@ type BalanceRecord {
   pending_hbd_unstaking: Int64
 }
 
+"""Status of a single chain oracle relayer."""
+type ChainOracleStatus {
+  """Latest block height, or null if unreachable."""
+  block_height: Uint64
+
+  """Chain symbol (e.g. BTC, LTC, DASH)."""
+  symbol: String!
+}
+
 """A smart contract deployed on the Magi network."""
 type Contract {
   """CID of the contract's WASM bytecode."""
@@ -433,6 +442,9 @@ input LedgerTxFilter {
 
 """Information about the local Magi node."""
 type LocalNodeInfo {
+  """Status of each registered chain oracle."""
+  chain_oracles: [ChainOracleStatus!]!
+
   """Current consensus epoch."""
   epoch: Uint64!
 

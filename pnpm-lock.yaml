@@ -24,8 +24,8 @@ importers:
   .:
     dependencies:
       '@aioha/aioha':
-        specifier: ^1.8.1
-        version: 1.8.1(webextension-polyfill@0.10.0)
+        specifier: ^1.8.2
+        version: 1.8.2(webextension-polyfill@0.10.0)
       '@aninest/extensions':
         specifier: ^2.1.3
         version: 2.1.3(aninest@5.0.4)
@@ -300,8 +300,8 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
-  '@aioha/aioha@1.8.1':
-    resolution: {integrity: sha512-zBDlpk8Far6P1i7eFPq1pokqiJ+XS0QzzXl3pojkDfKCu8029raPyU48juDwrDS5mCuHu3BHtO3OIjqdTSDrnQ==}
+  '@aioha/aioha@1.8.2':
+    resolution: {integrity: sha512-Q+WK7/u4oi7kMSrPLnJ6LMjTCVMv8dVAlB1/06s097mjPINmidBqDmLc5VgXnCfj/qQ0bWFE0eDOL3O7Vm7OCg==}
 
   '@aioha/ledger-app-hive@0.0.2':
     resolution: {integrity: sha512-+ZUe9Iyv00WA5TDfi7TsCHKl5b22prR06JAG9u/9m9jePbGB83dtUMS65e/q3oXiMX78M4/YaDI8DYdIJmnk1A==}
@@ -873,8 +873,8 @@ packages:
   '@hiveio/hive-js@2.0.9':
     resolution: {integrity: sha512-r01HCdHwcsSf4v6VQO6m92ciuGhKd5O19f3wcE7cfVOBbrjGgOJKDI5a3mhn9UNk3/d0dCKLNvcKVLCxwRTrGA==}
 
-  '@hiveio/wax@1.28.4-rc0':
-    resolution: {integrity: sha512-CjYfSa4abzkASNgZtA2D50+6T7rmsw/hZIUGDOec+Haz1yuk5gbCgBi91nHUtP2mXlzXuv6VGESlYpKsd+V+kw==}
+  '@hiveio/wax@2.0.2':
+    resolution: {integrity: sha512-56XtjET1thX2rphHM/QwtQbjHws5N059NzabiVA8W7xSZE9x1Dw0HxIYNU2ZzlD1PJ1ux3bQfUyhJtbW+VrCCw==}
     engines: {node: ^20.11 || >= 21.2}
 
   '@humanfs/core@0.19.1':
@@ -1056,9 +1056,11 @@ packages:
 
   '@metamask/sdk-analytics@0.0.5':
     resolution: {integrity: sha512-fDah+keS1RjSUlC8GmYXvx6Y26s3Ax1U9hGpWb6GSY5SAdmTSIqp2CvYy6yW0WgLhnYhW+6xERuD0eVqV63QIQ==}
+    deprecated: No longer maintained, superseded by @metamask/connect-analytics
 
   '@metamask/sdk-communication-layer@0.33.1':
     resolution: {integrity: sha512-0bI9hkysxcfbZ/lk0T2+aKVo1j0ynQVTuB3sJ5ssPWlz+Z3VwveCkP1O7EVu1tsVVCb0YV5WxK9zmURu2FIiaA==}
+    deprecated: No longer maintained, superseded by https://docs.metamask.io/metamask-connect
     peerDependencies:
       cross-fetch: ^4.0.0
       eciesjs: '*'
@@ -1068,9 +1070,11 @@ packages:
 
   '@metamask/sdk-install-modal-web@0.32.1':
     resolution: {integrity: sha512-MGmAo6qSjf1tuYXhCu2EZLftq+DSt5Z7fsIKr2P+lDgdTPWgLfZB1tJKzNcwKKOdf6q9Qmmxn7lJuI/gq5LrKw==}
+    deprecated: No longer maintained, superseded by https://docs.metamask.io/metamask-connect
 
   '@metamask/sdk@0.33.1':
     resolution: {integrity: sha512-1mcOQVGr9rSrVcbKPNVzbZ8eCl1K0FATsYH3WJ/MH4WcZDWGECWrXJPNMZoEAkLxWiMe8jOQBumg2pmcDa9zpQ==}
+    deprecated: No longer maintained, superseded by https://docs.metamask.io/metamask-connect
 
   '@metamask/superstruct@3.2.1':
     resolution: {integrity: sha512-fLgJnDOXFmuVlB38rUN5SmU7hAFQcCjrg3Vrxz67KTY7YHFnSNEKvX4avmEBdOI0yTCxZjwMCFEqsC8k2+Wd3g==}
@@ -5746,12 +5750,12 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
-  '@aioha/aioha@1.8.1(webextension-polyfill@0.10.0)':
+  '@aioha/aioha@1.8.2(webextension-polyfill@0.10.0)':
     dependencies:
       '@aioha/ledger-app-hive': 0.0.2
       '@aioha/tx-digest': 2.0.2
       '@hiveio/dhive': 1.3.2
-      '@hiveio/wax': 1.28.4-rc0
+      '@hiveio/wax': 2.0.2
       '@ledgerhq/hw-transport-webusb': 6.30.0
       '@metamask/providers': 22.1.1(webextension-polyfill@0.10.0)
       js-md5: 0.8.3
@@ -6513,7 +6517,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@hiveio/wax@1.28.4-rc0':
+  '@hiveio/wax@2.0.2':
     dependencies:
       events: 3.3.0
 
@@ -6612,7 +6616,7 @@ snapshots:
 
   '@ledgerhq/devices@8.4.7':
     dependencies:
-      '@ledgerhq/errors': 6.22.0
+      '@ledgerhq/errors': 6.29.0
       '@ledgerhq/logs': 6.14.0
       rxjs: 7.8.2
       semver: 7.7.3
@@ -6631,7 +6635,7 @@ snapshots:
   '@ledgerhq/hw-transport@6.31.7':
     dependencies:
       '@ledgerhq/devices': 8.4.7
-      '@ledgerhq/errors': 6.22.0
+      '@ledgerhq/errors': 6.29.0
       '@ledgerhq/logs': 6.14.0
       events: 3.3.0
 

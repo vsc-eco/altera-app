@@ -9,19 +9,49 @@
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
+	import Dialog from '$lib/zag/Dialog.svelte';
+	import TxStatus from '../components/shared/TxStatus.svelte';
 	import { getHiveAssetName, getHbdAssetName } from '../../../client';
 	import { numberFormatLanguage } from '$lib/constants';
 
 	const auth = $derived(getAuth()());
 	let {
+		editStage = () => {},
+		isActive = true,
 		status,
 		waiting = false,
-		abort = () => {}
+		abort = () => {},
+		next,
+		previous
 	}: {
+		editStage?: (complete: boolean) => void;
+		isActive?: boolean;
 		status: { message: string; isError: boolean };
 		waiting?: boolean;
 		abort?: () => void;
+		next?: () => void;
+		previous?: () => void;
 	} = $props();
+
+	// Mark the review stage as "complete" (user can proceed) as soon as it
+	// becomes the active stage. The user clicking the forward button is then
+	// what triggers the actual broadcast.
+	$effect(() => {
+		if (isActive) editStage(true);
+	});
+
+	// Drive the popup Dialog open/close from the stage's active state. Use
+	// a previous-value tracker so that if the user dismisses the dialog
+	// (Esc / X), we don't immediately reopen it on the next effect run.
+	let dialogOpen = $state(false);
+	let dialogToggle = $state<(o?: boolean) => void>(() => {});
+	let lastIsActive = false;
+	$effect(() => {
+		if (isActive !== lastIsActive) {
+			lastIsActive = isActive;
+			dialogToggle?.(isActive);
+		}
+	});
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? Coin.unk);
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? Coin.unk);
@@ -138,8 +168,11 @@
 	let today = moment().format('MMM D, YYYY');
 </script>
 
-<h2>Review</h2>
-
+<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
+	{#snippet title()}
+		Review Swap
+	{/snippet}
+	{#snippet content()}
 <div class="stacked-cards">
 	<div class="line-positioner">
 		<Card>
@@ -254,33 +287,23 @@
 	</Card>
 </div>
 
-{#if status.message}
-	<div class="status-wrapper">
-		<span class="sm-caption">Status</span>
-		<p class={{ status: !status.isError, error: status.isError }}>{status.message}</p>
-	</div>
-{/if}
-{#if waiting}
-	<div class="waiting-overlay">
-		<div class="waiting-card">
-			<WaveLoading size={32} />
-			<div class="info">
-				<p>Waiting for signature</p>
-				<span>
-					<PillButton onclick={() => abort()} theme="secondary" styleType="invert">
-						<X /> Cancel
-					</PillButton>
-				</span>
-				{#if auth.value?.provider === 'aioha'}
-					<p class="warning">
-						<b class="error">Warning:</b> Transaction may still occur if it is authorized later via your
-						hive wallet.
-					</p>
-				{/if}
-			</div>
-		</div>
-	</div>
-{/if}
+<TxStatus
+	{status}
+	{waiting}
+	abort={() => abort?.()}
+	showHiveWarning={auth.value?.provider === 'aioha'}
+/>
+
+<div class="popup-buttons">
+	<PillButton onclick={() => previous?.()} theme="secondary" styleType="outline" disabled={waiting}>
+		Back
+	</PillButton>
+	<PillButton onclick={() => next?.()} theme="accent" styleType="invert" disabled={waiting}>
+		{waiting ? 'Waiting…' : 'Swap'}
+	</PillButton>
+</div>
+	{/snippet}
+</Dialog>
 
 <style lang="scss">
 	.stacked-cards {
@@ -365,50 +388,6 @@
 	li:not(:last-child) {
 		border-bottom: 1px solid var(--dash-card-border);
 	}
-	.status-wrapper {
-		margin-top: 1rem;
-		display: flex;
-		flex-direction: column;
-		line-height: 1.2;
-	}
-	.waiting-overlay {
-		position: fixed;
-		width: 100vw;
-		height: 100vh;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50dvw, -50dvh);
-		display: flex;
-		justify-content: center;
-		background-color: rgba(0, 0, 0, 0.6);
-		backdrop-filter: blur(4px);
-		pointer-events: none;
-		z-index: 1;
-		.waiting-card {
-			margin-top: 25%;
-			font-weight: 500;
-			padding: 1.5rem;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			pointer-events: all;
-			background: var(--dash-card-bg);
-			border: 1px solid var(--dash-card-border);
-			border-radius: 16px;
-			box-shadow: var(--dash-card-shadow);
-			height: min-content;
-			.info {
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				gap: 0.5rem;
-				.warning {
-					max-width: 20rem;
-					text-align: center;
-				}
-			}
-		}
-	}
 	@media screen and (max-width: 450px) {
 		table,
 		tbody,
@@ -421,5 +400,14 @@
 		.dashed-line {
 			translate: calc(3px + 1rem) 0;
 		}
+	}
+
+	.popup-buttons {
+		display: flex;
+		gap: 0.75rem;
+		justify-content: flex-end;
+		padding-top: 1rem;
+		margin-top: 1rem;
+		border-top: 1px solid var(--dash-card-border);
 	}
 </style>

@@ -9,6 +9,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { ArrowDown, EqualApproximately } from '@lucide/svelte';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
+	import Dialog from '$lib/zag/Dialog.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
@@ -16,7 +17,34 @@
 
 	let timer = $state<PieTimer>();
 
-	let { txId, onClose = redirect }: { txId: string; onClose?: () => void } = $props();
+	let {
+		txId,
+		onClose = redirect,
+		popup = false,
+		isActive = false,
+		previous,
+		next
+	}: {
+		txId: string;
+		onClose?: () => void;
+		popup?: boolean;
+		isActive?: boolean;
+		previous?: () => void;
+		next?: () => void;
+	} = $props();
+
+	// Drive the popup Dialog open/close from this stage's active state. Use
+	// a previous-value tracker so dismissing doesn't immediately reopen.
+	let dialogOpen = $state(false);
+	let dialogToggle = $state<(o?: boolean) => void>(() => {});
+	let lastIsActive = false;
+	$effect(() => {
+		if (!popup) return;
+		if (isActive !== lastIsActive) {
+			lastIsActive = isActive;
+			dialogToggle?.(isActive);
+		}
+	});
 
 	const isSend = $derived($SendTxDetails.toUsername !== getUsernameFromAuth(getAuth()()));
 
@@ -60,9 +88,21 @@
 		timer?.stop();
 		timerCanceled = true;
 	}
+	// When the auto-close timer completes, close the popup dialog first
+	// (so the user sees it dismiss cleanly) and then run onClose, which by
+	// default navigates to /transactions.
+	function handleTimerComplete() {
+		if (popup) dialogToggle?.(false);
+		onClose();
+	}
 	$effect(() => {
-		if (txId && !timerStarted) {
-			timer?.start();
+		// Only mark started once the timer instance is actually bound.
+		// In popup mode the timer lives inside a Dialog content snippet that
+		// mounts after the effect first runs (when txId arrives), so without
+		// the `timer` guard we'd flip timerStarted true on a no-op start and
+		// never start the real timer when it later mounts.
+		if (txId && !timerStarted && timer) {
+			timer.start();
 			timerStarted = true;
 		}
 		if (timerStarted && !txId) {
@@ -73,8 +113,7 @@
 	});
 </script>
 
-<div class="wrapper">
-	<h2>Payment Complete</h2>
+{#snippet completeBody()}
 	<Card>
 		<div class="amount">
 			{#if isSend}
@@ -113,11 +152,30 @@
 	{#if !timerCanceled}
 		<div class="redirect">
 			<p>Closing…</p>
-			<PieTimer bind:this={timer} onComplete={() => onClose()} />
+			<PieTimer bind:this={timer} onComplete={handleTimerComplete} />
 			<PillButton onclick={cancelTimer}>Stay</PillButton>
 		</div>
 	{/if}
-</div>
+{/snippet}
+
+{#if popup}
+	<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
+		{#snippet title()}
+			Payment Complete
+		{/snippet}
+		{#snippet content()}
+			{@render completeBody()}
+			<div class="popup-buttons">
+				<PillButton onclick={() => onClose()} theme="accent" styleType="invert">Done</PillButton>
+			</div>
+		{/snippet}
+	</Dialog>
+{:else}
+	<div class="wrapper">
+		<h2>Payment Complete</h2>
+		{@render completeBody()}
+	</div>
+{/if}
 
 <style lang="scss">
 	h4 {
@@ -139,6 +197,14 @@
 		display: flex;
 		gap: 1rem;
 		align-items: center;
+	}
+	.popup-buttons {
+		display: flex;
+		gap: 0.75rem;
+		justify-content: flex-end;
+		padding-top: 1rem;
+		margin-top: 1rem;
+		border-top: 1px solid var(--dash-card-border);
 	}
 	.swap-header {
 		padding-bottom: 0.5rem;

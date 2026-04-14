@@ -10,7 +10,7 @@
 	import type { Contact } from '$lib/sendswap/contacts/contacts';
 	import swapOptions, { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
-	import { accountBalance } from '$lib/stores/currentBalance';
+	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
 	import Divider from '$lib/components/Divider.svelte';
 	import { get } from 'svelte/store';
@@ -148,10 +148,11 @@
 
 		const coinValue = $SendTxDetails.fromCoin.coin.value;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
-			const balance = $accountBalance.bal[coinValue as 'hive' | 'hbd'];
-			if (balance !== undefined) {
-				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
-			}
+			max = getBalanceAmount(
+				$accountBalance,
+				$SendTxDetails.fromCoin.coin,
+				$SendTxDetails.fromNetwork
+			);
 		}
 	});
 	// Validate Hive account for EVM users

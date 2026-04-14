@@ -5,7 +5,7 @@
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
-	import { accountBalance } from '$lib/stores/currentBalance';
+	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
 	import { ArrowRightLeft } from '@lucide/svelte';
 	import { untrack, type ComponentProps } from 'svelte';
@@ -47,14 +47,9 @@
 
 	const max = $derived.by(() => {
 		const coin = $SendTxDetails.fromCoin?.coin;
-		if (!coin) return;
-		if ($accountBalance.bal && coin.value in $accountBalance.bal) {
-			return new CoinAmount(
-				$accountBalance.bal[coin.value as keyof typeof $accountBalance.bal],
-				coin,
-				true
-			);
-		}
+		const network = $SendTxDetails.fromNetwork;
+		if (!coin || !network) return;
+		return getBalanceAmount($accountBalance, coin, network);
 	});
 
 	const amountNumber = $derived(parseFloat(amount));

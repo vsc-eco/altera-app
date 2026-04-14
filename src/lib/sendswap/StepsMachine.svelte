@@ -26,6 +26,10 @@
 	interface StepData<T extends TransferComponentTypes = TransferComponentTypes> {
 		value: string;
 		component: Component<T>;
+		/** When true, the previous stage stays visible (popup-style) and the
+		 *  bottom NavBar is hidden — the stage component is responsible for
+		 *  rendering its own confirm/cancel buttons inside its dialog/overlay. */
+		popup?: boolean;
 	}
 	export type MixedStepsArray = Array<StepData<any>>;
 	type Props = {
@@ -252,7 +256,23 @@
 	>
 		{#each stepsData as step, index}
 			{@const Component = step.component}
-			<div {...api.getContentProps({ index })} tabindex="-1">
+			{@const activeIsPopup = !!stepsData[api.value]?.popup}
+			{@const keepPrevVisible = (() => {
+				if (!activeIsPopup) return false;
+				if (index >= api.value) return false;
+				// Visible if every stage strictly between this and the active one
+				// is itself popup — i.e. there's an unbroken popup chain back.
+				for (let i = index + 1; i <= api.value; i++) {
+					if (!stepsData[i]?.popup) return false;
+				}
+				return true;
+			})()}
+			{@const isVisible = api.value === index || keepPrevVisible}
+			<div
+				{...api.getContentProps({ index })}
+				hidden={!isVisible}
+				tabindex="-1"
+			>
 				<Component
 					{editStage}
 					isActive={api.value === index}
@@ -260,6 +280,9 @@
 					{waiting}
 					abort={cancelTransaction}
 					{txId}
+					popup={!!step.popup}
+					next={api.value === index ? next : undefined}
+					previous={api.value === index ? previous : undefined}
 					{...extraProps}
 					{close}
 					bind:onHomePage
@@ -267,7 +290,7 @@
 				/>
 			</div>
 		{/each}
-		{#if onHomePage}
+		{#if onHomePage && !stepsData[api.value]?.popup}
 			<NavButtons {buttons} fixed={size === 'page'} />
 		{/if}
 	</div>

@@ -376,7 +376,8 @@ const swapOptions: {
 			{
 				coin: btc,
 				// networks: [lightning, btcMainnet]
-				networks: [lightning, magi, btcMainnet]
+				// networks: [lightning, magi, btcMainnet]
+				networks: [magi, btcMainnet]
 			}
 		]
 	},
@@ -392,7 +393,8 @@ const swapOptions: {
 			},
 			{
 				coin: btc,
-				networks: [lightning, btcMainnet, magi]
+				// networks: [lightning, btcMainnet, magi]
+				networks: [btcMainnet, magi]
 			}
 		]
 	}

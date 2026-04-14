@@ -41,10 +41,10 @@ export const getAccountNameFromDid = (did: string) => {
 
 export const getDidFromUsername = (username: string) => {
 	if (username.length <= 16) {
-		return `hive:${username}`
+		return `hive:${username}`;
 	}
 	if (username.length > 16 && username.startsWith('0x')) {
-		return `did:pkh:eip155:1:${username}`
+		return `did:pkh:eip155:1:${username}`;
 	}
-	return ``
-}
+	return ``;
+};

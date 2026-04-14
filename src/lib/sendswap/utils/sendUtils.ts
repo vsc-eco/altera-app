@@ -177,9 +177,12 @@ export function getRecipientNetworks(did: string): NetworkOptionParam[] {
 			{
 				...Network.hiveMainnet,
 				disabled: true,
-				disabledMemo: `Not available for ${did.startsWith('did:pkh:eip155:1:') ? 'EVM accounts' : "recipient's account type"}`
+				disabledMemo: `Not available for EVM accounts`
 			}
 		];
+	}
+	if (did.startsWith('btc:')) {
+		return [Network.btcMainnet];
 	}
 	return [];
 }
@@ -703,10 +706,10 @@ export async function send(
 		let sendOp: Operation;
 		let opType: string | undefined;
 
+		const tx = get(SendTxDetails);
 		if (isSwap) {
 			setStatus('Waiting for Hive wallet approval…');
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
-			const tx = get(SendTxDetails);
 			const fromAmountStr = tx.fromAmount && tx.fromAmount !== '0' ? tx.fromAmount : amount;
 			const minOut = tx.minAmountOut ? Number(tx.minAmountOut) : undefined;
 			sendOp = getHiveSwapOp(
@@ -729,8 +732,8 @@ export async function send(
 				auth.value.username!,
 				getDidFromUsername(toUsername),
 				new CoinAmount(amount, toCoin.coin),
-				details.btcDeductFee || undefined,
-				details.btcMaxFee
+				tx.btcDeductFee || undefined,
+				tx.btcMaxFee
 			);
 		} else {
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);

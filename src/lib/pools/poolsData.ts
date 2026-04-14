@@ -18,6 +18,14 @@ export interface PoolRow {
 	feeEarnedAssets: [string, string];
 	volumeUsd: string;
 	volumeAssets: [string, string];
+	// Raw chain-state values used by per-user computations (My Pools).
+	reserve0Raw: number;
+	reserve1Raw: number;
+	totalLpRaw: number;
+	decimals0: number;
+	decimals1: number;
+	usdPrice0: number;
+	usdPrice1: number;
 }
 
 // Pool contract IDs are discovered dynamically via fetchPoolRegistry()
@@ -221,14 +229,25 @@ function mapStateToPoolRow(
 	const priceInverse =
 		inverse != null ? `${inverse.toFixed(8)} ${pairSym0}/${pairSym1}` : '-';
 
-	// Liquidity from indexer (net adds - removes)
+	// Liquidity: prefer authoritative on-chain reserves (parsed above) over
+	// the indexer's adds-removes sum, which can drift if events are missing
+	// or out-of-order. Fall back to the indexer numbers if chain state is
+	// unavailable for any reason.
 	const { liquidity, volume, fees } = indexerData;
-	const liqAmt0 = liquidity.netAmount0 / 10 ** dec0;
-	const liqAmt1 = liquidity.netAmount1 / 10 ** dec1;
+	const idxAmt0 = liquidity.netAmount0 / 10 ** dec0;
+	const idxAmt1 = liquidity.netAmount1 / 10 ** dec1;
+	const liqAmt0 = reserve0 != null ? reserve0 : idxAmt0;
+	const liqAmt1 = reserve1 != null ? reserve1 : idxAmt1;
 	const totalLiquidityAssets: [string, string] = [
 		formatNum(liqAmt0, sym0, dec0),
 		formatNum(liqAmt1, sym1, dec1)
 	];
+
+	// Raw smallest-units values + total_lp from chain state for per-user math.
+	const reserve0Raw = (reserve0 ?? idxAmt0) * 10 ** dec0;
+	const reserve1Raw = (reserve1 ?? idxAmt1) * 10 ** dec1;
+	const totalLpRawParsed = Number(state['total_lp']);
+	const totalLpRaw = Number.isFinite(totalLpRawParsed) ? totalLpRawParsed : 0;
 
 	// Fees from indexer — all fee values are denominated in sym0 (dec0)
 	const feeTotal = fees.totalFee / 10 ** dec0;
@@ -265,7 +284,14 @@ function mapStateToPoolRow(
 		feeEarnedUsd: formatNum(feeEarnedUsdTotal, '$', 2),
 		feeEarnedAssets,
 		volumeUsd: formatNum(volumeUsdTotal, '$', 2),
-		volumeAssets
+		volumeAssets,
+		reserve0Raw,
+		reserve1Raw,
+		totalLpRaw,
+		decimals0: dec0,
+		decimals1: dec1,
+		usdPrice0: usd0,
+		usdPrice1: usd1
 	};
 }
 
@@ -359,6 +385,64 @@ export async function fetchUserLpPositions(did: string): Promise<UserLpPosition[
 		provider: row.provider,
 		lpBalance: Number(row.lp_balance) || 0
 	}));
+}
+
+/** Per-user view of a pool position: how much of each asset the user
+ *  effectively holds in the pool, plus their LP token balance and share. */
+export interface MyPoolRow {
+	id: string;
+	contractId: string;
+	pair: string;
+	pairSymbols: [string, string];
+	lpBalance: number;
+	totalLp: number;
+	sharePct: number; // 0..100
+	myAmounts: [string, string]; // formatted with units
+	myAmountsRaw: [number, number]; // unscaled display units
+	myLiquidityUsd: string;
+}
+
+/**
+ * Resolve the authed user's LP positions into per-pool rows showing THEIR
+ * liquidity (not global). Reads chain-state reserves and total_lp from the
+ * already-fetched `pools` array — same source of truth as the global Pools
+ * table — and only queries the indexer for the user's lp_balance.
+ */
+export async function fetchMyPoolPositions(
+	did: string,
+	pools: PoolRow[]
+): Promise<MyPoolRow[]> {
+	if (!did || pools.length === 0) return [];
+	const positions = await fetchUserLpPositions(did);
+	if (positions.length === 0) return [];
+
+	const poolByContract = new Map(pools.map((p) => [p.contractId, p]));
+
+	const out: MyPoolRow[] = [];
+	for (const pos of positions) {
+		const pool = poolByContract.get(pos.contractId);
+		if (!pool) continue; // user holds LP for a pool not currently in the loaded list
+		const share = pool.totalLpRaw > 0 ? pos.lpBalance / pool.totalLpRaw : 0;
+		const myAmt0 = (pool.reserve0Raw * share) / 10 ** pool.decimals0;
+		const myAmt1 = (pool.reserve1Raw * share) / 10 ** pool.decimals1;
+		const myUsd = myAmt0 * pool.usdPrice0 + myAmt1 * pool.usdPrice1;
+		out.push({
+			id: pos.contractId,
+			contractId: pos.contractId,
+			pair: pool.pair,
+			pairSymbols: pool.pairSymbols,
+			lpBalance: pos.lpBalance,
+			totalLp: pool.totalLpRaw,
+			sharePct: share * 100,
+			myAmounts: [
+				formatNum(myAmt0, pool.pairSymbols[0], pool.decimals0),
+				formatNum(myAmt1, pool.pairSymbols[1], pool.decimals1)
+			],
+			myAmountsRaw: [myAmt0, myAmt1],
+			myLiquidityUsd: formatNum(myUsd, '$', 2)
+		});
+	}
+	return out;
 }
 
 async function fetchSinglePool(

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown } from '@lucide/svelte';
-	import { fetchPools, fetchUserLpPositions, type TimeRange } from './poolsData';
-	import type { PoolRow } from './poolsData';
+	import { fetchPools, fetchMyPoolPositions, type TimeRange } from './poolsData';
+	import type { PoolRow, MyPoolRow } from './poolsData';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
@@ -30,7 +30,8 @@
 
 	const auth = $derived(getAuth()());
 	const did = $derived(auth.value?.did);
-	let myPoolIds = $state<Set<string>>(new Set());
+	let myPools = $state<MyPoolRow[]>([]);
+	let myPoolsLoading = $state(false);
 
 	$effect(() => {
 		const range = timeRange;
@@ -43,25 +44,29 @@
 
 	$effect(() => {
 		const currentDid = did;
-		if (!currentDid) {
-			myPoolIds = new Set();
+		const currentPools = pools;
+		if (!currentDid || currentPools.length === 0) {
+			myPools = [];
 			return;
 		}
 		let cancelled = false;
-		fetchUserLpPositions(currentDid)
-			.then((positions) => {
+		myPoolsLoading = true;
+		fetchMyPoolPositions(currentDid, currentPools)
+			.then((rows) => {
 				if (cancelled) return;
-				myPoolIds = new Set(positions.map((p) => p.contractId));
+				myPools = rows;
 			})
 			.catch((err) => {
-				console.error('Failed to fetch user LP positions', err);
+				console.error('Failed to fetch user pool positions', err);
+				if (!cancelled) myPools = [];
+			})
+			.finally(() => {
+				if (!cancelled) myPoolsLoading = false;
 			});
 		return () => {
 			cancelled = true;
 		};
 	});
-
-	const myPools = $derived(pools.filter((p) => myPoolIds.has(p.contractId)));
 
 	type SortColumn = 'liquidity' | 'fee' | 'volume';
 	let sortColumn = $state<SortColumn>('liquidity');
@@ -155,10 +160,17 @@
 		<button class="action-btn" onclick={() => (removeLiquidityOpen = true)}>Remove Liquidity</button>
 	</div>
 
-	{#if did && myPools.length > 0}
+	{#if did && (myPools.length > 0 || myPoolsLoading)}
 		<div class="my-pools-section">
-			<h3 class="section-title">My pools</h3>
-			{@render poolsTable(myPools)}
+			<h3 class="section-title">
+				My pools
+				{#if myPoolsLoading}<span class="muted">loading…</span>{/if}
+			</h3>
+			{#if myPools.length > 0}
+				{@render myPoolsTable(myPools)}
+			{:else if !myPoolsLoading}
+				<p class="placeholder-text">No active LP positions.</p>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -260,6 +272,63 @@
 								<span class="breakdown">{pool.volumeAssets[0]}</span>
 								<span class="breakdown">{pool.volumeAssets[1]}</span>
 							</div>
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+{/snippet}
+
+{#snippet myPoolsTable(rows: MyPoolRow[])}
+	<div class="table-wrapper">
+		<table class="pools-table">
+			<thead>
+				<tr>
+					<th class="col-pair">Pair</th>
+					<th class="col-share">My Share</th>
+					<th class="col-liquidity">My Liquidity</th>
+					<th class="col-lp">LP Tokens</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each rows as row (row.id)}
+					{@const fullPool = pools.find((p) => p.contractId === row.contractId)}
+					<tr
+						class="clickable"
+						onclick={() => {
+							if (fullPool) selectedPool = fullPool;
+						}}
+					>
+						<td class="col-pair">
+							<div class="pair-cell">
+								<span class="pair-icons" aria-hidden="true">
+									{#if getCoinIcon(row.pairSymbols[0])}
+										<img class="coin-icon icon-a" src={getCoinIcon(row.pairSymbols[0])} alt={row.pairSymbols[0]} />
+									{:else}
+										<span class="icon icon-a"></span>
+									{/if}
+									{#if getCoinIcon(row.pairSymbols[1])}
+										<img class="coin-icon icon-b" src={getCoinIcon(row.pairSymbols[1])} alt={row.pairSymbols[1]} />
+									{:else}
+										<span class="icon icon-b"></span>
+									{/if}
+								</span>
+								<span class="pair-label">{row.pair}</span>
+							</div>
+						</td>
+						<td class="col-share">
+							<span class="share-pct">{row.sharePct.toFixed(4)}%</span>
+						</td>
+						<td class="col-liquidity">
+							<div class="amount-cell">
+								<span class="total">{row.myLiquidityUsd}</span>
+								<span class="breakdown">{row.myAmounts[0]}</span>
+								<span class="breakdown">{row.myAmounts[1]}</span>
+							</div>
+						</td>
+						<td class="col-lp">
+							<span class="lp-amount">{row.lpBalance.toLocaleString()}</span>
 						</td>
 					</tr>
 				{/each}
@@ -516,5 +585,19 @@
 		font-size: 0.9rem;
 		font-weight: 700;
 		color: var(--dash-text-primary);
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+	}
+	.muted {
+		font-weight: 500;
+		font-size: 0.7rem;
+		color: var(--dash-text-muted);
+	}
+	.share-pct,
+	.lp-amount {
+		color: var(--dash-text-primary);
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
 	}
 </style>

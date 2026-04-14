@@ -101,38 +101,46 @@
 	let isSyncing = $state(false);
 	let lastKey0 = $state('');
 	let lastKey1 = $state('');
+	function keyOf(ca: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>): string {
+		return `${ca.coin.value}:${ca.amount}`;
+	}
 	async function syncFromSource(source: '0' | '1') {
 		if (!selectedPool || isBtcHbdPool) return;
 		if (isSyncing) return;
 		isSyncing = true;
 		try {
 			if (source === '0') {
-				if (amount0Ca.amount === 0) {
-					amount1Ca = new CoinAmount(0, coin1);
-				} else {
-					amount1Ca = (await amount0Ca.convertTo(
-						coin1,
-						Network.lightning
-					)) as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>;
-				}
+				const next =
+					amount0Ca.amount === 0
+						? new CoinAmount(0, coin1)
+						: ((await amount0Ca.convertTo(
+								coin1,
+								Network.lightning
+							)) as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>);
+				amount1Ca = next;
 			} else {
-				if (amount1Ca.amount === 0) {
-					amount0Ca = new CoinAmount(0, coin0);
-				} else {
-					amount0Ca = (await amount1Ca.convertTo(
-						coin0,
-						Network.lightning
-					)) as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>;
-				}
+				const next =
+					amount1Ca.amount === 0
+						? new CoinAmount(0, coin0)
+						: ((await amount1Ca.convertTo(
+								coin0,
+								Network.lightning
+							)) as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>);
+				amount0Ca = next;
 			}
+			// Pre-seed the keys to the post-sync values so the effect that
+			// fires next doesn't see the synced side as "user-edited" and
+			// bounce the conversion back, losing precision.
+			lastKey0 = keyOf(amount0Ca);
+			lastKey1 = keyOf(amount1Ca);
 		} finally {
 			isSyncing = false;
 		}
 	}
 	$effect(() => {
 		if (!selectedPool || isSyncing || isBtcHbdPool) return;
-		const key0 = `${amount0Ca.coin.value}:${amount0Ca.amount}`;
-		const key1 = `${amount1Ca.coin.value}:${amount1Ca.amount}`;
+		const key0 = keyOf(amount0Ca);
+		const key1 = keyOf(amount1Ca);
 		const changed0 = key0 !== lastKey0;
 		const changed1 = key1 !== lastKey1;
 		if (changed0 && !changed1) {

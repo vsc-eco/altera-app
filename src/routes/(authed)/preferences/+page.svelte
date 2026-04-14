@@ -8,7 +8,15 @@
 		keyHiveNetworkId
 	} from '$lib/magiTransactions/dhive';
 	import PillButton from '$lib/PillButton.svelte';
-	import { DEFAULT_GQL_URL, keyVscGql, keyVscNetworkId, keyTests, keyTbd } from '../../../client';
+	import {
+		DEFAULT_GQL_URL,
+		DEFAULT_MAGI_INDEXER_URL,
+		keyVscGql,
+		keyVscNetworkId,
+		keyMagiIndexer,
+		keyTests,
+		keyTbd
+	} from '../../../client';
 	import ToggleTheme from './ToggleTheme.svelte';
 
 	const DEFAULT_HIVE_API_URL = 'https://api.hive.blog';
@@ -17,6 +25,7 @@
 	const DEFAULT_HBD_ASSET_NAME = 'HBD';
 
 	let vscGqlUrlInput: HTMLInputElement = $state()!;
+	let magiIndexerInput: HTMLInputElement = $state()!;
 	let hiveApiUrlInput: HTMLInputElement = $state()!;
 	let hiveAllowBackupsCheckbox: HTMLInputElement = $state()!;
 	let vscNetworkIdInput: HTMLInputElement = $state()!;
@@ -35,6 +44,10 @@
 			// Use defaults when field is left empty (HIVE Custom Network ID stays empty if not set)
 			const vscUrlStr = vscGqlUrlInput.value.trim() || DEFAULT_GQL_URL;
 			const hiveUrlStr = hiveApiUrlInput.value.trim() || DEFAULT_HIVE_API_URL;
+			const magiIndexerStr = (magiIndexerInput.value.trim() || DEFAULT_MAGI_INDEXER_URL)
+				// strip a trailing /v1/graphql (or /v1/graphql/) if the user pasted the full URL
+				.replace(/\/+v1\/graphql\/?$/, '')
+				.replace(/\/+$/, '');
 			const vscUrl = URL.parse(vscUrlStr);
 			if (!vscUrl) {
 				console.error('Unexpected: API URL invalid');
@@ -45,9 +58,14 @@
 				console.error('Unexpected: HIVE API URL invalid');
 				return;
 			}
+			if (!URL.parse(magiIndexerStr)) {
+				console.error('Unexpected: Magi Indexer URL invalid');
+				return;
+			}
 			const allowBackups = hiveAllowBackupsCheckbox.checked;
 			localStorage.setItem(keyVscGql, vscUrl.origin);
 			localStorage.setItem(keyHiveApiList, hiveUrl.origin);
+			localStorage.setItem(keyMagiIndexer, magiIndexerStr);
 			localStorage.setItem(keyHiveApiAllowBackups, allowBackups.toString());
 			localStorage.setItem(
 				keyVscNetworkId,
@@ -63,7 +81,7 @@
 	>
 		<span class="label-tooltip">
 			<label for="keyVscApi">API URL</label>
-			<InfoTooltip>Edit this to direct queries to a custom VSC node.</InfoTooltip>
+			<InfoTooltip>Edit this to direct queries to a custom Magi node.</InfoTooltip>
 		</span>
 
 		<input
@@ -77,6 +95,29 @@
 			onclick={(e) => {
 				localStorage.setItem(keyVscGql, DEFAULT_GQL_URL);
 				vscGqlUrlInput.value = DEFAULT_GQL_URL;
+			}}
+			type="button">Reset</PillButton
+		>
+		<br />
+		<br />
+		<span class="label-tooltip">
+			<label for="magi-indexer-url">Magi Indexer</label>
+			<InfoTooltip>
+				Hasura GraphQL endpoint used to query indexed Magi data. Defaults to the okinoko/prod
+				indexer.
+			</InfoTooltip>
+		</span>
+		<input
+			id="magi-indexer-url"
+			bind:this={magiIndexerInput}
+			value={(browser && localStorage.getItem(keyMagiIndexer)) || DEFAULT_MAGI_INDEXER_URL}
+			type="url"
+		/>
+		<PillButton
+			styleType="outline"
+			onclick={() => {
+				localStorage.setItem(keyMagiIndexer, DEFAULT_MAGI_INDEXER_URL);
+				magiIndexerInput.value = DEFAULT_MAGI_INDEXER_URL;
 			}}
 			type="button">Reset</PillButton
 		>
@@ -127,7 +168,7 @@
 
 		{#if advancedOptions}
 			<span class="label-tooltip">
-				<label for="vsc-network-id">VSC Custom Network ID</label>
+				<label for="vsc-network-id">Magi Custom Network ID</label>
 				<InfoTooltip warning>
 					Enables posting transactions to an alternate network. Not recommended unless you
 					understand the implications.

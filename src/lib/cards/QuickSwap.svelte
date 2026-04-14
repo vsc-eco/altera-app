@@ -27,7 +27,7 @@
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 	import { untrack } from 'svelte';
-	import { ChevronDown, Search } from '@lucide/svelte';
+	import { ArrowDown, ChevronDown, Search } from '@lucide/svelte';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import {
 		fetchPoolDepths,
@@ -122,10 +122,42 @@
 		}
 	});
 
+	/**
+	 * Track the last value we auto-filled into toUsername from the
+	 * connected wallet. We only overwrite toUsername when its current
+	 * value matches what we last wrote — that way a user-typed value is
+	 * never clobbered, but a previously-auto-filled value gets cleared
+	 * once the target chain no longer matches the wallet's chain.
+	 */
+	let lastAutofilledReceiver = $state<string | null>(null);
+
 	$effect(() => {
-		if (auth.value && getUsernameFromAuth(auth)) {
-			$SendTxDetails.toUsername = getUsernameFromAuth(auth)!;
-		}
+		if (!auth.value) return;
+		const provider = auth.value.provider;
+		const toValue = $SendTxDetails.toCoin?.coin.value;
+
+		const walletMatchesTo =
+			(provider === 'aioha' && (toValue === Coin.hive.value || toValue === Coin.hbd.value)) ||
+			(provider === 'reown' && toValue === Coin.btc.value);
+
+		const walletReceiver = getUsernameFromAuth(auth) ?? auth.value.address ?? '';
+
+		// Reads of and writes to toUsername must stay untracked — otherwise
+		// writing re-fires the effect and we hit effect_update_depth_exceeded.
+		untrack(() => {
+			const current = $SendTxDetails.toUsername;
+			if (walletMatchesTo && walletReceiver) {
+				if (!current || current === lastAutofilledReceiver) {
+					if (current !== walletReceiver) {
+						$SendTxDetails.toUsername = walletReceiver;
+					}
+					lastAutofilledReceiver = walletReceiver;
+				}
+			} else if (current === lastAutofilledReceiver && current) {
+				$SendTxDetails.toUsername = '';
+				lastAutofilledReceiver = null;
+			}
+		});
 	});
 
 	let { assetOptions, networkOptions } = $state<ReturnType<typeof solveNetworkConstraints>>({
@@ -382,8 +414,19 @@
 		return fromAllowedValues.has(value);
 	}
 
+	/**
+	 * A token is a valid TO pick if it's not the same as the current
+	 * FROM selection. (Same-asset swaps are blocked by `sameCoinSelected`
+	 * anyway, but disabling it at pick time is clearer to the user.)
+	 */
+	function isToTokenAllowed(value: string): boolean {
+		const fromValue = $SendTxDetails.fromCoin?.coin.value;
+		return !fromValue || value !== fromValue;
+	}
+
 	function selectToken(token: AssetObject) {
 		if (currentlyOpen === 'from' && !isFromTokenAllowed(token.value)) return;
+		if (currentlyOpen === 'to' && !isToTokenAllowed(token.value)) return;
 		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
@@ -416,6 +459,7 @@
 			!!$SendTxDetails.toCoin &&
 			$SendTxDetails.fromCoin.coin.value === $SendTxDetails.toCoin.coin.value
 	);
+	const missingReceiver = $derived(!$SendTxDetails.toUsername?.trim());
 
 	function setError(msg: string) {
 		swapStatus = msg;
@@ -445,6 +489,10 @@
 		}
 		if (!$SendTxDetails.fromAmount || $SendTxDetails.fromAmount === '0') {
 			setError('Enter an amount');
+			return false;
+		}
+		if (missingReceiver) {
+			setError('Enter a receiver');
 			return false;
 		}
 
@@ -623,6 +671,7 @@
 	<div class="swap-field">
 		<div class="field-top">
 			<span class="field-label">From:</span>
+			<span class="network-tag">mainnet</span>
 			<button
 				type="button"
 				class="token-select"
@@ -653,10 +702,18 @@
 		</div>
 	</div>
 
+	<!-- Divider arrow -->
+	<div class="swap-arrow-wrap" aria-hidden="true">
+		<div class="swap-arrow-icon">
+			<ArrowDown size={14} />
+		</div>
+	</div>
+
 	<!-- To Field -->
 	<div class="swap-field to-field">
 		<div class="field-top">
 			<span class="field-label">To:</span>
+			<span class="network-tag">mainnet</span>
 			<button type="button" class="token-select" onclick={() => openDialog('to')}>
 				{#if $SendTxDetails.toCoin}
 					<img src={$SendTxDetails.toCoin.coin.icon} alt="" class="token-img" />
@@ -675,6 +732,22 @@
 				styleType="simple"
 				hideUnit
 				hideNetwork
+			/>
+		</div>
+	</div>
+
+	<!-- Receiver -->
+	<div class="receiver-field">
+		<label for="quickswap-receiver" class="field-label">Receiver *</label>
+		<div class="receiver-input-wrap" class:error={missingReceiver && hasAmount}>
+			<input
+				id="quickswap-receiver"
+				type="text"
+				required
+				bind:value={$SendTxDetails.toUsername}
+				placeholder="username or address"
+				autocomplete="off"
+				spellcheck="false"
 			/>
 		</div>
 	</div>
@@ -722,7 +795,7 @@
 	<!-- Exchange -->
 	<PillButton
 		onclick={requestSwap}
-		disabled={swapLoading || !hasAmount || sameCoinSelected}
+		disabled={swapLoading || !hasAmount || sameCoinSelected || missingReceiver}
 		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
@@ -751,13 +824,20 @@
 			</div>
 			<div class="token-chip-grid">
 				{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-					{@const disabled = currentlyOpen === 'from' && !isFromTokenAllowed(token.value)}
+					{@const disabled =
+						currentlyOpen === 'from'
+							? !isFromTokenAllowed(token.value)
+							: !isToTokenAllowed(token.value)}
+					{@const disabledReason =
+						currentlyOpen === 'from'
+							? 'Not supported by your connected wallet'
+							: 'Already selected as source'}
 					<button
 						class="token-chip"
 						class:disabled
 						{disabled}
 						onclick={() => selectToken(token)}
-						title={disabled ? 'Not supported by your connected wallet' : undefined}
+						title={disabled ? disabledReason : undefined}
 					>
 						<img src={token.icon} alt={token.label} class="chip-icon" />
 						<span>{coinDisplayLabel(token)}</span>
@@ -858,6 +938,70 @@
 		color: var(--dash-text-secondary);
 		font-size: 0.75rem;
 		font-weight: 600;
+	}
+	.network-tag {
+		margin-left: auto;
+		margin-right: 0.5rem;
+		padding: 0.2rem 0.55rem;
+		border-radius: 1rem;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: var(--dash-text-muted);
+		font-size: 0.65rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.swap-arrow-wrap {
+		display: flex;
+		justify-content: center;
+		margin: -0.35rem 0;
+		position: relative;
+		z-index: 1;
+		pointer-events: none;
+	}
+	.swap-arrow-icon {
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background: var(--dash-card-bg);
+		border: 1px solid rgba(111, 106, 248, 0.35);
+		color: var(--dash-text-secondary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.receiver-field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		margin-top: 0.75rem;
+	}
+	.receiver-input-wrap {
+		display: flex;
+		align-items: center;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 0.75rem;
+		padding: 0.55rem 0.75rem;
+	}
+	.receiver-input-wrap.error {
+		border-color: var(--dash-accent-red, #e2595b);
+	}
+	.receiver-input-wrap input {
+		flex: 1;
+		background: none;
+		border: none;
+		color: var(--dash-text-primary);
+		font: inherit;
+		font-size: 0.85rem;
+		min-width: 0;
+	}
+	.receiver-input-wrap input:focus {
+		outline: none;
+	}
+	.receiver-input-wrap input::placeholder {
+		color: var(--dash-text-muted);
 	}
 	.input-wrap {
 		min-height: 42.2px;

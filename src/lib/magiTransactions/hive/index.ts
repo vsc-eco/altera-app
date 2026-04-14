@@ -13,6 +13,7 @@ import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp, getBitcoinUnmapOp } from './vscOperations/bitcoin';
 import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
+import { getBtcApproveOp } from './vscOperations/swap';
 import type { PoolRow } from '$lib/pools/poolsData';
 
 export const consensusTx = async (
@@ -113,7 +114,7 @@ export const addLiquidityTx = async (
 	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
 	username: string,
 	aioha: Aioha,
-	selectedPool: PoolRow
+	_selectedPool: PoolRow
 ): Promise<OperationResult> => {
 	if (amount0.amount === 0 || amount1.amount === 0)
 		return {
@@ -122,8 +123,19 @@ export const addLiquidityTx = async (
 			errorCode: 0
 		};
 
-	const op = getAddLiquidityOp(username, amount0, amount1, selectedPool.contractId);
-	const res = await executeTx(aioha, [op]);
+	// The router pre-funds mapped BTC via the mapping contract's
+	// transferFrom — that requires the user to have an active approval
+	// to the router on the BTC mapping contract. Prepend the approve op
+	// when BTC is part of the pair (no-op if already approved at the
+	// chain level, but cheap to send).
+	const involvesBtc =
+		amount0.coin.value === Coin.btc.value || amount1.coin.value === Coin.btc.value;
+
+	const ops = [];
+	if (involvesBtc) ops.push(getBtcApproveOp(username));
+	ops.push(getAddLiquidityOp(username, amount0, amount1));
+
+	const res = await executeTx(aioha, ops);
 	return res;
 };
 
@@ -140,12 +152,7 @@ export const removeLiquidityTx = async (
 			errorCode: 0
 		};
 
-	const op = getRemoveLiquidityOp(
-		username,
-		lpAmount,
-		selectedPool.pairSymbols,
-		selectedPool.contractId
-	);
+	const op = getRemoveLiquidityOp(username, lpAmount, selectedPool.pairSymbols);
 	const res = await executeTx(aioha, [op]);
 	return res;
 };

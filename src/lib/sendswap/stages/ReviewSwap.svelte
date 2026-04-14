@@ -15,12 +15,6 @@
 	import { numberFormatLanguage } from '$lib/constants';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 
-	function shortenAddress(value: string): string {
-		if (!value) return '';
-		if (value.length <= 20) return value;
-		return `${value.slice(0, 10)}…${value.slice(-6)}`;
-	}
-
 	const auth = $derived(getAuth()());
 	let {
 		editStage = () => {},
@@ -206,19 +200,11 @@
 								<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork} size={32} />
 							</td>
 							<td class="sm-caption label"
-								>From {fromCoinDisplayLabel} on {$SendTxDetails.fromNetwork?.label}</td
+								>From {fromCoinDisplayLabel} on {$SendTxDetails.fromNetwork
+									?.label}{senderAddress ? ` (${senderAddress})` : ''}</td
 							>
 							<td class="content">{prettyWithDisplayUnit(total)}</td>
 						</tr>
-						{#if senderAddress}
-							<tr>
-								<td class="icon"><Dot size="32" /></td>
-								<td class="sm-caption label">Sender</td>
-								<td class="content address" title={senderAddress}>
-									{shortenAddress(senderAddress)}
-								</td>
-							</tr>
-						{/if}
 					{/if}
 					<tr>
 						<td class="icon"><Dot size="32" /></td>
@@ -272,21 +258,13 @@
 								<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork} size={32} />
 							</td>
 							<td class="sm-caption label"
-								>To {toCoinDisplayLabel} on {$SendTxDetails.toNetwork?.label}</td
+								>To {toCoinDisplayLabel} on {$SendTxDetails.toNetwork
+									?.label}{receiverAddress ? ` (${receiverAddress})` : ''}</td
 							>
 							<td class="content">
 								{prettyWithDisplayUnit(convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin))}
 							</td>
 						</tr>
-						{#if receiverAddress}
-							<tr>
-								<td class="icon"><Dot size="32" /></td>
-								<td class="sm-caption label">Receiver</td>
-								<td class="content address" title={receiverAddress}>
-									{shortenAddress(receiverAddress)}
-								</td>
-							</tr>
-						{/if}
 					{/if}
 				</tbody>
 			</table>
@@ -403,12 +381,6 @@
 		grid-area: area-content;
 		:global(.lucide-equal-approximately) {
 			min-width: 16px;
-		}
-		&.address {
-			font-family: 'Noto Sans Mono Variable', monospace;
-			font-size: 0.8rem;
-			color: var(--dash-text-secondary);
-			word-break: break-all;
 		}
 	}
 	.fee-loading {

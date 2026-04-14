@@ -344,7 +344,7 @@
 {/snippet}
 
 <AddLiquidityPopup bind:open={addLiquidityOpen} {pools} />
-<RemoveLiquidityPopup bind:open={removeLiquidityOpen} pools={myPoolsAsRows} />
+<RemoveLiquidityPopup bind:open={removeLiquidityOpen} pools={myPoolsAsRows} {myPools} />
 
 <Dialog bind:open={createPoolOpen} bind:toggle={createPoolToggle}>
 	{#snippet title()}

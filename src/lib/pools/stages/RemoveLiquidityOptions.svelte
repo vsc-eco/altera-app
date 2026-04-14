@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Select from '$lib/zag/Select.svelte';
-	import type { PoolRow } from '$lib/pools/poolsData';
+	import type { PoolRow, MyPoolRow } from '$lib/pools/poolsData';
 	import { removeLiquidityDraftStore } from '$lib/pools/removeLiquidityStore';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 
@@ -12,14 +12,27 @@
 		return undefined;
 	}
 
-	let { editStage, pools = [] }: { editStage: (complete: boolean) => void; pools: PoolRow[] } = $props();
+	let {
+		editStage,
+		pools = [],
+		myPools = []
+	}: {
+		editStage: (complete: boolean) => void;
+		pools: PoolRow[];
+		myPools?: MyPoolRow[];
+	} = $props();
 
 	let selectedPool = $state<PoolRow | null>(null);
 	let lpAmount = $state('');
 
-	const poolOptions = $derived(
-		pools.map((p) => ({ value: p.id, label: p.pair }))
-	);
+	const poolOptions = $derived(pools.map((p) => ({ value: p.id, label: p.pair })));
+
+	const selectedMyPool = $derived.by(() => {
+		if (!selectedPool) return null;
+		const poolId = selectedPool.contractId;
+		return myPools.find((mp) => mp.contractId === poolId) ?? null;
+	});
+	const userLpBalance = $derived(selectedMyPool?.lpBalance ?? 0);
 
 	function onPoolChange(details: { value: string[] }) {
 		const id = details.value[0];
@@ -32,8 +45,15 @@
 		lpAmount = value.replace(/[^\d]/g, '');
 	}
 
+	function setMax() {
+		if (userLpBalance > 0) lpAmount = String(userLpBalance);
+	}
+
 	const parsedLpAmount = $derived(lpAmount ? Number(lpAmount) : 0);
-	const hasError = $derived(!Number.isInteger(parsedLpAmount) || parsedLpAmount <= 0);
+	const exceedsBalance = $derived(userLpBalance > 0 && parsedLpAmount > userLpBalance);
+	const hasError = $derived(
+		!Number.isInteger(parsedLpAmount) || parsedLpAmount <= 0 || exceedsBalance
+	);
 
 	$effect(() => {
 		removeLiquidityDraftStore.set({
@@ -70,7 +90,18 @@
 						inputmode="numeric"
 						aria-label="LP amount to remove"
 					/>
+					<button
+						type="button"
+						class="max-btn"
+						onclick={setMax}
+						disabled={userLpBalance <= 0}
+					>
+						max
+					</button>
 				</div>
+				<span class="balance-subtitle">
+					Balance: {userLpBalance.toLocaleString()} LP
+				</span>
 			</div>
 
 			<div class="position-info">
@@ -107,7 +138,9 @@
 				<p>1 {selectedPool.pairSymbols[0]} = {selectedPool.priceRatio}</p>
 				<p>1 {selectedPool.pairSymbols[1]} = {selectedPool.priceInverse}</p>
 			</div>
-			{#if hasError}
+			{#if exceedsBalance}
+				<p class="error-text">Amount exceeds your LP balance ({userLpBalance.toLocaleString()}).</p>
+			{:else if hasError}
 				<p class="error-text">Enter a valid positive integer LP amount.</p>
 			{/if}
 		</div>
@@ -190,6 +223,32 @@
 	}
 	.input-wrap input:focus {
 		outline: none;
+	}
+	.max-btn {
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		color: var(--dash-text-primary);
+		border-radius: 10px;
+		padding: 0.35rem 0.65rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		cursor: pointer;
+		font-family: 'Nunito Sans', sans-serif;
+	}
+	.max-btn:hover:not(:disabled) {
+		background: var(--dash-surface-alt);
+	}
+	.max-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+	.balance-subtitle {
+		font-size: 0.75rem;
+		color: var(--dash-text-muted);
+		font-family: 'Nunito Sans', sans-serif;
+		margin-top: 0.25rem;
 	}
 	.position-info {
 		display: flex;

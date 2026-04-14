@@ -10,9 +10,16 @@
 		Coin,
 		Network,
 		TransferMethod,
-		type CoinOnNetwork,
-		type CoinOptions
+		type CoinOnNetwork
 	} from '$lib/sendswap/utils/sendOptions';
+	import {
+		SWAP_QUICK_PREF_KEY,
+		loadSwapSelection,
+		saveSwapSelection,
+		findFromOpt,
+		findToOpt,
+		findNetwork
+	} from '$lib/sendswap/utils/swapPersistence';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
@@ -40,13 +47,20 @@
 	const auth = $derived(getAuth()());
 
 	function startDetails() {
+		const stored = loadSwapSelection(SWAP_QUICK_PREF_KEY);
 		const btcFromOption = swapOptions.from.coins.find((c) => c.coin.value === Coin.btc.value);
+		const fromOpt = findFromOpt(stored?.fromCoin) ?? btcFromOption;
+		const toOpt = findToOpt(stored?.toCoin);
+		const fromNet =
+			findNetwork(stored?.fromNetwork) ?? (btcFromOption ? Network.lightning : undefined);
+		const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
 		return {
 			...blankDetails(),
-			toNetwork: Network.magi,
+			toNetwork: toNet,
 			method: TransferMethod.lightningTransfer,
-			fromCoin: btcFromOption ?? undefined,
-			fromNetwork: btcFromOption ? Network.lightning : undefined
+			fromCoin: fromOpt ?? undefined,
+			fromNetwork: fromNet,
+			toCoin: toOpt
 		};
 	}
 
@@ -57,7 +71,8 @@
 		SendTxDetails.set(startDetails());
 	});
 
-	// Ensure From is always BTC when not set (use swapOptions directly so it applies immediately)
+	// Ensure From is always set when not present — fall back to BTC if the
+	// persisted selection didn't restore one.
 	$effect(() => {
 		if (!auth.value) return;
 		if ($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork) return;
@@ -65,6 +80,19 @@
 		if (btcOption) {
 			$SendTxDetails.fromCoin = btcOption;
 			$SendTxDetails.fromNetwork = Network.lightning;
+		}
+	});
+
+	// Persist the user's QuickSwap source/target selection (own key — does
+	// not share state with the /swap page persistence).
+	$effect(() => {
+		if (!swapDetailsInitialized) return;
+		const fromCoin = $SendTxDetails.fromCoin?.coin.value;
+		const fromNetwork = $SendTxDetails.fromNetwork?.value;
+		const toCoin = $SendTxDetails.toCoin?.coin.value;
+		const toNetwork = $SendTxDetails.toNetwork?.value;
+		if (fromCoin && toCoin) {
+			saveSwapSelection(SWAP_QUICK_PREF_KEY, { fromCoin, fromNetwork, toCoin, toNetwork });
 		}
 	});
 
@@ -247,23 +275,17 @@
 	let dialogOpen = $state(false);
 	let toggle = $state<(open?: boolean) => void>(() => {});
 	let currentlyOpen: 'from' | 'to' = $state('from');
-	let dialogStep: 'tokens' | 'source' = $state('tokens');
-	let tempCoinOpt: CoinOptions['coins'][number] | undefined = $state();
 	let tokenSearch = $state('');
 
 	function openDialog(state: 'from' | 'to') {
 		currentlyOpen = state;
-		dialogStep = 'tokens';
 		tokenSearch = '';
-		tempCoinOpt = undefined;
 		toggle(true);
 	}
 
 	function closeDialog() {
 		toggle(false);
-		dialogStep = 'tokens';
 		tokenSearch = '';
-		tempCoinOpt = undefined;
 	}
 
 	function getFilteredTokens(tokens: AssetObject[]): AssetObject[] {
@@ -303,18 +325,15 @@
 		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
-		tempCoinOpt = coinOpt;
 
+		// QuickSwap doesn't expose Magi-mapped sub-network selection — the
+		// click on the token IS the selection. Both sides default to
+		// Network.magi (the swap router channel).
 		if (currentlyOpen === 'from') {
-			dialogStep = 'source';
+			SendTxDetails.update((d) => ({ ...d, fromCoin: coinOpt, fromNetwork: Network.magi }));
 		} else {
 			SendTxDetails.update((d) => ({ ...d, toCoin: coinOpt, toNetwork: Network.magi }));
-			closeDialog();
 		}
-	}
-
-	function confirmFromSelection(coinOpt: CoinOptions['coins'][number], network: typeof Network[keyof typeof Network]) {
-		SendTxDetails.update((d) => ({ ...d, fromCoin: coinOpt, fromNetwork: network }));
 		closeDialog();
 	}
 
@@ -600,58 +619,23 @@
 	{/if}
 </div>
 
-<Dialog bind:open={dialogOpen} bind:toggle back={dialogStep === 'source' ? () => { dialogStep = 'tokens'; tempCoinOpt = undefined; } : undefined}>
+<Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet title()}Select a token{/snippet}
 	{#snippet content()}
-		{#if dialogStep === 'tokens'}
-			<div class="dialog-content">
-				<div class="token-search-wrapper">
-					<Search size={16} />
-					<input bind:value={tokenSearch} placeholder="Search tokens..." />
-				</div>
-				<div class="token-chip-grid">
-					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						<button class="token-chip" onclick={() => selectToken(token)}>
-							<img src={token.icon} alt={token.label} class="chip-icon" />
-							<span>{coinDisplayLabel(token)}</span>
-						</button>
-					{/each}
-				</div>
-				<span class="dialog-section-label">ALL ASSETS</span>
-				<p class="dialog-hint">select a token to see your available balances</p>
+		<div class="dialog-content">
+			<div class="token-search-wrapper">
+				<Search size={16} />
+				<input bind:value={tokenSearch} placeholder="Search tokens..." />
 			</div>
-		{:else if dialogStep === 'source' && tempCoinOpt}
-			<div class="dialog-content">
-				<div class="token-chip-grid">
-					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						<button
-							class={['token-chip', { active: token.value === tempCoinOpt.coin.value }]}
-							onclick={() => selectToken(token)}
-						>
-							<img src={token.icon} alt={token.label} class="chip-icon" />
-							<span>{coinDisplayLabel(token)}</span>
-						</button>
-					{/each}
-				</div>
-				<span class="dialog-section-label">ALL ASSETS</span>
-				<div class="network-cards">
-					{#each tempCoinOpt.networks.filter(n => n.value !== Network.lightning.value) as net (net.value)}
-						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt!, net)}>
-							<img src={tempCoinOpt.coin.icon} alt="" class="network-card-icon" />
-							<div class="network-card-info">
-								<span class="network-card-name">{net.value === Network.magi.value ? 'Magi Network' : 'Mainnet'}</span>
-							</div>
-							<div class="network-card-balance">
-								<span class="balance-amount"
-									>{getNetworkBalance(tempCoinOpt.coin.value, net.value)}</span
-								>
-								<span class="balance-label sm-caption">available</span>
-							</div>
-						</button>
-					{/each}
-				</div>
+			<div class="token-chip-grid">
+				{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
+					<button class="token-chip" onclick={() => selectToken(token)}>
+						<img src={token.icon} alt={token.label} class="chip-icon" />
+						<span>{coinDisplayLabel(token)}</span>
+					</button>
+				{/each}
 			</div>
-		{/if}
+		</div>
 	{/snippet}
 </Dialog>
 

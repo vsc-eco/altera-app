@@ -6,7 +6,7 @@ import type {
 } from '../eth/client';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-import { MAPPINGCONTRACTID } from '$lib/stores/currentBalance';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/stores/currentBalance';
 import type { TransferInput, UnmapInput } from '../bitcoin/bitcoinContractCalls';
 import { getHiveAssetName, getHbdAssetName } from '../../../client';
 
@@ -27,7 +27,7 @@ export function getEVMOpType(
 			const tx: CallContractTransaction = {
 				op: 'call',
 				payload: {
-					contract_id: MAPPINGCONTRACTID,
+					contract_id: BTC_MAPPING_CONTRACT_ID,
 					action: 'transfer',
 					payload: JSON.stringify(payload),
 					rc_limit: 10000,
@@ -46,7 +46,7 @@ export function getEVMOpType(
 			const tx: CallContractTransaction = {
 				op: 'call',
 				payload: {
-					contract_id: MAPPINGCONTRACTID,
+					contract_id: BTC_MAPPING_CONTRACT_ID,
 					action: 'unmap',
 					payload: JSON.stringify(payload),
 					rc_limit: 10000,

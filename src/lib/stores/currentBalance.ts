@@ -5,13 +5,62 @@ import { DHive } from '$lib/magiTransactions/dhive';
 import { getAuth, type Auth } from '$lib/auth/store';
 import { getUsernameFromAuth } from '$lib/getAccountName';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import { Coin } from '$lib/sendswap/utils/sendOptions';
+import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
+import { isVscTestnet } from '../../client';
+
+type AccountBalanceSnapshot = {
+	bal: AccountBalance;
+	connectedBal: HiveMainnetBalance | undefined;
+};
+
+/**
+ * Resolve a raw balance (in smallest units) for a given coin on a given network
+ * from the current balance snapshot. Returns 0 if no balance is tracked for the
+ * combination.
+ *
+ * - Magi network reads from `bal` (on-chain VSC balances)
+ * - Hive Mainnet reads from `connectedBal` (L1 Hive account balances)
+ * - BTC is only tracked on Magi (mapping contract)
+ * - All other network/coin combos fall back to 0
+ */
+export function getBalanceSmallestUnits(
+	snapshot: AccountBalanceSnapshot | undefined | null,
+	coin: (typeof Coin)[keyof typeof Coin],
+	network: (typeof Network)[keyof typeof Network]
+): number {
+	if (!snapshot) return 0;
+	if (network.value === Network.hiveMainnet.value) {
+		const val = snapshot.connectedBal?.[coin.value as keyof HiveMainnetBalance];
+		return typeof val === 'number' ? val : 0;
+	}
+	const val = snapshot.bal?.[coin.value as keyof AccountBalance];
+	return typeof val === 'number' ? val : 0;
+}
+
+/**
+ * Returns a `CoinAmount` for the given coin/network balance, ready for display
+ * or arithmetic. Values >= 0, zero when no balance is available.
+ */
+export function getBalanceAmount<C extends (typeof Coin)[keyof typeof Coin]>(
+	snapshot: AccountBalanceSnapshot | undefined | null,
+	coin: C,
+	network: (typeof Network)[keyof typeof Network]
+): CoinAmount<C> {
+	const raw = getBalanceSmallestUnits(snapshot, coin, network);
+	return new CoinAmount(raw, coin, true);
+}
+
+// BTC mapping contract — single source of truth for every map/unmap/approve/
+// balance-lookup call across the app. Network-switched via isVscTestnet().
+export const BTC_MAPPING_CONTRACT_ID = isVscTestnet()
+	? 'vsc1BkWohDf5fPcwn7V9B9ar6TyiWc3A2ZGJ4t'
+	: 'vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d';
 
 async function fetchBtcBalance(did: string): Promise<number> {
 	try {
 		const result = await new GetStateByKeysStore().fetch({
 			variables: {
-				contractId: MAPPINGCONTRACTID,
+				contractId: BTC_MAPPING_CONTRACT_ID,
 				keys: [`a-${did}`],
 				encoding: 'hex'
 			},
@@ -87,9 +136,6 @@ export function startAccountPolling(auth: Auth) {
 		fetchAccountData(auth);
 	}, 5000);
 }
-
-// BTC mapping contract (used by bitcoin.ts for transfer/unmap operations)
-export const MAPPINGCONTRACTID = 'vsc1BcS12fD42kKqL2SMLeBzaEKtd9QbBWC1dt';
 
 async function fetchAccountData(auth: Auth) {
 	try {

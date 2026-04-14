@@ -4,6 +4,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import type { PoolRow } from './poolsData';
+	import { getMagiIndexerUrl } from '../../client';
 	import moment from 'moment';
 
 	let {
@@ -14,7 +15,6 @@
 		onback: () => void;
 	} = $props();
 
-	const HASURA_URL = 'https://magidev.okinoko.io/hasura/v1/graphql';
 	const poolId = pool.contractId;
 	const sym0 = pool.pairSymbols[0];
 	const sym1 = pool.pairSymbols[1];
@@ -58,7 +58,7 @@
 	let loadingRemoves = $state(true);
 
 	async function hasuraFetch<T>(query: string, variables: Record<string, unknown>): Promise<T> {
-		const res = await fetch(HASURA_URL, {
+		const res = await fetch(getMagiIndexerUrl(), {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ query, variables })

@@ -2,7 +2,7 @@ import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { json } from '@sveltejs/kit';
-import { MAPPINGCONTRACTID } from '$lib/stores/currentBalance';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/stores/currentBalance';
 import type { TransferInput, UnmapInput } from '$lib/magiTransactions/bitcoin/bitcoinContractCalls';
 /**
  *
@@ -33,7 +33,7 @@ export function getBitcoinTransferOp(
 
 	const jsonOutput: callContractOp = {
 		action: 'transfer',
-		contract_id: MAPPINGCONTRACTID,
+		contract_id: BTC_MAPPING_CONTRACT_ID,
 		payload: JSON.stringify(payload),
 		rc_limit: 10000,
 		intents: [],
@@ -67,7 +67,7 @@ export function getBitcoinUnmapOp(
 
 	const jsonOutput: callContractOp = {
 		action: 'unmap',
-		contract_id: MAPPINGCONTRACTID,
+		contract_id: BTC_MAPPING_CONTRACT_ID,
 		payload: JSON.stringify(payload),
 		rc_limit: 10000,
 		intents: [],

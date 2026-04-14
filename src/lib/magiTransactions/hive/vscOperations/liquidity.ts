@@ -1,11 +1,7 @@
 import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import { vscNetworkId } from '../../../../client';
-import { HIVE_HBD_POOL_CONTRACT_ID } from '$lib/pools/poolsData';
-
-// Contract for the BTC/HBD pool router (handles deposit/withdraw with asset routing)
-const BTC_HBD_ROUTER_CONTRACT = 'vsc1BoZJMQqpmdLxUfyRt5Tz82YM7Z57r7Dos7';
+import { vscNetworkId, DEX_ROUTER_CONTRACT_ID } from '../../../../client';
 
 type LiquidityCoin = typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc;
 
@@ -37,7 +33,8 @@ function isBtcPair(
 export function getAddLiquidityOp(
 	username: string,
 	amount0: CoinAmount<LiquidityCoin>,
-	amount1: CoinAmount<LiquidityCoin>
+	amount1: CoinAmount<LiquidityCoin>,
+	poolContractId: string
 ): CustomJsonOperation {
 	const caller = `hive:${username}`;
 
@@ -64,7 +61,7 @@ export function getAddLiquidityOp(
 		const op = {
 			net_id: vscNetworkId,
 			caller,
-			contract_id: BTC_HBD_ROUTER_CONTRACT,
+			contract_id: DEX_ROUTER_CONTRACT_ID,
 			action: 'execute',
 			payload: payloadStr,
 			rc_limit: 1000,
@@ -101,7 +98,7 @@ export function getAddLiquidityOp(
 	const op = {
 		net_id: vscNetworkId,
 		caller,
-		contract_id: HIVE_HBD_POOL_CONTRACT_ID,
+		contract_id: poolContractId,
 		action: 'execute',
 		payload,
 		rc_limit: 5000,
@@ -149,7 +146,8 @@ export function getAddLiquidityOp(
 export function getRemoveLiquidityOp(
 	username: string,
 	lpAmount: number,
-	pairSymbols: [string, string]
+	pairSymbols: [string, string],
+	poolContractId: string
 ): CustomJsonOperation {
 	const caller = `hive:${username}`;
 
@@ -167,7 +165,7 @@ export function getRemoveLiquidityOp(
 		const op = {
 			net_id: vscNetworkId,
 			caller,
-			contract_id: BTC_HBD_ROUTER_CONTRACT,
+			contract_id: DEX_ROUTER_CONTRACT_ID,
 			action: 'execute',
 			payload: payloadStr,
 			rc_limit: 1000,
@@ -195,7 +193,7 @@ export function getRemoveLiquidityOp(
 	const op = {
 		net_id: vscNetworkId,
 		caller,
-		contract_id: HIVE_HBD_POOL_CONTRACT_ID,
+		contract_id: poolContractId,
 		action: 'execute',
 		payload,
 		rc_limit: 5000,

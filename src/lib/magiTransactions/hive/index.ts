@@ -112,7 +112,8 @@ export const addLiquidityTx = async (
 	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
 	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
 	username: string,
-	aioha: Aioha
+	aioha: Aioha,
+	selectedPool: PoolRow
 ): Promise<OperationResult> => {
 	if (amount0.amount === 0 || amount1.amount === 0)
 		return {
@@ -121,7 +122,7 @@ export const addLiquidityTx = async (
 			errorCode: 0
 		};
 
-	const op = getAddLiquidityOp(username, amount0, amount1);
+	const op = getAddLiquidityOp(username, amount0, amount1, selectedPool.contractId);
 	const res = await executeTx(aioha, [op]);
 	return res;
 };
@@ -139,7 +140,12 @@ export const removeLiquidityTx = async (
 			errorCode: 0
 		};
 
-	const op = getRemoveLiquidityOp(username, lpAmount, selectedPool.pairSymbols);
+	const op = getRemoveLiquidityOp(
+		username,
+		lpAmount,
+		selectedPool.pairSymbols,
+		selectedPool.contractId
+	);
 	const res = await executeTx(aioha, [op]);
 	return res;
 };

@@ -52,7 +52,8 @@
 			draft.amount0Ca,
 			draft.amount1Ca,
 			auth.value.username,
-			auth.value.aioha
+			auth.value.aioha,
+			draft.selectedPool
 		);
 		if (!res.success) {
 			setStatus(res.error ?? 'Transaction failed', true);

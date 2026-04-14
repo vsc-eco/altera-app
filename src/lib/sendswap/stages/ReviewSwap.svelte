@@ -64,6 +64,19 @@
 			? $SendTxDetails.fromAmount
 			: $SendTxDetails.enteredAmount
 	);
+	// For swaps where the pool takes a base + CLP fee out of the input,
+	// surface the *net* amount that actually enters the pool. The input
+	// here is tricky: `effectiveFromAmount` is a decimal string ("0.0001")
+	// while `swapTotalFee` is already in smallest units from calculateSwap
+	// ("388"). We have to normalise to smallest units before subtracting
+	// or the display collapses to zero.
+	let netSwapFromAmountCa = $derived.by(() => {
+		const gross = new CoinAmount(effectiveFromAmount, fromCoin);
+		const feeSmallest = $SendTxDetails.swapTotalFee ? Number($SendTxDetails.swapTotalFee) : 0;
+		if (!Number.isFinite(feeSmallest) || feeSmallest <= 0) return gross;
+		const netSmallest = Math.max(0, gross.amount - feeSmallest);
+		return new CoinAmount(netSmallest, fromCoin, true);
+	});
 	let effectiveToAmount = $derived(
 		$SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'
 			? $SendTxDetails.toAmount
@@ -71,8 +84,19 @@
 	);
 	// When from/to coins differ, the enteredAmount fallback is in the wrong denomination.
 	// Compute the converted "to" amount reactively so it displays correctly.
+	// Prefer the pool-math `expectedOutput` (already post-fee, in smallest
+	// units) over the store's `toAmount` for swaps — otherwise the surface
+	// computing `toAmount` (e.g. the QuickSwap card's lightning-rate
+	// convertTo, which has no pool fees) can produce a value that
+	// disagrees with `minAmountOut` (pool-math × 1-slippage), making the
+	// Min. row render higher than the To row.
 	let convertedToAmount = $state<CoinAmount<Coin> | undefined>();
 	$effect(() => {
+		const expectedRaw = $SendTxDetails.expectedOutput;
+		if (expectedRaw && expectedRaw !== '0') {
+			convertedToAmount = new CoinAmount(Number(expectedRaw), toCoin, true);
+			return;
+		}
 		const toAmt = $SendTxDetails.toAmount;
 		if (toAmt && toAmt !== '0') {
 			convertedToAmount = new CoinAmount(toAmt, toCoin);
@@ -147,6 +171,27 @@
 	let fromInTo = $state<CoinAmount<Coin>>();
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin || !$SendTxDetails.toCoin) return;
+
+		// Prefer the pool-math effective rate (expectedOutput / net input)
+		// over the lightning off-chain reference rate. Otherwise the
+		// Market Rate row and the To row disagree whenever the pool is
+		// not at the lightning price — user sees "1 X = 0.06 Y" with
+		// "To 0.642 Y" for a 10 X input and it looks like broken math.
+		const expectedRaw = $SendTxDetails.expectedOutput;
+		const swapFee = $SendTxDetails.swapTotalFee;
+		if (expectedRaw && expectedRaw !== '0') {
+			const expected = Number(expectedRaw);
+			const grossIn = new CoinAmount(effectiveFromAmount, fromCoin).amount;
+			const feeIn = swapFee ? Number(swapFee) : 0;
+			const netIn = Math.max(0, grossIn - feeIn);
+			if (netIn > 0 && Number.isFinite(expected)) {
+				const ratePerUnitSmallestOut =
+					(expected * 10 ** fromCoin.decimalPlaces) / netIn;
+				fromInTo = new CoinAmount(Math.round(ratePerUnitSmallestOut), toCoin, true);
+				return;
+			}
+		}
+
 		new CoinAmount(1, $SendTxDetails.fromCoin.coin)
 			.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
 			.then((amt) => {
@@ -158,11 +203,9 @@
 			$SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value
 	);
 	$effect(() => {
-		new CoinAmount(effectiveFromAmount, fromCoin)
-			.convertTo(Coin.usd, Network.lightning)
-			.then((amt) => {
-				inUsd = amt;
-			});
+		netSwapFromAmountCa.convertTo(Coin.usd, Network.lightning).then((amt) => {
+			inUsd = amt;
+		});
 	});
 	$effect(() => {
 		$SendTxDetails.fee?.convertTo(Coin.usd, Network.lightning).then((amount) => {
@@ -223,20 +266,11 @@
 							{/if}
 						</td>
 					</tr>
-					{#if $SendTxDetails.slippageBps != null && $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
-						<tr>
-							<td class="icon"><Dot size="32" /></td>
-							<td class="sm-caption label">Slippage ({($SendTxDetails.slippageBps / 100).toFixed($SendTxDetails.slippageBps % 100 === 0 ? 0 : 1)}%)</td>
-							<td class="content">
-								Min. {prettyWithDisplayUnit(new CoinAmount(Number($SendTxDetails.minAmountOut), toCoin, true))}
-							</td>
-						</tr>
-					{/if}
 					<tr>
 						<td class="icon"><Dot size="32" /></td>
 						<td class="sm-caption label">Amount</td>
 						<td class="content">
-							{prettyWithDisplayUnit(new CoinAmount(effectiveFromAmount, fromCoin))}
+							{prettyWithDisplayUnit(netSwapFromAmountCa)}
 							<EqualApproximately size={16} />
 							{inUsd?.toPrettyString()}
 						</td>
@@ -265,6 +299,25 @@
 								{prettyWithDisplayUnit(convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin))}
 							</td>
 						</tr>
+						{#if $SendTxDetails.slippageBps != null}
+							<tr>
+								<td class="icon"><Dot size="32" /></td>
+								<td class="sm-caption label"
+									>Slippage ({($SendTxDetails.slippageBps / 100).toFixed(
+										$SendTxDetails.slippageBps % 100 === 0 ? 0 : 1
+									)}%)</td
+								>
+								<td class="content">
+									{#if $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
+										Min. {prettyWithDisplayUnit(
+											new CoinAmount(Number($SendTxDetails.minAmountOut), toCoin, true)
+										)}
+									{:else}
+										—
+									{/if}
+								</td>
+							</tr>
+						{/if}
 					{/if}
 				</tbody>
 			</table>

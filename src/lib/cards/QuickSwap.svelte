@@ -366,7 +366,24 @@
 		return '0';
 	}
 
+	/**
+	 * Which asset values are eligible for the FROM side given the
+	 * connected wallet. Hive (aioha) → hive/hbd; Bitcoin/EVM (reown) →
+	 * btc. Everything else is disabled in the picker.
+	 */
+	const fromAllowedValues = $derived.by(() => {
+		const provider = auth.value?.provider;
+		if (provider === 'aioha') return new Set([Coin.hive.value, Coin.hbd.value]);
+		if (provider === 'reown') return new Set([Coin.btc.value]);
+		return new Set<string>();
+	});
+
+	function isFromTokenAllowed(value: string): boolean {
+		return fromAllowedValues.has(value);
+	}
+
 	function selectToken(token: AssetObject) {
+		if (currentlyOpen === 'from' && !isFromTokenAllowed(token.value)) return;
 		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
@@ -457,73 +474,6 @@
 		reviewOpen = true;
 	}
 
-	/**
-	 * Swap the from/to coins and carry the previous target amount across
-	 * as the new origin amount.
-	 *
-	 * Tricky bit: AmountInput cross-binds inputAmount/toInputAmount via
-	 * its `connectedCoinAmount` prop with async Lightning-rate conversion.
-	 * Swapping both sides at once would ping-pong the convertTo effects
-	 * forever and hang the browser. We work around that by:
-	 *  1. Snapshotting the old to-amount value.
-	 *  2. Zeroing both bound CoinAmounts so each AmountInput's
-	 *     `lastConnected` settles on "0" without triggering a convertTo.
-	 *  3. Swapping the coin/network selections in the store.
-	 *  4. After a frame (so the connected effects pick up the zero state),
-	 *     setting inputAmount to the carried-over value. Only one side
-	 *     changes at a time, so the convertTo on the other side has a
-	 *     stable target and no ping-pong.
-	 */
-	function flipDirection() {
-		if (swapLoading) return;
-		const fromCoinValue = $SendTxDetails.fromCoin?.coin.value;
-		const toCoinValue = $SendTxDetails.toCoin?.coin.value;
-		if (!fromCoinValue || !toCoinValue) return;
-
-		const newFromOpt = swapOptions.from.coins.find((c) => c.coin.value === toCoinValue);
-		const newToOpt = swapOptions.to.coins.find((c) => c.coin.value === fromCoinValue);
-		if (!newFromOpt || !newToOpt) return;
-
-		// Old to-side amount in smallest units of the OLD to coin, which
-		// equals the NEW from coin (same currency, same decimals).
-		const carryAmount = toInputAmount.amount;
-
-		inputAmount = new CoinAmount(0, newFromOpt.coin);
-		toInputAmount = new CoinAmount(0, newToOpt.coin);
-
-		SendTxDetails.update((d) => ({
-			...d,
-			fromCoin: newFromOpt,
-			toCoin: newToOpt,
-			fromNetwork: nativeNetworkFor(newFromOpt.coin.value),
-			toNetwork: nativeNetworkFor(newToOpt.coin.value),
-			fromAmount: '0',
-			toAmount: '0'
-		}));
-
-		if (carryAmount <= 0) return;
-
-		// After both AmountInputs have settled on zero, set the new
-		// from-side AND the converted to-side together in one RAF tick.
-		// We do the conversion ourselves and apply both sides at once so
-		// the AmountInputs' `connectedCoinAmount` effects see a stable,
-		// already-converged pair on their next run — convergence check
-		// short-circuits and no ping-pong fires.
-		requestAnimationFrame(async () => {
-			const newFromAmt = new CoinAmount(carryAmount, newFromOpt.coin, true);
-			let newToAmt: CoinAmount<Coin>;
-			try {
-				newToAmt = (await newFromAmt.convertTo(
-					newToOpt.coin,
-					Network.lightning
-				)) as CoinAmount<Coin>;
-			} catch {
-				newToAmt = new CoinAmount(0, newToOpt.coin);
-			}
-			inputAmount = newFromAmt;
-			toInputAmount = newToAmt;
-		});
-	}
 
 	function cancelSwap() {
 		if (swapLoading) return; // can't cancel mid-broadcast from here
@@ -703,17 +653,6 @@
 		</div>
 	</div>
 
-	<!-- Swap arrow -->
-	<div class="swap-arrow-wrap">
-		<button
-			type="button"
-			class="swap-arrow-btn"
-			onclick={flipDirection}
-			disabled={swapLoading || !$SendTxDetails.fromCoin || !$SendTxDetails.toCoin}
-			aria-label="Flip from/to">↕</button
-		>
-	</div>
-
 	<!-- To Field -->
 	<div class="swap-field to-field">
 		<div class="field-top">
@@ -812,7 +751,14 @@
 			</div>
 			<div class="token-chip-grid">
 				{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-					<button class="token-chip" onclick={() => selectToken(token)}>
+					{@const disabled = currentlyOpen === 'from' && !isFromTokenAllowed(token.value)}
+					<button
+						class="token-chip"
+						class:disabled
+						{disabled}
+						onclick={() => selectToken(token)}
+						title={disabled ? 'Not supported by your connected wallet' : undefined}
+					>
 						<img src={token.icon} alt={token.label} class="chip-icon" />
 						<span>{coinDisplayLabel(token)}</span>
 					</button>
@@ -948,30 +894,6 @@
 		}
 	}
 
-	/* Swap arrow */
-	.swap-arrow-wrap {
-		display: flex;
-		justify-content: center;
-		padding: 0.125rem 0;
-	}
-	.swap-arrow-btn {
-		width: 30px;
-		height: 30px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		color: var(--dash-text-secondary);
-		font-size: 0.85rem;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		&:hover {
-			border-color: #6f6af8;
-			color: #6f6af8;
-		}
-	}
-
 	/* Swap details */
 	.swap-details {
 		display: flex;
@@ -1065,6 +987,15 @@
 		&.active {
 			border-color: var(--dash-accent-purple);
 			background-color: rgba(111, 106, 248, 0.15);
+		}
+		&.disabled,
+		&:disabled {
+			opacity: 0.35;
+			cursor: not-allowed;
+			&:hover {
+				background-color: var(--dash-surface);
+				border-color: var(--dash-card-border);
+			}
 		}
 		.chip-icon {
 			width: 1.25rem;

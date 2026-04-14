@@ -72,7 +72,7 @@ export function initModal() {
 						logout: reownLogout,
 						provider: 'reown',
 						did: value.caipAddress?.startsWith('bip122:')
-							? `did:pkh:bip122:000000000019d6689c085ae165831e93/${value.address!}`
+							? `did:pkh:bip122:000000000019d6689c085ae165831e93:${value.address!}`
 							: `did:pkh:eip155:1:${value.address!}`,
 						openSettings: () => modal!.open()
 					}

@@ -27,13 +27,9 @@ function shortenUsername(u: string) {
 }
 
 export const getUsernameFromDid = (did: string) => {
-	const lastSegment = did.split(':').at(-1)!;
-	// BTC DIDs use "/" to separate chain hash from address:
-	// did:pkh:bip122:000000000019d6689c085ae165831e93/bc1q...
-	if (lastSegment.includes('/')) {
-		return lastSegment.split('/').at(-1)!;
-	}
-	return lastSegment;
+	// BTC DIDs use ":" to separate chain hash from address:
+	// did:pkh:bip122:000000000019d6689c085ae165831e93:bc1q...
+	return did.split(':').at(-1)!;
 };
 
 export const getUsernameFromAuth = (auth: Auth) => {
@@ -59,10 +55,10 @@ export const getDidFromUsername = (username: string) => {
 	if (username.startsWith('0x')) {
 		return `did:pkh:eip155:1:${username}`
 	}
-	// Strip chain hash prefix if present (e.g. "000...e93/bc1q...")
-	const rawAddr = username.includes('/') ? username.split('/').at(-1)! : username;
+	// Strip chain hash prefix if present (e.g. "000...e93:bc1q...")
+	const rawAddr = username.includes(':') ? username.split(':').at(-1)! : username;
 	if (validate(rawAddr, BtcNetwork.mainnet)) {
-		return `did:pkh:bip122:000000000019d6689c085ae165831e93/${rawAddr}`
+		return `did:pkh:bip122:000000000019d6689c085ae165831e93:${rawAddr}`
 	}
 	return ``
 }

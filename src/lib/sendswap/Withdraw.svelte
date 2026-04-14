@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import WithdrawOptions from './stages/withdraw/WithdrawOptions.svelte';
-	import { type SendDetails } from './utils/sendOptions';
+	import { type SendDetails, Network } from './utils/sendOptions';
 	import { blankDetails, SendTxDetails } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
 	import ReviewSwap from './stages/ReviewSwap.svelte';
@@ -41,6 +41,7 @@
 	$effect(() => {
 		if (!auth || !dialogOpen) return;
 		if (auth.value?.provider !== 'aioha') return;
+		if ($SendTxDetails.toNetwork?.value === Network.btcMainnet.value) return;
 		const username = getUsernameFromAuth(auth);
 		if (username && username !== $SendTxDetails.toUsername) {
 			$SendTxDetails.toUsername = username;

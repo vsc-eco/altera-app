@@ -635,11 +635,15 @@ export async function send(
 
 			// console.log('created reown client:', client);
 
+			const evmToDid =
+				toNetwork.value === Network.btcMainnet.value
+					? toUsername
+					: getDidFromUsername(toUsername);
 			const sendOp = getEVMOpType(
 				fromNetwork,
 				toNetwork,
 				auth.value.did,
-				getDidFromUsername(toUsername),
+				evmToDid,
 				new CoinAmount(amount, toCoin.coin)
 			);
 
@@ -730,7 +734,8 @@ export async function send(
 			const { getBitcoinUnmapOp: getUnmapOp } = await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
 			sendOp = getUnmapOp(
 				auth.value.username!,
-				getDidFromUsername(toUsername),
+				auth.value.did,
+				toUsername,
 				new CoinAmount(amount, toCoin.coin),
 				tx.btcDeductFee || undefined,
 				tx.btcMaxFee

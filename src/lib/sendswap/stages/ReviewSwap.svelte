@@ -22,7 +22,8 @@
 		waiting = false,
 		abort = () => {},
 		next,
-		previous
+		previous,
+		popup = false
 	}: {
 		editStage?: (complete: boolean) => void;
 		isActive?: boolean;
@@ -31,6 +32,7 @@
 		abort?: () => void;
 		next?: () => void;
 		previous?: () => void;
+		popup?: boolean;
 	} = $props();
 
 	// Mark the review stage as "complete" (user can proceed) as soon as it
@@ -47,6 +49,7 @@
 	let dialogToggle = $state<(o?: boolean) => void>(() => {});
 	let lastIsActive = false;
 	$effect(() => {
+		if (!popup) return;
 		if (isActive !== lastIsActive) {
 			lastIsActive = isActive;
 			dialogToggle?.(isActive);
@@ -168,11 +171,7 @@
 	let today = moment().format('MMM D, YYYY');
 </script>
 
-<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
-	{#snippet title()}
-		Review Swap
-	{/snippet}
-	{#snippet content()}
+{#snippet reviewContent()}
 <div class="stacked-cards">
 	<div class="line-positioner">
 		<Card>
@@ -259,10 +258,6 @@
 							</td>
 						</tr>
 					{/if}
-					<!-- <tr>
-					<td class="sm-caption label">Initiated on</td>
-					<td class="content">{today}</td>
-				</tr> -->
 				</tbody>
 			</table>
 		</Card>
@@ -294,6 +289,7 @@
 	showHiveWarning={auth.value?.provider === 'aioha'}
 />
 
+{#if popup}
 <div class="popup-buttons">
 	<PillButton onclick={() => previous?.()} theme="secondary" styleType="outline" disabled={waiting}>
 		Back
@@ -302,8 +298,21 @@
 		{waiting ? 'Waiting…' : 'Swap'}
 	</PillButton>
 </div>
+{/if}
+{/snippet}
+
+{#if popup}
+<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
+	{#snippet title()}
+		Review Swap
+	{/snippet}
+	{#snippet content()}
+		{@render reviewContent()}
 	{/snippet}
 </Dialog>
+{:else}
+	{@render reviewContent()}
+{/if}
 
 <style lang="scss">
 	.stacked-cards {

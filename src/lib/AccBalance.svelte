@@ -16,7 +16,10 @@
 
 	const hiveAssetName = $derived(browser ? getHiveAssetName() : 'HIVE');
 	const hbdAssetName = $derived(browser ? getHbdAssetName() : 'HBD');
-	function formatWithUnit(amt: CoinAmount<typeof Coin.hive | typeof Coin.hbd>, unit: string): string {
+	function formatWithUnit(
+		amt: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+		unit: string
+	): string {
 		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
 		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
 			useGrouping: true,
@@ -55,7 +58,9 @@
 			<span class="coin-name">{hbdAssetName}</span>
 			<span class="coin-sub">Hive Backed Dollar</span>
 		</div>
-		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true), hbdAssetName)}</span>
+		<span class="row-amount"
+			>{formatWithUnit(new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true), hbdAssetName)}</span
+		>
 	</div>
 
 	<div class="balance-row">
@@ -63,11 +68,20 @@
 		<div class="row-info">
 			<span class="coin-name">
 				s{hbdAssetName}
-				<span class="tooltip-inline"><InfoToolip>s{hbdAssetName} is {hbdAssetName} that remains transferable while earning 15% APR</InfoToolip></span>
+				<span class="tooltip-inline"
+					><InfoToolip
+						>s{hbdAssetName} is {hbdAssetName} that remains transferable while earning 15% APR</InfoToolip
+					></span
+				>
 			</span>
 			<span class="coin-sub">Liquid Hive Dollar Savings</span>
 		</div>
-		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true), hbdAssetName)}</span>
+		<span class="row-amount"
+			>{formatWithUnit(
+				new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true),
+				hbdAssetName
+			)}</span
+		>
 	</div>
 
 	{#if $accountBalance.bal.pending_hbd_unstaking && $accountBalance.bal.pending_hbd_unstaking !== 0}
@@ -76,7 +90,12 @@
 			<div class="row-info">
 				<span class="coin-name">{hbdAssetName} Unstaking</span>
 			</div>
-			<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.pending_hbd_unstaking, Coin.hbd, true), hbdAssetName)}</span>
+			<span class="row-amount"
+				>{formatWithUnit(
+					new CoinAmount($accountBalance.bal.pending_hbd_unstaking, Coin.hbd, true),
+					hbdAssetName
+				)}</span
+			>
 		</div>
 	{/if}
 
@@ -86,7 +105,12 @@
 			<span class="coin-name">{hiveAssetName}</span>
 			<span class="coin-sub">Native Hive Token</span>
 		</div>
-		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hive, Coin.hive, true), hiveAssetName)}</span>
+		<span class="row-amount"
+			>{formatWithUnit(
+				new CoinAmount($accountBalance.bal.hive, Coin.hive, true),
+				hiveAssetName
+			)}</span
+		>
 	</div>
 
 	<div class="balance-row">
@@ -95,7 +119,12 @@
 			<span class="coin-name">{hiveAssetName} Consensus</span>
 			<span class="coin-sub">Hive Consensus</span>
 		</div>
-		<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hive_consensus, Coin.hive, true), hiveAssetName)}</span>
+		<span class="row-amount"
+			>{formatWithUnit(
+				new CoinAmount($accountBalance.bal.hive_consensus, Coin.hive, true),
+				hiveAssetName
+			)}</span
+		>
 	</div>
 
 	{#if $accountBalance.bal.consensus_unstaking !== 0}
@@ -104,17 +133,24 @@
 			<div class="row-info">
 				<span class="coin-name">{hiveAssetName} Unstaking</span>
 			</div>
-			<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.consensus_unstaking, Coin.hive, true), hiveAssetName)}</span>
+			<span class="row-amount"
+				>{formatWithUnit(
+					new CoinAmount($accountBalance.bal.consensus_unstaking, Coin.hive, true),
+					hiveAssetName
+				)}</span
+			>
 		</div>
 	{/if}
 
 	<div class="balance-row">
 		<div class="row-icon btc"><img src={Coin.btc.icon} alt="Bitcoin" /></div>
 		<div class="row-info">
-			<span class="coin-name">Bitcoin (SATS)</span>
-			<span class="coin-sub">Bitcoin via Lightning</span>
+			<span class="coin-name">Bitcoin</span>
+			<span class="coin-sub">Bitcoin Native Asset Mapping</span>
 		</div>
-		<span class="row-amount">{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</span>
+		<span class="row-amount"
+			>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</span
+		>
 	</div>
 </div>
 

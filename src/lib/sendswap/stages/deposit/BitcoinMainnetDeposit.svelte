@@ -1,25 +1,22 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
-	import axios from 'axios';
 	import { Info } from '@lucide/svelte';
 	import Card from '$lib/cards/Card.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 
 	const auth = $derived(getAuth()());
 
-	type BtcAddressResponse = {
-		btc_address: string;
-	};
-
 	async function getBtcAddress() {
 		if (auth.value) {
-			const response = await axios.get<BtcAddressResponse>('/api/btcaddress', {
-				params: {
-					did: auth.value.did
-				}
+			const response = await fetch('https://btc.magi.milohpr.com', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ instruction: `deposit_to=${auth.value.did}` })
 			});
-			return response.data.btc_address;
+			const text = await response.text();
+			// Response format: "address mapping (created|exists): <address> -> deposit_to=<did>"
+			return text.match(/address mapping (?:created|exists): (\S+)/)?.[1];
 		}
 	}
 </script>
@@ -31,9 +28,9 @@
 				<div class="blurb">
 					<span><Info /></span>
 					<p>
-						Transfer {Coin.btc.value} to this bitcoin address with your favorite wallet or exchange.
-						This address is unique to you, and will not change. Please keep in mind that bitcoin block
-						time, and therefore transaction settlement time, averages about 10 minutes.
+						Transfer {Coin.btc.value} to this bitcoin address with your favorite wallet or exchange. This
+						address is unique to you, and will not change. Please keep in mind that transaction settlement
+						time, averages about 30 minutes.
 					</p>
 				</div>
 			</Card>

@@ -238,7 +238,7 @@
 				</ClickableCard>
 			</div>
 			<div class="bitcoin-mainnet">
-				<ClickableCard onclick={() => toggleBitcoinMainnet(true)} disabled={true}>
+				<ClickableCard onclick={() => toggleBitcoinMainnet(true)}>
 					<div class="type-header">
 						<ImageIconRenderer
 							icon={Network.btcMainnet.icon}
@@ -246,7 +246,6 @@
 							size={40}
 						/>
 						<span>Bitcoin Mainnet</span>
-						<span class="error">Coming soon</span>
 						<div class="chevron">
 							<ChevronRight />
 						</div>

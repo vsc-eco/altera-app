@@ -1,14 +1,13 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import WithdrawOptions from './stages/withdraw/WithdrawOptions.svelte';
-	import swapOptions, { Coin, Network, type SendDetails } from './utils/sendOptions';
+	import { type SendDetails } from './utils/sendOptions';
 	import { blankDetails, SendTxDetails } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
 	import ReviewSwap from './stages/ReviewSwap.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
-	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 
 	let {
 		dialogOpen = $bindable(),

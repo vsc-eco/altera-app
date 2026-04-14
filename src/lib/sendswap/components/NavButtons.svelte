@@ -39,7 +39,7 @@
 			<PillButton
 				onclick={buttons.back.action}
 				disabled={buttons.back.disabled}
-				styleType="stage outline"
+				styleType="submit outline"
 			>
 				{buttons.back.label}
 			</PillButton>
@@ -47,7 +47,7 @@
 		<PillButton
 			onclick={buttons.fwd.action}
 			disabled={buttons.fwd.disabled}
-			styleType="stage invert"
+			styleType="submit invert"
 			theme="accent"
 		>
 			{buttons.fwd.label}

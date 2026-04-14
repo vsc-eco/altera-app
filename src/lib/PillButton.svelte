@@ -5,7 +5,7 @@
 		HTMLButtonAttributes,
 		MouseEventHandler
 	} from 'svelte/elements';
-	export type StyleFlag = 'invert' | 'outline' | 'text' | 'icon' | 'subtle' | 'stage';
+	export type StyleFlag = 'invert' | 'outline' | 'text' | 'icon' | 'subtle' | 'submit';
 	export type SharedProps = {
 		children?: Snippet;
 		theme?: string;
@@ -31,7 +31,7 @@
 	let outlineStyle = $derived(styleType?.includes('outline'));
 	let iconStyle = $derived(styleType?.includes('icon'));
 	let subtleStyle = $derived(styleType?.includes('subtle'));
-	let stageStyle = $derived(styleType?.includes('stage'));
+	let submitStyle = $derived(styleType?.includes('submit'));
 	let className = $derived([
 		theme,
 		{
@@ -40,7 +40,7 @@
 			outline: outlineStyle,
 			icon: iconStyle,
 			subtle: subtleStyle,
-			stage: stageStyle,
+			submit: submitStyle,
 			hide: hide
 		},
 		additionalClasses
@@ -195,12 +195,13 @@
 				color: var(--dash-text-primary);
 			}
 		}
-		&.stage {
+		&.submit {
 			height: 48px;
+			width: calc(100% - 0.2rem);
 			font-size: 0.95rem;
 			font-weight: 700;
-			&:active {
-				transform: none;
+			&:hover {
+				transform: scale(0.98);
 			}
 		}
 		&.subtle {

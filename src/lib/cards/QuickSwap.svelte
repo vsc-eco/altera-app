@@ -37,13 +37,22 @@
 		type PoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
-	import { getHiveSwapOp, getBtcApproveOp, SWAP_CONTRACT_ID } from '$lib/magiTransactions/hive/vscOperations/swap';
+	import {
+		getHiveSwapOp,
+		getBtcApproveOp,
+		SWAP_CONTRACT_ID
+	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { executeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
-	import { createClient, signAndBrodcastTransaction, type CallContractTransaction } from '$lib/magiTransactions/eth/client';
+	import {
+		createClient,
+		signAndBrodcastTransaction,
+		type CallContractTransaction
+	} from '$lib/magiTransactions/eth/client';
 	import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
 	import { wagmiConfig } from '$lib/auth/reown';
 	import ReviewSwap from '$lib/sendswap/stages/ReviewSwap.svelte';
+	import PillButton from '$lib/PillButton.svelte';
 
 	const auth = $derived(getAuth()());
 
@@ -133,7 +142,8 @@
 			true
 		);
 		if (!optionsEqual(result.assetOptions, assetOptions)) assetOptions = result.assetOptions;
-		if (!optionsEqual(result.networkOptions, networkOptions)) networkOptions = result.networkOptions;
+		if (!optionsEqual(result.networkOptions, networkOptions))
+			networkOptions = result.networkOptions;
 	});
 
 	// From tokens: all available coins (BTC, HIVE, HBD) — exclude sHBD
@@ -160,7 +170,6 @@
 				snippetData: { fromOpt: opt, net: Network.magi, size: 'medium' }
 			}))
 	);
-
 
 	let possibleCoins: CoinOnNetwork[] = $derived.by(() => {
 		const result: CoinOnNetwork[] = [];
@@ -229,7 +238,6 @@
 		}
 	});
 
-
 	// Pool-based fee calculation — resolve the HIVE/HBD pool contract from the
 	// indexer registry (network-aware) before fetching depths.
 	let poolDepths: PoolDepths | null = $state(null);
@@ -253,10 +261,16 @@
 			(fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value) &&
 			(toCoin.coin.value === Coin.hive.value || toCoin.coin.value === Coin.hbd.value) &&
 			fromCoin.coin.value !== toCoin.coin.value;
-		if (!isHiveSwap) { swapResult = null; return; }
+		if (!isHiveSwap) {
+			swapResult = null;
+			return;
+		}
 
 		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
-		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) { swapResult = null; return; }
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) {
+			swapResult = null;
+			return;
+		}
 
 		const assetIn = fromCoin.coin.value as 'hive' | 'hbd';
 		const { X, Y } = getOrderedDepths(poolDepths, assetIn);
@@ -275,22 +289,20 @@
 			const swapTotalFee = result.totalFee.toString();
 			if ($SendTxDetails.expectedOutput !== expectedOutput)
 				$SendTxDetails.expectedOutput = expectedOutput;
-			if ($SendTxDetails.slippageBps !== slippageBps)
-				$SendTxDetails.slippageBps = slippageBps;
-			if ($SendTxDetails.minAmountOut !== minAmountOut)
-				$SendTxDetails.minAmountOut = minAmountOut;
-			if ($SendTxDetails.swapBaseFee !== swapBaseFee)
-				$SendTxDetails.swapBaseFee = swapBaseFee;
-			if ($SendTxDetails.swapClpFee !== swapClpFee)
-				$SendTxDetails.swapClpFee = swapClpFee;
-			if ($SendTxDetails.swapTotalFee !== swapTotalFee)
-				$SendTxDetails.swapTotalFee = swapTotalFee;
+			if ($SendTxDetails.slippageBps !== slippageBps) $SendTxDetails.slippageBps = slippageBps;
+			if ($SendTxDetails.minAmountOut !== minAmountOut) $SendTxDetails.minAmountOut = minAmountOut;
+			if ($SendTxDetails.swapBaseFee !== swapBaseFee) $SendTxDetails.swapBaseFee = swapBaseFee;
+			if ($SendTxDetails.swapClpFee !== swapClpFee) $SendTxDetails.swapClpFee = swapClpFee;
+			if ($SendTxDetails.swapTotalFee !== swapTotalFee) $SendTxDetails.swapTotalFee = swapTotalFee;
 		});
 	});
 
 	function formatFee(val: bigint | number, decimals: number): string {
 		const n = Number(val) / Math.pow(10, decimals);
-		return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: decimals });
+		return n.toLocaleString(undefined, {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: decimals
+		});
 	}
 
 	let minAmount: CoinAmount<Coin> | undefined = $state();
@@ -555,7 +567,6 @@
 				const res = await executeTx(auth.value.aioha, ops);
 				if (!res.success) throw new Error(res.error || 'Swap failed');
 				txId = res.result;
-
 			} else {
 				// EVM/Reown wallet path
 				const swapPayload: CallContractTransaction = {
@@ -615,25 +626,26 @@
 
 			swapStatus = 'Swap submitted!';
 			addLocalTransaction({
-				ops: [{
-					data: {
-						amount: new CoinAmount($SendTxDetails.toAmount || '0', toCoinDef).toAmountString(),
-						asset: toCoinDef.unit.toLowerCase(),
-						from: caller,
-						to: caller,
-						memo: '',
-						type: 'swap'
-					},
-					type: 'swap',
-					index: 0
-				}],
+				ops: [
+					{
+						data: {
+							amount: new CoinAmount($SendTxDetails.toAmount || '0', toCoinDef).toAmountString(),
+							asset: toCoinDef.unit.toLowerCase(),
+							from: caller,
+							to: caller,
+							memo: '',
+							type: 'swap'
+						},
+						type: 'swap',
+						index: 0
+					}
+				],
 				timestamp: new Date(),
 				id: txId,
 				type: auth.value.provider === 'aioha' ? 'hive' : 'evm'
 			});
 			// Close the confirm popup on successful broadcast.
 			reviewOpen = false;
-
 		} catch (e: any) {
 			swapStatus = e.message || 'Swap failed';
 			swapError = true;
@@ -641,8 +653,6 @@
 			swapLoading = false;
 		}
 	}
-
-
 </script>
 
 <div class="swap-card">
@@ -663,7 +673,14 @@
 	<div class="swap-field">
 		<div class="field-top">
 			<span class="field-label">From:</span>
-			<button type="button" class="token-select" onclick={(e) => { e.stopPropagation(); openDialog('from'); }}>
+			<button
+				type="button"
+				class="token-select"
+				onclick={(e) => {
+					e.stopPropagation();
+					openDialog('from');
+				}}
+			>
 				{#if $SendTxDetails.fromCoin}
 					<img src={$SendTxDetails.fromCoin.coin.icon} alt="" class="token-img" />
 					<span class="token-name">{$SendTxDetails.fromCoin.coin.label}</span>
@@ -693,8 +710,8 @@
 			class="swap-arrow-btn"
 			onclick={flipDirection}
 			disabled={swapLoading || !$SendTxDetails.fromCoin || !$SendTxDetails.toCoin}
-			aria-label="Flip from/to"
-		>↕</button>
+			aria-label="Flip from/to">↕</button
+		>
 	</div>
 
 	<!-- To Field -->
@@ -728,13 +745,18 @@
 		<div class="swap-details">
 			<div class="detail-row">
 				<span class="detail-label">Rate</span>
-				<span class="detail-value">{fromInTo ? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo} ${$SendTxDetails.toCoin.coin.label}` : '—'}</span>
+				<span class="detail-value"
+					>{fromInTo
+						? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo} ${$SendTxDetails.toCoin.coin.label}`
+						: '—'}</span
+				>
 			</div>
 			<div class="detail-row">
 				<span class="detail-label">Fee</span>
 				<span class="detail-value">
 					{#if swapResult && $SendTxDetails.fromCoin}
-						{formatFee(swapResult.totalFee, $SendTxDetails.fromCoin.coin.decimalPlaces)} {$SendTxDetails.fromCoin.coin.label}
+						{formatFee(swapResult.totalFee, $SendTxDetails.fromCoin.coin.decimalPlaces)}
+						{$SendTxDetails.fromCoin.coin.label}
 					{:else}
 						0.08% + CLP
 					{/if}
@@ -759,14 +781,13 @@
 	{/if}
 
 	<!-- Exchange -->
-	<button
-		type="button"
-		class="exchange-btn"
+	<PillButton
 		onclick={requestSwap}
 		disabled={swapLoading || !hasAmount || sameCoinSelected}
+		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
-	</button>
+	</PillButton>
 	{#if swapStatus && !reviewOpen && !sameCoinSelected}
 		<p class="swap-status" class:error={swapError}>{swapStatus}</p>
 	{/if}
@@ -830,13 +851,18 @@
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: #4ADE80;
+		background: #4ade80;
 		box-shadow: 0 0 6px 1px rgba(74, 222, 128, 0.5);
 		animation: dot-pulse 2s ease-in-out infinite;
 	}
 	@keyframes dot-pulse {
-		0%, 100% { box-shadow: 0 0 4px 1px rgba(74, 222, 128, 0.3); }
-		50% { box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.7); }
+		0%,
+		100% {
+			box-shadow: 0 0 4px 1px rgba(74, 222, 128, 0.3);
+		}
+		50% {
+			box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.7);
+		}
 	}
 	.swap-badge-text {
 		font-size: 0.8rem;
@@ -905,7 +931,7 @@
 		white-space: nowrap;
 		font-family: inherit;
 		&:hover {
-			border-color: #6F6AF8;
+			border-color: #6f6af8;
 			background: rgba(111, 106, 248, 0.1);
 		}
 	}
@@ -917,7 +943,9 @@
 	.token-name {
 		font-weight: 700;
 		font-size: 0.8rem;
-		&.muted { color: var(--dash-text-muted); }
+		&.muted {
+			color: var(--dash-text-muted);
+		}
 	}
 
 	/* Swap arrow */
@@ -939,8 +967,8 @@
 		align-items: center;
 		justify-content: center;
 		&:hover {
-			border-color: #6F6AF8;
-			color: #6F6AF8;
+			border-color: #6f6af8;
+			color: #6f6af8;
 		}
 	}
 
@@ -968,30 +996,8 @@
 		font-weight: 500;
 	}
 	.detail-value.route {
-		color: #6F6AF8;
+		color: #6f6af8;
 		font-weight: 600;
-	}
-
-	/* Exchange */
-	.exchange-btn {
-		width: 100%;
-		height: 44px;
-		border: none;
-		border-radius: 1.25rem;
-		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 40%, #5B54E0 100%);
-		color: white;
-		font-weight: 700;
-		font-size: 0.9rem;
-		font-family: inherit;
-		cursor: pointer;
-		margin-top: 0.5rem;
-		box-shadow: 0 4px 16px rgba(111, 106, 248, 0.25);
-		&:hover {
-			box-shadow: 0 6px 24px rgba(111, 106, 248, 0.4);
-		}
-		&:active {
-			transform: scale(0.97);
-		}
 	}
 
 	.swap-status {
@@ -999,11 +1005,9 @@
 		font-size: var(--text-sm);
 		color: var(--dash-accent-green);
 		margin-top: 0.5rem;
-		&.error { color: var(--dash-accent-red); }
-	}
-	.exchange-btn:disabled {
-		opacity: 0.5;
-		cursor: default;
+		&.error {
+			color: var(--dash-accent-red);
+		}
 	}
 
 	/* ── Token Dialog ── */
@@ -1028,7 +1032,9 @@
 			color: var(--dash-text-primary);
 			font: inherit;
 			font-size: var(--text-sm);
-			&::placeholder { color: var(--dash-text-muted); }
+			&::placeholder {
+				color: var(--dash-text-muted);
+			}
 		}
 	}
 	.token-chip-grid {
@@ -1049,7 +1055,9 @@
 		font-size: var(--text-sm);
 		font-weight: 500;
 		cursor: pointer;
-		transition: background-color 0.15s ease, border-color 0.15s ease;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease;
 		&:hover {
 			background-color: var(--dash-card-border);
 			border-color: var(--dash-accent-purple);
@@ -1097,7 +1105,9 @@
 		color: var(--dash-text-primary);
 		font: inherit;
 		text-align: left;
-		transition: border-color 0.15s ease, background-color 0.15s ease;
+		transition:
+			border-color 0.15s ease,
+			background-color 0.15s ease;
 		&:hover {
 			border-color: var(--dash-accent-purple);
 			background: var(--dash-card-bg);
@@ -1115,7 +1125,9 @@
 			gap: 0.125rem;
 			min-width: 0;
 		}
-		.network-card-name { font-weight: 500; }
+		.network-card-name {
+			font-weight: 500;
+		}
 		.network-card-balance {
 			display: flex;
 			flex-direction: column;

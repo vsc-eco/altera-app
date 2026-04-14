@@ -32,6 +32,12 @@
 	const did = $derived(auth.value?.did);
 	let myPools = $state<MyPoolRow[]>([]);
 	let myPoolsLoading = $state(false);
+	// PoolRow subset for pools the user has LP in — passed to the
+	// Remove Liquidity dialog so it only lists pools the user can
+	// actually withdraw from.
+	const myPoolsAsRows = $derived(
+		pools.filter((p) => myPools.some((mp) => mp.contractId === p.contractId))
+	);
 
 	$effect(() => {
 		const range = timeRange;
@@ -338,7 +344,7 @@
 {/snippet}
 
 <AddLiquidityPopup bind:open={addLiquidityOpen} {pools} />
-<RemoveLiquidityPopup bind:open={removeLiquidityOpen} {pools} />
+<RemoveLiquidityPopup bind:open={removeLiquidityOpen} pools={myPoolsAsRows} />
 
 <Dialog bind:open={createPoolOpen} bind:toggle={createPoolToggle}>
 	{#snippet title()}

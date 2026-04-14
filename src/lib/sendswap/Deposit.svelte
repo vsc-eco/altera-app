@@ -29,7 +29,12 @@
 		};
 	}
 
+	// Only seed the SendTxDetails store when the Deposit dialog actually
+	// opens — otherwise this effect fires on every mount/render and wipes
+	// out QuickSwap's persisted selection (sibling cards on the dashboard
+	// all share the same global store).
 	$effect(() => {
+		if (!dialogOpen) return;
 		sessionId;
 		SendTxDetails.set(depositDetails());
 	});

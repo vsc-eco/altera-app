@@ -55,6 +55,33 @@
 		!Number.isInteger(parsedLpAmount) || parsedLpAmount <= 0 || exceedsBalance
 	);
 
+	// Estimated asset output: user's pro-rata share of the pool reserves
+	// for the LP amount being burned. Uses the same reserve0Raw/reserve1Raw/
+	// totalLpRaw the My Liquidity table reads from.
+	function formatEstimate(value: number, decimals: number): string {
+		if (!Number.isFinite(value) || value <= 0) return '0';
+		return value.toLocaleString(undefined, {
+			minimumFractionDigits: 0,
+			maximumFractionDigits: decimals
+		});
+	}
+	const estimatedOut0 = $derived.by(() => {
+		if (!selectedPool || parsedLpAmount <= 0 || selectedPool.totalLpRaw <= 0) return 0;
+		return (
+			(selectedPool.reserve0Raw * parsedLpAmount) /
+			selectedPool.totalLpRaw /
+			10 ** selectedPool.decimals0
+		);
+	});
+	const estimatedOut1 = $derived.by(() => {
+		if (!selectedPool || parsedLpAmount <= 0 || selectedPool.totalLpRaw <= 0) return 0;
+		return (
+			(selectedPool.reserve1Raw * parsedLpAmount) /
+			selectedPool.totalLpRaw /
+			10 ** selectedPool.decimals1
+		);
+	});
+
 	$effect(() => {
 		removeLiquidityDraftStore.set({
 			selectedPool,
@@ -116,7 +143,10 @@
 							{/if}
 							{selectedPool.pairSymbols[0]}
 						</div>
-						<span class="balance">~0</span>
+						<span class="balance"
+							>~{formatEstimate(estimatedOut0, selectedPool.decimals0)}
+							{selectedPool.pairSymbols[0]}</span
+						>
 					</div>
 				</div>
 				<div class="asset-card">
@@ -129,7 +159,10 @@
 							{/if}
 							{selectedPool.pairSymbols[1]}
 						</div>
-						<span class="balance">~0</span>
+						<span class="balance"
+							>~{formatEstimate(estimatedOut1, selectedPool.decimals1)}
+							{selectedPool.pairSymbols[1]}</span
+						>
 					</div>
 				</div>
 			</div>

@@ -7,6 +7,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import { liquidityDraftStore } from '$lib/pools/liquidityStore';
+	import { untrack } from 'svelte';
 
 	let { editStage, pools = [] }: { editStage: (complete: boolean) => void; pools: PoolRow[] } = $props();
 
@@ -18,9 +19,27 @@
 
 	function onPoolChange(details: { value: string[] }) {
 		const id = details.value[0];
-		selectedPool = pools.find((p) => p.id === id) ?? null;
-		amount0Ca = new CoinAmount(0, Coin.hbd);
-		amount1Ca = new CoinAmount(0, Coin.btc);
+		const pool = pools.find((p) => p.id === id) ?? null;
+		selectedPool = pool;
+		if (pool) {
+			const c0 = detectCoin(pool.pairSymbols[0]);
+			const c1 = detectCoin(pool.pairSymbols[1]);
+			const isBtcHbd =
+				[c0.value, c1.value].includes(Coin.btc.value) &&
+				[c0.value, c1.value].includes(Coin.hbd.value);
+			// For BTC/HBD pools we always want the HBD side as the
+			// editable (slot 0) and the BTC side as the auto-calculated
+			// (slot 1), regardless of the pool's alphabetical pair order.
+			// For any other pair (HIVE/HBD etc.) we follow the pool's
+			// canonical ordering.
+			if (isBtcHbd) {
+				amount0Ca = new CoinAmount(0, Coin.hbd);
+				amount1Ca = new CoinAmount(0, Coin.btc);
+			} else {
+				amount0Ca = new CoinAmount(0, c0);
+				amount1Ca = new CoinAmount(0, c1);
+			}
+		}
 		btcDisplayStr = '';
 	}
 
@@ -53,8 +72,15 @@
 		return new CoinAmount($accountBalance.bal.hive, Coin.hive, true);
 	}
 
-	const maxAmount0 = $derived(selectedPool ? getMaxForCoin(coin0) : undefined);
-	const maxAmount1 = $derived(selectedPool ? getMaxForCoin(coin1) : undefined);
+	// For BTC/HBD pools amount0Ca is forced to HBD and amount1Ca to BTC
+	// in onPoolChange, so the balance checks must follow the actual
+	// amount coin, not the pool's alphabetical coin0/coin1 ordering.
+	const maxAmount0 = $derived(
+		selectedPool ? getMaxForCoin(isBtcHbdPool ? Coin.hbd : coin0) : undefined
+	);
+	const maxAmount1 = $derived(
+		selectedPool ? getMaxForCoin(isBtcHbdPool ? Coin.btc : coin1) : undefined
+	);
 
 	const exceed0 = $derived(maxAmount0 ? amount0Ca.amount > maxAmount0.amount : false);
 	const exceed1 = $derived(maxAmount1 ? amount1Ca.amount > maxAmount1.amount : false);
@@ -62,21 +88,33 @@
 	// --- BTC/HBD pool: auto-calculate BTC from HBD ---
 	let btcDisplayStr = $state('');
 
+	// By the onPoolChange convention, amount0Ca is always the HBD side
+	// and amount1Ca is always the BTC side for BTC/HBD pools. The effect
+	// depends only on the HBD amount; reads of the BTC side happen in
+	// `untrack` so the write below does not re-trigger this effect
+	// (which would loop forever on every new CoinAmount object reference).
 	$effect(() => {
 		if (!selectedPool || !isBtcHbdPool) return;
-		// Find the HBD side
-		const hbdCa = coin0.value === Coin.hbd.value ? amount0Ca : amount1Ca;
-		if (hbdCa.amount === 0) {
+		const hbdAmount = amount0Ca.amount;
+
+		if (hbdAmount === 0) {
 			btcDisplayStr = '';
-			// Keep amount1Ca at 0 for validation
-			const btcCoin = coin0.value === Coin.btc.value ? coin0 : coin1;
-			amount1Ca = new CoinAmount(0, btcCoin);
+			untrack(() => {
+				if (amount1Ca.amount !== 0 || amount1Ca.coin.value !== Coin.btc.value) {
+					amount1Ca = new CoinAmount(0, Coin.btc);
+				}
+			});
 			return;
 		}
-		hbdCa.convertTo(Coin.btc, Network.lightning).then((btcAmt) => {
+
+		amount0Ca.convertTo(Coin.btc, Network.lightning).then((btcAmt) => {
 			btcDisplayStr = btcAmt.toAmountString();
-			// Update amount1Ca so validation and store draft work
-			amount1Ca = btcAmt as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>;
+			untrack(() => {
+				if (amount1Ca.amount === btcAmt.amount && amount1Ca.coin.value === btcAmt.coin.value) {
+					return;
+				}
+				amount1Ca = btcAmt as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>;
+			});
 		});
 	});
 
@@ -186,17 +224,22 @@
 
 	{#if selectedPool}
 		<div class="form-section">
-			<!-- Token 0 (HBD for BTC/HBD pool) — always editable -->
+			<!-- Token 0 — always editable. For BTC/HBD pools this is the
+				HBD side regardless of the pool's alphabetical ordering. -->
 			<div class="asset-card">
 				<div class="asset-header">
-					<div class="label">{selectedPool.pairSymbols[0]}</div>
+					<div class="label">
+						{isBtcHbdPool ? displayUnitForCoin(Coin.hbd) : selectedPool.pairSymbols[0]}
+					</div>
 					{#if exceed0}
-						<span class="error-text">Exceeds Magi {displayUnitForCoin(coin0)} balance</span>
+						<span class="error-text"
+							>Exceeds Magi {isBtcHbdPool ? displayUnitForCoin(Coin.hbd) : displayUnitForCoin(coin0)} balance</span
+						>
 					{/if}
 				</div>
 				<AmountInput
 					bind:coinAmount={amount0Ca}
-					coinOpts={[{ coin: coin0, network: Network.magi }]}
+					coinOpts={[{ coin: isBtcHbdPool ? Coin.hbd : coin0, network: Network.magi }]}
 					maxAmount={maxAmount0}
 					styleType="normal"
 					hideUnit

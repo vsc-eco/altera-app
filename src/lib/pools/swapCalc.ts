@@ -13,7 +13,7 @@
  */
 
 import { GetStateByKeysStore } from '$houdini';
-import { HIVE_HBD_POOL_CONTRACT_ID } from './poolsData';
+import { fetchPoolRegistry } from './poolsData';
 
 export interface PoolDepths {
 	reserve0: bigint; // HIVE reserve (smallest units)
@@ -30,13 +30,18 @@ export interface SwapCalcResult {
 }
 
 /**
- * Fetch current pool reserves from the VSC GraphQL endpoint.
+ * Fetch current pool reserves from the VSC GraphQL endpoint for a specific
+ * pool contract. Callers are responsible for resolving the right contract ID
+ * (e.g. via `fetchPoolRegistry` or a selected pool).
  */
-export async function fetchPoolDepths(): Promise<PoolDepths | null> {
+export async function fetchPoolDepths(
+	poolContractId: string
+): Promise<PoolDepths | null> {
+	if (!poolContractId) return null;
 	try {
 		const result = await new GetStateByKeysStore().fetch({
 			variables: {
-				contractId: HIVE_HBD_POOL_CONTRACT_ID,
+				contractId: poolContractId,
 				keys: ['reserve0', 'reserve1']
 			},
 			policy: 'NetworkOnly'
@@ -54,6 +59,30 @@ export async function fetchPoolDepths(): Promise<PoolDepths | null> {
 		};
 	} catch (err) {
 		console.error('Failed to fetch pool depths', err);
+		return null;
+	}
+}
+
+/**
+ * Look up a pool contract in the indexer registry by its asset pair
+ * (order-independent). Returns the first matching pool. Use when callers
+ * only know the assets, not the contract ID directly.
+ */
+export async function findPoolByPair(
+	assetA: string,
+	assetB: string
+): Promise<string | null> {
+	const a = assetA.toUpperCase();
+	const b = assetB.toUpperCase();
+	try {
+		const registry = await fetchPoolRegistry();
+		const hit = registry.find((p) => {
+			const [s0, s1] = [p.symbols[0].toUpperCase(), p.symbols[1].toUpperCase()];
+			return (s0 === a && s1 === b) || (s0 === b && s1 === a);
+		});
+		return hit?.contractId ?? null;
+	} catch (err) {
+		console.error('findPoolByPair failed', err);
 		return null;
 	}
 }

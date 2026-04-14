@@ -1,14 +1,15 @@
 import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import { vscNetworkId } from '../../../../client';
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/pools/poolsData';
+import { vscNetworkId, DEX_ROUTER_CONTRACT_ID } from '../../../../client';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/stores/currentBalance';
 
 /**
  * DEX Router — handles all swap types (HIVE/HBD, BTC/HBD, BTC/HIVE multi-hop).
  * All swaps go through the router which auto-discovers the correct pool.
+ * Re-exported here for backwards compatibility with existing imports.
  */
-export const SWAP_CONTRACT_ID = 'vsc1BoZJMQqpmdLxUfyRt5Tz82YM7Z57r7Dos7';
+export const SWAP_CONTRACT_ID = DEX_ROUTER_CONTRACT_ID;
 
 type SwapCoin = typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc;
 

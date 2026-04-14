@@ -24,6 +24,7 @@
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import {
 		fetchPoolDepths,
+		findPoolByPair,
 		calculateSwap,
 		getOrderedDepths,
 		type PoolDepths,
@@ -193,10 +194,16 @@
 	});
 
 
-	// Pool-based fee calculation
+	// Pool-based fee calculation — resolve the HIVE/HBD pool contract from the
+	// indexer registry (network-aware) before fetching depths.
 	let poolDepths: PoolDepths | null = $state(null);
 	let swapResult: SwapCalcResult | null = $state(null);
-	fetchPoolDepths().then((d) => { if (d) poolDepths = d; });
+	(async () => {
+		const poolId = await findPoolByPair('HIVE', 'HBD');
+		if (!poolId) return;
+		const d = await fetchPoolDepths(poolId);
+		if (d) poolDepths = d;
+	})();
 
 	$effect(() => {
 		const fromCoin = $SendTxDetails.fromCoin;
@@ -415,11 +422,11 @@
 
 				// BTC needs approval via mapping contract
 				if (fromCoinDef.value === Coin.btc.value) {
-					const { MAPPINGCONTRACTID } = await import('$lib/stores/currentBalance');
+					const { BTC_MAPPING_CONTRACT_ID } = await import('$lib/stores/currentBalance');
 					txOps.push({
 						op: 'call',
 						payload: {
-							contract_id: MAPPINGCONTRACTID,
+							contract_id: BTC_MAPPING_CONTRACT_ID,
 							action: 'approve',
 							payload: JSON.stringify({
 								spender: `contract:${SWAP_CONTRACT_ID}`,

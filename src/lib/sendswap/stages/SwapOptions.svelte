@@ -41,12 +41,13 @@
 	import Card from '$lib/cards/Card.svelte';
 	import moment from 'moment';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { accountBalance } from '$lib/stores/currentBalance';
+	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { getHiveAssetName, getHbdAssetName, vscNetworkId } from '$lib/../client';
 	import {
 		fetchPoolDepths,
+		findPoolByPair,
 		calculateSwap,
 		getOrderedDepths,
 		type PoolDepths,
@@ -72,9 +73,14 @@
 
 	onMount(() => {
 		loadHistoricalCoinData();
-		fetchPoolDepths().then((d) => {
+		// Resolve the HIVE/HBD pool dynamically from the indexer registry so
+		// the call is network-aware (mainnet vs testnet).
+		(async () => {
+			const poolId = await findPoolByPair('HIVE', 'HBD');
+			if (!poolId) return;
+			const d = await fetchPoolDepths(poolId);
 			if (d) poolDepths = d;
-		});
+		})();
 	});
 	onDestroy(() => {
 		saveHistoricalCoinData();
@@ -283,10 +289,10 @@
 
 		// TO auto selection, update only if value changes!
 		const visibleToObjs = toAssetObjs.filter((obj) => {
-			const coinValue = obj.value as keyof AccountBalance;
-			if (!coinValue) return false;
-			const bal = $accountBalance.bal?.[coinValue];
-			return !!bal && Number(bal) > 0.001;
+			const coinDef = Object.values(Coin).find((c) => c.value === obj.value);
+			if (!coinDef) return false;
+			const bal = getBalanceSmallestUnits($accountBalance, coinDef, Network.magi);
+			return bal > 0.001;
 		});
 		if (!($SendTxDetails.toCoin && $SendTxDetails.toNetwork)) {
 			let nextToCoin: (typeof swapOptions.to.coins)[number] | undefined;
@@ -339,9 +345,12 @@
 		const from = $SendTxDetails.fromCoin;
 		const fromAmount = $SendTxDetails.fromAmount;
 		if (!from || !fromAmount || fromAmount === '0') return false;
-		const key = from.coin.value as keyof AccountBalance;
-		const bal = $accountBalance.bal?.[key];
-		if (bal == null || typeof bal !== 'number') return true;
+		const bal = getBalanceSmallestUnits(
+			$accountBalance,
+			from.coin,
+			$SendTxDetails.fromNetwork ?? Network.magi
+		);
+		if (bal <= 0) return true;
 		const inputNum = new CoinAmount(fromAmount, from.coin).toNumber();
 		const balNum = new CoinAmount(bal, from.coin, true).toNumber();
 		return inputNum > balNum;

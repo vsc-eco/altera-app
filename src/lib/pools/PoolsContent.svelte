@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown } from '@lucide/svelte';
-	import { fetchPools, type TimeRange } from './poolsData';
+	import { fetchPools, fetchUserLpPositions, type TimeRange } from './poolsData';
 	import type { PoolRow } from './poolsData';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import PoolDetail from './PoolDetail.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
+	import { getAuth } from '$lib/auth/store';
 
 	function getCoinIcon(symbol: string): string | undefined {
 		const s = symbol.toUpperCase();
@@ -27,6 +28,10 @@
 	let loading = $state(false);
 	let selectedPool = $state<PoolRow | null>(null);
 
+	const auth = $derived(getAuth()());
+	const did = $derived(auth.value?.did);
+	let myPoolIds = $state<Set<string>>(new Set());
+
 	$effect(() => {
 		const range = timeRange;
 		loading = true;
@@ -35,6 +40,28 @@
 			loading = false;
 		});
 	});
+
+	$effect(() => {
+		const currentDid = did;
+		if (!currentDid) {
+			myPoolIds = new Set();
+			return;
+		}
+		let cancelled = false;
+		fetchUserLpPositions(currentDid)
+			.then((positions) => {
+				if (cancelled) return;
+				myPoolIds = new Set(positions.map((p) => p.contractId));
+			})
+			.catch((err) => {
+				console.error('Failed to fetch user LP positions', err);
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	const myPools = $derived(pools.filter((p) => myPoolIds.has(p.contractId)));
 
 	type SortColumn = 'liquidity' | 'fee' | 'volume';
 	let sortColumn = $state<SortColumn>('liquidity');
@@ -120,6 +147,23 @@
 		</div>
 	</div>
 
+	{@render poolsTable(sortedPools)}
+
+	<div class="action-buttons">
+		<button class="action-btn" disabled title="Coming soon">Create Pool</button>
+		<button class="action-btn" onclick={() => (addLiquidityOpen = true)}>Add Liquidity</button>
+		<button class="action-btn" onclick={() => (removeLiquidityOpen = true)}>Remove Liquidity</button>
+	</div>
+
+	{#if did && myPools.length > 0}
+		<div class="my-pools-section">
+			<h3 class="section-title">My pools</h3>
+			{@render poolsTable(myPools)}
+		</div>
+	{/if}
+</div>
+
+{#snippet poolsTable(rows: PoolRow[])}
 	<div class="table-wrapper">
 		<table class="pools-table">
 			<thead>
@@ -168,7 +212,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each sortedPools as pool (pool.id)}
+				{#each rows as pool (pool.id)}
 					<tr class="clickable" onclick={() => (selectedPool = pool)}>
 						<td class="col-pair">
 							<div class="pair-cell">
@@ -222,13 +266,7 @@
 			</tbody>
 		</table>
 	</div>
-
-	<div class="action-buttons">
-		<button class="action-btn" onclick={() => createPoolToggle(true)}>Create Pool</button>
-		<button class="action-btn" onclick={() => (addLiquidityOpen = true)}>Add Liquidity</button>
-		<button class="action-btn" onclick={() => (removeLiquidityOpen = true)}>Remove Liquidity</button>
-	</div>
-</div>
+{/snippet}
 
 <AddLiquidityPopup bind:open={addLiquidityOpen} {pools} />
 <RemoveLiquidityPopup bind:open={removeLiquidityOpen} {pools} />
@@ -448,16 +486,35 @@
 		padding: 0.5rem 1rem;
 		cursor: pointer;
 		box-shadow: 0 4px 16px rgba(111, 106, 248, 0.25);
-		&:hover {
+		&:hover:not(:disabled) {
 			box-shadow: 0 6px 24px rgba(111, 106, 248, 0.4);
 		}
-		&:active {
+		&:active:not(:disabled) {
 			transform: scale(0.97);
+		}
+		&:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			box-shadow: none;
 		}
 	}
 
 	.placeholder-text {
 		color: var(--dash-text-muted);
 		padding: 0.5rem 0;
+	}
+
+	.my-pools-section {
+		margin-top: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.section-title {
+		margin: 0 0 0.25rem;
+		font-family: 'Nunito Sans', sans-serif;
+		font-size: 0.9rem;
+		font-weight: 700;
+		color: var(--dash-text-primary);
 	}
 </style>

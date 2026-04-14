@@ -1,5 +1,6 @@
 import { GetStateByKeysStore } from '$houdini';
 import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
+import { getMagiIndexerUrl } from '../../client';
 
 export type TimeRange = '1d' | '7d' | '30d' | 'max';
 
@@ -19,14 +20,10 @@ export interface PoolRow {
 	volumeAssets: [string, string];
 }
 
-// HIVE/HBD DEX:
-export const HIVE_HBD_POOL_CONTRACT_ID = 'vsc1Brm1QpGF8WXvRCvwgbpB6fiHtTBJzyZUC9';
-
-// BTC/HBD DEX:
-export const HBD_BTC_POOL_CONTRACT_ID = 'vsc1BgwiEg8P5u2qYSV7DL8FCqrj5E7hWSYKmf';
-
-// BTC Mapping contract (ERC-20 style approve/transfer for BTC):
-export const BTC_MAPPING_CONTRACT_ID = 'vsc1BYBwMvsSFwqvwzio352VWp6fGkjVs7t3Dp';
+// Pool contract IDs are discovered dynamically via fetchPoolRegistry()
+// against the Magi indexer — no more hardcoded mainnet-only constants.
+// BTC Mapping contract lives in `$lib/stores/currentBalance` and is
+// network-switched there. Import `BTC_MAPPING_CONTRACT_ID` from that module.
 
 export const HBD_BTC_POOL_KEYS = [
 	'reserve0',
@@ -45,7 +42,7 @@ export const HBD_BTC_POOL_KEYS = [
 	'bal/'
 ] as const;
 
-const HASURA_INDEXER_URL = 'https://magidev.okinoko.io/hasura/v1/graphql';
+// Hasura indexer URL — now sourced from the Magi Indexer app preference.
 
 type PoolState = Record<string, string | null | undefined>;
 
@@ -83,7 +80,7 @@ interface AggregateResult {
 }
 
 async function hasuraQuery(query: string, variables: Record<string, unknown>) {
-	const res = await fetch(HASURA_INDEXER_URL, {
+	const res = await fetch(getMagiIndexerUrl(), {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ query, variables })
@@ -272,11 +269,97 @@ function mapStateToPoolRow(
 	};
 }
 
-// Pool definitions: contract ID + fallback symbols
-const POOL_CONFIGS = [
-	{ contractId: HBD_BTC_POOL_CONTRACT_ID, symbols: ['HBD', 'BTC'] as [string, string] },
-	{ contractId: HIVE_HBD_POOL_CONTRACT_ID, symbols: ['HIVE', 'HBD'] as [string, string] }
-];
+// ---- Pool discovery via indexer registry ----
+
+type PoolRegistryEntry = {
+	contractId: string;
+	symbols: [string, string];
+	feeBps: number | null;
+};
+
+function parseRegistryAssetSymbol(raw: unknown, fallback: string): string {
+	if (raw == null) return fallback;
+	if (typeof raw === 'string') {
+		// Values may be JSON-encoded objects like {"asset":"hbd"} or plain strings.
+		const trimmed = raw.trim();
+		if (trimmed.startsWith('{')) {
+			try {
+				const obj = JSON.parse(trimmed);
+				if (obj?.asset) return String(obj.asset).toUpperCase();
+			} catch {
+				/* fall through */
+			}
+		}
+		return trimmed.toUpperCase();
+	}
+	if (typeof raw === 'object' && raw && 'asset' in (raw as Record<string, unknown>)) {
+		const v = (raw as Record<string, unknown>).asset;
+		if (v) return String(v).toUpperCase();
+	}
+	return fallback;
+}
+
+/** Query the indexer for every registered DEX pool. */
+export async function fetchPoolRegistry(): Promise<PoolRegistryEntry[]> {
+	const query = `
+		query PoolRegistry {
+			dex_pool_registry {
+				pool_contract
+				asset0
+				asset1
+				fee_bps
+			}
+		}
+	`;
+	const data = await hasuraQuery(query, {});
+	const rows = (data?.dex_pool_registry ?? []) as Array<{
+		pool_contract: string;
+		asset0: unknown;
+		asset1: unknown;
+		fee_bps: number | null;
+	}>;
+	return rows.map((row) => ({
+		contractId: row.pool_contract,
+		symbols: [
+			parseRegistryAssetSymbol(row.asset0, '?'),
+			parseRegistryAssetSymbol(row.asset1, '?')
+		],
+		feeBps: row.fee_bps ?? null
+	}));
+}
+
+export type UserLpPosition = {
+	contractId: string;
+	provider: string;
+	lpBalance: number;
+};
+
+/** LP positions for a given VSC account (DID). Excludes zero/negative balances. */
+export async function fetchUserLpPositions(did: string): Promise<UserLpPosition[]> {
+	if (!did) return [];
+	const query = `
+		query UserLpPositions($provider: String!) {
+			dex_pool_lp_positions(
+				where: { provider: { _eq: $provider }, lp_balance: { _gt: "0" } }
+			) {
+				pool_contract
+				provider
+				lp_balance
+			}
+		}
+	`;
+	const data = await hasuraQuery(query, { provider: did });
+	const rows = (data?.dex_pool_lp_positions ?? []) as Array<{
+		pool_contract: string;
+		provider: string;
+		lp_balance: number | string;
+	}>;
+	return rows.map((row) => ({
+		contractId: row.pool_contract,
+		provider: row.provider,
+		lpBalance: Number(row.lp_balance) || 0
+	}));
+}
 
 async function fetchSinglePool(
 	contractId: string,
@@ -300,16 +383,21 @@ async function fetchSinglePool(
 
 export async function fetchPools(range: TimeRange = '30d'): Promise<PoolRow[]> {
 	try {
-		const prices = await getCryptoPrices();
+		const [prices, registry] = await Promise.all([getCryptoPrices(), fetchPoolRegistry()]);
 		const usdPrices = {
 			hive: prices.hive?.usd ?? 0,
 			hbd: prices.hive_dollar?.usd ?? 0,
 			btc: prices.bitcoin?.usd ?? 0
 		};
 
+		if (registry.length === 0) {
+			console.warn('Pool registry returned no pools from indexer');
+			return [];
+		}
+
 		const poolRows = await Promise.all(
-			POOL_CONFIGS.map((cfg) =>
-				fetchSinglePool(cfg.contractId, cfg.symbols, range, usdPrices)
+			registry.map((entry) =>
+				fetchSinglePool(entry.contractId, entry.symbols, range, usdPrices)
 			)
 		);
 

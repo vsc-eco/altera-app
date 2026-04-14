@@ -43,24 +43,49 @@
 	import { createClient, signAndBrodcastTransaction, type CallContractTransaction } from '$lib/magiTransactions/eth/client';
 	import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
 	import { wagmiConfig } from '$lib/auth/reown';
+	import ReviewSwap from '$lib/sendswap/stages/ReviewSwap.svelte';
 
 	const auth = $derived(getAuth()());
+
+	/**
+	 * QuickSwap exposes only native mainnet chains — never Magi-mapped.
+	 * Returns the right Network for a given coin: btcMainnet for BTC,
+	 * hiveMainnet for HIVE/HBD/sHBD, falling back to the coin's first
+	 * non-magi-non-lightning network otherwise.
+	 */
+	function nativeNetworkFor(coinValue: string): Network {
+		if (coinValue === Coin.btc.value) return Network.btcMainnet;
+		if (
+			coinValue === Coin.hive.value ||
+			coinValue === Coin.hbd.value ||
+			coinValue === (Coin.shbd?.value ?? '')
+		)
+			return Network.hiveMainnet;
+		// Generic fallback: first non-magi, non-lightning network on the coin
+		const opt = swapOptions.from.coins.find((c) => c.coin.value === coinValue);
+		const native = opt?.networks.find(
+			(n) => n.value !== Network.magi.value && n.value !== Network.lightning.value
+		);
+		return native ?? Network.hiveMainnet;
+	}
 
 	function startDetails() {
 		const stored = loadSwapSelection(SWAP_QUICK_PREF_KEY);
 		const btcFromOption = swapOptions.from.coins.find((c) => c.coin.value === Coin.btc.value);
+		const hiveToOption = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
 		const fromOpt = findFromOpt(stored?.fromCoin) ?? btcFromOption;
-		const toOpt = findToOpt(stored?.toCoin);
-		const fromNet =
-			findNetwork(stored?.fromNetwork) ?? (btcFromOption ? Network.lightning : undefined);
-		const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
+		const toOpt = findToOpt(stored?.toCoin) ?? hiveToOption;
+		// Always derive the network from the coin's native mainnet — ignore
+		// any persisted `magi` value left over from earlier code.
+		const fromNet = fromOpt ? nativeNetworkFor(fromOpt.coin.value) : undefined;
+		const toNet = toOpt ? nativeNetworkFor(toOpt.coin.value) : undefined;
 		return {
 			...blankDetails(),
-			toNetwork: toNet,
 			method: TransferMethod.lightningTransfer,
 			fromCoin: fromOpt ?? undefined,
 			fromNetwork: fromNet,
-			toCoin: toOpt
+			toCoin: toOpt ?? undefined,
+			toNetwork: toNet
 		};
 	}
 
@@ -71,27 +96,19 @@
 		SendTxDetails.set(startDetails());
 	});
 
-	// Ensure From is always set when not present — fall back to BTC if the
-	// persisted selection didn't restore one.
-	$effect(() => {
-		if (!auth.value) return;
-		if ($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork) return;
-		const btcOption = swapOptions.from.coins.find((c) => c.coin.value === Coin.btc.value);
-		if (btcOption) {
-			$SendTxDetails.fromCoin = btcOption;
-			$SendTxDetails.fromNetwork = Network.lightning;
-		}
-	});
-
 	// Persist the user's QuickSwap source/target selection (own key — does
-	// not share state with the /swap page persistence).
+	// not share state with the /swap page persistence). Partial state is
+	// allowed: save as soon as either side is populated.
+	// IMPORTANT: read the store fields BEFORE the gate so they're tracked
+	// as dependencies on the first (gated) effect run — otherwise this
+	// effect would never re-fire when the user changes a selection.
 	$effect(() => {
-		if (!swapDetailsInitialized) return;
 		const fromCoin = $SendTxDetails.fromCoin?.coin.value;
 		const fromNetwork = $SendTxDetails.fromNetwork?.value;
 		const toCoin = $SendTxDetails.toCoin?.coin.value;
 		const toNetwork = $SendTxDetails.toNetwork?.value;
-		if (fromCoin && toCoin) {
+		if (!swapDetailsInitialized) return;
+		if (fromCoin || toCoin) {
 			saveSwapSelection(SWAP_QUICK_PREF_KEY, { fromCoin, fromNetwork, toCoin, toNetwork });
 		}
 	});
@@ -144,15 +161,6 @@
 			}))
 	);
 
-
-	$effect(() => {
-		if ($SendTxDetails.toCoin && $SendTxDetails.toNetwork) return;
-		const hiveOpt = swapOptions.to.coins.find((opt) => opt.coin.value === Coin.hive.value);
-		if (hiveOpt) {
-			$SendTxDetails.toCoin = hiveOpt;
-			$SendTxDetails.toNetwork = Network.magi;
-		}
-	});
 
 	let possibleCoins: CoinOnNetwork[] = $derived.by(() => {
 		const result: CoinOnNetwork[] = [];
@@ -252,7 +260,32 @@
 
 		const assetIn = fromCoin.coin.value as 'hive' | 'hbd';
 		const { X, Y } = getOrderedDepths(poolDepths, assetIn);
-		swapResult = calculateSwap(BigInt(fromAmountInt), X, Y, 100);
+		const slippageBps = 100; // QuickSwap default 1%
+		const result = calculateSwap(BigInt(fromAmountInt), X, Y, slippageBps);
+		swapResult = result;
+
+		// Mirror the swap calc into $SendTxDetails so ReviewSwap can read
+		// the same numbers (fee, slippage, expected output) without
+		// recomputing or showing a "loading…" placeholder.
+		untrack(() => {
+			const expectedOutput = result.expectedOutput.toString();
+			const minAmountOut = result.minAmountOut.toString();
+			const swapBaseFee = result.baseFee.toString();
+			const swapClpFee = result.clpFee.toString();
+			const swapTotalFee = result.totalFee.toString();
+			if ($SendTxDetails.expectedOutput !== expectedOutput)
+				$SendTxDetails.expectedOutput = expectedOutput;
+			if ($SendTxDetails.slippageBps !== slippageBps)
+				$SendTxDetails.slippageBps = slippageBps;
+			if ($SendTxDetails.minAmountOut !== minAmountOut)
+				$SendTxDetails.minAmountOut = minAmountOut;
+			if ($SendTxDetails.swapBaseFee !== swapBaseFee)
+				$SendTxDetails.swapBaseFee = swapBaseFee;
+			if ($SendTxDetails.swapClpFee !== swapClpFee)
+				$SendTxDetails.swapClpFee = swapClpFee;
+			if ($SendTxDetails.swapTotalFee !== swapTotalFee)
+				$SendTxDetails.swapTotalFee = swapTotalFee;
+		});
 	});
 
 	function formatFee(val: bigint | number, decimals: number): string {
@@ -327,12 +360,14 @@
 		if (!coinOpt) return;
 
 		// QuickSwap doesn't expose Magi-mapped sub-network selection — the
-		// click on the token IS the selection. Both sides default to
-		// Network.magi (the swap router channel).
+		// click on the token IS the selection. The chosen network is the
+		// asset's native mainnet (btcMainnet for BTC, hiveMainnet for
+		// HIVE/HBD), never Magi.
+		const net = nativeNetworkFor(coinOpt.coin.value);
 		if (currentlyOpen === 'from') {
-			SendTxDetails.update((d) => ({ ...d, fromCoin: coinOpt, fromNetwork: Network.magi }));
+			SendTxDetails.update((d) => ({ ...d, fromCoin: coinOpt, fromNetwork: net }));
 		} else {
-			SendTxDetails.update((d) => ({ ...d, toCoin: coinOpt, toNetwork: Network.magi }));
+			SendTxDetails.update((d) => ({ ...d, toCoin: coinOpt, toNetwork: net }));
 		}
 		closeDialog();
 	}
@@ -340,53 +375,159 @@
 	let swapStatus = $state('');
 	let swapLoading = $state(false);
 	let swapError = $state(false);
+	// Drives the confirm-swap popup. Set to true after validation passes;
+	// the actual broadcast happens when the user confirms inside the popup.
+	let reviewOpen = $state(false);
+	const reviewStatus = $derived({ message: swapStatus, isError: swapError });
+	const hasAmount = $derived(
+		!!$SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0' && inputAmount.amount > 0
+	);
+	const sameCoinSelected = $derived(
+		!!$SendTxDetails.fromCoin &&
+			!!$SendTxDetails.toCoin &&
+			$SendTxDetails.fromCoin.coin.value === $SendTxDetails.toCoin.coin.value
+	);
 
-	async function onExchange() {
+	function setError(msg: string) {
+		swapStatus = msg;
+		swapError = true;
+	}
+
+	/**
+	 * Validate inputs and wallet/asset compatibility. Returns true if the
+	 * swap is ready to broadcast. Side-effects: writes swapStatus/swapError
+	 * on failure.
+	 */
+	function validateSwap(): boolean {
 		swapError = false;
 		swapStatus = '';
 
 		if (!auth.value) {
-			swapStatus = 'Connect your wallet first';
-			swapError = true;
-			return;
+			setError('Connect your wallet first');
+			return false;
 		}
 		if (!$SendTxDetails.fromCoin || !$SendTxDetails.toCoin) {
-			swapStatus = 'Select both tokens';
-			swapError = true;
-			return;
+			setError('Select both tokens');
+			return false;
+		}
+		if (sameCoinSelected) {
+			setError('From and To assets must be different');
+			return false;
 		}
 		if (!$SendTxDetails.fromAmount || $SendTxDetails.fromAmount === '0') {
-			swapStatus = 'Enter an amount';
-			swapError = true;
-			return;
+			setError('Enter an amount');
+			return false;
 		}
+
+		const fromCoinDef = $SendTxDetails.fromCoin.coin;
+		const provider = auth.value.provider;
+		const isHiveAsset =
+			fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
+		const isBtcAsset = fromCoinDef.value === Coin.btc.value;
+
+		if (provider === 'reown' && isHiveAsset) {
+			setError('HIVE/HBD requires a Hive wallet — connect via Hive Keychain or HiveAuth');
+			return false;
+		}
+		if (provider === 'reown' && isBtcAsset) {
+			setError('BTC requires a Bitcoin wallet — MetaMask cannot send BTC');
+			return false;
+		}
+		if (provider === 'aioha' && isBtcAsset) {
+			setError('BTC requires a Bitcoin mainnet wallet');
+			return false;
+		}
+		return true;
+	}
+
+	function requestSwap() {
+		if (!validateSwap()) return;
+		reviewOpen = true;
+	}
+
+	/**
+	 * Swap the from/to coins and carry the previous target amount across
+	 * as the new origin amount.
+	 *
+	 * Tricky bit: AmountInput cross-binds inputAmount/toInputAmount via
+	 * its `connectedCoinAmount` prop with async Lightning-rate conversion.
+	 * Swapping both sides at once would ping-pong the convertTo effects
+	 * forever and hang the browser. We work around that by:
+	 *  1. Snapshotting the old to-amount value.
+	 *  2. Zeroing both bound CoinAmounts so each AmountInput's
+	 *     `lastConnected` settles on "0" without triggering a convertTo.
+	 *  3. Swapping the coin/network selections in the store.
+	 *  4. After a frame (so the connected effects pick up the zero state),
+	 *     setting inputAmount to the carried-over value. Only one side
+	 *     changes at a time, so the convertTo on the other side has a
+	 *     stable target and no ping-pong.
+	 */
+	function flipDirection() {
+		if (swapLoading) return;
+		const fromCoinValue = $SendTxDetails.fromCoin?.coin.value;
+		const toCoinValue = $SendTxDetails.toCoin?.coin.value;
+		if (!fromCoinValue || !toCoinValue) return;
+
+		const newFromOpt = swapOptions.from.coins.find((c) => c.coin.value === toCoinValue);
+		const newToOpt = swapOptions.to.coins.find((c) => c.coin.value === fromCoinValue);
+		if (!newFromOpt || !newToOpt) return;
+
+		// Old to-side amount in smallest units of the OLD to coin, which
+		// equals the NEW from coin (same currency, same decimals).
+		const carryAmount = toInputAmount.amount;
+
+		inputAmount = new CoinAmount(0, newFromOpt.coin);
+		toInputAmount = new CoinAmount(0, newToOpt.coin);
+
+		SendTxDetails.update((d) => ({
+			...d,
+			fromCoin: newFromOpt,
+			toCoin: newToOpt,
+			fromNetwork: nativeNetworkFor(newFromOpt.coin.value),
+			toNetwork: nativeNetworkFor(newToOpt.coin.value),
+			fromAmount: '0',
+			toAmount: '0'
+		}));
+
+		if (carryAmount <= 0) return;
+
+		// After both AmountInputs have settled on zero, set the new
+		// from-side AND the converted to-side together in one RAF tick.
+		// We do the conversion ourselves and apply both sides at once so
+		// the AmountInputs' `connectedCoinAmount` effects see a stable,
+		// already-converged pair on their next run — convergence check
+		// short-circuits and no ping-pong fires.
+		requestAnimationFrame(async () => {
+			const newFromAmt = new CoinAmount(carryAmount, newFromOpt.coin, true);
+			let newToAmt: CoinAmount<Coin>;
+			try {
+				newToAmt = (await newFromAmt.convertTo(
+					newToOpt.coin,
+					Network.lightning
+				)) as CoinAmount<Coin>;
+			} catch {
+				newToAmt = new CoinAmount(0, newToOpt.coin);
+			}
+			inputAmount = newFromAmt;
+			toInputAmount = newToAmt;
+		});
+	}
+
+	function cancelSwap() {
+		if (swapLoading) return; // can't cancel mid-broadcast from here
+		reviewOpen = false;
+	}
+
+	async function confirmSwap() {
+		if (!auth.value || !$SendTxDetails.fromCoin || !$SendTxDetails.toCoin) return;
 
 		const fromCoinDef = $SendTxDetails.fromCoin.coin;
 		const toCoinDef = $SendTxDetails.toCoin.coin;
 		const amount = new CoinAmount($SendTxDetails.fromAmount, fromCoinDef);
 		const caller = auth.value.did;
-		const provider = auth.value.provider;
 
-		// Wallet/token compatibility check — QuickSwap is mainnet to mainnet
-		const isHiveAsset = fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
-		const isBtcAsset = fromCoinDef.value === Coin.btc.value;
-
-		if (provider === 'reown' && isHiveAsset) {
-			swapStatus = 'HIVE/HBD requires a Hive wallet — connect via Hive Keychain or HiveAuth';
-			swapError = true;
-			return;
-		}
-		if (provider === 'reown' && isBtcAsset) {
-			swapStatus = 'BTC requires a Bitcoin wallet — MetaMask cannot send BTC';
-			swapError = true;
-			return;
-		}
-		if (provider === 'aioha' && isBtcAsset) {
-			swapStatus = 'BTC requires a Bitcoin mainnet wallet';
-			swapError = true;
-			return;
-		}
-
+		swapError = false;
+		swapStatus = '';
 		swapLoading = true;
 
 		try {
@@ -490,6 +631,8 @@
 				id: txId,
 				type: auth.value.provider === 'aioha' ? 'hive' : 'evm'
 			});
+			// Close the confirm popup on successful broadcast.
+			reviewOpen = false;
 
 		} catch (e: any) {
 			swapStatus = e.message || 'Swap failed';
@@ -545,7 +688,13 @@
 
 	<!-- Swap arrow -->
 	<div class="swap-arrow-wrap">
-		<button type="button" class="swap-arrow-btn">↕</button>
+		<button
+			type="button"
+			class="swap-arrow-btn"
+			onclick={flipDirection}
+			disabled={swapLoading || !$SendTxDetails.fromCoin || !$SendTxDetails.toCoin}
+			aria-label="Flip from/to"
+		>↕</button>
 	</div>
 
 	<!-- To Field -->
@@ -605,19 +754,32 @@
 		</div>
 	{/if}
 
+	{#if sameCoinSelected}
+		<p class="swap-status error">From and To assets must be different.</p>
+	{/if}
+
 	<!-- Exchange -->
 	<button
 		type="button"
 		class="exchange-btn"
-		onclick={onExchange}
-		disabled={swapLoading}
+		onclick={requestSwap}
+		disabled={swapLoading || !hasAmount || sameCoinSelected}
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
 	</button>
-	{#if swapStatus}
+	{#if swapStatus && !reviewOpen && !sameCoinSelected}
 		<p class="swap-status" class:error={swapError}>{swapStatus}</p>
 	{/if}
 </div>
+
+<ReviewSwap
+	isActive={reviewOpen}
+	status={reviewStatus}
+	waiting={swapLoading}
+	abort={cancelSwap}
+	previous={cancelSwap}
+	next={confirmSwap}
+/>
 
 <Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet title()}Select a token{/snippet}

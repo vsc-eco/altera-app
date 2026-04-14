@@ -30,11 +30,11 @@
 	import { ArrowDown, ChevronDown, Search } from '@lucide/svelte';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import {
-		fetchPoolDepths,
-		findPoolByPair,
+		fetchTypedPoolDepths,
+		getOrderedDepthsFor,
 		calculateSwap,
-		getOrderedDepths,
-		type PoolDepths,
+		calculateTwoHopSwap,
+		type TypedPoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
 	import {
@@ -270,30 +270,37 @@
 		}
 	});
 
-	// Pool-based fee calculation — resolve the HIVE/HBD pool contract from the
-	// indexer registry (network-aware) before fetching depths.
-	let poolDepths: PoolDepths | null = $state(null);
+	// Pool-based fee calculation — resolve both HIVE/HBD and BTC/HBD
+	// pools upfront so the swap calc can route HIVE↔HBD single-hop,
+	// BTC↔HBD single-hop, and BTC↔HIVE two-hop via HBD. Uses the
+	// indexer fallback for chain-state reads so testnet pools without
+	// getStateByKeys support still work.
+	let hiveHbdPool = $state<TypedPoolDepths | null>(null);
+	let btcHbdPool = $state<TypedPoolDepths | null>(null);
 	let swapResult: SwapCalcResult | null = $state(null);
 	(async () => {
-		const poolId = await findPoolByPair('HIVE', 'HBD');
-		if (!poolId) return;
-		const d = await fetchPoolDepths(poolId);
-		if (d) poolDepths = d;
+		const [hiveHbd, btcHbd] = await Promise.all([
+			fetchTypedPoolDepths('HIVE', 'HBD'),
+			fetchTypedPoolDepths('BTC', 'HBD')
+		]);
+		if (hiveHbd) hiveHbdPool = hiveHbd;
+		if (btcHbd) btcHbdPool = btcHbd;
 	})();
 
 	$effect(() => {
 		const fromCoin = $SendTxDetails.fromCoin;
 		const toCoin = $SendTxDetails.toCoin;
 		const fromAmount = $SendTxDetails.fromAmount;
-		if (!poolDepths || !fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
+		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
 			swapResult = null;
 			return;
 		}
-		const isHiveSwap =
-			(fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value) &&
-			(toCoin.coin.value === Coin.hive.value || toCoin.coin.value === Coin.hbd.value) &&
-			fromCoin.coin.value !== toCoin.coin.value;
-		if (!isHiveSwap) {
+		const swapAssets = new Set([Coin.hive.value, Coin.hbd.value, Coin.btc.value]);
+		if (
+			!swapAssets.has(fromCoin.coin.value) ||
+			!swapAssets.has(toCoin.coin.value) ||
+			fromCoin.coin.value === toCoin.coin.value
+		) {
 			swapResult = null;
 			return;
 		}
@@ -304,14 +311,72 @@
 			return;
 		}
 
-		const assetIn = fromCoin.coin.value as 'hive' | 'hbd';
-		const { X, Y } = getOrderedDepths(poolDepths, assetIn);
-		const result = calculateSwap(BigInt(fromAmountInt), X, Y, slippageBps);
+		const x = BigInt(fromAmountInt);
+		const assetIn = fromCoin.coin.value;
+		const assetOut = toCoin.coin.value;
+		const involvesBtc = assetIn === Coin.btc.value || assetOut === Coin.btc.value;
+
+		let result: SwapCalcResult | null = null;
+		if (!involvesBtc) {
+			if (!hiveHbdPool) {
+				swapResult = null;
+				return;
+			}
+			const d = getOrderedDepthsFor(hiveHbdPool, assetIn);
+			if (!d) {
+				swapResult = null;
+				return;
+			}
+			result = calculateSwap(x, d.X, d.Y, slippageBps);
+		} else if (
+			(assetIn === Coin.btc.value && assetOut === Coin.hbd.value) ||
+			(assetIn === Coin.hbd.value && assetOut === Coin.btc.value)
+		) {
+			if (!btcHbdPool) {
+				swapResult = null;
+				return;
+			}
+			const d = getOrderedDepthsFor(btcHbdPool, assetIn);
+			if (!d) {
+				swapResult = null;
+				return;
+			}
+			result = calculateSwap(x, d.X, d.Y, slippageBps);
+		} else {
+			// BTC ↔ HIVE: two-hop via HBD.
+			if (!btcHbdPool || !hiveHbdPool) {
+				swapResult = null;
+				return;
+			}
+			const pool1 = assetIn === Coin.btc.value ? btcHbdPool : hiveHbdPool;
+			const pool2 = assetIn === Coin.btc.value ? hiveHbdPool : btcHbdPool;
+			result = calculateTwoHopSwap(
+				x,
+				pool1,
+				pool2,
+				assetIn,
+				Coin.hbd.value,
+				assetOut,
+				slippageBps
+			);
+		}
+
+		if (!result) {
+			swapResult = null;
+			return;
+		}
 		swapResult = result;
 
 		// Mirror the swap calc into $SendTxDetails so ReviewSwap can read
 		// the same numbers (fee, slippage, expected output) without
 		// recomputing or showing a "loading…" placeholder.
+		//
+		// Also overwrite `toInputAmount` with the pool's expectedOutput
+		// so the TO field in the card shows the actual swap price,
+		// not the lightning-rate reference that AmountInput's
+		// `connectedCoinAmount` convertTo produces. Guarded so we only
+		// write when the value actually changes — otherwise AmountInput's
+		// external-sync effect re-fires on every swap calc pass.
 		untrack(() => {
 			const expectedOutput = result.expectedOutput.toString();
 			const minAmountOut = result.minAmountOut.toString();
@@ -325,6 +390,14 @@
 			if ($SendTxDetails.swapBaseFee !== swapBaseFee) $SendTxDetails.swapBaseFee = swapBaseFee;
 			if ($SendTxDetails.swapClpFee !== swapClpFee) $SendTxDetails.swapClpFee = swapClpFee;
 			if ($SendTxDetails.swapTotalFee !== swapTotalFee) $SendTxDetails.swapTotalFee = swapTotalFee;
+
+			const poolOutAmount = Number(result.expectedOutput);
+			if (
+				toInputAmount.coin.value !== toCoin.coin.value ||
+				toInputAmount.amount !== poolOutAmount
+			) {
+				toInputAmount = new CoinAmount(poolOutAmount, toCoin.coin, true);
+			}
 		});
 	});
 
@@ -615,6 +688,10 @@
 				txOps.push(swapPayload);
 
 				swapStatus = 'Waiting for wallet approval...';
+				if (!wagmiConfig) {
+					setError('Connect an EVM wallet first');
+					return;
+				}
 				const client = createClient(caller);
 				const res = await signAndBrodcastTransaction(
 					txOps,
@@ -696,7 +773,6 @@
 		<div class="input-wrap">
 			<AmountInput
 				bind:coinAmount={inputAmount}
-				connectedCoinAmount={toInputAmount}
 				coinOpts={fromOnlyCoinOpts.length > 0 ? fromOnlyCoinOpts : possibleCoins}
 				{minAmount}
 				styleType="simple"
@@ -731,7 +807,6 @@
 		<div class="input-wrap">
 			<AmountInput
 				bind:coinAmount={toInputAmount}
-				connectedCoinAmount={inputAmount}
 				coinOpts={toOnlyCoinOpts.length > 0 ? toOnlyCoinOpts : possibleCoins}
 				styleType="simple"
 				hideUnit
@@ -1000,10 +1075,10 @@
 	.receiver-input-wrap {
 		display: flex;
 		align-items: center;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 0.75rem;
-		padding: 0.55rem 0.75rem;
+		background: rgba(0, 0, 0, 0.25);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		border-radius: 16px;
+		padding: 0.875rem 1rem;
 	}
 	.receiver-input-wrap.error {
 		border-color: var(--dash-accent-red, #e2595b);

@@ -4,8 +4,23 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import mkcert from 'vite-plugin-mkcert';
 
+const isReverseProxyDev = process.env.DEV_BEHIND_PROXY === '1';
+
 export default defineConfig({
-	plugins: [houdini(), sveltekit(), mkcert()],
+	plugins: [houdini(), sveltekit(), ...(isReverseProxyDev ? [] : [mkcert()])],
+	server: isReverseProxyDev
+		? {
+				host: '127.0.0.1',
+				port: 3333,
+				strictPort: true,
+				allowedHosts: ['altera.okinoko.io'],
+				hmr: {
+					host: 'altera.okinoko.io',
+					clientPort: 443,
+					protocol: 'wss'
+				}
+			}
+		: undefined,
 	optimizeDeps: {
 		exclude: ['@urql/svelte'],
 		esbuildOptions: {

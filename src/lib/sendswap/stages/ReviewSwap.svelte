@@ -13,6 +13,13 @@
 	import TxStatus from '../components/shared/TxStatus.svelte';
 	import { getHiveAssetName, getHbdAssetName } from '../../../client';
 	import { numberFormatLanguage } from '$lib/constants';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
+
+	function shortenAddress(value: string): string {
+		if (!value) return '';
+		if (value.length <= 20) return value;
+		return `${value.slice(0, 10)}…${value.slice(-6)}`;
+	}
 
 	const auth = $derived(getAuth()());
 	let {
@@ -169,6 +176,11 @@
 		});
 	});
 	let today = moment().format('MMM D, YYYY');
+
+	const senderAddress = $derived(
+		auth.value ? (getUsernameFromAuth(auth) ?? auth.value.address ?? '') : ''
+	);
+	const receiverAddress = $derived($SendTxDetails.toUsername ?? '');
 </script>
 
 {#snippet reviewContent()}
@@ -198,6 +210,15 @@
 							>
 							<td class="content">{prettyWithDisplayUnit(total)}</td>
 						</tr>
+						{#if senderAddress}
+							<tr>
+								<td class="icon"><Dot size="32" /></td>
+								<td class="sm-caption label">Sender</td>
+								<td class="content address" title={senderAddress}>
+									{shortenAddress(senderAddress)}
+								</td>
+							</tr>
+						{/if}
 					{/if}
 					<tr>
 						<td class="icon"><Dot size="32" /></td>
@@ -257,6 +278,15 @@
 								{prettyWithDisplayUnit(convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin))}
 							</td>
 						</tr>
+						{#if receiverAddress}
+							<tr>
+								<td class="icon"><Dot size="32" /></td>
+								<td class="sm-caption label">Receiver</td>
+								<td class="content address" title={receiverAddress}>
+									{shortenAddress(receiverAddress)}
+								</td>
+							</tr>
+						{/if}
 					{/if}
 				</tbody>
 			</table>
@@ -373,6 +403,12 @@
 		grid-area: area-content;
 		:global(.lucide-equal-approximately) {
 			min-width: 16px;
+		}
+		&.address {
+			font-family: 'Noto Sans Mono Variable', monospace;
+			font-size: 0.8rem;
+			color: var(--dash-text-secondary);
+			word-break: break-all;
 		}
 	}
 	.fee-loading {

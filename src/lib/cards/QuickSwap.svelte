@@ -306,7 +306,6 @@
 
 		const assetIn = fromCoin.coin.value as 'hive' | 'hbd';
 		const { X, Y } = getOrderedDepths(poolDepths, assetIn);
-		const slippageBps = 100; // QuickSwap default 1%
 		const result = calculateSwap(BigInt(fromAmountInt), X, Y, slippageBps);
 		swapResult = result;
 
@@ -460,6 +459,11 @@
 			$SendTxDetails.fromCoin.coin.value === $SendTxDetails.toCoin.coin.value
 	);
 	const missingReceiver = $derived(!$SendTxDetails.toUsername?.trim());
+
+	// Slippage tolerance in basis points. Matches the SwapOptions presets
+	// on the /swap page so the behavior is identical here.
+	const slippageOptions = [50, 100, 200, 300];
+	let slippageBps = $state(100);
 
 	function setError(msg: string) {
 		swapStatus = msg;
@@ -752,6 +756,22 @@
 		</div>
 	</div>
 
+	<!-- Slippage -->
+	<div class="slippage-row">
+		<span class="field-label">Slippage</span>
+		<div class="slippage-options">
+			{#each slippageOptions as bps}
+				<button
+					type="button"
+					class:active={slippageBps === bps}
+					onclick={() => (slippageBps = bps)}
+				>
+					{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
+				</button>
+			{/each}
+		</div>
+	</div>
+
 	<!-- Swap Details -->
 	{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
 		<div class="swap-details">
@@ -1002,6 +1022,36 @@
 	}
 	.receiver-input-wrap input::placeholder {
 		color: var(--dash-text-muted);
+	}
+	.slippage-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-top: 0.75rem;
+	}
+	.slippage-options {
+		display: flex;
+		gap: 0.25rem;
+	}
+	.slippage-options button {
+		padding: 0.25rem 0.55rem;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 12px;
+		background: transparent;
+		color: var(--dash-text-secondary);
+		cursor: pointer;
+		font-size: var(--text-xs);
+		font-weight: 500;
+		transition: background-color 0.15s ease, border-color 0.15s ease;
+	}
+	.slippage-options button.active {
+		background-color: var(--dash-accent-purple);
+		color: var(--dash-text-primary);
+		border-color: var(--dash-accent-purple);
+	}
+	.slippage-options button:hover:not(.active) {
+		background-color: var(--dash-card-border);
 	}
 	.input-wrap {
 		min-height: 42.2px;

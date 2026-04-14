@@ -150,9 +150,12 @@ async function fetchPoolFees(
 	};
 }
 
-async function fetchPoolLiquidity(
-	poolId: string
-): Promise<{ netAmount0: number; netAmount1: number; netLp: number }> {
+async function fetchPoolLiquidity(poolId: string): Promise<{
+	netAmount0: number;
+	netAmount1: number;
+	netLp: number;
+	snapshot: { reserve0: number; reserve1: number; totalLp: number } | null;
+}> {
 	const query = `
 		query PoolLiquidity($pool: String!) {
 			adds: dex_pool_add_liq_events_aggregate(where: {indexer_contract_id: {_eq: $pool}}) {
@@ -161,15 +164,30 @@ async function fetchPoolLiquidity(
 			removes: dex_pool_rem_liq_events_aggregate(where: {indexer_contract_id: {_eq: $pool}}) {
 				aggregate { sum { amount0 amount1 lp_burned } }
 			}
+			dex_pool_liquidity(where: {pool_contract: {_eq: $pool}}, limit: 1) {
+				reserve0
+				reserve1
+				total_lp
+			}
 		}
 	`;
 	const data = await hasuraQuery(query, { pool: poolId });
 	const adds = (data?.adds as AggregateResult)?.aggregate?.sum;
 	const removes = (data?.removes as AggregateResult)?.aggregate?.sum;
+	const snap = (data?.dex_pool_liquidity as
+		| Array<{ reserve0: number | string; reserve1: number | string; total_lp: number | string }>
+		| undefined)?.[0];
 	return {
 		netAmount0: (adds?.amount0 ?? 0) - (removes?.amount0 ?? 0),
 		netAmount1: (adds?.amount1 ?? 0) - (removes?.amount1 ?? 0),
-		netLp: (adds?.lp_minted ?? 0) - (removes?.lp_burned ?? 0)
+		netLp: (adds?.lp_minted ?? 0) - (removes?.lp_burned ?? 0),
+		snapshot: snap
+			? {
+					reserve0: Number(snap.reserve0) || 0,
+					reserve1: Number(snap.reserve1) || 0,
+					totalLp: Number(snap.total_lp) || 0
+				}
+			: null
 	};
 }
 
@@ -179,7 +197,12 @@ function mapStateToPoolRow(
 	indexerData: {
 		volume: { count: number; amountIn: number; amountOut: number };
 		fees: { totalFee: number; magiFee: number; lpFee: number };
-		liquidity: { netAmount0: number; netAmount1: number; netLp: number };
+		liquidity: {
+			netAmount0: number;
+			netAmount1: number;
+			netLp: number;
+			snapshot: { reserve0: number; reserve1: number; totalLp: number } | null;
+		};
 	},
 	usdPrices: { hive: number; hbd: number; btc: number },
 	fallbackSymbols?: [string, string]
@@ -199,8 +222,18 @@ function mapStateToPoolRow(
 	const dec0 = decimalPlaces(sym0);
 	const dec1 = decimalPlaces(sym1);
 
-	const reserve0 = parseScaled(state['reserve0'], dec0);
-	const reserve1 = parseScaled(state['reserve1'], dec1);
+	// Prefer chain-state reserves; fall back to the indexer snapshot
+	// (dex_pool_liquidity). The chain-state path can return null for
+	// pools whose state isn't exposed via getStateByKeys on some APIs
+	// (observed on testnet BTC:HBD), so the snapshot fallback keeps
+	// per-user share math working.
+	const snapshot = indexerData.liquidity.snapshot;
+	const reserve0 =
+		parseScaled(state['reserve0'], dec0) ??
+		(snapshot ? snapshot.reserve0 / 10 ** dec0 : null);
+	const reserve1 =
+		parseScaled(state['reserve1'], dec1) ??
+		(snapshot ? snapshot.reserve1 / 10 ** dec1 : null);
 
 	// USD prices per unit — look up by symbol
 	function getUsdPrice(sym: string): number {
@@ -247,7 +280,9 @@ function mapStateToPoolRow(
 	const reserve0Raw = (reserve0 ?? idxAmt0) * 10 ** dec0;
 	const reserve1Raw = (reserve1 ?? idxAmt1) * 10 ** dec1;
 	const totalLpRawParsed = Number(state['total_lp']);
-	const totalLpRaw = Number.isFinite(totalLpRawParsed) ? totalLpRawParsed : 0;
+	const totalLpRaw = Number.isFinite(totalLpRawParsed) && totalLpRawParsed > 0
+		? totalLpRawParsed
+		: snapshot?.totalLp ?? 0;
 
 	// Fees from indexer — all fee values are denominated in sym0 (dec0)
 	const feeTotal = fees.totalFee / 10 ** dec0;

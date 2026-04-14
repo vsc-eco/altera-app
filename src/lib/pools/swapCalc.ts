@@ -13,12 +13,25 @@
  */
 
 import { GetStateByKeysStore } from '$houdini';
-import { fetchPoolRegistry } from './poolsData';
+import { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from './poolsData';
 
 export interface PoolDepths {
-	reserve0: bigint; // HIVE reserve (smallest units)
-	reserve1: bigint; // HBD reserve (smallest units)
+	reserve0: bigint; // HIVE reserve (smallest units) — legacy, HIVE/HBD only
+	reserve1: bigint; // HBD reserve (smallest units) — legacy, HIVE/HBD only
 }
+
+/** Pool depths with explicit asset ordering so the same struct can
+ *  represent any pair (HIVE/HBD, BTC/HBD, …). `asset0` / `asset1` are
+ *  lowercase asset names ("hive", "hbd", "btc"). */
+export interface TypedPoolDepths {
+	contractId: string;
+	asset0: string;
+	asset1: string;
+	reserve0: bigint;
+	reserve1: bigint;
+}
+
+export type PoolDepthMap = Record<string, TypedPoolDepths>;
 
 export interface SwapCalcResult {
 	baseFee: bigint;
@@ -163,4 +176,149 @@ export function getOrderedDepths(
 		return { X: depths.reserve0, Y: depths.reserve1 };
 	}
 	return { X: depths.reserve1, Y: depths.reserve0 };
+}
+
+/**
+ * Generalized version of `getOrderedDepths` that works for any pool
+ * regardless of alphabetical asset ordering. Returns `{X, Y}` with X
+ * = reserve of `assetIn`, Y = reserve of the other asset, or null if
+ * the pool doesn't contain `assetIn`.
+ */
+export function getOrderedDepthsFor(
+	depths: TypedPoolDepths,
+	assetIn: string
+): { X: bigint; Y: bigint } | null {
+	const a = assetIn.toLowerCase();
+	if (depths.asset0 === a) return { X: depths.reserve0, Y: depths.reserve1 };
+	if (depths.asset1 === a) return { X: depths.reserve1, Y: depths.reserve0 };
+	return null;
+}
+
+/**
+ * Fetch depths for a single pool identified by its asset pair. Uses
+ * chain state first (GetStateByKeysStore) and falls back to the
+ * indexer's `dex_pool_liquidity` snapshot when chain state returns
+ * null — some pools (observed on testnet BTC:HBD) aren't exposed
+ * through the observer API so the indexer snapshot is our only
+ * source of truth for reserves on those.
+ *
+ * Returns null if the pool isn't in the registry OR if neither source
+ * yields usable numbers.
+ */
+export async function fetchTypedPoolDepths(
+	assetA: string,
+	assetB: string
+): Promise<TypedPoolDepths | null> {
+	const registry = await fetchPoolRegistry().catch(() => []);
+	const a = assetA.toLowerCase();
+	const b = assetB.toLowerCase();
+	const entry = registry.find((p) => {
+		const s0 = p.symbols[0].toLowerCase();
+		const s1 = p.symbols[1].toLowerCase();
+		return (s0 === a && s1 === b) || (s0 === b && s1 === a);
+	});
+	if (!entry) return null;
+
+	const asset0 = entry.symbols[0].toLowerCase();
+	const asset1 = entry.symbols[1].toLowerCase();
+
+	// Try chain state first.
+	try {
+		const result = await new GetStateByKeysStore().fetch({
+			variables: { contractId: entry.contractId, keys: ['reserve0', 'reserve1'] },
+			policy: 'NetworkOnly'
+		});
+		const state = result.data?.getStateByKeys;
+		const r0 = state?.['reserve0'];
+		const r1 = state?.['reserve1'];
+		if (r0 != null && r1 != null) {
+			return {
+				contractId: entry.contractId,
+				asset0,
+				asset1,
+				reserve0: BigInt(r0),
+				reserve1: BigInt(r1)
+			};
+		}
+	} catch (err) {
+		console.warn('fetchTypedPoolDepths chain-state path failed, falling back to indexer', err);
+	}
+
+	// Indexer snapshot fallback.
+	try {
+		const snap = await fetchPoolLiquiditySnapshot(entry.contractId);
+		if (!snap) return null;
+		return {
+			contractId: entry.contractId,
+			asset0,
+			asset1,
+			reserve0: BigInt(Math.floor(snap.reserve0)),
+			reserve1: BigInt(Math.floor(snap.reserve1))
+		};
+	} catch (err) {
+		console.error('fetchTypedPoolDepths indexer fallback failed', err);
+		return null;
+	}
+}
+
+/**
+ * Execute a two-hop swap calc: input → hopAsset (in pool1) →
+ * output (in pool2). Fees accumulate from both hops. Slippage is
+ * applied only to the FINAL output, which matches the router's
+ * behavior (each hop runs at live price, the slippage guard fires
+ * only on the final receive amount).
+ */
+export function calculateTwoHopSwap(
+	x: bigint,
+	pool1: TypedPoolDepths,
+	pool2: TypedPoolDepths,
+	assetIn: string,
+	hopAsset: string,
+	assetOut: string,
+	slippageBps: number
+): SwapCalcResult {
+	const hop1Depths = getOrderedDepthsFor(pool1, assetIn);
+	if (!hop1Depths) {
+		return {
+			baseFee: 0n,
+			clpFee: 0n,
+			totalFee: 0n,
+			expectedOutput: 0n,
+			minAmountOut: 0n,
+			slippageBps
+		};
+	}
+	// First hop runs at its own pool and produces an intermediate amount.
+	const hop1 = calculateSwap(x, hop1Depths.X, hop1Depths.Y, 0);
+	if (hop1.expectedOutput <= 0n) {
+		return { ...hop1, slippageBps };
+	}
+
+	const hop2Depths = getOrderedDepthsFor(pool2, hopAsset);
+	if (!hop2Depths) {
+		return {
+			baseFee: hop1.baseFee,
+			clpFee: hop1.clpFee,
+			totalFee: hop1.totalFee,
+			expectedOutput: 0n,
+			minAmountOut: 0n,
+			slippageBps
+		};
+	}
+	const hop2 = calculateSwap(hop1.expectedOutput, hop2Depths.X, hop2Depths.Y, slippageBps);
+
+	// Fees from hop1 are denominated in `assetIn`; fees from hop2 are
+	// in `hopAsset`. Returning the fees as hop1-denominated (input asset)
+	// makes them consistent with the single-hop path. Hop2 fees are
+	// effectively reflected via the reduced final output. So we return
+	// hop1 fees AS-IS and rely on expectedOutput from hop2 to show the
+	// net-of-both-hops number.
+	return {
+		baseFee: hop1.baseFee,
+		clpFee: hop1.clpFee,
+		totalFee: hop1.totalFee,
+		expectedOutput: hop2.expectedOutput,
+		minAmountOut: hop2.minAmountOut,
+		slippageBps
+	};
 }

@@ -150,6 +150,42 @@ async function fetchPoolFees(
 	};
 }
 
+/**
+ * Indexer-only snapshot lookup for a single pool. Returns the latest
+ * `dex_pool_liquidity` row (reserve0/reserve1/total_lp) without any
+ * event-aggregation, for callers that don't need volume/fees (e.g.
+ * swapCalc when chain-state reads are unavailable on testnet).
+ */
+export async function fetchPoolLiquiditySnapshot(
+	poolId: string
+): Promise<{ reserve0: number; reserve1: number; totalLp: number } | null> {
+	if (!poolId) return null;
+	const query = `
+		query PoolLiquiditySnapshot($pool: String!) {
+			dex_pool_liquidity(where: {pool_contract: {_eq: $pool}}, limit: 1) {
+				reserve0
+				reserve1
+				total_lp
+			}
+		}
+	`;
+	try {
+		const data = await hasuraQuery(query, { pool: poolId });
+		const snap = (data?.dex_pool_liquidity as
+			| Array<{ reserve0: number | string; reserve1: number | string; total_lp: number | string }>
+			| undefined)?.[0];
+		if (!snap) return null;
+		return {
+			reserve0: Number(snap.reserve0) || 0,
+			reserve1: Number(snap.reserve1) || 0,
+			totalLp: Number(snap.total_lp) || 0
+		};
+	} catch (err) {
+		console.error('fetchPoolLiquiditySnapshot failed', err);
+		return null;
+	}
+}
+
 async function fetchPoolLiquidity(poolId: string): Promise<{
 	netAmount0: number;
 	netAmount1: number;

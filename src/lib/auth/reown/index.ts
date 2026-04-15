@@ -7,65 +7,46 @@ import { bitcoin, bitcoinTestnet } from '@reown/appkit/networks';
 import { DOMAIN } from '../url';
 import { get } from 'svelte/store';
 import { cleanUpLogout, loginRetry } from '../store';
+import { isBtcTestnetAddress } from '$lib/stores/currentBalance';
 
 // 1. Get a project ID at https://cloud.reown.com
 export const projectId = '55a54e098e74ddb214919fe0da4ac384';
 
-export const networks = [mainnet, bitcoin, bitcoinTestnet];
+// `bitcoinTestnet` is listed FIRST so AppKit's BitcoinAdapter picks
+// it as the active CAIP network at `wallet_connect` time. Our
+// patched HelperUtil maps `bitcoinTestnet.caipNetworkId` to
+// `BitcoinNetworkType.Testnet` (testnet3), which is where real
+// Leather/Xverse users have their UTXOs. Mainnet BTC users can
+// switch via the AppKit modal. BTC vs VSC network are intentionally
+// independent: a mainnet VSC chain user may still be testing with a
+// testnet3 Leather wallet, so we don't couple them.
+export const networks = [mainnet, bitcoinTestnet, bitcoin];
 
 export let wagmiConfig: WagmiAdapter['wagmiConfig'] | null = null;
 export let modal: ReturnType<typeof createAppKit> | null = null;
 
 let lastAddress: string | undefined;
 
-// localStorage key for the optimistic session cache we write when
-// subscribeAccount fires successfully, so a subsequent F5 can
-// restore auth to `authenticated` immediately without prompting
-// the wallet extension for a fresh connection.
-export const REOWN_SESSION_KEY = 'reown_session_v1';
-
-export type ReownCachedSession = {
-	address: string;
-	did: string;
-	caipAddress?: string;
-};
-
-function saveCachedSession(session: ReownCachedSession) {
+/** AppKit persists the last active CAIP network in
+ *  `@appkit/active_caip_network_id` and on reload restores it,
+ *  overriding our `networks` list order. If the persisted value is
+ *  the bip122 MAINNET (`000000000019d6689c085ae165831e93`), rewrite
+ *  it to `bitcoinTestnet`'s CAIP so testnet wins on init. We leave
+ *  EVM (`eip155:*`) values alone. */
+function normalizeStoredBtcNetwork() {
+	if (typeof localStorage === 'undefined') return;
 	try {
-		if (typeof localStorage === 'undefined') return;
-		localStorage.setItem(REOWN_SESSION_KEY, JSON.stringify(session));
-	} catch {}
-}
-
-export function clearCachedSession() {
-	try {
-		if (typeof localStorage === 'undefined') return;
-		localStorage.removeItem(REOWN_SESSION_KEY);
-	} catch {}
-}
-
-export function loadCachedSession(): ReownCachedSession | null {
-	try {
-		if (typeof localStorage === 'undefined') return null;
-		const raw = localStorage.getItem(REOWN_SESSION_KEY);
-		if (!raw) return null;
-		const parsed = JSON.parse(raw);
-		if (
-			typeof parsed !== 'object' ||
-			parsed === null ||
-			typeof parsed.address !== 'string' ||
-			typeof parsed.did !== 'string'
-		) {
-			return null;
+		const KEY = '@appkit/active_caip_network_id';
+		const stored = localStorage.getItem(KEY);
+		if (stored && stored.startsWith('bip122:')) {
+			localStorage.setItem(KEY, bitcoinTestnet.caipNetworkId);
 		}
-		return parsed as ReownCachedSession;
-	} catch {
-		return null;
-	}
+	} catch {}
 }
 
 export function initModal() {
 	if (modal) return;
+	normalizeStoredBtcNetwork();
 
 	// 2. Set up Wagmi adapter
 	const wagmiAdapter = new WagmiAdapter({
@@ -87,7 +68,7 @@ export function initModal() {
 
 	modal = createAppKit({
 		adapters: [wagmiAdapter, bitcoinAdapter],
-		networks: [mainnet, bitcoin, bitcoinTestnet],
+		networks: networks as [(typeof networks)[number], ...(typeof networks)[number][]],
 		metadata,
 		projectId,
 		features: {
@@ -111,26 +92,21 @@ export function initModal() {
 					_reownAuthStore.set({ status: 'none' });
 					return;
 				}
-				const did = value.caipAddress?.startsWith('bip122:')
-					? `did:pkh:bip122:000000000019d6689c085ae165831e93:${value.address!}`
-					: `did:pkh:eip155:1:${value.address!}`;
 				_reownAuthStore.set({
 					status: 'authenticated',
 					value: {
 						address: value.address!,
 						logout: reownLogout,
 						provider: 'reown',
-						did,
+						did: value.caipAddress?.startsWith('bip122:')
+							? `did:pkh:bip122:${
+									isBtcTestnetAddress(value.address!)
+										? '000000000933ea01ad0ee984209779ba'
+										: '000000000019d6689c085ae165831e93'
+								}:${value.address!}`
+							: `did:pkh:eip155:1:${value.address!}`,
 						openSettings: () => modal!.open()
 					}
-				});
-				// Persist an optimistic session for the next page load so
-				// F5 can restore `authenticated` without re-prompting
-				// the wallet. See `loadCachedSession` / AuthInjector.
-				saveCachedSession({
-					address: value.address!,
-					did,
-					caipAddress: value.caipAddress
 				});
 				if (get(loginRetry) !== 'logout') {
 					loginRetry.set('retry');
@@ -143,7 +119,6 @@ export function initModal() {
 				_reownAuthStore.set({
 					status: 'none'
 				});
-				clearCachedSession();
 			}
 		} catch {}
 	});
@@ -156,7 +131,6 @@ export function openModal() {
 
 export async function reownLogout() {
 	loginRetry.set('logout');
-	clearCachedSession();
 	await modal?.disconnect();
 	cleanUpLogout();
 }

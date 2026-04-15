@@ -88,7 +88,7 @@ async function fetchBtcBalance(did: string): Promise<number> {
  * `n` are testnet (including regtest which shares the same prefixes
  * as testnet3); everything else is mainnet.
  */
-function isBtcTestnetAddress(address: string): boolean {
+export function isBtcTestnetAddress(address: string): boolean {
 	if (!address) return false;
 	if (address.startsWith('tb1') || address.startsWith('bcrt1')) return true;
 	const first = address[0];

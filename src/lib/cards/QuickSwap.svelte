@@ -728,47 +728,23 @@
 	/**
 	 * Try to auto-send the BTC transfer via the connected wallet's
 	 * own sendTransfer RPC. May fail if the wallet's internal UI is
-	 * unable to render (e.g. Leather's testnet3 fee API returning 500);
-	 * if it does, the user can still copy the address and send manually
-	 * from their wallet's main Send flow. Only wired for reown
-	 * bip122 wallets.
+	 * unable to render (e.g. Leather's testnet3 fee API returning
+	 * 500); if it does, the user can still copy the address and
+	 * send manually from their wallet's main Send flow.
 	 */
 	async function sendBtcViaConnectedWallet() {
 		if (!btcDepositAddress) return;
-		if (!modal) {
-			btcDepositError = 'Bitcoin wallet not connected';
-			return;
-		}
+		btcDepositError = null;
+		swapStatus = 'Waiting for Bitcoin wallet approval…';
 		try {
-			btcDepositError = null;
-			swapStatus = 'Waiting for Bitcoin wallet approval…';
-
-			const walletAddress = modal.getAddress() ?? auth.value?.address ?? '';
-			const isTestnetAddr =
-				walletAddress.startsWith('tb1') ||
-				walletAddress.startsWith('bcrt1') ||
-				walletAddress[0] === '2' ||
-				walletAddress[0] === 'm' ||
-				walletAddress[0] === 'n';
-			const { bitcoin, bitcoinTestnet } = await import('@reown/appkit/networks');
-			try {
-				await modal.switchNetwork(isTestnetAddr ? bitcoinTestnet : bitcoin);
-			} catch (err) {
-				console.warn('switchNetwork failed, continuing', err);
-			}
-
-			const provider = modal.getProvider<{
-				sendTransfer(params: { amount: string; recipient: string }): Promise<string>;
-			}>('bip122');
-			if (!provider?.sendTransfer) {
-				throw new Error('Connected Bitcoin wallet does not support sendTransfer');
-			}
-			const satsAmount = String(
-				new CoinAmount($SendTxDetails.fromAmount ?? '0', Coin.btc).amount
+			const { sendBtcFromConnectedWallet } = await import(
+				'$lib/magiTransactions/bitcoin/walletSend'
 			);
-			const txHash = await provider.sendTransfer({
-				amount: satsAmount,
-				recipient: btcDepositAddress
+			const satsAmount = new CoinAmount($SendTxDetails.fromAmount ?? '0', Coin.btc).amount;
+			const txHash = await sendBtcFromConnectedWallet({
+				amountSats: satsAmount,
+				recipient: btcDepositAddress,
+				fallbackAddress: auth.value?.address
 			});
 			swapStatus = `BTC sent: ${txHash}`;
 			btcDepositToggle(false);

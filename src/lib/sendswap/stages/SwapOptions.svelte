@@ -619,6 +619,14 @@
 
 	// ── Multi-step dialog state ──
 	let dialogStep: 'tokens' | 'source' = $state('tokens');
+	const dialogBack = $derived(
+		dialogStep === 'source'
+			? () => {
+					dialogStep = 'tokens';
+					tempCoinOpt = undefined;
+				}
+			: undefined
+	);
 	let tempCoinOpt: CoinOptions['coins'][number] | undefined = $state();
 	let tokenSearch = $state('');
 
@@ -716,15 +724,12 @@
 	</span>
 {/snippet}
 
-<Dialog bind:open={dialogOpen} bind:toggle>
+<Dialog bind:open={dialogOpen} bind:toggle back={dialogBack}>
+	{#snippet title()}Select a token{/snippet}
 	{#snippet content()}
 		{#if dialogStep === 'tokens'}
 			<!-- Step 1: Select a token -->
 			<div class="dialog-content">
-				<div class="dialog-title-row">
-					<h5>Select a token</h5>
-					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
-				</div>
 				<div class="token-search-wrapper">
 					<Search size={16} />
 					<input bind:value={tokenSearch} placeholder="Search tokens..." />
@@ -743,19 +748,6 @@
 		{:else if dialogStep === 'source' && tempCoinOpt}
 			<!-- Step 2: Show balances for selected token -->
 			<div class="dialog-content">
-				<div class="dialog-title-row">
-					<button
-						class="dialog-back-btn"
-						onclick={() => {
-							dialogStep = 'tokens';
-							tempCoinOpt = undefined;
-						}}
-					>
-						<ArrowLeft size={18} />
-					</button>
-					<h5>Select a token</h5>
-					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
-				</div>
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
 						<button

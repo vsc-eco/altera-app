@@ -202,8 +202,10 @@ export function getOrderedDepthsFor(
  * through the observer API so the indexer snapshot is our only
  * source of truth for reserves on those.
  *
- * Returns null if the pool isn't in the registry OR if neither source
- * yields usable numbers.
+ * Each network path retries once after 500 ms on a thrown error so a
+ * transient indexer timeout doesn't look like a missing pool to the
+ * caller. Returns null only if the pool isn't in the registry OR if
+ * both attempts at both sources failed / returned unusable numbers.
  */
 export async function fetchTypedPoolDepths(
 	assetA: string,
@@ -222,43 +224,59 @@ export async function fetchTypedPoolDepths(
 	const asset0 = entry.symbols[0].toLowerCase();
 	const asset1 = entry.symbols[1].toLowerCase();
 
-	// Try chain state first.
-	try {
-		const result = await new GetStateByKeysStore().fetch({
-			variables: { contractId: entry.contractId, keys: ['reserve0', 'reserve1'] },
-			policy: 'NetworkOnly'
-		});
-		const state = result.data?.getStateByKeys;
-		const r0 = state?.['reserve0'];
-		const r1 = state?.['reserve1'];
-		if (r0 != null && r1 != null) {
+	const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+	// Try chain state first, with one 500 ms retry on transient failure.
+	for (let attempt = 0; attempt < 2; attempt++) {
+		try {
+			const result = await new GetStateByKeysStore().fetch({
+				variables: { contractId: entry.contractId, keys: ['reserve0', 'reserve1'] },
+				policy: 'NetworkOnly'
+			});
+			const state = result.data?.getStateByKeys;
+			const r0 = state?.['reserve0'];
+			const r1 = state?.['reserve1'];
+			if (r0 != null && r1 != null) {
+				return {
+					contractId: entry.contractId,
+					asset0,
+					asset1,
+					reserve0: BigInt(r0),
+					reserve1: BigInt(r1)
+				};
+			}
+			break; // state fetched OK but reserves missing → fall through to indexer
+		} catch (err) {
+			if (attempt === 0) {
+				await sleep(500);
+				continue;
+			}
+			console.warn('fetchTypedPoolDepths chain-state path failed, falling back to indexer', err);
+		}
+	}
+
+	// Indexer snapshot fallback, also with one retry.
+	for (let attempt = 0; attempt < 2; attempt++) {
+		try {
+			const snap = await fetchPoolLiquiditySnapshot(entry.contractId);
+			if (!snap) return null;
 			return {
 				contractId: entry.contractId,
 				asset0,
 				asset1,
-				reserve0: BigInt(r0),
-				reserve1: BigInt(r1)
+				reserve0: BigInt(Math.floor(snap.reserve0)),
+				reserve1: BigInt(Math.floor(snap.reserve1))
 			};
+		} catch (err) {
+			if (attempt === 0) {
+				await sleep(500);
+				continue;
+			}
+			console.error('fetchTypedPoolDepths indexer fallback failed after retry', err);
+			return null;
 		}
-	} catch (err) {
-		console.warn('fetchTypedPoolDepths chain-state path failed, falling back to indexer', err);
 	}
-
-	// Indexer snapshot fallback.
-	try {
-		const snap = await fetchPoolLiquiditySnapshot(entry.contractId);
-		if (!snap) return null;
-		return {
-			contractId: entry.contractId,
-			asset0,
-			asset1,
-			reserve0: BigInt(Math.floor(snap.reserve0)),
-			reserve1: BigInt(Math.floor(snap.reserve1))
-		};
-	} catch (err) {
-		console.error('fetchTypedPoolDepths indexer fallback failed', err);
-		return null;
-	}
+	return null;
 }
 
 /**

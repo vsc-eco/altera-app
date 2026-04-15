@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { convertCBORToEIP712TypedData } from './cbor_to_eip712_converter';
 import { encodePayload } from 'dag-jose-utils';
+import { vscNetworkId } from '../../../client';
 
 import { hashDomain, hashTypedData } from 'viem';
 

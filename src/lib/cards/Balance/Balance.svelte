@@ -19,12 +19,16 @@
 			: 0
 	);
 
-	let dollars = $derived(Math.floor(balance));
+	// Derive dollars and cents from the same rounded integer so a cents field
+	// that rounds up to 100 (e.g. balance = 999.999) correctly bumps the dollar
+	// digit instead of displaying "$999.100".
+	let totalCents = $derived(Math.round(balance * 100));
+	let dollars = $derived(Math.floor(totalCents / 100));
 	let cents = $derived(
 		new Intl.NumberFormat('en-US', {
 			minimumIntegerDigits: 2,
 			maximumFractionDigits: 0
-		}).format(Math.round((balance * 100) % 100))
+		}).format(totalCents % 100)
 	);
 
 	let quickSendOpen = $state(false);

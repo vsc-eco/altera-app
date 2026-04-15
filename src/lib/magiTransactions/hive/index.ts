@@ -11,7 +11,7 @@ import { getHiveTransferOp } from './vscOperations/transfer';
 import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
-import { getBitcoinTransferOp, getBitcoinUnmapOp } from './vscOperations/bitcoin';
+import { getBitcoinTransferOp } from './vscOperations/bitcoin';
 import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
 import { getBtcApproveOp } from './vscOperations/swap';
 import type { PoolRow } from '$lib/pools/poolsData';
@@ -188,7 +188,13 @@ export const getSendOpGenerator = (
 		if (toNetwork.value === Network.magi.value) {
 			return getBitcoinTransferOp;
 		} else if (toNetwork.value === Network.btcMainnet.value) {
-			return getBitcoinUnmapOp;
+			// getBitcoinUnmapOp's signature (from, callerDid, toBtcAddress, amount,
+			// deductFee?, maxFee?) is incompatible with the generic 4-arg dispatch
+			// shape. Callers must import and call it directly — sendUtils.ts does
+			// exactly this for the BTC-unmap case before reaching getSendOpGenerator.
+			throw new Error(
+				'BTC unmap requires the direct getBitcoinUnmapOp path (see sendUtils.ts); getSendOpGenerator cannot adapt its 6-arg signature.'
+			);
 		} else {
 			throw new Error(
 				`VSC does not currently support sending bitcoin from ${fromNetwork.label} to ${toNetwork.label}`

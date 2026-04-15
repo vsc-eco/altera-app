@@ -1,5 +1,6 @@
 import type { Auth } from './auth/store';
 import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
+import { BTC_MAINNET_CAIP, BTC_TESTNET_CAIP } from './auth/btcCaip';
 
 export const getAccountNameFromAuth = (auth: Auth) => {
 	if (auth.value == undefined) {
@@ -58,7 +59,10 @@ export const getDidFromUsername = (username: string) => {
 	// Strip chain hash prefix if present (e.g. "000...e93:bc1q...")
 	const rawAddr = username.includes(':') ? username.split(':').at(-1)! : username;
 	if (validate(rawAddr, BtcNetwork.mainnet)) {
-		return `did:pkh:bip122:000000000019d6689c085ae165831e93:${rawAddr}`;
+		return `did:pkh:bip122:${BTC_MAINNET_CAIP}:${rawAddr}`;
+	}
+	if (validate(rawAddr, BtcNetwork.testnet)) {
+		return `did:pkh:bip122:${BTC_TESTNET_CAIP}:${rawAddr}`;
 	}
 	return ``;
 };

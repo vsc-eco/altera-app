@@ -8,6 +8,7 @@ import { DOMAIN } from '../url';
 import { get } from 'svelte/store';
 import { cleanUpLogout, loginRetry } from '../store';
 import { isBtcTestnetAddress } from '$lib/stores/currentBalance';
+import { BTC_MAINNET_CAIP, BTC_TESTNET_CAIP } from '../btcCaip';
 
 // 1. Get a project ID at https://cloud.reown.com
 export const projectId = '55a54e098e74ddb214919fe0da4ac384';
@@ -101,8 +102,8 @@ export function initModal() {
 						did: value.caipAddress?.startsWith('bip122:')
 							? `did:pkh:bip122:${
 									isBtcTestnetAddress(value.address!)
-										? '000000000933ea01ad0ee984209779ba'
-										: '000000000019d6689c085ae165831e93'
+										? BTC_TESTNET_CAIP
+										: BTC_MAINNET_CAIP
 								}:${value.address!}`
 							: `did:pkh:eip155:1:${value.address!}`,
 						openSettings: () => modal!.open()

@@ -62,7 +62,10 @@ export const btcSigner: Signer<[]> = async (
 
 		const sigs = [
 			{
-				alg: 'EdDSA',
+				// ES256K (secp256k1 ECDSA) — matches the actual BTC wallet signature
+				// algorithm. Previously mislabeled as 'EdDSA'; backend dispatches by
+				// DID prefix so the field is informational only.
+				alg: 'ES256K',
 				kid: client.userId,
 				sig: normalizedSignature
 			}

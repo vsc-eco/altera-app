@@ -618,7 +618,7 @@
 	let currentlyOpen: 'from' | 'to' = $state('from');
 
 	// ── Multi-step dialog state ──
-	let dialogStep: 'tokens' | 'source' = $state('tokens');
+	let dialogStep = $state<'tokens' | 'source'>('tokens');
 	const dialogBack = $derived(
 		dialogStep === 'source'
 			? () => {

@@ -1,10 +1,14 @@
+import { browser } from '$app/environment';
+import { PUBLIC_VSC_NETWORK } from '$env/static/public';
 import { encodePayload } from 'dag-jose-utils';
 import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
-import { encode as encodeJson } from '@ipld/dag-json';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 import { GetAccountNonceStore, SubmitTransactionV1Store } from '$houdini';
 import { currentGqlUrl, vscNetworkId } from '../../../client';
+
+export const vscNetworkId =
+	(browser && localStorage.getItem('vsc-network-id')) || PUBLIC_VSC_NETWORK || 'vsc-mainnet';
 
 export type Client = {
 	api: string;
@@ -213,10 +217,25 @@ function createVSCTransactionContainer(
 	};
 }
 
+// Recursively sort object keys alphabetically to match Go's json.Marshal output.
+// This is critical: the backend reconstructs the signing struct by decoding CBOR
+// payloads to Go maps and re-serializing via json.Marshal (which sorts keys
+// alphabetically). The BTC signer signs the CID of the signing shell, so the
+// JSON strings must be byte-identical to what the backend produces.
+function sortKeys(obj: unknown): unknown {
+	if (Array.isArray(obj)) return obj.map(sortKeys);
+	if (typeof obj !== 'object' || obj === null) return obj;
+	const sorted: Record<string, unknown> = {};
+	for (const key of Object.keys(obj as Record<string, unknown>).sort()) {
+		sorted[key] = sortKeys((obj as Record<string, unknown>)[key]);
+	}
+	return sorted;
+}
+
 function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactionSigningShell {
 	const decodedOps = txContainer.tx.map((op) => ({
 		type: op.type,
-		payload: new TextDecoder().decode(encodeJson(decodeCborg(op.payload)))
+		payload: JSON.stringify(sortKeys(decodeCborg(op.payload)))
 	}));
 
 	return {

@@ -319,7 +319,7 @@ export const TransferMethod = {
 };
 
 export const networkMap: Map<string, Coin[]> = new Map([
-	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd]],
+	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc]],
 	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
 	[Network.lightning.value, [Coin.btc]]
 ]);

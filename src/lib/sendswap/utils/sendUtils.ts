@@ -22,6 +22,7 @@ import type { Operation, TransferOperation } from '@hiveio/dhive';
 import { addLocalTransaction } from '../../stores/localStorageTxs';
 import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client';
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
+import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
 import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
 import {
@@ -178,6 +179,17 @@ export function getRecipientNetworks(did: string): NetworkOptionParam[] {
 				...Network.hiveMainnet,
 				disabled: true,
 				disabledMemo: `Not available for EVM accounts`
+			}
+		];
+	}
+	if (did.startsWith('did:pkh:bip122:')) {
+		return [
+			Network.magi,
+			Network.btcMainnet,
+			{
+				...Network.hiveMainnet,
+				disabled: true,
+				disabledMemo: `Not available for BTC accounts`
 			}
 		];
 	}
@@ -629,16 +641,13 @@ export async function send(
 	if (intermediary == Network.magi) {
 		// console.log('intermediary network is Magi');
 		if (auth.value?.provider == 'reown') {
-			// console.log('auth provider is reown');
-			// account check in signAndBroadcast
+			const isBtcWallet = auth.value.did.startsWith('did:pkh:bip122:');
 			const client = createClient(auth.value.did);
 
 			// console.log('created reown client:', client);
 
 			const evmToDid =
-				toNetwork.value === Network.btcMainnet.value
-					? toUsername
-					: getDidFromUsername(toUsername);
+				toNetwork.value === Network.btcMainnet.value ? toUsername : getDidFromUsername(toUsername);
 			const sendOp = getEVMOpType(
 				fromNetwork,
 				toNetwork,
@@ -647,14 +656,14 @@ export async function send(
 				new CoinAmount(amount, toCoin.coin)
 			);
 
-			setStatus('Preparing transaction for signing…');
+			setStatus(
+				isBtcWallet ? 'Waiting for Bitcoin wallet approval…' : 'Preparing transaction for signing…'
+			);
 
-			const id = await signAndBrodcastTransaction(
-				[sendOp],
-				wagmiSigner,
-				client,
-				signal,
-				wagmiConfig
+			const id = await (
+				isBtcWallet
+					? signAndBrodcastTransaction([sendOp], btcSigner, client, signal)
+					: signAndBrodcastTransaction([sendOp], wagmiSigner, client, signal, wagmiConfig)
 			)
 				.then((result) => {
 					setStatus(`Transaction submitted successfully!`);
@@ -731,7 +740,8 @@ export async function send(
 			// BTC unmap — pass deduct_fee and max_fee from store
 			opType = 'withdrawal';
 			setStatus('Waiting for Hive wallet approval…');
-			const { getBitcoinUnmapOp: getUnmapOp } = await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
+			const { getBitcoinUnmapOp: getUnmapOp } =
+				await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
 			sendOp = getUnmapOp(
 				auth.value.username!,
 				auth.value.did,

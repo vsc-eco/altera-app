@@ -13,7 +13,7 @@ export const projectId = '55a54e098e74ddb214919fe0da4ac384';
 
 export const networks = [mainnet, bitcoin];
 
-export let wagmiConfig: ReturnType<WagmiAdapter['wagmiConfig']> | null = null;
+export let wagmiConfig: WagmiAdapter['wagmiConfig'] | null = null;
 export let modal: ReturnType<typeof createAppKit> | null = null;
 
 let lastAddress: string | undefined;

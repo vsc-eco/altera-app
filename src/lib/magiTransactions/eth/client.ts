@@ -1,14 +1,9 @@
-import { browser } from '$app/environment';
-import { PUBLIC_VSC_NETWORK } from '$env/static/public';
 import { encodePayload } from 'dag-jose-utils';
 import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 import { GetAccountNonceStore, SubmitTransactionV1Store } from '$houdini';
 import { currentGqlUrl, vscNetworkId } from '../../../client';
-
-export const vscNetworkId =
-	(browser && localStorage.getItem('vsc-network-id')) || PUBLIC_VSC_NETWORK || 'vsc-mainnet';
 
 export type Client = {
 	api: string;

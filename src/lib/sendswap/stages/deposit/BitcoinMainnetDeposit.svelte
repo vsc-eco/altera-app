@@ -9,9 +9,12 @@
 
 	async function getBtcAddress() {
 		if (auth.value) {
+			// See note in QuickSwap.svelte: mapping bot has no CORS,
+			// so skip the explicit JSON content-type header to avoid
+			// the browser's preflight. Go's json decoder ignores
+			// the declared type.
 			const response = await fetch('https://btc.magi.milohpr.com', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ instruction: `deposit_to=${auth.value.did}` })
 			});
 			const text = await response.text();

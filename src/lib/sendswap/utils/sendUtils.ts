@@ -79,7 +79,7 @@ export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined
 			}
 		} else if (opt.network.value === Network.hiveMainnet.value && accBal.connectedBal) {
 			const bal = accBal.connectedBal[opt.coin.value as keyof HiveMainnetBalance];
-			if (bal > 0) {
+			if ((bal ?? 0) > 0) {
 				return opt;
 			}
 		}
@@ -660,10 +660,13 @@ export async function send(
 				isBtcWallet ? 'Waiting for Bitcoin wallet approval…' : 'Preparing transaction for signing…'
 			);
 
+			if (!isBtcWallet && !wagmiConfig) {
+				throw new Error('EVM wallet not initialised — click Connect Wallet first');
+			}
 			const id = await (
 				isBtcWallet
 					? signAndBrodcastTransaction([sendOp], btcSigner, client, signal)
-					: signAndBrodcastTransaction([sendOp], wagmiSigner, client, signal, wagmiConfig)
+					: signAndBrodcastTransaction([sendOp], wagmiSigner, client, signal, wagmiConfig!)
 			)
 				.then((result) => {
 					setStatus(`Transaction submitted successfully!`);

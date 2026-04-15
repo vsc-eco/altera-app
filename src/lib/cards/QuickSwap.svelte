@@ -25,10 +25,16 @@
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
+	import Clipboard from '$lib/zag/Clipboard.svelte';
+	import {
+		accountBalance,
+		getBalanceSmallestUnits,
+		type AccountBalance
+	} from '$lib/stores/currentBalance';
 	import { untrack } from 'svelte';
 	import { ArrowDown, ChevronDown, Search } from '@lucide/svelte';
-	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
+	import { getHiveAssetName, getHbdAssetName, isVscTestnet } from '$lib/../client';
+	import { modal } from '$lib/auth/reown';
 	import {
 		fetchTypedPoolDepths,
 		getOrderedDepthsFor,
@@ -82,8 +88,17 @@
 		const stored = loadSwapSelection(SWAP_QUICK_PREF_KEY);
 		const btcFromOption = swapOptions.from.coins.find((c) => c.coin.value === Coin.btc.value);
 		const hiveToOption = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
-		const fromOpt = findFromOpt(stored?.fromCoin) ?? btcFromOption;
-		const toOpt = findToOpt(stored?.toCoin) ?? hiveToOption;
+
+		// For a reown Bitcoin wallet the only valid FROM is BTC — force
+		// it regardless of what was persisted, and force the TO to HIVE
+		// so users don't land in a BTC→BTC same-coin state. Persisted
+		// selection only matters for aioha users.
+		const isReownBtc =
+			auth.value?.provider === 'reown' &&
+			auth.value.did?.startsWith('did:pkh:bip122:');
+
+		const fromOpt = isReownBtc ? btcFromOption : (findFromOpt(stored?.fromCoin) ?? btcFromOption);
+		const toOpt = isReownBtc ? hiveToOption : (findToOpt(stored?.toCoin) ?? hiveToOption);
 		// Always derive the network from the coin's native mainnet — ignore
 		// any persisted `magi` value left over from earlier code.
 		const fromNet = fromOpt ? nativeNetworkFor(fromOpt.coin.value) : undefined;
@@ -369,14 +384,9 @@
 
 		// Mirror the swap calc into $SendTxDetails so ReviewSwap can read
 		// the same numbers (fee, slippage, expected output) without
-		// recomputing or showing a "loading…" placeholder.
-		//
-		// Also overwrite `toInputAmount` with the pool's expectedOutput
-		// so the TO field in the card shows the actual swap price,
-		// not the lightning-rate reference that AmountInput's
-		// `connectedCoinAmount` convertTo produces. Guarded so we only
-		// write when the value actually changes — otherwise AmountInput's
-		// external-sync effect re-fires on every swap calc pass.
+		// recomputing or showing a "loading…" placeholder. Also drive
+		// the TO amount input from the pool result.
+		const poolOutAmount = Number(result.expectedOutput);
 		untrack(() => {
 			const expectedOutput = result.expectedOutput.toString();
 			const minAmountOut = result.minAmountOut.toString();
@@ -391,12 +401,31 @@
 			if ($SendTxDetails.swapClpFee !== swapClpFee) $SendTxDetails.swapClpFee = swapClpFee;
 			if ($SendTxDetails.swapTotalFee !== swapTotalFee) $SendTxDetails.swapTotalFee = swapTotalFee;
 
-			const poolOutAmount = Number(result.expectedOutput);
-			if (
-				toInputAmount.coin.value !== toCoin.coin.value ||
-				toInputAmount.amount !== poolOutAmount
-			) {
-				toInputAmount = new CoinAmount(poolOutAmount, toCoin.coin, true);
+			// Drive the TO amount input. Wrapped in untrack so reading
+			// toInputAmount here doesn't turn this effect into a loop;
+			// guarded so repeat passes with the same value don't thrash
+			// AmountInput's external-sync.
+			if (Number.isFinite(poolOutAmount) && poolOutAmount > 0) {
+				if (
+					toInputAmount.coin.value !== toCoin.coin.value ||
+					toInputAmount.amount !== poolOutAmount
+				) {
+					toInputAmount = new CoinAmount(poolOutAmount, toCoin.coin, true);
+				}
+			}
+		});
+	});
+
+	// Clear the TO field when there's no valid swap result, e.g. the
+	// user deleted the FROM amount or picked incompatible coins.
+	$effect(() => {
+		const expectedRaw = $SendTxDetails.expectedOutput;
+		const coin = $SendTxDetails.toCoin?.coin;
+		if (!coin) return;
+		if (expectedRaw && expectedRaw !== '0') return;
+		untrack(() => {
+			if (toInputAmount.amount !== 0 || toInputAmount.coin.value !== coin.value) {
+				toInputAmount = new CoinAmount(0, coin, true);
 			}
 		});
 	});
@@ -419,6 +448,21 @@
 				minAmount = amt;
 			}
 		});
+	});
+
+	// Max amount for the FROM field. QuickSwap is strictly mainnet ↔
+	// mainnet so the cap is whatever the user actually has on the
+	// native chain, not the Magi-mapped balance. The balance store
+	// already routes mainnet reads through `connectedBal` for both
+	// Hive (from the L1 account) and BTC (from mempool.space via the
+	// reown BitcoinAdapter address).
+	const maxAmount = $derived.by(() => {
+		const coin = $SendTxDetails.fromCoin?.coin;
+		const network = $SendTxDetails.fromNetwork;
+		if (!coin || !network) return undefined;
+		const raw = getBalanceSmallestUnits($accountBalance, coin, network);
+		if (raw <= 0) return undefined;
+		return new CoinAmount(raw, coin, true);
 	});
 
 	let dialogOpen = $state(false);
@@ -477,8 +521,15 @@
 	 */
 	const fromAllowedValues = $derived.by(() => {
 		const provider = auth.value?.provider;
+		const did = auth.value?.did ?? '';
+		// QuickSwap is strictly mainnet ↔ mainnet — the FROM side must
+		// be an asset the connected wallet can actually sign for on
+		// its native chain. Aioha = Hive L1 → HIVE/HBD; reown BTC
+		// (Leather/Xverse via BitcoinAdapter) → BTC; reown EVM = no
+		// QuickSwap source yet.
 		if (provider === 'aioha') return new Set([Coin.hive.value, Coin.hbd.value]);
-		if (provider === 'reown') return new Set([Coin.btc.value]);
+		if (provider === 'reown' && did.startsWith('did:pkh:bip122:'))
+			return new Set([Coin.btc.value]);
 		return new Set<string>();
 	});
 
@@ -522,6 +573,15 @@
 	// Drives the confirm-swap popup. Set to true after validation passes;
 	// the actual broadcast happens when the user confirms inside the popup.
 	let reviewOpen = $state(false);
+	// Drives the "send BTC to this address" popup shown for a reown-BTC
+	// source. We fetch a per-swap deposit address from the mapping bot
+	// and the user sends from their own wallet — same pattern the
+	// existing BitcoinMainnetDeposit flow uses.
+	let btcDepositOpen = $state(false);
+	let btcDepositToggle = $state<(open?: boolean) => void>(() => {});
+	let btcDepositAddress = $state<string | null>(null);
+	let btcDepositLoading = $state(false);
+	let btcDepositError = $state<string | null>(null);
 	const reviewStatus = $derived({ message: swapStatus, isError: swapError });
 	const hasAmount = $derived(
 		!!$SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0' && inputAmount.amount > 0
@@ -532,6 +592,16 @@
 			$SendTxDetails.fromCoin.coin.value === $SendTxDetails.toCoin.coin.value
 	);
 	const missingReceiver = $derived(!$SendTxDetails.toUsername?.trim());
+	const exceedsBalance = $derived.by(() => {
+		const coin = $SendTxDetails.fromCoin?.coin;
+		const network = $SendTxDetails.fromNetwork;
+		if (!coin || !network) return false;
+		const entered = inputAmount.amount;
+		if (!Number.isFinite(entered) || entered <= 0) return false;
+		const maxSmallest = getBalanceSmallestUnits($accountBalance, coin, network);
+		if (maxSmallest <= 0) return false;
+		return entered > maxSmallest;
+	});
 
 	// Slippage tolerance in basis points. Matches the SwapOptions presets
 	// on the /swap page so the behavior is identical here.
@@ -572,31 +642,141 @@
 			setError('Enter a receiver');
 			return false;
 		}
+		if (exceedsBalance) {
+			setError('Amount exceeds your wallet balance');
+			return false;
+		}
 
 		const fromCoinDef = $SendTxDetails.fromCoin.coin;
 		const provider = auth.value.provider;
+		const did = auth.value.did ?? '';
 		const isHiveAsset =
 			fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
 		const isBtcAsset = fromCoinDef.value === Coin.btc.value;
+		// Reown now supports both EVM (eip155) and Bitcoin (bip122) via
+		// the AppKit BitcoinAdapter; the resolved DID tells us which.
+		const isReownBtc = provider === 'reown' && did.startsWith('did:pkh:bip122:');
+		const isReownEvm = provider === 'reown' && did.startsWith('did:pkh:eip155:');
 
 		if (provider === 'reown' && isHiveAsset) {
 			setError('HIVE/HBD requires a Hive wallet — connect via Hive Keychain or HiveAuth');
 			return false;
 		}
-		if (provider === 'reown' && isBtcAsset) {
-			setError('BTC requires a Bitcoin wallet — MetaMask cannot send BTC');
-			return false;
-		}
-		if (provider === 'aioha' && isBtcAsset) {
-			setError('BTC requires a Bitcoin mainnet wallet');
+		if (isReownEvm && isBtcAsset) {
+			setError('Your EVM wallet cannot sign BTC — connect a Bitcoin wallet instead');
 			return false;
 		}
 		return true;
 	}
 
-	function requestSwap() {
+	async function requestSwap() {
 		if (!validateSwap()) return;
+
+		// Reown Bitcoin wallet + BTC source → take the deposit-address
+		// flow instead of the normal review popup. The user sends BTC
+		// from their own wallet (same pattern as BitcoinMainnetDeposit),
+		// and the mapping bot's `swap_to` instruction routes it through
+		// the DEX router on Magi so the recipient ends up with the
+		// swapped `toCoin`.
+		if (
+			auth.value?.provider === 'reown' &&
+			auth.value.did?.startsWith('did:pkh:bip122:') &&
+			$SendTxDetails.fromCoin?.coin.value === Coin.btc.value
+		) {
+			btcDepositAddress = null;
+			btcDepositError = null;
+			btcDepositToggle(true);
+			btcDepositLoading = true;
+			try {
+				const rawReceiver = $SendTxDetails.toUsername?.trim() ?? '';
+				const normalizedReceiver = rawReceiver.startsWith('hive:')
+					? rawReceiver
+					: rawReceiver.startsWith('@')
+						? `hive:${rawReceiver.slice(1)}`
+						: `hive:${rawReceiver}`;
+				const toAsset = $SendTxDetails.toCoin!.coin.value;
+				const instructionParams = new URLSearchParams({
+					swap_to: normalizedReceiver,
+					swap_asset_out: toAsset
+				});
+				const res = await fetch('/api/mapping-bot', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						instruction: instructionParams.toString(),
+						network: isVscTestnet() ? 'testnet' : 'mainnet'
+					})
+				});
+				if (!res.ok) {
+					const text = await res.text();
+					throw new Error(`Mapping bot error (${res.status}): ${text}`);
+				}
+				const { address } = (await res.json()) as { address: string };
+				if (!address) throw new Error('Mapping bot returned no address');
+				btcDepositAddress = address;
+			} catch (err) {
+				btcDepositError = err instanceof Error ? err.message : String(err);
+			} finally {
+				btcDepositLoading = false;
+			}
+			return;
+		}
+
 		reviewOpen = true;
+	}
+
+	/**
+	 * Try to auto-send the BTC transfer via the connected wallet's
+	 * own sendTransfer RPC. May fail if the wallet's internal UI is
+	 * unable to render (e.g. Leather's testnet3 fee API returning 500);
+	 * if it does, the user can still copy the address and send manually
+	 * from their wallet's main Send flow. Only wired for reown
+	 * bip122 wallets.
+	 */
+	async function sendBtcViaConnectedWallet() {
+		if (!btcDepositAddress) return;
+		if (!modal) {
+			btcDepositError = 'Bitcoin wallet not connected';
+			return;
+		}
+		try {
+			btcDepositError = null;
+			swapStatus = 'Waiting for Bitcoin wallet approval…';
+
+			const walletAddress = modal.getAddress() ?? auth.value?.address ?? '';
+			const isTestnetAddr =
+				walletAddress.startsWith('tb1') ||
+				walletAddress.startsWith('bcrt1') ||
+				walletAddress[0] === '2' ||
+				walletAddress[0] === 'm' ||
+				walletAddress[0] === 'n';
+			const { bitcoin, bitcoinTestnet } = await import('@reown/appkit/networks');
+			try {
+				await modal.switchNetwork(isTestnetAddr ? bitcoinTestnet : bitcoin);
+			} catch (err) {
+				console.warn('switchNetwork failed, continuing', err);
+			}
+
+			const provider = modal.getProvider<{
+				sendTransfer(params: { amount: string; recipient: string }): Promise<string>;
+			}>('bip122');
+			if (!provider?.sendTransfer) {
+				throw new Error('Connected Bitcoin wallet does not support sendTransfer');
+			}
+			const satsAmount = String(
+				new CoinAmount($SendTxDetails.fromAmount ?? '0', Coin.btc).amount
+			);
+			const txHash = await provider.sendTransfer({
+				amount: satsAmount,
+				recipient: btcDepositAddress
+			});
+			swapStatus = `BTC sent: ${txHash}`;
+			btcDepositToggle(false);
+		} catch (err) {
+			btcDepositError = err instanceof Error ? err.message : String(err);
+		} finally {
+			swapStatus = '';
+		}
 	}
 
 
@@ -643,7 +823,8 @@
 				if (!res.success) throw new Error(res.error || 'Swap failed');
 				txId = res.result;
 			} else {
-				// EVM/Reown wallet path
+				// EVM reown wallet path (no BTC reown since BTC is
+				// handled above).
 				const swapPayload: CallContractTransaction = {
 					op: 'call',
 					payload: {
@@ -664,35 +845,14 @@
 					}
 				};
 
-				const txOps: CallContractTransaction[] = [];
+				const txOps: CallContractTransaction[] = [swapPayload];
 
-				// BTC needs approval via mapping contract
-				if (fromCoinDef.value === Coin.btc.value) {
-					const { BTC_MAPPING_CONTRACT_ID } = await import('$lib/stores/currentBalance');
-					txOps.push({
-						op: 'call',
-						payload: {
-							contract_id: BTC_MAPPING_CONTRACT_ID,
-							action: 'approve',
-							payload: JSON.stringify({
-								spender: `contract:${SWAP_CONTRACT_ID}`,
-								amount: '999999999'
-							}),
-							rc_limit: 1000,
-							intents: [],
-							caller
-						}
-					});
-				}
-
-				txOps.push(swapPayload);
-
-				swapStatus = 'Waiting for wallet approval...';
 				if (!wagmiConfig) {
 					setError('Connect an EVM wallet first');
 					return;
 				}
 				const client = createClient(caller);
+				swapStatus = 'Waiting for wallet approval...';
 				const res = await signAndBrodcastTransaction(
 					txOps,
 					wagmiSigner,
@@ -775,11 +935,23 @@
 				bind:coinAmount={inputAmount}
 				coinOpts={fromOnlyCoinOpts.length > 0 ? fromOnlyCoinOpts : possibleCoins}
 				{minAmount}
+				{maxAmount}
 				styleType="simple"
 				hideUnit
 				hideNetwork
 			/>
 		</div>
+		{#if maxAmount}
+			<div class="balance-row">
+				<span class="balance-label"
+					>Balance: {maxAmount.toPrettyAmountString()}
+					{$SendTxDetails.fromCoin?.coin.label ?? ''}</span
+				>
+				<button type="button" class="max-btn" onclick={() => (inputAmount = maxAmount!)}>
+					Max
+				</button>
+			</div>
+		{/if}
 	</div>
 
 	<!-- Divider arrow -->
@@ -885,22 +1057,29 @@
 
 	{#if sameCoinSelected}
 		<p class="swap-status error">From and To assets must be different.</p>
+	{:else if exceedsBalance}
+		<p class="swap-status error">Amount exceeds your wallet balance.</p>
 	{/if}
 
 	<!-- Exchange -->
 	<PillButton
 		onclick={requestSwap}
-		disabled={swapLoading || !hasAmount || sameCoinSelected || missingReceiver}
+		disabled={swapLoading ||
+			!hasAmount ||
+			sameCoinSelected ||
+			missingReceiver ||
+			exceedsBalance}
 		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
 	</PillButton>
-	{#if swapStatus && !reviewOpen && !sameCoinSelected}
+	{#if swapStatus && !reviewOpen && !sameCoinSelected && !exceedsBalance}
 		<p class="swap-status" class:error={swapError}>{swapStatus}</p>
 	{/if}
 </div>
 
 <ReviewSwap
+	popup
 	isActive={reviewOpen}
 	status={reviewStatus}
 	waiting={swapLoading}
@@ -908,6 +1087,58 @@
 	previous={cancelSwap}
 	next={confirmSwap}
 />
+
+<Dialog bind:open={btcDepositOpen} bind:toggle={btcDepositToggle}>
+	{#snippet title()}Send Bitcoin{/snippet}
+	{#snippet content()}
+		<div class="btc-deposit">
+			<p class="btc-deposit-intro">
+				Send exactly the amount below to the address shown. The mapping bot observes the
+				transaction and forwards the swap to <strong
+					>{$SendTxDetails.toUsername ?? ''}</strong
+				> as {$SendTxDetails.toCoin?.coin.label ?? ''} on Magi.
+			</p>
+
+			{#if btcDepositLoading}
+				<p class="btc-deposit-loading">Requesting deposit address…</p>
+			{:else if btcDepositError}
+				<p class="btc-deposit-error">{btcDepositError}</p>
+			{:else if btcDepositAddress}
+				<div class="btc-deposit-field">
+					<span class="btc-deposit-label">Amount</span>
+					<Clipboard
+						value={new CoinAmount($SendTxDetails.fromAmount ?? '0', Coin.btc).toAmountString()}
+						label="Amount (BTC)"
+						disabled={false}
+					/>
+				</div>
+				<div class="btc-deposit-field">
+					<span class="btc-deposit-label">Deposit address</span>
+					<Clipboard value={btcDepositAddress} label="Bitcoin address" disabled={false} />
+				</div>
+
+				<div class="btc-deposit-actions">
+					<PillButton
+						styleType="invert submit"
+						onclick={sendBtcViaConnectedWallet}
+						disabled={swapLoading}
+					>
+						Send with connected wallet
+					</PillButton>
+					<PillButton
+						styleType="outline"
+						onclick={() => btcDepositToggle(false)}
+					>
+						I'll send manually
+					</PillButton>
+				</div>
+				{#if swapStatus}
+					<p class="btc-deposit-status">{swapStatus}</p>
+				{/if}
+			{/if}
+		</div>
+	{/snippet}
+</Dialog>
 
 <Dialog bind:open={dialogOpen} bind:toggle>
 	{#snippet title()}Select a token{/snippet}
@@ -1072,6 +1303,37 @@
 		gap: 0.4rem;
 		margin-top: 0.75rem;
 	}
+	.balance-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-top: 0.375rem;
+		padding: 0 0.25rem;
+	}
+	.balance-label {
+		font-size: 0.7rem;
+		color: var(--dash-text-muted);
+		font-family: 'Nunito Sans', sans-serif;
+	}
+	.max-btn {
+		padding: 0.15rem 0.5rem;
+		border: 1px solid rgba(111, 106, 248, 0.35);
+		border-radius: 12px;
+		background: transparent;
+		color: var(--dash-text-secondary);
+		font-size: 0.65rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		cursor: pointer;
+		transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+	}
+	.max-btn:hover {
+		background: rgba(111, 106, 248, 0.15);
+		color: var(--dash-text-primary);
+		border-color: var(--dash-accent-purple);
+	}
 	.receiver-input-wrap {
 		display: flex;
 		align-items: center;
@@ -1127,6 +1389,47 @@
 	}
 	.slippage-options button:hover:not(.active) {
 		background-color: var(--dash-card-border);
+	}
+	.btc-deposit {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		min-width: 22rem;
+		max-width: 28rem;
+	}
+	.btc-deposit-intro {
+		color: var(--dash-text-secondary);
+		font-size: 0.85rem;
+		line-height: 1.4;
+		margin: 0;
+	}
+	.btc-deposit-loading,
+	.btc-deposit-status {
+		color: var(--dash-text-muted);
+		font-size: 0.8rem;
+		margin: 0;
+	}
+	.btc-deposit-error {
+		color: var(--dash-accent-red, #e2595b);
+		font-size: 0.8rem;
+		margin: 0;
+	}
+	.btc-deposit-field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+	.btc-deposit-label {
+		font-size: 0.7rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--dash-text-muted);
+	}
+	.btc-deposit-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-top: 0.5rem;
 	}
 	.input-wrap {
 		min-height: 42.2px;

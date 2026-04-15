@@ -124,8 +124,8 @@
 		<br />
 		<br />
 		<span class="label-tooltip">
-			<label for="vsc-gql-url">HIVE API URL</label>
-			<InfoTooltip>Edit this to direct queries to a custom HIVE node.</InfoTooltip>
+			<label for="vsc-gql-url">Hive API URL</label>
+			<InfoTooltip>Edit this to direct queries to a custom Hive node.</InfoTooltip>
 		</span>
 
 		<input
@@ -182,7 +182,7 @@
 			/>
 			<br />
 			<span class="label-tooltip">
-				<label for="hive-network-id">HIVE Custom Network ID</label>
+				<label for="hive-network-id">Hive Custom Network ID</label>
 				<InfoTooltip warning>
 					Enables posting transactions to an alternate network. Not recommended unless you
 					understand the implications.
@@ -196,8 +196,8 @@
 			/>
 			<br />
 			<span class="label-tooltip">
-				<label for="prefs-tests">Hive Asset Name</label>
-				<InfoTooltip warning>Change the asset name for Hive.</InfoTooltip>
+				<label for="prefs-tests">HIVE Asset Name</label>
+				<InfoTooltip warning>Change the asset name for HIVE.</InfoTooltip>
 			</span>
 			<input
 				id="prefs-tests"

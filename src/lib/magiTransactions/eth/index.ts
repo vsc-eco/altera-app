@@ -20,8 +20,8 @@ export function getEVMOpType(
 	if (amount.coin.value === Coin.btc.value) {
 		if (toNetwork.value === Network.magi.value) {
 			const payload: TransferInput = {
-				amount: amount.amount,
-				recipient_vsc_address: toDid
+				amount: amount.amount.toString(),
+				to: toDid
 			};
 
 			const tx: CallContractTransaction = {
@@ -30,7 +30,7 @@ export function getEVMOpType(
 					contract_id: BTC_MAPPING_CONTRACT_ID,
 					action: 'transfer',
 					payload: JSON.stringify(payload),
-					rc_limit: 10000,
+					rc_limit: 5000,
 					intents: [],
 					caller: fromDid
 				}
@@ -38,9 +38,10 @@ export function getEVMOpType(
 
 			return tx;
 		} else if (toNetwork.value === Network.btcMainnet.value) {
+			const btcAddress = toDid.startsWith('did:') ? toDid.split(':').at(-1)! : toDid;
 			const payload: UnmapInput = {
-				amount: amount.amount,
-				recipient_btc_address: toDid
+				amount: amount.amount.toString(),
+				to: btcAddress
 			};
 
 			const tx: CallContractTransaction = {
@@ -49,7 +50,7 @@ export function getEVMOpType(
 					contract_id: BTC_MAPPING_CONTRACT_ID,
 					action: 'unmap',
 					payload: JSON.stringify(payload),
-					rc_limit: 10000,
+					rc_limit: 5000,
 					intents: [],
 					caller: fromDid
 				}

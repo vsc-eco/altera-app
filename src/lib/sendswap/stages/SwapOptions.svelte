@@ -46,8 +46,10 @@
 	import { numberFormatLanguage } from '$lib/constants';
 	import { getHiveAssetName, getHbdAssetName, vscNetworkId } from '$lib/../client';
 	import {
-		fetchPoolDepths,
-		findPoolByPair,
+		fetchTypedPoolDepths,
+		getOrderedDepthsFor,
+		calculateTwoHopSwap,
+		type TypedPoolDepths,
 		calculateSwap,
 		getOrderedDepths,
 		type PoolDepths,
@@ -73,13 +75,23 @@
 
 	onMount(() => {
 		loadHistoricalCoinData();
-		// Resolve the HIVE/HBD pool dynamically from the indexer registry so
-		// the call is network-aware (mainnet vs testnet).
+		// Resolve each swap-eligible pool dynamically so calls are
+		// network-aware (mainnet vs testnet). Both are loaded in
+		// parallel — the swap-calc effect picks whichever it needs
+		// based on the user's selected pair.
 		(async () => {
-			const poolId = await findPoolByPair('HIVE', 'HBD');
-			if (!poolId) return;
-			const d = await fetchPoolDepths(poolId);
-			if (d) poolDepths = d;
+			const [hiveHbd, btcHbd] = await Promise.all([
+				fetchTypedPoolDepths('HIVE', 'HBD'),
+				fetchTypedPoolDepths('BTC', 'HBD')
+			]);
+			if (hiveHbd) hiveHbdPool = hiveHbd;
+			if (btcHbd) btcHbdPool = btcHbd;
+			// Keep the legacy `poolDepths` populated from the HIVE/HBD
+			// pool so downstream code paths that still read it (e.g.
+			// any fallback UI) stay consistent.
+			if (hiveHbd) {
+				poolDepths = { reserve0: hiveHbd.reserve0, reserve1: hiveHbd.reserve1 };
+			}
 		})();
 	});
 	onDestroy(() => {
@@ -88,25 +100,39 @@
 
 	// Pool depths and swap calculation state
 	let poolDepths: PoolDepths | null = $state(null);
+	let hiveHbdPool = $state<TypedPoolDepths | null>(null);
+	let btcHbdPool = $state<TypedPoolDepths | null>(null);
 	let swapResult: SwapCalcResult | null = $state(null);
 	let slippageBps = $state(100); // default 1%
 	const slippageOptions = [50, 100, 200, 300]; // 0.5%, 1%, 2%, 3%
+
+	// Mirror slippage into the shared store regardless of pair. The
+	// calculate-swap effect below only runs for HIVE↔HBD pairs, so for
+	// BTC pairs (or any other route that doesn't have live pool math
+	// in the frontend yet) this ensures the router still gets the
+	// user's chosen tolerance when the tx is built.
+	$effect(() => {
+		if ($SendTxDetails.slippageBps !== slippageBps) {
+			$SendTxDetails.slippageBps = slippageBps;
+		}
+	});
 
 	// Recalculate swap whenever input amount, coins, or slippage changes.
 	$effect(() => {
 		const fromCoin = $SendTxDetails.fromCoin;
 		const toCoin = $SendTxDetails.toCoin;
 		const fromAmount = $SendTxDetails.fromAmount;
-		if (!poolDepths || !fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
+		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
 			swapResult = null;
 			return;
 		}
 
-		const isHiveSwap =
-			(fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value) &&
-			(toCoin.coin.value === Coin.hive.value || toCoin.coin.value === Coin.hbd.value) &&
+		const swapAssets = new Set([Coin.hive.value, Coin.hbd.value, Coin.btc.value]);
+		const isSwap =
+			swapAssets.has(fromCoin.coin.value) &&
+			swapAssets.has(toCoin.coin.value) &&
 			fromCoin.coin.value !== toCoin.coin.value;
-		if (!isHiveSwap) {
+		if (!isSwap) {
 			swapResult = null;
 			return;
 		}
@@ -117,10 +143,67 @@
 			return;
 		}
 
-		const assetIn = fromCoin.coin.value as 'hive' | 'hbd';
-		const { X, Y } = getOrderedDepths(poolDepths, assetIn);
 		const x = BigInt(fromAmountInt);
-		const result = calculateSwap(x, X, Y, slippageBps);
+		const assetIn = fromCoin.coin.value;
+		const assetOut = toCoin.coin.value;
+		const involvesBtc = assetIn === Coin.btc.value || assetOut === Coin.btc.value;
+
+		// Pick the right pool(s) for this pair:
+		//   HIVE ↔ HBD → hiveHbdPool single hop
+		//   BTC  ↔ HBD → btcHbdPool single hop
+		//   BTC  ↔ HIVE → btcHbdPool → hiveHbdPool two-hop via HBD
+		let result: SwapCalcResult | null = null;
+
+		if (!involvesBtc) {
+			if (!hiveHbdPool) {
+				swapResult = null;
+				return;
+			}
+			const depths = getOrderedDepthsFor(hiveHbdPool, assetIn);
+			if (!depths) {
+				swapResult = null;
+				return;
+			}
+			result = calculateSwap(x, depths.X, depths.Y, slippageBps);
+		} else if (
+			(assetIn === Coin.btc.value && assetOut === Coin.hbd.value) ||
+			(assetIn === Coin.hbd.value && assetOut === Coin.btc.value)
+		) {
+			if (!btcHbdPool) {
+				swapResult = null;
+				return;
+			}
+			const depths = getOrderedDepthsFor(btcHbdPool, assetIn);
+			if (!depths) {
+				swapResult = null;
+				return;
+			}
+			result = calculateSwap(x, depths.X, depths.Y, slippageBps);
+		} else {
+			// BTC ↔ HIVE: two-hop via HBD. First pool is the one that
+			// contains the input asset, second is the one that contains
+			// the output asset.
+			if (!btcHbdPool || !hiveHbdPool) {
+				swapResult = null;
+				return;
+			}
+			const pool1 = assetIn === Coin.btc.value ? btcHbdPool : hiveHbdPool;
+			const pool2 = assetIn === Coin.btc.value ? hiveHbdPool : btcHbdPool;
+			result = calculateTwoHopSwap(
+				x,
+				pool1,
+				pool2,
+				assetIn,
+				Coin.hbd.value,
+				assetOut,
+				slippageBps
+			);
+		}
+
+		if (!result) {
+			swapResult = null;
+			return;
+		}
 		swapResult = result;
 
 		untrack(() => {
@@ -536,6 +619,14 @@
 
 	// ── Multi-step dialog state ──
 	let dialogStep: 'tokens' | 'source' = $state('tokens');
+	const dialogBack = $derived(
+		dialogStep === 'source'
+			? () => {
+					dialogStep = 'tokens';
+					tempCoinOpt = undefined;
+				}
+			: undefined
+	);
 	let tempCoinOpt: CoinOptions['coins'][number] | undefined = $state();
 	let tokenSearch = $state('');
 
@@ -633,15 +724,12 @@
 	</span>
 {/snippet}
 
-<Dialog bind:open={dialogOpen} bind:toggle>
+<Dialog bind:open={dialogOpen} bind:toggle back={dialogBack}>
+	{#snippet title()}Select a token{/snippet}
 	{#snippet content()}
 		{#if dialogStep === 'tokens'}
 			<!-- Step 1: Select a token -->
 			<div class="dialog-content">
-				<div class="dialog-title-row">
-					<h5>Select a token</h5>
-					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
-				</div>
 				<div class="token-search-wrapper">
 					<Search size={16} />
 					<input bind:value={tokenSearch} placeholder="Search tokens..." />
@@ -660,19 +748,6 @@
 		{:else if dialogStep === 'source' && tempCoinOpt}
 			<!-- Step 2: Show balances for selected token -->
 			<div class="dialog-content">
-				<div class="dialog-title-row">
-					<button
-						class="dialog-back-btn"
-						onclick={() => {
-							dialogStep = 'tokens';
-							tempCoinOpt = undefined;
-						}}
-					>
-						<ArrowLeft size={18} />
-					</button>
-					<h5>Select a token</h5>
-					<button class="dialog-close-btn" onclick={closeDialog}><X size={20} /></button>
-				</div>
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
 						<button
@@ -959,7 +1034,7 @@
 			</div>
 		</div>
 		<!-- Fees Section (collapsible) -->
-		{#if swapResult && $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
+		{#if $SendTxDetails.fromCoin && $SendTxDetails.toCoin}
 			{@const fromDec = $SendTxDetails.fromCoin.coin.decimalPlaces}
 			{@const toDec = $SendTxDetails.toCoin.coin.decimalPlaces}
 			{@const fromUnit = coinDisplayLabel($SendTxDetails.fromCoin.coin)}
@@ -981,24 +1056,26 @@
 								</button>
 							{/each}
 						</div>
-						<button
-							class="fees-toggle-btn"
-							onclick={() => {
-								feesExpanded = !feesExpanded;
-							}}
-							aria-label="Toggle fee details"
-						>
-							{#if feesExpanded}
-								<ChevronUp size={16} />
-							{:else}
-								<ChevronDown size={16} />
-							{/if}
-						</button>
+						{#if swapResult}
+							<button
+								class="fees-toggle-btn"
+								onclick={() => {
+									feesExpanded = !feesExpanded;
+								}}
+								aria-label="Toggle fee details"
+							>
+								{#if feesExpanded}
+									<ChevronUp size={16} />
+								{:else}
+									<ChevronDown size={16} />
+								{/if}
+							</button>
+						{/if}
 					</div>
 				</div>
 
-				<!-- Expandable fee details -->
-				{#if feesExpanded}
+				<!-- Expandable fee details (HIVE↔HBD only for now) -->
+				{#if swapResult && feesExpanded}
 					<div class="fee-details">
 						<div class="fee-row">
 							<span class="fee-label">Expected Output</span>

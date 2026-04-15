@@ -38,7 +38,7 @@ export function makePlaceholderContact(value: string): RecipientSnippet {
 }
 
 export async function getSuggestedHiveAccounts(value: string): Promise<RecipientSnippet[]> {
-	if (value === '' || value.startsWith('0x')) return [];
+	if (value === '' || value.startsWith('0x') || value.startsWith('bc1')) return [];
 	const result = await DHive.database.call('get_account_reputations', [
 		value.toLocaleLowerCase(),
 		3

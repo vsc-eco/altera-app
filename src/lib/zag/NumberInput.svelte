@@ -111,6 +111,16 @@
 		placeholder="0"
 		onfocus={() => (blurred = false)}
 		onblur={() => (blurred = true)}
+		onkeydown={(e) => {
+			// Arrow-up/down step the value by 10^-decimals, which for
+			// crypto amount fields (8 decimals BTC, 3 decimals HIVE)
+			// is an unintentional nuisance — one keystroke adds
+			// 0.00000001 BTC. Block them entirely.
+			if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		}}
 	/>
 	<!-- <div class="triggers">
 		<button {...api.getIncrementTriggerProps()}>

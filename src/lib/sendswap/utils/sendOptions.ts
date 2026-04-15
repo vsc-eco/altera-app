@@ -319,7 +319,7 @@ export const TransferMethod = {
 };
 
 export const networkMap: Map<string, Coin[]> = new Map([
-	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd]],
+	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc]],
 	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
 	[Network.lightning.value, [Coin.btc]]
 ]);
@@ -376,7 +376,8 @@ const swapOptions: {
 			{
 				coin: btc,
 				// networks: [lightning, btcMainnet]
-				networks: [lightning, magi, btcMainnet]
+				// networks: [lightning, magi, btcMainnet]
+				networks: [magi, btcMainnet]
 			}
 		]
 	},
@@ -392,7 +393,8 @@ const swapOptions: {
 			},
 			{
 				coin: btc,
-				networks: [lightning, btcMainnet, magi]
+				// networks: [lightning, btcMainnet, magi]
+				networks: [btcMainnet, magi]
 			}
 		]
 	}

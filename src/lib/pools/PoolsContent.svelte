@@ -6,7 +6,6 @@
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import PoolDetail from './PoolDetail.svelte';
-	import Dialog from '$lib/zag/Dialog.svelte';
 	import { getAuth } from '$lib/auth/store';
 
 	function getCoinIcon(symbol: string): string | undefined {
@@ -21,8 +20,6 @@
 	let timeRange = $state<TimeRange>('30d');
 	let addLiquidityOpen = $state(false);
 	let removeLiquidityOpen = $state(false);
-	let createPoolOpen = $state(false);
-	let createPoolToggle = $state<(open?: boolean) => void>(() => {});
 
 	let pools = $state<PoolRow[]>([]);
 	let loading = $state(false);
@@ -161,7 +158,6 @@
 	{@render poolsTable(sortedPools)}
 
 	<div class="action-buttons">
-		<button class="action-btn" disabled title="Coming soon">Create Pool</button>
 		<button class="action-btn" onclick={() => (addLiquidityOpen = true)}>Add Liquidity</button>
 		<button class="action-btn" onclick={() => (removeLiquidityOpen = true)}>Remove Liquidity</button>
 	</div>
@@ -169,7 +165,7 @@
 	{#if did && (myPools.length > 0 || myPoolsLoading)}
 		<div class="my-pools-section">
 			<h3 class="section-title">
-				My pools
+				My liquidity
 				{#if myPoolsLoading}<span class="muted">loading…</span>{/if}
 			</h3>
 			{#if myPools.length > 0}
@@ -344,16 +340,7 @@
 {/snippet}
 
 <AddLiquidityPopup bind:open={addLiquidityOpen} {pools} />
-<RemoveLiquidityPopup bind:open={removeLiquidityOpen} pools={myPoolsAsRows} />
-
-<Dialog bind:open={createPoolOpen} bind:toggle={createPoolToggle}>
-	{#snippet title()}
-		Create Pool
-	{/snippet}
-	{#snippet content()}
-		<p class="placeholder-text">Create pool form will go here.</p>
-	{/snippet}
-</Dialog>
+<RemoveLiquidityPopup bind:open={removeLiquidityOpen} pools={myPoolsAsRows} {myPools} />
 {/if}
 
 <style lang="scss">

@@ -33,7 +33,8 @@
 		} else {
 			if ($accountBalance.connectedBal && coin.value in $accountBalance.connectedBal) {
 				return new CoinAmount(
-					$accountBalance.connectedBal[coin.value as keyof typeof $accountBalance.connectedBal],
+					$accountBalance.connectedBal[coin.value as keyof typeof $accountBalance.connectedBal] ??
+						0,
 					coin,
 					true
 				).toPrettyString();

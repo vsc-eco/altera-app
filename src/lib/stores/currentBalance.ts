@@ -29,7 +29,13 @@ export function getBalanceSmallestUnits(
 	network: (typeof Network)[keyof typeof Network]
 ): number {
 	if (!snapshot) return 0;
-	if (network.value === Network.hiveMainnet.value) {
+	// Mainnet reads from the connected wallet. BTC mainnet comes from
+	// the reown BitcoinAdapter's on-chain address (via mempool.space),
+	// Hive mainnet comes from the aioha L1 account snapshot.
+	if (
+		network.value === Network.hiveMainnet.value ||
+		network.value === Network.btcMainnet.value
+	) {
 		const val = snapshot.connectedBal?.[coin.value as keyof HiveMainnetBalance];
 		return typeof val === 'number' ? val : 0;
 	}
@@ -77,6 +83,49 @@ async function fetchBtcBalance(did: string): Promise<number> {
 	}
 }
 
+/**
+ * Detect Bitcoin network from address prefix. `tb1`, `2`, `m` and
+ * `n` are testnet (including regtest which shares the same prefixes
+ * as testnet3); everything else is mainnet.
+ */
+export function isBtcTestnetAddress(address: string): boolean {
+	if (!address) return false;
+	if (address.startsWith('tb1') || address.startsWith('bcrt1')) return true;
+	const first = address[0];
+	return first === '2' || first === 'm' || first === 'n';
+}
+
+/**
+ * On-chain Bitcoin wallet balance via mempool.space's public REST
+ * API. Returns sats (confirmed + unconfirmed mempool net). Used for
+ * the QuickSwap card so reown-BTC users see their real wallet max
+ * instead of the Magi-mapped balance — QuickSwap is a mainnet↔
+ * mainnet cross-chain swap so the Leather wallet balance is the
+ * right cap.
+ */
+async function fetchOnChainBtcBalance(address: string): Promise<number> {
+	if (!address) return 0;
+	const base = isBtcTestnetAddress(address)
+		? 'https://mempool.space/testnet/api/address/'
+		: 'https://mempool.space/api/address/';
+	try {
+		const res = await fetch(`${base}${address}`);
+		if (!res.ok) return 0;
+		const data = (await res.json()) as {
+			chain_stats?: { funded_txo_sum?: number; spent_txo_sum?: number };
+			mempool_stats?: { funded_txo_sum?: number; spent_txo_sum?: number };
+		};
+		const confirmed =
+			(data.chain_stats?.funded_txo_sum ?? 0) - (data.chain_stats?.spent_txo_sum ?? 0);
+		const unconfirmed =
+			(data.mempool_stats?.funded_txo_sum ?? 0) - (data.mempool_stats?.spent_txo_sum ?? 0);
+		return Math.max(0, confirmed + unconfirmed);
+	} catch (err) {
+		console.error('Failed to fetch on-chain BTC balance', err);
+		return 0;
+	}
+}
+
 export type AccountBalance = {
 	hbd: number;
 	hbd_savings: number;
@@ -89,9 +138,16 @@ export type AccountBalance = {
 	last_tx_height: number;
 };
 
+/**
+ * Native mainnet balances for the user's connected wallets. `hive`
+ * and `hbd` come from the Hive L1 account (aioha only). `btc` is the
+ * on-chain Bitcoin wallet balance (reown Bitcoin adapter only) and
+ * stays `undefined` when no Bitcoin wallet is connected.
+ */
 export type HiveMainnetBalance = {
 	hbd: number;
 	hive: number;
+	btc?: number;
 };
 
 // svelte store for current balance (updated in AccBalance.svelte)
@@ -144,7 +200,16 @@ async function fetchAccountData(auth: Auth) {
 
 		const username = getUsernameFromAuth(auth);
 
-		const [magiBal, btcBalance, connectedBal] = await Promise.all([
+		// Reown Bitcoin wallets (Leather, Xverse, etc.) — fetch the
+		// on-chain BTC balance from mempool.space so the QuickSwap
+		// mainnet↔mainnet flow can show a real Max for BTC. EVM
+		// reown wallets have no BTC on-chain balance and stay
+		// undefined here.
+		const isReownBtc =
+			auth.value?.provider === 'reown' && auth.value.did?.startsWith('did:pkh:bip122:');
+		const btcWalletAddress = isReownBtc ? auth.value!.address : undefined;
+
+		const [magiBal, btcBalance, connectedBal, onChainBtcBalance] = await Promise.all([
 			accBalancesStore.fetch({
 				variables: { account: auth.value!.did },
 				policy: 'NetworkOnly'
@@ -152,7 +217,8 @@ async function fetchAccountData(auth: Auth) {
 			fetchBtcBalance(auth.value!.did),
 			auth.value?.provider === 'aioha' && username
 				? DHive.database.getAccounts([username])
-				: undefined
+				: undefined,
+			btcWalletAddress ? fetchOnChainBtcBalance(btcWalletAddress) : Promise.resolve(undefined)
 		]);
 
 		const magiBalanceObj = (() => {
@@ -192,7 +258,19 @@ async function fetchAccountData(auth: Auth) {
 				};
 				return balances;
 			}
+			if (typeof onChainBtcBalance === 'number') {
+				// Reown BTC wallet without a Hive L1 account — connectedBal
+				// still exists, just with zero HIVE/HBD.
+				return {
+					hive: 0,
+					hbd: 0,
+					btc: onChainBtcBalance
+				} satisfies HiveMainnetBalance;
+			}
 		})();
+		if (connectedBalanceObj && typeof onChainBtcBalance === 'number') {
+			connectedBalanceObj.btc = onChainBtcBalance;
+		}
 
 		if (magiBalanceObj && connectedBalanceObj) {
 			accountBalance.set({

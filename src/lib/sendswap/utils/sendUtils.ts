@@ -22,6 +22,7 @@ import type { Operation, TransferOperation } from '@hiveio/dhive';
 import { addLocalTransaction } from '../../stores/localStorageTxs';
 import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client';
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
+import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
 import { wagmiConfig } from '$lib/auth/reown';
 import { get, writable } from 'svelte/store';
 import {
@@ -78,7 +79,7 @@ export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined
 			}
 		} else if (opt.network.value === Network.hiveMainnet.value && accBal.connectedBal) {
 			const bal = accBal.connectedBal[opt.coin.value as keyof HiveMainnetBalance];
-			if (bal > 0) {
+			if ((bal ?? 0) > 0) {
 				return opt;
 			}
 		}
@@ -177,9 +178,23 @@ export function getRecipientNetworks(did: string): NetworkOptionParam[] {
 			{
 				...Network.hiveMainnet,
 				disabled: true,
-				disabledMemo: `Not available for ${did.startsWith('did:pkh:eip155:1:') ? 'EVM accounts' : "recipient's account type"}`
+				disabledMemo: `Not available for EVM accounts`
 			}
 		];
+	}
+	if (did.startsWith('did:pkh:bip122:')) {
+		return [
+			Network.magi,
+			Network.btcMainnet,
+			{
+				...Network.hiveMainnet,
+				disabled: true,
+				disabledMemo: `Not available for BTC accounts`
+			}
+		];
+	}
+	if (did.startsWith('btc:')) {
+		return [Network.btcMainnet];
 	}
 	return [];
 }
@@ -626,28 +641,32 @@ export async function send(
 	if (intermediary == Network.magi) {
 		// console.log('intermediary network is Magi');
 		if (auth.value?.provider == 'reown') {
-			// console.log('auth provider is reown');
-			// account check in signAndBroadcast
+			const isBtcWallet = auth.value.did.startsWith('did:pkh:bip122:');
 			const client = createClient(auth.value.did);
 
 			// console.log('created reown client:', client);
 
+			const evmToDid =
+				toNetwork.value === Network.btcMainnet.value ? toUsername : getDidFromUsername(toUsername);
 			const sendOp = getEVMOpType(
 				fromNetwork,
 				toNetwork,
 				auth.value.did,
-				getDidFromUsername(toUsername),
+				evmToDid,
 				new CoinAmount(amount, toCoin.coin)
 			);
 
-			setStatus('Preparing transaction for signing…');
+			setStatus(
+				isBtcWallet ? 'Waiting for Bitcoin wallet approval…' : 'Preparing transaction for signing…'
+			);
 
-			const id = await signAndBrodcastTransaction(
-				[sendOp],
-				wagmiSigner,
-				client,
-				signal,
-				wagmiConfig
+			if (!isBtcWallet && !wagmiConfig) {
+				throw new Error('EVM wallet not initialised — click Connect Wallet first');
+			}
+			const id = await (
+				isBtcWallet
+					? signAndBrodcastTransaction([sendOp], btcSigner, client, signal)
+					: signAndBrodcastTransaction([sendOp], wagmiSigner, client, signal, wagmiConfig!)
 			)
 				.then((result) => {
 					setStatus(`Transaction submitted successfully!`);
@@ -703,10 +722,10 @@ export async function send(
 		let sendOp: Operation;
 		let opType: string | undefined;
 
+		const tx = get(SendTxDetails);
 		if (isSwap) {
 			setStatus('Waiting for Hive wallet approval…');
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
-			const tx = get(SendTxDetails);
 			const fromAmountStr = tx.fromAmount && tx.fromAmount !== '0' ? tx.fromAmount : amount;
 			const minOut = tx.minAmountOut ? Number(tx.minAmountOut) : undefined;
 			sendOp = getHiveSwapOp(
@@ -724,13 +743,15 @@ export async function send(
 			// BTC unmap — pass deduct_fee and max_fee from store
 			opType = 'withdrawal';
 			setStatus('Waiting for Hive wallet approval…');
-			const { getBitcoinUnmapOp: getUnmapOp } = await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
+			const { getBitcoinUnmapOp: getUnmapOp } =
+				await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
 			sendOp = getUnmapOp(
 				auth.value.username!,
-				getDidFromUsername(toUsername),
+				auth.value.did,
+				toUsername,
 				new CoinAmount(amount, toCoin.coin),
-				details.btcDeductFee || undefined,
-				details.btcMaxFee
+				tx.btcDeductFee || undefined,
+				tx.btcMaxFee
 			);
 		} else {
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);

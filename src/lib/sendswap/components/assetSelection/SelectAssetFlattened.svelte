@@ -57,7 +57,6 @@
 		onMagi
 			.map((coin) => {
 				// REMOVE FOR BITCOIN PROD
-				if (coin.value === Coin.btc.value) return;
 				const coinAmt = new CoinAmount(
 					$accountBalance.bal[coin.value as keyof AccountBalance],
 					coin,

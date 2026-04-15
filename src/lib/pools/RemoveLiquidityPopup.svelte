@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import type { PoolRow } from '$lib/pools/poolsData';
+	import type { PoolRow, MyPoolRow } from '$lib/pools/poolsData';
 	import { getAuth } from '$lib/auth/store';
 	import { removeLiquidityTx } from '$lib/magiTransactions/hive';
 	import { get } from 'svelte/store';
@@ -13,8 +13,14 @@
 	let {
 		open = $bindable(false),
 		toggle = $bindable(),
-		pools
-	}: { open?: boolean; toggle?: (o?: boolean) => void; pools: PoolRow[] } = $props();
+		pools,
+		myPools = []
+	}: {
+		open?: boolean;
+		toggle?: (o?: boolean) => void;
+		pools: PoolRow[];
+		myPools?: MyPoolRow[];
+	} = $props();
 	let dialogToggle = $state<(o?: boolean) => void>(() => {});
 	const auth = $derived(getAuth()());
 
@@ -68,7 +74,7 @@
 			txType="remove liquidity"
 			{stepsData}
 			onSubmit={submitRemoveLiquidity}
-			extraProps={{ pools, close: dialogToggle, onClose: () => dialogToggle(false) }}
+			extraProps={{ pools, myPools, close: dialogToggle, onClose: () => dialogToggle(false) }}
 		/>
 	{/snippet}
 </Dialog>

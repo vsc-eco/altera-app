@@ -125,9 +125,9 @@ export function initModal() {
 	});
 }
 
-export function openModal() {
+export function openModal(namespace?: 'eip155' | 'bip122') {
 	initModal();
-	modal!.open();
+	modal!.open(namespace ? { namespace } : undefined);
 }
 
 export async function reownLogout() {

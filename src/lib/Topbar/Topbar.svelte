@@ -3,10 +3,24 @@
 	import { goto } from '$app/navigation';
 	import Notifications from './Notifications.svelte';
 	import Avatar from '../zag/Avatar.svelte';
+	import CommandPalette from './CommandPalette.svelte';
 	import { Component, MenuIcon, Search, Bell } from '@lucide/svelte';
 	import { getAuth } from '../auth/store';
 	import { accountBalance } from '$lib/stores/currentBalance';
+	import { onMount } from 'svelte';
 	let { onMenuToggle } = $props();
+	let paletteOpen = $state(false);
+
+	onMount(() => {
+		function handleGlobalKeydown(e: KeyboardEvent) {
+			if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+				e.preventDefault();
+				paletteOpen = !paletteOpen;
+			}
+		}
+		window.addEventListener('keydown', handleGlobalKeydown);
+		return () => window.removeEventListener('keydown', handleGlobalKeydown);
+	});
 	let auth = $derived(getAuth()());
 	let username: string = $derived.by(() => {
 		if (!auth.value) return '  ';
@@ -44,9 +58,12 @@
 		<MenuIcon />
 	</button>
 
-	<div class="search-bar">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="search-bar" onclick={() => (paletteOpen = true)}>
 		<Search size={16} />
-		<input type="text" placeholder="Search or jump to..." />
+		<span class="search-placeholder">Search or jump to…</span>
+		<kbd class="search-kbd">⌘K</kbd>
 	</div>
 
 	<div class="topbar-right">
@@ -77,6 +94,8 @@
 	</div>
 </header>
 
+<CommandPalette bind:open={paletteOpen} />
+
 <style lang="scss">
 	header {
 		display: flex;
@@ -104,19 +123,22 @@
 	.search-bar:focus-within {
 		border-color: var(--dash-accent-purple);
 	}
-	.search-bar input {
-		flex: 1;
-		border: none;
-		background: transparent;
-		color: var(--dash-text-primary);
-		font-size: 0.875rem;
-		font-family: inherit;
-		height: 100%;
-		padding: 0;
-		outline: none;
+	.search-bar {
+		cursor: pointer;
 	}
-	.search-bar input::placeholder {
+	.search-placeholder {
+		flex: 1;
+		font-size: 0.875rem;
 		color: var(--dash-text-muted);
+	}
+	.search-kbd {
+		padding: 0.15rem 0.4rem;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 4px;
+		font-size: 0.65rem;
+		color: var(--dash-text-muted);
+		background: rgba(255, 255, 255, 0.05);
+		font-family: inherit;
 	}
 	.search-bar :global(svg) {
 		flex-shrink: 0;

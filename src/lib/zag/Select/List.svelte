@@ -39,17 +39,15 @@
 <style lang="scss">
 	[data-part='content'] {
 		border-radius: 16px;
-		background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-		backdrop-filter: blur(10px);
+		background: transparent;
 		border: 1px solid var(--dash-card-border);
 		padding: 0.5rem;
 		z-index: 10;
-		box-shadow: var(--dash-card-shadow);
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 	}
 	[data-part='content'].card {
 		box-sizing: border-box;
-		background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
-		backdrop-filter: blur(10px);
+		background: transparent;
 		border: 1px solid var(--dash-card-border);
 		z-index: 5;
 		border-radius: 0 0 16px 16px;

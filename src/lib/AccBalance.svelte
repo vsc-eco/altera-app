@@ -49,7 +49,7 @@
 <div class="balances-list">
 	<div class="balances-header">
 		<span class="balances-title">Balances</span>
-		<a href="/" class="see-all">See all</a>
+		<!-- <a href="/" class="see-all">See all</a> -->
 	</div>
 
 	<div class="balance-row">

@@ -8,6 +8,7 @@
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { get } from 'svelte/store';
 
 	let {
 		dialogOpen = $bindable(),
@@ -29,14 +30,21 @@
 		};
 	}
 
-	// Only seed the SendTxDetails store when the Withdraw dialog actually
-	// opens — otherwise this effect fires on every mount/render and wipes
-	// out QuickSwap's persisted selection (sibling cards on the dashboard
-	// all share the same global store).
+	// Snapshot SendTxDetails on open and restore on close so the
+	// Withdraw dialog doesn't wipe QuickSwap's persisted selection
+	// (all dashboard cards share the same global store).
+	let snapshotBeforeWithdraw: SendDetails | null = null;
 	$effect(() => {
-		if (!dialogOpen) return;
-		sessionId;
-		SendTxDetails.set(withdrawDetails());
+		if (dialogOpen) {
+			if (!snapshotBeforeWithdraw) {
+				snapshotBeforeWithdraw = { ...get(SendTxDetails) };
+			}
+			sessionId;
+			SendTxDetails.set(withdrawDetails());
+		} else if (snapshotBeforeWithdraw) {
+			SendTxDetails.set(snapshotBeforeWithdraw);
+			snapshotBeforeWithdraw = null;
+		}
 	});
 	$effect(() => {
 		if (!auth || !dialogOpen) return;

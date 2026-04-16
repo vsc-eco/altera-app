@@ -87,18 +87,24 @@
 	function startDetails() {
 		const stored = loadSwapSelection(SWAP_QUICK_PREF_KEY);
 		const btcFromOption = swapOptions.from.coins.find((c) => c.coin.value === Coin.btc.value);
+		const hiveFromOption = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
+		const btcToOption = swapOptions.to.coins.find((c) => c.coin.value === Coin.btc.value);
 		const hiveToOption = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
 
-		// For a reown Bitcoin wallet the only valid FROM is BTC — force
-		// it regardless of what was persisted, and force the TO to HIVE
-		// so users don't land in a BTC→BTC same-coin state. Persisted
-		// selection only matters for aioha users.
+		// Defaults depend on the connected wallet type:
+		// - Reown BTC wallet → from BTC, to HIVE (only valid FROM is BTC)
+		// - Hive wallet (aioha) → from HIVE, to BTC
+		// Persisted selection overrides for non-forced wallets.
 		const isReownBtc =
 			auth.value?.provider === 'reown' &&
 			auth.value.did?.startsWith('did:pkh:bip122:');
+		const isHive = auth.value?.provider === 'aioha';
 
-		const fromOpt = isReownBtc ? btcFromOption : (findFromOpt(stored?.fromCoin) ?? btcFromOption);
-		const toOpt = isReownBtc ? hiveToOption : (findToOpt(stored?.toCoin) ?? hiveToOption);
+		const defaultFrom = isReownBtc ? btcFromOption : isHive ? hiveFromOption : btcFromOption;
+		const defaultTo = isReownBtc ? hiveToOption : isHive ? btcToOption : hiveToOption;
+
+		const fromOpt = isReownBtc ? btcFromOption : (findFromOpt(stored?.fromCoin) ?? defaultFrom);
+		const toOpt = isReownBtc ? hiveToOption : (findToOpt(stored?.toCoin) ?? defaultTo);
 		// Always derive the network from the coin's native mainnet — ignore
 		// any persisted `magi` value left over from earlier code.
 		const fromNet = fromOpt ? nativeNetworkFor(fromOpt.coin.value) : undefined;

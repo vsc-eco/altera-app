@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { PanelLeftCloseIcon, Moon, Sun, LogOut } from '@lucide/svelte';
-	import { beforeNavigate, goto } from '$app/navigation';
+	import { PanelLeftCloseIcon, PanelLeftOpenIcon, LogOut } from '@lucide/svelte';
+	import { beforeNavigate } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { paths } from './paths';
-	import { themeStore, THEMES, type ThemeValue } from '$lib/theme';
 	import { getAuth } from '$lib/auth/store';
+	import { browser } from '$app/environment';
+
+	const COLLAPSE_KEY = 'sidebar-collapsed';
 
 	beforeNavigate(() => {
 		if (visible) {
@@ -19,23 +21,33 @@
 	let preload = $state(true);
 	let auth = $derived(getAuth()());
 
+	let collapsed = $state(
+		browser ? localStorage.getItem(COLLAPSE_KEY) === 'true' : false
+	);
+
+	function toggleCollapse() {
+		collapsed = !collapsed;
+		if (browser) localStorage.setItem(COLLAPSE_KEY, String(collapsed));
+	}
+
 	$effect(() => {
 		setTimeout(() => {
 			preload = false;
 		}, 1000);
 	});
 
-	let isDark = $derived($themeStore.value === 'dark' || ($themeStore.value === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches));
-
-	function toggleTheme() {
-		const next: ThemeValue = isDark ? 'light' : 'dark';
-		themeStore.set(THEMES[next]);
-	}
-
 	async function handleLogout() {
 		if (auth.value?.logout) {
 			await auth.value.logout();
 		}
+	}
+
+	function isCurrentPath(href: string): boolean {
+		const url = page.url;
+		if (href.includes('?')) {
+			return url.pathname + url.search === href;
+		}
+		return url.pathname === href && !url.searchParams.has('tab');
 	}
 </script>
 
@@ -55,13 +67,15 @@
 	<nav
 		bind:clientWidth={navWidth}
 		transition:fly={{ x: -navWidth, opacity: 1, duration: preload ? 0 : undefined }}
-		class={{ visible, preload }}
+		class={{ visible, preload, collapsed }}
 		id="sidebar-nav"
 	>
 		<div class="logo-section">
 			<a class="logo-link" href="/" tabindex="-1">
 				<img src="altera_med.png" alt="Altera" class="logo-icon" />
-				<span class="logo-text">Altera</span>
+				{#if !collapsed}
+					<span class="logo-text">Altera</span>
+				{/if}
 			</a>
 			<button
 				class="transparent-icon close-btn"
@@ -76,18 +90,37 @@
 		<div class="nav-items">
 			{#each paths as path}
 				{@const Icon = path.icon}
-				<a href={path.href} class={['nav-button', { current: path.href === page.url.pathname }]}>
+				<a
+					href={path.href}
+					class={['nav-button', { current: isCurrentPath(path.href) }]}
+					title={collapsed ? path.name : undefined}
+				>
 					<span class="nav-icon"><Icon size={20} /></span>
-					<span class="nav-label">{path.name}</span>
+					{#if !collapsed}
+						<span class="nav-label">{path.name}</span>
+					{/if}
 				</a>
 			{/each}
 		</div>
 
 		<div class="sidebar-footer">
-			<!-- Theme toggle hidden — dark theme locked for now -->
-			<button class="footer-btn" onclick={handleLogout}>
+			<button class="footer-btn collapse-btn desktop-only" onclick={toggleCollapse} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+				<span class="nav-icon">
+					{#if collapsed}
+						<PanelLeftOpenIcon size={20} />
+					{:else}
+						<PanelLeftCloseIcon size={20} />
+					{/if}
+				</span>
+				{#if !collapsed}
+					<span class="nav-label">Collapse</span>
+				{/if}
+			</button>
+			<button class="footer-btn" onclick={handleLogout} title={collapsed ? 'Log out' : undefined}>
 				<span class="nav-icon"><LogOut size={20} /></span>
-				<span class="nav-label">Log out</span>
+				{#if !collapsed}
+					<span class="nav-label">Log out</span>
+				{/if}
 			</button>
 		</div>
 	</nav>
@@ -115,12 +148,17 @@
 		will-change: transform;
 		border-right: none;
 		height: 100svh;
-		width: 200px;
+		width: 220px;
 		box-sizing: border-box;
 		padding: calc(1.75rem + 1.5vh) 1rem 1.25rem 1rem;
 		z-index: 10;
-		transition: transform 0s;
+		transition: width 0.2s ease, padding 0.2s ease;
 		font-weight: 500;
+	}
+	nav.collapsed {
+		width: 64px;
+		padding-left: 0.5rem;
+		padding-right: 0.5rem;
 	}
 	.preload {
 		transition-duration: 0.0001s !important;
@@ -136,6 +174,11 @@
 			display: none !important;
 		}
 	}
+	@media screen and (max-width: 619px) {
+		.desktop-only {
+			display: none !important;
+		}
+	}
 
 	/* Logo */
 	.logo-section {
@@ -144,6 +187,11 @@
 		justify-content: space-between;
 		padding: 0 0.75rem;
 		margin-bottom: 1.5rem;
+		min-height: 26px;
+	}
+	nav.collapsed .logo-section {
+		justify-content: center;
+		padding: 0;
 	}
 	.logo-link {
 		display: flex;
@@ -161,6 +209,7 @@
 	}
 	.logo-text {
 		letter-spacing: -0.01em;
+		white-space: nowrap;
 	}
 
 	/* Nav items */
@@ -181,6 +230,12 @@
 		font-size: 0.9rem;
 		font-weight: 500;
 		transition: background-color 0.15s, color 0.15s;
+		white-space: nowrap;
+		overflow: hidden;
+	}
+	nav.collapsed .nav-button {
+		justify-content: center;
+		padding: 0.625rem;
 	}
 	.nav-button:hover {
 		background-color: var(--dash-sidebar-hover);
@@ -201,6 +256,10 @@
 		width: 20px;
 		height: 20px;
 		flex-shrink: 0;
+	}
+	.nav-label {
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	/* Footer */
@@ -228,6 +287,12 @@
 		text-align: left;
 		font-family: inherit;
 		transition: background-color 0.15s, color 0.15s;
+		white-space: nowrap;
+		overflow: hidden;
+	}
+	nav.collapsed .footer-btn {
+		justify-content: center;
+		padding: 0.625rem;
 	}
 	.footer-btn:hover {
 		background-color: var(--dash-sidebar-hover);

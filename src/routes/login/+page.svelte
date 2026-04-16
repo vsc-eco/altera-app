@@ -5,7 +5,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { browser } from '$app/environment';
 	import Card from '$lib/cards/Card.svelte';
-	import { ArrowRight, Repeat, Wallet, Shield, Layers, Zap, Globe, X } from '@lucide/svelte';
+	import { ArrowRight, Repeat, Wallet, Bitcoin, Shield, Layers, Zap, Globe, X } from '@lucide/svelte';
 
 	let loginOpen = $state(false);
 
@@ -217,7 +217,22 @@
 						<ArrowRight size={16} class="option-arrow" />
 					</div>
 					<div class="option-button" onclick={() => setTimeout(() => loginOpen = false, 100)}>
-						<AppKitLogin />
+						<AppKitLogin namespace="eip155" />
+					</div>
+				</div>
+				<div class="login-option btc">
+					<div class="option-left">
+						<Bitcoin size={20} />
+						<div class="option-text">
+							<span class="option-label">BTC Wallet</span>
+							<span class="option-hint">Leather · Xverse · Unisat · OKX</span>
+						</div>
+					</div>
+					<div class="option-right">
+						<ArrowRight size={16} class="option-arrow" />
+					</div>
+					<div class="option-button" onclick={() => setTimeout(() => loginOpen = false, 100)}>
+						<AppKitLogin namespace="bip122" />
 					</div>
 				</div>
 				<div class="login-divider">
@@ -742,7 +757,7 @@
 		gap: 0.5rem;
 		color: rgba(255, 255, 255, 0.25);
 	}
-	/* EVM button overlay covers entire card */
+	/* Web3 button overlay covers entire card */
 	.option-button {
 		position: absolute;
 		inset: 0;

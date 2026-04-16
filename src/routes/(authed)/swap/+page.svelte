@@ -2,6 +2,9 @@
 	import SendSwap from '$lib/sendswap/SendSwap.svelte';
 	import PoolsContent from '$lib/pools/PoolsContent.svelte';
 	import Tabs from '$lib/zag/Tabs.svelte';
+	import { page } from '$app/state';
+
+	const defaultTab = $derived(page.url.searchParams.get('tab') ?? 'swap');
 </script>
 
 <document:head>
@@ -15,12 +18,15 @@
 			<span class="badge-text">MAGI CROSS-CHAIN</span>
 		</div>
 	</div>
-	<Tabs
-		items={[
-			{ value: 'swap', label: 'Swap', content: swapContent },
-			{ value: 'pools', label: 'Pools', content: poolsContent }
-		]}
-	/>
+	{#key defaultTab}
+		<Tabs
+			defaultValue={defaultTab}
+			items={[
+				{ value: 'swap', label: 'Swap', content: swapContent },
+				{ value: 'pools', label: 'Pools', content: poolsContent }
+			]}
+		/>
+	{/key}
 </div>
 
 {#snippet swapContent()}

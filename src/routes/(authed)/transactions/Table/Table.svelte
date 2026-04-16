@@ -5,12 +5,16 @@
 		allTransactionsStore,
 		magiTxsStore,
 		fetchTxs,
-		waitForExtend
+		waitForExtend,
+		fetchBtcDeposits,
+		type TxListItem,
+		type TransactionOpType
 	} from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import ContractTr from './tr/ContractTr.svelte';
 	import BtcMappingTr from './tr/BtcMappingTr.svelte';
+	import BtcDepositTr from './tr/BtcDepositTr.svelte';
 
 	let {
 		did,
@@ -34,7 +38,49 @@
 		limitProp != null
 			? ($allTransactionsStore ?? []).slice(0, limitProp)
 			: ($allTransactionsStore ?? [])
-	);
+	) as TxListItem[];
+
+	// Routing: determine which TR component to render for a VSC op.
+	type OpTrType = 'regular' | 'btc-vsc' | 'contract';
+	function getOpTrType(op: TransactionOpType): OpTrType | null {
+		const { data } = op;
+		if (new Set(['from', 'to', 'asset', 'amount']).isSubsetOf(new Set(Object.keys(data)))) {
+			return 'regular';
+		}
+		if (op.type === 'call_contract' || op.type === 'call') {
+			const action: string = op.data?.action || '';
+			if (action === 'unmap' || action === 'transfer' || action === 'transferFrom') {
+				return 'btc-vsc';
+			}
+			return 'contract';
+		}
+		return null;
+	}
+
+	let btcDepositFetchedMinHeight: number | null = null;
+	function updateAll() {
+		fetchTxs(did, 'update', (val) => (loading = val));
+
+		// Incrementally fetch BTC deposits as the loaded block range extends downward.
+		// No upper bound — new deposits at any height above the list should always appear.
+		const vscTxs = $magiTxsStore;
+		if (!vscTxs.length || !did) return;
+
+		const heights = vscTxs
+			.map((tx) => tx.anchr_height)
+			.filter((h): h is number => h != null);
+		if (!heights.length) return;
+
+		const minHeight = Math.min(...heights);
+
+		if (btcDepositFetchedMinHeight === null) {
+			btcDepositFetchedMinHeight = minHeight;
+			fetchBtcDeposits(did, minHeight);
+		} else if (minHeight < btcDepositFetchedMinHeight) {
+			btcDepositFetchedMinHeight = minHeight;
+			fetchBtcDeposits(did, minHeight);
+		}
+	}
 
 	let skeletonRowCount = $state(8);
 	onMount(() => {
@@ -112,9 +158,7 @@
 		}
 	});
 	$effect(() => {
-		const intervalId = setInterval(() => {
-			fetchTxs(did, 'update', (val) => (loading = val));
-		}, 2000);
+		const intervalId = setInterval(updateAll, 2000);
 		return () => clearInterval(intervalId);
 	});
 	let openOp: [string, number] | null = $state(null);
@@ -166,8 +210,8 @@
 				id="transactions-tbody"
 				class={!displayTxs?.length && !loading ? 'no-transactions-container' : ''}
 			>
-			{#if displayTxs && displayTxs.length > 0}
-				<!-- {#each $allTransactionsStore as tx (tx.id)}
+				{#if displayTxs && displayTxs.length > 0}
+					<!-- {#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id } = tx}
 					{#each ops!.sort((a, b) => {
 						// put deposits below other ops in their transaction
@@ -181,53 +225,56 @@
 						{/if}
 					{/each}
 				{/each} -->
-				{#each displayTxs as tx (tx.id)}
-					{@const { ops, id, ledger } = tx}
-					{@const isContract = ops?.find((op) => op?.data.contract_id !== undefined) !== undefined}
-					{@const show =
-						isContract && ledger?.length && ledger.length > 0
-							? ledger?.map((value, index) => ({ ...value, index: index }))
-							: ops}
-					{#each show!.sort((a, b) => {
-						// put deposits below other ops in their transaction
-						return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
-					}) as op, i (`${tx.id}-${op?.index}`)}
-						{#if op}
-							{@const newOp = 'data' in op ? op : { data: op, index: i, type: op.type }}
-							{@const { data } = newOp}
-							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
-							{:else if op.type === 'call_contract' || op.type === 'call'}
-								{@const action = newOp.data?.action || ''}
-								{#if (action === 'map' || action === 'unmap' || action === 'transfer' || action === 'transferFrom')}
-									<BtcMappingTr {tx} op={newOp} onRowClick={toggleDetails} />
-								{:else}
-									<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
+					{#each displayTxs as item (item.kind === 'vsc' ? item.tx.id : item.event.indexer_tx_hash)}
+						{#if item.kind === 'btc-deposit'}
+							<BtcDepositTr event={item.event} onRowClick={toggleDetails} />
+						{:else}
+							{@const tx = item.tx}
+							{@const { ops, ledger } = tx}
+							{@const isContract =
+								ops?.find((op) => op?.data.contract_id !== undefined) !== undefined}
+							{@const show =
+								isContract && ledger?.length && ledger.length > 0
+									? ledger?.map((value, index) => ({ ...value, index }))
+									: ops}
+							{#each show!.sort((a, b) => {
+								// put deposits below other ops in their transaction
+								return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
+							}) as op, i (`${tx.id}-${op?.index}`)}
+								{#if op}
+									{@const newOp = 'data' in op ? op : { data: op, index: i, type: op.type }}
+									{@const trType = getOpTrType(newOp)}
+									{#if trType === 'regular'}
+										<Tr {tx} op={newOp} onRowClick={toggleDetails} />
+									{:else if trType === 'btc-vsc'}
+										<BtcMappingTr {tx} op={newOp} onRowClick={toggleDetails} />
+									{:else if trType === 'contract'}
+										<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
+									{/if}
 								{/if}
-							{/if}
+							{/each}
 						{/if}
 					{/each}
-				{/each}
-			{:else if !loading}
-				{#each Array(skeletonRowCount - 1) as _, i}
-					<tr class="skeleton-row blurred-skeleton">
-						<td><div class="skeleton-cell date"></div></td>
-						<td><div class="skeleton-cell to-from"></div></td>
-						<td><div class="skeleton-cell amount"></div></td>
-						<td><div class="skeleton-cell type"></div></td>
-					</tr>
-				{/each}
-			{/if}
-			{#if loading}
-				{#each Array(skeletonRowCount) as _, i}
-					<tr class="skeleton-row">
-						<td><div class="skeleton-cell date"></div></td>
-						<td><div class="skeleton-cell to-from"></div></td>
-						<td><div class="skeleton-cell amount"></div></td>
-						<td><div class="skeleton-cell type"></div></td>
-					</tr>
-				{/each}
-			{/if}
+				{:else if !loading}
+					{#each Array(skeletonRowCount - 1) as _, i}
+						<tr class="skeleton-row blurred-skeleton">
+							<td><div class="skeleton-cell date"></div></td>
+							<td><div class="skeleton-cell to-from"></div></td>
+							<td><div class="skeleton-cell amount"></div></td>
+							<td><div class="skeleton-cell type"></div></td>
+						</tr>
+					{/each}
+				{/if}
+				{#if loading}
+					{#each Array(skeletonRowCount) as _, i}
+						<tr class="skeleton-row">
+							<td><div class="skeleton-cell date"></div></td>
+							<td><div class="skeleton-cell to-from"></div></td>
+							<td><div class="skeleton-cell amount"></div></td>
+							<td><div class="skeleton-cell type"></div></td>
+						</tr>
+					{/each}
+				{/if}
 			</tbody>
 		</table>
 		{#if !displayTxs?.length && !loading}

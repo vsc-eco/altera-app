@@ -28,7 +28,7 @@
 	}
 
 	// While the waiting overlay is visible, disable the Dialog's own
-	// backdrop-filter via a body attribute (see :global rule in <style>).
+	// backdrop-filter via a body attribute (see :global rule in the style block).
 	$effect(() => {
 		if (!waiting) return;
 		document.body.setAttribute('data-waiting-signature', '');
@@ -74,11 +74,6 @@
 	/* Neutralise the Dialog's own blurred backdrop while the waiting overlay
 	   is visible — otherwise the dialog backdrop creates a filter context that
 	   makes any child or sibling backdrop-filter look washed out or doubled. */
-	:global(body[data-waiting-signature] [data-part='backdrop']) {
-		backdrop-filter: none !important;
-		-webkit-backdrop-filter: none !important;
-		background-color: transparent !important;
-	}
 
 	.waiting-overlay {
 		position: fixed;
@@ -112,5 +107,11 @@
 				}
 			}
 		}
+	}
+
+	:global(body[data-waiting-signature] [data-part='backdrop']) {
+		backdrop-filter: none !important;
+		-webkit-backdrop-filter: none !important;
+		background-color: transparent !important;
 	}
 </style>

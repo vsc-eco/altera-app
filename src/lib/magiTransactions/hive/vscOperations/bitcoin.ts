@@ -2,7 +2,7 @@ import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId } from '../../../../client';
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/stores/currentBalance';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 import type { TransferInput, UnmapInput } from '$lib/magiTransactions/bitcoin/bitcoinContractCalls';
 
 type callContractOp = {

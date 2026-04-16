@@ -5,6 +5,7 @@ import { blockSync } from '../../routes/(authed)/transactions/getDateFromBlockHe
 import moment from 'moment';
 import { authStore } from '$lib/auth/store';
 import { clearLastPaidCache } from '$lib/sendswap/utils/sendUtils';
+import { type BtcDepositEvent, fetchBtcDepositsByRecipient } from '$lib/indexer/btcMappingQueries';
 
 type MagiTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 
@@ -31,8 +32,13 @@ export function toTransactionInter(txs: MagiTransaction[]): TransactionInter[] {
 	return txs.map((tx) => ({ ...tx, isPending: false }));
 }
 
+export type TxListItem =
+	| { kind: 'vsc'; tx: TransactionInter }
+	| { kind: 'btc-deposit'; event: BtcDepositEvent };
+
 export const magiTxsStore = writable<TransactionInter[]>([]);
 export const localTxsStore = writable<TransactionInter[]>([]);
+export const btcDepositStore = writable<BtcDepositEvent[]>([]);
 
 function getAlteraID(tx: TransactionInter) {
 	if (tx.isPending) return tx.id;
@@ -123,21 +129,54 @@ function deduplicate(txs: TransactionInter[]) {
 
 // Create a derived store that combines and sorts transactions
 export const allTransactionsStore = derived(
-	[magiTxsStore, localTxsStore],
-	([$magiTxsStore, $localTxsStore]) => {
-		// Combine both sources
-		const combined = [...$magiTxsStore, ...$localTxsStore];
+	[magiTxsStore, localTxsStore, btcDepositStore],
+	([$magiTxsStore, $localTxsStore, $btcDepositStore]) => {
+		const vscItems: TxListItem[] = deduplicate([...$magiTxsStore, ...$localTxsStore]).map((tx) => ({
+			kind: 'vsc',
+			tx
+		}));
+		const btcItems: TxListItem[] = $btcDepositStore.map((event) => ({
+			kind: 'btc-deposit',
+			event
+		}));
 
-		const uniqueTransactions = deduplicate(combined);
-
-		// Sort by timestamp (descending)
-		return uniqueTransactions.sort((a, b) => {
-			const timeA = new Date(getTimestamp(a)).getTime();
-			const timeB = new Date(getTimestamp(b)).getTime();
-			return timeB - timeA;
+		return [...vscItems, ...btcItems].sort((a, b) => {
+			const tsA =
+				a.kind === 'vsc'
+					? new Date(getTimestamp(a.tx)).getTime()
+					: new Date(
+							a.event.indexer_ts.endsWith('Z') ? a.event.indexer_ts : a.event.indexer_ts + 'Z'
+						).getTime();
+			const tsB =
+				b.kind === 'vsc'
+					? new Date(getTimestamp(b.tx)).getTime()
+					: new Date(
+							b.event.indexer_ts.endsWith('Z') ? b.event.indexer_ts : b.event.indexer_ts + 'Z'
+						).getTime();
+			return tsB - tsA;
 		});
 	}
 );
+
+/**
+ * Fetch BTC deposit events for the given DID within a VSC block height range and merge them
+ * into btcDepositStore (deduplicating by indexer_tx_hash).
+ */
+export async function fetchBtcDeposits(did: string, minHeight: number): Promise<void> {
+	if (!did) return;
+	try {
+		const events = await fetchBtcDepositsByRecipient(did, minHeight);
+		console.log('events', events);
+		if (events.length === 0) return;
+		btcDepositStore.update((current) => {
+			const byHash = new Map(current.map((e) => [e.indexer_tx_hash, e]));
+			for (const e of events) byHash.set(e.indexer_tx_hash, e);
+			return Array.from(byHash.values());
+		});
+	} catch (e) {
+		console.error('Failed to fetch BTC deposits', e);
+	}
+}
 
 export function updateTxsFromLocalStorage(did: string) {
 	const txs = getLocalTransactions();
@@ -170,6 +209,7 @@ export function updateTxsFromLocalStorage(did: string) {
 export function clearAllStores() {
 	magiTxsStore.set([]);
 	localTxsStore.set([]);
+	btcDepositStore.set([]);
 }
 
 // load txs from store

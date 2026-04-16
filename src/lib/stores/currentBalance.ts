@@ -6,7 +6,7 @@ import { getAuth, type Auth } from '$lib/auth/store';
 import { getUsernameFromAuth } from '$lib/getAccountName';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-import { isVscTestnet } from '../../client';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 
 type AccountBalanceSnapshot = {
 	bal: AccountBalance;
@@ -32,10 +32,7 @@ export function getBalanceSmallestUnits(
 	// Mainnet reads from the connected wallet. BTC mainnet comes from
 	// the reown BitcoinAdapter's on-chain address (via mempool.space),
 	// Hive mainnet comes from the aioha L1 account snapshot.
-	if (
-		network.value === Network.hiveMainnet.value ||
-		network.value === Network.btcMainnet.value
-	) {
+	if (network.value === Network.hiveMainnet.value || network.value === Network.btcMainnet.value) {
 		const val = snapshot.connectedBal?.[coin.value as keyof HiveMainnetBalance];
 		return typeof val === 'number' ? val : 0;
 	}
@@ -55,12 +52,6 @@ export function getBalanceAmount<C extends (typeof Coin)[keyof typeof Coin]>(
 	const raw = getBalanceSmallestUnits(snapshot, coin, network);
 	return new CoinAmount(raw, coin, true);
 }
-
-// BTC mapping contract — single source of truth for every map/unmap/approve/
-// balance-lookup call across the app. Network-switched via isVscTestnet().
-export const BTC_MAPPING_CONTRACT_ID = isVscTestnet()
-	? 'vsc1BkWohDf5fPcwn7V9B9ar6TyiWc3A2ZGJ4t'
-	: 'vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d';
 
 async function fetchBtcBalance(did: string): Promise<number> {
 	try {

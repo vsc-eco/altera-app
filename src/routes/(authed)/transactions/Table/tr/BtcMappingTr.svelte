@@ -16,9 +16,13 @@
 	import { satsToBtc } from '$lib/sendswap/utils/units';
 	import ToFrom from '../tds/ToFrom.svelte';
 	import { getAuth } from '$lib/auth/store';
-	import { getUsernameFromDid } from '$lib/getAccountName';
 	import StatusView from './StatusView.svelte';
-	import { DagByCIDStore, FindContractOutputStore } from '$houdini';
+	import {
+		fetchBtcMappingEvent,
+		type BtcMappingEventResult,
+		type BtcMappingAction
+	} from '$lib/indexer/btcMappingQueries';
+	import { BTC_MAPPING_CONTRACT_ID, getVscExplorerTxUrl, getMemPoolTxUrl } from '$lib/constants';
 
 	type Props = {
 		tx: TransactionInter;
@@ -27,16 +31,12 @@
 	};
 	let { tx, op, onRowClick }: Props = $props();
 
-	let loading = $state(true);
-	let outputId = $state('');
-	let error = $state('');
-	let statusValues = $state('');
-	let result: { ok: boolean; ret?: string; errMsg?: string; err?: string } | null = $state(null);
+	let loaded = $state(false);
+	let indexerEvent = $state<BtcMappingEventResult>(null);
 	let fromAccount = $state('');
 	let toAccount = $state('');
 
 	const did = $derived(getAuth()().value!.did);
-
 	const { anchr_height: block_height } = $derived(tx);
 
 	const contractInfo = $derived.by(() => {
@@ -46,9 +46,7 @@
 		}
 
 		const action = payload.action;
-		if (action === 'map') {
-			return { action, displayType: 'deposit', direction: 'incoming' as const };
-		} else if (action === 'unmap') {
+		if (action === 'unmap') {
 			return { action, displayType: 'withdraw', direction: 'outgoing' as const };
 		} else if (action === 'transfer') {
 			return { action, displayType: 'transfer', direction: 'outgoing' as const };
@@ -62,21 +60,14 @@
 		};
 	});
 
-	// Extract payload data from op.data.payload.Data (base64 encoded)
+	// Fallback payload parsed from op.data — used while the indexer query is in flight.
 	const payloadData = $derived.by(() => {
 		try {
 			const payloadDataBase64 = op.data?.payload?.Data;
-			if (!payloadDataBase64 || typeof payloadDataBase64 !== 'string') {
-				return null;
-			}
+			if (!payloadDataBase64 || typeof payloadDataBase64 !== 'string') return null;
 			let decoded = atob(payloadDataBase64);
-
-			if (!decoded || decoded.trim() === '') {
-				return null;
-			}
-
+			if (!decoded || decoded.trim() === '') return null;
 			let parsed = JSON.parse(decoded);
-
 			if (typeof parsed === 'string' && parsed.trim() !== '') {
 				try {
 					parsed = JSON.parse(parsed);
@@ -84,181 +75,53 @@
 					return null;
 				}
 			}
-
 			return parsed;
-		} catch (e) {
-			console.error('Failed to decode payload Data', e);
+		} catch {
 			return null;
 		}
 	});
 
-	// Extract details from op.data directly
-	const details = $derived.by(() => {
-		const action = op.data?.action;
-		const contract_id = op.data?.contract_id;
-		const payload = payloadData;
+	async function loadIndexerData() {
+		const action = contractInfo.action as BtcMappingAction | '';
+		if (!action) {
+			loaded = true;
+			return;
+		}
 
-		return {
-			action,
-			contract_id,
-			payload: payload
-				? {
-						amount: payload.amount,
-						// unmap/transfer/transferFrom use 'to'; legacy may still have 'recipient_btc_address'
-						to: payload.to ?? payload.recipient_btc_address,
-						// transferFrom includes 'from'
-						from: payload.from,
-						tx_data: payload.tx_data,
-						instructions: payload.instructions
-					}
-				: undefined
-		};
-	});
-
-	// Load outputId, statusValues, and result from GraphQL
-	async function loadOutputData() {
-		error = '';
 		try {
-			const fetchedOutputIds = tx?.output?.map((o) => o.id);
-
-			// const outputStore = new FindContractOutputStore();
-			const dagResultStore = new DagByCIDStore();
-			if (fetchedOutputIds) {
-				// Save for when errors are properly returned here
-				// Promise.allSettled(
-				// 	fetchedOutputIds.map((id) =>
-				// 		outputStore.fetch({
-				// 			variables: {
-				// 				filterOptions: {
-				// 					byId: id
-				// 				}
-				// 			},
-				// 			policy: 'NetworkOnly'
-				// 		})
-				// 	)
-				// ).then((queryResults) => {
-				// 	let allResults: string[] = [];
-				// 	queryResults.forEach((qRes) => {
-				// 		if (qRes.status === 'fulfilled') {
-				// 			const contractResults = qRes.value.data?.findContractOutput?.[0]?.results;
-				// 			contractResults?.forEach((cRes) => {
-				// 				if (cRes.ok) {
-				// 					allResults.push(cRes.ret);
-				// 				}
-				// 			});
-				// 		}
-				// 	});
-				// 	if (allResults.length === 0) {
-				// 		result = ['Transaction failed'];
-				// 	} else {
-				// 		result = allResults;
-				// 	}
-				// });
-
-				// NOTE: this makes queries for all of the possible outputs so we can combine the results.
-				Promise.allSettled(
-					fetchedOutputIds.map((id) =>
-						dagResultStore.fetch({
-							variables: { cid0: id },
-							policy: 'NetworkOnly'
-						})
-					)
-				).then((queryResults) => {
-					queryResults.forEach((qRes) => {
-						if (qRes.status === 'fulfilled') {
-							const dagRes = qRes.value;
-							if (dagRes.data) {
-								const d0 = dagRes.data?.d0;
-								// NOTE: for this parsing, lets make a type representing what we expect to get, and parse into that.
-								// then we can more easily get errors, too, which seems not to be working
-								if (d0) {
-									const outputData = JSON.parse(d0);
-									if (outputData.results && outputData.results.length > 0) {
-										const firstResult = outputData.results[0];
-										if (firstResult.ok) {
-											result = firstResult;
-										} else {
-											if (outputData.results.length >= 3) {
-												result = outputData.results[2];
-											} else if (outputData.results.length >= 2) {
-												result = outputData.results[1];
-											} else {
-												result = firstResult;
-											}
-										}
-									}
-								}
-							} else {
-								error = 'Failed to load DAG details';
-							}
-						}
-					});
-				});
+			const result = await fetchBtcMappingEvent(tx.id, action);
+			if (result) {
+				indexerEvent = result;
+				if (result.action === 'unmap') {
+					fromAccount = result.event.from_addr || did;
+					toAccount = result.event.to_addr || 'Unknown';
+				} else {
+					fromAccount = result.event.sender || did;
+					toAccount = result.event.recipient || 'Unknown';
+				}
 			}
 		} catch (e) {
-			error = 'Failed to load details';
-			console.error(e);
-		} finally {
-			loading = false;
+			console.error('Failed to load BTC mapping indexer data', e);
 		}
+		loaded = true;
 	}
 
-	// Set fromAccount and toAccount based on action
-	$effect(() => {
-		const action = details.action;
-		if (action === 'unmap') {
-			fromAccount = did;
-			toAccount = details.payload?.to ?? 'Unknown';
-		} else if (action === 'transfer') {
-			fromAccount = did;
-			toAccount = details.payload?.to ?? 'Unknown';
-		} else if (action === 'transferFrom') {
-			fromAccount = details.payload?.from ?? did;
-			toAccount = details.payload?.to ?? 'Unknown';
-		} else if (action === 'map') {
-			fromAccount = 'Bitcoin Network';
-			// map = deposit: parse instructions for deposit_to
-			const instruction = details.payload?.instructions?.[0];
-			if (instruction) {
-				try {
-					const params = new URLSearchParams(instruction);
-					const depositTo = params.get('deposit_to') ?? '';
-					if (depositTo) {
-						const username = depositTo.includes(':') ? depositTo.split(':')[1] : depositTo;
-						toAccount = username || getUsernameFromDid(did);
-					} else {
-						toAccount = getUsernameFromDid(did);
-					}
-				} catch (e) {
-					console.error('Failed to parse instruction params:', instruction, e);
-					toAccount = getUsernameFromDid(did);
-				}
-			} else {
-				toAccount = getUsernameFromDid(did);
-			}
-		}
-	});
+	loadIndexerData();
 
-	loadOutputData();
-
-	function handleTrigger() {
-		onRowClick([tx.id, op.index], contractRowContent);
-	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			handleTrigger();
-		}
-	}
-
+	// Amount: prefer indexer, fall back to op.data payload while loading.
+	// For unmap: use `deducted` (total cost to user). For transfer: use `amount`.
 	const displayAmount = $derived.by(() => {
-		if (details?.payload?.amount) {
-			const btcAmount = satsToBtc(details.payload.amount);
-			return new CoinAmount(btcAmount.toString(), Coin.btc, true);
+		let sats: string | number;
+		if (indexerEvent?.action === 'unmap') {
+			sats = indexerEvent.event.deducted;
+		} else if (indexerEvent?.action === 'transfer' || indexerEvent?.action === 'transferFrom') {
+			sats = indexerEvent.event.amount;
+		} else {
+			sats = payloadData?.amount || 0;
 		}
-		return new CoinAmount('0', Coin.btc, true);
+		return new CoinAmount(satsToBtc(Number(sats)).toString(), Coin.btc, true);
 	});
+
 	let inUsd = $state('');
 	$effect(() => {
 		displayAmount.convertTo(Coin.usd, Network.lightning).then((amount) => {
@@ -266,53 +129,26 @@
 		});
 	});
 
-	/**
-	 * Parse an `errMsg` returned by contract execution and return the concise human message.
-	 * Examples:
-	 * - "msg: sender balance insufficient. has 0, needs 5000\nfile: :64500:64500" => "sender balance insufficient. has 0, needs 5000"
-	 * - "msg: EOF\nfile: :64500:64500" => "EOF"
-	 */
-	function parseErrMsg(errMsg?: string) {
-		if (!errMsg) return '';
-		const lines = errMsg
-			.split('\n')
-			.map((l) => l.trim())
-			.filter(Boolean);
-		for (const line of lines) {
-			if (/^msg:/i.test(line)) return line.replace(/^msg:\s*/i, '').trim();
-			if (/^err:/i.test(line)) return line.replace(/^err:\s*/i, '').trim();
-		}
-		const nonFile = lines.find((l) => !/^file:/i.test(l));
-		return (nonFile || lines[0] || '')
-			.replace(/^msg:\s*/i, '')
-			.replace(/^err:\s*/i, '')
-			.trim();
-	}
 	const otherAccount = $derived(toAccount === did || !toAccount ? fromAccount : toAccount);
-</script>
 
-<tr
-	data-tx-id={tx.id}
-	tabindex="0"
-	onclick={handleTrigger}
-	onkeydown={handleKeydown}
-	class="clickable-row"
->
-	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
-	<ToFrom {otherAccount} status={tx.status} />
-	<Amount amount={displayAmount} direction={contractInfo.direction} />
-	<Type direction={contractInfo.direction} t={contractInfo.displayType} />
-</tr>
+	function handleTrigger() {
+		onRowClick([tx.id, op.index], contractRowContent);
+	}
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			handleTrigger();
+		}
+	}
+</script>
 
 {#snippet contractRowContent()}
 	<span>
-		{#if details?.action === 'map'}
-			<h2>Deposit</h2>
-		{:else if details?.action === 'unmap'}
+		{#if contractInfo.action === 'unmap'}
 			<h2>Withdrawal</h2>
-		{:else if details?.action === 'transfer'}
+		{:else if contractInfo.action === 'transfer'}
 			<h2>Transfer</h2>
-		{:else if details?.action === 'transferFrom'}
+		{:else if contractInfo.action === 'transferFrom'}
 			<h2>Transfer From</h2>
 		{:else}
 			<h2>
@@ -326,87 +162,76 @@
 		{/if}
 	</span>
 	<div class="sections">
-		{#if loading}
+		{#if !loaded}
 			<p>Loading details...</p>
-		{:else if error}
-			<p class="error">{error}</p>
-
-			{#if details?.contract_id}
-				<div class="contract-id section">
-					<h3>Contract ID</h3>
-					<div class="copyable-text">
-						<BasicCopy value={details.contract_id} />
-					</div>
-				</div>
-			{/if}
-
-			<div class="section">
-				<h3>Transaction Id</h3>
-				<div class="copyable-text">
-					<BasicCopy value={tx.id} />
-				</div>
-			</div>
-			<div class="links section">
-				<h3>External Links</h3>
-				<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
-						VSC Block Explorer<ExternalLink /></a
-					>
-				</div>
-			</div>
 		{:else}
 			<div class="amount section">
-				{satsToBtc(details?.payload?.amount || 0)} BTC
+				{#if indexerEvent?.action === 'unmap'}
+					{satsToBtc(Number(indexerEvent.event.deducted))} BTC
+				{:else if indexerEvent?.action === 'transfer' || indexerEvent?.action === 'transferFrom'}
+					{satsToBtc(Number(indexerEvent.event.amount))} BTC
+				{:else}
+					{satsToBtc(Number(payloadData?.amount || 0))} BTC
+				{/if}
 				<span class="approx-usd"> Approx. ${inUsd} USD </span>
 			</div>
+
+			{#if indexerEvent?.action === 'unmap'}
+				{@const fee = Number(indexerEvent.event.deducted) - Number(indexerEvent.event.sent)}
+				{#if fee > 0}
+					<div class="section">
+						<h3>Amount Sent</h3>
+						<div class="copyable-text">{satsToBtc(Number(indexerEvent.event.sent))} BTC</div>
+					</div>
+					<div class="section">
+						<h3>Bridge Fee</h3>
+						<div class="copyable-text">{satsToBtc(fee)} BTC</div>
+					</div>
+				{/if}
+			{/if}
+
 			<StatusView
 				anchor_ts={getTimestamp(tx)}
 				from={fromAccount}
 				to={toAccount}
-				status={statusValues}
-				block_height={block_height ?? details?.payload?.tx_data?.block_height ?? 0}
+				status=""
+				block_height={block_height ?? 0}
 				memo=""
 			/>
 
-			{#if result}
+			{#if toAccount}
 				<div class="section">
-					<h3>Message</h3>
-					{#if result.ok}
-						<span class="success">{result.ret || 'Success'}</span>
-					{:else}
-						<span class="error">
-							{parseErrMsg(result.errMsg) || result.err || 'Error'}
-						</span>
-					{/if}
-				</div>
-			{/if}
-
-			{#if details?.payload?.to}
-				<div class="section">
-					<h3>Recipient Address</h3>
+					<h3>{contractInfo.action === 'unmap' ? 'Recipient Address' : 'Recipient'}</h3>
 					<div class="copyable-text">
-						<BasicCopy value={details.payload.to} />
+						<BasicCopy value={toAccount} />
 					</div>
 				</div>
 			{/if}
 
-			{#if details?.action === 'transferFrom' && details?.payload?.from}
+			{#if indexerEvent?.action === 'unmap' && indexerEvent.event.tx_id}
+				<div class="section">
+					<h3>Bitcoin Transaction</h3>
+					<div class="copyable-text">
+						<BasicCopy value={indexerEvent.event.tx_id} />
+					</div>
+				</div>
+			{/if}
+
+			{#if contractInfo.action === 'transferFrom' && fromAccount}
 				<div class="section">
 					<h3>Source Account</h3>
 					<div class="copyable-text">
-						<BasicCopy value={details.payload.from} />
+						<BasicCopy value={fromAccount} />
 					</div>
 				</div>
 			{/if}
 
-			{#if details?.contract_id}
-				<div class="contract-id section">
-					<h3>Contract ID</h3>
-					<div class="copyable-text">
-						<BasicCopy value={details.contract_id} />
-					</div>
+			<div class="contract-id section">
+				<h3>Contract ID</h3>
+				<div class="copyable-text">
+					<BasicCopy value={BTC_MAPPING_CONTRACT_ID} />
 				</div>
-			{/if}
+			</div>
 
 			<div class="section">
 				<h3>Transaction Id</h3>
@@ -417,14 +242,32 @@
 			<div class="links section">
 				<h3>External Links</h3>
 				<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-					<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
-						VSC Block Explorer<ExternalLink /></a
-					>
+					<a href={getVscExplorerTxUrl(tx.id)} target="_blank" rel="noreferrer">
+						VSC Block Explorer<ExternalLink />
+					</a>
+					{#if indexerEvent?.action === 'unmap' && indexerEvent.event.tx_id}
+						<a href={getMemPoolTxUrl(indexerEvent.event.tx_id)} target="_blank" rel="noreferrer">
+							BTC Block Explorer<ExternalLink />
+						</a>
+					{/if}
 				</div>
 			</div>
 		{/if}
 	</div>
 {/snippet}
+
+<tr
+	data-tx-id={tx.id}
+	tabindex="0"
+	onclick={handleTrigger}
+	onkeydown={handleKeydown}
+	class="clickable-row"
+>
+	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
+	<ToFrom {otherAccount} status={tx.status} />
+	<Amount amount={displayAmount} direction={contractInfo.direction} />
+	<Type direction={contractInfo.direction} t={contractInfo.displayType} />
+</tr>
 
 <style>
 	tr:hover,
@@ -475,7 +318,6 @@
 	.sections {
 		display: flex;
 		flex-direction: column;
-		/* align-items: stretch; */
 		flex: 1;
 		gap: 0.5rem;
 	}
@@ -492,17 +334,6 @@
 
 	.contract-id.section {
 		margin-top: auto;
-	}
-
-	.success {
-		/* min-height: 2rem; */
-		display: flex;
-		padding-top: 0.25rem;
-		word-wrap: break-word;
-		overflow-wrap: break-word;
-		word-break: break-word; /* This tries to break at word boundaries first */
-		white-space: pre-wrap;
-		max-width: 100%;
 	}
 
 	.copyable-text {

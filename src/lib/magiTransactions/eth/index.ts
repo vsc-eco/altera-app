@@ -6,9 +6,9 @@ import type {
 } from '../eth/client';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/stores/currentBalance';
 import type { TransferInput, UnmapInput } from '../bitcoin/bitcoinContractCalls';
 import { getHiveAssetName, getHbdAssetName } from '../../../client';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 
 export function getEVMOpType(
 	fromNetwork: Network,

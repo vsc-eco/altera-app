@@ -31,7 +31,8 @@
 		return {
 			...blankDetails(),
 			toNetwork: Network.magi,
-			toUsername: getUsernameFromAuth(auth) ?? ''
+			toUsername: getUsernameFromAuth(auth) ?? '',
+			slippageBps: undefined
 		};
 	}
 
@@ -115,6 +116,7 @@
 	}
 
 	let extraProps = $derived({
+		close: toggle,
 		onClose: toggle,
 		onBroadcast: onBtcBroadcast,
 		compact: true

@@ -48,6 +48,7 @@
 		getBtcApproveOp,
 		SWAP_CONTRACT_ID
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
+	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 	import { executeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import {
@@ -613,6 +614,8 @@
 	// on the /swap page so the behavior is identical here.
 	const slippageOptions = [50, 100, 200, 300];
 	let slippageBps = $state(100);
+	let customSlippageOpen = $state(false);
+	let customSlippageInput = $state('');
 
 	function setError(msg: string) {
 		swapStatus = msg;
@@ -701,9 +704,19 @@
 						? `hive:${rawReceiver.slice(1)}`
 						: `hive:${rawReceiver}`;
 				const toAsset = $SendTxDetails.toCoin!.coin.value;
+				// Map the target coin to the chain the DEX router should
+				// settle on. Without this the swapped funds stay in Magi
+				// instead of being withdrawn to the user's mainnet wallet.
+				const chainMap: Record<string, string> = {
+					hive: 'HIVE',
+					hbd: 'HIVE',
+					btc: 'BTC'
+				};
+				const destinationChain = chainMap[toAsset] ?? 'MAGI';
 				const instructionParams = new URLSearchParams({
 					swap_to: normalizedReceiver,
-					swap_asset_out: toAsset
+					swap_asset_out: toAsset,
+					destination_chain: destinationChain
 				});
 				const res = await fetch('/api/mapping-bot', {
 					method: 'POST',
@@ -775,6 +788,21 @@
 		const amount = new CoinAmount($SendTxDetails.fromAmount, fromCoinDef);
 		const caller = auth.value.did;
 
+		// QuickSwap is mainnet→mainnet: the DEX router must settle
+		// the swapped output back to an external chain, not leave it
+		// in Magi. Derive the destination chain from the target coin.
+		const destChainMap: Record<string, string> = {
+			hive: 'HIVE',
+			hbd: 'HIVE',
+			btc: 'BTC'
+		};
+		const destinationChain = destChainMap[toCoinDef.value] ?? '';
+		const swapReceiver = $SendTxDetails.toUsername?.trim() ?? '';
+		// For Hive targets, prefix with "hive:" if not already
+		const routerRecipient = destinationChain === 'HIVE' && !swapReceiver.startsWith('hive:')
+			? `hive:${swapReceiver.replace(/^@/, '')}`
+			: swapReceiver;
+
 		swapError = false;
 		swapStatus = '';
 		swapLoading = true;
@@ -788,15 +816,37 @@
 				if (!username) throw new Error('Could not resolve username');
 
 				const ops = [];
+				const isNativeIn =
+					fromCoinDef.value === Coin.hive.value ||
+					fromCoinDef.value === Coin.hbd.value;
+
 				if (fromCoinDef.value === Coin.btc.value) {
 					ops.push(getBtcApproveOp(username));
+				} else if (isNativeIn) {
+					// Deposit HIVE/HBD from L1 into Magi first.
+					// HiveDraw in the router pulls from the caller's
+					// Magi balance, not L1 — so the funds must be on
+					// the Magi ledger before the swap contract call.
+					ops.push(
+						getHiveDepositOp(
+							username,
+							`hive:${username}`,
+							amount as CoinAmount<typeof Coin.hive | typeof Coin.hbd>
+						)
+					);
 				}
+				const minOut = $SendTxDetails.minAmountOut
+					? Number($SendTxDetails.minAmountOut)
+					: undefined;
 				ops.push(
 					getHiveSwapOp(
 						username,
 						amount,
 						fromCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
-						toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+						toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+						minOut,
+						destinationChain || undefined,
+						routerRecipient || undefined
 					)
 				);
 
@@ -807,20 +857,24 @@
 			} else {
 				// EVM reown wallet path (no BTC reown since BTC is
 				// handled above).
+				const swapInstruction: Record<string, string> = {
+					type: 'swap',
+					version: '1.0.0',
+					asset_in: fromCoinDef.value.toUpperCase(),
+					asset_out: toCoinDef.value.toUpperCase(),
+					amount_in: String(amount.amount),
+					min_amount_out: $SendTxDetails.minAmountOut ?? '0',
+					recipient: routerRecipient || caller
+				};
+				if (destinationChain) {
+					swapInstruction.destination_chain = destinationChain;
+				}
 				const swapPayload: CallContractTransaction = {
 					op: 'call',
 					payload: {
 						contract_id: SWAP_CONTRACT_ID,
 						action: 'execute',
-						payload: JSON.stringify({
-							type: 'swap',
-							version: '1.0.0',
-							asset_in: fromCoinDef.value.toUpperCase(),
-							asset_out: toCoinDef.value.toUpperCase(),
-							amount_in: String(amount.amount),
-							min_amount_out: '0',
-							recipient: caller
-						}),
+						payload: JSON.stringify(swapInstruction),
 						rc_limit: 5000,
 						intents: [],
 						caller
@@ -992,12 +1046,42 @@
 			{#each slippageOptions as bps}
 				<button
 					type="button"
-					class:active={slippageBps === bps}
-					onclick={() => (slippageBps = bps)}
+					class:active={slippageBps === bps && !customSlippageOpen}
+					onclick={() => { slippageBps = bps; customSlippageOpen = false; }}
 				>
 					{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
 				</button>
 			{/each}
+			{#if customSlippageOpen}
+				<div class="custom-slippage">
+					<input
+						type="text"
+						inputmode="decimal"
+						placeholder="e.g. 5"
+						bind:value={customSlippageInput}
+						oninput={() => {
+							customSlippageInput = customSlippageInput.replace(',', '.');
+							let v = parseFloat(customSlippageInput);
+							if (isNaN(v)) return;
+							if (v < 0.01) v = 0.01;
+							if (v > 99.99) v = 99.99;
+							slippageBps = Math.round(v * 100);
+						}}
+					/>
+					<span>%</span>
+				</div>
+			{:else}
+				<button
+					type="button"
+					class:active={!slippageOptions.includes(slippageBps)}
+					onclick={() => {
+						customSlippageOpen = true;
+						customSlippageInput = (slippageBps / 100).toFixed(1);
+					}}
+				>
+					{slippageOptions.includes(slippageBps) ? 'Custom' : `${(slippageBps / 100).toFixed(1)}%`}
+				</button>
+			{/if}
 		</div>
 	</div>
 
@@ -1371,6 +1455,35 @@
 	}
 	.slippage-options button:hover:not(.active) {
 		background-color: var(--dash-card-border);
+	}
+	.custom-slippage {
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+		border: 1px solid var(--dash-accent-purple);
+		border-radius: 12px;
+		padding: 0.15rem 0.4rem;
+		background: transparent;
+	}
+	.custom-slippage input {
+		width: 3rem;
+		border: none;
+		background: transparent;
+		color: var(--dash-text-primary);
+		font-size: var(--text-xs);
+		font-weight: 500;
+		outline: none;
+		text-align: right;
+		-moz-appearance: textfield;
+	}
+	.custom-slippage input::-webkit-inner-spin-button,
+	.custom-slippage input::-webkit-outer-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	.custom-slippage span {
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
 	}
 	.btc-deposit {
 		display: flex;

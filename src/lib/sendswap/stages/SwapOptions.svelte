@@ -105,6 +105,8 @@
 	let swapResult: SwapCalcResult | null = $state(null);
 	let slippageBps = $state(100); // default 1%
 	const slippageOptions = [50, 100, 200, 300]; // 0.5%, 1%, 2%, 3%
+	let customSlippageOpen = $state(false);
+	let customSlippageInput = $state('');
 
 	// Mirror slippage into the shared store regardless of pair. The
 	// calculate-swap effect below only runs for HIVE↔HBD pairs, so for
@@ -1047,14 +1049,41 @@
 						<div class="slippage-options">
 							{#each slippageOptions as bps}
 								<button
-									class={{ active: slippageBps === bps }}
-									onclick={() => {
-										slippageBps = bps;
-									}}
+									class={{ active: slippageBps === bps && !customSlippageOpen }}
+									onclick={() => { slippageBps = bps; customSlippageOpen = false; }}
 								>
 									{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
 								</button>
 							{/each}
+							{#if customSlippageOpen}
+								<div class="custom-slippage">
+									<input
+										type="text"
+										inputmode="decimal"
+										placeholder="e.g. 5"
+										bind:value={customSlippageInput}
+										oninput={() => {
+											customSlippageInput = customSlippageInput.replace(',', '.');
+											let v = parseFloat(customSlippageInput);
+											if (isNaN(v)) return;
+											if (v < 0.01) v = 0.01;
+											if (v > 99.99) v = 99.99;
+											slippageBps = Math.round(v * 100);
+										}}
+									/>
+									<span>%</span>
+								</div>
+							{:else}
+								<button
+									class={{ active: !slippageOptions.includes(slippageBps) }}
+									onclick={() => {
+										customSlippageOpen = true;
+										customSlippageInput = (slippageBps / 100).toFixed(1);
+									}}
+								>
+									{slippageOptions.includes(slippageBps) ? 'Custom' : `${(slippageBps / 100).toFixed(1)}%`}
+								</button>
+							{/if}
 						</div>
 						{#if swapResult}
 							<button
@@ -1537,6 +1566,7 @@
 	.slippage-options {
 		display: flex;
 		gap: 0.25rem;
+		align-items: center;
 		button {
 			padding: 0.25rem 0.5rem;
 			border: 1px solid var(--dash-card-border);
@@ -1557,6 +1587,35 @@
 			&:hover:not(.active) {
 				background-color: var(--dash-card-border);
 			}
+		}
+	}
+	.custom-slippage {
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+		border: 1px solid var(--dash-accent-purple);
+		border-radius: 12px;
+		padding: 0.15rem 0.4rem;
+		background: transparent;
+		input {
+			width: 3rem;
+			border: none;
+			background: transparent;
+			color: var(--dash-text-primary);
+			font-size: var(--text-xs);
+			font-weight: 500;
+			outline: none;
+			text-align: right;
+			-moz-appearance: textfield;
+			&::-webkit-inner-spin-button,
+			&::-webkit-outer-spin-button {
+				-webkit-appearance: none;
+				margin: 0;
+			}
+		}
+		span {
+			font-size: var(--text-xs);
+			color: var(--dash-text-muted);
 		}
 	}
 

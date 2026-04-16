@@ -64,6 +64,7 @@
 	];
 
 	let extraProps = $derived({
+		close: toggle,
 		onClose: toggle,
 		compact: true
 	});

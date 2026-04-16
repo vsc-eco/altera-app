@@ -76,10 +76,11 @@
 	let today = moment().format('MMM D, YYYY');
 
 	function redirect() {
-		const openTxParams = new URLSearchParams();
-		openTxParams.set('tx', txId);
-		openTxParams.set('index', '0');
-		goto(`/transactions?${openTxParams.toString()}`);
+		// No-op default — deposit/withdraw pass their own onClose
+		// (dialog toggle) via extraProps; the /swap page's SendSwap
+		// passes its own close handler too. Only the standalone
+		// /transfer page would hit this default, and staying on the
+		// current page is better than jumping to /transactions.
 	}
 
 	let timerStarted = false;

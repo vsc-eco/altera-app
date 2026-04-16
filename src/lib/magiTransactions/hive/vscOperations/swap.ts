@@ -47,20 +47,26 @@ export function getHiveSwapOp(
 	amount: CoinAmount<SwapCoin>,
 	assetIn: SwapCoin,
 	assetOut: SwapCoin,
-	minAmountOut?: number
+	minAmountOut?: number,
+	destinationChain?: string,
+	destinationRecipient?: string
 ): CustomJsonOperation {
 	const caller = `hive:${username}`;
 	const isNative = assetIn.value === Coin.hive.value || assetIn.value === Coin.hbd.value;
 
-	const payloadStr = JSON.stringify({
+	const payload: Record<string, string> = {
 		type: 'swap',
 		version: '1.0.0',
 		asset_in: assetIn.value.toUpperCase(),
 		asset_out: assetOut.value.toUpperCase(),
 		amount_in: String(amount.amount),
 		min_amount_out: minAmountOut ? String(minAmountOut) : '0',
-		recipient: caller
-	});
+		recipient: destinationRecipient ?? caller
+	};
+	if (destinationChain) {
+		payload.destination_chain = destinationChain;
+	}
+	const payloadStr = JSON.stringify(payload);
 
 	const op = {
 		net_id: vscNetworkId,

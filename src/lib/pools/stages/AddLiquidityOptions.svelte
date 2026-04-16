@@ -231,10 +231,8 @@
 					<div class="label">
 						{isBtcHbdPool ? displayUnitForCoin(Coin.hbd) : selectedPool.pairSymbols[0]}
 					</div>
-					{#if exceed0}
-						<span class="error-text"
-							>Exceeds Magi {isBtcHbdPool ? displayUnitForCoin(Coin.hbd) : displayUnitForCoin(coin0)} balance</span
-						>
+					{#if maxAmount0}
+						<span class="balance-info">Balance: {maxAmount0.toPrettyString()}</span>
 					{/if}
 				</div>
 				<AmountInput
@@ -245,6 +243,11 @@
 					hideUnit
 					hideNetwork
 				/>
+				{#if exceed0}
+					<span class="error-text"
+						>Amount exceeds available balance</span
+					>
+				{/if}
 			</div>
 
 			{#if isBtcHbdPool}
@@ -252,9 +255,6 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">BTC (auto-calculated)</div>
-						{#if exceed1}
-							<span class="error-text">Exceeds Magi BTC balance</span>
-						{/if}
 						{#if maxAmount1}
 							<span class="balance-info">Balance: {maxAmount1.toPrettyString()}</span>
 						{/if}
@@ -264,14 +264,17 @@
 						<span class="btc-value">{btcDisplayStr || '0'}</span>
 						<span class="btc-unit">BTC</span>
 					</div>
+					{#if exceed1}
+						<span class="error-text">Amount exceeds available balance</span>
+					{/if}
 				</div>
 			{:else}
 				<!-- Token 1 — editable for non-BTC pools -->
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">{selectedPool.pairSymbols[1]}</div>
-						{#if exceed1}
-							<span class="error-text">Exceeds Magi {displayUnitForCoin(coin1)} balance</span>
+						{#if maxAmount1}
+							<span class="balance-info">Balance: {maxAmount1.toPrettyString()}</span>
 						{/if}
 					</div>
 					<AmountInput
@@ -282,6 +285,9 @@
 						hideUnit
 						hideNetwork
 					/>
+					{#if exceed1}
+						<span class="error-text">Amount exceeds available balance</span>
+					{/if}
 				</div>
 			{/if}
 

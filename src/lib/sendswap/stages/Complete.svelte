@@ -14,6 +14,10 @@
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import { numberFormatLanguage } from '$lib/constants';
+	import {
+		ALTERA_FEE_BPS,
+		ALTERA_FEE_USD_THRESHOLD
+	} from '$lib/magiTransactions/hive/vscOperations/swap';
 
 	let timer = $state<PieTimer>();
 
@@ -81,12 +85,28 @@
 		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
 	}
 	let inUsd = $state('');
+	let grossInUsdNum = $state(0);
 	$effect(() => {
 		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
 				inUsd = amount.toMinFigs();
+				grossInUsdNum = amount.toNumber();
 			});
+	});
+	const alteraFeeApplies = $derived(
+		!!$SendTxDetails.toNetwork &&
+			$SendTxDetails.toNetwork.value !== Network.magi.value &&
+			toCoin.value !== Coin.hive.value &&
+			toCoin.value !== Coin.hbd.value &&
+			grossInUsdNum >= ALTERA_FEE_USD_THRESHOLD
+	);
+	const alteraFeeAmount = $derived.by(() => {
+		if (!alteraFeeApplies) return undefined;
+		const out = new CoinAmount($SendTxDetails.toAmount, toCoin);
+		const feeSmallest = Math.floor((out.amount * ALTERA_FEE_BPS) / 10000);
+		if (feeSmallest <= 0) return undefined;
+		return new CoinAmount(feeSmallest, toCoin, true);
 	});
 	let today = moment().format('MMM D, YYYY');
 
@@ -161,6 +181,12 @@
 				</div>
 			{/if}
 		</div>
+		{#if alteraFeeAmount}
+			<div class="altera-fee">
+				<span class="sm-caption">Altera Fee ({(ALTERA_FEE_BPS / 100).toFixed(2)}%)</span>
+				<span class="content">{prettyWithDisplayUnit(alteraFeeAmount)}</span>
+			</div>
+		{/if}
 		<div class="date">
 			<span>Paid on {today}</span>
 		</div>
@@ -200,6 +226,13 @@
 		// font-weight: 400;
 		// color: var(--neutral-fg);
 		margin: 0;
+	}
+	.altera-fee {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.5rem 0 1rem;
+		color: var(--mid);
 	}
 	.date {
 		padding: 1.5rem 0 1rem;

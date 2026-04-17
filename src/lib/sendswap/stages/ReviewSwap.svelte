@@ -18,6 +18,10 @@
 		estimateBtcUnmapFee,
 		type BtcFeeEstimate
 	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
+	import {
+		ALTERA_FEE_BPS,
+		ALTERA_FEE_USD_THRESHOLD
+	} from '$lib/magiTransactions/hive/vscOperations/swap';
 
 	const auth = $derived(getAuth()());
 	let {
@@ -272,6 +276,40 @@
 			feeInUsd = amount;
 		});
 	});
+
+	let grossInUsd = $state<CoinAmount<Coin>>();
+	$effect(() => {
+		new CoinAmount(effectiveFromAmount, fromCoin)
+			.convertTo(Coin.usd, Network.lightning)
+			.then((amt) => {
+				grossInUsd = amt;
+			});
+	});
+	const alteraFeeApplies = $derived(
+		!!$SendTxDetails.toNetwork &&
+			$SendTxDetails.toNetwork.value !== Network.magi.value &&
+			toCoin.value !== Coin.hive.value &&
+			toCoin.value !== Coin.hbd.value &&
+			!!grossInUsd &&
+			grossInUsd.toNumber() >= ALTERA_FEE_USD_THRESHOLD
+	);
+	const alteraFeeAmount = $derived.by(() => {
+		if (!alteraFeeApplies) return undefined;
+		const out = convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin);
+		const feeSmallest = Math.floor((out.amount * ALTERA_FEE_BPS) / 10000);
+		if (feeSmallest <= 0) return undefined;
+		return new CoinAmount(feeSmallest, toCoin, true);
+	});
+	let alteraFeeInUsd = $state<CoinAmount<Coin>>();
+	$effect(() => {
+		if (!alteraFeeAmount) {
+			alteraFeeInUsd = undefined;
+			return;
+		}
+		alteraFeeAmount.convertTo(Coin.usd, Network.lightning).then((amt) => {
+			alteraFeeInUsd = amt;
+		});
+	});
 	let today = moment().format('MMM D, YYYY');
 
 	const senderAddress = $derived(
@@ -399,8 +437,14 @@
 								>
 								<td class="content">
 									{#if $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
+										{@const minRaw = alteraFeeApplies
+											? Math.floor(
+													(Number($SendTxDetails.minAmountOut) *
+														(10000 - ALTERA_FEE_BPS)) /
+														10000
+												)
+											: Number($SendTxDetails.minAmountOut)}
 										{#if btcFeeEstimate}
-											{@const minRaw = Number($SendTxDetails.minAmountOut)}
 											Min. ~{prettyRangeWithDisplayUnit(
 												new CoinAmount(
 													Math.max(0, minRaw - btcFeeEstimate.maxSats),
@@ -414,12 +458,25 @@
 												)
 											)}
 										{:else}
-											Min. {prettyWithDisplayUnit(
-												new CoinAmount(Number($SendTxDetails.minAmountOut), toCoin, true)
-											)}
+											Min. {prettyWithDisplayUnit(new CoinAmount(minRaw, toCoin, true))}
 										{/if}
 									{:else}
 										—
+									{/if}
+								</td>
+							</tr>
+						{/if}
+						{#if alteraFeeAmount}
+							<tr>
+								<td class="icon"><Dot size="32" /></td>
+								<td class="sm-caption label"
+									>Altera Fee ({(ALTERA_FEE_BPS / 100).toFixed(2)}%)</td
+								>
+								<td class="content">
+									{prettyWithDisplayUnit(alteraFeeAmount)}
+									{#if alteraFeeInUsd}
+										<EqualApproximately size={16} />
+										{alteraFeeInUsd.toPrettyString()}
 									{/if}
 								</td>
 							</tr>

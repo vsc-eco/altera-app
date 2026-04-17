@@ -63,10 +63,22 @@
 		</div>
 
 		<div class="action-buttons">
-			<button class="action-btn action-btn-filled" onclick={() => { depositSessionId = getTxSessionId(); toggleDeposit(true); }}>
+			<button
+				class="action-btn action-btn-filled"
+				onclick={() => {
+					depositSessionId = getTxSessionId();
+					toggleDeposit(true);
+				}}
+			>
 				Deposit
 			</button>
-			<button class="action-btn action-btn-outline" onclick={() => { withdrawSessionId = getTxSessionId(); toggleWithdraw(true); }}>
+			<button
+				class="action-btn action-btn-outline"
+				onclick={() => {
+					withdrawSessionId = getTxSessionId();
+					toggleWithdraw(true);
+				}}
+			>
 				Withdraw
 			</button>
 		</div>
@@ -79,9 +91,17 @@
 	</div>
 </Card>
 
-<QuickSend bind:dialogOpen={quickSendOpen} bind:toggle={toggleQuickSend} sessionId={sendSessionId} />
+<QuickSend
+	bind:dialogOpen={quickSendOpen}
+	bind:toggle={toggleQuickSend}
+	sessionId={sendSessionId}
+/>
 <Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
-<Withdraw bind:dialogOpen={withdrawOpen} bind:toggle={toggleWithdraw} sessionId={withdrawSessionId} />
+<Withdraw
+	bind:dialogOpen={withdrawOpen}
+	bind:toggle={toggleWithdraw}
+	sessionId={withdrawSessionId}
+/>
 
 <style lang="scss">
 	.balance-inner {
@@ -139,13 +159,14 @@
 		height: 38px;
 		border-radius: 50%;
 		border: none;
-		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 50%, #5B54E0 100%);
+		background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 50%, #5b54e0 100%);
 		color: white;
 		cursor: pointer;
 		flex-shrink: 0;
 		box-shadow: 0 2px 12px rgba(111, 106, 248, 0.35);
-		transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-					box-shadow 0.2s ease;
+		transition:
+			transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+			box-shadow 0.2s ease;
 	}
 	.send-circle:hover {
 		transform: scale(1.08);

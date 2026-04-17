@@ -14,6 +14,10 @@
 	import { getHiveAssetName, getHbdAssetName } from '../../../client';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import {
+		estimateBtcUnmapFee,
+		type BtcFeeEstimate
+	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
 
 	const auth = $derived(getAuth()());
 	let {
@@ -178,6 +182,45 @@
 					: amt.coin.unit;
 		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
 	}
+	// Approximate BTC network fee for transfers that settle out to Bitcoin
+	// mainnet. The contract calculates the real fee at unmap time from its
+	// stored BaseFeeRate; we port the same math for a 1–3-input range so the
+	// user sees what will be deducted from `expectedOutput` and `minAmountOut`.
+	let btcFeeEstimate = $state<BtcFeeEstimate | null>(null);
+	const isToBtcMainnet = $derived(
+		$SendTxDetails.toNetwork?.value === Network.btcMainnet.value &&
+			$SendTxDetails.toCoin?.coin.value === Coin.btc.value
+	);
+	$effect(() => {
+		if (!isToBtcMainnet) {
+			btcFeeEstimate = null;
+			return;
+		}
+		let cancelled = false;
+		estimateBtcUnmapFee().then((est) => {
+			if (!cancelled) btcFeeEstimate = est;
+		});
+		return () => {
+			cancelled = true;
+		};
+	});
+	/** Format a sat count as a thousands-grouped integer. */
+	function formatSats(sats: number): string {
+		return new Intl.NumberFormat(numberFormatLanguage, { useGrouping: true }).format(
+			Math.max(0, Math.round(sats))
+		);
+	}
+	/** Render `low – high UNIT` using `prettyWithDisplayUnit`, unit shown once. */
+	function prettyRangeWithDisplayUnit(
+		low: CoinAmount<Coin>,
+		high: CoinAmount<Coin>
+	): string {
+		const highStr = prettyWithDisplayUnit(high);
+		const lowStr = prettyWithDisplayUnit(low);
+		const sp = lowStr.lastIndexOf(' ');
+		const lowNum = sp > 0 ? lowStr.slice(0, sp) : lowStr;
+		return `${lowNum} – ${highStr}`;
+	}
 	let inUsd = $state<CoinAmount<Coin>>();
 	let feeInUsd = $state<CoinAmount<Coin>>();
 	let total = $derived(
@@ -304,6 +347,17 @@
 						</tr>
 					{/if}
 					{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+						{#if isToBtcMainnet && btcFeeEstimate}
+							<tr>
+								<td class="icon"><Dot size="32" /></td>
+								<td class="sm-caption label">BTC Network Fee</td>
+								<td class="content">
+									~{formatSats(btcFeeEstimate.minSats)} – {formatSats(
+										btcFeeEstimate.maxSats
+									)} sats
+								</td>
+							</tr>
+						{/if}
 						<tr>
 							<td class="icon">
 								<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork} size={32} />
@@ -313,7 +367,26 @@
 									?.label}{receiverAddress ? ` (${receiverAddress})` : ''}</td
 							>
 							<td class="content">
-								{prettyWithDisplayUnit(convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin))}
+								{#if btcFeeEstimate}
+									{@const baseTo =
+										convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)}
+									~{prettyRangeWithDisplayUnit(
+										new CoinAmount(
+											Math.max(0, baseTo.amount - btcFeeEstimate.maxSats),
+											toCoin,
+											true
+										),
+										new CoinAmount(
+											Math.max(0, baseTo.amount - btcFeeEstimate.minSats),
+											toCoin,
+											true
+										)
+									)}
+								{:else}
+									{prettyWithDisplayUnit(
+										convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)
+									)}
+								{/if}
 							</td>
 						</tr>
 						{#if $SendTxDetails.slippageBps != null}
@@ -326,9 +399,25 @@
 								>
 								<td class="content">
 									{#if $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
-										Min. {prettyWithDisplayUnit(
-											new CoinAmount(Number($SendTxDetails.minAmountOut), toCoin, true)
-										)}
+										{#if btcFeeEstimate}
+											{@const minRaw = Number($SendTxDetails.minAmountOut)}
+											Min. ~{prettyRangeWithDisplayUnit(
+												new CoinAmount(
+													Math.max(0, minRaw - btcFeeEstimate.maxSats),
+													toCoin,
+													true
+												),
+												new CoinAmount(
+													Math.max(0, minRaw - btcFeeEstimate.minSats),
+													toCoin,
+													true
+												)
+											)}
+										{:else}
+											Min. {prettyWithDisplayUnit(
+												new CoinAmount(Number($SendTxDetails.minAmountOut), toCoin, true)
+											)}
+										{/if}
 									{:else}
 										—
 									{/if}

@@ -6,11 +6,13 @@
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
+	import {
+		estimateBtcUnmapFee,
+		type BtcFeeEstimate
+	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
+	import { numberFormatLanguage } from '$lib/constants';
 
-	let {
-		editStage,
-		open
-	}: { editStage: (complete: boolean) => void; open: boolean } = $props();
+	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
 
 	const auth = $derived(getAuth()());
 
@@ -21,6 +23,22 @@
 	let isBtcAddressValid = $state(false);
 	let deductFee = $state(false);
 	let maxFeeRaw = $state('');
+	let btcFeeEstimate = $state<BtcFeeEstimate | null>(null);
+	$effect(() => {
+		if (!open) return;
+		let cancelled = false;
+		estimateBtcUnmapFee().then((est) => {
+			if (!cancelled) btcFeeEstimate = est;
+		});
+		return () => {
+			cancelled = true;
+		};
+	});
+	function formatSats(sats: number): string {
+		return new Intl.NumberFormat(numberFormatLanguage, { useGrouping: true }).format(
+			Math.max(0, Math.round(sats))
+		);
+	}
 
 	function onAddressInput(value: string) {
 		btcAddress = value;
@@ -50,7 +68,11 @@
 	let max = $state(new CoinAmount(0, Coin.btc));
 	$effect(() => {
 		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
-		max = getBalanceAmount($accountBalance, $SendTxDetails.fromCoin.coin, $SendTxDetails.fromNetwork);
+		max = getBalanceAmount(
+			$accountBalance,
+			$SendTxDetails.fromCoin.coin,
+			$SendTxDetails.fromNetwork
+		);
 	});
 
 	// Sync coinAmount → store
@@ -118,9 +140,19 @@
 			<span>Deduct fee from amount</span>
 		</label>
 		<span class="hint">Fee is subtracted from your withdrawal instead of added on top</span>
-		<details class="advanced">
-			<summary>Advanced</summary>
-			<div class="max-fee-field">
+		<div class="fee-row">
+			<div class="fee-field">
+				<label for="estimated-fee">Estimated Fee</label>
+				<div id="estimated-fee" class="fee-display">
+					{#if btcFeeEstimate}
+						~{formatSats(btcFeeEstimate.minSats)} – {formatSats(btcFeeEstimate.maxSats)} sats
+					{:else}
+						…
+					{/if}
+				</div>
+				<span class="hint">Approximate network fee at the current base rate</span>
+			</div>
+			<div class="fee-field">
 				<label for="max-fee">Max fee (sats)</label>
 				<input
 					id="max-fee"
@@ -132,7 +164,7 @@
 				/>
 				<span class="hint">Transaction reverts if total fee exceeds this amount</span>
 			</div>
-		</details>
+		</div>
 	</div>
 </div>
 
@@ -179,27 +211,39 @@
 		align-items: center;
 		gap: 0.5rem;
 		cursor: pointer;
+		input {
+			height: auto;
+		}
 	}
 	.hint {
 		font-size: 0.8rem;
 		opacity: 0.6;
 	}
-	.advanced {
-		margin-top: 0.25rem;
-		summary {
-			cursor: pointer;
-			font-size: 0.9rem;
-			opacity: 0.7;
-		}
+	.fee-row {
+		display: flex;
+		gap: 1rem;
+		margin-top: 0.75rem;
 	}
-	.max-fee-field {
+	.fee-field {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		margin-top: 0.75rem;
 		label {
 			font-size: 0.9rem;
 		}
+	}
+	.fee-display {
+		width: 100%;
+		box-sizing: border-box;
+		background: var(--card-bg, transparent);
+		border: 1px solid var(--border-color, #444);
+		border-radius: 8px;
+		padding: 0.75rem 1rem;
+		color: inherit;
+		font-size: 1rem;
+		opacity: 0.85;
 	}
 	.error-message {
 		color: var(--dash-accent-red);

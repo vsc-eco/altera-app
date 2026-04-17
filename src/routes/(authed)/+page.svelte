@@ -72,6 +72,17 @@
 		width: 100%;
 		padding-bottom: 2rem;
 		align-items: flex-start;
+		:global(.dashboard-card),
+		:global(.card) {
+			border-color: rgba(255, 255, 255, 0.12) !important;
+			transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+			&:hover {
+				transform: translateY(-1px);
+			}
+			// :global(.light-theme) {
+			// 	border-color: var(--dash-card-border) !important;
+			// }
+		}
 	}
 
 	/* Main area — locked to SVG proportions */

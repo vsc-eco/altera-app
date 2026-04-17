@@ -8,7 +8,7 @@
 	let { onStake }: Props = $props();
 </script>
 
-<div class="staking-card">
+<div class="staking-card dashboard-card">
 	<div class="staking-header">
 		<span class="status-dot"></span>
 		<h5>Staking earnings (sHBD)</h5>

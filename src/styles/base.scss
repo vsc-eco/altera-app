@@ -317,31 +317,6 @@ a[role='button'],
 .market-prices {
 	will-change: transform;
 }
-/* ═══ All cards — shared border + hover ═══ */
-.balance-card,
-.portfolio-card,
-.staking-card,
-.swap-card,
-.market-prices,
-.card,
-.transactions-card,
-.recent-txs-card {
-	border-color: rgba(255, 255, 255, 0.12) !important;
-	transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-	&:hover {
-		transform: translateY(-1px);
-	}
-}
-:global(.light-theme) .balance-card,
-:global(.light-theme) .portfolio-card,
-:global(.light-theme) .staking-card,
-:global(.light-theme) .swap-card,
-:global(.light-theme) .market-prices,
-:global(.light-theme) .card,
-:global(.light-theme) .transactions-card,
-:global(.light-theme) .recent-txs-card {
-	border-color: var(--dash-card-border) !important;
-}
 
 /* ═══ Smooth page entrance ═══ */
 @keyframes fadeSlideUp {

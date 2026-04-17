@@ -42,6 +42,11 @@
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
+	import {
+		estimateBtcUnmapFee,
+		type BtcFeeEstimate
+	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	let {
 		editStage
@@ -289,6 +294,32 @@
 		}
 	});
 
+	// BTC network-fee estimate (only relevant when the transfer settles out
+	// to BTC mainnet). Matches the math the VSC contract uses at unmap time.
+	const isToBtcMainnet = $derived(
+		$SendTxDetails.fromCoin?.coin.value === Coin.btc.value &&
+			$SendTxDetails.toNetwork?.value === Network.btcMainnet.value
+	);
+	let btcFeeEstimate = $state<BtcFeeEstimate | null>(null);
+	$effect(() => {
+		if (!isToBtcMainnet) {
+			btcFeeEstimate = null;
+			return;
+		}
+		let cancelled = false;
+		estimateBtcUnmapFee().then((est) => {
+			if (!cancelled) btcFeeEstimate = est;
+		});
+		return () => {
+			cancelled = true;
+		};
+	});
+	function formatSats(sats: number): string {
+		return new Intl.NumberFormat(numberFormatLanguage, { useGrouping: true }).format(
+			Math.max(0, Math.round(sats))
+		);
+	}
+
 	// DETAILS
 	let memo = $state('');
 	let inputId = $state('');
@@ -405,7 +436,7 @@
 			/>
 		{/if}
 	</div>
-	{#if $SendTxDetails.fromCoin?.coin.value === Coin.btc.value && $SendTxDetails.toNetwork?.value === Network.btcMainnet.value}
+	{#if isToBtcMainnet}
 		<div class="btc-unmap-options">
 			<label class="deduct-fee-row">
 				<input
@@ -415,10 +446,20 @@
 				<span class="deduct-fee-label">Deduct fee from amount</span>
 				<span class="deduct-fee-hint">Fee is subtracted from your withdrawal instead of added on top</span>
 			</label>
-			<details class="advanced-section">
-				<summary>Advanced</summary>
-				<div class="max-fee-field">
-					<span class="max-fee-label">Max fee (sats)</span>
+			<div class="fee-row">
+				<div class="fee-field">
+					<span class="fee-label">Estimated Fee</span>
+					<div class="fee-display">
+						{#if btcFeeEstimate}
+							~{formatSats(btcFeeEstimate.minSats)} – {formatSats(btcFeeEstimate.maxSats)} sats
+						{:else}
+							…
+						{/if}
+					</div>
+					<span class="fee-hint">Approximate network fee at the current base rate</span>
+				</div>
+				<div class="fee-field">
+					<span class="fee-label">Max fee (sats)</span>
 					<input
 						type="number"
 						placeholder="No limit"
@@ -428,9 +469,9 @@
 							$SendTxDetails.btcMaxFee = isNaN(val) ? undefined : val;
 						}}
 					/>
-					<span class="max-fee-hint">Transaction reverts if total fee exceeds this amount</span>
+					<span class="fee-hint">Transaction reverts if total fee exceeds this amount</span>
 				</div>
-			</details>
+			</div>
 		</div>
 	{/if}
 	<Divider text="Details" />
@@ -582,21 +623,22 @@
 		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
 	}
-	.advanced-section {
-		font-family: 'Nunito Sans', sans-serif;
-		summary {
-			font-size: var(--text-sm);
-			color: var(--dash-text-muted);
-			cursor: pointer;
-			&:hover { color: var(--dash-text-primary); }
+	.fee-row {
+		display: flex;
+		gap: 1rem;
+		@media screen and (max-width: 450px) {
+			flex-direction: column;
 		}
 	}
-	.max-fee-field {
+	.fee-field {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 0.35rem;
-		margin-top: 0.5rem;
-		input {
+		font-family: 'Nunito Sans', sans-serif;
+		input,
+		.fee-display {
 			width: 100%;
 			box-sizing: border-box;
 			background-color: rgba(0, 0, 0, 0.25);
@@ -606,16 +648,21 @@
 			color: var(--dash-text-primary);
 			font-family: 'Nunito Sans', sans-serif;
 			font-size: var(--text-sm);
+		}
+		input {
 			&::placeholder { color: var(--dash-text-muted); }
 			&:focus { outline: none; border-color: #6F6AF8; }
 		}
+		.fee-display {
+			color: var(--dash-text-muted);
+		}
 	}
-	.max-fee-label {
+	.fee-label {
 		font-size: var(--text-sm);
 		font-weight: 500;
 		color: var(--dash-text-primary);
 	}
-	.max-fee-hint {
+	.fee-hint {
 		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
 	}

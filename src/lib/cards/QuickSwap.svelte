@@ -98,8 +98,7 @@
 		// - Hive wallet (aioha) → from HIVE, to BTC
 		// Persisted selection overrides for non-forced wallets.
 		const isReownBtc =
-			auth.value?.provider === 'reown' &&
-			auth.value.did?.startsWith('did:pkh:bip122:');
+			auth.value?.provider === 'reown' && auth.value.did?.startsWith('did:pkh:bip122:');
 		const isHive = auth.value?.provider === 'aioha';
 
 		const defaultFrom = isReownBtc ? btcFromOption : isHive ? hiveFromOption : btcFromOption;
@@ -373,15 +372,7 @@
 			}
 			const pool1 = assetIn === Coin.btc.value ? btcHbdPool : hiveHbdPool;
 			const pool2 = assetIn === Coin.btc.value ? hiveHbdPool : btcHbdPool;
-			result = calculateTwoHopSwap(
-				x,
-				pool1,
-				pool2,
-				assetIn,
-				Coin.hbd.value,
-				assetOut,
-				slippageBps
-			);
+			result = calculateTwoHopSwap(x, pool1, pool2, assetIn, Coin.hbd.value, assetOut, slippageBps);
 		}
 
 		if (!result) {
@@ -536,8 +527,7 @@
 		// (Leather/Xverse via BitcoinAdapter) → BTC; reown EVM = no
 		// QuickSwap source yet.
 		if (provider === 'aioha') return new Set([Coin.hive.value, Coin.hbd.value]);
-		if (provider === 'reown' && did.startsWith('did:pkh:bip122:'))
-			return new Set([Coin.btc.value]);
+		if (provider === 'reown' && did.startsWith('did:pkh:bip122:')) return new Set([Coin.btc.value]);
 		return new Set<string>();
 	});
 
@@ -772,9 +762,8 @@
 		btcDepositError = null;
 		swapStatus = 'Waiting for Bitcoin wallet approval…';
 		try {
-			const { sendBtcFromConnectedWallet } = await import(
-				'$lib/magiTransactions/bitcoin/walletSend'
-			);
+			const { sendBtcFromConnectedWallet } =
+				await import('$lib/magiTransactions/bitcoin/walletSend');
 			const satsAmount = new CoinAmount($SendTxDetails.fromAmount ?? '0', Coin.btc).amount;
 			const txHash = await sendBtcFromConnectedWallet({
 				amountSats: satsAmount,
@@ -789,7 +778,6 @@
 			swapStatus = '';
 		}
 	}
-
 
 	function cancelSwap() {
 		if (swapLoading) return; // can't cancel mid-broadcast from here
@@ -815,9 +803,10 @@
 		const destinationChain = destChainMap[toCoinDef.value] ?? '';
 		const swapReceiver = $SendTxDetails.toUsername?.trim() ?? '';
 		// For Hive targets, prefix with "hive:" if not already
-		const routerRecipient = destinationChain === 'HIVE' && !swapReceiver.startsWith('hive:')
-			? `hive:${swapReceiver.replace(/^@/, '')}`
-			: swapReceiver;
+		const routerRecipient =
+			destinationChain === 'HIVE' && !swapReceiver.startsWith('hive:')
+				? `hive:${swapReceiver.replace(/^@/, '')}`
+				: swapReceiver;
 		if (destinationChain && destinationChain !== 'MAGI' && !routerRecipient) {
 			setError('Enter a receiver address for the target chain');
 			swapLoading = false;
@@ -838,8 +827,7 @@
 
 				const ops = [];
 				const isNativeIn =
-					fromCoinDef.value === Coin.hive.value ||
-					fromCoinDef.value === Coin.hbd.value;
+					fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
 
 				if (fromCoinDef.value === Coin.btc.value) {
 					ops.push(getBtcApproveOp(username, amount as CoinAmount<typeof Coin.btc>));
@@ -955,7 +943,7 @@
 	}
 </script>
 
-<div class="swap-card">
+<div class="swap-card dashboard-card">
 	<!-- Header -->
 	<div class="swap-header">
 		<div class="swap-badge">
@@ -1072,7 +1060,10 @@
 				<button
 					type="button"
 					class:active={slippageBps === bps && !customSlippageOpen}
-					onclick={() => { slippageBps = bps; customSlippageOpen = false; }}
+					onclick={() => {
+						slippageBps = bps;
+						customSlippageOpen = false;
+					}}
 				>
 					{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
 				</button>
@@ -1155,11 +1146,7 @@
 	<!-- Exchange -->
 	<PillButton
 		onclick={requestSwap}
-		disabled={swapLoading ||
-			!hasAmount ||
-			sameCoinSelected ||
-			missingReceiver ||
-			exceedsBalance}
+		disabled={swapLoading || !hasAmount || sameCoinSelected || missingReceiver || exceedsBalance}
 		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
@@ -1184,10 +1171,9 @@
 	{#snippet content()}
 		<div class="btc-deposit">
 			<p class="btc-deposit-intro">
-				Send exactly the amount below to the address shown. The mapping bot observes the
-				transaction and forwards the swap to <strong
-					>{$SendTxDetails.toUsername ?? ''}</strong
-				> as {$SendTxDetails.toCoin?.coin.label ?? ''} on Magi.
+				Send exactly the amount below to the address shown. The mapping bot observes the transaction
+				and forwards the swap to <strong>{$SendTxDetails.toUsername ?? ''}</strong> as {$SendTxDetails
+					.toCoin?.coin.label ?? ''} on Magi.
 			</p>
 
 			{#if btcDepositLoading}
@@ -1216,10 +1202,7 @@
 					>
 						Send with connected wallet
 					</PillButton>
-					<PillButton
-						styleType="outline"
-						onclick={() => btcDepositToggle(false)}
-					>
+					<PillButton styleType="outline" onclick={() => btcDepositToggle(false)}>
 						I'll send manually
 					</PillButton>
 				</div>
@@ -1418,7 +1401,10 @@
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		cursor: pointer;
-		transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease,
+			color 0.15s ease;
 	}
 	.max-btn:hover {
 		background: rgba(111, 106, 248, 0.15);
@@ -1471,7 +1457,9 @@
 		cursor: pointer;
 		font-size: var(--text-xs);
 		font-weight: 500;
-		transition: background-color 0.15s ease, border-color 0.15s ease;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease;
 	}
 	.slippage-options button.active {
 		background-color: var(--dash-accent-purple);

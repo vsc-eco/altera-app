@@ -138,8 +138,7 @@ export async function validateAddress(
 	} else if (validate(address, BtcNetwork.mainnet)) {
 		if (internalOnly) {
 			return {
-				success: false,
-				error: 'Bitcoin addresses may only be used for external transfers'
+				success: true
 			};
 		}
 		return {
@@ -775,9 +774,8 @@ export async function send(
 			if (isSwapWithExternalSettlement) {
 				destinationChain = toOnBtcL1 ? 'BTC' : 'HIVE';
 				const raw = (toUsername ?? '').trim();
-				destinationRecipient = toOnHiveL1 && !raw.startsWith('hive:')
-					? `hive:${raw.replace(/^@/, '')}`
-					: raw;
+				destinationRecipient =
+					toOnHiveL1 && !raw.startsWith('hive:') ? `hive:${raw.replace(/^@/, '')}` : raw;
 				if (!destinationRecipient) {
 					throw new Error('Missing recipient address for mainnet settlement');
 				}

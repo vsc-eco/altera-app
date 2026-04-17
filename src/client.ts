@@ -13,7 +13,7 @@ const DEFAULT_VSC_NET_ID = 'vsc-mainnet';
 
 /** Default Magi indexer (Hasura) base URL — same as okinoko/prod.
  *  The Hasura `/v1/graphql` path is appended by getMagiIndexerUrl(). */
-export const DEFAULT_MAGI_INDEXER_URL = 'https://api.okinoko.io/hasura';
+export const DEFAULT_MAGI_INDEXER_URL = 'https://indexer.magi.milohpr.com';
 
 /** Standard Hasura GraphQL path suffix. */
 export const HASURA_GRAPHQL_PATH = '/v1/graphql';
@@ -21,15 +21,13 @@ export const HASURA_GRAPHQL_PATH = '/v1/graphql';
 /** DEX Router contract — routes swaps and BTC/HBD liquidity deposits.
  *  Network-switched between mainnet and testnet. */
 export const DEX_ROUTER_CONTRACT_ID = (() => {
-	const isTestnet =
-		(browser && localStorage.getItem(keyVscNetworkId)) === 'vsc-testnet';
+	const isTestnet = (browser && localStorage.getItem(keyVscNetworkId)) === 'vsc-testnet';
 	return isTestnet
 		? 'vsc1BmjY9JwFQyvRwYhLpiXFCYeUqxmU8ykrAM'
 		: 'vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45';
 })();
 
-export const currentGqlUrl =
-	(browser && localStorage.getItem(keyVscGql)) || DEFAULT_GQL_URL;
+export const currentGqlUrl = (browser && localStorage.getItem(keyVscGql)) || DEFAULT_GQL_URL;
 
 export const vscNetworkId =
 	(browser && localStorage.getItem(keyVscNetworkId)) || DEFAULT_VSC_NET_ID;

@@ -80,7 +80,7 @@
 	});
 </script>
 
-<div class="market-prices">
+<div class="market-prices dashboard-card">
 	<h4 class="section-title">Market Prices</h4>
 	<div class="price-list">
 		{#each items as item}
@@ -94,14 +94,19 @@
 						{/if}
 					</span>
 					<div class="coin-details">
-						<span class="coin-symbol">{item.name === 'Bitcoin' ? 'BTC' : item.name === 'Hive' ? 'HIVE' : 'HBD'}</span>
+						<span class="coin-symbol"
+							>{item.name === 'Bitcoin' ? 'BTC' : item.name === 'Hive' ? 'HIVE' : 'HBD'}</span
+						>
 						<span class="coin-name">{item.name}</span>
 					</div>
 				</div>
 				<div class="price-info">
 					<span class="price">{item.price}</span>
-					<span class={['change', { positive: item.changePositive, negative: !item.changePositive }]}>
-						{item.changePositive ? '' : ''} {item.change}
+					<span
+						class={['change', { positive: item.changePositive, negative: !item.changePositive }]}
+					>
+						{item.changePositive ? '' : ''}
+						{item.change}
 					</span>
 				</div>
 			</div>

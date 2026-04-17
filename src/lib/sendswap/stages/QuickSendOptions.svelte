@@ -56,17 +56,13 @@
 	$effect(() => {
 		editStage(stageComplete);
 	});
-	// Sync amount to store whenever coinAmount changes (outside reactive graph)
 	$effect(() => {
 		const amtStr = coinAmount.toAmountString();
-		queueMicrotask(() => {
-			const current = get(SendTxDetails);
-			if (current.fromAmount !== amtStr || current.toAmount !== amtStr) {
-				current.fromAmount = amtStr;
-				current.toAmount = amtStr;
-				current.enteredAmount = amtStr;
-				SendTxDetails.set({ ...current });
+		SendTxDetails.update((s) => {
+			if (s.fromAmount === amtStr && s.toAmount === amtStr && s.enteredAmount === amtStr) {
+				return s;
 			}
+			return { ...s, fromAmount: amtStr, toAmount: amtStr, enteredAmount: amtStr };
 		});
 	});
 

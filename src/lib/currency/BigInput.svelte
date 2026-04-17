@@ -10,13 +10,15 @@
 		max?: number;
 		min?: number;
 		inputId?: string;
+		disabled?: boolean;
 	};
 	let {
 		amount = $bindable(),
 		decimals = 2,
 		max = Number.MAX_SAFE_INTEGER,
 		min: minParam,
-		inputId = $bindable()
+		inputId = $bindable(),
+		disabled = false
 	}: Props = $props();
 
 	let min = $derived(minParam ?? 10 ** -decimals);
@@ -40,6 +42,7 @@
 			id,
 			min: 0,
 			max: max,
+			disabled,
 			allowOverflow: false,
 			get value() {
 				return value;

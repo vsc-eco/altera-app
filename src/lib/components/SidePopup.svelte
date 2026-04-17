@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Card from '$lib/cards/Card.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { X } from '@lucide/svelte';
 	import { onMount, untrack, type Snippet } from 'svelte';
@@ -87,14 +88,14 @@
 					...baseStyles,
 					left: '0',
 					top: mustAvoidHeader ? `${visibleHeaderHeight}px` : '0',
-					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px)` : '100%'
+					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px - 1rem)` : '100%'
 				};
 			case 'right':
 				return {
 					...baseStyles,
 					right: '0',
 					top: mustAvoidHeader ? `${visibleHeaderHeight}px` : '0',
-					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px)` : '100%'
+					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px - 1rem)` : '100%'
 				};
 			case 'top':
 				return { ...baseStyles, top: '0', left: '0', width: '100%' };
@@ -133,7 +134,7 @@
 		aria-modal="false"
 		tabindex="-1"
 	>
-		<div class="background">
+		<Card opaque style="height: calc(100% - 3.5rem);">
 			<div class="close-button">
 				<PillButton onclick={toggle} styleType="icon-subtle">
 					<X size="32" />
@@ -156,7 +157,7 @@
 					{/if}
 				</div>
 			</div>
-		</div>
+		</Card>
 	</div>
 {/if}
 

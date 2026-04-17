@@ -1,4 +1,4 @@
-import { hasuraQuery } from './query';
+import { hasuraQuery, hasuraQueryRaw } from './query';
 
 // Common indexer fields present on every BTC mapping event row.
 interface BtcMappingEventBase {
@@ -20,7 +20,7 @@ export interface BtcUnmapEvent extends BtcMappingEventBase {
 	deducted: string; // satoshis deducted from the sender's VSC account (total cost)
 	sent: string; // satoshis actually sent to the BTC address (deducted minus bridge fee)
 	from_addr: string; // sender VSC DID
-	to_addr: string; // recipient BTC address
+	to_addr: string | null; // recipient BTC address — null on older unmap rows
 	tx_id: string; // Bitcoin transaction ID (once broadcast)
 }
 
@@ -53,7 +53,7 @@ export async function fetchBtcDepositEvent(txHash: string): Promise<BtcDepositEv
 
 /** Fetch an unmap (withdrawal) event by VSC transaction hash. */
 export async function fetchBtcUnmapEvent(txHash: string): Promise<BtcUnmapEvent | null> {
-	const query = `
+	const buildQuery = (includeToAddr: boolean) => `
 		query BtcUnmapEvent($txHash: String!) {
 			btc_mapping_unmap_events(where: { indexer_tx_hash: { _eq: $txHash } }, limit: 1) {
 				indexer_ts
@@ -63,14 +63,22 @@ export async function fetchBtcUnmapEvent(txHash: string): Promise<BtcUnmapEvent 
 				deducted
 				sent
 				from_addr
-				to_addr
+				${includeToAddr ? 'to_addr' : ''}
 				tx_id
 			}
 		}
 	`;
-	const data = await hasuraQuery(query, { txHash });
-	const rows = data?.btc_mapping_unmap_events as BtcUnmapEvent[] | undefined;
-	return rows?.[0] ?? null;
+	type UnmapResult = { btc_mapping_unmap_events: BtcUnmapEvent[] };
+
+	let result = await hasuraQueryRaw<UnmapResult>(buildQuery(true), { txHash });
+
+	// Some indexer schemas don't expose to_addr — retry without it.
+	if (result.errors?.some((e) => /to_addr/.test(e.message))) {
+		result = await hasuraQueryRaw<UnmapResult>(buildQuery(false), { txHash });
+	}
+
+	if (result.errors) console.error('Hasura query error:', result.errors);
+	return result.data?.btc_mapping_unmap_events?.[0] ?? null;
 }
 
 /** Fetch a transfer event by VSC transaction hash. */
@@ -102,22 +110,26 @@ export type BtcMappingEventResult =
 	| null;
 
 /**
- * Fetch all deposit events where the given DID is the recipient, at or above a VSC block height.
- * Used to interleave incoming BTC deposits (which don't appear in the user's VSC tx list) into
- * the transaction table. Only a lower bound is needed — new deposits at any height should appear.
+ * Fetch deposit events for a recipient, newest first, with cursor-based pagination by block height.
+ * Pass `beforeHeight` to fetch events older than a given block height (for scroll-extend).
+ * Omit it to fetch the newest `limit` events (for initial load / periodic refresh).
  */
 export async function fetchBtcDepositsByRecipient(
 	recipient: string,
-	minHeight: number
+	limit: number,
+	beforeHeight?: number
 ): Promise<BtcDepositEvent[]> {
+	// bigint-safe sentinel for "no upper bound" — block heights won't approach this.
+	const heightCursor = beforeHeight ?? Number.MAX_SAFE_INTEGER;
 	const query = `
-		query BtcDepositsByRecipient($recipient: String!, $minHeight: bigint!) {
+		query BtcDepositsByRecipient($recipient: String!, $limit: Int!, $beforeHeight: bigint!) {
 			btc_mapping_deposit_events(
 				where: {
 					recipient: { _eq: $recipient }
-					indexer_block_height: { _gte: $minHeight }
+					indexer_block_height: { _lt: $beforeHeight }
 				}
 				order_by: { indexer_block_height: desc }
+				limit: $limit
 			) {
 				indexer_ts
 				indexer_contract_id
@@ -129,7 +141,7 @@ export async function fetchBtcDepositsByRecipient(
 			}
 		}
 	`;
-	const data = await hasuraQuery(query, { recipient, minHeight });
+	const data = await hasuraQuery(query, { recipient, limit, beforeHeight: heightCursor });
 	return (data?.btc_mapping_deposit_events as BtcDepositEvent[] | undefined) ?? [];
 }
 

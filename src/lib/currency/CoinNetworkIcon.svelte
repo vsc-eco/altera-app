@@ -1,11 +1,16 @@
 <script lang="ts">
 	import type { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 
-	let { coin, network, size = 24, hideNetwork = false }: { coin: Coin; network: Network; size?: number; hideNetwork?: boolean } = $props();
+	let {
+		coin,
+		network,
+		size = 24,
+		hideNetwork = false
+	}: { coin: Coin; network: Network; size?: number; hideNetwork?: boolean } = $props();
 </script>
 
 <span
-	class="icons neutral"
+	class={['icons neutral', { showNetwork: !hideNetwork }]}
 	role="img"
 	aria-label={`${coin.label} on ${network.label}`}
 	style="--size: calc({size}px + 0.5rem)"
@@ -28,13 +33,15 @@
 		display: inline-flex;
 		position: relative;
 
-		img:last-child {
-			background-color: rgba(0, 0, 0, 0.4);
-			position: absolute;
-			border: 2px solid rgba(0, 0, 0, 0.4);
-			border-radius: 50%;
-			bottom: 0rem;
-			left: calc(var(--size, 2rem) / 2);
+		.showNetwork {
+			img:last-child {
+				background-color: rgba(0, 0, 0, 0.4);
+				position: absolute;
+				border: 2px solid rgba(0, 0, 0, 0.4);
+				border-radius: 50%;
+				bottom: 0rem;
+				left: calc(var(--size, 2rem) / 2);
+			}
 		}
 	}
 </style>

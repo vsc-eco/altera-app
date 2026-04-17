@@ -70,7 +70,7 @@
 		content: '';
 		grid-area: v-line;
 		justify-self: center;
-		height: 2rem;
+		height: 0.5rem;
 		width: 2px;
 		position: absolute;
 		bottom: -0.5rem;

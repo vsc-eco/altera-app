@@ -7,9 +7,9 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import { liquidityDraftStore } from '$lib/pools/liquidityStore';
-	import { untrack } from 'svelte';
 
-	let { editStage, pools = [] }: { editStage: (complete: boolean) => void; pools: PoolRow[] } = $props();
+	let { editStage, pools = [] }: { editStage: (complete: boolean) => void; pools: PoolRow[] } =
+		$props();
 
 	let selectedPool = $state<PoolRow | null>(null);
 	let amount0Ca = $state(new CoinAmount(0, Coin.hbd));
@@ -40,7 +40,6 @@
 				amount1Ca = new CoinAmount(0, c1);
 			}
 		}
-		btcDisplayStr = '';
 	}
 
 	const hiveAssetName = $derived(getHiveAssetName());
@@ -63,10 +62,12 @@
 	// Detect if this is a BTC/HBD pool
 	const isBtcHbdPool = $derived(
 		[coin0.value, coin1.value].includes(Coin.btc.value) &&
-		[coin0.value, coin1.value].includes(Coin.hbd.value)
+			[coin0.value, coin1.value].includes(Coin.hbd.value)
 	);
 
-	function getMaxForCoin(c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc): CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc> | undefined {
+	function getMaxForCoin(
+		c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+	): CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc> | undefined {
 		if (c.value === Coin.btc.value) return new CoinAmount($accountBalance.bal.btc, Coin.btc, true);
 		if (c.value === Coin.hbd.value) return new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true);
 		return new CoinAmount($accountBalance.bal.hive, Coin.hive, true);
@@ -84,39 +85,6 @@
 
 	const exceed0 = $derived(maxAmount0 ? amount0Ca.amount > maxAmount0.amount : false);
 	const exceed1 = $derived(maxAmount1 ? amount1Ca.amount > maxAmount1.amount : false);
-
-	// --- BTC/HBD pool: auto-calculate BTC from HBD ---
-	let btcDisplayStr = $state('');
-
-	// By the onPoolChange convention, amount0Ca is always the HBD side
-	// and amount1Ca is always the BTC side for BTC/HBD pools. The effect
-	// depends only on the HBD amount; reads of the BTC side happen in
-	// `untrack` so the write below does not re-trigger this effect
-	// (which would loop forever on every new CoinAmount object reference).
-	$effect(() => {
-		if (!selectedPool || !isBtcHbdPool) return;
-		const hbdAmount = amount0Ca.amount;
-
-		if (hbdAmount === 0) {
-			btcDisplayStr = '';
-			untrack(() => {
-				if (amount1Ca.amount !== 0 || amount1Ca.coin.value !== Coin.btc.value) {
-					amount1Ca = new CoinAmount(0, Coin.btc);
-				}
-			});
-			return;
-		}
-
-		amount0Ca.convertTo(Coin.btc, Network.lightning).then((btcAmt) => {
-			btcDisplayStr = btcAmt.toAmountString();
-			untrack(() => {
-				if (amount1Ca.amount === btcAmt.amount && amount1Ca.coin.value === btcAmt.coin.value) {
-					return;
-				}
-				amount1Ca = btcAmt as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>;
-			});
-		});
-	});
 
 	// --- Non BTC/HBD pools: sync via conversion ---
 	const USD_TOLERANCE = 0.005;
@@ -151,19 +119,17 @@
 				const next =
 					amount0Ca.amount === 0
 						? new CoinAmount(0, coin1)
-						: ((await amount0Ca.convertTo(
-								coin1,
-								Network.lightning
-							)) as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>);
+						: ((await amount0Ca.convertTo(coin1, Network.lightning)) as CoinAmount<
+								typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+							>);
 				amount1Ca = next;
 			} else {
 				const next =
 					amount1Ca.amount === 0
 						? new CoinAmount(0, coin0)
-						: ((await amount1Ca.convertTo(
-								coin0,
-								Network.lightning
-							)) as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>);
+						: ((await amount1Ca.convertTo(coin0, Network.lightning)) as CoinAmount<
+								typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+							>);
 				amount0Ca = next;
 			}
 			// Pre-seed the keys to the post-sync values so the effect that
@@ -231,9 +197,9 @@
 					<div class="label">
 						{isBtcHbdPool ? displayUnitForCoin(Coin.hbd) : selectedPool.pairSymbols[0]}
 					</div>
-					{#if maxAmount0}
+					<!-- {#if maxAmount0}
 						<span class="balance-info">Balance: {maxAmount0.toPrettyString()}</span>
-					{/if}
+					{/if} -->
 				</div>
 				<AmountInput
 					bind:coinAmount={amount0Ca}
@@ -243,11 +209,9 @@
 					hideUnit
 					hideNetwork
 				/>
-				{#if exceed0}
-					<span class="error-text"
-						>Amount exceeds available balance</span
-					>
-				{/if}
+				<!-- {#if exceed0}
+					<span class="error-text">Amount exceeds available balance</span>
+				{/if} -->
 			</div>
 
 			{#if isBtcHbdPool}
@@ -255,27 +219,32 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">BTC (auto-calculated)</div>
-						{#if maxAmount1}
+						<!-- {#if maxAmount1}
 							<span class="balance-info">Balance: {maxAmount1.toPrettyString()}</span>
-						{/if}
+						{/if} -->
 					</div>
-					<div class="btc-input-mirror">
-						<img src="/btc/btc.svg" alt="BTC" class="btc-coin-icon" />
-						<span class="btc-value">{btcDisplayStr || '0'}</span>
-						<span class="btc-unit">BTC</span>
-					</div>
-					{#if exceed1}
+					<AmountInput
+						bind:coinAmount={amount1Ca}
+						coinOpts={[{ coin: Coin.btc, network: Network.magi }]}
+						connectedCoinAmount={amount0Ca}
+						maxAmount={maxAmount1}
+						styleType="normal"
+						disabled
+						hideUnit
+						hideNetwork
+					/>
+					<!-- {#if exceed1}
 						<span class="error-text">Amount exceeds available balance</span>
-					{/if}
+					{/if} -->
 				</div>
 			{:else}
 				<!-- Token 1 — editable for non-BTC pools -->
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">{selectedPool.pairSymbols[1]}</div>
-						{#if maxAmount1}
+						<!-- {#if maxAmount1}
 							<span class="balance-info">Balance: {maxAmount1.toPrettyString()}</span>
-						{/if}
+						{/if} -->
 					</div>
 					<AmountInput
 						bind:coinAmount={amount1Ca}
@@ -285,9 +254,9 @@
 						hideUnit
 						hideNetwork
 					/>
-					{#if exceed1}
+					<!-- {#if exceed1}
 						<span class="error-text">Amount exceeds available balance</span>
-					{/if}
+					{/if} -->
 				</div>
 			{/if}
 
@@ -357,32 +326,6 @@
 		color: var(--dash-text-muted);
 		font-family: 'Nunito Sans', sans-serif;
 	}
-	.btc-input-mirror {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		background: rgba(0, 0, 0, 0.25);
-		border-radius: 12px;
-		padding: 0.5rem 0.75rem;
-		min-height: 2.5rem;
-		box-sizing: border-box;
-		.btc-coin-icon {
-			width: 1.5rem;
-			height: 1.5rem;
-			border-radius: 50%;
-		}
-		.btc-value {
-			flex: 1;
-			font-family: 'Nunito Sans', sans-serif;
-			color: var(--dash-text-primary);
-		}
-		.btc-unit {
-			font-weight: 500;
-			color: var(--dash-text-muted);
-			font-family: 'Nunito Sans', sans-serif;
-		}
-	}
 	.rate-info {
 		background-color: var(--dash-swap-field-bg);
 		border: 1px solid var(--dash-input-border);
@@ -395,6 +338,4 @@
 			margin: 0.2rem 0;
 		}
 	}
-
-
 </style>

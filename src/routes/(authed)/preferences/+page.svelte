@@ -67,13 +67,16 @@
 			localStorage.setItem(keyHiveApiList, hiveUrl.origin);
 			localStorage.setItem(keyMagiIndexer, magiIndexerStr);
 			localStorage.setItem(keyHiveApiAllowBackups, allowBackups.toString());
-			localStorage.setItem(
-				keyVscNetworkId,
-				vscNetworkIdInput.value.trim() || DEFAULT_VSC_NETWORK_ID
-			);
-			localStorage.setItem(keyHiveNetworkId, hiveNetworkIdInput.value.trim());
-			localStorage.setItem(keyTests, testsInput.value.trim() || DEFAULT_HIVE_ASSET_NAME);
-			localStorage.setItem(keyTbd, tbdInput.value.trim() || DEFAULT_HBD_ASSET_NAME);
+			// Advanced inputs are only mounted when advancedOptions is true.
+			if (advancedOptions) {
+				localStorage.setItem(
+					keyVscNetworkId,
+					vscNetworkIdInput.value.trim() || DEFAULT_VSC_NETWORK_ID
+				);
+				localStorage.setItem(keyHiveNetworkId, hiveNetworkIdInput.value.trim());
+				localStorage.setItem(keyTests, testsInput.value.trim() || DEFAULT_HIVE_ASSET_NAME);
+				localStorage.setItem(keyTbd, tbdInput.value.trim() || DEFAULT_HBD_ASSET_NAME);
+			}
 
 			await invalidateAll();
 			location.reload();

@@ -162,11 +162,24 @@ export const allTransactionsStore = derived(
  * Fetch BTC deposit events for the given DID within a VSC block height range and merge them
  * into btcDepositStore (deduplicating by indexer_tx_hash).
  */
-export async function fetchBtcDeposits(did: string, minHeight: number): Promise<void> {
+export async function fetchBtcDeposits(
+	did: string,
+	type: 'set' | 'update' | 'extend',
+	limit = 20
+): Promise<void> {
 	if (!did) return;
 	try {
-		const events = await fetchBtcDepositsByRecipient(did, minHeight);
-		console.log('events', events);
+		let beforeHeight: number | undefined;
+		if (type === 'extend') {
+			const current = get(btcDepositStore);
+			if (current.length === 0) return;
+			beforeHeight = Math.min(...current.map((e) => e.indexer_block_height));
+		}
+		const events = await fetchBtcDepositsByRecipient(did, limit, beforeHeight);
+		if (type === 'set') {
+			btcDepositStore.set(events);
+			return;
+		}
 		if (events.length === 0) return;
 		btcDepositStore.update((current) => {
 			const byHash = new Map(current.map((e) => [e.indexer_tx_hash, e]));

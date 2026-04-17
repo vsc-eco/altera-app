@@ -56,10 +56,7 @@
 		<MarketPrices />
 		<QuickSwap />
 		{#if auth.value}
-			<ResourceCredits
-				{username}
-				isHive={auth.value == undefined || auth.value!.username != undefined}
-			/>
+			<ResourceCredits {username} />
 		{/if}
 	</div>
 </div>

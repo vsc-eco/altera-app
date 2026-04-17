@@ -94,7 +94,9 @@
 				indexerEvent = result;
 				if (result.action === 'unmap') {
 					fromAccount = result.event.from_addr || did;
-					toAccount = result.event.to_addr || 'Unknown';
+					// to_addr is null on older unmap rows — fall back to the original
+					// call payload's `to` field (the BTC destination address).
+					toAccount = result.event.to_addr || payloadData?.to || 'Unknown';
 				} else {
 					fromAccount = result.event.sender || did;
 					toAccount = result.event.recipient || 'Unknown';

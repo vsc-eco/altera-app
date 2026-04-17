@@ -11,7 +11,10 @@
 	let { api, selectData, styleType = 'default' }: Props = $props();
 </script>
 
-<ul {...api.getContentProps()} class={{ card: styleType !== 'default', dropdown: styleType === 'dropdown' }}>
+<ul
+	{...api.getContentProps()}
+	class={{ card: styleType !== 'default', dropdown: styleType === 'dropdown' }}
+>
 	<div class={['content-spacing', { card: styleType === 'card' }]}>
 		{#each selectData as item}
 			<li
@@ -39,7 +42,9 @@
 <style lang="scss">
 	[data-part='content'] {
 		border-radius: 16px;
-		background: transparent;
+		background: linear-gradient(135deg, #20202a 0%, #13131a 100%);
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
 		border: 1px solid var(--dash-card-border);
 		padding: 0.5rem;
 		z-index: 10;
@@ -47,7 +52,9 @@
 	}
 	[data-part='content'].card {
 		box-sizing: border-box;
-		background: transparent;
+		background: linear-gradient(135deg, #20202a 0%, #13131a 100%);
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
 		border: 1px solid var(--dash-card-border);
 		z-index: 5;
 		border-radius: 0 0 16px 16px;

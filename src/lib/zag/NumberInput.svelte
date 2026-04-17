@@ -10,6 +10,7 @@
 		min?: number;
 		max?: number;
 		inputId?: string;
+		disabled?: boolean;
 	};
 	let {
 		amount = $bindable(),
@@ -17,7 +18,8 @@
 		decimals = 2,
 		min: minProp,
 		max = Number.MAX_SAFE_INTEGER,
-		inputId = $bindable()
+		inputId = $bindable(),
+		disabled = false
 	}: Props = $props();
 
 	let min = $derived(minProp ?? 10 ** -decimals);
@@ -59,6 +61,9 @@
 	const service = useMachine(numberInput.machine, {
 		id,
 		min: 0,
+		get disabled() {
+			return disabled;
+		},
 		get step() {
 			return 10 ** -decimals;
 		},

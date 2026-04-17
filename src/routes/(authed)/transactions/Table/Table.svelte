@@ -57,29 +57,9 @@
 		return null;
 	}
 
-	let btcDepositFetchedMinHeight: number | null = null;
 	function updateAll() {
 		fetchTxs(did, 'update', (val) => (loading = val));
-
-		// Incrementally fetch BTC deposits as the loaded block range extends downward.
-		// No upper bound — new deposits at any height above the list should always appear.
-		const vscTxs = $magiTxsStore;
-		if (!vscTxs.length || !did) return;
-
-		const heights = vscTxs
-			.map((tx) => tx.anchr_height)
-			.filter((h): h is number => h != null);
-		if (!heights.length) return;
-
-		const minHeight = Math.min(...heights);
-
-		if (btcDepositFetchedMinHeight === null) {
-			btcDepositFetchedMinHeight = minHeight;
-			fetchBtcDeposits(did, minHeight);
-		} else if (minHeight < btcDepositFetchedMinHeight) {
-			btcDepositFetchedMinHeight = minHeight;
-			fetchBtcDeposits(did, minHeight);
-		}
+		fetchBtcDeposits(did, 'update');
 	}
 
 	let skeletonRowCount = $state(8);
@@ -87,6 +67,7 @@
 		const fetchLimit = limitProp ?? 20;
 		if (!initialOpen && $allTransactionsStore.length < fetchLimit) {
 			fetchTxs(did, 'set', (val) => (loading = val), fetchLimit);
+			fetchBtcDeposits(did, 'set', fetchLimit);
 		}
 		const rootStyle = getComputedStyle(document.documentElement);
 		const remValue = parseFloat(rootStyle.fontSize);
@@ -202,6 +183,7 @@
 			if (me.scrollHeight - me.scrollTop - me.clientHeight <= 1 && !hitBottom && !loading) {
 				lastLength = currStoreLen;
 				fetchTxs(did, 'extend', (val) => (loading = val), 12);
+				fetchBtcDeposits(did, 'extend', 12);
 			}
 		}}
 	>

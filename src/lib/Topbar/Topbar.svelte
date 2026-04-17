@@ -21,7 +21,7 @@
 		window.addEventListener('keydown', handleGlobalKeydown);
 		return () => window.removeEventListener('keydown', handleGlobalKeydown);
 	});
-	let auth = $derived(getAuth()());
+	const auth = $derived(getAuth()());
 	let username: string = $derived.by(() => {
 		if (!auth.value) return '  ';
 		return auth.value.username || auth.value.address?.slice(2) || '**';
@@ -31,19 +31,28 @@
 			return [
 				auth.value.logout,
 				auth.value.openSettings,
-				() => { goto('/preferences'); }
+				() => {
+					goto('/preferences');
+				}
 			];
 		} else {
-			return [async () => {}, () => {}, () => { goto('/preferences'); }];
+			return [
+				async () => {},
+				() => {},
+				() => {
+					goto('/preferences');
+				}
+			];
 		}
 	});
 	let src = $derived(auth.value?.profilePicUrl);
 	let bal = $derived($accountBalance.bal);
 	let rcDisplay = $derived.by(() => {
-		if (!bal) return 'MAGI RC: 0 / 12,500';
-		const rc = bal.hbd || 0;
-		const maxRc = 12500;
-		return `MAGI RC: ${rc.toLocaleString()} / ${maxRc.toLocaleString()}`;
+		const isHive = auth.value?.provider === 'aioha';
+		const maxRCs = isHive ? $accountBalance.bal.hbd + 5000 : $accountBalance.bal.hbd;
+		if (!bal) return 'MAGI RC: 0 / 0';
+		const rc = bal.resource_credits || 0;
+		return `MAGI RC: ${rc.toLocaleString()} / ${maxRCs.toLocaleString()}`;
 	});
 </script>
 
@@ -77,15 +86,29 @@
 			label="Account Settings"
 			styleType="icon"
 			items={[
-				{ label: 'acc-prefs', snippet: option, snippetData: { label: 'Account Preferences', icon: Component } },
-				{ label: 'app-prefs', snippet: option, snippetData: { label: 'App Preferences', icon: Component } },
+				{
+					label: 'acc-prefs',
+					snippet: option,
+					snippetData: { label: 'Account Preferences', icon: Component }
+				},
+				{
+					label: 'app-prefs',
+					snippet: option,
+					snippetData: { label: 'App Preferences', icon: Component }
+				},
 				{ label: 'logout', snippet: option, snippetData: { label: 'Logout', icon: Component } }
 			]}
 			onSelect={async (e) => {
 				switch (e.value) {
-					case 'logout': await logout(); break;
-					case 'acc-prefs': openSettings(); break;
-					case 'app-prefs': gotoPreferences(); break;
+					case 'logout':
+						await logout();
+						break;
+					case 'acc-prefs':
+						openSettings();
+						break;
+					case 'app-prefs':
+						gotoPreferences();
+						break;
 				}
 			}}
 		>

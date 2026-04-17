@@ -22,7 +22,8 @@
 		hideUnit = false,
 		borderless = false,
 		hideNetwork = false,
-		id = $bindable('')
+		id = $bindable(''),
+		disabled = false
 	}: {
 		coinAmount: CoinAmount<Coin>;
 		connectedCoinAmount?: CoinAmount<Coin>;
@@ -36,6 +37,7 @@
 		borderless?: boolean;
 		hideNetwork?: boolean;
 		id?: string;
+		disabled?: boolean;
 	} = $props();
 
 	let inputAmt: string = $state(coinAmount?.amount !== 0 ? coinAmount.toAmountString() : '');
@@ -60,8 +62,7 @@
 			return;
 		}
 		if (!currentExpressIn || currentMod.coin.value === currentExpressIn.value) {
-			if (currentCoinAmtStr !== currentMod.toAmountString())
-				coinAmount = currentMod;
+			if (currentCoinAmtStr !== currentMod.toAmountString()) coinAmount = currentMod;
 		} else {
 			const capturedMod = currentMod;
 			capturedMod.convertTo(currentExpressIn, Network.lightning).then((coinAmt) => {
@@ -138,16 +139,15 @@
 	});
 
 	let showMax = $derived(
-		maxAmount !== undefined &&
+		!disabled &&
+			maxAmount !== undefined &&
 			maxAmount.toAmountString() !==
 				new CoinAmount(inputAmt ?? 0, selected.coin).toAmountString() &&
 			selected.coin.value === maxAmount.coin.value
 	);
 
 	let showUsd = $derived(
-		!(
-			connectedCoinAmount?.coin.value === Coin.usd.value || selected.coin.value === Coin.usd.value
-		)
+		!(connectedCoinAmount?.coin.value === Coin.usd.value || selected.coin.value === Coin.usd.value)
 	);
 
 	$effect(() => {
@@ -298,10 +298,10 @@
 			<span>
 				{#if maxAmount !== undefined && selected.coin.value === maxAmount.coin.value}
 					<span style="white-space: nowrap;">
-						(Balance:
+						Balance:
 						<span class="balance-amount">
 							{balanceDisplay || maxAmount!.toPrettyString()}
-						</span>)
+						</span>
 					</span>
 				{/if}
 			</span>
@@ -314,9 +314,17 @@
 			{/if}
 			{#key [selected, debouncedMax, min]}
 				{#if quiet}
-					<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} />
+					<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} {disabled} />
 				{:else}
-					<NumberInput bind:amount={inputAmt} bind:error bind:inputId={id} {max} {decimals} {min} />
+					<NumberInput
+						bind:amount={inputAmt}
+						bind:error
+						bind:inputId={id}
+						{max}
+						{decimals}
+						{min}
+						{disabled}
+					/>
 				{/if}
 			{/key}
 			{#if showMax}
@@ -366,7 +374,7 @@
 {:else if styleType === 'simple'}
 	<div class="simple-wrapper">
 		{#key [selected, debouncedMax, min]}
-			<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} />
+			<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} {disabled} />
 		{/key}
 		{#if showUsd && inputAmt && inputAmt !== '0'}
 			<span class="simple-usd">≈ ${inUsd}</span>
@@ -379,7 +387,7 @@
 				{displayLabel}
 			</label>
 			{#key [selected, debouncedMax, min]}
-				<BigInput bind:amount={inputAmt} bind:inputId={id} {decimals} {min} />
+				<BigInput bind:amount={inputAmt} bind:inputId={id} {decimals} {min} {disabled} />
 			{/key}
 		</div>
 	</div>
@@ -427,12 +435,12 @@
 			flex-basis: 1;
 			box-sizing: border-box;
 			&:has(:global(input):focus-visible) {
-				box-shadow: 0 -1px inset #6F6AF8;
-				border-bottom-color: #6F6AF8;
+				box-shadow: 0 -1px inset #6f6af8;
+				border-bottom-color: #6f6af8;
 				outline: none;
 				border-radius: 12px 12px 0 0;
 				hr {
-					border-color: #6F6AF8;
+					border-color: #6f6af8;
 					border-width: 1.5px;
 				}
 			}

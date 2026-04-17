@@ -58,7 +58,7 @@
 				<div class="title-and-close" class:no-title={!title && !back}>
 					{#if back}
 						<button class="dialog-btn" onclick={back}>
-							<ArrowLeft size={20} />
+							<ArrowLeft size={32} />
 						</button>
 					{/if}
 					{#if title}
@@ -69,7 +69,7 @@
 						{...api.getCloseTriggerProps()}
 						onclick={api.getTriggerProps().onclick!}
 					>
-						<X size={20} />
+						<X size={32} />
 					</button>
 				</div>
 
@@ -145,12 +145,12 @@
 	[data-part='content'] :global(hr) {
 		border-color: var(--dash-divider);
 	}
-	[data-part='content'] :global(input),
-	[data-part='content'] :global(textarea) {
-		background: rgba(0, 0, 0, 0.25);
-		border-color: rgba(255, 255, 255, 0.08);
-		color: var(--dash-text-primary);
-	}
+	// [data-part='content'] :global(input),
+	// [data-part='content'] :global(textarea) {
+	// 	background: rgba(0, 0, 0, 0.25);
+	// 	border-color: rgba(255, 255, 255, 0.08);
+	// 	color: var(--dash-text-primary);
+	// }
 	[data-part='content'] :global(fieldset) {
 		background: rgba(0, 0, 0, 0.15);
 		border-color: rgba(255, 255, 255, 0.08);

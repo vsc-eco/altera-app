@@ -7,7 +7,11 @@
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
 	import InfoToolip from '$lib/components/InfoTooltip.svelte';
-	let { username, isHive }: { username: string | undefined; isHive: boolean } = $props();
+	let { username }: { username: string | undefined } = $props();
+	import { getAuth } from '$lib/auth/store';
+
+	const auth = $derived(getAuth()());
+	const isHive = $derived(auth.value?.provider === 'aioha');
 
 	let rc: Manabar | null = $state(null);
 
@@ -17,12 +21,6 @@
 		if ($accountBalance.loading) {
 			return [null, 0];
 		}
-		// if (maxRCs < 5000) {
-		// 	return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
-		// }
-		// if (maxRCs - $accountBalance.bal.resource_credits < 1000) {
-		// 	return [maxRCs / 1000, maxRCs / 1000];
-		// }
 		return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
 	});
 

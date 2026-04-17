@@ -23,7 +23,8 @@
 		popup = false,
 		isActive = false,
 		previous,
-		next
+		next,
+		goHome
 	}: {
 		txId: string;
 		onClose?: () => void;
@@ -31,6 +32,7 @@
 		isActive?: boolean;
 		previous?: () => void;
 		next?: () => void;
+		goHome?: () => void;
 	} = $props();
 
 	// Drive the popup Dialog open/close from this stage's active state. Use
@@ -38,11 +40,24 @@
 	let dialogOpen = $state(false);
 	let dialogToggle = $state<(o?: boolean) => void>(() => {});
 	let lastIsActive = false;
+	let lastDialogOpen = false;
 	$effect(() => {
 		if (!popup) return;
 		if (isActive !== lastIsActive) {
 			lastIsActive = isActive;
 			dialogToggle?.(isActive);
+			lastDialogOpen = isActive;
+		}
+	});
+	// Dialog dismissed (X / backdrop / Esc / "Done" button) — reset
+	// the steps machine to the home step so the parent NavButtons
+	// re-appear.
+	$effect(() => {
+		if (!popup) return;
+		if (dialogOpen === lastDialogOpen) return;
+		lastDialogOpen = dialogOpen;
+		if (!dialogOpen && isActive) {
+			goHome?.();
 		}
 	});
 

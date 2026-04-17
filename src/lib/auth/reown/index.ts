@@ -13,41 +13,18 @@ import { BTC_MAINNET_CAIP, BTC_TESTNET_CAIP } from '../btcCaip';
 // 1. Get a project ID at https://cloud.reown.com
 export const projectId = '55a54e098e74ddb214919fe0da4ac384';
 
-// `bitcoinTestnet` is listed FIRST so AppKit's BitcoinAdapter picks
-// it as the active CAIP network at `wallet_connect` time. Our
-// patched HelperUtil maps `bitcoinTestnet.caipNetworkId` to
-// `BitcoinNetworkType.Testnet` (testnet3), which is where real
-// Leather/Xverse users have their UTXOs. Mainnet BTC users can
-// switch via the AppKit modal. BTC vs VSC network are intentionally
-// independent: a mainnet VSC chain user may still be testing with a
-// testnet3 Leather wallet, so we don't couple them.
-export const networks = [mainnet, bitcoinTestnet, bitcoin];
+// Mainnet-first for BTC so Xverse (which defaults to Mainnet) doesn't
+// get handed a testnet network it isn't configured for when the
+// connection popup opens.
+export const networks = [mainnet, bitcoin, bitcoinTestnet];
 
 export let wagmiConfig: WagmiAdapter['wagmiConfig'] | null = null;
 export let modal: ReturnType<typeof createAppKit> | null = null;
 
 let lastAddress: string | undefined;
 
-/** AppKit persists the last active CAIP network in
- *  `@appkit/active_caip_network_id` and on reload restores it,
- *  overriding our `networks` list order. If the persisted value is
- *  the bip122 MAINNET (`000000000019d6689c085ae165831e93`), rewrite
- *  it to `bitcoinTestnet`'s CAIP so testnet wins on init. We leave
- *  EVM (`eip155:*`) values alone. */
-function normalizeStoredBtcNetwork() {
-	if (typeof localStorage === 'undefined') return;
-	try {
-		const KEY = '@appkit/active_caip_network_id';
-		const stored = localStorage.getItem(KEY);
-		if (stored && stored.startsWith('bip122:')) {
-			localStorage.setItem(KEY, bitcoinTestnet.caipNetworkId);
-		}
-	} catch {}
-}
-
 export function initModal() {
 	if (modal) return;
-	normalizeStoredBtcNetwork();
 
 	// 2. Set up Wagmi adapter
 	const wagmiAdapter = new WagmiAdapter({

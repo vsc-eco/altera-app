@@ -60,6 +60,7 @@
 	import { wagmiConfig } from '$lib/auth/reown';
 	import ReviewSwap from '$lib/sendswap/stages/ReviewSwap.svelte';
 	import PillButton from '$lib/PillButton.svelte';
+	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 
 	const auth = $derived(getAuth()());
 
@@ -651,6 +652,21 @@
 			setError('Enter a receiver');
 			return false;
 		}
+		// BTC target: receiver must be a valid Bitcoin address on the
+		// appropriate network. Reject early so we never send a swap
+		// instruction with a malformed/non-BTC recipient.
+		if ($SendTxDetails.toCoin?.coin.value === Coin.btc.value) {
+			const addr = $SendTxDetails.toUsername?.trim() ?? '';
+			const net = isVscTestnet() ? BtcNetwork.testnet : BtcNetwork.mainnet;
+			if (!validateBtcAddr(addr, net)) {
+				setError(
+					isVscTestnet()
+						? 'Enter a valid Bitcoin testnet address'
+						: 'Enter a valid Bitcoin mainnet address'
+				);
+				return false;
+			}
+		}
 		if (exceedsBalance) {
 			setError('Amount exceeds your wallet balance');
 			return false;
@@ -802,6 +818,11 @@
 		const routerRecipient = destinationChain === 'HIVE' && !swapReceiver.startsWith('hive:')
 			? `hive:${swapReceiver.replace(/^@/, '')}`
 			: swapReceiver;
+		if (destinationChain && destinationChain !== 'MAGI' && !routerRecipient) {
+			setError('Enter a receiver address for the target chain');
+			swapLoading = false;
+			return;
+		}
 
 		swapError = false;
 		swapStatus = '';
@@ -864,7 +885,11 @@
 					asset_out: toCoinDef.value.toUpperCase(),
 					amount_in: String(amount.amount),
 					min_amount_out: $SendTxDetails.minAmountOut ?? '0',
-					recipient: routerRecipient || caller
+					// Recipient is the user-entered target-chain address
+					// (already normalised into routerRecipient above). Only
+					// falls back to the Magi caller when the swap stays on
+					// Magi (no destination_chain).
+					recipient: routerRecipient || (destinationChain ? '' : caller)
 				};
 				if (destinationChain) {
 					swapInstruction.destination_chain = destinationChain;
@@ -875,7 +900,7 @@
 						contract_id: SWAP_CONTRACT_ID,
 						action: 'execute',
 						payload: JSON.stringify(swapInstruction),
-						rc_limit: 5000,
+						rc_limit: 100000,
 						intents: [],
 						caller
 					}

@@ -82,7 +82,7 @@ export function getHiveSwapOp(
 		contract_id: SWAP_CONTRACT_ID,
 		action: 'execute',
 		payload: payloadStr,
-		rc_limit: 5000,
+		rc_limit: 100000,
 		intents: isNative
 			? [
 					{

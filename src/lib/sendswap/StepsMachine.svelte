@@ -283,6 +283,10 @@
 					popup={!!step.popup}
 					next={api.value === index ? next : undefined}
 					previous={api.value === index ? previous : undefined}
+					goHome={() => {
+						setStatus('');
+						api.setStep(0);
+					}}
 					{...extraProps}
 					{close}
 					bind:onHomePage
@@ -378,6 +382,28 @@
 		&:focus-visible {
 			outline: none;
 		}
+	}
+	/*
+	 * Popup-chain stages: when the active stage is a popup and the
+	 * previous page-level stage (e.g. SwapOptions) stays rendered
+	 * behind it via `keepPrevVisible`, zag-js sets the previous
+	 * panel's data-state to "closed". The page-variant rules above
+	 * give the content panel `margin: auto; overflow-y: auto`, which
+	 * means the panel sizes to the ACTIVE stage's height — and the
+	 * active stage is a popup (in-flow height ~0) — so the
+	 * kept-visible panel collapses into a tiny inner-scroll box.
+	 *
+	 * Override that for closed-but-still-rendered panels: let the
+	 * content drive its natural height and drop the nested overflow.
+	 */
+	[data-part='root'][data-variant='page']
+		[data-part='content'][data-state='closed']:not([hidden]) {
+		display: block;
+		height: auto;
+		min-height: auto;
+		max-height: none;
+		overflow: visible;
+		margin: 0;
 	}
 	@media screen and (max-width: 36rem) {
 		[data-part='root'][data-vauriant='dialog'].home {

@@ -327,6 +327,11 @@
 					/>
 				{/if}
 			{/key}
+			{#if !hideNetwork && selected?.network?.label && selected.network.value !== Network.unknown.value}
+				<span class="network-badge">
+					{selected.network.value === Network.magi.value ? 'Magi' : 'Mainnet'}
+				</span>
+			{/if}
 			{#if showMax}
 				<div class="max-button-wrapper">
 					<PillButton type="button" onclick={setToMax}>Max</PillButton>
@@ -457,6 +462,19 @@
 					padding: 0.5rem 0.75rem;
 					height: fit-content;
 				}
+			}
+			.network-badge {
+				margin-right: 0.25rem;
+				padding: 0.25rem 0.55rem;
+				border-radius: 12px;
+				border: 1px solid var(--dash-accent-purple);
+				color: var(--dash-accent-purple);
+				font-size: var(--text-xs);
+				font-weight: 600;
+				letter-spacing: 0.02em;
+				height: fit-content;
+				white-space: nowrap;
+				text-transform: uppercase;
 			}
 		}
 		.amount-input.borderless {

@@ -26,7 +26,8 @@
 		const username = auth.value?.provider === 'aioha' ? (getUsernameFromAuth(auth) ?? '') : '';
 		return {
 			...blankDetails(),
-			toUsername: username
+			toUsername: username,
+			slippageBps: undefined
 		};
 	}
 

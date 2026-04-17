@@ -16,6 +16,7 @@ import swapOptions, {
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
 import { getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap';
+import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 import { getEVMOpType } from '$lib/magiTransactions/eth';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import type { Operation, TransferOperation } from '@hiveio/dhive';
@@ -712,14 +713,39 @@ export async function send(
 			return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
 		}
 		const swapCoins = [Coin.hive.value, Coin.hbd.value, Coin.btc.value];
-		const isSwap =
-			fromNetwork.value === Network.magi.value &&
-			toNetwork.value === Network.magi.value &&
-			fromCoin.coin.value !== toCoin.coin.value &&
-			swapCoins.includes(fromCoin.coin.value) &&
-			swapCoins.includes(toCoin.coin.value);
+		const fromIsNativeHive =
+			fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value;
+		const fromOnMagi = fromNetwork.value === Network.magi.value;
+		const fromOnHiveL1 = fromNetwork.value === Network.hiveMainnet.value;
+		const toOnMagi = toNetwork.value === Network.magi.value;
+		const toOnHiveL1 = toNetwork.value === Network.hiveMainnet.value;
+		const toOnBtcL1 = toNetwork.value === Network.btcMainnet.value;
+		const differentCoins = fromCoin.coin.value !== toCoin.coin.value;
+		const bothSwapCoins =
+			swapCoins.includes(fromCoin.coin.value) && swapCoins.includes(toCoin.coin.value);
+
+		// Pure Magi-internal swap: both sides on Magi, different coins.
+		const isInternalSwap = fromOnMagi && toOnMagi && differentCoins && bothSwapCoins;
+		// L1→Magi swap: deposit then swap, output stays in Magi.
+		const isL1ToMagiSwap =
+			fromOnHiveL1 && toOnMagi && differentCoins && fromIsNativeHive && bothSwapCoins;
+		// Swap with external settlement: output settles on mainnet
+		// (Hive L1 or BTC L1) via the router's `destination_chain`.
+		// Source can be Magi or Hive L1 — if it's Hive L1, we also
+		// need the deposit op. Coins may match when only the network
+		// differs (e.g. HBD Magi → HBD Hive L1 isn't a swap, that's a
+		// withdrawal — so exclude that case).
+		const isSwapWithExternalSettlement =
+			(toOnHiveL1 || toOnBtcL1) &&
+			bothSwapCoins &&
+			differentCoins &&
+			(fromOnMagi || (fromOnHiveL1 && fromIsNativeHive));
+		const isSwap = isInternalSwap || isL1ToMagiSwap || isSwapWithExternalSettlement;
+		const needsDeposit = isL1ToMagiSwap || (isSwapWithExternalSettlement && fromOnHiveL1);
 
 		let sendOp: Operation;
+		// Extra op prepended for the L1→Magi case (the deposit).
+		let extraOps: Operation[] = [];
 		let opType: string | undefined;
 
 		const tx = get(SendTxDetails);
@@ -728,12 +754,42 @@ export async function send(
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
 			const fromAmountStr = tx.fromAmount && tx.fromAmount !== '0' ? tx.fromAmount : amount;
 			const minOut = tx.minAmountOut ? Number(tx.minAmountOut) : undefined;
+			const fromCa = new CoinAmount(fromAmountStr, fromCoin.coin);
+			if (needsDeposit) {
+				// Prepend the L1→Magi deposit so the router's HiveDraw
+				// has Magi-ledger funds to pull from. Deposit amount
+				// matches the swap input amount.
+				extraOps.push(
+					getHiveDepositOp(
+						auth.value.username!,
+						`hive:${auth.value.username!}`,
+						fromCa as CoinAmount<typeof Coin.hive | typeof Coin.hbd>
+					)
+				);
+			}
+			// Pick destination_chain and recipient for the router
+			// instruction. Internal swap keeps funds on Magi (no
+			// destination_chain). External settlement needs both.
+			let destinationChain: string | undefined;
+			let destinationRecipient: string | undefined;
+			if (isSwapWithExternalSettlement) {
+				destinationChain = toOnBtcL1 ? 'BTC' : 'HIVE';
+				const raw = (toUsername ?? '').trim();
+				destinationRecipient = toOnHiveL1 && !raw.startsWith('hive:')
+					? `hive:${raw.replace(/^@/, '')}`
+					: raw;
+				if (!destinationRecipient) {
+					throw new Error('Missing recipient address for mainnet settlement');
+				}
+			}
 			sendOp = getHiveSwapOp(
 				auth.value.username!,
-				new CoinAmount(fromAmountStr, fromCoin.coin),
+				fromCa,
 				fromCoin.coin as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
 				toCoin.coin as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
-				minOut
+				minOut,
+				destinationChain,
+				destinationRecipient
 			);
 			opType = 'swap';
 		} else if (
@@ -765,7 +821,7 @@ export async function send(
 			);
 		}
 
-		const res = await executeTx(auth.value.aioha, [sendOp]);
+		const res = await executeTx(auth.value.aioha, [...extraOps, sendOp]);
 		if (res.success) {
 			setStatus('Transaction submitted. You will be notified when your transaction is finished.');
 			// For swaps, the on-screen history should show the OUTPUT asset/amount (to side),

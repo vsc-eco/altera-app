@@ -212,26 +212,33 @@
 							<BtcDepositTr event={item.event} onRowClick={toggleDetails} />
 						{:else}
 							{@const tx = item.tx}
-							{@const { ops, ledger } = tx}
-							{@const isContract =
-								ops?.find((op) => op?.data.contract_id !== undefined) !== undefined}
-							{@const show =
-								isContract && ledger?.length && ledger.length > 0
-									? ledger?.map((value, index) => ({ ...value, index }))
-									: ops}
-							{#each show!.sort((a, b) => {
-								// put deposits below other ops in their transaction
-								return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
-							}) as op, i (`${tx.id}-${op?.index}`)}
+							{@const { ops } = tx}
+							<!--
+								Always iterate the full `ops` array so every
+								operation in a transaction renders as its own
+								row. Previously contract transactions collapsed
+								to a single ledger-derived row, which hid
+								companion ops like `increaseAllowance` that
+								happen alongside `execute`.
+
+								Sort order: op index descending (higher op
+								numbers on top, so op 1 renders above op 0),
+								with a deposit-last override retained inside
+								each op-index group.
+							-->
+							{#each [...(ops ?? [])].sort((a, b) => {
+								const depDiff = (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
+								if (depDiff !== 0) return depDiff;
+								return (b?.index ?? 0) - (a?.index ?? 0);
+							}) as op, i (`${tx.id}-${op?.index ?? i}`)}
 								{#if op}
-									{@const newOp = 'data' in op ? op : { data: op, index: i, type: op.type }}
-									{@const trType = getOpTrType(newOp)}
+									{@const trType = getOpTrType(op)}
 									{#if trType === 'regular'}
-										<Tr {tx} op={newOp} onRowClick={toggleDetails} />
+										<Tr {tx} {op} onRowClick={toggleDetails} />
 									{:else if trType === 'btc-vsc'}
-										<BtcMappingTr {tx} op={newOp} onRowClick={toggleDetails} />
+										<BtcMappingTr {tx} {op} onRowClick={toggleDetails} />
 									{:else if trType === 'contract'}
-										<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
+										<ContractTr {tx} {op} onRowClick={toggleDetails} />
 									{/if}
 								{/if}
 							{/each}

@@ -24,6 +24,7 @@
 		abort = () => {},
 		next,
 		previous,
+		goHome,
 		popup = false
 	}: {
 		editStage?: (complete: boolean) => void;
@@ -33,6 +34,7 @@
 		abort?: () => void;
 		next?: () => void;
 		previous?: () => void;
+		goHome?: () => void;
 		popup?: boolean;
 	} = $props();
 
@@ -49,11 +51,26 @@
 	let dialogOpen = $state(false);
 	let dialogToggle = $state<(o?: boolean) => void>(() => {});
 	let lastIsActive = false;
+	let lastDialogOpen = false;
 	$effect(() => {
 		if (!popup) return;
 		if (isActive !== lastIsActive) {
 			lastIsActive = isActive;
 			dialogToggle?.(isActive);
+			lastDialogOpen = isActive;
+		}
+	});
+	// User dismissed the dialog (X / backdrop / Esc) while the steps
+	// machine still considers this stage active. Send them back to
+	// the home step so the parent's NavButtons (Swap button) shows
+	// again. Without this the steps machine stays pinned to the
+	// popup stage and NavButtons stays hidden.
+	$effect(() => {
+		if (!popup) return;
+		if (dialogOpen === lastDialogOpen) return;
+		lastDialogOpen = dialogOpen;
+		if (!dialogOpen && isActive) {
+			goHome?.();
 		}
 	});
 

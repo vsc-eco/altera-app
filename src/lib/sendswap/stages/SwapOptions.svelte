@@ -58,6 +58,8 @@
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { browser } from '$app/environment';
+	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
+	import { isVscTestnet } from '../../../client';
 
 	let {
 		editStage,
@@ -325,8 +327,22 @@
 		});
 	});
 
-	// Destination valid check
-	let destValid = $derived(destChoice === 'wallet' || !!destAddress.trim());
+	// Destination valid check. When the target coin is BTC AND the
+	// user picked "Send to address" on a mainnet settlement, the
+	// entered address must parse as a Bitcoin address on the right
+	// network. Non-BTC targets only require a non-empty string.
+	let destValid = $derived.by(() => {
+		if (destChoice === 'wallet') return true;
+		const addr = destAddress.trim();
+		if (!addr) return false;
+		const isBtcTarget = $SendTxDetails.toCoin?.coin.value === Coin.btc.value;
+		const wantsMainnet = destNetworkChoice === 'mainnet';
+		if (isBtcTarget && wantsMainnet) {
+			const net = isVscTestnet() ? BtcNetwork.testnet : BtcNetwork.mainnet;
+			return validateBtcAddr(addr, net);
+		}
+		return true;
+	});
 
 	// Combined: enable button when swap fields valid, destination valid, not same coin, and has balance
 	$effect(() => {
@@ -603,11 +619,23 @@
 		});
 	});
 
-	// Max = Magi balance for the selected from coin (swap only allows Magi balance)
+	// Max balance for the selected from coin. Depends on the source
+	// network: Magi reads from `$accountBalance.bal`, Hive Mainnet
+	// reads from `$accountBalance.connectedBal` (the L1 account
+	// snapshot populated by aioha).
 	const maxAmount: CoinAmount<Coin> | undefined = $derived.by(() => {
 		const from = $SendTxDetails.fromCoin;
+		const fromNet = $SendTxDetails.fromNetwork;
 		if (!from) return undefined;
-		const key = from.coin.value as keyof AccountBalance;
+		const coinValue = from.coin.value;
+		if (fromNet?.value === Network.hiveMainnet.value) {
+			const connected = $accountBalance.connectedBal;
+			if (!connected) return undefined;
+			const bal = connected[coinValue as keyof typeof connected];
+			if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
+			return new CoinAmount(bal, from.coin, true);
+		}
+		const key = coinValue as keyof AccountBalance;
 		const bal = $accountBalance.bal?.[key];
 		if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
 		return new CoinAmount(bal, from.coin, true);
@@ -966,22 +994,26 @@
 				>
 					<div class="dest-card-icon"><Wallet size={18} /></div>
 					<div class="dest-card-info">
-						<span class="dest-card-name"
-							>Keep in my {coinDisplayLabel(toCoin)} wallet (via Magi)</span
-						>
+						<span class="dest-card-name">Keep on Magi Network</span>
 						<span class="dest-card-desc sm-caption"
-							>Swap to yourself &middot; Asset stays in your connected wallet</span
+							>Swap to yourself &middot; Asset stays on Magi.</span
 						>
 					</div>
 					<div class="dest-radio" class:checked={destChoice === 'wallet'}></div>
 				</button>
 
 				{#if destChoice === 'wallet'}
+					{@const connectedWalletLabel =
+						auth.value?.provider === 'aioha'
+							? 'HIVE'
+							: auth.value?.did?.startsWith('did:pkh:bip122:')
+								? 'BTC'
+								: 'EVM'}
 					<div class="wallet-settle-info">
 						<span class="settle-dot"></span>
 						<span class="settle-text"
-							>{coinDisplayLabel(toCoin)} will settle natively in your {coinDisplayLabel(toCoin)} wallet
-							via Magi</span
+							>{coinDisplayLabel(toCoin)} will settle natively in your {connectedWalletLabel}
+							wallet on Magi.</span
 						>
 					</div>
 				{/if}
@@ -1006,29 +1038,30 @@
 
 			<!-- Address Section -->
 			<div class="dest-address-section" class:hidden={destChoice !== 'address'}>
-				<textarea
-					bind:value={destAddress}
-					placeholder="Paste Hive, BTC, EVM or DASH address..."
-					rows="2"
-					disabled={destChoice !== 'address'}
-				></textarea>
 				<div class="dest-network-row">
-					<span class="dest-network-label">Network</span>
+					<span class="dest-network-label">Target Network</span>
 					<div class="dest-network-toggle">
-						<button
-							class:active={destNetworkChoice === 'magi'}
-							onclick={() => {
-								destNetworkChoice = 'magi';
-							}}>Magi Network</button
-						>
 						<button
 							class:active={destNetworkChoice === 'mainnet'}
 							onclick={() => {
 								destNetworkChoice = 'mainnet';
 							}}>{chainLabel}</button
 						>
+						<button
+							class:active={destNetworkChoice === 'magi'}
+							onclick={() => {
+								destNetworkChoice = 'magi';
+							}}>Magi Network</button
+						>
 					</div>
 				</div>
+				<textarea
+					bind:value={destAddress}
+					placeholder="Paste Hive, BTC, EVM or DASH address... *"
+					rows="2"
+					class:empty-required={destChoice === 'address' && !destAddress?.trim()}
+					disabled={destChoice !== 'address'}
+				></textarea>
 				<p class="dest-hint sm-caption">
 					{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi' ? 'Magi' : chainLabel} &mdash;
 					accepts Hive, BTC, EVM or DASH addresses
@@ -1775,8 +1808,12 @@
 			font: inherit;
 			font-size: var(--text-sm);
 			resize: none;
+			transition: border-color 0.15s ease;
 			&::placeholder {
 				color: var(--dash-text-muted);
+			}
+			&.empty-required {
+				border-color: rgba(226, 89, 91, 0.5);
 			}
 		}
 	}

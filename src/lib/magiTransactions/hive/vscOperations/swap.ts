@@ -3,6 +3,44 @@ import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId, DEX_ROUTER_CONTRACT_ID } from '../../../../client';
 import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
+
+export const ALTERA_FEE_BENEFICIARY = 'hive:altera.app';
+export const ALTERA_FEE_BPS = 25;
+export const ALTERA_FEE_USD_THRESHOLD = 0;
+
+/**
+ * Altera charges a UI usage fee on swaps that leave the Hive/Magi ecosystem
+ * to a non-HIVE, non-HBD mainnet target when the input value is at least
+ * $100 USD. Prices come from the same v4v feed the UI already uses.
+ */
+export async function qualifiesForAlteraFee(
+	amountIn: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+	assetOut: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+	destinationChain?: string
+): Promise<boolean> {
+	if (!destinationChain || destinationChain === 'MAGI') return false;
+	if (assetOut.value === Coin.hive.value || assetOut.value === Coin.hbd.value) return false;
+
+	const prices = await getCryptoPrices();
+	let usdPerUnit: number;
+	switch (amountIn.coin.value) {
+		case Coin.hive.value:
+			usdPerUnit = prices.hive.usd;
+			break;
+		case Coin.hbd.value:
+			usdPerUnit = prices.hive_dollar.usd;
+			break;
+		case Coin.btc.value:
+			usdPerUnit = prices.bitcoin.usd;
+			break;
+		default:
+			return false;
+	}
+	if (!Number.isFinite(usdPerUnit) || usdPerUnit <= 0) return false;
+	const usdValue = amountIn.toNumber() * usdPerUnit;
+	return usdValue >= ALTERA_FEE_USD_THRESHOLD;
+}
 
 /**
  * DEX Router — handles all swap types (HIVE/HBD, BTC/HBD, BTC/HIVE multi-hop).
@@ -50,7 +88,7 @@ export function getBtcApproveOp(
 	];
 }
 
-export function getHiveSwapOp(
+export async function getHiveSwapOp(
 	username: string,
 	amount: CoinAmount<SwapCoin>,
 	assetIn: SwapCoin,
@@ -58,21 +96,34 @@ export function getHiveSwapOp(
 	minAmountOut?: number,
 	destinationChain?: string,
 	destinationRecipient?: string
-): CustomJsonOperation {
+): Promise<CustomJsonOperation> {
 	const caller = `hive:${username}`;
 	const isNative = assetIn.value === Coin.hive.value || assetIn.value === Coin.hbd.value;
 
-	const payload: Record<string, string> = {
+	const feeQualifies = await qualifiesForAlteraFee(amount, assetOut, destinationChain);
+	// Contract validates min_amount_out AFTER the referral/altera deduction.
+	// Scale the caller's pre-fee min down by the same bps so slippage
+	// tolerance is measured against what the user actually receives.
+	const finalMinAmountOut =
+		feeQualifies && minAmountOut !== undefined
+			? Math.floor((minAmountOut * (10000 - ALTERA_FEE_BPS)) / 10000)
+			: minAmountOut;
+
+	const payload: Record<string, string | number> = {
 		type: 'swap',
 		version: '1.0.0',
 		asset_in: assetIn.value.toUpperCase(),
 		asset_out: assetOut.value.toUpperCase(),
 		amount_in: String(amount.amount),
-		min_amount_out: minAmountOut ? String(minAmountOut) : '0',
+		min_amount_out: finalMinAmountOut ? String(finalMinAmountOut) : '0',
 		recipient: destinationRecipient ?? caller
 	};
 	if (destinationChain) {
 		payload.destination_chain = destinationChain;
+	}
+	if (feeQualifies) {
+		payload.beneficiary = ALTERA_FEE_BENEFICIARY;
+		payload.ref_bps = ALTERA_FEE_BPS;
 	}
 	const payloadStr = JSON.stringify(payload);
 

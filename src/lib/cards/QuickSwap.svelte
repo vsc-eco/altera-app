@@ -46,7 +46,10 @@
 	import {
 		getHiveSwapOp,
 		getBtcApproveOp,
-		SWAP_CONTRACT_ID
+		SWAP_CONTRACT_ID,
+		qualifiesForAlteraFee,
+		ALTERA_FEE_BENEFICIARY,
+		ALTERA_FEE_BPS
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 	import { executeTx } from '$lib/magiTransactions/hive';
@@ -848,7 +851,7 @@
 					? Number($SendTxDetails.minAmountOut)
 					: undefined;
 				ops.push(
-					getHiveSwapOp(
+					await getHiveSwapOp(
 						username,
 						amount,
 						fromCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
@@ -866,13 +869,25 @@
 			} else {
 				// EVM reown wallet path (no BTC reown since BTC is
 				// handled above).
-				const swapInstruction: Record<string, string> = {
+				const feeQualifies = await qualifiesForAlteraFee(
+					amount as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+					toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+					destinationChain || undefined
+				);
+				const storeMin = $SendTxDetails.minAmountOut;
+				// Contract validates min_amount_out AFTER altera deduction,
+				// so scale the store's pre-fee min down by the same bps.
+				const finalMin =
+					feeQualifies && storeMin
+						? String(Math.floor((Number(storeMin) * (10000 - ALTERA_FEE_BPS)) / 10000))
+						: (storeMin ?? '0');
+				const swapInstruction: Record<string, string | number> = {
 					type: 'swap',
 					version: '1.0.0',
 					asset_in: fromCoinDef.value.toUpperCase(),
 					asset_out: toCoinDef.value.toUpperCase(),
 					amount_in: String(amount.amount),
-					min_amount_out: $SendTxDetails.minAmountOut ?? '0',
+					min_amount_out: finalMin,
 					// Recipient is the user-entered target-chain address
 					// (already normalised into routerRecipient above). Only
 					// falls back to the Magi caller when the swap stays on
@@ -881,6 +896,10 @@
 				};
 				if (destinationChain) {
 					swapInstruction.destination_chain = destinationChain;
+				}
+				if (feeQualifies) {
+					swapInstruction.beneficiary = ALTERA_FEE_BENEFICIARY;
+					swapInstruction.ref_bps = ALTERA_FEE_BPS;
 				}
 				const swapPayload: CallContractTransaction = {
 					op: 'call',

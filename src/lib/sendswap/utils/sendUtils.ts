@@ -780,7 +780,7 @@ export async function send(
 					throw new Error('Missing recipient address for mainnet settlement');
 				}
 			}
-			sendOp = getHiveSwapOp(
+			sendOp = await getHiveSwapOp(
 				auth.value.username!,
 				fromCa,
 				fromCoin.coin as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,

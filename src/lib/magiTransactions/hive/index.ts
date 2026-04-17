@@ -125,14 +125,18 @@ export const addLiquidityTx = async (
 
 	// The router pre-funds mapped BTC via the mapping contract's
 	// transferFrom — that requires the user to have an active approval
-	// to the router on the BTC mapping contract. Prepend the approve op
-	// when BTC is part of the pair (no-op if already approved at the
-	// chain level, but cheap to send).
-	const involvesBtc =
-		amount0.coin.value === Coin.btc.value || amount1.coin.value === Coin.btc.value;
+	// to the router on the BTC mapping contract. Prepend an
+	// increaseAllowance op sized to exactly the BTC leg so the allowance
+	// matches the liquidity being added.
+	const btcAmount =
+		amount0.coin.value === Coin.btc.value
+			? (amount0 as CoinAmount<typeof Coin.btc>)
+			: amount1.coin.value === Coin.btc.value
+				? (amount1 as CoinAmount<typeof Coin.btc>)
+				: null;
 
 	const ops = [];
-	if (involvesBtc) ops.push(getBtcApproveOp(username));
+	if (btcAmount) ops.push(getBtcApproveOp(username, btcAmount));
 	ops.push(getAddLiquidityOp(username, amount0, amount1));
 
 	const res = await executeTx(aioha, ops);

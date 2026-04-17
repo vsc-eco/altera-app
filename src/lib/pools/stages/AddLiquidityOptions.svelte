@@ -85,24 +85,52 @@
 
 	const exceed0 = $derived(maxAmount0 ? amount0Ca.amount > maxAmount0.amount : false);
 	const exceed1 = $derived(maxAmount1 ? amount1Ca.amount > maxAmount1.amount : false);
+	const hasError = $derived(exceed0 || exceed1);
 
-	// --- Non BTC/HBD pools: sync via conversion ---
-	const USD_TOLERANCE = 0.005;
-	let usdDiff = $state(0);
-	$effect(() => {
-		if (!selectedPool || isBtcHbdPool) {
-			usdDiff = 0;
-			return;
+	// --- Reserve-based mirroring ---
+	// Pool reserves come from PoolRow as raw smallest-units values
+	// (reserve{0,1}Raw already pre-scaled by 10^decimals{0,1}). Map the
+	// input coin to its reserve, compute the display-units ratio, and
+	// use CoinAmount.mulTo to get the mirror value in the output coin.
+	function reserveForCoin(
+		pool: PoolRow,
+		c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+	): { raw: number; decimals: number } {
+		const c0 = detectCoin(pool.pairSymbols[0]);
+		if (c.value === c0.value) {
+			return { raw: pool.reserve0Raw, decimals: pool.decimals0 };
 		}
-		Promise.all([
-			amount0Ca.convertTo(Coin.usd, Network.lightning),
-			amount1Ca.convertTo(Coin.usd, Network.lightning)
-		]).then(([usd0, usd1]) => {
-			usdDiff = Math.abs(usd0.toNumber() - usd1.toNumber());
-		});
-	});
-	const notInParity = $derived(!isBtcHbdPool && usdDiff > USD_TOLERANCE);
-	const hasError = $derived(exceed0 || exceed1 || notInParity);
+		return { raw: pool.reserve1Raw, decimals: pool.decimals1 };
+	}
+	function usdPriceForCoin(
+		pool: PoolRow,
+		c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+	): number {
+		const c0 = detectCoin(pool.pairSymbols[0]);
+		return c.value === c0.value ? pool.usdPrice0 : pool.usdPrice1;
+	}
+	function computeMirror<Out extends typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>(
+		pool: PoolRow,
+		input: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+		outCoin: Out
+	): CoinAmount<Out> {
+		if (input.amount === 0) return new CoinAmount(0, outCoin);
+		const rIn = reserveForCoin(pool, input.coin);
+		const rOut = reserveForCoin(pool, outCoin);
+		// Brand-new pool with no liquidity on either side: fall back to
+		// USD prices so the first LP can still seed the ratio. A pool with
+		// only one empty side is degenerate and left to fail (returns 0).
+		if (rIn.raw === 0 && rOut.raw === 0) {
+			const usdIn = usdPriceForCoin(pool, input.coin);
+			const usdOut = usdPriceForCoin(pool, outCoin);
+			if (usdIn === 0 || usdOut === 0) return new CoinAmount(0, outCoin);
+			return input.mulTo(usdIn / usdOut, outCoin);
+		}
+		const rInDisplay = rIn.raw / 10 ** rIn.decimals;
+		const rOutDisplay = rOut.raw / 10 ** rOut.decimals;
+		if (rInDisplay === 0) return new CoinAmount(0, outCoin);
+		return input.mulTo(rOutDisplay / rInDisplay, outCoin);
+	}
 
 	let isSyncing = $state(false);
 	let lastKey0 = $state('');
@@ -110,31 +138,19 @@
 	function keyOf(ca: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>): string {
 		return `${ca.coin.value}:${ca.amount}`;
 	}
-	async function syncFromSource(source: '0' | '1') {
-		if (!selectedPool || isBtcHbdPool) return;
+	function syncFromSource(source: '0' | '1') {
+		if (!selectedPool) return;
 		if (isSyncing) return;
 		isSyncing = true;
 		try {
 			if (source === '0') {
-				const next =
-					amount0Ca.amount === 0
-						? new CoinAmount(0, coin1)
-						: ((await amount0Ca.convertTo(coin1, Network.lightning)) as CoinAmount<
-								typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
-							>);
-				amount1Ca = next;
+				amount1Ca = computeMirror(selectedPool, amount0Ca, amount1Ca.coin);
 			} else {
-				const next =
-					amount1Ca.amount === 0
-						? new CoinAmount(0, coin0)
-						: ((await amount1Ca.convertTo(coin0, Network.lightning)) as CoinAmount<
-								typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
-							>);
-				amount0Ca = next;
+				amount0Ca = computeMirror(selectedPool, amount1Ca, amount0Ca.coin);
 			}
 			// Pre-seed the keys to the post-sync values so the effect that
 			// fires next doesn't see the synced side as "user-edited" and
-			// bounce the conversion back, losing precision.
+			// bounce the mirror back, losing precision.
 			lastKey0 = keyOf(amount0Ca);
 			lastKey1 = keyOf(amount1Ca);
 		} finally {
@@ -142,12 +158,14 @@
 		}
 	}
 	$effect(() => {
-		if (!selectedPool || isSyncing || isBtcHbdPool) return;
+		if (!selectedPool || isSyncing) return;
 		const key0 = keyOf(amount0Ca);
 		const key1 = keyOf(amount1Ca);
 		const changed0 = key0 !== lastKey0;
 		const changed1 = key1 !== lastKey1;
-		if (changed0 && !changed1) {
+		// BTC/HBD pools lock the BTC side as read-only, so only changes on
+		// the HBD side (slot 0) should drive the mirror.
+		if (changed0 && (!changed1 || isBtcHbdPool)) {
 			lastKey0 = key0;
 			lastKey1 = key1;
 			syncFromSource('0');
@@ -169,7 +187,7 @@
 			coin0,
 			coin1,
 			hasError,
-			notInParity,
+			notInParity: false,
 			exceed0,
 			exceed1
 		});
@@ -226,7 +244,6 @@
 					<AmountInput
 						bind:coinAmount={amount1Ca}
 						coinOpts={[{ coin: Coin.btc, network: Network.magi }]}
-						connectedCoinAmount={amount0Ca}
 						maxAmount={maxAmount1}
 						styleType="normal"
 						disabled
@@ -264,9 +281,6 @@
 				<p>1 {selectedPool.pairSymbols[0]} = {selectedPool.priceRatio}</p>
 				<p>1 {selectedPool.pairSymbols[1]} = {selectedPool.priceInverse}</p>
 			</div>
-			{#if notInParity}
-				<p class="error-text">Token A and Token B must have equal USD value to add liquidity.</p>
-			{/if}
 		</div>
 	{/if}
 </div>

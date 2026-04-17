@@ -14,19 +14,27 @@ export const SWAP_CONTRACT_ID = DEX_ROUTER_CONTRACT_ID;
 type SwapCoin = typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc;
 
 /**
- * Approves the DEX router to spend BTC from the mapping contract.
- * Must be sent before any BTC swap — router needs allowance to pull BTC.
+ * Grants the DEX router allowance to spend exactly `amount` BTC (in SATS)
+ * on the mapping contract. Uses `increaseAllowance` so the allowance is
+ * additive per operation and matches the liquidity/swap amount being
+ * consumed, rather than approving an arbitrarily large number.
+ *
+ * `CoinAmount.amount` for BTC is already in SATS (decimalPlaces = 8), so
+ * it's passed through as the base-unit value the contract expects.
  */
-export function getBtcApproveOp(username: string): CustomJsonOperation {
+export function getBtcApproveOp(
+	username: string,
+	amount: CoinAmount<typeof Coin.btc>
+): CustomJsonOperation {
 	const caller = `hive:${username}`;
 	const op = {
 		net_id: vscNetworkId,
 		caller,
 		contract_id: BTC_MAPPING_CONTRACT_ID,
-		action: 'approve',
+		action: 'increaseAllowance',
 		payload: JSON.stringify({
 			spender: `contract:${SWAP_CONTRACT_ID}`,
-			amount: '999999999'
+			amount: String(amount.amount)
 		}),
 		rc_limit: 1000,
 		intents: [] as Array<{ type: string; args: Record<string, string> }>

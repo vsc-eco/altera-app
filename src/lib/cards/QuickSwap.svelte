@@ -821,7 +821,7 @@
 					fromCoinDef.value === Coin.hbd.value;
 
 				if (fromCoinDef.value === Coin.btc.value) {
-					ops.push(getBtcApproveOp(username));
+					ops.push(getBtcApproveOp(username, amount as CoinAmount<typeof Coin.btc>));
 				} else if (isNativeIn) {
 					// Deposit HIVE/HBD from L1 into Magi first.
 					// HiveDraw in the router pulls from the caller's

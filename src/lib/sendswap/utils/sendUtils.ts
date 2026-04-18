@@ -15,7 +15,7 @@ import swapOptions, {
 } from './sendOptions';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
-import { getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap';
+import { getHiveSwapOp, getBtcApproveOp } from '$lib/magiTransactions/hive/vscOperations/swap';
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 import { getEVMOpType } from '$lib/magiTransactions/eth';
 import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -754,7 +754,11 @@ export async function send(
 			const fromAmountStr = tx.fromAmount && tx.fromAmount !== '0' ? tx.fromAmount : amount;
 			const minOut = tx.minAmountOut ? Number(tx.minAmountOut) : undefined;
 			const fromCa = new CoinAmount(fromAmountStr, fromCoin.coin);
-			if (needsDeposit) {
+			if (fromCoin.coin.value === Coin.btc.value) {
+				extraOps.push(
+					getBtcApproveOp(auth.value.username!, fromCa as CoinAmount<typeof Coin.btc>)
+				);
+			} else if (needsDeposit) {
 				// Prepend the L1→Magi deposit so the router's HiveDraw
 				// has Magi-ledger funds to pull from. Deposit amount
 				// matches the swap input amount.

@@ -1,0 +1,9 @@
+query FindContractOutput($filterOptions: ContractOutputFilter) {
+	findContractOutput(filterOptions: $filterOptions) {
+		results {
+			ok
+			ret
+		}
+		contract_id
+	}
+}

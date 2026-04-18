@@ -5,25 +5,32 @@
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
 	import { scanForBalance, SendTxDetails } from '../../utils/sendUtils';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
+	import BitcoinMainnetWithdraw from './BitcoinMainnetWithdraw.svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
 
 	let {
 		editStage,
+		isActive = true,
 		onHomePage = $bindable(),
 		customButtons = $bindable()
 	}: {
 		editStage: (complete: boolean) => void;
+		isActive?: boolean;
 		onHomePage: boolean;
 		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
 	} = $props();
 
 	let hiveMainnetOpen = $state(false);
+	let btcMainnetOpen = $state(false);
 	let secondaryMenu = $state(false);
 
 	let toggleHiveMainnet: (open?: boolean) => void = (open = false) => {
 		hiveMainnetOpen = open;
+	};
+	let toggleBtcMainnet: (open?: boolean) => void = (open = false) => {
+		btcMainnetOpen = open;
 	};
 
 	$effect(() => {
@@ -41,15 +48,25 @@
 							coinOpt.coin.value === Coin.hbd.value &&
 							coinOpt.networks.some((n) => n.value === Network.magi.value)
 					);
+				const hbdCoin = swapOptions.from.coins.find(
+					(coinOpt) =>
+						coinOpt.coin.value === Coin.hbd.value &&
+						coinOpt.networks.some((n) => n.value === Network.magi.value)
+				);
 
-				let fromCoinToUse =
-					hiveCoin &&
-					scanForBalance([{ coin: hiveCoin?.coin, network: Network.magi }]) !== undefined
-						? hiveCoin
-						: undefined;
+				const hiveHasBalance = !!(
+					hiveCoin && scanForBalance([{ coin: hiveCoin.coin, network: Network.magi }]) !== undefined
+				);
+				const hbdHasBalance = !!(
+					hbdCoin && scanForBalance([{ coin: hbdCoin.coin, network: Network.magi }]) !== undefined
+				);
+
+				let fromCoinToUse = hiveHasBalance ? hiveCoin : hbdHasBalance ? hbdCoin : hiveCoin;
 				if (
 					current.fromCoin &&
-					current.fromCoin.networks?.some((n) => n.value === Network.magi.value)
+					current.fromCoin.networks?.some((n) => n.value === Network.magi.value) &&
+					(current.fromCoin.coin.value === Coin.hive.value ||
+						current.fromCoin.coin.value === Coin.hbd.value)
 				) {
 					fromCoinToUse = current.fromCoin;
 				}
@@ -67,7 +84,28 @@
 	});
 
 	$effect(() => {
-		onHomePage = hiveMainnetOpen;
+		if (!btcMainnetOpen) return;
+		untrack(() => {
+			SendTxDetails.update((current) => {
+				const btcCoin = swapOptions.from.coins.find(
+					(coinOpt) =>
+						coinOpt.coin.value === Coin.btc.value &&
+						coinOpt.networks.some((n) => n.value === Network.magi.value)
+				);
+				return {
+					...current,
+					method: TransferMethod.magiTransfer,
+					fromNetwork: Network.magi,
+					fromCoin: btcCoin,
+					toNetwork: Network.btcMainnet,
+					toCoin: btcCoin
+				};
+			});
+		});
+	});
+
+	$effect(() => {
+		onHomePage = hiveMainnetOpen || btcMainnetOpen;
 	});
 </script>
 
@@ -80,23 +118,19 @@
 			<h2>Hive Mainnet Withdraw</h2>
 		{/if}
 		<div class={{ 'withdraw-content': !secondaryMenu }}>
-			<HiveMainnetWithdraw {editStage} open={hiveMainnetOpen} bind:secondaryMenu />
+			<HiveMainnetWithdraw {editStage} open={hiveMainnetOpen && isActive} bind:secondaryMenu />
+		</div>
+	{:else if btcMainnetOpen}
+		<PillButton onclick={() => toggleBtcMainnet()} styleType="icon-subtle">
+			<ArrowLeft size={32} />
+		</PillButton>
+		<h2>Bitcoin Mainnet Withdraw</h2>
+		<div class="withdraw-content">
+			<BitcoinMainnetWithdraw {editStage} open={btcMainnetOpen && isActive} />
 		</div>
 	{:else}
 		<h2>Withdraw</h2>
 		<div class="types-wrapper">
-			<div class="lightning-transfer">
-				<ClickableCard disabled={true} onclick={() => {}}>
-					<div class="type-header">
-						<ImageIconRenderer icon={'/btc/lightning.svg'} alt={'lightning'} size={40} />
-						<span>Lightning Transfer</span>
-						<span class="error">Coming soon</span>
-						<div class="chevron">
-							<ChevronRight />
-						</div>
-					</div>
-				</ClickableCard>
-			</div>
 			<div class="hive-mainnet">
 				<ClickableCard onclick={() => toggleHiveMainnet(true)}>
 					<div class="type-header">
@@ -106,6 +140,21 @@
 							size={40}
 						/>
 						<span>Hive Mainnet</span>
+						<div class="chevron">
+							<ChevronRight />
+						</div>
+					</div>
+				</ClickableCard>
+			</div>
+			<div class="btc-mainnet">
+				<ClickableCard onclick={() => toggleBtcMainnet(true)}>
+					<div class="type-header">
+						<ImageIconRenderer
+							icon={Network.btcMainnet.icon}
+							alt={Network.btcMainnet.label}
+							size={40}
+						/>
+						<span>Bitcoin Mainnet</span>
 						<div class="chevron">
 							<ChevronRight />
 						</div>
@@ -124,11 +173,11 @@
 					</div>
 				</ClickableCard>
 			</div>
-			<div class="btc-mainnet">
+			<div class="lightning-transfer">
 				<ClickableCard disabled={true} onclick={() => {}}>
 					<div class="type-header">
-						<ImageIconRenderer icon={'/btc/btc.svg'} alt={'Bitcoin'} size={40} />
-						<span>Bitcoin Mainnet</span>
+						<ImageIconRenderer icon={'/btc/lightning.svg'} alt={'lightning'} size={40} />
+						<span>Lightning Transfer</span>
 						<span class="error">Coming soon</span>
 						<div class="chevron">
 							<ChevronRight />

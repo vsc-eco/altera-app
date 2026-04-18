@@ -1,15 +1,12 @@
 <script lang="ts">
-	import { modal } from '$lib/auth/reown';
+	import { openModal } from '$lib/auth/reown';
 	import PillButton from '../PillButton.svelte';
 	import { _reownAuthStore, loginRetry } from './store';
-</script>
 
-<PillButton
-	styleType="outline"
-	onclick={(e) => {
-		_reownAuthStore.set({
-			status: 'pending'
-		});
+	let { namespace }: { namespace?: 'eip155' | 'bip122' } = $props();
+
+	function connect(e: MouseEvent) {
+		_reownAuthStore.set({ status: 'pending' });
 		let target = e.target as HTMLButtonElement;
 		target.disabled = true;
 		let unsub = _reownAuthStore.subscribe((v) => {
@@ -18,7 +15,9 @@
 				unsub();
 			}
 		});
-		modal.open();
+		openModal(namespace);
 		loginRetry.set('idle');
-	}}>EVM Wallet</PillButton
->
+	}
+</script>
+
+<PillButton styleType="outline" onclick={connect}>Connect Wallet</PillButton>

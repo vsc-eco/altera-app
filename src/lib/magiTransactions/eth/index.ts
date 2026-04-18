@@ -6,8 +6,9 @@ import type {
 } from '../eth/client';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-import { MAPPINGCONTRACTID } from '$lib/stores/currentBalance';
 import type { TransferInput, UnmapInput } from '../bitcoin/bitcoinContractCalls';
+import { getHiveAssetName, getHbdAssetName } from '../../../client';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 
 export function getEVMOpType(
 	fromNetwork: Network,
@@ -19,17 +20,17 @@ export function getEVMOpType(
 	if (amount.coin.value === Coin.btc.value) {
 		if (toNetwork.value === Network.magi.value) {
 			const payload: TransferInput = {
-				amount: amount.amount,
-				recipient_vsc_address: toDid
+				amount: amount.amount.toString(),
+				to: toDid
 			};
 
 			const tx: CallContractTransaction = {
 				op: 'call',
 				payload: {
-					contract_id: MAPPINGCONTRACTID,
+					contract_id: BTC_MAPPING_CONTRACT_ID,
 					action: 'transfer',
 					payload: JSON.stringify(payload),
-					rc_limit: 10000,
+					rc_limit: 100000,
 					intents: [],
 					caller: fromDid
 				}
@@ -37,18 +38,19 @@ export function getEVMOpType(
 
 			return tx;
 		} else if (toNetwork.value === Network.btcMainnet.value) {
+			const btcAddress = toDid.startsWith('did:') ? toDid.split(':').at(-1)! : toDid;
 			const payload: UnmapInput = {
-				amount: amount.amount,
-				recipient_btc_address: toDid
+				amount: amount.amount.toString(),
+				to: btcAddress
 			};
 
 			const tx: CallContractTransaction = {
 				op: 'call',
 				payload: {
-					contract_id: MAPPINGCONTRACTID,
+					contract_id: BTC_MAPPING_CONTRACT_ID,
 					action: 'unmap',
 					payload: JSON.stringify(payload),
-					rc_limit: 10000,
+					rc_limit: 100000,
 					intents: [],
 					caller: fromDid
 				}
@@ -57,11 +59,18 @@ export function getEVMOpType(
 			return tx;
 		}
 	}
+	// Use asset from localStorage (e.g. TESTS/TBD for testnet), fallback to HIVE/HBD
+	const assetName =
+		amount.coin.value === Coin.hbd.value
+			? getHbdAssetName()
+			: amount.coin.value === Coin.hive.value
+				? getHiveAssetName()
+				: amount.coin.unit;
 	let payload = {
 		from: fromDid,
 		to: toDid,
 		amount: amount.toPrettyAmountString(),
-		asset: amount.coin.unit.toLowerCase()
+		asset: assetName.toLowerCase()
 	};
 	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.magi.value) {
 		return {

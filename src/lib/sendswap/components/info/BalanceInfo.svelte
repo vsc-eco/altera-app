@@ -3,6 +3,7 @@
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { accountBalance } from '$lib/stores/currentBalance';
+	import { getHiveAssetName, getHbdAssetName } from '../../../../client';
 
 	type Props = {
 		coin: Coin;
@@ -11,6 +12,14 @@
 		styleType?: 'horizontal' | 'vertical' | 'quiet';
 	};
 	let { coin, network, size = 'small', styleType = 'horizontal' }: Props = $props();
+
+	const displayLabel = $derived(
+		coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: coin.label
+	);
 
 	const balance = $derived.by(() => {
 		if (network.value === Network.magi.value) {
@@ -24,7 +33,8 @@
 		} else {
 			if ($accountBalance.connectedBal && coin.value in $accountBalance.connectedBal) {
 				return new CoinAmount(
-					$accountBalance.connectedBal[coin.value as keyof typeof $accountBalance.connectedBal],
+					$accountBalance.connectedBal[coin.value as keyof typeof $accountBalance.connectedBal] ??
+						0,
 					coin,
 					true
 				).toPrettyString();
@@ -38,12 +48,12 @@
 		{#if size !== 'small'}
 			<CoinNetworkIcon {coin} {network} size={size === 'medium' ? 24 : 40} />
 		{:else}
-			<img src={coin.icon} alt={coin.label} width={24} />
+			<img src={coin.icon} alt={displayLabel} width={24} />
 		{/if}
 	</span>
 	{#if styleType !== 'vertical'}
 		<span class="coin-label">
-			{coin.label}
+			{displayLabel}
 			<span class="sm-caption">on {network.label}</span>
 		</span>
 		{#if styleType === 'horizontal'}
@@ -51,7 +61,7 @@
 		{/if}
 	{:else}
 		<span class="coin-label">
-			{coin.label}
+			{displayLabel}
 		</span>
 		<span class="balance sm-caption">{balance} on {network.label}</span>
 	{/if}

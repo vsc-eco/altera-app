@@ -100,17 +100,15 @@
 </div>
 
 <style lang="scss">
-	// [data-scope="progress"][data-part="root"] {
-
-	// }
 	[data-scope='progress'][data-part='label'] {
 		display: flex;
 		flex-direction: row;
 		width: 100%;
 		align-items: baseline;
 		.coin-amt {
-			font-family: 'Noto Sans Mono Variable', monospace;
+			font-family: 'Nunito Sans', sans-serif;
 			font-weight: 400;
+			color: var(--dash-text-primary);
 		}
 		.coin-amt.current {
 			font-size: var(--text-2xl);
@@ -119,11 +117,12 @@
 			width: 100%;
 			text-align: right;
 			height: fit-content;
+			color: var(--dash-text-secondary);
 		}
 	}
 	[data-scope='progress'][data-part='track'] {
 		height: 0.5rem;
-		background-color: var(--neutral-bg-accent-shifted);
+		background-color: rgba(255, 255, 255, 0.08);
 		border-radius: 0.5rem;
 		overflow: hidden;
 		position: relative;
@@ -133,7 +132,7 @@
 
 	[data-scope='progress'][data-part='range'] {
 		height: 100%;
-		background-color: var(--fg-mid);
+		background-color: #6F6AF8;
 		border-radius: 0.5rem;
 		transition: width 0.3s ease;
 		position: absolute;
@@ -144,8 +143,9 @@
 	[data-scope='progress'][data-part='value-text'] {
 		display: flex;
 		flex-direction: row;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
+		font-family: 'Nunito Sans', sans-serif;
 		.percentage {
 			width: 100%;
 			text-align: right;
@@ -180,7 +180,7 @@
 		);
 		background-size: 300% 100%;
 		animation: loading-sweep 5s linear infinite;
-		width: 100% !important; /* Override zag-js width for loading state */
+		width: 100% !important;
 	}
 
 	@keyframes loading-sweep {

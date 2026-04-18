@@ -9,6 +9,15 @@
 	import BalanceInfo from '../info/BalanceInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { ChevronDown, ChevronUp } from '@lucide/svelte';
+	import { getHiveAssetName, getHbdAssetName } from '../../../../client';
+
+	function assetDisplayLabel(coin: Coin): string {
+		return coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: coin.label;
+	}
 
 	let {
 		availableCoins,
@@ -17,7 +26,9 @@
 		max = $bindable(),
 		close,
 		externalNetwork,
-		isTo = false
+		isTo = false,
+		onSelect,
+		dialogTitle = 'Select an Asset'
 	}: {
 		availableCoins: Coin[];
 		coin: CoinOptions['coins'][number] | undefined;
@@ -26,6 +37,8 @@
 		close: () => void;
 		externalNetwork?: Network;
 		isTo?: boolean;
+		onSelect?: (coin: CoinOptions['coins'][number], network: Network) => void;
+		dialogTitle?: string;
 	} = $props();
 
 	const auth = $derived(getAuth()());
@@ -44,7 +57,6 @@
 		onMagi
 			.map((coin) => {
 				// REMOVE FOR BITCOIN PROD
-				if (coin.value === Coin.btc.value) return;
 				const coinAmt = new CoinAmount(
 					$accountBalance.bal[coin.value as keyof AccountBalance],
 					coin,
@@ -54,6 +66,8 @@
 				if (!disabled || showEmptyAccounts) {
 					return {
 						...coin,
+						label: assetDisplayLabel(coin),
+						unit: assetDisplayLabel(coin),
 						value: `${coin.value}:${Network.magi.value}`,
 						balance: coinAmt.toPrettyAmountString(),
 						onNetwork: Network.magi,
@@ -88,6 +102,8 @@
 					if (!showEmptyAccounts && disabled) continue;
 					result.push({
 						...coin,
+						label: assetDisplayLabel(coin),
+						unit: assetDisplayLabel(coin),
 						value: `${coin.value}:${externalNetwork.value}`,
 						balance: new CoinAmount(bal, coin, true).toPrettyAmountString(),
 						onNetwork: externalNetwork,
@@ -148,6 +164,7 @@
 		} else {
 			network = tmpNetwork;
 			coin = tmpAsset;
+			onSelect?.(tmpAsset, tmpNetwork);
 			if (balanceObj && 'balance' in balanceObj) {
 				const coinObj: Coin = { ...balanceObj, value: assetVal };
 				max = new CoinAmount(balanceObj.balance, coinObj);
@@ -186,7 +203,7 @@
 {/snippet}
 
 <div class="dialog-content">
-	<h5>Select an Asset</h5>
+	<h5>{dialogTitle}</h5>
 	{#if loading}
 		<div class="assets-loading"><WaveLoading /></div>
 	{:else}

@@ -47,20 +47,19 @@
 
 <style lang="scss">
 	[data-part='list'] {
-		// padding-left: 0.5rem;
 		display: flex;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 	}
 
 	[data-part='trigger'] {
 		background: none;
 		border: none;
+		font-family: 'Nunito Sans', sans-serif;
 		font: inherit;
 		padding: 0;
 		margin: 0rem 0.25rem;
 		border-bottom: 1.5px solid transparent;
 		cursor: pointer;
-		// makes sure that the colored line is on top of the grey line
 		transform: translate(0, 1px);
 
 		span {
@@ -70,32 +69,32 @@
 			align-items: center;
 			margin-bottom: 0.5rem;
 			padding: 0.5rem 1rem;
-			border-radius: 0.25rem;
-			color: var(--neutral-fg);
+			border-radius: 12px;
+			color: var(--dash-text-secondary);
 			text-decoration: none;
 			transition: transform 0.05s;
 
 			&:hover {
-				background-color: var(--neutral-bg-accent);
-				color: var(--primary-fg-accent);
+				background-color: rgba(255, 255, 255, 0.06);
+				color: var(--dash-text-primary);
 			}
 			&:active {
-				background-color: var(--neutral-bg-accent);
-				color: var(--primary-fg-accent-shifted);
+				background-color: rgba(255, 255, 255, 0.08);
+				color: var(--dash-text-primary);
 				transform: scale(0.99);
 			}
 		}
 
 		&[data-selected] {
 			span {
-				background-color: var(--neutral-bg-accent);
-				color: var(--primary-fg-accent-shifted);
+				background-color: rgba(111, 106, 248, 0.1);
+				color: var(--dash-text-primary);
 			}
-			border-color: var(--primary-bg-mid);
+			border-color: #6F6AF8;
 		}
 
 		&:hover {
-			border-color: var(--primary-mid);
+			border-color: #6F6AF8;
 		}
 	}
 </style>

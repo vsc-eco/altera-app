@@ -1,43 +1,43 @@
 import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import { json } from '@sveltejs/kit';
-import { MAPPINGCONTRACTID } from '$lib/stores/currentBalance';
+import { vscNetworkId } from '../../../../client';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 import type { TransferInput, UnmapInput } from '$lib/magiTransactions/bitcoin/bitcoinContractCalls';
-/**
- *
- * @param from Ex. "vaultec"
- * @param to Ex. "hive:vaultec" or "did:pkh:eip155:1:0x553Cb1F25f4409360E081E5e015812d1FB238e23"
- * @param hiveAmount
- * @returns
- */
+
 type callContractOp = {
-	action: string;
+	net_id: string;
+	caller: string;
 	contract_id: string;
-	intents: [];
-	payload: string;
+	action: string;
+	payload: object;
 	rc_limit: number;
-	type: 'call';
 };
 
+/**
+ * @param from      Hive username, e.g. "vaultec"
+ * @param toDid     Recipient DID, e.g. "hive:vaultec"
+ * @param callerDid Caller DID (defaults to hive:${from} if omitted)
+ */
 export function getBitcoinTransferOp(
 	from: string,
 	toDid: string,
-	amount: CoinAmount<typeof Coin.btc>
+	amount: CoinAmount<typeof Coin.btc>,
+	_memo?: URLSearchParams,
+	callerDid?: string
 ): CustomJsonOperation {
 	const payload: TransferInput = {
-		// amt in sats (toNumber would be amt in bitcoin)
-		amount: amount.amount,
-		recipient_vsc_address: toDid
+		amount: amount.amount.toString(),
+		to: toDid
 	};
 
 	const jsonOutput: callContractOp = {
+		net_id: vscNetworkId,
+		caller: callerDid ?? `hive:${from}`,
+		contract_id: BTC_MAPPING_CONTRACT_ID,
 		action: 'transfer',
-		contract_id: MAPPINGCONTRACTID,
-		payload: JSON.stringify(payload),
-		rc_limit: 10000,
-		intents: [],
-		type: 'call'
+		payload,
+		rc_limit: 100000
 	};
 
 	return [
@@ -51,23 +51,33 @@ export function getBitcoinTransferOp(
 	];
 }
 
+/**
+ * @param from         Hive username, e.g. "vaultec"
+ * @param callerDid    Caller DID, e.g. "hive:vaultec"
+ * @param toBtcAddress Raw Bitcoin mainnet address
+ */
 export function getBitcoinUnmapOp(
 	from: string,
+	callerDid: string,
 	toBtcAddress: string,
-	amount: CoinAmount<typeof Coin.btc>
+	amount: CoinAmount<typeof Coin.btc>,
+	deductFee?: boolean,
+	maxFee?: number
 ): CustomJsonOperation {
 	const payload: UnmapInput = {
-		amount: amount.amount,
-		recipient_btc_address: toBtcAddress
+		amount: amount.amount.toString(),
+		to: toBtcAddress,
+		...(deductFee ? { deduct_fee: true } : {}),
+		...(maxFee != null ? { max_fee: maxFee } : {})
 	};
 
 	const jsonOutput: callContractOp = {
+		net_id: vscNetworkId,
+		caller: callerDid,
+		contract_id: BTC_MAPPING_CONTRACT_ID,
 		action: 'unmap',
-		contract_id: MAPPINGCONTRACTID,
-		payload: JSON.stringify(payload),
-		rc_limit: 10000,
-		intents: [],
-		type: 'call'
+		payload,
+		rc_limit: 100000
 	};
 
 	return [

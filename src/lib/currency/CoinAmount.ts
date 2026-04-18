@@ -1,6 +1,7 @@
 import { numberFormatLanguage } from '$lib/constants';
 import { Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
 import { getExchangeRates } from './convert';
+import { getHiveAssetName, getHbdAssetName } from '../../client';
 export type UnkCoinAmount = CoinAmount<Coin>;
 export class CoinAmount<C extends Coin> {
 	coin: C;
@@ -57,8 +58,15 @@ export class CoinAmount<C extends Coin> {
 		const out = `${isNegative ? '-' : ''}${integer || '0'}.${decimal}`;
 		return out;
 	}
+	getDisplayUnit(): string {
+		return this.coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: this.coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: this.coin.unit;
+	}
 	toString() {
-		return `${this.toAmountString()} ${this.coin.unit}`;
+		return `${this.toAmountString()} ${this.getDisplayUnit()}`;
 	}
 	toPrettyString() {
 		const isNegative = this.isNegative();
@@ -69,7 +77,7 @@ export class CoinAmount<C extends Coin> {
 			minimumFractionDigits: this.coin.decimalPlaces
 		});
 		const formatted = formatter.format(numericValue);
-		return `${isNegative ? '-' : ''}${formatted} ${this.coin.unit}`;
+		return `${isNegative ? '-' : ''}${formatted} ${this.getDisplayUnit()}`;
 	}
 	toMinFigs(figures = this.coin.decimalPlaces + 1, decimals = this.coin.decimalPlaces) {
 		const isNegative = this.isNegative();
@@ -85,7 +93,7 @@ export class CoinAmount<C extends Coin> {
 		return `${isNegative ? '-' : ''}${formatted}`;
 	}
 	toPrettyMinFigs(figures = this.coin.decimalPlaces + 1, decimals = this.coin.decimalPlaces) {
-		return `${this.toMinFigs(figures, decimals)} ${this.coin.unit}`;
+		return `${this.toMinFigs(figures, decimals)} ${this.getDisplayUnit()}`;
 	}
 	toNumber() {
 		return this.amount / 10 ** this.coin.decimalPlaces;

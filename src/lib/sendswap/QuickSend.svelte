@@ -35,7 +35,11 @@
 		};
 	}
 
+	// Only seed the SendTxDetails store when the QuickSend dialog actually
+	// opens — otherwise this effect fires on every mount/render and wipes
+	// out QuickSwap's persisted selection (both cards share the same store).
 	$effect(() => {
+		if (!dialogOpen) return;
 		sessionId;
 		SendTxDetails.set(quickDetails());
 	});

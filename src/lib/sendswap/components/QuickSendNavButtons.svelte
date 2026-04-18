@@ -18,7 +18,7 @@
 	} = $props();
 </script>
 
-<div class={["bar", {full: !small}]} id="send-footer">
+<div class={['bar', { full: !small }]} id="send-footer">
 	<div class="button-wrapper">
 		<PillButton onclick={buttons.back.action} disabled={buttons.back.disabled} styleType="outline">
 			{buttons.back.label}
@@ -26,7 +26,7 @@
 		<PillButton
 			onclick={buttons.fwd.action}
 			disabled={buttons.fwd.disabled}
-			styleType="invert"
+			styleType="invert submit"
 			theme="accent"
 		>
 			{buttons.fwd.label}
@@ -37,8 +37,8 @@
 <style lang="scss">
 	.bar.full {
 		width: 100vw;
-		background-color: var(--neutral-off-bg);
-		border-top: 1px solid var(--neutral-bg-accent);
+		background: var(--dash-surface);
+		border-top: 1px solid var(--dash-card-border);
 		display: flex;
 		justify-content: center;
 		translate: -0.5rem 0;

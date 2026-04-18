@@ -1,20 +1,20 @@
 import { Aioha } from '@aioha/aioha';
 import { KeyTypes } from '@aioha/aioha';
 import {
-	Asset,
 	type Operation,
-	type TransferOperation,
-	type CustomJsonOperation
 } from '@hiveio/dhive';
 import { getHiveConsensusStakeOp, getHiveConsensusUnstakeOp } from './vscOperations/consensus';
-import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { getHiveDepositOp } from './vscOperations/deposit';
 import { getHiveTransferOp } from './vscOperations/transfer';
 import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
-import { getBitcoinTransferOp, getBitcoinUnmapOp } from './vscOperations/bitcoin';
+import { getBitcoinTransferOp } from './vscOperations/bitcoin';
+import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
+import { getBtcApproveOp } from './vscOperations/swap';
+import type { PoolRow } from '$lib/pools/poolsData';
 
 export const consensusTx = async (
 	amount: string,
@@ -109,6 +109,58 @@ export const hbdUnstakeTx = async (
 	return res;
 };
 
+export const addLiquidityTx = async (
+	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+	username: string,
+	aioha: Aioha,
+	_selectedPool: PoolRow
+): Promise<OperationResult> => {
+	if (amount0.amount === 0 || amount1.amount === 0)
+		return {
+			success: false,
+			error: 'Error: cannot add 0 liquidity.',
+			errorCode: 0
+		};
+
+	// The router pre-funds mapped BTC via the mapping contract's
+	// transferFrom — that requires the user to have an active approval
+	// to the router on the BTC mapping contract. Prepend an
+	// increaseAllowance op sized to exactly the BTC leg so the allowance
+	// matches the liquidity being added.
+	const btcAmount =
+		amount0.coin.value === Coin.btc.value
+			? (amount0 as CoinAmount<typeof Coin.btc>)
+			: amount1.coin.value === Coin.btc.value
+				? (amount1 as CoinAmount<typeof Coin.btc>)
+				: null;
+
+	const ops = [];
+	if (btcAmount) ops.push(getBtcApproveOp(username, btcAmount));
+	ops.push(getAddLiquidityOp(username, amount0, amount1));
+
+	const res = await executeTx(aioha, ops);
+	return res;
+};
+
+export const removeLiquidityTx = async (
+	lpAmount: number,
+	username: string,
+	aioha: Aioha,
+	selectedPool: PoolRow
+): Promise<OperationResult> => {
+	if (!Number.isInteger(lpAmount) || lpAmount <= 0)
+		return {
+			success: false,
+			error: 'Error: lp_amount must be a positive integer.',
+			errorCode: 0
+		};
+
+	const op = getRemoveLiquidityOp(username, lpAmount, selectedPool.pairSymbols);
+	const res = await executeTx(aioha, [op]);
+	return res;
+};
+
 export const executeTx = async (aioha: Aioha, ops: Operation[]) => {
 	const res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
 	return res;
@@ -140,7 +192,13 @@ export const getSendOpGenerator = (
 		if (toNetwork.value === Network.magi.value) {
 			return getBitcoinTransferOp;
 		} else if (toNetwork.value === Network.btcMainnet.value) {
-			return getBitcoinUnmapOp;
+			// getBitcoinUnmapOp's signature (from, callerDid, toBtcAddress, amount,
+			// deductFee?, maxFee?) is incompatible with the generic 4-arg dispatch
+			// shape. Callers must import and call it directly — sendUtils.ts does
+			// exactly this for the BTC-unmap case before reaching getSendOpGenerator.
+			throw new Error(
+				'BTC unmap requires the direct getBitcoinUnmapOp path (see sendUtils.ts); getSendOpGenerator cannot adapt its 6-arg signature.'
+			);
 		} else {
 			throw new Error(
 				`VSC does not currently support sending bitcoin from ${fromNetwork.label} to ${toNetwork.label}`

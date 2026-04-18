@@ -250,16 +250,16 @@
 <style lang="scss">
 	.approx-usd {
 		text-wrap: wrap;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
 		margin-bottom: 0;
 	}
 	.disabled {
-		--bg: var(--neutral-bg-accent);
-		background-color: var(--neutral-bg-accent);
+		--bg: var(--dash-surface-alt);
+		background-color: var(--dash-surface-alt);
 	}
 	label {
-		--bg: var(--neutral-off-bg);
+		--bg: rgba(0, 0, 0, 0.15);
 		display: block;
 		margin-left: 0;
 		flex-grow: 1;
@@ -282,28 +282,28 @@
 			margin: 0;
 		}
 		margin-right: 0.25rem;
-		border: 1px solid var(--neutral-bg-accent-shifted);
-		color: var(--neutral-fg);
-		border-radius: 0.5rem;
+		border: 1px solid var(--dash-input-border);
+		color: var(--dash-text-primary);
+		border-radius: 12px;
 		display: flex;
 		align-items: center;
 		flex-basis: 1;
 		max-width: 16rem;
 		box-sizing: border-box;
 		&:has(input:focus-visible) {
-			box-shadow: 0 -1px inset var(--primary-bg-mid);
-			border-bottom-color: var(--primary-bg-mid);
+			box-shadow: 0 -1px inset var(--dash-accent-purple);
+			border-bottom-color: var(--dash-accent-purple);
 			outline: none;
-			border-radius: 0.5rem 0.5rem 0 0;
+			border-radius: 12px 12px 0 0;
 		}
 
 		hr {
 			height: 1.5rem;
-			border-right: 1px solid var(--neutral-bg-accent-shifted);
+			border-right: 1px solid var(--dash-input-border);
 		}
 
 		input:focus-visible + hr {
-			border-color: var(--primary-bg-mid);
+			border-color: var(--dash-accent-purple);
 			border-width: 1.5px;
 		}
 

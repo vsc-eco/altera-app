@@ -14,12 +14,7 @@ export const THEMES: Record<ThemeValue, ThemeInfo> = {
 };
 
 export function getInitialTheme(): ThemeValue {
-	if (!browser) return 'system';
-	const fromStorage = localStorage.getItem('theme');
-	if (fromStorage && fromStorage in THEMES) {
-		return fromStorage as ThemeValue;
-	}
-	return 'system';
+	return 'dark';
 }
 
 export const themeStore = writable<ThemeInfo>(THEMES[getInitialTheme()]);

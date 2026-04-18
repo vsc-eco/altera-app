@@ -108,11 +108,10 @@
 						coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
 				);
 
-				let fromCoinToUse =
-					hiveCoin &&
-					scanForBalance([{ coin: hiveCoin?.coin, network: Network.magi }]) !== undefined
-						? hiveCoin
-						: undefined;
+				// For Hive Mainnet deposit, default to HIVE (or HBD) without
+				// requiring a Magi balance — user deposits precisely because
+				// their Magi balance may be 0.
+				let fromCoinToUse = hiveCoin;
 				if (
 					current.fromCoin &&
 					current.fromCoin.networks?.some((n) => n.value === Network.hiveMainnet.value)
@@ -130,7 +129,9 @@
 					...current,
 					method: TransferMethod.magiTransfer,
 					fromNetwork: Network.hiveMainnet,
-					fromCoin: fromCoinToUse
+					toNetwork: Network.magi,
+					fromCoin: fromCoinToUse,
+					toCoin: fromCoinToUse
 				};
 			});
 		});
@@ -237,7 +238,7 @@
 				</ClickableCard>
 			</div>
 			<div class="bitcoin-mainnet">
-				<ClickableCard onclick={() => toggleBitcoinMainnet(true)} disabled={true}>
+				<ClickableCard onclick={() => toggleBitcoinMainnet(true)}>
 					<div class="type-header">
 						<ImageIconRenderer
 							icon={Network.btcMainnet.icon}
@@ -245,7 +246,6 @@
 							size={40}
 						/>
 						<span>Bitcoin Mainnet</span>
-						<span class="error">Coming soon</span>
 						<div class="chevron">
 							<ChevronRight />
 						</div>

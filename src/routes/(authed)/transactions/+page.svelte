@@ -28,8 +28,8 @@
 	<title>Transactions</title>
 </document:head>
 <div class="flex">
+	<h1>Transactions involving {did ? getAccountNameFromDid(did) : '0xd072...AdAA'}</h1>
 	{#if did}
-		<h1>Transactions involving {getAccountNameFromDid(did)}</h1>
 		<Table {did} initialOpen={autoOpenOp}></Table>
 	{/if}
 </div>
@@ -37,10 +37,15 @@
 <style>
 	h1 {
 		display: flex;
+		color: var(--dash-text-primary);
+		font-family: 'Nunito Sans', sans-serif;
+		font-size: 1.25rem;
+		font-weight: 600;
+		margin: 0 0 1rem 0;
 	}
 	.flex {
 		display: flex;
 		flex-direction: column;
-		height: calc(100vh - 4.5rem);
+		height: calc(100vh - 6.5rem);
 	}
 </style>

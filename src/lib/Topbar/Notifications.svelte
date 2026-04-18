@@ -151,13 +151,13 @@
 			top: 0;
 			right: 0;
 			font-size: var(--text-sm);
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 		}
 		.delete {
 			margin-left: auto;
 			padding-left: 0.5rem;
 			:global(svg) {
-				color: var(--secondary-mid);
+				color: var(--dash-accent-red);
 			}
 		}
 		.unread {
@@ -168,7 +168,7 @@
 	}
 	tr {
 		height: 2.5rem;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--dash-divider);
 	}
 	td {
 		padding: 0.25rem 0;
@@ -180,7 +180,7 @@
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 0.5rem;
-		background-color: var(--secondary-fg-mid);
+		background-color: var(--dash-accent-red);
 	}
 	.trigger.unread {
 		position: absolute;

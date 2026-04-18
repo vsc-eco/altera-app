@@ -33,13 +33,13 @@
 
 <svelte:window on:resize={calculateOffset} on:visibilitychange={calculateOffset} />
 
-<div class={['bar', { fixed }]} id="send-footer" bind:this={barElement}>
+<div class={fixed ? 'bar-fixed' : 'bar'} id="send-footer" bind:this={barElement}>
 	<div class="button-wrapper">
 		{#if buttons.back}
 			<PillButton
 				onclick={buttons.back.action}
 				disabled={buttons.back.disabled}
-				styleType="outline"
+				styleType="submit outline"
 			>
 				{buttons.back.label}
 			</PillButton>
@@ -47,7 +47,7 @@
 		<PillButton
 			onclick={buttons.fwd.action}
 			disabled={buttons.fwd.disabled}
-			styleType="invert"
+			styleType="submit invert"
 			theme="accent"
 		>
 			{buttons.fwd.label}
@@ -56,7 +56,7 @@
 </div>
 
 <style lang="scss">
-	.bar:not(.fixed) {
+	.bar {
 		margin-top: 1rem;
 		@media screen and (max-width: 450px) {
 			position: absolute;
@@ -64,46 +64,33 @@
 			left: 0;
 			right: 0;
 			padding-bottom: 1rem;
-			--background-color: oklch(from var(--neutral-bg) l c h / 0.9);
+			--background-color: oklch(from var(--dash-bg) l c h / 0.9);
 			background-color: var(--background-color);
 			box-shadow: 0 -5px 5px -5px var(--background-color);
-			border: 1px solid var(--neutral-bg-accent);
+			border: 1px solid var(--dash-card-border);
 			border-top: none;
-			border-radius: 0 0 0.75rem 0.75rem;
+			border-radius: 0 0 16px 16px;
 		}
 	}
-	.bar.fixed {
-		position: fixed;
-		bottom: 0;
-		right: 0;
-		left: 0;
+	.bar-fixed {
 		display: flex;
 		justify-content: center;
-		padding-bottom: 1rem;
-		--background-color: oklch(from var(--neutral-bg) l c h / 0.9);
-		background-color: var(--background-color);
-		box-shadow: 0 -5px 5px var(--background-color);
-		@media screen and (min-width: 620px) {
-			left: var(--left-offset, 0);
-		}
+		padding: 10px 0 1rem;
+		position: relative;
+		top: -1rem;
 	}
 	.button-wrapper {
 		display: flex;
-		flex-grow: 1;
 		justify-content: center;
-		gap: 1.5rem;
-		margin: 0 1rem;
+		gap: 1rem;
+		margin: 0 auto;
 		align-items: center;
-		max-width: 42rem;
-		// background-color: var(--neutral-bg);
+		width: 480px;
+		max-width: calc(100% - 2rem);
+		pointer-events: auto;
 		:global(button) {
 			margin: 0;
 			flex-grow: 1;
-			max-width: 22rem;
-			box-shadow: 0 0 4px oklch(from var(--dark-purple) l c h / 0.1);
-		}
-		:global(button.outline) {
-			background-color: var(--neutral-bg);
 		}
 	}
 </style>

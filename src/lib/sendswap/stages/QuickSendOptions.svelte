@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { SendTxDetails } from '../utils/sendUtils';
+	import { get } from 'svelte/store';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
@@ -40,31 +41,29 @@
 		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
 			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
 	);
-	$effect(() => {
-		if (
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.fromNetwork &&
-			$SendTxDetails.toAmount &&
-			$SendTxDetails.toAmount !== '0' &&
-			!toSelf &&
-			$SendTxDetails.toUsername &&
-			$SendTxDetails.toNetwork
-		) {
-			editStage(true);
-		} else {
-			editStage(false);
-		}
-	});
-
 	// AMOUNT SECTION
-	let coinAmount = $state(new CoinAmount(0, Coin.unk));
+	let coinAmount = $state(new CoinAmount(0, Coin.hive));
+
+	// EDIT STAGE
+	let stageComplete = $derived(
+		!!$SendTxDetails.fromCoin &&
+			!!$SendTxDetails.fromNetwork &&
+			coinAmount.amount !== 0 &&
+			!toSelf &&
+			!!$SendTxDetails.toUsername &&
+			!!$SendTxDetails.toNetwork
+	);
 	$effect(() => {
-		if ($SendTxDetails.fromAmount !== coinAmount.toAmountString()) {
-			$SendTxDetails.fromAmount = coinAmount.toAmountString();
-		}
-		if ($SendTxDetails.toAmount !== coinAmount.toAmountString()) {
-			$SendTxDetails.toAmount = coinAmount.toAmountString();
-		}
+		editStage(stageComplete);
+	});
+	$effect(() => {
+		const amtStr = coinAmount.toAmountString();
+		SendTxDetails.update((s) => {
+			if (s.fromAmount === amtStr && s.toAmount === amtStr && s.enteredAmount === amtStr) {
+				return s;
+			}
+			return { ...s, fromAmount: amtStr, toAmount: amtStr, enteredAmount: amtStr };
+		});
 	});
 
 	const fromAssetObjs: AssetObject[] = $derived(
@@ -77,7 +76,9 @@
 
 	let max: CoinAmount<Coin> | undefined = $state();
 
-	// Update max when fromCoin changes
+	// Update max when fromCoin or balance changes
+	let lastMaxBalance = -1;
+	let lastMaxCoin = '';
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
 		if ($SendTxDetails.fromNetwork.value !== Network.magi.value) return;
@@ -85,7 +86,11 @@
 		const coinValue = $SendTxDetails.fromCoin.coin.value;
 		if (coinValue in $accountBalance.bal) {
 			const balance = $accountBalance.bal[coinValue as keyof AccountBalance];
-			max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+			if (balance !== lastMaxBalance || coinValue !== lastMaxCoin) {
+				lastMaxBalance = balance;
+				lastMaxCoin = coinValue;
+				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+			}
 		}
 	});
 
@@ -95,8 +100,10 @@
 	};
 
 	$effect(() => {
-		if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
-			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
+		const fromCoin = $SendTxDetails.fromCoin;
+		const current = get(SendTxDetails);
+		if (current.toCoin?.coin.value !== fromCoin?.coin.value) {
+			SendTxDetails.set({ ...current, toCoin: fromCoin });
 		}
 	});
 
@@ -150,20 +157,23 @@
 		const balanceCount = coinsWithBalance.length;
 		if (balanceCount === 0) return;
 
+		const current = get(SendTxDetails);
 		const currentCoinHasBalance =
-			$SendTxDetails.fromCoin &&
-			coinsWithBalance.some((item) => item.coin.value === $SendTxDetails.fromCoin?.coin.value);
-
+			current.fromCoin &&
+			coinsWithBalance.some((item) => item.coin.value === current.fromCoin?.coin.value);
 		if (currentCoinHasBalance) return;
 
 		const hiveCoin = coinsWithBalance.find((item) => item.coin.value === Coin.hive.value);
 		const coinToSelect = hiveCoin || coinsWithBalance[0];
 
 		if (coinToSelect) {
-			$SendTxDetails.fromCoin = coinToSelect.coinOpt;
-			$SendTxDetails.fromNetwork = Network.magi;
-			$SendTxDetails.toCoin = coinToSelect.coinOpt;
-			$SendTxDetails.toNetwork = Network.magi;
+			SendTxDetails.set({
+				...current,
+				fromCoin: coinToSelect.coinOpt,
+				fromNetwork: Network.magi,
+				toCoin: coinToSelect.coinOpt,
+				toNetwork: Network.magi
+			});
 		}
 	});
 </script>

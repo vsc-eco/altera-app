@@ -64,7 +64,7 @@
 	}
 
 	.disabled input {
-		color: var(--neutral-mid);
+		color: var(--dash-text-muted);
 	}
 
 	.disabled [data-part='control'] {

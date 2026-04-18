@@ -1,6 +1,7 @@
 import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
+import { vscNetworkId } from '../../../../client';
 /**
  *
  * @param username ex: "vaultec"
@@ -24,7 +25,7 @@ export function getHiveConsensusStakeOp(
 		from: `hive:${username}`,
 		to: `hive:${nodeRunnerAccount}`,
 		asset: 'hive',
-		net_id: 'vsc-mainnet',
+		net_id: vscNetworkId,
 		amount: hiveAmount.toPrettyAmountString()
 	};
 
@@ -48,7 +49,7 @@ export function getHiveConsensusUnstakeOp(
 		from: `hive:${username}`,
 		to: `hive:${nodeRunnerAccount}`,
 		asset: 'hive',
-		net_id: 'vsc-mainnet',
+		net_id: vscNetworkId,
 		amount: hiveAmount.toPrettyAmountString()
 	};
 

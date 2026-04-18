@@ -50,7 +50,8 @@
 						placement: 'bottom-start',
 						sameWidth: true,
 						gutter: 0,
-						shift: 0
+						shift: 0,
+						flip: false
 					}
 	});
 	const api = $derived(select.connect(service, normalizeProps));
@@ -121,9 +122,18 @@
 	// 	margin-right: calc(0.5rem - var(--x));
 	// 	width: calc(var(--reference-width) - 2 * (0.5rem - var(--x))) !important;
 	// }
+	[data-part='positioner'] {
+		background: linear-gradient(135deg, #0000001a, #ffffff0d);
+		backdrop-filter: blur(25px);
+		-webkit-backdrop-filter: blur(25px);
+		border-radius: 16px;
+	}
+	[data-part='positioner'].card {
+		z-index: 60;
+		border-radius: 0 0 16px 16px;
+	}
 	.dropdown {
-		background-color: var(--bg-accent);
-		z-index: 5;
+		background: rgba(0, 0, 0, 0.25);
 	}
 	div {
 		position: relative;

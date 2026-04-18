@@ -63,8 +63,9 @@
 <style lang="scss">
 	[data-part='title'] {
 		font-size: var(--text-1xl);
-		color: var(--primary-fg-mid);
-		font-weight: 500;
+		color: var(--dash-text-primary);
+		font-family: 'Nunito Sans', sans-serif;
+		font-weight: 600;
 	}
 	.top-flex {
 		display: flex;
@@ -74,7 +75,7 @@
 		margin-bottom: 0.5rem;
 		width: 100%;
 		justify-content: space-between;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 	}
 	.top-flex :global([data-part='close-trigger']) {
 		margin-bottom: 0;
@@ -83,30 +84,34 @@
 	[data-part='content'][data-variant='full'] {
 		max-width: calc(100vw - 2rem);
 		position: relative;
-		background-color: var(--neutral-bg);
-		border: 1px solid var(--neutral-bg-accent);
+		background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+		backdrop-filter: blur(10px);
+		border: 1px solid var(--dash-card-border);
 		padding: 0.5rem;
 		padding-top: 0;
 		z-index: 2;
-		border-radius: 0.5rem;
+		border-radius: 16px;
+		box-shadow: var(--dash-card-shadow);
+		color: var(--dash-text-primary);
+		font-family: 'Nunito Sans', sans-serif;
 	}
 	[data-part='content'][data-variant='simple'] {
 		max-width: calc(20rem);
 		position: relative;
-		background-color: var(--neutral-bg);
-		// filter: drop-shadow(1px 1px var(--neutral-bg-accent)) drop-shadow(-1px -1px var(--neutral-bg-accent));
-		border: 1px solid var(--neutral-bg-accent);
+		background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+		backdrop-filter: blur(10px);
+		border: 1px solid var(--dash-card-border);
 		padding: 0.5rem;
 		z-index: 2;
-		border-radius: 0.5rem;
+		border-radius: 16px;
 		line-height: 1.2;
+		box-shadow: var(--dash-card-shadow);
+		color: var(--dash-text-primary);
+		font-family: 'Nunito Sans', sans-serif;
+		font-size: 0.8rem;
 	}
 	[data-part='arrow'] {
-		--arrow-background: var(--neutral-bg);
+		--arrow-background: rgba(255, 255, 255, 0.1);
 		--arrow-size: 1rem;
-		// had to remove this because it messes up when it gets moved to top
-		// and the selector for top placement only works for content bit
-		// filter: drop-shadow(-0.25px -0.5px var(--neutral-bg-accent))
-		// 	drop-shadow(0.5px -0.5px var(--neutral-bg-accent));
 	}
 </style>

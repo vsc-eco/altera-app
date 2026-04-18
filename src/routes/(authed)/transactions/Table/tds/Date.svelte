@@ -14,7 +14,7 @@
 		padding: 1rem min(1rem, 2%);
 		width: max-content;
 
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		border-bottom: 1px solid var(--dash-divider);
 	}
 	.date {
 		min-width: 4rem;

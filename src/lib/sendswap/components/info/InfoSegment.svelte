@@ -81,7 +81,7 @@
 		line-height: 1.2;
 		font-size: var(--text-sm);
 		&:not(.error) {
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 		}
 		.dot-wrapper {
 			height: 1rem;
@@ -101,7 +101,7 @@
 		align-items: start;
 	}
 	span.disabled {
-		color: var(--neutral-mid);
+		color: var(--dash-text-muted);
 	}
 	ul:has(li:nth-of-type(2):not(:last-child)) .dot-wrapper {
 		display: none;

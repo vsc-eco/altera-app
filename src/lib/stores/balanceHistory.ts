@@ -6,6 +6,7 @@ import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import config from '../../../houdini.config';
 import { type Point } from '../LineChart.svelte';
 import { type AccountBalance, getDefaultBalance } from './currentBalance';
+import { currentGqlUrl } from '../../client';
 
 export type BalanceOption =
 	| 'hbd'
@@ -43,7 +44,8 @@ export async function sumBalance(accBal: AccountBalance): Promise<number> {
 		hiveUnstaking: new CoinAmount(accBal.consensus_unstaking, Coin.hive, true),
 		hbd: new CoinAmount(accBal.hbd, Coin.hbd, true),
 		hbdSavings: new CoinAmount(accBal.hbd_savings, Coin.hbd, true),
-		hbdUnstaking: new CoinAmount(accBal.pending_hbd_unstaking, Coin.hbd, true)
+		hbdUnstaking: new CoinAmount(accBal.pending_hbd_unstaking, Coin.hbd, true),
+		btc: new CoinAmount(accBal.btc ?? 0, Coin.sats, true)
 	};
 
 	let totalInUSD = new CoinAmount(0, Coin.usd);
@@ -106,15 +108,14 @@ export async function fetchBalancesHTTP(
 	end: Date | moment.Moment,
 	interval: moment.Duration
 ): Promise<BalanceDataPoint[]> {
-	const graphqlEndpoint = config.watchSchema?.url;
-	if (!graphqlEndpoint || typeof graphqlEndpoint !== 'string') {
+	if (!currentGqlUrl || typeof currentGqlUrl !== 'string') {
 		throw new Error('No API availabe.');
 	}
 	const blockHeightSeries = await getBlockHeightSeries(start, end, interval);
 	const blockHeights = blockHeightSeries.map((item) => item.blockHeight);
 	const queryString = buildMultiHeightQuery(account, blockHeights);
 	try {
-		const response = await fetch(graphqlEndpoint, {
+		const response = await fetch(`${currentGqlUrl}/api/v1/graphql`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'

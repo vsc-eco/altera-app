@@ -336,7 +336,7 @@
 			display: flex;
 			align-items: center;
 			:global(.lucide-trash-2) {
-				color: var(--secondary-mid);
+				color: var(--dash-accent-red);
 			}
 		}
 	}

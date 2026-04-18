@@ -22,6 +22,7 @@
 		| 'hiveauth'
 		| 'ledger'
 		| 'peakvault'
+		| 'metamasksnap'
 		| 'custom'
 		| undefined = $state();
 	let BLANK = '';
@@ -39,9 +40,15 @@
 	$effect(() => {
 		if (defaultValue && defaultValue !== untrack(() => authProvider)) {
 			if (
-				['keychain', 'hivesigner', 'hiveauth', 'ledger', 'peakvault', 'custom'].includes(
-					defaultValue
-				)
+				[
+					'keychain',
+					'hivesigner',
+					'hiveauth',
+					'ledger',
+					'peakvault',
+					'metamasksnap',
+					'custom'
+				].includes(defaultValue)
 			) {
 				authProvider = defaultValue as
 					| 'keychain'
@@ -49,6 +56,7 @@
 					| 'hiveauth'
 					| 'ledger'
 					| 'peakvault'
+					| 'metamasksnap'
 					| 'custom'
 					| undefined;
 			}
@@ -154,6 +162,10 @@
 					<PeakVaultIcon />
 					Peak Vault
 				{/snippet}
+				{#snippet metamaskSnapLabel()}
+					<span class="metamask-dot" aria-hidden="true"></span>
+					MetaMask Snap
+				{/snippet}
 				<RadioGroup
 					id="hive-auth-method-login"
 					name="Sign in with:"
@@ -162,7 +174,8 @@
 						// { label: 'Hive Signer', value: 'hivesigner' },
 						{ snippet: hiveAuthLabel, value: 'hiveauth' },
 						{ snippet: hiveLedgerLabel, value: 'ledger' },
-						{ snippet: peakVaultLabel, value: 'peakvault' }
+						{ snippet: peakVaultLabel, value: 'peakvault' },
+						{ snippet: metamaskSnapLabel, value: 'metamasksnap' }
 					]}
 					{defaultValue}
 					bind:value={authProvider}
@@ -192,10 +205,27 @@
 	}
 	label {
 		margin-left: 0.25rem;
-		color: var(--primary-fg-mid);
+		color: var(--dash-text-secondary);
 	}
 	.error {
 		min-height: 1em;
 		margin-top: 0.25rem;
+	}
+	.metamask-dot {
+		display: inline-block;
+		width: 16px;
+		height: 16px;
+		border-radius: 4px;
+		background: linear-gradient(135deg, #f6851b 0%, #e2761b 100%);
+		margin-right: 0.25rem;
+	}
+	/* Constrain the Hive login provider radio grid to max 3 items per row. */
+	form :global(.items) {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+	form :global(.items > *) {
+		width: auto;
+		min-width: 0;
 	}
 </style>

@@ -67,7 +67,7 @@
 			left: 0.5rem;
 		}
 		span:has(+ input:focus-visible) {
-			color: var(--primary-fg-mid);
+			color: var(--dash-accent-purple);
 		}
 		span:has(+ input:user-invalid) {
 			color: var(--secondary-fg-mid);

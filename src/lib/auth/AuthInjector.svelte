@@ -29,6 +29,6 @@
 		transition: opacity 0.5s;
 	}
 	div.pending {
-		opacity: 0;
+		opacity: 1;
 	}
 </style>

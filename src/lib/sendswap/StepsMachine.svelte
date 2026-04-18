@@ -26,6 +26,10 @@
 	interface StepData<T extends TransferComponentTypes = TransferComponentTypes> {
 		value: string;
 		component: Component<T>;
+		/** When true, the previous stage stays visible (popup-style) and the
+		 *  bottom NavBar is hidden — the stage component is responsible for
+		 *  rendering its own confirm/cancel buttons inside its dialog/overlay. */
+		popup?: boolean;
 	}
 	export type MixedStepsArray = Array<StepData<any>>;
 	type Props = {
@@ -35,9 +39,13 @@
 		resetDetails?: typeof blankDetails;
 		stepsData: MixedStepsArray;
 		extraProps?: { [key: string]: any };
+		onSubmit?: (
+			setStatus: (s: string, isError?: boolean) => void,
+			signal: AbortSignal
+		) => Promise<Error | { id: string }>;
 	};
 
-	let { size, minHeight, txType, resetDetails, stepsData, extraProps }: Props = $props();
+	let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: Props = $props();
 
 	const auth = $derived(getAuth()());
 	let sessionId = $state(getTxSessionId());
@@ -85,7 +93,19 @@
 			}
 		} else if (stepsData[api.value].value === 'review') {
 			setStatus('');
-			initSend();
+			if (onSubmit) {
+				waiting = true;
+				onSubmit(setStatus, abortSend.signal).then((res) => {
+					if (res instanceof Error) {
+						console.error(res.message);
+					} else {
+						txId = res.id;
+					}
+					waiting = false;
+				});
+			} else {
+				initSend();
+			}
 		} else {
 			api.goToNextStep();
 		}
@@ -148,20 +168,35 @@
 
 	// START TRANSACTION
 	function initSend() {
-		// console.log('initializing send transactions');
-		const {
-			fromCoin,
-			fromNetwork,
-			toAmount: amount,
-			toCoin,
-			toNetwork,
-			toUsername,
-			memo
-		} = $SendTxDetails;
+		console.log('[initSend] store snapshot:', {
+			toAmount: $SendTxDetails.toAmount,
+			fromAmount: $SendTxDetails.fromAmount,
+			enteredAmount: $SendTxDetails.enteredAmount
+		});
+		const store = $SendTxDetails;
+		const fromCoin = store.fromCoin;
+		const fromNetwork = store.fromNetwork;
+		const rawToAmount = store.toAmount;
+		const toUsername = store.toUsername;
+		const memo = store.memo;
+		// For deposit/withdraw: toCoin mirrors fromCoin; toNetwork defaults based on txType
+		const toCoin = store.toCoin ?? fromCoin;
+		const toNetwork = store.toNetwork ?? (txType === 'deposit' ? Network.magi : txType === 'withdraw' ? Network.hiveMainnet : undefined);
 
 		if (!fromCoin || !fromNetwork || !toCoin || !toNetwork) {
 			return new Error('Required field undefined.');
 		}
+
+		// Use toAmount, but fall back to fromAmount or enteredAmount if toAmount
+		// is stale '0' due to effect timing (e.g. deposit/withdraw sync race)
+		const amount =
+			rawToAmount && rawToAmount !== '0'
+				? rawToAmount
+				: $SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0'
+					? $SendTxDetails.fromAmount
+					: $SendTxDetails.enteredAmount && $SendTxDetails.enteredAmount !== '0'
+						? $SendTxDetails.enteredAmount
+						: rawToAmount;
 
 		const importantDetails: NecessarySendDetails = {
 			fromCoin,
@@ -221,13 +256,37 @@
 	>
 		{#each stepsData as step, index}
 			{@const Component = step.component}
-			<div {...api.getContentProps({ index })} tabindex="-1">
+			{@const activeIsPopup = !!stepsData[api.value]?.popup}
+			{@const keepPrevVisible = (() => {
+				if (!activeIsPopup) return false;
+				if (index >= api.value) return false;
+				// Visible if every stage strictly between this and the active one
+				// is itself popup — i.e. there's an unbroken popup chain back.
+				for (let i = index + 1; i <= api.value; i++) {
+					if (!stepsData[i]?.popup) return false;
+				}
+				return true;
+			})()}
+			{@const isVisible = api.value === index || keepPrevVisible}
+			<div
+				{...api.getContentProps({ index })}
+				hidden={!isVisible}
+				tabindex="-1"
+			>
 				<Component
 					{editStage}
+					isActive={api.value === index}
 					{status}
 					{waiting}
 					abort={cancelTransaction}
 					{txId}
+					popup={!!step.popup}
+					next={api.value === index ? next : undefined}
+					previous={api.value === index ? previous : undefined}
+					goHome={() => {
+						setStatus('');
+						api.setStep(0);
+					}}
 					{...extraProps}
 					{close}
 					bind:onHomePage
@@ -235,7 +294,7 @@
 				/>
 			</div>
 		{/each}
-		{#if onHomePage}
+		{#if onHomePage && !stepsData[api.value]?.popup}
 			<NavButtons {buttons} fixed={size === 'page'} />
 		{/if}
 	</div>
@@ -294,14 +353,11 @@
 <style lang="scss">
 	[data-part='root'][data-variant='page'] {
 		flex-grow: 1;
-		// width: calc(100vw - 1rem);
 		overflow-y: auto;
-		padding-bottom: 3rem;
+		padding-bottom: 0;
 		[data-part='content'] {
 			margin: auto;
-			max-width: 42rem;
-			padding: 0 0.5rem 1rem 0.5rem;
-			min-height: calc(100% - 1rem);
+			padding: 0;
 			overflow-y: auto;
 		}
 		[data-part='list'] {
@@ -322,9 +378,32 @@
 		}
 	}
 	[data-part='content'] {
+		cursor: default;
 		&:focus-visible {
 			outline: none;
 		}
+	}
+	/*
+	 * Popup-chain stages: when the active stage is a popup and the
+	 * previous page-level stage (e.g. SwapOptions) stays rendered
+	 * behind it via `keepPrevVisible`, zag-js sets the previous
+	 * panel's data-state to "closed". The page-variant rules above
+	 * give the content panel `margin: auto; overflow-y: auto`, which
+	 * means the panel sizes to the ACTIVE stage's height — and the
+	 * active stage is a popup (in-flow height ~0) — so the
+	 * kept-visible panel collapses into a tiny inner-scroll box.
+	 *
+	 * Override that for closed-but-still-rendered panels: let the
+	 * content drive its natural height and drop the nested overflow.
+	 */
+	[data-part='root'][data-variant='page']
+		[data-part='content'][data-state='closed']:not([hidden]) {
+		display: block;
+		height: auto;
+		min-height: auto;
+		max-height: none;
+		overflow: visible;
+		margin: 0;
 	}
 	@media screen and (max-width: 36rem) {
 		[data-part='root'][data-vauriant='dialog'].home {

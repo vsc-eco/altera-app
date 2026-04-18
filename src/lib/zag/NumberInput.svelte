@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 	import * as numberInput from '@zag-js/number-input';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { untrack } from 'svelte';
@@ -11,6 +10,7 @@
 		min?: number;
 		max?: number;
 		inputId?: string;
+		disabled?: boolean;
 	};
 	let {
 		amount = $bindable(),
@@ -18,7 +18,8 @@
 		decimals = 2,
 		min: minProp,
 		max = Number.MAX_SAFE_INTEGER,
-		inputId = $bindable()
+		inputId = $bindable(),
+		disabled = false
 	}: Props = $props();
 
 	let min = $derived(minProp ?? 10 ** -decimals);
@@ -27,6 +28,7 @@
 		return val >= min && val <= max;
 	}
 	let invalid = $state(false);
+	let blurred = $state(false);
 	function trimOutput(val: number) {
 		if (Number.isNaN(val)) {
 			return '';
@@ -53,32 +55,40 @@
 	});
 
 	const id = $props.id();
-	const service = $derived(
-		useMachine(numberInput.machine, {
-			id,
-			min: 0,
-			step: 10 ** -decimals,
-			allowOverflow: false,
-			formatOptions: {
-				style: 'decimal',
+	// IMPORTANT: Do NOT wrap useMachine in $derived() — it causes the machine to be
+	// recreated on every value change (infinite loop). The machine handles reactive
+	// context updates internally through the getter pattern.
+	const service = useMachine(numberInput.machine, {
+		id,
+		min: 0,
+		get disabled() {
+			return disabled;
+		},
+		get step() {
+			return 10 ** -decimals;
+		},
+		allowOverflow: false,
+		get formatOptions() {
+			return {
+				style: 'decimal' as const,
 				useGrouping: true,
 				minimumFractionDigits: 0,
 				maximumFractionDigits: decimals
-			},
-			get value() {
-				return value;
-			},
-			onValueChange(details) {
-				value = details.value;
-				if (error !== undefined) {
-					invalid = details.value !== '' && !inRange(details.valueAsNumber);
-					if (!invalid) error = '';
-				}
-				amount = trimOutput(details.valueAsNumber);
-				setErrors(details.valueAsNumber);
+			};
+		},
+		get value() {
+			return value;
+		},
+		onValueChange(details) {
+			value = details.value;
+			if (error !== undefined) {
+				invalid = details.value !== '' && !inRange(details.valueAsNumber);
+				if (!invalid) error = '';
 			}
-		})
-	);
+			amount = trimOutput(details.valueAsNumber);
+			setErrors(details.valueAsNumber);
+		}
+	});
 	const api = $derived(numberInput.connect(service, normalizeProps));
 	$effect(() => {
 		const forId = api.getLabelProps().for ?? undefined;
@@ -100,7 +110,23 @@
 
 <div {...api.getRootProps()}>
 	<div {...api.getScrubberProps()}></div>
-	<input {...api.getInputProps()} class={{ invalid }} />
+	<input
+		{...api.getInputProps()}
+		class={{ invalid: invalid && blurred }}
+		placeholder="0"
+		onfocus={() => (blurred = false)}
+		onblur={() => (blurred = true)}
+		onkeydown={(e) => {
+			// Arrow-up/down step the value by 10^-decimals, which for
+			// crypto amount fields (8 decimals BTC, 3 decimals HIVE)
+			// is an unintentional nuisance — one keystroke adds
+			// 0.00000001 BTC. Block them entirely.
+			if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		}}
+	/>
 	<!-- <div class="triggers">
 		<button {...api.getIncrementTriggerProps()}>
 			<ChevronUp />
@@ -125,11 +151,19 @@
 		right: 0;
 	}
 	[data-part='input'] {
-		width: 0;
+		width: 90%;
+		max-width: 100%;
+		min-width: 0;
 		flex-grow: 1;
 		padding-right: 2rem;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-primary);
+		background: transparent;
 		&.invalid {
-			color: var(--secondary-fg-mid);
+			color: var(--negative-text);
+		}
+		&::placeholder {
+			color: var(--dash-text-muted);
 		}
 	}
 	[data-part='increment-trigger'],
@@ -140,9 +174,9 @@
 		cursor: pointer;
 		display: flex;
 		align-items: center;
-		color: var(--neutral-fg-accent-shifted);
+		color: var(--dash-text-muted);
 		&:hover {
-			color: var(--neutral-fg-accent);
+			color: var(--dash-text-primary);
 		}
 		&:active {
 			color: var(--fg);

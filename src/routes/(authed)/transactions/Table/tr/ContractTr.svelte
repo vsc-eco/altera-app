@@ -12,7 +12,6 @@
 	import Amount from '../tds/Amount.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-	import Token from '../tds/Token.svelte';
 	import ContractId from '../tds/ContractId.svelte';
 
 	type Props = {
@@ -39,8 +38,8 @@
 	});
 	const coinVal: string = $derived.by(() => {
 		const intents = op.data.intents;
-		if (!intents) return coins.hive.value;
-		return intents[0]?.args?.limit ?? coins.hive.value;
+		if (!intents || intents.length === 0) return Coin.hive.value;
+		return intents[0]?.args?.token ?? Coin.hive.value;
 	});
 	const amount = $derived(
 		new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.hive, true)
@@ -50,6 +49,19 @@
 		amount.convertTo(Coin.usd, Network.lightning).then((amount) => {
 			inUsd = amount.toAmountString();
 		});
+	});
+
+	const displayType: string = $derived.by(() => {
+		try {
+			const payloadStr = op.data.payload;
+			if (typeof payloadStr === 'string') {
+				const parsed = JSON.parse(payloadStr);
+				if (parsed?.type) return parsed.type.replace(/_/g, ' ');
+			}
+		} catch {
+			// ignore parse errors
+		}
+		return op.data.action ?? op.type ?? 'call';
 	});
 </script>
 
@@ -63,15 +75,13 @@
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<ContractId address={op.data.contract_id ?? ''} status={tx.status} />
 	<Amount {amount} direction={'contract'} />
-	<Token {amount} direction={'contract'} />
-
-	<Type direction="contract" t={op.type!} />
+	<Type direction="contract" t={displayType} />
 </tr>
 
 {#snippet contractRowContent()}
 	<h2>
-		{(op.type ?? tx.type)
-			.replace('_', ' ')
+		{displayType
+			.replace(/_/g, ' ')
 			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase())}
 	</h2>
 	<div class="sections">
@@ -114,15 +124,13 @@
 	.approx-usd {
 		display: block;
 		text-wrap: wrap;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
 		margin-top: 0.5rem;
 	}
 	.date {
-		vertical-align: middle;
-		padding: 1rem min(1rem, 2%);
-		width: max-content;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		color: var(--dash-text-secondary);
+		white-space: nowrap;
 		min-width: 4rem;
 	}
 	a {
@@ -140,11 +148,10 @@
 	}
 	.section {
 		padding: 0.5rem;
-		border-radius: 0.5rem;
+		border-radius: 12px;
 		position: relative;
 		flex-shrink: 0;
 		flex-basis: auto;
-		/* width: max-content; */
 	}
 	.sections {
 		display: flex;

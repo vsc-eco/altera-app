@@ -10,13 +10,15 @@
 		max?: number;
 		min?: number;
 		inputId?: string;
+		disabled?: boolean;
 	};
 	let {
 		amount = $bindable(),
 		decimals = 2,
 		max = Number.MAX_SAFE_INTEGER,
 		min: minParam,
-		inputId = $bindable()
+		inputId = $bindable(),
+		disabled = false
 	}: Props = $props();
 
 	let min = $derived(minParam ?? 10 ** -decimals);
@@ -40,6 +42,7 @@
 			id,
 			min: 0,
 			max: max,
+			disabled,
 			allowOverflow: false,
 			get value() {
 				return value;
@@ -97,20 +100,27 @@
 	[data-part='input'] {
 		position: absolute;
 		font-size: 3rem;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-primary);
 		min-width: 0;
 		width: var(--width);
 		height: auto;
 		padding: 0;
+		background: transparent;
 		&.invalid {
-			color: var(--secondary-fg-mid);
+			color: var(--negative-text);
 		}
 		border: none;
 		&:focus-visible {
 			box-shadow: none;
 		}
+		&::placeholder {
+			color: var(--dash-text-muted);
+		}
 	}
 	span {
 		font-size: 3rem;
+		font-family: 'Nunito Sans', sans-serif;
 		visibility: hidden;
 		pointer-events: none;
 		max-width: calc(100vw - 2rem - 80px);

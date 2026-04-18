@@ -32,7 +32,7 @@ function throughMagi(from: CoinOnNetwork, to: CoinOnNetwork) {
 	if (throughHive(from, to)) {
 		return false;
 	}
-	const magiSupportedNetworks: string[] = [Network.magi.value, Network.hiveMainnet.value];
+	const magiSupportedNetworks: string[] = [Network.magi.value, Network.hiveMainnet.value, Network.btcMainnet.value];
 	return (
 		magiSupportedNetworks.includes(from.network.value) &&
 		magiSupportedNetworks.includes(to.network.value)

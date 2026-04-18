@@ -8,6 +8,8 @@
 	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { getFee, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
+	import { get } from 'svelte/store';
+	import { untrack } from 'svelte';
 
 	let {
 		editStage,
@@ -18,71 +20,122 @@
 	let coinAmount: CoinAmount<Coin> = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
+	// Derived primitives from store — only change when the actual values change,
+	// preventing effects from re-running on every unrelated store mutation
+	const _fromCoinValue = $derived($SendTxDetails.fromCoin?.coin?.value);
+	const _toCoinValue = $derived($SendTxDetails.toCoin?.coin?.value);
+	const _fromNetwork = $derived($SendTxDetails.fromNetwork?.value);
+	const _toNetwork = $derived($SendTxDetails.toNetwork?.value);
+	// Track toAmount so validation blocks Review until async conversion completes
+	const _toAmount = $derived($SendTxDetails.toAmount);
+
+	// Sync coinAmount → fromAmount, toAmount, fee atomically
+	// Single effect to avoid race conditions between separate from/to effects
 	$effect(() => {
 		if (!open) return;
-		if (!$SendTxDetails.fromCoin) return;
-		if (coinAmount.coin.value === $SendTxDetails.fromCoin.coin.value) {
-			const amt = coinAmount.toAmountString();
-			if (amt !== $SendTxDetails.fromAmount) $SendTxDetails.fromAmount = amt;
-		} else {
-			Promise.all([
-				coinAmount.convertTo($SendTxDetails.fromCoin.coin, Network.lightning),
-				getFee($SendTxDetails.toAmount)
-			]).then(([amt, fee]) => {
-				if ($SendTxDetails.fromAmount !== amt.toAmountString()) {
-					$SendTxDetails.fromAmount = amt.toAmountString();
+		const fromCoinVal = _fromCoinValue;
+		const toCoinVal = _toCoinValue;
+		if (!fromCoinVal) return;
+		const amt = coinAmount.toAmountString();
+		const coinVal = coinAmount.coin.value;
+		const coinAmountSnapshot = coinAmount;
+		untrack(() => {
+			const store = get(SendTxDetails);
+			if (!store.fromCoin) return;
+
+			// Always preserve the raw user input as enteredAmount
+			if (amt !== store.enteredAmount) {
+				SendTxDetails.update((s) => ({ ...s, enteredAmount: amt }));
+			}
+
+			// Compute fromAmount
+			if (coinVal === fromCoinVal) {
+				if (amt !== store.fromAmount) {
+					SendTxDetails.update((s) => ({ ...s, fromAmount: amt }));
 				}
-				if (
-					fee?.amount !== $SendTxDetails.fee?.amount ||
-					fee?.coin.value !== $SendTxDetails.fee?.coin.value
-				) {
-					$SendTxDetails.fee = fee;
+			} else {
+				coinAmountSnapshot
+					.convertTo(store.fromCoin.coin, Network.lightning)
+					.then((converted) => {
+						const current = get(SendTxDetails);
+						const convertedAmt = converted.toAmountString();
+						if (current.fromAmount !== convertedAmt) {
+							SendTxDetails.update((s) => ({
+								...s,
+								fromAmount: convertedAmt
+							}));
+						}
+					});
+			}
+
+			// Compute toAmount
+			if (!store.toCoin || !toCoinVal) return;
+			if (coinVal === toCoinVal) {
+				if (amt !== store.toAmount) {
+					SendTxDetails.update((s) => ({ ...s, toAmount: amt }));
 				}
-			});
-		}
-	});
-	$effect(() => {
-		if (!open) return;
-		if (!$SendTxDetails.toCoin) return;
-		if (coinAmount.coin.value === $SendTxDetails.toCoin.coin.value) {
-			const amt = coinAmount.toAmountString();
-			if (amt !== $SendTxDetails.toAmount) $SendTxDetails.toAmount = amt;
-		} else {
-			coinAmount.convertTo($SendTxDetails.toCoin.coin, Network.lightning).then((amt) => {
-				if ($SendTxDetails.toAmount !== amt.toAmountString()) {
-					$SendTxDetails.toAmount = amt.toAmountString();
-				}
-			});
-		}
+			} else {
+				coinAmountSnapshot
+					.convertTo(store.toCoin.coin, Network.lightning)
+					.then((converted) => {
+						const current = get(SendTxDetails);
+						const convertedAmt = converted.toAmountString();
+						if (current.toAmount !== convertedAmt) {
+							SendTxDetails.update((s) => ({ ...s, toAmount: convertedAmt }));
+						}
+						// Compute fee based on converted toAmount
+						getFee(convertedAmt).then((fee) => {
+							const latest = get(SendTxDetails);
+							if (
+								fee?.amount !== latest.fee?.amount ||
+								fee?.coin.value !== latest.fee?.coin.value
+							) {
+								SendTxDetails.update((s) => ({ ...s, fee }));
+							}
+						});
+					});
+			}
+		});
 	});
 
+	// Validation — only re-runs when coin/network presence, coinAmount, or toAmount changes
+	// Requires toAmount to be non-zero so Review is blocked until async conversion completes
 	$effect(() => {
 		if (!open) return;
-		if (
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromAmount &&
-			$SendTxDetails.fromNetwork &&
-			coinAmount.amount > 0
-		) {
-			editStage(true);
-		} else {
-			editStage(false);
-		}
+		const hasCoins = !!_fromCoinValue && !!_toCoinValue;
+		const hasNetwork = !!_fromNetwork;
+		const amt = coinAmount.amount;
+		const hasToAmount = !!_toAmount && _toAmount !== '0';
+		untrack(() => {
+			const store = get(SendTxDetails);
+			if (hasCoins && store.fromAmount && hasNetwork && amt > 0 && hasToAmount) {
+				editStage(true);
+			} else {
+				editStage(false);
+			}
+		});
 	});
 
+	// Coin options derived — uses primitives so it only recalculates when coins/networks actually change
 	const coinOptions: CoinOnNetwork[] = $derived.by(() => {
 		let result: CoinOnNetwork[] = [];
-		if ($SendTxDetails.fromCoin && $SendTxDetails.fromNetwork) {
+		// Read derived primitives to track only actual value changes
+		const fCoin = _fromCoinValue;
+		const tCoin = _toCoinValue;
+		const fNet = _fromNetwork;
+		const tNet = _toNetwork;
+		// Use get() to access the full objects without subscribing the derived to the whole store
+		const store = get(SendTxDetails);
+		if (fCoin && fNet && store.fromCoin && store.fromNetwork) {
 			result.push({
-				coin: $SendTxDetails.fromCoin.coin,
-				network: $SendTxDetails.fromNetwork
+				coin: store.fromCoin.coin,
+				network: store.fromNetwork
 			});
 		}
-		if ($SendTxDetails.toCoin && $SendTxDetails.toNetwork) {
+		if (tCoin && tNet && store.toCoin && store.toNetwork) {
 			result.push({
-				coin: $SendTxDetails.toCoin.coin,
-				network: $SendTxDetails.toNetwork
+				coin: store.toCoin.coin,
+				network: store.toNetwork
 			});
 		}
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {

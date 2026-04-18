@@ -137,6 +137,6 @@
 <style>
 
 	.status {
-		color: var(--primary-fg-mid);
+		color: var(--dash-accent-purple);
 	}
 </style>

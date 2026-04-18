@@ -15,6 +15,7 @@
 		type CoinOptions
 	} from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { get } from 'svelte/store';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
 	import { ArrowLeft, ArrowRightLeft, Coins } from '@lucide/svelte';
@@ -31,40 +32,42 @@
 	let coinAmount = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
+	// Sync coinAmount → store. Only tracks `coinAmount` and `open`.
+	let lastSyncedAmt = '';
 	$effect(() => {
 		if (!open) return;
-		if (!$SendTxDetails.fromCoin) return;
 		const amt = coinAmount.toAmountString();
-		if (amt !== $SendTxDetails.fromAmount)
-			$SendTxDetails.fromAmount = $SendTxDetails.toAmount = amt;
+		if (amt === lastSyncedAmt) return;
+		lastSyncedAmt = amt;
+		SendTxDetails.update((d) => ({ ...d, fromAmount: amt, toAmount: amt, enteredAmount: amt }));
 	});
 
 	let max = $state(new CoinAmount(0, Coin.hive));
 
-	// Update max when fromCoin changes for hiveMainnet
+	// Update max when fromCoin or connectedBal changes (skip while asset picker is open)
 	$effect(() => {
-		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
-		if ($SendTxDetails.fromNetwork.value !== Network.hiveMainnet.value) return;
+		if (assetOpen) return;
+		const fromCoin = $SendTxDetails.fromCoin;
+		const fromNetwork = $SendTxDetails.fromNetwork;
+		if (!open || !fromCoin || !fromNetwork) return;
+		if (fromNetwork.value !== Network.hiveMainnet.value) return;
 
-		const coinValue = $SendTxDetails.fromCoin.coin.value;
+		const coinValue = fromCoin.coin.value;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
 			const balance = $accountBalance.connectedBal?.[coinValue as 'hive' | 'hbd'];
 			if (balance !== undefined) {
-				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+				max = new CoinAmount(balance, fromCoin.coin, true);
 			}
 		}
 	});
 
+	// Validation — fromCoin/toCoin/fromNetwork are set by the parent (DepositOptions),
+	// so only check the user-controlled inputs: amount > 0 and within balance.
 	$effect(() => {
 		if (!open) return;
-		const stageComplete =
-			!!$SendTxDetails.fromCoin &&
-			!!$SendTxDetails.toCoin &&
-			!!$SendTxDetails.fromAmount &&
-			!!$SendTxDetails.fromNetwork &&
-			coinAmount.amount > 0 &&
-			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER);
-		editStage(stageComplete);
+		const amt = coinAmount.amount;
+		const maxAmt = max?.amount ?? Number.MAX_SAFE_INTEGER;
+		editStage(amt > 0 && amt <= maxAmt);
 	});
 
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
@@ -75,22 +78,18 @@
 	);
 
 	let assetOpen = $state(false);
-	const toggleAsset = (open = false) => {
+	function toggleAsset(open = false) {
 		assetOpen = open;
-	};
+		// When closing asset picker, sync toCoin to match the newly selected fromCoin
+		if (!open) {
+			const store = get(SendTxDetails);
+			if (store.fromCoin && store.toCoin?.coin?.value !== store.fromCoin?.coin?.value) {
+				SendTxDetails.update((d) => ({ ...d, toCoin: d.fromCoin }));
+			}
+		}
+	}
 	$effect(() => {
 		secondaryMenu = assetOpen;
-	});
-
-	$effect(() => {
-		if (
-			$SendTxDetails.fromCoin &&
-			![Coin.hive.value, Coin.hbd.value].includes($SendTxDetails.fromCoin.coin.value)
-		) {
-			$SendTxDetails.fromCoin = undefined;
-		} else if ($SendTxDetails.toCoin !== $SendTxDetails.fromCoin) {
-			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
-		}
 	});
 </script>
 

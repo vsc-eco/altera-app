@@ -19,22 +19,25 @@
 
 <style lang="scss">
 	ul {
-		border-radius: 0.25rem;
-		background-color: var(--neutral-off-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		// width: 160px;
+		border-radius: 16px;
+		background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+		backdrop-filter: blur(10px);
+		border: 1px solid var(--dash-card-border);
 		padding: 0.25rem;
+		box-shadow: var(--dash-card-shadow);
 	}
 	li {
-		border-radius: 0.25rem;
+		border-radius: 12px;
 		padding: 0.5rem 0.75rem;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		cursor: pointer;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-primary);
 	}
 	li[data-highlighted] {
-		background-color: var(--highlighted-bg);
+		background-color: rgba(111, 106, 248, 0.1);
 	}
 	span {
 		display: flex;

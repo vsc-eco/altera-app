@@ -1,6 +1,22 @@
 /* Defines spacing, fonts, and sizes */
 @use './fonts/plex/plex.css';
 @use './scrollbar.scss';
+
+@font-face {
+	font-family: 'Nunito Sans';
+	src: url('/fonts/NunitoSans-Variable.ttf') format('truetype');
+	font-weight: 200 1000;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'Nunito Sans';
+	src: url('/fonts/NunitoSans-Italic-Variable.ttf') format('truetype');
+	font-weight: 200 1000;
+	font-style: italic;
+	font-display: swap;
+}
+
 @keyframes highlight-in {
 	0% {
 		background-color: var(--neutral-bg-accent);
@@ -10,10 +26,11 @@
 	}
 }
 :root {
-	font-family: 'IBM Plex Sans', system-ui, sans-serif;
+	font-family: 'Nunito Sans', system-ui, sans-serif;
 	font-optical-sizing: auto;
 	font-style: normal;
-	font-weight: 450;
+	font-weight: 400;
+	letter-spacing: 0.01em;
 	// font-variation-settings: 'wdth' 80;
 	--text-xs: 0.79rem;
 	--text-sm: 0.88rem;
@@ -24,6 +41,7 @@
 	--text-4xl: 1.6rem;
 	--text-5xl: 1.8rem;
 	--text-6xl: 2.03rem;
+	--text-7xl: 3.3rem;
 	--highlighted-bg: var(--neutral-bg-accent);
 }
 form:has(input:focus) {
@@ -155,8 +173,40 @@ body {
 	display: block;
 }
 :root {
-	background-color: var(--neutral-bg);
-	color: var(--neutral-fg);
+	background-color: var(--dash-bg);
+	color: var(--dash-text-primary);
+
+	/* Remap old neutral vars to glass theme */
+	--neutral-bg: transparent;
+	--neutral-off-bg: rgba(0, 0, 0, 0.15);
+	--neutral-bg-accent: rgba(255, 255, 255, 0.06);
+	--neutral-bg-accent-shifted: rgba(255, 255, 255, 0.08);
+	--neutral-bg-mid: rgba(255, 255, 255, 0.1);
+	--neutral-fg: var(--dash-text-primary);
+	--neutral-fg-mid: var(--dash-text-secondary);
+	--neutral-fg-accent: var(--dash-text-muted);
+	--neutral-mid: var(--dash-text-muted);
+	--primary-fg-mid: var(--dash-text-primary);
+	--primary-mid: var(--dash-accent-purple);
+	--primary-bg-mid: var(--dash-accent-purple);
+	--primary-bg-accent: rgba(111, 106, 248, 0.15);
+	--primary-fg-accent: var(--dash-accent-purple);
+	--primary-fg-accent-shifted: #6f6af8;
+	--secondary-fg-mid: var(--dash-accent-red);
+	--secondary-fg-accent-shifted: var(--dash-accent-red);
+
+	/* Swap card global variables */
+	--swap-card-bg: var(--dash-card-bg);
+	--swap-card-border: var(--dash-card-border);
+	--swap-input-bg: var(--dash-input-bg);
+	--swap-input-border: var(--dash-input-border);
+	--swap-toggle-bg: var(--dash-surface);
+	--swap-token-btn-bg: var(--dash-surface);
+	--swap-token-btn-border: var(--dash-card-border);
+	--swap-section-bg: var(--dash-swap-field-bg);
+	--swap-fee-bg: var(--dash-surface);
+	--swap-fee-border: var(--dash-card-border);
+	--swap-rate-color: var(--dash-text-secondary);
 }
 
 *:focus {
@@ -241,4 +291,63 @@ input:disabled {
 	font-family: 'Noto Sans Mono Variable', monospace;
 	font-weight: 400;
 	white-space: nowrap;
+}
+
+/* ═══ Haptic button system ═══ */
+button,
+a[role='button'],
+.action-btn,
+.exchange-btn,
+.staking-btn,
+.token-select,
+.filter-btn {
+	transition:
+		transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+		background-color 0.15s ease,
+		border-color 0.15s ease;
+	&:active:not(:disabled) {
+		transform: scale(0.97);
+	}
+}
+
+/* ═══ Card glass — GPU hints for cards with backdrop-filter ═══ */
+.balance-card,
+.portfolio-card,
+.staking-card,
+.market-prices {
+	will-change: transform;
+}
+
+/* ═══ Smooth page entrance ═══ */
+@keyframes fadeSlideUp {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+main {
+	animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ═══ Custom cursor — subtle ring on interactive elements ═══ */
+a,
+button,
+select,
+[role='button'],
+input,
+textarea,
+.nav-button,
+.token-select,
+.action-btn,
+.exchange-btn,
+.staking-btn,
+.filter-btn,
+.send-circle,
+.see-all,
+.swap-arrow-btn {
+	cursor: pointer;
 }

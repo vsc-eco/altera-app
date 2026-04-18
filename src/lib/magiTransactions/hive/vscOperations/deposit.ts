@@ -1,7 +1,8 @@
 import { vscGateway } from '$lib/constants';
 import { CoinAmount } from '$lib/currency/CoinAmount';
-import type { Coin } from '$lib/sendswap/utils/sendOptions';
-import type { CustomJsonOperation, TransferOperation } from '@hiveio/dhive';
+import { Coin } from '$lib/sendswap/utils/sendOptions';
+import type { TransferOperation } from '@hiveio/dhive';
+import { getHiveAssetName, getHbdAssetName } from '../../../../client';
 /**
  *
  * @param from ex: "vaultec"
@@ -16,12 +17,15 @@ export function getHiveDepositOp(
 	memo?: URLSearchParams
 ): TransferOperation {
 	const defaultMemo = new URLSearchParams(`to=${toDid.split(':').at(-1)}`);
+	// Use unit from localStorage (e.g. TESTS/TBD for testnet), fallback to HIVE/HBD
+	const chainUnit =
+		amount.coin.value === Coin.hbd.value ? getHbdAssetName() : getHiveAssetName();
 	return [
 		'transfer',
 		{
 			from,
 			to: vscGateway,
-			amount: `${amount.toAmountString(true)} ${amount.coin.unit}`,
+			amount: `${amount.toAmountString(true)} ${chainUnit}`,
 			memo: (memo ? new URLSearchParams([...defaultMemo, ...memo]) : defaultMemo).toString()
 		}
 	];

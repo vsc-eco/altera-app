@@ -9,32 +9,113 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { ArrowDown, EqualApproximately } from '@lucide/svelte';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
+	import Dialog from '$lib/zag/Dialog.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
+	import { numberFormatLanguage } from '$lib/constants';
+	import {
+		ALTERA_FEE_BPS,
+		ALTERA_FEE_USD_THRESHOLD
+	} from '$lib/magiTransactions/hive/vscOperations/swap';
 
 	let timer = $state<PieTimer>();
 
-	let { txId, onClose = redirect }: { txId: string; onClose?: () => void } = $props();
+	let {
+		txId,
+		onClose = redirect,
+		popup = false,
+		isActive = false,
+		previous,
+		next,
+		goHome
+	}: {
+		txId: string;
+		onClose?: () => void;
+		popup?: boolean;
+		isActive?: boolean;
+		previous?: () => void;
+		next?: () => void;
+		goHome?: () => void;
+	} = $props();
+
+	// Drive the popup Dialog open/close from this stage's active state. Use
+	// a previous-value tracker so dismissing doesn't immediately reopen.
+	let dialogOpen = $state(false);
+	let dialogToggle = $state<(o?: boolean) => void>(() => {});
+	let lastIsActive = false;
+	let lastDialogOpen = false;
+	$effect(() => {
+		if (!popup) return;
+		if (isActive !== lastIsActive) {
+			lastIsActive = isActive;
+			dialogToggle?.(isActive);
+			lastDialogOpen = isActive;
+		}
+	});
+	// Dialog dismissed (X / backdrop / Esc / "Done" button) — reset
+	// the steps machine to the home step so the parent NavButtons
+	// re-appear.
+	$effect(() => {
+		if (!popup) return;
+		if (dialogOpen === lastDialogOpen) return;
+		lastDialogOpen = dialogOpen;
+		if (!dialogOpen && isActive) {
+			goHome?.();
+		}
+	});
 
 	const isSend = $derived($SendTxDetails.toUsername !== getUsernameFromAuth(getAuth()()));
 
 	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
+	function prettyWithDisplayUnit(amt: CoinAmount<Coin>): string {
+		const isNegative = amt.amount < 0;
+		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: amt.coin.decimalPlaces
+		});
+		const unit =
+			amt.coin.value === Coin.hive.value
+				? getHiveAssetName()
+				: amt.coin.value === Coin.hbd.value
+					? getHbdAssetName()
+					: amt.coin.unit;
+		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
+	}
 	let inUsd = $state('');
+	let grossInUsdNum = $state(0);
 	$effect(() => {
 		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
 				inUsd = amount.toMinFigs();
+				grossInUsdNum = amount.toNumber();
 			});
+	});
+	const alteraFeeApplies = $derived(
+		!!$SendTxDetails.toNetwork &&
+			$SendTxDetails.toNetwork.value !== Network.magi.value &&
+			toCoin.value !== Coin.hive.value &&
+			toCoin.value !== Coin.hbd.value &&
+			grossInUsdNum >= ALTERA_FEE_USD_THRESHOLD
+	);
+	const alteraFeeAmount = $derived.by(() => {
+		if (!alteraFeeApplies) return undefined;
+		const out = new CoinAmount($SendTxDetails.toAmount, toCoin);
+		const feeSmallest = Math.floor((out.amount * ALTERA_FEE_BPS) / 10000);
+		if (feeSmallest <= 0) return undefined;
+		return new CoinAmount(feeSmallest, toCoin, true);
 	});
 	let today = moment().format('MMM D, YYYY');
 
 	function redirect() {
-		const openTxParams = new URLSearchParams();
-		openTxParams.set('tx', txId);
-		openTxParams.set('index', '0');
-		goto(`/transactions?${openTxParams.toString()}`);
+		// No-op default — deposit/withdraw pass their own onClose
+		// (dialog toggle) via extraProps; the /swap page's SendSwap
+		// passes its own close handler too. Only the standalone
+		// /transfer page would hit this default, and staying on the
+		// current page is better than jumping to /transactions.
 	}
 
 	let timerStarted = false;
@@ -43,9 +124,21 @@
 		timer?.stop();
 		timerCanceled = true;
 	}
+	// When the auto-close timer completes, close the popup dialog first
+	// (so the user sees it dismiss cleanly) and then run onClose, which by
+	// default navigates to /transactions.
+	function handleTimerComplete() {
+		if (popup) dialogToggle?.(false);
+		onClose();
+	}
 	$effect(() => {
-		if (txId && !timerStarted) {
-			timer?.start();
+		// Only mark started once the timer instance is actually bound.
+		// In popup mode the timer lives inside a Dialog content snippet that
+		// mounts after the effect first runs (when txId arrives), so without
+		// the `timer` guard we'd flip timerStarted true on a no-op start and
+		// never start the real timer when it later mounts.
+		if (txId && !timerStarted && timer) {
+			timer.start();
 			timerStarted = true;
 		}
 		if (timerStarted && !txId) {
@@ -56,14 +149,13 @@
 	});
 </script>
 
-<div class="wrapper">
-	<h2>Payment Complete</h2>
+{#snippet completeBody()}
 	<Card>
 		<div class="amount">
 			{#if isSend}
 				<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
 				<h4>
-					{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+					{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
 					{`(\$US ${inUsd})`}
 				</h4>
 			{:else if $SendTxDetails.toNetwork && $SendTxDetails.fromNetwork}
@@ -72,7 +164,7 @@
 						<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork!} size={32} />
 					</span>
 					<span class="from-amt">
-						{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}
+						{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
 						<EqualApproximately size="16" />
 						{`${inUsd} USD`}
 					</span>
@@ -84,11 +176,17 @@
 						<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork!} size={32} />
 					</span>
 					<span class="to-amt">
-						{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
+						{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.toAmount, toCoin))}
 					</span>
 				</div>
 			{/if}
 		</div>
+		{#if alteraFeeAmount}
+			<div class="altera-fee">
+				<span class="sm-caption">Altera Fee ({(ALTERA_FEE_BPS / 100).toFixed(2)}%)</span>
+				<span class="content">{prettyWithDisplayUnit(alteraFeeAmount)}</span>
+			</div>
+		{/if}
 		<div class="date">
 			<span>Paid on {today}</span>
 		</div>
@@ -96,11 +194,30 @@
 	{#if !timerCanceled}
 		<div class="redirect">
 			<p>Closing…</p>
-			<PieTimer bind:this={timer} onComplete={() => onClose()} />
+			<PieTimer bind:this={timer} onComplete={handleTimerComplete} />
 			<PillButton onclick={cancelTimer}>Stay</PillButton>
 		</div>
 	{/if}
-</div>
+{/snippet}
+
+{#if popup}
+	<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
+		{#snippet title()}
+			Payment Complete
+		{/snippet}
+		{#snippet content()}
+			{@render completeBody()}
+			<div class="popup-buttons">
+				<PillButton onclick={() => onClose()} theme="accent" styleType="invert">Done</PillButton>
+			</div>
+		{/snippet}
+	</Dialog>
+{:else}
+	<div class="wrapper">
+		<h2>Payment Complete</h2>
+		{@render completeBody()}
+	</div>
+{/if}
 
 <style lang="scss">
 	h4 {
@@ -110,18 +227,33 @@
 		// color: var(--neutral-fg);
 		margin: 0;
 	}
+	.altera-fee {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.5rem 0 1rem;
+		color: var(--mid);
+	}
 	.date {
 		padding: 1.5rem 0 1rem;
-		border-top: 1px solid var(--neutral-bg-accent);
+		border-top: 1px solid var(--dash-card-border);
 	}
 	.sm-caption {
-		color: var(--neutral-fg);
+		color: var(--dash-text-primary);
 	}
 	.redirect {
 		margin-top: 2rem;
 		display: flex;
 		gap: 1rem;
 		align-items: center;
+	}
+	.popup-buttons {
+		display: flex;
+		gap: 0.75rem;
+		justify-content: flex-end;
+		padding-top: 1rem;
+		margin-top: 1rem;
+		border-top: 1px solid var(--dash-card-border);
 	}
 	.swap-header {
 		padding-bottom: 0.5rem;

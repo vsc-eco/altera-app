@@ -17,6 +17,39 @@
 	--light-purple: oklch(0.67 0.27 317);
 	--middle-purple: oklch(0.272 0.086 300);
 	--dark-purple: oklch(0.188 0.0716 291);
+	/* Primary text (headings, key values) */
+	--primary-text: #ffffff;
+	--positive-text: #a7fb8a;
+	--negative-text: #ff6b6b;
+
+	/* Dashboard color palette */
+	--dash-bg: #0a0a12;
+	--dash-surface: #111119;
+	--dash-surface-alt: #16161f;
+	--dash-card-bg: #1a1a25;
+	--dash-card-border: #252533;
+	--dash-sidebar-bg: #0e0e16;
+	--dash-sidebar-border: #1c1c2a;
+	--dash-sidebar-active: #6c5ce7;
+	--dash-sidebar-hover: #1a1a28;
+	--dash-input-bg: #12121c;
+	--dash-input-border: #2a2a3a;
+	--dash-accent-purple: #6c5ce7;
+	--dash-accent-purple-hover: #7c6ef7;
+	--dash-accent-green: #22c55e;
+	--dash-accent-red: #ef4444;
+	--dash-text-primary: #ffffff;
+	--dash-text-secondary: #9ca3af;
+	--dash-text-muted: #6b7280;
+	--dash-badge-green-bg: rgba(34, 197, 94, 0.15);
+	--dash-badge-green-text: #22c55e;
+	--dash-badge-red-bg: rgba(239, 68, 68, 0.15);
+	--dash-badge-red-text: #ef4444;
+	--dash-divider: #1f1f2e;
+	--dash-swap-bg: #111119;
+	--dash-swap-field-bg: #0a0a12;
+	--dash-btn-primary: #6c5ce7;
+	--dash-btn-primary-hover: #7c6ef7;
 }
 $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90, 95, 97, 98;
 :root {
@@ -24,9 +57,255 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.oklch-palette($color-nums, 'teal', 0.2, 170, 0.02, 250);
 	@include color-mixins.oklch-palette($color-nums, 'gray', 0, 305.19, 0.005, 385);
 	@include color-mixins.oklch-palette($color-nums, 'green', 0.01, 147, 0.05, 142, 0.125, 0.65);
-	// @include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 291, 0.02, 300, 0.15, 0.6);
-	@include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 291, 0.02, 310, 0.15, 0.6);
+	/* Primary #6F6AF8 ≈ oklch(59% 0.23 283) */
+	@include color-mixins.oklch-palette($color-nums, 'purple', 0.01, 283, 0.02, 283, 0.23, 0.59);
 	@include color-mixins.oklch-palette($color-nums, 'pink', 0.26, 316.97);
+}
+
+/* ========== DARK THEME — Glassmorphic Magi ========== */
+:root,
+:root.dark-theme {
+	/* Core — deep space canvas */
+	--dash-bg: #07070e;
+	--dash-surface: rgba(255, 255, 255, 0.03);
+	--dash-surface-alt: rgba(255, 255, 255, 0.06);
+
+	/* Cards — frosted glass with inner highlight */
+	--dash-card-bg: linear-gradient(
+		135deg,
+		rgba(255, 255, 255, 0.1) 0%,
+		rgba(255, 255, 255, 0.05) 100%
+	);
+	--dash-card-border: rgba(255, 255, 255, 0.15);
+	--dash-card-border-highlight: rgba(255, 255, 255, 0.45);
+	--dash-card-border-shadow: rgba(255, 255, 255, 0.04);
+	--dash-card-bg-hover: linear-gradient(
+		135deg,
+		rgba(255, 255, 255, 0.14) 0%,
+		rgba(255, 255, 255, 0.08) 100%
+	);
+	/* Card depth */
+	--dash-card-shadow:
+		0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.3),
+		inset 1px 0 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.2);
+	--dash-card-hover-shadow:
+		0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.4),
+		inset 1px 0 2px rgba(255, 255, 255, 0.2), inset 0 -1px 1px rgba(0, 0, 0, 0.3),
+		0 0 15px rgba(111, 106, 248, 0.15);
+
+	/* Sidebar — frosted panel */
+	--dash-sidebar-bg: rgba(255, 255, 255, 0.04);
+	--dash-sidebar-border: rgba(255, 255, 255, 0.1);
+	--dash-sidebar-active-bg: #6f6af8;
+	--dash-sidebar-active-text: #ffffff;
+	--dash-sidebar-hover: rgba(255, 255, 255, 0.08);
+	--dash-sidebar-text: #8a8aa0;
+
+	/* Inputs */
+	--dash-input-bg: rgba(0, 0, 0, 0.2);
+	--dash-input-border: rgba(255, 255, 255, 0.12);
+
+	/* Accent — SVG: #6F6AF8 */
+	--dash-accent-purple: #6f6af8;
+	--dash-accent-purple-hover: #7e74ff;
+	--dash-accent-purple-light: rgba(111, 106, 248, 0.12);
+	--dash-accent-green: #00960f;
+	--dash-accent-green-light: #a7fb8a;
+	--dash-accent-red: #e31337;
+
+	/* Text */
+	--dash-text-primary: #ffffff;
+	--dash-text-secondary: #9ca3af;
+	--dash-text-muted: #6b7280;
+	--dash-text-accent: #6f6af8;
+
+	/* Badges — SVG: fill=white@0.1, fill=#A7FB8A@0.1 */
+	--dash-badge-transfer-bg: rgba(255, 255, 255, 0.1);
+	--dash-badge-transfer-text: #ffffff;
+	--dash-badge-withdraw-bg: rgba(255, 255, 255, 0.1);
+	--dash-badge-withdraw-text: #ffffff;
+	--dash-badge-green-bg: rgba(167, 251, 138, 0.1);
+	--dash-badge-green-text: #a7fb8a;
+
+	/* Dividers */
+	--dash-divider: rgba(255, 255, 255, 0.06);
+
+	/* Swap */
+	--dash-swap-bg: rgba(255, 255, 255, 0.03);
+	--dash-swap-field-bg: rgba(0, 0, 0, 0.3);
+
+	/* Buttons — SVG: stroke=#6F6AF8 for outlines */
+	--dash-btn-primary: #6f6af8;
+	--dash-btn-primary-hover: #7e74ff;
+	--dash-btn-outline-border: #6f6af8;
+	--dash-btn-outline-text: #ffffff;
+	--dash-btn-outline-hover-bg: rgba(111, 106, 248, 0.15);
+
+	/* Chart — SVG: stroke=#50467E for grid */
+	--dash-chart-line: #6f6af8;
+	--dash-chart-fill: rgba(111, 106, 248, 0.12);
+	--dash-chart-grid: #50467e;
+
+	/* Topbar */
+	--dash-topbar-bg: transparent;
+	--dash-topbar-search-bg: rgba(255, 255, 255, 0.06);
+	--dash-topbar-search-border: rgba(255, 255, 255, 0.12);
+	--dash-topbar-badge-bg: rgba(255, 255, 255, 0.05);
+	--dash-topbar-badge-border: rgba(255, 255, 255, 0.12);
+
+	/* Exchange button — SVG: fill=#6F6AF8 solid */
+	--dash-exchange-gradient: #6f6af8;
+}
+
+/* ========== LIGHT THEME — original, to be redesigned later ========== */
+:root.light-theme {
+	--dash-bg: #f4f4f8;
+	--dash-surface: #ffffff;
+	--dash-surface-alt: #f9f9fc;
+	--dash-card-bg: #ffffff;
+	--dash-card-border: #e0e0e8;
+	--dash-card-bg-hover: #f5f5fa;
+	--dash-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	--dash-card-hover-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+	--dash-sidebar-bg: #ffffff;
+	--dash-sidebar-border: #e8e8f0;
+	--dash-sidebar-active-bg: #6f6af8;
+	--dash-sidebar-active-text: #ffffff;
+	--dash-sidebar-hover: #f5f5fa;
+	--dash-sidebar-text: #6b7280;
+	--dash-input-bg: #f4f4f8;
+	--dash-input-border: #e0e0e8;
+	--dash-accent-purple: #6f6af8;
+	--dash-accent-purple-hover: #5b54e0;
+	--dash-accent-purple-light: rgba(111, 106, 248, 0.08);
+	--dash-accent-green: #16a34a;
+	--dash-accent-green-light: #22c55e;
+	--dash-accent-red: #dc2626;
+	--dash-text-primary: #111118;
+	--dash-text-secondary: #6b7280;
+	--dash-text-muted: #9ca3af;
+	--dash-text-accent: #6f6af8;
+	--dash-badge-transfer-bg: rgba(111, 106, 248, 0.1);
+	--dash-badge-transfer-text: #6f6af8;
+	--dash-badge-withdraw-bg: rgba(234, 136, 0, 0.1);
+	--dash-badge-withdraw-text: #d97706;
+	--dash-badge-green-bg: rgba(22, 163, 74, 0.1);
+	--dash-badge-green-text: #16a34a;
+	--dash-divider: #e8e8f0;
+	--dash-swap-bg: #ffffff;
+	--dash-swap-field-bg: #f4f4f8;
+	--dash-btn-primary: #6f6af8;
+	--dash-btn-primary-hover: #5b54e0;
+	--dash-btn-outline-border: rgba(111, 106, 248, 0.3);
+	--dash-btn-outline-text: #111118;
+	--dash-btn-outline-hover-bg: rgba(111, 106, 248, 0.06);
+	--dash-chart-line: #6f6af8;
+	--dash-chart-fill: rgba(111, 106, 248, 0.08);
+	--dash-chart-grid: #e8e8f0;
+	--dash-topbar-bg: transparent;
+	--dash-topbar-search-bg: #ffffff;
+	--dash-topbar-search-border: #e0e0e8;
+	--dash-topbar-badge-bg: #ffffff;
+	--dash-topbar-badge-border: #e0e0e8;
+	--dash-exchange-gradient: #6f6af8;
+}
+
+/* Hide gradient mesh in light theme */
+:root.light-theme .bg-mesh {
+	display: none !important;
+}
+@media (prefers-color-scheme: light) {
+	:root:not(.light-theme):not(.dark-theme) .bg-mesh {
+		display: none !important;
+	}
+}
+
+/* System preference fallback */
+@media (prefers-color-scheme: dark) {
+	:root:not(.light-theme):not(.dark-theme) {
+		/* inherits dark defaults from :root */
+	}
+}
+@media (prefers-color-scheme: light) {
+	:root:not(.light-theme):not(.dark-theme) {
+		--dash-bg: #f2f1f6;
+		--dash-surface: #ffffff;
+		--dash-surface-alt: #f5f4fa;
+		--dash-card-bg: #ffffff;
+		--dash-card-border: rgba(111, 106, 248, 0.08);
+		--dash-card-border-highlight: rgba(111, 106, 248, 0.12);
+		--dash-card-border-shadow: rgba(0, 0, 0, 0.04);
+		--dash-card-bg-hover: #fafaff;
+		--dash-card-shadow:
+			0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(111, 106, 248, 0.04),
+			0 12px 40px rgba(0, 0, 0, 0.03);
+		--dash-card-hover-shadow:
+			0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(111, 106, 248, 0.08),
+			0 16px 48px rgba(0, 0, 0, 0.04);
+		--dash-sidebar-bg: #ffffff;
+		--dash-sidebar-border: rgba(111, 106, 248, 0.06);
+		--dash-sidebar-active-bg: #6f6af8;
+		--dash-sidebar-active-text: #ffffff;
+		--dash-sidebar-hover: rgba(111, 106, 248, 0.04);
+		--dash-sidebar-text: #6b7280;
+		--dash-input-bg: #f5f4fa;
+		--dash-input-border: rgba(111, 106, 248, 0.12);
+		--dash-accent-purple: #6f6af8;
+		--dash-accent-purple-hover: #5b54e0;
+		--dash-accent-purple-light: rgba(111, 106, 248, 0.06);
+		--dash-accent-green: #16a34a;
+		--dash-accent-green-light: #22c55e;
+		--dash-accent-red: #dc2626;
+		--dash-text-primary: #0f0e1a;
+		--dash-text-secondary: #4b5563;
+		--dash-text-muted: #9ca3af;
+		--dash-text-accent: #6f6af8;
+		--dash-badge-transfer-bg: rgba(111, 106, 248, 0.08);
+		--dash-badge-transfer-text: #6f6af8;
+		--dash-badge-withdraw-bg: rgba(234, 136, 0, 0.08);
+		--dash-badge-withdraw-text: #d97706;
+		--dash-badge-green-bg: rgba(22, 163, 74, 0.08);
+		--dash-badge-green-text: #16a34a;
+		--dash-divider: rgba(111, 106, 248, 0.06);
+		--dash-swap-bg: #ffffff;
+		--dash-swap-field-bg: #f5f4fa;
+		--dash-btn-primary: #6f6af8;
+		--dash-btn-primary-hover: #5b54e0;
+		--dash-btn-outline-border: rgba(111, 106, 248, 0.25);
+		--dash-btn-outline-text: #0f0e1a;
+		--dash-btn-outline-hover-bg: rgba(111, 106, 248, 0.06);
+		--dash-chart-line: #6f6af8;
+		--dash-chart-fill: rgba(111, 106, 248, 0.06);
+		--dash-chart-grid: rgba(111, 106, 248, 0.06);
+		--dash-topbar-bg: transparent;
+		--dash-topbar-search-bg: #ffffff;
+		--dash-topbar-search-border: rgba(111, 106, 248, 0.1);
+		--dash-topbar-badge-bg: #ffffff;
+		--dash-topbar-badge-border: rgba(111, 106, 248, 0.1);
+		--dash-exchange-gradient: #6f6af8;
+
+		/* Light theme neutral overrides */
+		--neutral-bg: #ffffff;
+		--neutral-off-bg: #f5f4fa;
+		--neutral-off-fg: #4b5563;
+		--neutral-bg-accent: rgba(111, 106, 248, 0.04);
+		--neutral-bg-accent-shifted: rgba(111, 106, 248, 0.06);
+		--neutral-bg-mid: rgba(111, 106, 248, 0.08);
+		--neutral-fg: #0f0e1a;
+		--neutral-fg-mid: #4b5563;
+		--neutral-fg-accent: #9ca3af;
+		--neutral-fg-accent-shifted: #9ca3af;
+		--neutral-mid: #9ca3af;
+		--primary-fg-mid: #0f0e1a;
+		--primary-mid: #6f6af8;
+		--primary-bg-mid: #6f6af8;
+		--primary-bg-accent: rgba(111, 106, 248, 0.08);
+		--primary-fg-accent: #6f6af8;
+		--primary-fg-accent-shifted: #6f6af8;
+		--secondary-fg-mid: #dc2626;
+		--secondary-mid: #dc2626;
+		--secondary-bg-mid: #dc2626;
+	}
 }
 
 @mixin light-mode-colors {
@@ -50,19 +329,61 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	@include color-mixins.colors('teal', tertiary, color-mixins.$color-dark-shade-names);
 	@include color-mixins.colors('green', quaternary, color-mixins.$color-dark-shade-names);
 }
-/* Defaults to light mode */
 :root {
 	@include light-mode-colors;
 }
-/* uses system preference if not user specified */
 @media (prefers-color-scheme: dark) {
 	:root:not(.light-theme):not(.dark-theme) {
 		@include dark-mode-colors;
+
+		--neutral-bg: transparent;
+		--neutral-off-bg: rgba(0, 0, 0, 0.15);
+		--neutral-off-fg: var(--dash-text-secondary);
+		--neutral-bg-accent: rgba(255, 255, 255, 0.06);
+		--neutral-bg-accent-shifted: rgba(255, 255, 255, 0.08);
+		--neutral-bg-mid: rgba(255, 255, 255, 0.1);
+		--neutral-fg: var(--dash-text-primary);
+		--neutral-fg-mid: var(--dash-text-secondary);
+		--neutral-fg-accent: var(--dash-text-muted);
+		--neutral-fg-accent-shifted: var(--dash-text-muted);
+		--neutral-mid: var(--dash-text-muted);
+		--primary-fg-mid: var(--dash-text-primary);
+		--primary-mid: #6f6af8;
+		--primary-bg-mid: #6f6af8;
+		--primary-bg-accent: rgba(111, 106, 248, 0.15);
+		--primary-fg-accent: #6f6af8;
+		--primary-fg-accent-shifted: #6f6af8;
+		--secondary-fg-mid: var(--dash-accent-red);
+		--secondary-mid: var(--dash-accent-red);
+		--secondary-bg-mid: var(--dash-accent-red);
+		--secondary-fg-accent-shifted: var(--dash-accent-red);
 	}
 }
-/* if user specifies */
 :root.dark-theme {
 	@include dark-mode-colors;
+
+	/* Override OKLCH neutral palette with glass-compatible values */
+	--neutral-bg: transparent;
+	--neutral-off-bg: rgba(0, 0, 0, 0.15);
+	--neutral-off-fg: var(--dash-text-secondary);
+	--neutral-bg-accent: rgba(255, 255, 255, 0.06);
+	--neutral-bg-accent-shifted: rgba(255, 255, 255, 0.08);
+	--neutral-bg-mid: rgba(255, 255, 255, 0.1);
+	--neutral-fg: var(--dash-text-primary);
+	--neutral-fg-mid: var(--dash-text-secondary);
+	--neutral-fg-accent: var(--dash-text-muted);
+	--neutral-fg-accent-shifted: var(--dash-text-muted);
+	--neutral-mid: var(--dash-text-muted);
+	--primary-fg-mid: var(--dash-text-primary);
+	--primary-mid: #6f6af8;
+	--primary-bg-mid: #6f6af8;
+	--primary-bg-accent: rgba(111, 106, 248, 0.15);
+	--primary-fg-accent: #6f6af8;
+	--primary-fg-accent-shifted: #6f6af8;
+	--secondary-fg-mid: var(--dash-accent-red);
+	--secondary-mid: var(--dash-accent-red);
+	--secondary-bg-mid: var(--dash-accent-red);
+	--secondary-fg-accent-shifted: var(--dash-accent-red);
 }
 
 .primary {

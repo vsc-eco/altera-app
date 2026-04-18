@@ -1,21 +1,26 @@
 <script lang="ts">
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
-	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
-	import Avatar from '$lib/zag/Avatar.svelte';
 	import { NotebookPen } from '@lucide/svelte';
 	import StatusBadge from '../StatusBadge.svelte';
 
+	const TRUNCATE_AT = 15;
+
 	let isHovered = $state(false);
 	let { address, status }: { address: string; status?: string } = $props();
+
+	const isLong = $derived(address.length > TRUNCATE_AT);
+	const displayText = $derived(isLong ? address.slice(0, TRUNCATE_AT) + '…' : address);
 </script>
 
 <td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
 	<span class="to-from">
 		<span class="pfp">
-			<NotebookPen size="24" />
+			<NotebookPen size="16" />
 		</span>
-		<span class="contract-address">
-			<BasicCopy value={address} show={isHovered} />
+		<span class="contract-address" class:small={isLong}>
+			<BasicCopy value={address} show={isHovered}>
+				{displayText}
+			</BasicCopy>
 		</span>
 		{#if status && status != 'CONFIRMED'}
 			<span class="status">
@@ -38,7 +43,6 @@
 		column-gap: 0.25rem;
 		align-items: center;
 		align-content: center;
-		height: 4.5rem;
 	}
 	@media screen and (max-width: 450px) {
 		.to-from {
@@ -47,12 +51,14 @@
 	}
 	.pfp {
 		grid-area: pfp;
-		width: 2.5rem;
-		height: 2.5rem;
-		background-color: var(--neutral-bg-accent);
+		width: 1.5rem;
+		height: 1.5rem;
+		background-color: var(--dash-surface-alt);
 		border-radius: 100%;
-		text-align: center;
-		align-content: center;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--dash-text-secondary);
 	}
 	.status {
 		grid-area: status;
@@ -61,5 +67,8 @@
 	.to-from > .contract-address,
 	.contract-address {
 		grid-area: toFrom;
+	}
+	.contract-address.small {
+		font-size: 0.75rem;
 	}
 </style>

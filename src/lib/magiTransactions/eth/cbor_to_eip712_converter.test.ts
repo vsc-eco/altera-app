@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { convertCBORToEIP712TypedData } from './cbor_to_eip712_converter';
 import { encodePayload } from 'dag-jose-utils';
+import { vscNetworkId } from '../../../client';
 
 import { hashDomain, hashTypedData } from 'viem';
 
@@ -31,7 +32,7 @@ describe('eth msg', () => {
 				__t: 'vsc-tx',
 				__v: '0.2',
 				headers: {
-					net_id: 'vsc-mainnet',
+					net_id: vscNetworkId,
 					nonce: 0 as any,
 					rc_limit: 0 as any,
 					required_auths: ['did:pkh:eip155:1:0x31160b3fF46E7406D7B28af9128b0407e05C376e']
@@ -65,7 +66,7 @@ describe('eth msg', () => {
 				__t: 'vsc-tx',
 				__v: '0.2',
 				headers: {
-					net_id: 'vsc-mainnet',
+					net_id: vscNetworkId,
 					nonce: 0 as any,
 					rc_limit: 0 as any,
 					required_auths: ['did:pkh:eip155:1:0x31160b3fF46E7406D7B28af9128b0407e05C376e']
@@ -233,7 +234,7 @@ describe('eth msg', () => {
 					__t: 'vsc-tx',
 					__v: '0.2',
 					headers: {
-						net_id: 'vsc-mainnet',
+						net_id: vscNetworkId,
 						nonce: 0 as any,
 						rc_limit: 0 as any,
 						required_auths: ['did:pkh:eip155:1:0x31160b3fF46E7406D7B28af9128b0407e05C376e']

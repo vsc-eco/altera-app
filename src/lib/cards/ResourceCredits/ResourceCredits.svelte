@@ -7,7 +7,11 @@
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
 	import InfoToolip from '$lib/components/InfoTooltip.svelte';
-	let { username, isHive }: { username: string | undefined; isHive: boolean } = $props();
+	let { username }: { username: string | undefined } = $props();
+	import { getAuth } from '$lib/auth/store';
+
+	const auth = $derived(getAuth()());
+	const isHive = $derived(auth.value?.provider === 'aioha');
 
 	let rc: Manabar | null = $state(null);
 
@@ -17,12 +21,6 @@
 		if ($accountBalance.loading) {
 			return [null, 0];
 		}
-		// if (maxRCs < 5000) {
-		// 	return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
-		// }
-		// if (maxRCs - $accountBalance.bal.resource_credits < 1000) {
-		// 	return [maxRCs / 1000, maxRCs / 1000];
-		// }
 		return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
 	});
 
@@ -85,7 +83,7 @@
 <Card>
 	<div class="rc-wrapper">
 		<div>
-			<h5>Magi Resource Credits</h5>
+			<h5 class="rc-title">Magi Resource Credits</h5>
 			<div class="bar-and-info">
 				<div class="bar-wrapper">
 					<Progress
@@ -143,6 +141,18 @@
 		flex-direction: column;
 		gap: 1.5rem;
 		vertical-align: middle;
+		font-family: 'Nunito Sans', sans-serif;
+		.rc-title {
+			color: var(--dash-text-primary);
+			font-size: 0.85rem;
+			font-weight: 600;
+		}
+		h5 {
+			color: var(--dash-text-primary);
+			font-size: 0.85rem;
+			font-weight: 600;
+			font-family: 'Nunito Sans', sans-serif;
+		}
 		.bar-and-info {
 			display: flex;
 			gap: 0.5rem;

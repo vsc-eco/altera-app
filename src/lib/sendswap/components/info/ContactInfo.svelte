@@ -3,7 +3,7 @@
 	import Avatar from '$lib/zag/Avatar.svelte';
 	import { Dot } from '@lucide/svelte';
 	import InfoSegment from './InfoSegment.svelte';
-	import type { Contact } from '$lib/send/contacts/contacts';
+	import type { Contact } from '$lib/sendswap/contacts/contacts';
 
 	let {
 		did,
@@ -59,7 +59,7 @@
 	{#if icon}
 		<img src={icon} alt="Contact" class={{ large: size === 'large' }} />
 	{:else}
-		<Avatar {did} large={size === 'large'} />
+		<Avatar {did} {size} />
 	{/if}
 	<InfoSegment
 		label={name ?? (username ? getAccountNameFromAddress(username) : '')}

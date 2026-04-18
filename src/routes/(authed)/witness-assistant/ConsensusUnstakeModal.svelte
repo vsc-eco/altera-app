@@ -115,13 +115,13 @@
 		display: flex;
 	}
 	.status {
-		color: var(--primary-fg-mid);
+		color: var(--dash-accent-purple);
 	}
 	p {
 		margin-bottom: 0.5rem;
 	}
 	b {
-		color: var(--secondary-fg-accent-shifted);
+		color: var(--dash-accent-red);
 		font-weight: 500;
 	}
 </style>

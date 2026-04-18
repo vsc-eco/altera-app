@@ -47,7 +47,7 @@
 	span {
 		display: inline-flex;
 		align-items: center;
-		font-family: 'Noto Sans Mono Variable', monospace;
+		font-family: 'Nunito Sans', sans-serif;
 	}
 	div {
 		display: inline-flex;
@@ -60,9 +60,9 @@
 		overflow: hidden;
 	}
 	.up {
-		color: var(--quaternary-mid);
+		color: var(--positive-text);
 	}
 	.down {
-		color: var(--secondary-fg-mid);
+		color: var(--negative-text);
 	}
 </style>

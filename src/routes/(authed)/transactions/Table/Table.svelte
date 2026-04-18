@@ -5,30 +5,69 @@
 		allTransactionsStore,
 		magiTxsStore,
 		fetchTxs,
-		waitForExtend
+		waitForExtend,
+		fetchBtcDeposits,
+		type TxListItem,
+		type TransactionOpType
 	} from '$lib/stores/txStores';
 	import { goto } from '$app/navigation';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import ContractTr from './tr/ContractTr.svelte';
+	import BtcMappingTr from './tr/BtcMappingTr.svelte';
+	import BtcDepositTr from './tr/BtcDepositTr.svelte';
 
 	let {
 		did,
 		allowPopup = true,
-		initialOpen
+		initialOpen,
+		limit: limitProp,
+		size = 'full'
 	}: {
 		did: string;
 		allowPopup?: boolean;
 		initialOpen?: [string, number];
+		limit?: number;
+		size?: 'small' | 'full';
 	} = $props();
 	let loading = $state(true);
 	let lastLength = $state(0);
 	let currStoreLen = $derived($allTransactionsStore.length);
 	let hitBottom = $derived(lastLength === currStoreLen);
 
+	const displayTxs = $derived(
+		limitProp != null
+			? ($allTransactionsStore ?? []).slice(0, limitProp)
+			: ($allTransactionsStore ?? [])
+	) as TxListItem[];
+
+	// Routing: determine which TR component to render for a VSC op.
+	type OpTrType = 'regular' | 'btc-vsc' | 'contract';
+	function getOpTrType(op: TransactionOpType): OpTrType | null {
+		const { data } = op;
+		if (new Set(['from', 'to', 'asset', 'amount']).isSubsetOf(new Set(Object.keys(data)))) {
+			return 'regular';
+		}
+		if (op.type === 'call_contract' || op.type === 'call') {
+			const action: string = op.data?.action || '';
+			if (action === 'unmap' || action === 'transfer' || action === 'transferFrom') {
+				return 'btc-vsc';
+			}
+			return 'contract';
+		}
+		return null;
+	}
+
+	function updateAll() {
+		fetchTxs(did, 'update', (val) => (loading = val));
+		fetchBtcDeposits(did, 'update');
+	}
+
 	let skeletonRowCount = $state(8);
 	onMount(() => {
-		if (!initialOpen && $allTransactionsStore.length < 20) {
-			fetchTxs(did, 'set', (val) => (loading = val), 20);
+		const fetchLimit = limitProp ?? 20;
+		if (!initialOpen && $allTransactionsStore.length < fetchLimit) {
+			fetchTxs(did, 'set', (val) => (loading = val), fetchLimit);
+			fetchBtcDeposits(did, 'set', fetchLimit);
 		}
 		const rootStyle = getComputedStyle(document.documentElement);
 		const remValue = parseFloat(rootStyle.fontSize);
@@ -100,9 +139,7 @@
 		}
 	});
 	$effect(() => {
-		const intervalId = setInterval(() => {
-			fetchTxs(did, 'update', (val) => (loading = val));
-		}, 2000);
+		const intervalId = setInterval(updateAll, 2000);
 		return () => clearInterval(intervalId);
 	});
 	let openOp: [string, number] | null = $state(null);
@@ -131,42 +168,32 @@
 	}
 </script>
 
-<svelte:document
-	onscroll={(_e) => {
-		const me = document.documentElement;
-		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1 && !hitBottom && !loading) {
-			lastLength = currStoreLen;
-			fetchTxs(did, 'extend', (val) => (loading = val), 12);
-		}
-	}}
-/>
-<div
-	class="scroll"
-	onscroll={(e) => {
-		const me = e.currentTarget;
-		if (me.scrollHeight - me.scrollTop - me.clientHeight < 1 && !hitBottom && !loading) {
-			lastLength = currStoreLen;
-			fetchTxs(did, 'extend', (val) => (loading = val), 12);
-		}
-	}}
->
-	<table>
-		<thead>
-			<tr>
-				<th>Date</th>
-				<th class="to-from-header">To/From</th>
-				<th class="amount-header">Amount</th>
-				<th class="token-header">Token</th>
-				<th>Type</th>
-			</tr>
-		</thead>
-
-		<tbody
-			id="transactions-tbody"
-			class={!$allTransactionsStore?.length && !loading ? 'no-transactions-container' : ''}
-		>
-			{#if $allTransactionsStore && $allTransactionsStore.length > 0}
-				<!-- {#each $allTransactionsStore as tx (tx.id)}
+<div class={['card', { small: size === 'small' }]}>
+	<div class="header-row">
+		<div class="h h-date">Date</div>
+		<div class="h h-to-from">To/From</div>
+		<div class="h h-amount">Amount</div>
+		<div class="h h-type">Type</div>
+	</div>
+	<div
+		class="body-scroll"
+		onscroll={(e) => {
+			if (limitProp != null) return;
+			const me = e.currentTarget;
+			if (me.scrollHeight - me.scrollTop - me.clientHeight <= 1 && !hitBottom && !loading) {
+				lastLength = currStoreLen;
+				fetchTxs(did, 'extend', (val) => (loading = val), 12);
+				fetchBtcDeposits(did, 'extend', 12);
+			}
+		}}
+	>
+		<table>
+			<tbody
+				id="transactions-tbody"
+				class={!displayTxs?.length && !loading ? 'no-transactions-container' : ''}
+			>
+				{#if displayTxs && displayTxs.length > 0}
+					<!-- {#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id } = tx}
 					{#each ops!.sort((a, b) => {
 						// put deposits below other ops in their transaction
@@ -176,69 +203,75 @@
 							{@const { data } = op}
 							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
 								<Tr {tx} {op} onRowClick={allowPopup ? toggleDetails : openTxsPage} />
-							{:else}
-								<tr>
-									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
-								</tr>
 							{/if}
 						{/if}
 					{/each}
 				{/each} -->
-				{#each $allTransactionsStore as tx (tx.id)}
-					{@const { ops, id, ledger } = tx}
-					{@const isContract = ops?.find((op) => op?.data.contract_id !== undefined) !== undefined}
-					{@const show =
-						isContract && ledger?.length && ledger.length > 0
-							? ledger?.map((value, index) => ({ ...value, index: index }))
-							: ops}
-					{#each show!.sort((a, b) => {
-						// put deposits below other ops in their transaction
-						return (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
-					}) as op, i (`${tx.id}-${op?.index}`)}
-						{#if op}
-							{@const newOp = 'data' in op ? op : { data: op, index: i, type: op.type }}
-							{@const { data } = newOp}
-							{#if new Set( ['from', 'to', 'asset', 'amount'] ).isSubsetOf(new Set(Object.keys(data)))}
-								<Tr {tx} op={newOp} onRowClick={toggleDetails} />
-							{:else if op.type === 'call_contract'}
-								<ContractTr {tx} op={newOp} onRowClick={toggleDetails} />
-							{:else}
-								<tr>
-									<td colspan="100">Transaction #{id} with type {tx.type} is unsupported.</td>
-								</tr>
-							{/if}
+					{#each displayTxs as item (item.kind === 'vsc' ? item.tx.id : item.event.indexer_tx_hash)}
+						{#if item.kind === 'btc-deposit'}
+							<BtcDepositTr event={item.event} onRowClick={toggleDetails} />
+						{:else}
+							{@const tx = item.tx}
+							{@const { ops } = tx}
+							<!--
+								Always iterate the full `ops` array so every
+								operation in a transaction renders as its own
+								row. Previously contract transactions collapsed
+								to a single ledger-derived row, which hid
+								companion ops like `increaseAllowance` that
+								happen alongside `execute`.
+
+								Sort order: op index descending (higher op
+								numbers on top, so op 1 renders above op 0),
+								with a deposit-last override retained inside
+								each op-index group.
+							-->
+							{#each [...(ops ?? [])].sort((a, b) => {
+								const depDiff = (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
+								if (depDiff !== 0) return depDiff;
+								return (b?.index ?? 0) - (a?.index ?? 0);
+							}) as op, i (`${tx.id}-${op?.index ?? i}`)}
+								{#if op}
+									{@const trType = getOpTrType(op)}
+									{#if trType === 'regular'}
+										<Tr {tx} {op} onRowClick={toggleDetails} />
+									{:else if trType === 'btc-vsc'}
+										<BtcMappingTr {tx} {op} onRowClick={toggleDetails} />
+									{:else if trType === 'contract'}
+										<ContractTr {tx} {op} onRowClick={toggleDetails} />
+									{/if}
+								{/if}
+							{/each}
 						{/if}
 					{/each}
-				{/each}
-			{:else if !loading}
-				{#each Array(skeletonRowCount - 1) as _, i}
-					<tr class="skeleton-row blurred-skeleton">
-						<td><div class="skeleton-cell date"></div></td>
-						<td><div class="skeleton-cell to-from"></div></td>
-						<td><div class="skeleton-cell amount"></div></td>
-						<td><div class="skeleton-cell token"></div></td>
-						<td><div class="skeleton-cell type"></div></td>
-					</tr>
-				{/each}
-			{/if}
-			{#if loading}
-				{#each Array(skeletonRowCount) as _, i}
-					<tr class="skeleton-row">
-						<td><div class="skeleton-cell date"></div></td>
-						<td><div class="skeleton-cell to-from"></div></td>
-						<td><div class="skeleton-cell amount"></div></td>
-						<td><div class="skeleton-cell token"></div></td>
-						<td><div class="skeleton-cell type"></div></td>
-					</tr>
-				{/each}
-			{/if}
-		</tbody>
-	</table>
-	{#if !$allTransactionsStore?.length && !loading}
-		<div class={['no-transactions-overlay', { short: skeletonRowCount <= 5 }]}>
-			<div class="no-transactions-message">No transactions found</div>
-		</div>
-	{/if}
+				{:else if !loading}
+					{#each Array(skeletonRowCount - 1) as _, i}
+						<tr class="skeleton-row blurred-skeleton">
+							<td><div class="skeleton-cell date"></div></td>
+							<td><div class="skeleton-cell to-from"></div></td>
+							<td><div class="skeleton-cell amount"></div></td>
+							<td><div class="skeleton-cell type"></div></td>
+						</tr>
+					{/each}
+				{/if}
+				{#if loading}
+					{#each Array(skeletonRowCount) as _, i}
+						<tr class="skeleton-row">
+							<td><div class="skeleton-cell date"></div></td>
+							<td><div class="skeleton-cell to-from"></div></td>
+							<td><div class="skeleton-cell amount"></div></td>
+							<td><div class="skeleton-cell type"></div></td>
+						</tr>
+					{/each}
+				{/if}
+			</tbody>
+		</table>
+		{#if !displayTxs?.length && !loading}
+			<div class={['no-transactions-overlay', { short: skeletonRowCount <= 5 }]}>
+				<div class="no-transactions-message">No transactions found</div>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <SidePopup
@@ -253,55 +286,79 @@
 />
 
 <style lang="scss">
-	.scroll {
-		overflow: auto;
+	.card {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
+		grid-template-rows: auto minmax(0, 1fr);
 		width: 100%;
 		flex-grow: 1;
+		min-height: 0;
+		position: relative;
+		background: var(--dash-card-bg);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 27px;
+		box-shadow: var(--dash-card-shadow);
+		padding: 1.25rem;
+		font-family: 'Nunito Sans', sans-serif;
+	}
+	.header-row {
+		display: contents;
+	}
+	.h {
+		grid-row: 1;
+		padding: 0.75rem 1rem;
+		color: var(--dash-text-muted);
+		font-weight: 600;
+		font-size: 0.8rem;
+		text-align: left;
+		border-bottom: 1px solid var(--dash-divider);
+	}
+	.h-to-from {
+		text-align: left;
+	}
+	.h-amount {
+		text-align: left;
+	}
+	.body-scroll {
+		grid-row: 2;
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: subgrid;
+		grid-auto-rows: min-content;
+		overflow-y: auto;
+		overflow-x: hidden;
+		min-height: 0;
 		position: relative;
 	}
-	table {
-		width: 100%;
-		border-spacing: 1rem 0.5rem;
-		border-collapse: collapse;
-		position: relative;
+	.body-scroll > table,
+	.body-scroll > table > :global(tbody) {
+		display: contents;
 	}
-	/* .loading {
-		background-color: var(--neutral-bg-accent);
-	} */
+	.body-scroll :global(tr) {
+		display: grid;
+		grid-column: 1 / -1;
+		grid-template-columns: subgrid;
+	}
 	.skeleton-cell {
-		background-color: var(--neutral-bg-accent);
-		border-radius: 0.5rem;
+		background-color: var(--dash-surface-alt);
+		border-radius: 12px;
 		height: 3rem;
 		margin: 0.75rem 1rem;
 		animation: pulse 2s ease-in-out infinite;
 	}
-	thead {
-		position: sticky;
-		top: 0;
-		z-index: 1;
-		background-color: var(--neutral-bg);
+	.body-scroll :global(td) {
+		display: flex;
+		align-items: center;
+		padding: 0.75rem 1rem;
+		font-size: 0.85rem;
+		border-bottom: 1px solid var(--dash-divider);
+		color: var(--dash-text-primary);
 	}
-	th {
-		text-align: left;
-		min-width: max-content;
-		box-sizing: content-box;
-		padding: 0.5rem min(1rem, 2%);
+	.body-scroll :global(tr:last-child td) {
+		border-bottom: none;
 	}
-	table :global(td) {
-		vertical-align: middle;
-		width: max-content;
-		border-bottom: 1px solid var(--neutral-bg-accent);
-	}
-	.token-header {
-		padding-left: 0;
-	}
-	.amount-header {
-		text-align: right;
-		padding-right: 1rem;
-	}
-
-	.to-from-header {
-		padding-left: 3rem;
+	.body-scroll :global(.to-from) {
+		padding: 0.75rem 0;
 	}
 
 	.blurred-skeleton {
@@ -322,19 +379,42 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(to bottom, transparent 10%, var(--neutral-bg) 60%);
+		background: linear-gradient(to bottom, transparent 10%, var(--dash-bg) 60%);
 		pointer-events: none;
 		z-index: 1;
 	}
 
 	.no-transactions-overlay.short {
-		background: linear-gradient(to bottom, transparent 10%, var(--neutral-bg) 80%);
+		background: linear-gradient(to bottom, transparent 10%, var(--dash-bg) 80%);
 		align-items: end;
 	}
 
 	.no-transactions-message {
 		font-weight: 500;
 		padding: 1.5rem;
+		color: var(--dash-text-secondary);
+	}
+
+	/* Small variant for dashboard embed */
+	.card.small {
+		padding: 0;
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+		background: transparent;
+		font-size: 0.8rem;
+	}
+	.card.small .h {
+		padding: 0.5rem 1rem 0.5rem 1.35rem;
+		font-size: 0.75rem;
+	}
+	.card.small .body-scroll :global(td) {
+		padding-top: 0.5rem;
+		padding-bottom: 0.5rem;
+	}
+	.card.small .skeleton-cell {
+		height: 2rem;
+		margin: 0.5rem 0.75rem;
 	}
 
 	@keyframes pulse {

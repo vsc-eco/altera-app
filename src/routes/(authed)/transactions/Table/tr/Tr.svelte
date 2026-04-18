@@ -1,7 +1,6 @@
 <script lang="ts">
 	import ToFrom from '../tds/ToFrom.svelte';
 	import Amount from '../tds/Amount.svelte';
-	import Token from '../tds/Token.svelte';
 	import Type from '../tds/Type.svelte';
 	import { ExternalLink, X } from '@lucide/svelte';
 	import StatusView from './StatusView.svelte';
@@ -19,6 +18,8 @@
 	} from '$lib/stores/txStores';
 	import moment from 'moment';
 	import { addNotification, type Notification } from '$lib/Topbar/notifications';
+	import { getHiveAssetName, getHbdAssetName } from '../../../../../client';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	type Props = {
 		tx: TransactionInter;
@@ -36,7 +37,7 @@
 		// TODO: change to pending once it's not useful to differentiate for testing
 	} = $derived({
 		...tx,
-		status: tx.status === 'unconfirmed' ? 'unconfirmed' : tx.status,
+		status: tx.status === 'UNCONFIRMED' ? 'unconfirmed' : tx.status,
 		timestamp: getTimestamp(tx)
 	});
 	const { data } = $derived(op);
@@ -153,6 +154,21 @@
 			e.preventDefault();
 		}
 	}
+	function prettyWithDisplayUnit(amt: UnkCoinAmount): string {
+		const isNegative = amt.amount < 0;
+		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: amt.coin.decimalPlaces
+		});
+		const unit =
+			amt.coin.value === Coin.hive.value
+				? getHiveAssetName()
+				: amt.coin.value === Coin.hbd.value
+					? getHbdAssetName()
+					: amt.coin.unit;
+		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
+	}
 	const direction: 'incoming' | 'outgoing' | 'swap' = $derived.by(() => {
 		if (to === from) {
 			if (t.includes('stake') || t.includes('unstake')) {
@@ -183,7 +199,6 @@
 	<td class="date">{moment(timestamp).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memoNoId?.get('msg') ?? undefined} {status} />
 	<Amount {amount} {direction} />
-	<Token {amount} {direction} />
 	<Type {direction} {t} />
 </tr>
 
@@ -192,7 +207,7 @@
 		{formatOpType(t)}
 	</h2>
 	<div class="amount">
-		{amount.toPrettyString()}
+		{prettyWithDisplayUnit(amount)}
 		<span class="approx-usd">
 			Approx. ${inUsd} USD
 		</span>
@@ -252,7 +267,7 @@
 	.approx-usd {
 		display: block;
 		text-wrap: wrap;
-		color: var(--neutral-fg-mid);
+		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
 		margin-top: 0.5rem;
 	}
@@ -291,11 +306,10 @@
 	}
 	.section {
 		padding: 0.5rem;
-		border-radius: 0.5rem;
+		border-radius: 12px;
 		position: relative;
 		flex-shrink: 0;
 		flex-basis: auto;
-		/* width: max-content; */
 	}
 	.sections {
 		display: flex;
@@ -322,16 +336,14 @@
 
 	.links-disabled a {
 		pointer-events: none;
-		color: var(--neutral-mid) !important;
+		color: var(--dash-text-muted) !important;
 		text-decoration: none !important;
 		filter: grayscale(50%);
 	}
 
 	.date {
-		vertical-align: middle;
-		padding: 1rem min(1rem, 2%);
-		width: max-content;
-		border-bottom: 1px solid var(--neutral-bg-accent);
+		color: var(--dash-text-secondary);
+		white-space: nowrap;
 		min-width: 4rem;
 	}
 </style>

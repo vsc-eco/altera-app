@@ -8,6 +8,7 @@
 	import NumberInput from '$lib/zag/NumberInput.svelte';
 	import BigInput from './BigInput.svelte';
 	import Select from '$lib/zag/Select.svelte';
+	import { getHiveAssetName, getHbdAssetName } from '../../client';
 
 	let {
 		coinAmount = $bindable(),
@@ -16,8 +17,13 @@
 		expressIn,
 		maxAmount,
 		minAmount,
+		onAmountChange,
 		styleType = 'normal',
-		id = $bindable('')
+		hideUnit = false,
+		borderless = false,
+		hideNetwork = false,
+		id = $bindable(''),
+		disabled = false
 	}: {
 		coinAmount: CoinAmount<Coin>;
 		connectedCoinAmount?: CoinAmount<Coin>;
@@ -25,8 +31,13 @@
 		expressIn?: Coin;
 		maxAmount?: CoinAmount<Coin>;
 		minAmount?: CoinAmount<Coin>;
-		styleType?: 'normal' | 'big';
+		onAmountChange?: (amount: CoinAmount<Coin>) => void;
+		styleType?: 'normal' | 'big' | 'simple';
+		hideUnit?: boolean;
+		borderless?: boolean;
+		hideNetwork?: boolean;
 		id?: string;
+		disabled?: boolean;
 	} = $props();
 
 	let inputAmt: string = $state(coinAmount?.amount !== 0 ? coinAmount.toAmountString() : '');
@@ -39,16 +50,40 @@
 		new CoinAmount(coinAmount.toAmountString(), initialFirstOption?.coin ?? Coin.unk)
 	);
 
+	let externalSync = false;
 	$effect(() => {
-		if (!expressIn || lastModification.coin.value === expressIn.value) {
-			if (coinAmount.amount !== lastModification.amount) coinAmount = lastModification;
+		// Always read dependencies to maintain tracking even when guard fires
+		const currentMod = lastModification;
+		const currentExpressIn = expressIn;
+		const currentCoinAmtStr = coinAmount.toAmountString();
+
+		if (externalSync) {
+			externalSync = false;
+			return;
+		}
+		if (!currentExpressIn || currentMod.coin.value === currentExpressIn.value) {
+			if (currentCoinAmtStr !== currentMod.toAmountString()) coinAmount = currentMod;
 		} else {
-			lastModification.convertTo(expressIn, Network.lightning).then((coinAmt) => {
-				if (coinAmount.amount !== coinAmt.amount) coinAmount = coinAmt;
+			const capturedMod = currentMod;
+			capturedMod.convertTo(currentExpressIn, Network.lightning).then((coinAmt) => {
+				if (untrack(() => lastModification) !== capturedMod) return;
+				if (untrack(() => coinAmount.toAmountString()) !== coinAmt.toAmountString())
+					coinAmount = coinAmt;
 			});
 		}
 	});
-	// let boundAmount: string = $state('');
+	// Sync external coinAmount changes back to internal inputAmt
+	$effect.pre(() => {
+		// Read coinAmount to track reassignment from parent
+		const ext = coinAmount;
+		const extAmt = ext.amount;
+		const modAmt = untrack(() => lastModification.amount);
+		if (extAmt !== modAmt) {
+			externalSync = true;
+			inputAmt = ext.toAmountString();
+			lastModification = ext;
+		}
+	});
 	let lastConnected: CoinAmount<Coin> | undefined = $state();
 	const quiet = $derived(
 		selected.coin.value === Coin.unk.value ||
@@ -104,16 +139,15 @@
 	});
 
 	let showMax = $derived(
-		maxAmount !== undefined &&
+		!disabled &&
+			maxAmount !== undefined &&
 			maxAmount.toAmountString() !==
 				new CoinAmount(inputAmt ?? 0, selected.coin).toAmountString() &&
 			selected.coin.value === maxAmount.coin.value
 	);
 
 	let showUsd = $derived(
-		!(
-			connectedCoinAmount?.coin.value === coins.usd.value || selected.coin.value === coins.usd.value
-		)
+		!(connectedCoinAmount?.coin.value === Coin.usd.value || selected.coin.value === Coin.usd.value)
 	);
 
 	$effect(() => {
@@ -165,7 +199,7 @@
 	$effect(() => {
 		const newCoinOpts = coinOpts;
 		if (newCoinOpts.length === 0) {
-			if (selected.coin !== coins.unk) {
+			if (selected.coin !== Coin.unk) {
 				selected = { coin: Coin.unk, network: Network.unknown };
 			}
 			return;
@@ -196,6 +230,7 @@
 				return;
 			}
 			lastModification = new CoinAmount(inputAmt, selected.coin);
+			onAmountChange?.(lastModification);
 			if (!inputAmt) {
 				inUsd = '0';
 				return;
@@ -203,7 +238,7 @@
 			new CoinAmount(inputAmt, selected.coin)
 				.convertTo(Coin.usd, Network.lightning)
 				.then((amount) => {
-					inUsd = amount.toAmountString();
+					inUsd = amount.toAmountString(true);
 				});
 		});
 	});
@@ -216,11 +251,43 @@
 		}
 	});
 
+	const displayLabel = $derived(
+		selected.coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: selected.coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: selected.coin.label
+	);
+	const displayUnit = $derived(
+		selected.coin.value === Coin.hive.value
+			? getHiveAssetName()
+			: selected.coin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: selected.coin.unit
+	);
+	// Balance string with display unit (e.g. TESTS/TBD) for hive/hbd
+	const balanceDisplay = $derived(
+		maxAmount && selected.coin.value === maxAmount.coin.value
+			? (() => {
+					const n = Math.abs(maxAmount.amount) / 10 ** maxAmount.coin.decimalPlaces;
+					const formatter = new Intl.NumberFormat(undefined, {
+						useGrouping: true,
+						minimumFractionDigits: maxAmount.coin.decimalPlaces
+					});
+					return `${formatter.format(n)} ${displayUnit}`;
+				})()
+			: ''
+	);
 	const selectionItems = $derived(
 		coinOpts.map((coinOpt) => ({
 			...coinOpt,
 			value: coinOpt.coin.value,
-			label: coinOpt.coin.label
+			label:
+				coinOpt.coin.value === Coin.hive.value
+					? getHiveAssetName()
+					: coinOpt.coin.value === Coin.hbd.value
+						? getHbdAssetName()
+						: coinOpt.coin.label
 		}))
 	);
 </script>
@@ -231,50 +298,65 @@
 			<span>
 				{#if maxAmount !== undefined && selected.coin.value === maxAmount.coin.value}
 					<span style="white-space: nowrap;">
-						(Balance:
+						Balance:
 						<span class="balance-amount">
-							{maxAmount!.toPrettyString()}
-						</span>)
+							{balanceDisplay || maxAmount!.toPrettyString()}
+						</span>
 					</span>
 				{/if}
 			</span>
 		</label>
-		<div class="amount-input">
-			{#if selected.coin.value === coins.usd.value}
+		<div class={['amount-input', { borderless }]}>
+			{#if selected.coin.value === Coin.usd.value}
 				<DollarSign />
 			{:else}
-				<CoinNetworkIcon coin={selected.coin} network={selected.network} />
+				<CoinNetworkIcon coin={selected.coin} network={selected.network} {hideNetwork} />
 			{/if}
 			{#key [selected, debouncedMax, min]}
 				{#if quiet}
-					<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} />
+					<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} {disabled} />
 				{:else}
-					<NumberInput bind:amount={inputAmt} bind:error bind:inputId={id} {max} {decimals} {min} />
+					<NumberInput
+						bind:amount={inputAmt}
+						bind:error
+						bind:inputId={id}
+						{max}
+						{decimals}
+						{min}
+						{disabled}
+					/>
 				{/if}
 			{/key}
+			{#if !hideNetwork && selected?.network?.label && selected.network.value !== Network.unknown.value}
+				<span class="network-badge">
+					{selected.network.value === Network.magi.value ? 'Magi' : 'Mainnet'}
+				</span>
+			{/if}
 			{#if showMax}
 				<div class="max-button-wrapper">
 					<PillButton type="button" onclick={setToMax}>Max</PillButton>
 				</div>
 			{/if}
-			<hr />
-			{#if coinOpts.length > 1}
-				<Select
-					items={selectionItems}
-					initial={selected.coin.value}
-					onValueChange={(v) => {
-						if (v.items[0] === undefined) return;
-						if (v.items[0].value === Coin.unk.value) return;
-						if (selected.coin.value !== v.items[0].value) {
-							selected = v.items[0];
-							updateAmount(selected.coin);
-						}
-					}}
-				/>
-			{:else}
-				<div class="coin-label">
-					{selected.coin.label}
-				</div>
+			{#if !hideUnit}
+				<hr />
+				{#if coinOpts.length > 1}
+					<Select
+						items={selectionItems}
+						initial={selected.coin.value}
+						onValueChange={(v) => {
+							if (v.items[0] === undefined) return;
+							if (v.items[0].value === Coin.unk.value) return;
+							if (selected.coin.value !== v.items[0].value) {
+								selected = v.items[0];
+								updateAmount(selected.coin);
+							}
+						}}
+					/>
+				{:else}
+					<div class="coin-label">
+						{displayLabel}
+					</div>
+				{/if}
 			{/if}
 		</div>
 		<span class={['bottom-info', { hidden: !(showUsd || error) }]}>
@@ -294,14 +376,23 @@
 			{/if}
 		</span>
 	</div>
+{:else if styleType === 'simple'}
+	<div class="simple-wrapper">
+		{#key [selected, debouncedMax, min]}
+			<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} {disabled} />
+		{/key}
+		{#if showUsd && inputAmt && inputAmt !== '0'}
+			<span class="simple-usd">≈ ${inUsd}</span>
+		{/if}
+	</div>
 {:else}
 	<div class="big-wrapper">
 		<div class="amount-input">
 			<label for={id}>
-				{selected.coin.label}
+				{displayLabel}
 			</label>
 			{#key [selected, debouncedMax, min]}
-				<BigInput bind:amount={inputAmt} bind:inputId={id} {decimals} {min} />
+				<BigInput bind:amount={inputAmt} bind:inputId={id} {decimals} {min} {disabled} />
 			{/key}
 		</div>
 	</div>
@@ -312,8 +403,13 @@
 	.big-wrapper {
 		:global(input) {
 			border: none;
+			color: var(--dash-text-primary);
+			font-family: 'Nunito Sans', sans-serif;
 			&:focus-visible {
 				box-shadow: none;
+			}
+			&::placeholder {
+				color: var(--dash-text-muted);
 			}
 		}
 	}
@@ -325,33 +421,38 @@
 			position: absolute;
 			top: -1.25rem;
 			right: 0.25rem;
+			color: var(--dash-text-secondary);
+			font-family: 'Nunito Sans', sans-serif;
+			font-size: 0.8rem;
 		}
 		.balance-amount {
-			font-family: 'Noto Sans Mono Variable', monospace;
+			font-family: 'Nunito Sans', sans-serif;
 			font-weight: 400;
 		}
 		.amount-input {
-			border: 1px solid var(--neutral-bg-accent-shifted);
-			color: var(--neutral-fg);
-			border-radius: 0.5rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(0, 0, 0, 0.25);
+			color: var(--dash-text-primary);
+			border-radius: 12px;
 			display: flex;
 			align-items: center;
+			gap: 0.5rem;
 			flex-basis: 1;
 			box-sizing: border-box;
 			&:has(:global(input):focus-visible) {
-				box-shadow: 0 -1px inset var(--primary-bg-mid);
-				border-bottom-color: var(--primary-bg-mid);
+				box-shadow: 0 -1px inset #6f6af8;
+				border-bottom-color: #6f6af8;
 				outline: none;
-				border-radius: 0.5rem 0.5rem 0 0;
+				border-radius: 12px 12px 0 0;
 				hr {
-					border-color: var(--primary-bg-mid);
+					border-color: #6f6af8;
 					border-width: 1.5px;
 				}
 			}
 
 			hr {
 				height: 1.5rem;
-				border-right: 1px solid var(--neutral-bg-accent-shifted);
+				border-right: 1px solid rgba(255, 255, 255, 0.08);
 			}
 
 			.max-button-wrapper {
@@ -362,10 +463,39 @@
 					height: fit-content;
 				}
 			}
+			.network-badge {
+				margin-right: 0.25rem;
+				padding: 0.25rem 0.55rem;
+				border-radius: 12px;
+				border: 1px solid var(--dash-accent-purple);
+				color: var(--dash-accent-purple);
+				font-size: var(--text-xs);
+				font-weight: 600;
+				letter-spacing: 0.02em;
+				height: fit-content;
+				white-space: nowrap;
+				text-transform: uppercase;
+			}
+		}
+		.amount-input.borderless {
+			border: none;
+			background: transparent;
+			box-shadow: none;
+			padding: 0;
+			&:has(:global(input):focus-visible) {
+				box-shadow: none;
+				border: none;
+				border-radius: 0;
+			}
+			:global(.icons img:nth-child(2)) {
+				display: none;
+			}
 		}
 		.coin-label {
 			width: 4rem;
 			text-align: center;
+			color: var(--dash-text-primary);
+			font-family: 'Nunito Sans', sans-serif;
 		}
 		.bottom-info {
 			position: absolute;
@@ -383,8 +513,9 @@
 			}
 		}
 		.approx-usd {
-			color: var(--neutral-fg-mid);
+			color: var(--dash-text-muted);
 			font-size: var(--text-sm);
+			font-family: 'Nunito Sans', sans-serif;
 		}
 		@media screen and (min-width: 450px) and (max-width: 650px) {
 			.amount-input > .max-button-wrapper > :global(button) {
@@ -394,6 +525,33 @@
 			label {
 				visibility: hidden;
 			}
+		}
+	}
+	.simple-wrapper {
+		:global(input) {
+			border: none;
+			background: transparent;
+			color: var(--dash-text-primary);
+			font-family: 'Nunito Sans', sans-serif;
+			font-size: 1.25rem;
+			font-weight: 600;
+			padding: 0;
+			width: 100%;
+			height: auto;
+			&:focus-visible {
+				box-shadow: none;
+				outline: none;
+			}
+			&::placeholder {
+				color: var(--dash-text-muted);
+			}
+		}
+		.simple-usd {
+			display: block;
+			color: var(--dash-text-muted);
+			font-size: 0.7rem;
+			font-family: 'Nunito Sans', sans-serif;
+			margin-top: 0.25rem;
 		}
 	}
 	.big-wrapper {
@@ -411,7 +569,8 @@
 				position: absolute;
 				left: calc(100% + 0.5rem);
 				transform: translateY(-30%);
-				color: inherit;
+				color: var(--dash-text-primary);
+				font-family: 'Nunito Sans', sans-serif;
 			}
 			:global(:input) {
 				padding: 0;

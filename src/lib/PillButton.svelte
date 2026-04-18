@@ -5,21 +5,12 @@
 		HTMLButtonAttributes,
 		MouseEventHandler
 	} from 'svelte/elements';
+	export type StyleFlag = 'invert' | 'outline' | 'text' | 'icon' | 'subtle' | 'submit';
 	export type SharedProps = {
 		children?: Snippet;
 		theme?: string;
 		hide?: boolean;
-		styleType?:
-			| 'invert'
-			| 'text'
-			| 'text-subtle'
-			| 'outline'
-			| 'center'
-			| 'default'
-			| 'icon'
-			| 'icon-outline'
-			| 'icon-text'
-			| 'icon-subtle';
+		styleType?: StyleFlag | (string & {});
 	};
 	export type AnchorProps = { href: string; onclick?: undefined } & HTMLAnchorAttributes;
 	export type ButtonAttributes = {
@@ -35,11 +26,12 @@
 		class: additionalClasses = '',
 		...rest
 	}: Props = $props();
-	let invertStyle = $derived(styleType === 'invert');
+	let invertStyle = $derived(styleType?.includes('invert'));
 	let textStyle = $derived(styleType?.includes('text'));
 	let outlineStyle = $derived(styleType?.includes('outline'));
 	let iconStyle = $derived(styleType?.includes('icon'));
 	let subtleStyle = $derived(styleType?.includes('subtle'));
+	let submitStyle = $derived(styleType?.includes('submit'));
 	let className = $derived([
 		theme,
 		{
@@ -48,6 +40,7 @@
 			outline: outlineStyle,
 			icon: iconStyle,
 			subtle: subtleStyle,
+			submit: submitStyle,
 			hide: hide
 		},
 		additionalClasses
@@ -81,8 +74,9 @@
 		--height: 2.5rem;
 		box-sizing: border-box;
 		height: var(--height);
-		border-radius: calc(var(--height) / 2);
+		border-radius: 1.5rem;
 		color: inherit;
+		font-family: 'Nunito Sans', sans-serif;
 		font: inherit;
 		border: none;
 		padding: 0.25rem 0.75rem;
@@ -94,57 +88,77 @@
 		text-decoration: none;
 		vertical-align: middle;
 		position: relative;
-		white-space: nowrap; /* keep on same line */
-		transition: transform 0.05s;
-
-		background-color: var(--bg-accent);
-		color: var(--fg-accent-shifted);
+		white-space: nowrap;
+		transition:
+			transform 0.05s,
+			box-shadow 0.15s ease,
+			background 0.15s ease;
+		background-color: rgba(255, 255, 255, 0.1);
+		color: var(--dash-text-primary);
 		&:hover {
-			background-color: var(--bg-accent-shifted);
-			color: var(--fg-accent);
-		}
-		&:disabled {
-			cursor: default;
-			color: var(--fg-mid) !important;
-			transform: scale(0.98) !important;
-			background-color: var(--bg-accent) !important;
-			&:active,
-			&:hover,
-			&:focus {
-				color: var(--fg-mid) !important;
-				background-color: var(--bg-accent) !important;
-				transform: scale(0.98) !important;
-			}
+			background-color: rgba(255, 255, 255, 0.15);
+			color: var(--dash-text-primary);
 		}
 		&:active {
-			background-color: var(--bg-accent-shifted);
-			color: var(--fg);
+			background-color: rgba(255, 255, 255, 0.15);
+			color: var(--dash-text-primary);
 			transform: scale(0.98);
 		}
 		:global(.lucide-check) {
 			height: 18px;
 		}
 		&.invert {
-			background-color: var(--fg-mid);
-			color: var(--bg);
+			background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 40%, #5b54e0 100%);
+			box-shadow: 0 4px 20px rgba(111, 106, 248, 0.3);
+			color: white;
 			&:hover {
-				color: var(--bg);
+				background: linear-gradient(135deg, #8e88ff 0%, #7e78ff 40%, #6b64f0 100%);
+				box-shadow: 0 6px 24px rgba(111, 106, 248, 0.4);
+				color: white;
 			}
 			&:active {
-				color: var(--bg);
+				background: linear-gradient(135deg, #6f6af8 0%, #6560e8 40%, #5248d0 100%);
+				box-shadow: 0 2px 12px rgba(111, 106, 248, 0.25);
+				color: white;
 			}
 		}
 		&.outline {
 			background-color: transparent;
-			color: var(--fg);
-			border: 1px solid var(--bg-mid);
+			color: var(--dash-text-primary);
+			border: 1px solid rgba(111, 106, 248, 0.4);
 			&:hover {
-				background-color: var(--bg-accent);
-				color: var(--fg);
+				background-color: rgba(111, 106, 248, 0.1);
+				border-color: #6f6af8;
+				color: var(--dash-text-primary);
+				box-shadow: 0 0 16px -4px rgba(111, 106, 248, 0.2);
 			}
 			&:active {
-				background-color: var(--bg-accent);
-				color: var(--fg);
+				background-color: rgba(111, 106, 248, 0.15);
+				color: var(--dash-text-primary);
+			}
+			&.primary {
+				border-color: #6f6af8;
+				color: var(--dash-text-primary);
+				&:hover {
+					background-color: rgba(111, 106, 248, 0.1);
+					color: var(--dash-text-primary);
+				}
+				&:active {
+					background-color: rgba(111, 106, 248, 0.15);
+					color: var(--dash-text-primary);
+				}
+			}
+			&.primary {
+				border-color: var(--primary-mid);
+				color: var(--primary-text);
+				&:hover {
+					background-color: var(--primary-bg-accent);
+					color: var(--primary-text);
+				}
+				&:active {
+					background-color: var(--primary-bg-accent-shifted);
+					color: var(--primary-text);
+				}
 			}
 		}
 		&.icon {
@@ -157,42 +171,66 @@
 			justify-content: center;
 			align-items: center;
 			&:hover {
-				color: var(--primary-fg-mid);
-				border-color: var(--primary-mid);
+				color: #6f6af8;
+				border-color: #6f6af8;
 			}
 		}
 		&.text {
 			background-color: transparent;
-			color: var(--fg-mid);
+			color: var(--dash-text-secondary);
 			border: none;
 			&.neutral {
 				&:hover {
 					text-decoration: none;
 				}
-				color: var(--fg);
+				color: var(--dash-text-primary);
 			}
 			&:hover {
 				text-decoration: underline;
-				background-color: var(--bg-accent);
-				color: var(--fg);
+				background-color: rgba(255, 255, 255, 0.06);
+				color: var(--dash-text-primary);
 			}
 			&:active {
-				background-color: var(--bg-accent);
-				color: var(--fg);
+				background-color: rgba(255, 255, 255, 0.06);
+				color: var(--dash-text-primary);
+			}
+		}
+		&.submit {
+			height: 48px;
+			width: calc(100% - 0.2rem);
+			font-size: 0.95rem;
+			font-weight: 700;
+			&:hover {
+				transform: scale(0.98);
 			}
 		}
 		&.subtle {
 			background-color: transparent;
-			color: var(--fg-mid);
+			color: var(--dash-text-secondary);
 			padding: 0;
 			height: min-content;
 			width: min-content;
 			&:hover {
-				color: var(--fg);
+				color: var(--dash-text-primary);
 				background-color: transparent;
 			}
 			&:active {
 				background-color: transparent;
+			}
+		}
+		&:disabled {
+			cursor: default;
+			color: var(--dash-text-muted);
+			transform: scale(0.98);
+			background: rgba(255, 255, 255, 0.05);
+			box-shadow: none;
+			&:active,
+			&:hover,
+			&:focus {
+				color: var(--dash-text-muted);
+				background: rgba(255, 255, 255, 0.05);
+				box-shadow: none;
+				transform: scale(0.98);
 			}
 		}
 	}

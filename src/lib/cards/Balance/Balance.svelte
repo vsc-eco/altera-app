@@ -1,201 +1,214 @@
 <script lang="ts">
-	import LineChart, { type Point } from '$lib/LineChart.svelte';
-	import moment from 'moment';
 	import Card from '../Card.svelte';
-	import Diff from './Diff.svelte';
-	import Date from './Date.svelte';
 	import { getAuth } from '$lib/auth/store';
-	import { accountBalanceHistory, fetchAndStoreAccountBalances } from '$lib/stores/balanceHistory';
+	import { accountBalance } from '$lib/stores/currentBalance';
+	import { accountBalanceHistory } from '$lib/stores/balanceHistory';
+	import AccBalance from '$lib/AccBalance.svelte';
+	import { Send } from '@lucide/svelte';
+	import Deposit from '$lib/sendswap/Deposit.svelte';
+	import Withdraw from '$lib/sendswap/Withdraw.svelte';
+	import QuickSend from '$lib/sendswap/QuickSend.svelte';
+	import { getTxSessionId } from '$lib/sendswap/utils/sendUtils';
+
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);
-	let loadingBalances = $state(true);
-	function calcTotalChange(data: { value: number }[]) {
-		let up = 0;
-		let down = 0;
-		for (let i = 1; i < data.length; i++) {
-			let prevPoint = data[i - 1];
-			let diff = data[i].value - prevPoint.value;
-			if (diff > 0) {
-				up += diff;
-			} else {
-				down -= diff;
-			}
-		}
-		return [up, down];
-	}
-	let hoveredPoint: Point | undefined = $state();
-	let hoveredIndex: number | undefined = $state();
-	const active = $derived(
-		hoveredPoint ??
-			($accountBalanceHistory?.length > 0
-				? $accountBalanceHistory[$accountBalanceHistory.length - 1]
-				: null)
-	);
-	const balance = $derived(active?.value ?? 0);
-	const dateRanges = [
-		{
-			label: 'Last 7 Days',
-			start: moment().subtract(7, 'days').toDate(),
-			end: moment().toDate()
-		},
-		{
-			label: 'Last 30 Days',
-			start: moment().subtract(30, 'days').toDate(),
-			end: moment().toDate()
-		},
-		{
-			label: 'Last 90 Days',
-			start: moment().subtract(90, 'days').toDate(),
-			end: moment().toDate()
-		},
-		{
-			label: 'Last 365 Days',
-			start: moment().subtract(365, 'days').toDate(),
-			end: moment().toDate()
-		},
-		{
-			label: 'This Month',
-			start: moment().startOf('month').toDate(),
-			end: moment().toDate()
-		},
-		{
-			label: 'Year to Date',
-			start: moment().startOf('year').toDate(),
-			end: moment().toDate()
-		}
-	];
-	let selectedDateRange = $state(dateRanges[0]);
-	let hourly = $derived(moment(selectedDateRange.end).diff(selectedDateRange.start, 'day') < 14);
-	let interval = $derived(hourly ? moment.duration(1, 'hour') : moment.duration(1, 'day'));
-	let filteredData = $derived(
-		$accountBalanceHistory.filter((v) => {
-			return v.date.getTime() > selectedDateRange.start.getTime();
-		})
-	);
-	const date = $derived(hoveredPoint && active?.date);
-	const prev = $derived(hoveredIndex == undefined ? undefined : filteredData[hoveredIndex - 1]);
-	const priceDiff = $derived(
-		calcTotalChange(
-			hoveredPoint
-				? prev == undefined
-					? [{ value: 0 }, { value: 0 }]
-					: [prev, hoveredPoint]
-				: filteredData
-		)
+	let loadingBalances = $derived($accountBalance.loading);
+	let balance = $derived(
+		$accountBalanceHistory.length > 0
+			? $accountBalanceHistory[$accountBalanceHistory.length - 1].value
+			: 0
 	);
 
-	$effect(() => {
-		if (!selectedDateRange && dateRanges.length > 0) {
-			selectedDateRange = dateRanges[0];
-		}
-	});
+	// Derive dollars and cents from the same rounded integer so a cents field
+	// that rounds up to 100 (e.g. balance = 999.999) correctly bumps the dollar
+	// digit instead of displaying "$999.100".
+	let totalCents = $derived(Math.round(balance * 100));
+	let dollars = $derived(Math.floor(totalCents / 100));
+	let cents = $derived(
+		new Intl.NumberFormat('en-US', {
+			minimumIntegerDigits: 2,
+			maximumFractionDigits: 0
+		}).format(totalCents % 100)
+	);
 
-	$effect(() => {
-		if (did && selectedDateRange) {
-			loadingBalances = true;
-			fetchAndStoreAccountBalances(did, selectedDateRange.start, selectedDateRange.end, interval)
-				.then(() => {
-					loadingBalances = false;
-				})
-				.catch(() => {
-					loadingBalances = false;
-				});
-		}
-	});
+	let quickSendOpen = $state(false);
+	let sendSessionId = $state(getTxSessionId());
+	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
+	let depositOpen = $state(false);
+	let depositSessionId = $state(getTxSessionId());
+	let toggleDeposit = $state<(open?: boolean) => void>(() => {});
+	let withdrawOpen = $state(false);
+	let withdrawSessionId = $state(getTxSessionId());
+	let toggleWithdraw = $state<(open?: boolean) => void>(() => {});
 </script>
 
 <Card>
-	<div class={['root', { hovered: hoveredIndex }]}>
-		<div class="caption">
-			<h5>Magi Balance</h5>
-			<div class="price">
-				{#if loadingBalances}
-					<span class="loading">Loading...</span>
-				{:else}
-					${Math.floor(balance)}<span
-						><span>.</span>{new Intl.NumberFormat('en-US', {
-							style: 'decimal',
-							maximumFractionDigits: 0,
-							minimumIntegerDigits: 2
-						}).format((balance * 100) % 100)}</span
-					>
-				{/if}
+	<div class="balance-inner">
+		<span class="balance-label">Magi Balance</span>
+		<div class="balance-row">
+			<div class="balance-amount">
+				<span class="dollars">${dollars.toLocaleString()}</span><span class="cents">.{cents}</span>
 			</div>
+			<button
+				type="button"
+				class="send-circle"
+				title="Quick send"
+				onclick={() => {
+					sendSessionId = getTxSessionId();
+					toggleQuickSend(true);
+				}}
+			>
+				<Send size={18} />
+			</button>
 		</div>
 
-		<div class="date-change-bar">
-			<div class={['date', { hovered: date }]}>
-				<Date
-					onValueChange={(v) => {
-						selectedDateRange = v;
-					}}
-					{dateRanges}
-					currDate={date}
-					{hourly}
-				></Date>
+		<div class="action-buttons">
+			<button
+				class="action-btn action-btn-filled"
+				onclick={() => {
+					depositSessionId = getTxSessionId();
+					toggleDeposit(true);
+				}}
+			>
+				Deposit
+			</button>
+			<button
+				class="action-btn action-btn-outline"
+				onclick={() => {
+					withdrawSessionId = getTxSessionId();
+					toggleWithdraw(true);
+				}}
+			>
+				Withdraw
+			</button>
+		</div>
+
+		{#if did}
+			<div class="balances-section">
+				<AccBalance {did} />
 			</div>
-			{#if !loadingBalances}
-				<div class="change">
-					<Diff up={priceDiff[0]} down={priceDiff[1]} compact={hoveredPoint == undefined} />
-				</div>
-			{/if}
-		</div>
-		<div class="lc-wrapper">
-			<LineChart
-				data={filteredData}
-				bind:hoveredPoint
-				bind:hoveredIndex
-				height={220}
-				isLoading={loadingBalances}
-			/>
-		</div>
+		{/if}
 	</div>
 </Card>
 
+<QuickSend
+	bind:dialogOpen={quickSendOpen}
+	bind:toggle={toggleQuickSend}
+	sessionId={sendSessionId}
+/>
+<Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
+<Withdraw
+	bind:dialogOpen={withdrawOpen}
+	bind:toggle={toggleWithdraw}
+	sessionId={withdrawSessionId}
+/>
+
 <style lang="scss">
-	.root {
-		display: block;
-		min-width: min(300px, 100%);
-		flex-basis: 450px;
-	}
-	.root > :global(div) {
+	.balance-inner {
+		display: flex;
+		flex-direction: column;
 		height: 100%;
+		min-height: 0;
 		box-sizing: border-box;
+		overflow: hidden;
 	}
-	.caption {
-		margin: 0.75rem;
-		margin-top: 0;
+
+	.balance-label {
+		display: block;
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--dash-text-muted);
+		margin-bottom: 0.5rem;
 	}
-	.date-change-bar {
+
+	.balance-row {
 		display: flex;
-		justify-content: space-between;
 		align-items: center;
-		min-height: 3.5rem;
-		margin-right: 0.75rem;
-		.hovered {
-			margin-left: 0.75rem;
-		}
+		justify-content: space-between;
+		margin-bottom: 1.5rem;
 	}
-	.price {
-		vertical-align: text-top;
+
+	.balance-amount {
 		display: flex;
-		align-items: first;
-		margin: 0.5rem 0;
-		font-size: var(--text-5xl);
-		font-family: 'Noto Sans Mono Variable', monospace;
+		align-items: flex-start;
 	}
-	.price span:last-child {
-		padding-top: 0.125rem;
-		font-size: var(--text-1xl);
-		span {
-			font-size: var(--text-base);
-			display: inline-flex;
-			align-items: right;
-			justify-content: end;
-		}
+	.dollars {
+		font-size: 2.5rem;
+		font-weight: 500;
+		color: var(--dash-text-primary);
+		letter-spacing: -0.01em;
+		line-height: 1;
 	}
-	.lc-wrapper {
-		margin: 0 -0.5rem;
-		overflow-x: auto;
+	.cents {
+		font-size: 1rem;
+		font-weight: 500;
+		color: var(--dash-text-muted);
+		margin-top: 0.05rem;
+		margin-left: 2px;
+	}
+	.loading {
+		color: var(--dash-text-muted);
+		font-size: 0.9rem;
+	}
+
+	.send-circle {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 38px;
+		height: 38px;
+		border-radius: 50%;
+		border: none;
+		background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 50%, #5b54e0 100%);
+		color: white;
+		cursor: pointer;
+		flex-shrink: 0;
+		box-shadow: 0 2px 12px rgba(111, 106, 248, 0.35);
+		transition:
+			transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+			box-shadow 0.2s ease;
+	}
+	.send-circle:hover {
+		transform: scale(1.08);
+		box-shadow: 0 4px 20px rgba(111, 106, 248, 0.5);
+	}
+	.send-circle:active {
+		transform: scale(0.94);
+		box-shadow: 0 1px 6px rgba(111, 106, 248, 0.3);
+	}
+
+	.action-buttons {
+		display: flex;
+		gap: 0.625rem;
+		margin-bottom: 1.75rem;
+	}
+
+	.action-btn {
+		flex: 1;
+		height: 44px;
+		border-radius: 1.5rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+	}
+	.action-btn-filled,
+	.action-btn-outline {
+		background-color: transparent;
+		color: var(--dash-text-primary);
+		border: 1px solid var(--dash-btn-outline-border);
+	}
+	.action-btn-filled:hover,
+	.action-btn-outline:hover {
+		background-color: rgba(111, 106, 248, 0.08);
+		border-color: rgba(111, 106, 248, 0.4);
+		box-shadow: 0 0 16px -4px rgba(111, 106, 248, 0.2);
+	}
+
+	.balances-section {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+		margin-top: 0.25rem;
 	}
 </style>

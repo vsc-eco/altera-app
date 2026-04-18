@@ -10,7 +10,7 @@
 	import type { Contact } from '$lib/sendswap/contacts/contacts';
 	import swapOptions, { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
-	import { accountBalance } from '$lib/stores/currentBalance';
+	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
 	import Divider from '$lib/components/Divider.svelte';
 	import { get } from 'svelte/store';
@@ -48,6 +48,24 @@
 		SendTxDetails.update((details) => {
 			if (details.toUsername === nextValue) return details;
 			return { ...details, toUsername: nextValue };
+		});
+	}
+	function syncAmountFromInput(nextAmount: CoinAmount<Coin>) {
+		if (!open) return;
+		const amt = nextAmount.toAmountString();
+		SendTxDetails.update((details) => {
+			if (
+				details.toAmount === amt &&
+				details.fromAmount === amt &&
+				details.enteredAmount === amt
+			)
+				return details;
+			return {
+				...details,
+				toAmount: amt,
+				fromAmount: amt,
+				enteredAmount: amt
+			};
 		});
 	}
 
@@ -111,14 +129,14 @@
 		setToUsername(trimmed);
 	});
 
-	// Update SendTxDetails with coinAmount
+	// Sync coinAmount → store. Uses local guard to avoid reading store reactively.
+	let lastSyncedAmt = '';
 	$effect(() => {
 		if (!open) return;
-		if (!$SendTxDetails.toCoin) return;
 		const amt = coinAmount.toAmountString();
-		if (amt !== $SendTxDetails.toAmount) {
-			$SendTxDetails.toAmount = $SendTxDetails.fromAmount = amt;
-		}
+		if (amt === lastSyncedAmt) return;
+		lastSyncedAmt = amt;
+		SendTxDetails.update((d) => ({ ...d, fromAmount: amt, toAmount: amt, enteredAmount: amt }));
 	});
 
 	let max = $state(new CoinAmount(0, Coin.hive));
@@ -130,10 +148,11 @@
 
 		const coinValue = $SendTxDetails.fromCoin.coin.value;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
-			const balance = $accountBalance.bal[coinValue as 'hive' | 'hbd'];
-			if (balance !== undefined) {
-				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
-			}
+			max = getBalanceAmount(
+				$accountBalance,
+				$SendTxDetails.fromCoin.coin,
+				$SendTxDetails.fromNetwork
+			);
 		}
 	});
 	// Validate Hive account for EVM users
@@ -188,7 +207,6 @@
 		const baseValidation = !!(
 			$SendTxDetails.fromCoin &&
 			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromAmount &&
 			$SendTxDetails.fromNetwork &&
 			coinAmount.amount > 0 &&
 			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
@@ -211,18 +229,18 @@
 	);
 
 	let assetOpen = $state(false);
-	const toggleAsset = (open = false) => {
+	function toggleAsset(open = false) {
 		assetOpen = open;
-	};
+		// When closing asset picker, sync toCoin to match the newly selected fromCoin
+		if (!open) {
+			const store = get(SendTxDetails);
+			if (store.fromCoin && store.toCoin?.coin?.value !== store.fromCoin?.coin?.value) {
+				SendTxDetails.update((d) => ({ ...d, toCoin: d.fromCoin }));
+			}
+		}
+	}
 	$effect(() => {
 		secondaryMenu = assetOpen || contactOpen;
-	});
-
-	// Ensure toCoin is valid for Hive Mainnet (HIVE or HBD)
-	$effect(() => {
-		if ($SendTxDetails.fromCoin !== $SendTxDetails.toCoin) {
-			$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
-		}
 	});
 </script>
 
@@ -286,6 +304,7 @@
 							coinOpts={coinOptions}
 							expressIn={$SendTxDetails.fromCoin?.coin}
 							maxAmount={max}
+							onAmountChange={syncAmountFromInput}
 							bind:id={inputId}
 						/>
 					</div>
@@ -320,7 +339,7 @@
 		}
 	}
 	.error-message {
-		color: var(--error-color, #ff4444);
+		color: var(--dash-accent-red);
 		font-size: 0.875rem;
 		margin-top: 0.5rem;
 		display: block;

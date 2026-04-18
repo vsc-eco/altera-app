@@ -1,15 +1,32 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { getHiveAssetName, getHbdAssetName } from '../client';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from './sendswap/utils/sendOptions';
 	import { accountBalanceHistory, sumBalance } from './stores/balanceHistory';
 	import { accountBalance } from './stores/currentBalance';
 	import moment from 'moment';
 	import InfoToolip from './components/InfoTooltip.svelte';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	type Props = {
 		did: string;
 	};
 	let { did }: Props = $props();
+
+	const hiveAssetName = $derived(browser ? getHiveAssetName() : 'HIVE');
+	const hbdAssetName = $derived(browser ? getHbdAssetName() : 'HBD');
+	function formatWithUnit(
+		amt: CoinAmount<typeof Coin.hive | typeof Coin.hbd>,
+		unit: string
+	): string {
+		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
+		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: amt.coin.decimalPlaces
+		});
+		return `${amt.amount < 0 ? '-' : ''}${formatter.format(n)} ${unit}`;
+	}
 
 	$effect(() => {
 		(async () => {
@@ -18,15 +35,9 @@
 			if (lastEntry && (moment(lastEntry.date).minutes() === 0 || lastEntry.value !== total)) {
 				accountBalanceHistory.update((arr) => {
 					if (moment(lastEntry.date).minutes() === 0) {
-						arr.push({
-							date: moment().toDate(),
-							value: total
-						});
+						arr.push({ date: moment().toDate(), value: total });
 					} else {
-						arr[arr.length - 1] = {
-							date: moment().toDate(),
-							value: total
-						};
+						arr[arr.length - 1] = { date: moment().toDate(), value: total };
 					}
 					return arr;
 				});
@@ -35,153 +46,198 @@
 	});
 </script>
 
-<div class="box">
-	<div class="title-and-tooltip">
-		<h5>Balances</h5>
-		<InfoToolip>Only balance deposited in Magi is listed.</InfoToolip>
+<div class="balances-list">
+	<div class="balances-header">
+		<span class="balances-title">Balances</span>
+		<!-- <a href="/" class="see-all">See all</a> -->
 	</div>
 
-	<table>
-		<tbody>
-			<tr>
-				<td><img src={Coin.hbd.icon} alt="" /></td>
-				<td class="coin-cell">HBD</td>
-				<td class="amount-cell"
-					>{new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true).toPrettyString()}&nbsp;</td
+	<div class="balance-row">
+		<div class="row-icon hbd"><img src={Coin.hbd.icon} alt="" /></div>
+		<div class="row-info">
+			<span class="coin-name">{hbdAssetName}</span>
+			<span class="coin-sub">Hive Backed Dollar</span>
+		</div>
+		<span class="row-amount"
+			>{formatWithUnit(new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true), hbdAssetName)}</span
+		>
+	</div>
+
+	<div class="balance-row">
+		<div class="row-icon shbd"><img src={Coin.hbd.icon} alt="" /></div>
+		<div class="row-info">
+			<span class="coin-name">
+				s{hbdAssetName}
+				<span class="tooltip-inline"
+					><InfoToolip
+						>s{hbdAssetName} is {hbdAssetName} that remains transferable while earning 15% APR</InfoToolip
+					></span
 				>
-			</tr>
-			<tr>
-				<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
-				<td class="coin-cell">
-					<span class="coin-name">Liquid Hive Dollar Savings (sHBD)</span>
-					<span class="tooltip">
-						<InfoToolip>sHBD is HBD that remains transferable while earning 15% APR</InfoToolip>
-					</span>
-				</td>
-				<td class="amount-cell"
-					>{new CoinAmount(
-						$accountBalance.bal.hbd_savings,
-						Coin.hbd,
-						true
-					).toPrettyString()}&nbsp;</td
-				>
-			</tr>
-			{#if $accountBalance.bal.pending_hbd_unstaking && $accountBalance.bal.pending_hbd_unstaking !== 0}
-				<tr>
-					<th> </th><td><img src={Coin.hbd.icon} alt="" /></td>
-					<td class="coin-cell">HBD Unstaking</td>
-					<td class="amount-cell"
-						>{new CoinAmount(
-							$accountBalance.bal.pending_hbd_unstaking,
-							Coin.hbd,
-							true
-						).toPrettyString()}&nbsp;</td
-					>
-				</tr>
-			{/if}
-			<tr>
-				<td><img src={Coin.hive.icon} alt="" /></td>
-				<td class="coin-cell">Hive</td>
-				<td class="amount-cell"
-					>{new CoinAmount($accountBalance.bal.hive, Coin.hive, true).toPrettyString()}</td
-				>
-			</tr>
-			<tr>
-				<td class="image-cell"><img src={Coin.hive.icon} alt="" /></td>
-				<td class="coin-cell">Hive Consensus</td>
-				<td class="amount-cell"
-					>{new CoinAmount(
-						$accountBalance.bal.hive_consensus,
-						Coin.hive,
-						true
-					).toPrettyString()}</td
-				>
-			</tr>
-			{#if $accountBalance.bal.consensus_unstaking !== 0}
-				<tr>
-					<th> </th><td><img src={Coin.hive.icon} alt="" /></td>
-					<td class="coin-cell">Hive Unstaking</td>
-					<td class="amount-cell"
-						>{new CoinAmount(
-							$accountBalance.bal.consensus_unstaking,
-							Coin.hive,
-							true
-						).toPrettyString()}</td
-					>
-				</tr>
-			{/if}
-			<!-- TODO: always show once btc is live -->
-			{#if $accountBalance.bal.btc !== 0}
-				<tr>
-					<th> </th><td><img src={Coin.btc.icon} alt="Bitcoin" /></td>
-					<td class="coin-cell">Bitcoin</td>
-					<td class="amount-cell"
-						>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</td
-					>
-				</tr>
-			{/if}
-		</tbody>
-	</table>
+			</span>
+			<span class="coin-sub">Liquid Hive Dollar Savings</span>
+		</div>
+		<span class="row-amount"
+			>{formatWithUnit(
+				new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true),
+				hbdAssetName
+			)}</span
+		>
+	</div>
+
+	{#if $accountBalance.bal.pending_hbd_unstaking && $accountBalance.bal.pending_hbd_unstaking !== 0}
+		<div class="balance-row">
+			<div class="row-icon hbd"><img src={Coin.hbd.icon} alt="" /></div>
+			<div class="row-info">
+				<span class="coin-name">{hbdAssetName} Unstaking</span>
+			</div>
+			<span class="row-amount"
+				>{formatWithUnit(
+					new CoinAmount($accountBalance.bal.pending_hbd_unstaking, Coin.hbd, true),
+					hbdAssetName
+				)}</span
+			>
+		</div>
+	{/if}
+
+	<div class="balance-row">
+		<div class="row-icon hive"><img src={Coin.hive.icon} alt="" /></div>
+		<div class="row-info">
+			<span class="coin-name">{hiveAssetName}</span>
+			<span class="coin-sub">Native Hive Token</span>
+		</div>
+		<span class="row-amount"
+			>{formatWithUnit(
+				new CoinAmount($accountBalance.bal.hive, Coin.hive, true),
+				hiveAssetName
+			)}</span
+		>
+	</div>
+
+	<div class="balance-row">
+		<div class="row-icon consensus"><img src={Coin.hive.icon} alt="" /></div>
+		<div class="row-info">
+			<span class="coin-name">{hiveAssetName} Consensus</span>
+			<span class="coin-sub">Hive Consensus</span>
+		</div>
+		<span class="row-amount"
+			>{formatWithUnit(
+				new CoinAmount($accountBalance.bal.hive_consensus, Coin.hive, true),
+				hiveAssetName
+			)}</span
+		>
+	</div>
+
+	{#if $accountBalance.bal.consensus_unstaking !== 0}
+		<div class="balance-row">
+			<div class="row-icon hive"><img src={Coin.hive.icon} alt="" /></div>
+			<div class="row-info">
+				<span class="coin-name">{hiveAssetName} Unstaking</span>
+			</div>
+			<span class="row-amount"
+				>{formatWithUnit(
+					new CoinAmount($accountBalance.bal.consensus_unstaking, Coin.hive, true),
+					hiveAssetName
+				)}</span
+			>
+		</div>
+	{/if}
+
+	<div class="balance-row">
+		<div class="row-icon btc"><img src={Coin.btc.icon} alt="Bitcoin" /></div>
+		<div class="row-info">
+			<span class="coin-name">Bitcoin</span>
+			<span class="coin-sub">Bitcoin Native Asset Mapping</span>
+		</div>
+		<span class="row-amount"
+			>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</span
+		>
+	</div>
 </div>
 
 <style lang="scss">
-	.box {
-		margin: 0.75rem;
-		margin-top: 0;
-	}
-	.title-and-tooltip {
+	.balances-list {
 		display: flex;
-		gap: 0.5rem;
+		flex-direction: column;
+	}
+
+	.balances-header {
+		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		margin-bottom: 0.625rem;
 	}
-	img {
-		width: 1.25rem;
-		height: 1.25rem;
+	.balances-title {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--dash-text-primary);
 	}
-	td {
-		width: fit-content;
-		white-space: nowrap;
+	.see-all {
+		color: var(--dash-accent-purple);
+		font-size: 0.8rem;
+		font-weight: 500;
+		text-decoration: none;
+	}
+	.see-all:hover {
+		text-decoration: underline;
+	}
+
+	.balance-row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.625rem 0;
+		border-bottom: 1px solid var(--dash-divider);
+	}
+	.balance-row:last-child {
+		border-bottom: none;
+	}
+
+	.row-icon {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+	.row-icon img {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+	}
+
+	.row-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+		flex: 1;
+		min-width: 0;
+	}
+	.coin-name {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--dash-text-primary);
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+	.coin-sub {
+		font-size: 0.75rem;
+		color: var(--dash-text-muted);
+		font-weight: 400;
+	}
+	.tooltip-inline {
+		display: inline-flex;
 		vertical-align: middle;
 	}
-	table {
-		width: 100%;
-	}
-	tr {
-		container-type: inline-size;
-		container-name: table-row;
-		display: flex;
-		padding: 1rem 0.5rem;
-		border-bottom: 1px solid var(--neutral-bg-mid);
-		min-width: 200px;
-		align-items: center;
-	}
-	.coin-cell {
-		display: flex;
-		padding-left: 0.5rem;
-		align-items: center;
-		font-weight: 500;
-		.coin-name {
-			display: flex;
-			flex: 0 1 auto;
-			text-align: left;
-			overflow-wrap: break-word;
-			white-space: normal;
-		}
-		min-width: 120px;
-		.tooltip {
-			padding: 0 0.25rem;
-			flex-grow: 1;
-		}
-	}
-	.amount-cell {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		font-weight: 400;
+
+	.row-amount {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--dash-text-primary);
+		white-space: nowrap;
 		margin-left: auto;
-		align-self: right;
-		text-align: right;
-	}
-	tr:last-child {
-		border-bottom: none;
+		flex-shrink: 0;
 	}
 </style>

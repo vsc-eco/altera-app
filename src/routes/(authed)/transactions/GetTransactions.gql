@@ -17,6 +17,10 @@ query GetTransactions($did: String, $limit: Int, $offset: Int) {
 			index
 			type
 		}
+		output {
+			id
+			index
+		}
 		status
 		type
 	}

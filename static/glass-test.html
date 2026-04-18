@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #07070E;
+  font-family: sans-serif;
+  color: white;
+}
+.bg-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 15% 10%, hsla(243, 90%, 65%, 0.5) 0px, transparent 40%),
+    radial-gradient(ellipse at 80% 5%, hsla(260, 70%, 55%, 0.3) 0px, transparent 35%),
+    radial-gradient(ellipse at 85% 55%, hsla(270, 60%, 50%, 0.25) 0px, transparent 40%),
+    radial-gradient(ellipse at 5% 70%, hsla(250, 80%, 55%, 0.2) 0px, transparent 35%);
+}
+.glass-card {
+  position: relative;
+  z-index: 1;
+  margin: 100px auto;
+  width: 400px;
+  padding: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+</style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+<div class="glass-card">
+  <h2>Glass Card Test</h2>
+  <p>If you can see frosted purple behind this, glassmorphism works.</p>
+</div>
+</body>
+</html>

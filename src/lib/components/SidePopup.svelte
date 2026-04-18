@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Card from '$lib/cards/Card.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { X } from '@lucide/svelte';
 	import { onMount, untrack, type Snippet } from 'svelte';
@@ -87,14 +88,14 @@
 					...baseStyles,
 					left: '0',
 					top: mustAvoidHeader ? `${visibleHeaderHeight}px` : '0',
-					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px)` : '100%'
+					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px - 1rem)` : '100%'
 				};
 			case 'right':
 				return {
 					...baseStyles,
 					right: '0',
 					top: mustAvoidHeader ? `${visibleHeaderHeight}px` : '0',
-					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px)` : '100%'
+					height: mustAvoidHeader ? `calc(100% - ${visibleHeaderHeight}px - 1rem)` : '100%'
 				};
 			case 'top':
 				return { ...baseStyles, top: '0', left: '0', width: '100%' };
@@ -133,7 +134,7 @@
 		aria-modal="false"
 		tabindex="-1"
 	>
-		<div class="background">
+		<Card opaque style="height: calc(100% - 3.5rem);">
 			<div class="close-button">
 				<PillButton onclick={toggle} styleType="icon-subtle">
 					<X size="32" />
@@ -156,7 +157,7 @@
 					{/if}
 				</div>
 			</div>
-		</div>
+		</Card>
 	</div>
 {/if}
 
@@ -173,14 +174,16 @@
 	}
 
 	.background {
-		background-color: var(--neutral-off-bg);
-		border: 1px solid var(--neutral-bg-accent);
-		border-radius: 0.5rem;
+		background: linear-gradient(135deg, #0000001a, #ffffff0d);
+		backdrop-filter: blur(25px);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 27px;
 		padding: 0.5rem;
 		overflow: auto;
 		position: relative;
 		height: calc(100% - 2.1rem);
 		display: flex;
+		box-shadow: var(--dash-card-shadow);
 	}
 
 	.close-button {
@@ -200,13 +203,16 @@
 
 	.popup-title {
 		font-size: var(--text-3xl);
-		margin: 0;
+		font-family: 'Nunito Sans', sans-serif;
 		font-weight: 600;
+		color: var(--dash-text-primary);
+		margin: 0;
 	}
 
 	.popup-description {
-		color: var(--text-muted, #666);
-		font-size: 0.9rem;
+		color: var(--dash-text-secondary);
+		font-size: 0.85rem;
+		font-family: 'Nunito Sans', sans-serif;
 		flex-shrink: 0;
 	}
 

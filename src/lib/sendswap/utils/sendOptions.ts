@@ -29,8 +29,8 @@ const hive: Coin = {
 	unit: 'HIVE',
 	ucid: '5370',
 	enabled: (going, info, auth, mode) => {
-		// currently can't swap from hive to anything else
-		if (going == 'from' && mode == 'swap') return false;
+		// allow swap from hive (e.g. TESTS) to hbd (e.g. TBD) or btc
+		if (going == 'from' && mode == 'swap') return true;
 
 		if (info.from?.network == Network.lightning) return true;
 		if (info.from?.coin == undefined) return true;
@@ -47,8 +47,8 @@ const hbd: Coin = {
 	unit: 'HBD',
 	ucid: '5375',
 	enabled: (going, info, auth, mode) => {
-		// currently can't swap from HBD to anything else
-		if (going == 'from' && mode == 'swap') return false;
+		// allow swap from hbd (e.g. TBD) to hive (e.g. TESTS) or btc
+		if (going == 'from' && mode == 'swap') return true;
 
 		if (info.from?.network == Network.lightning) return true;
 		if (info.from?.coin == undefined) return true;
@@ -260,6 +260,7 @@ export type SendDetails = {
 	fromCoin: CoinOptions['coins'][number] | undefined;
 	fromNetwork: Network | undefined;
 	fromAmount: string;
+	enteredAmount: string;
 	toCoin: CoinOptions['coins'][number] | undefined;
 	toNetwork: Network | undefined;
 	toAmount: string;
@@ -269,6 +270,16 @@ export type SendDetails = {
 	account: SendAccount | undefined;
 	toDisplayName: string;
 	memo: string;
+	// Swap-specific fields
+	expectedOutput: string | undefined;
+	slippageBps: number | undefined;
+	minAmountOut: string | undefined;
+	swapBaseFee: string | undefined;
+	swapClpFee: string | undefined;
+	swapTotalFee: string | undefined;
+	// BTC unmap fields
+	btcDeductFee: boolean;
+	btcMaxFee: number | undefined;
 };
 
 export type NecessarySendDetails = {
@@ -308,7 +319,7 @@ export const TransferMethod = {
 };
 
 export const networkMap: Map<string, Coin[]> = new Map([
-	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd]],
+	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc]],
 	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
 	[Network.lightning.value, [Coin.btc]]
 ]);
@@ -365,7 +376,8 @@ const swapOptions: {
 			{
 				coin: btc,
 				// networks: [lightning, btcMainnet]
-				networks: [lightning, magi, btcMainnet]
+				// networks: [lightning, magi, btcMainnet]
+				networks: [magi, btcMainnet]
 			}
 		]
 	},
@@ -381,7 +393,8 @@ const swapOptions: {
 			},
 			{
 				coin: btc,
-				networks: [lightning, btcMainnet, magi]
+				// networks: [lightning, btcMainnet, magi]
+				networks: [btcMainnet, magi]
 			}
 		]
 	}

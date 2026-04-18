@@ -7,19 +7,25 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import { liquidityDraftStore } from '$lib/pools/liquidityStore';
+	import { get } from 'svelte/store';
+	import { untrack } from 'svelte';
 
 	let { editStage, pools = [] }: { editStage: (complete: boolean) => void; pools: PoolRow[] } =
 		$props();
 
-	let selectedPool = $state<PoolRow | null>(null);
+	// When opened via a row/detail action the parent seeds
+	// `liquidityDraftStore.selectedPool` before mounting this stage.
+	// Pick it up once so the Select and amount inputs are pre-populated.
+	const preseeded = untrack(() => get(liquidityDraftStore).selectedPool);
+
+	let selectedPool = $state<PoolRow | null>(preseeded);
 	let amount0Ca = $state(new CoinAmount(0, Coin.hbd));
 	let amount1Ca = $state(new CoinAmount(0, Coin.btc));
 
 	const poolOptions = $derived(pools.map((p) => ({ value: p.id, label: p.pair })));
+	const initialPoolId = preseeded?.id;
 
-	function onPoolChange(details: { value: string[] }) {
-		const id = details.value[0];
-		const pool = pools.find((p) => p.id === id) ?? null;
+	function applyPool(pool: PoolRow | null) {
 		selectedPool = pool;
 		if (pool) {
 			const c0 = detectCoin(pool.pairSymbols[0]);
@@ -41,6 +47,16 @@
 			}
 		}
 	}
+
+	function onPoolChange(details: { value: string[] }) {
+		const id = details.value[0];
+		const pool = pools.find((p) => p.id === id) ?? null;
+		applyPool(pool);
+	}
+
+	// Initialise coin amounts for the preseeded pool so the first
+	// render already shows the right asset slots.
+	if (preseeded) applyPool(preseeded);
 
 	const hiveAssetName = $derived(getHiveAssetName());
 	const hbdAssetName = $derived(getHbdAssetName());
@@ -200,6 +216,7 @@
 		<span class="label">Pool</span>
 		<Select
 			items={poolOptions}
+			initial={initialPoolId}
 			styleType="dropdown"
 			placeholder="Select pool"
 			onValueChange={onPoolChange}
@@ -233,26 +250,21 @@
 			</div>
 
 			{#if isBtcHbdPool}
-				<!-- BTC side: read-only auto-calculated field -->
+				<!-- BTC side: editable so users can type / Max directly
+					on BTC; the sync effect mirrors the paired HBD amount
+					whenever BTC is the changed side. -->
 				<div class="asset-card">
 					<div class="asset-header">
-						<div class="label">BTC (auto-calculated)</div>
-						<!-- {#if maxAmount1}
-							<span class="balance-info">Balance: {maxAmount1.toPrettyString()}</span>
-						{/if} -->
+						<div class="label">BTC</div>
 					</div>
 					<AmountInput
 						bind:coinAmount={amount1Ca}
 						coinOpts={[{ coin: Coin.btc, network: Network.magi }]}
 						maxAmount={maxAmount1}
 						styleType="normal"
-						disabled
 						hideUnit
 						hideNetwork
 					/>
-					<!-- {#if exceed1}
-						<span class="error-text">Amount exceeds available balance</span>
-					{/if} -->
 				</div>
 			{:else}
 				<!-- Token 1 — editable for non-BTC pools -->

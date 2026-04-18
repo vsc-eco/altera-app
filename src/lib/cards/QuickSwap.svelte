@@ -64,6 +64,7 @@
 	import ReviewSwap from '$lib/sendswap/stages/ReviewSwap.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
+	import QRCode from 'qrcode';
 
 	const auth = $derived(getAuth()());
 
@@ -583,6 +584,33 @@
 	let btcDepositAddress = $state<string | null>(null);
 	let btcDepositLoading = $state(false);
 	let btcDepositError = $state<string | null>(null);
+	// QR code for the mapping-bot deposit address. Encoded as a BIP21
+	// URI with the swap amount so Bitcoin wallets can prefill both
+	// fields on scan.
+	let btcDepositQr = $state<string | null>(null);
+	$effect(() => {
+		const addr = btcDepositAddress;
+		const amountStr = $SendTxDetails.fromAmount ?? '0';
+		if (!addr) {
+			btcDepositQr = null;
+			return;
+		}
+		const amountCa = new CoinAmount(amountStr, Coin.btc);
+		const btcAmount = amountCa.toAmountString();
+		const uri =
+			btcAmount && btcAmount !== '0' ? `bitcoin:${addr}?amount=${btcAmount}` : `bitcoin:${addr}`;
+		QRCode.toDataURL(uri, {
+			width: 220,
+			margin: 1,
+			color: { dark: '#FFFFFF', light: '#00000000' }
+		})
+			.then((url) => {
+				btcDepositQr = url;
+			})
+			.catch(() => {
+				btcDepositQr = null;
+			});
+	});
 	const reviewStatus = $derived({ message: swapStatus, isError: swapError });
 	const hasAmount = $derived(
 		!!$SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0' && inputAmount.amount > 0
@@ -1183,6 +1211,7 @@
 	abort={cancelSwap}
 	previous={cancelSwap}
 	next={confirmSwap}
+	goHome={() => (reviewOpen = false)}
 />
 
 <Dialog bind:open={btcDepositOpen} bind:toggle={btcDepositToggle}>
@@ -1200,6 +1229,12 @@
 			{:else if btcDepositError}
 				<p class="btc-deposit-error">{btcDepositError}</p>
 			{:else if btcDepositAddress}
+				{#if btcDepositQr}
+					<div class="btc-deposit-qr">
+						<img src={btcDepositQr} alt="Deposit address QR code" width="220" height="220" />
+						<span class="btc-deposit-qr-hint">Scan with a Bitcoin wallet to prefill address &amp; amount</span>
+					</div>
+				{/if}
 				<div class="btc-deposit-field">
 					<span class="btc-deposit-label">Amount</span>
 					<Clipboard
@@ -1540,6 +1575,24 @@
 		color: var(--dash-accent-red, #e2595b);
 		font-size: 0.8rem;
 		margin: 0;
+	}
+	.btc-deposit-qr {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.25rem 0 0.5rem;
+		img {
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid var(--dash-card-border);
+			border-radius: 16px;
+			padding: 0.75rem;
+		}
+	}
+	.btc-deposit-qr-hint {
+		font-size: 0.7rem;
+		color: var(--dash-text-muted);
+		text-align: center;
 	}
 	.btc-deposit-field {
 		display: flex;

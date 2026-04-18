@@ -49,7 +49,7 @@
 	let bal = $derived($accountBalance.bal);
 	let rcDisplay = $derived.by(() => {
 		const isHive = auth.value?.provider === 'aioha';
-		const maxRCs = isHive ? $accountBalance.bal.hbd + 5000 : $accountBalance.bal.hbd;
+		const maxRCs = isHive ? $accountBalance.bal.hbd + 10000 : $accountBalance.bal.hbd;
 		if (!bal) return 'MAGI RC: 0 / 0';
 		const rc = bal.resource_credits || 0;
 		return `MAGI RC: ${rc.toLocaleString()} / ${maxRCs.toLocaleString()}`;

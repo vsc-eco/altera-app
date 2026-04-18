@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown } from '@lucide/svelte';
+	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown, Plus, Minus } from '@lucide/svelte';
 	import { fetchPools, fetchMyPoolPositions, type TimeRange } from './poolsData';
 	import type { PoolRow, MyPoolRow } from './poolsData';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
@@ -20,6 +20,27 @@
 	let timeRange = $state<TimeRange>('30d');
 	let addLiquidityOpen = $state(false);
 	let removeLiquidityOpen = $state(false);
+	// Preselected pool for Add/Remove popups when launched via a row
+	// button. Cleared back to null when the popup closes so the global
+	// "Add Liquidity" / "Remove Liquidity" buttons still open the popups
+	// without any pre-selection.
+	let addPrefillPool = $state<PoolRow | null>(null);
+	let removePrefillPool = $state<PoolRow | null>(null);
+
+	function openAddForPool(pool: PoolRow) {
+		addPrefillPool = pool;
+		addLiquidityOpen = true;
+	}
+	function openRemoveForPool(pool: PoolRow) {
+		removePrefillPool = pool;
+		removeLiquidityOpen = true;
+	}
+	$effect(() => {
+		if (!addLiquidityOpen) addPrefillPool = null;
+	});
+	$effect(() => {
+		if (!removeLiquidityOpen) removePrefillPool = null;
+	});
 
 	let pools = $state<PoolRow[]>([]);
 	let loading = $state(false);
@@ -129,7 +150,7 @@
 
 {#if selectedPool}
 	<div class="pools-content">
-		<PoolDetail pool={selectedPool} onback={() => (selectedPool = null)} />
+		<PoolDetail pool={selectedPool} {pools} {myPools} onback={() => (selectedPool = null)} />
 	</div>
 {:else}
 <div class="pools-content">
@@ -156,11 +177,6 @@
 	</div>
 
 	{@render poolsTable(sortedPools)}
-
-	<div class="action-buttons">
-		<button class="action-btn" onclick={() => (addLiquidityOpen = true)}>Add Liquidity</button>
-		<button class="action-btn" onclick={() => (removeLiquidityOpen = true)}>Remove Liquidity</button>
-	</div>
 
 	{#if did && (myPools.length > 0 || myPoolsLoading)}
 		<div class="my-pools-section">
@@ -223,6 +239,7 @@
 							{/if}
 						</button>
 					</th>
+					<th class="col-actions" aria-label="Actions"></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -273,6 +290,36 @@
 								<span class="total">{pool.volumeUsd}</span>
 								<span class="breakdown">{pool.volumeAssets[0]}</span>
 								<span class="breakdown">{pool.volumeAssets[1]}</span>
+							</div>
+						</td>
+						<td class="col-actions">
+							<div class="row-actions">
+								<button
+									type="button"
+									class="row-action row-action-primary"
+									aria-label="Add liquidity to {pool.pair}"
+									onclick={(e) => {
+										e.stopPropagation();
+										openAddForPool(pool);
+									}}
+								>
+									<Plus size={14} />
+									Add
+								</button>
+								{#if myPools.some((mp) => mp.contractId === pool.contractId)}
+									<button
+										type="button"
+										class="row-action row-action-outline"
+										aria-label="Remove liquidity from {pool.pair}"
+										onclick={(e) => {
+											e.stopPropagation();
+											openRemoveForPool(pool);
+										}}
+									>
+										<Minus size={14} />
+										Remove
+									</button>
+								{/if}
 							</div>
 						</td>
 					</tr>
@@ -339,8 +386,14 @@
 	</div>
 {/snippet}
 
-<AddLiquidityPopup bind:open={addLiquidityOpen} {pools} />
-<RemoveLiquidityPopup bind:open={removeLiquidityOpen} pools={myPoolsAsRows} {myPools} />
+<AddLiquidityPopup bind:open={addLiquidityOpen} {pools} preselectedPool={addPrefillPool} />
+<RemoveLiquidityPopup
+	bind:open={removeLiquidityOpen}
+	pools={myPoolsAsRows}
+	{myPools}
+	preselectedPool={removePrefillPool}
+/>
+
 {/if}
 
 <style lang="scss">
@@ -530,37 +583,6 @@
 		font-weight: 500;
 	}
 
-	.action-buttons {
-		display: flex;
-		gap: 0.5rem;
-		justify-content: flex-end;
-		padding: 0.75rem 0 0;
-	}
-
-	.action-btn {
-		font-family: 'Nunito Sans', sans-serif;
-		font-size: var(--text-sm);
-		font-weight: 600;
-		color: white;
-		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 40%, #5B54E0 100%);
-		border: none;
-		border-radius: 1.5rem;
-		padding: 0.5rem 1rem;
-		cursor: pointer;
-		box-shadow: 0 4px 16px rgba(111, 106, 248, 0.25);
-		&:hover:not(:disabled) {
-			box-shadow: 0 6px 24px rgba(111, 106, 248, 0.4);
-		}
-		&:active:not(:disabled) {
-			transform: scale(0.97);
-		}
-		&:disabled {
-			opacity: 0.4;
-			cursor: not-allowed;
-			box-shadow: none;
-		}
-	}
-
 	.placeholder-text {
 		color: var(--dash-text-muted);
 		padding: 0.5rem 0;
@@ -592,5 +614,49 @@
 		color: var(--dash-text-primary);
 		font-weight: 500;
 		font-variant-numeric: tabular-nums;
+	}
+
+	/* ── Row actions (inline) ── */
+	.col-actions {
+		width: 1px; /* shrink to content */
+		white-space: nowrap;
+		padding-right: 0.75rem !important;
+	}
+	.row-actions {
+		display: flex;
+		gap: 0.4rem;
+		justify-content: flex-end;
+	}
+	.row-action {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		padding: 0.35rem 0.7rem;
+		border-radius: 1.5rem;
+		font-family: 'Nunito Sans', sans-serif;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+	}
+	.row-action-primary {
+		border: none;
+		color: #fff;
+		background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 40%, #5b54e0 100%);
+		box-shadow: 0 2px 8px rgba(111, 106, 248, 0.25);
+	}
+	.row-action-primary:hover {
+		box-shadow: 0 4px 14px rgba(111, 106, 248, 0.4);
+	}
+	.row-action-outline {
+		border: 1px solid var(--dash-card-border);
+		background: transparent;
+		color: var(--dash-text-secondary);
+	}
+	.row-action-outline:hover {
+		border-color: var(--dash-accent-purple);
+		color: var(--dash-text-primary);
+		background: rgba(111, 106, 248, 0.08);
 	}
 </style>

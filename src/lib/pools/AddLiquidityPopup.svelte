@@ -13,8 +13,14 @@
 	let {
 		open = $bindable(false),
 		toggle = $bindable(),
-		pools
-	}: { open?: boolean; toggle?: (o?: boolean) => void; pools: PoolRow[] } = $props();
+		pools,
+		preselectedPool = null
+	}: {
+		open?: boolean;
+		toggle?: (o?: boolean) => void;
+		pools: PoolRow[];
+		preselectedPool?: PoolRow | null;
+	} = $props();
 
 	let dialogToggle = $state<(o?: boolean) => void>(() => {});
 	const auth = $derived(getAuth()());
@@ -23,6 +29,11 @@
 		if (open) {
 			dialogToggle(true);
 			resetLiquidityDraft();
+			if (preselectedPool) {
+				// Seed the draft with the pool so the user skips the
+				// Select a pool step and lands directly on amount input.
+				liquidityDraftStore.update((d) => ({ ...d, selectedPool: preselectedPool }));
+			}
 		}
 	});
 

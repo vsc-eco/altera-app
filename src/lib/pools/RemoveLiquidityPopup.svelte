@@ -14,12 +14,14 @@
 		open = $bindable(false),
 		toggle = $bindable(),
 		pools,
-		myPools = []
+		myPools = [],
+		preselectedPool = null
 	}: {
 		open?: boolean;
 		toggle?: (o?: boolean) => void;
 		pools: PoolRow[];
 		myPools?: MyPoolRow[];
+		preselectedPool?: PoolRow | null;
 	} = $props();
 	let dialogToggle = $state<(o?: boolean) => void>(() => {});
 	const auth = $derived(getAuth()());
@@ -28,6 +30,12 @@
 		if (open) {
 			dialogToggle(true);
 			resetRemoveLiquidityDraft();
+			if (preselectedPool) {
+				removeLiquidityDraftStore.update((d) => ({
+					...d,
+					selectedPool: preselectedPool
+				}));
+			}
 		}
 	});
 

@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillBtn from '$lib/PillButton.svelte';
+	import { Coin } from '$lib/sendswap/utils/sendOptions';
+	import { accountBalance } from '$lib/stores/currentBalance';
 
 	type Props = {
 		onStake: () => void;
@@ -14,22 +17,26 @@
 		<h5>Staking earnings (sHBD)</h5>
 	</div>
 	<div class="staking-details">
-		<div class="staking-stat">
+		<!-- <div class="staking-stat">
 			<span class="label">Today:</span>
 			<span class="value down">$0.18 <span class="arrow">&#9660;</span></span>
 		</div>
 		<div class="staking-stat">
 			<span class="label">This month:</span>
 			<span class="value up">$7.42 <span class="arrow">&#9650;</span></span>
-		</div>
+		</div> -->
 		<div class="staking-stat">
 			<span class="label">Earn APR:</span>
 			<span class="value">15%</span>
 		</div>
 		<div class="staking-stat">
+			<span class="label">Currently Staked:</span>
+			<span class="value">{new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true)}</span>
+		</div>
+		<!-- <div class="staking-stat">
 			<span class="label">Next payout in:</span>
 			<span class="value">16h 30m</span>
-		</div>
+		</div> -->
 		<div class="staking-action">
 			<PillBtn
 				theme="primary"

@@ -134,21 +134,27 @@
 			return;
 		}
 		// Different coins: convert fromCoin → toCoin
-		new CoinAmount(entered, fromCoin)
-			.convertTo(toCoin, Network.lightning)
-			.then((converted) => {
-				// Only use if toAmount still not set
-				const current = $SendTxDetails.toAmount;
-				if (!current || current === '0') {
-					convertedToAmount = converted;
-				}
-			});
+		new CoinAmount(entered, fromCoin).convertTo(toCoin, Network.lightning).then((converted) => {
+			// Only use if toAmount still not set
+			const current = $SendTxDetails.toAmount;
+			if (!current || current === '0') {
+				convertedToAmount = converted;
+			}
+		});
 	});
 	const fromCoinDisplayLabel = $derived(
-		fromCoin.value === Coin.hive.value ? getHiveAssetName() : fromCoin.value === Coin.hbd.value ? getHbdAssetName() : fromCoin.label
+		fromCoin.value === Coin.hive.value
+			? getHiveAssetName()
+			: fromCoin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: fromCoin.label
 	);
 	const toCoinDisplayLabel = $derived(
-		toCoin.value === Coin.hive.value ? getHiveAssetName() : toCoin.value === Coin.hbd.value ? getHbdAssetName() : toCoin.label
+		toCoin.value === Coin.hive.value
+			? getHiveAssetName()
+			: toCoin.value === Coin.hbd.value
+				? getHbdAssetName()
+				: toCoin.label
 	);
 	/** Format amount with display unit (TESTS/TBD) for hive/hbd, else use coin.unit */
 	function prettyWithDisplayUnit(amt: CoinAmount<Coin>): string {
@@ -167,11 +173,16 @@
 		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
 	}
 	/** Like toPrettyMinFigs but with display unit for hive/hbd */
-	function prettyMinFigsWithDisplayUnit(amt: CoinAmount<Coin>, figures?: number, decimals?: number): string {
+	function prettyMinFigsWithDisplayUnit(
+		amt: CoinAmount<Coin>,
+		figures?: number,
+		decimals?: number
+	): string {
 		const isNegative = amt.amount < 0;
 		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
 		const dec = decimals ?? amt.coin.decimalPlaces;
-		const minFigs = n < 1 ? Math.min(amt.coin.decimalPlaces, figures ?? dec + 1) : (figures ?? dec + 1);
+		const minFigs =
+			n < 1 ? Math.min(amt.coin.decimalPlaces, figures ?? dec + 1) : (figures ?? dec + 1);
 		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
 			useGrouping: true,
 			minimumSignificantDigits: minFigs,
@@ -215,10 +226,7 @@
 		);
 	}
 	/** Render `low – high UNIT` using `prettyWithDisplayUnit`, unit shown once. */
-	function prettyRangeWithDisplayUnit(
-		low: CoinAmount<Coin>,
-		high: CoinAmount<Coin>
-	): string {
+	function prettyRangeWithDisplayUnit(low: CoinAmount<Coin>, high: CoinAmount<Coin>): string {
 		const highStr = prettyWithDisplayUnit(high);
 		const lowStr = prettyWithDisplayUnit(low);
 		const sp = lowStr.lastIndexOf(' ');
@@ -249,8 +257,7 @@
 			const feeIn = swapFee ? Number(swapFee) : 0;
 			const netIn = Math.max(0, grossIn - feeIn);
 			if (netIn > 0 && Number.isFinite(expected)) {
-				const ratePerUnitSmallestOut =
-					(expected * 10 ** fromCoin.decimalPlaces) / netIn;
+				const ratePerUnitSmallestOut = (expected * 10 ** fromCoin.decimalPlaces) / netIn;
 				fromInTo = new CoinAmount(Math.round(ratePerUnitSmallestOut), toCoin, true);
 				return;
 			}
@@ -319,221 +326,219 @@
 </script>
 
 {#snippet reviewContent()}
-<div class="stacked-cards">
-	<div class="line-positioner">
-		<Card>
-			<svg class="dashed-line">
-				<line
-					x1="1px"
-					x2="1px"
-					y1="15%"
-					y2="85%"
-					stroke="var(--dash-card-border)"
-					stroke-width="2"
-					stroke-dasharray="5,5"
-				/>
-			</svg>
-			<table>
-				<tbody>
-					{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
-						<tr>
-							<td class="icon">
-								<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork} size={32} />
-							</td>
-							<td class="sm-caption label"
-								>From {fromCoinDisplayLabel} on {$SendTxDetails.fromNetwork
-									?.label}{senderAddress ? ` (${senderAddress})` : ''}</td
-							>
-							<td class="content">{prettyWithDisplayUnit(total)}</td>
-						</tr>
-					{/if}
-					<tr>
-						<td class="icon"><Dot size="32" /></td>
-						<td class="sm-caption label">Fee</td>
-						<td class="content">
-							{#if $SendTxDetails.swapTotalFee && $SendTxDetails.fromCoin}
-								{prettyWithDisplayUnit(new CoinAmount(Number($SendTxDetails.swapTotalFee), fromCoin, true))}
-							{:else if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
-								No fee
-							{:else if !$SendTxDetails.fee || !feeInUsd}
-								<div class="fee-loading"><WaveLoading /></div>
-							{:else}
-									{prettyWithDisplayUnit($SendTxDetails.fee)}
-								<EqualApproximately size={16} />
-								{feeInUsd.toPrettyString()}
-							{/if}
-						</td>
-					</tr>
-					<tr>
-						<td class="icon"><Dot size="32" /></td>
-						<td class="sm-caption label">Amount</td>
-						<td class="content">
-							{prettyWithDisplayUnit(netSwapFromAmountCa)}
-							<EqualApproximately size={16} />
-							{inUsd?.toPrettyString()}
-						</td>
-					</tr>
-					{#if $SendTxDetails.fromCoin?.coin !== $SendTxDetails.toCoin?.coin}
-						<tr>
-							<td class="icon"><Dot size="32" /></td>
-							<td class="sm-caption label">Market Rate</td>
-							<td class="content">
-								{prettyMinFigsWithDisplayUnit(new CoinAmount(1, fromCoin))}
-								<EqualApproximately size="16" />
-								{fromInTo ? prettyWithDisplayUnit(fromInTo) : ''}
-							</td>
-						</tr>
-					{/if}
-					{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
-						{#if isToBtcMainnet && btcFeeEstimate}
+	<div class="stacked-cards">
+		<div class="line-positioner">
+			<Card>
+				<svg class="dashed-line">
+					<line
+						x1="1px"
+						x2="1px"
+						y1="15%"
+						y2="85%"
+						stroke="var(--dash-card-border)"
+						stroke-width="2"
+						stroke-dasharray="5,5"
+					/>
+				</svg>
+				<table>
+					<tbody>
+						{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
 							<tr>
-								<td class="icon"><Dot size="32" /></td>
-								<td class="sm-caption label">BTC Network Fee</td>
-								<td class="content">
-									~{formatSats(btcFeeEstimate.minSats)} – {formatSats(
-										btcFeeEstimate.maxSats
-									)} sats
+								<td class="icon">
+									<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork} size={32} />
 								</td>
+								<td class="sm-caption label"
+									>From {fromCoinDisplayLabel} on {$SendTxDetails.fromNetwork?.label}{senderAddress
+										? ` (${senderAddress})`
+										: ''}</td
+								>
+								<td class="content">{prettyWithDisplayUnit(total)}</td>
 							</tr>
 						{/if}
 						<tr>
-							<td class="icon">
-								<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork} size={32} />
-							</td>
-							<td class="sm-caption label"
-								>To {toCoinDisplayLabel} on {$SendTxDetails.toNetwork
-									?.label}{receiverAddress ? ` (${receiverAddress})` : ''}</td
-							>
+							<td class="icon"><Dot size="32" /></td>
+							<td class="sm-caption label">Fee</td>
 							<td class="content">
-								{#if btcFeeEstimate}
-									{@const baseTo =
-										convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)}
-									~{prettyRangeWithDisplayUnit(
-										new CoinAmount(
-											Math.max(0, baseTo.amount - btcFeeEstimate.maxSats),
-											toCoin,
-											true
-										),
-										new CoinAmount(
-											Math.max(0, baseTo.amount - btcFeeEstimate.minSats),
-											toCoin,
-											true
-										)
-									)}
-								{:else}
+								{#if $SendTxDetails.swapTotalFee && $SendTxDetails.fromCoin}
 									{prettyWithDisplayUnit(
-										convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)
+										new CoinAmount(Number($SendTxDetails.swapTotalFee), fromCoin, true)
 									)}
+								{:else if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
+									No fee
+								{:else if !$SendTxDetails.fee || !feeInUsd}
+									<div class="fee-loading"><WaveLoading /></div>
+								{:else}
+									{prettyWithDisplayUnit($SendTxDetails.fee)}
+									<EqualApproximately size={16} />
+									{feeInUsd.toPrettyString()}
 								{/if}
 							</td>
 						</tr>
-						{#if $SendTxDetails.slippageBps != null}
+						<tr>
+							<td class="icon"><Dot size="32" /></td>
+							<td class="sm-caption label">Amount</td>
+							<td class="content">
+								{prettyWithDisplayUnit(netSwapFromAmountCa)}
+								<EqualApproximately size={16} />
+								{inUsd?.toPrettyString()}
+							</td>
+						</tr>
+						{#if $SendTxDetails.fromCoin?.coin !== $SendTxDetails.toCoin?.coin}
 							<tr>
 								<td class="icon"><Dot size="32" /></td>
-								<td class="sm-caption label"
-									>Slippage ({($SendTxDetails.slippageBps / 100).toFixed(
-										$SendTxDetails.slippageBps % 100 === 0 ? 0 : 1
-									)}%)</td
-								>
+								<td class="sm-caption label">Market Rate</td>
 								<td class="content">
-									{#if $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
-										{@const minRaw = alteraFeeApplies
-											? Math.floor(
-													(Number($SendTxDetails.minAmountOut) *
-														(10000 - ALTERA_FEE_BPS)) /
-														10000
-												)
-											: Number($SendTxDetails.minAmountOut)}
-										{#if btcFeeEstimate}
-											Min. ~{prettyRangeWithDisplayUnit(
-												new CoinAmount(
-													Math.max(0, minRaw - btcFeeEstimate.maxSats),
-													toCoin,
-													true
-												),
-												new CoinAmount(
-													Math.max(0, minRaw - btcFeeEstimate.minSats),
-													toCoin,
-													true
-												)
-											)}
-										{:else}
-											Min. {prettyWithDisplayUnit(new CoinAmount(minRaw, toCoin, true))}
+									{prettyMinFigsWithDisplayUnit(new CoinAmount(1, fromCoin))}
+									<EqualApproximately size="16" />
+									{fromInTo ? prettyWithDisplayUnit(fromInTo) : ''}
+								</td>
+							</tr>
+						{/if}
+						{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+							{@const rawTo = convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)}
+							{@const netToAmount = Math.max(0, rawTo.amount - (alteraFeeAmount?.amount ?? 0))}
+							{#if isToBtcMainnet && btcFeeEstimate}
+								<tr>
+									<td class="icon"><Dot size="32" /></td>
+									<td class="sm-caption label">BTC Network Fee</td>
+									<td class="content">
+										~{formatSats(btcFeeEstimate.minSats)} – {formatSats(btcFeeEstimate.maxSats)} sats
+									</td>
+								</tr>
+							{/if}
+							{#if alteraFeeAmount}
+								<tr>
+									<td class="icon"><Dot size="32" /></td>
+									<td class="sm-caption label">Altera Fee ({(ALTERA_FEE_BPS / 100).toFixed(2)}%)</td
+									>
+									<td class="content">
+										{prettyWithDisplayUnit(alteraFeeAmount)}
+										{#if alteraFeeInUsd}
+											<EqualApproximately size={16} />
+											{alteraFeeInUsd.toPrettyString()}
 										{/if}
-									{:else}
-										—
-									{/if}
-								</td>
-							</tr>
-						{/if}
-						{#if alteraFeeAmount}
+									</td>
+								</tr>
+							{/if}
 							<tr>
-								<td class="icon"><Dot size="32" /></td>
+								<td class="icon">
+									<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork} size={32} />
+								</td>
 								<td class="sm-caption label"
-									>Altera Fee ({(ALTERA_FEE_BPS / 100).toFixed(2)}%)</td
+									>To {toCoinDisplayLabel} on {$SendTxDetails.toNetwork?.label}{receiverAddress
+										? ` (${receiverAddress})`
+										: ''}</td
 								>
 								<td class="content">
-									{prettyWithDisplayUnit(alteraFeeAmount)}
-									{#if alteraFeeInUsd}
-										<EqualApproximately size={16} />
-										{alteraFeeInUsd.toPrettyString()}
+									{#if btcFeeEstimate}
+										~{prettyRangeWithDisplayUnit(
+											new CoinAmount(
+												Math.max(0, netToAmount - btcFeeEstimate.maxSats),
+												toCoin,
+												true
+											),
+											new CoinAmount(
+												Math.max(0, netToAmount - btcFeeEstimate.minSats),
+												toCoin,
+												true
+											)
+										)}
+									{:else}
+										{prettyWithDisplayUnit(new CoinAmount(netToAmount, toCoin, true))}
 									{/if}
 								</td>
 							</tr>
+							{#if $SendTxDetails.slippageBps != null}
+								<tr>
+									<td class="icon"><Dot size="32" /></td>
+									<td class="sm-caption label"
+										>Slippage ({($SendTxDetails.slippageBps / 100).toFixed(
+											$SendTxDetails.slippageBps % 100 === 0 ? 0 : 1
+										)}%)</td
+									>
+									<td class="content">
+										{#if $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
+											{@const minRaw = alteraFeeApplies
+												? Math.floor(
+														(Number($SendTxDetails.minAmountOut) * (10000 - ALTERA_FEE_BPS)) / 10000
+													)
+												: Number($SendTxDetails.minAmountOut)}
+											{#if btcFeeEstimate}
+												Min. ~{prettyRangeWithDisplayUnit(
+													new CoinAmount(
+														Math.max(0, minRaw - btcFeeEstimate.maxSats),
+														toCoin,
+														true
+													),
+													new CoinAmount(Math.max(0, minRaw - btcFeeEstimate.minSats), toCoin, true)
+												)}
+											{:else}
+												Min. {prettyWithDisplayUnit(new CoinAmount(minRaw, toCoin, true))}
+											{/if}
+										{:else}
+											—
+										{/if}
+									</td>
+								</tr>
+							{/if}
 						{/if}
-					{/if}
-				</tbody>
-			</table>
+					</tbody>
+				</table>
+			</Card>
+		</div>
+		<Card>
+			<ul>
+				<li class="side-by-side time">
+					<span class="sm-caption label">Settlement Time</span>
+					<span class="content">{$SendTxDetails.method?.length}</span>
+				</li>
+				<li class="side-by-side date">
+					<span class="sm-caption label">Initiated On</span>
+					<span class="content">{today}</span>
+				</li>
+				{#if $SendTxDetails.memo}
+					<li class="side-by-side memo">
+						<span class="sm-caption label">Memo</span>
+						<span class="content">{$SendTxDetails.memo}</span>
+					</li>
+				{/if}
+			</ul>
 		</Card>
 	</div>
-	<Card>
-		<ul>
-			<li class="side-by-side time">
-				<span class="sm-caption label">Settlement Time</span>
-				<span class="content">{$SendTxDetails.method?.length}</span>
-			</li>
-			<li class="side-by-side date">
-				<span class="sm-caption label">Initiated On</span>
-				<span class="content">{today}</span>
-			</li>
-			{#if $SendTxDetails.memo}
-				<li class="side-by-side memo">
-					<span class="sm-caption label">Memo</span>
-					<span class="content">{$SendTxDetails.memo}</span>
-				</li>
-			{/if}
-		</ul>
-	</Card>
-</div>
 
-<TxStatus
-	{status}
-	{waiting}
-	abort={() => abort?.()}
-	showHiveWarning={auth.value?.provider === 'aioha'}
-/>
+	<TxStatus
+		{status}
+		{waiting}
+		abort={() => abort?.()}
+		showHiveWarning={auth.value?.provider === 'aioha'}
+	/>
 
-{#if popup}
-<div class="popup-buttons">
-	<PillButton onclick={() => previous?.()} theme="secondary" styleType="outline" disabled={waiting}>
-		Back
-	</PillButton>
-	<PillButton onclick={() => next?.()} theme="accent" styleType="invert" disabled={waiting}>
-		{waiting ? 'Waiting…' : 'Swap'}
-	</PillButton>
-</div>
-{/if}
+	{#if popup}
+		<div class="popup-buttons">
+			<PillButton
+				onclick={() => previous?.()}
+				theme="secondary"
+				styleType="outline"
+				disabled={waiting}
+			>
+				Back
+			</PillButton>
+			<PillButton onclick={() => next?.()} theme="accent" styleType="invert" disabled={waiting}>
+				{waiting ? 'Waiting…' : 'Swap'}
+			</PillButton>
+		</div>
+	{/if}
 {/snippet}
 
 {#if popup}
-<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
-	{#snippet title()}
-		Review Swap
-	{/snippet}
-	{#snippet content()}
-		{@render reviewContent()}
-	{/snippet}
-</Dialog>
+	<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
+		{#snippet title()}
+			Review Swap
+		{/snippet}
+		{#snippet content()}
+			{@render reviewContent()}
+		{/snippet}
+	</Dialog>
 {:else}
 	{@render reviewContent()}
 {/if}

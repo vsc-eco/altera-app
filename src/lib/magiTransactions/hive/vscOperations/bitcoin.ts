@@ -37,7 +37,7 @@ export function getBitcoinTransferOp(
 		contract_id: BTC_MAPPING_CONTRACT_ID,
 		action: 'transfer',
 		payload,
-		rc_limit: 100000
+		rc_limit: 1000
 	};
 
 	return [
@@ -77,7 +77,7 @@ export function getBitcoinUnmapOp(
 		contract_id: BTC_MAPPING_CONTRACT_ID,
 		action: 'unmap',
 		payload,
-		rc_limit: 100000
+		rc_limit: 10000
 	};
 
 	return [

@@ -88,7 +88,7 @@ export function getAddLiquidityOp(
 		contract_id: DEX_ROUTER_CONTRACT_ID,
 		action: 'execute',
 		payload: payloadStr,
-		rc_limit: 100000,
+		rc_limit: 2000,
 		intents: buildIntents([
 			{ coinValue: a0, rawAmount: amt0Raw },
 			{ coinValue: a1, rawAmount: amt1Raw }
@@ -137,7 +137,7 @@ export function getRemoveLiquidityOp(
 		contract_id: DEX_ROUTER_CONTRACT_ID,
 		action: 'execute',
 		payload: payloadStr,
-		rc_limit: 100000,
+		rc_limit: 2000,
 		intents: [] as Array<{ type: string; args: Record<string, string> }>
 	};
 

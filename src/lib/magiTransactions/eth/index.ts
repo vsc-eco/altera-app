@@ -30,7 +30,7 @@ export function getEVMOpType(
 					contract_id: BTC_MAPPING_CONTRACT_ID,
 					action: 'transfer',
 					payload: JSON.stringify(payload),
-					rc_limit: 100000,
+					rc_limit: 1000,
 					intents: [],
 					caller: fromDid
 				}
@@ -50,7 +50,7 @@ export function getEVMOpType(
 					contract_id: BTC_MAPPING_CONTRACT_ID,
 					action: 'unmap',
 					payload: JSON.stringify(payload),
-					rc_limit: 100000,
+					rc_limit: 10000,
 					intents: [],
 					caller: fromDid
 				}

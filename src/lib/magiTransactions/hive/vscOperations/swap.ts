@@ -109,6 +109,8 @@ export async function getHiveSwapOp(
 			? Math.floor((minAmountOut * (10000 - ALTERA_FEE_BPS)) / 10000)
 			: minAmountOut;
 
+	// TODO: estimate RC usage
+	let rcLimit = 2000
 	const payload: Record<string, string | number> = {
 		type: 'swap',
 		version: '1.0.0',
@@ -120,6 +122,7 @@ export async function getHiveSwapOp(
 	};
 	if (destinationChain) {
 		payload.destination_chain = destinationChain;
+		rcLimit = 10000
 	}
 	if (feeQualifies) {
 		payload.beneficiary = ALTERA_FEE_BENEFICIARY;
@@ -133,7 +136,7 @@ export async function getHiveSwapOp(
 		contract_id: SWAP_CONTRACT_ID,
 		action: 'execute',
 		payload: payloadStr,
-		rc_limit: 100000,
+		rc_limit: rcLimit,
 		intents: isNative
 			? [
 					{

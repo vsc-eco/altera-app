@@ -907,7 +907,7 @@
 						contract_id: SWAP_CONTRACT_ID,
 						action: 'execute',
 						payload: JSON.stringify(swapInstruction),
-						rc_limit: 100000,
+						rc_limit: 10000,
 						intents: [],
 						caller
 					}

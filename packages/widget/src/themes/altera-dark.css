@@ -1,0 +1,26 @@
+/* Altera dark theme — import alongside @magi/widget to get the
+   glassmorphism dark look from altera-app. Usage:
+     import '@magi/widget/themes/altera-dark.css';
+   or in HTML:
+     <link rel="stylesheet" href=".../@magi/widget/themes/altera-dark.css">
+*/
+
+.magi-quickswap {
+	--magi-card-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+	--magi-card-border: rgba(255, 255, 255, 0.15);
+	--magi-card-shadow:
+		0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.3),
+		inset 1px 0 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.2);
+	--magi-accent: #6f6af8;
+	--magi-accent-hover: #7e74ff;
+	--magi-accent-light: rgba(111, 106, 248, 0.12);
+	--magi-green: #00960f;
+	--magi-red: #e31337;
+	--magi-text: #ffffff;
+	--magi-text-secondary: #9ca3af;
+	--magi-text-muted: #6b7280;
+	--magi-field-bg: rgba(0, 0, 0, 0.25);
+	--magi-field-border: rgba(255, 255, 255, 0.06);
+	--magi-input-bg: transparent;
+	--magi-font: 'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}

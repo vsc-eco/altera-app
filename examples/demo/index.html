@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Magi QuickSwap — SDK demo</title>
+		<style>
+			body {
+				font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+				max-width: 720px;
+				margin: 40px auto;
+				padding: 0 16px;
+				color: #0f172a;
+			}
+			h1 { font-size: 24px; margin: 0 0 8px; }
+			p.lede { color: #475569; margin: 0 0 24px; font-size: 14px; }
+			.status-bar {
+				background: #f1f5f9;
+				padding: 12px;
+				border-radius: 8px;
+				margin: 16px 0 24px;
+				font-size: 13px;
+				display: flex;
+				gap: 12px;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+			.status-bar button {
+				padding: 4px 10px;
+				border: 1px solid #cbd5e1;
+				background: #fff;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 13px;
+			}
+			details { margin-top: 32px; }
+			details code { background: #f1f5f9; padding: 2px 4px; border-radius: 4px; }
+		</style>
+	</head>
+	<body>
+		<h1>Magi QuickSwap — SDK demo</h1>
+		<p class="lede">
+			Embedded <code>@magi/widget</code> driving <code>@magi/sdk</code> against
+			mainnet. Same scope as Altera's QuickSwap card: HIVE/HBD → HIVE/HBD/BTC.
+		</p>
+		<div id="root"></div>
+		<details>
+			<summary>What this demo proves</summary>
+			<ul>
+				<li>Widget renders and mounts in a plain HTML page (zero framework imports beyond React).</li>
+				<li>Preview math updates live against real pool depths from <code>api.vsc.eco</code>.</li>
+				<li>Ops are built via <code>@magi/sdk</code> — same JSON shape Altera broadcasts.</li>
+				<li>Signing handoff to Aioha (Keychain / HiveSigner / HiveAuth / PeakVault / Ledger) is wired.</li>
+			</ul>
+		</details>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>

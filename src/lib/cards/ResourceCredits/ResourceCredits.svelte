@@ -15,7 +15,7 @@
 
 	let rc: Manabar | null = $state(null);
 
-	const maxRCs = $derived(isHive ? $accountBalance.bal.hbd + 5000 : $accountBalance.bal.hbd);
+	const maxRCs = $derived(isHive ? $accountBalance.bal.hbd + 10000 : $accountBalance.bal.hbd);
 	// adjust the RCs to round up within 1, if user has more than 5 total.
 	let [adjustedRCs, adjustedMaxRCs] = $derived.by(() => {
 		if ($accountBalance.loading) {

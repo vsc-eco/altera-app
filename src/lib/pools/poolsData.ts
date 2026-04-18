@@ -45,8 +45,6 @@ export interface PoolRow {
 // network-switched there. Import `BTC_MAPPING_CONTRACT_ID` from that module.
 
 export const HBD_BTC_POOL_KEYS = [
-	'reserve0',
-	'reserve1',
 	'total_lp',
 	'asset0',
 	'asset1',
@@ -61,7 +59,23 @@ export const HBD_BTC_POOL_KEYS = [
 	'bal/'
 ] as const;
 
+// Reserves are stored under short keys `r0`/`r1` as raw `big.Int.Bytes()`.
+// Must be fetched with `encoding: 'hex'` so the GraphQL layer doesn't
+// mangle high bytes through UTF-8 (e.g. 0xBF → `\uFFFD`).
+const RESERVE_KEYS = ['r0', 'r1'] as const;
+
 type PoolState = Record<string, string | null | undefined>;
+
+/** Decode a hex-encoded big.Int.Bytes() string into a decimal string
+ *  (what the rest of poolsData.ts's `parseScaled` expects). Returns
+ *  null for missing / non-hex input. */
+function hexBytesToDecimalString(hex: string | null | undefined): string | null {
+	if (hex == null || typeof hex !== 'string') return null;
+	const h = hex.startsWith('0x') ? hex.slice(2) : hex;
+	if (h === '') return '0';
+	if (!/^[0-9a-fA-F]+$/.test(h)) return null;
+	return BigInt('0x' + h).toString();
+}
 
 function parseScaled(raw: string | null | undefined, decimals = 3): number | null {
 	if (raw == null) return null;
@@ -282,9 +296,13 @@ async function fetchSinglePool(
 	range: TimeRange,
 	usdPrices: { hive: number; hbd: number; btc: number }
 ): Promise<PoolRow> {
-	const [stateRes, volume, fees, liquidity] = await Promise.all([
+	const [stateRes, reservesRes, volume, fees, liquidity] = await Promise.all([
 		new GetStateByKeysStore().fetch({
 			variables: { contractId, keys: [...HBD_BTC_POOL_KEYS] },
+			policy: 'NetworkOnly'
+		}),
+		new GetStateByKeysStore().fetch({
+			variables: { contractId, keys: [...RESERVE_KEYS], encoding: 'hex' },
 			policy: 'NetworkOnly'
 		}),
 		fetchPoolVolume(contractId, range),
@@ -292,7 +310,13 @@ async function fetchSinglePool(
 		fetchPoolLiquidity(contractId)
 	]);
 
-	const state = (stateRes.data?.getStateByKeys ?? {}) as PoolState;
+	const state = { ...((stateRes.data?.getStateByKeys ?? {}) as PoolState) } as PoolState;
+	// Fold decoded reserves back into the state map under the legacy
+	// `reserve0`/`reserve1` keys so mapStateToPoolRow's existing
+	// `parseScaled(state['reserve0'], ...)` path keeps working.
+	const reservesState = (reservesRes.data?.getStateByKeys ?? {}) as PoolState;
+	state['reserve0'] = hexBytesToDecimalString(reservesState['r0']);
+	state['reserve1'] = hexBytesToDecimalString(reservesState['r1']);
 	return mapStateToPoolRow(contractId, state, { volume, fees, liquidity }, usdPrices, fallbackSymbols);
 }
 

@@ -10,6 +10,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { isVscTestnet } from '$lib/../client';
+	import QRCode from 'qrcode';
 
 	// `onClose` closes the parent Deposit dialog (wired via
 	// StepsMachine.extraProps to the parent Dialog's `toggle`).
@@ -57,6 +58,31 @@
 	let btcAddress = $state<string | null>(null);
 	let addressLoading = $state(false);
 	let addressError = $state<string | null>(null);
+
+	// QR code data-URL for the current deposit address. Regenerated
+	// whenever `btcAddress` changes; cleared when the address resets.
+	let btcQrDataUrl = $state<string | null>(null);
+	$effect(() => {
+		const addr = btcAddress;
+		if (!addr) {
+			btcQrDataUrl = null;
+			return;
+		}
+		// BIP21 URI ("bitcoin:<addr>") makes the QR scannable directly
+		// by most Bitcoin wallets as a "pay this address" intent.
+		QRCode.toDataURL(`bitcoin:${addr}`, {
+			width: 220,
+			margin: 1,
+			color: { dark: '#FFFFFF', light: '#00000000' }
+		})
+			.then((url) => {
+				btcQrDataUrl = url;
+			})
+			.catch((err) => {
+				console.warn('QR generation failed', err);
+				btcQrDataUrl = null;
+			});
+	});
 
 	$effect(() => {
 		if (!auth.value || btcAddress || addressLoading) return;
@@ -208,6 +234,18 @@
 			{:else if addressError}
 				<p class="error">{addressError}</p>
 			{:else if btcAddress}
+				{#if btcQrDataUrl}
+					<div class="qr-wrap">
+						<img
+							class="qr-img"
+							src={btcQrDataUrl}
+							alt="QR code for Bitcoin deposit address"
+							width="220"
+							height="220"
+						/>
+						<span class="qr-hint">Scan with a Bitcoin wallet to send</span>
+					</div>
+				{/if}
 				<Clipboard value={btcAddress} label="Bitcoin Address" disabled={false} />
 			{/if}
 		</div>
@@ -267,9 +305,6 @@
 						>
 							{signing ? 'Signing…' : 'Sign'}
 						</PillButton>
-						<PillButton styleType="text-subtle" onclick={disableSignFlow}>
-							Use manual send instead
-						</PillButton>
 					</div>
 				</div>
 			{/if}
@@ -300,6 +335,24 @@
 	.hint {
 		font-size: 0.75rem;
 		color: var(--dash-text-muted);
+	}
+	.qr-wrap {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.75rem 0 0.25rem;
+	}
+	.qr-img {
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 16px;
+		padding: 0.75rem;
+	}
+	.qr-hint {
+		font-size: 0.7rem;
+		color: var(--dash-text-muted);
+		text-align: center;
 	}
 	.field-label {
 		font-size: 0.7rem;

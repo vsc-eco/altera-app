@@ -15,6 +15,26 @@
 import { GetStateByKeysStore } from '$houdini';
 import { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from './poolsData';
 
+/**
+ * The pool contract stores reserves as big-endian `big.Int.Bytes()` under
+ * short keys `r0` / `r1`. Fetching via `encoding: 'hex'` on
+ * `getStateByKeys` returns the raw hex string; an empty/missing key
+ * serialises to `""` and means zero.
+ */
+const KEY_RESERVE_0 = 'r0';
+const KEY_RESERVE_1 = 'r1';
+
+/** Decode a hex string returned by the chain-state observer back to
+ *  bigint. Accepts missing / empty / `"0x"`-prefixed inputs. */
+function hexToBigInt(hex: unknown): bigint | null {
+	if (hex == null) return null;
+	if (typeof hex !== 'string') return null;
+	const h = hex.startsWith('0x') ? hex.slice(2) : hex;
+	if (h === '') return 0n;
+	if (!/^[0-9a-fA-F]+$/.test(h)) return null;
+	return BigInt('0x' + h);
+}
+
 export interface PoolDepths {
 	reserve0: bigint; // HIVE reserve (smallest units) — legacy, HIVE/HBD only
 	reserve1: bigint; // HBD reserve (smallest units) — legacy, HIVE/HBD only
@@ -55,21 +75,19 @@ export async function fetchPoolDepths(
 		const result = await new GetStateByKeysStore().fetch({
 			variables: {
 				contractId: poolContractId,
-				keys: ['reserve0', 'reserve1']
+				keys: [KEY_RESERVE_0, KEY_RESERVE_1],
+				encoding: 'hex'
 			},
 			policy: 'NetworkOnly'
 		});
 		const state = result.data?.getStateByKeys;
 		if (!state) return null;
 
-		const r0 = state['reserve0'];
-		const r1 = state['reserve1'];
+		const r0 = hexToBigInt(state[KEY_RESERVE_0]);
+		const r1 = hexToBigInt(state[KEY_RESERVE_1]);
 		if (r0 == null || r1 == null) return null;
 
-		return {
-			reserve0: BigInt(r0),
-			reserve1: BigInt(r1)
-		};
+		return { reserve0: r0, reserve1: r1 };
 	} catch (err) {
 		console.error('Failed to fetch pool depths', err);
 		return null;
@@ -227,22 +245,29 @@ export async function fetchTypedPoolDepths(
 	const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 	// Try chain state first, with one 500 ms retry on transient failure.
+	// Pool contract stores reserves under short keys `r0` / `r1` as raw
+	// big-endian big.Int bytes; request with `encoding: 'hex'` so the
+	// GraphQL layer doesn't mangle high bytes through UTF-8.
 	for (let attempt = 0; attempt < 2; attempt++) {
 		try {
 			const result = await new GetStateByKeysStore().fetch({
-				variables: { contractId: entry.contractId, keys: ['reserve0', 'reserve1'] },
+				variables: {
+					contractId: entry.contractId,
+					keys: [KEY_RESERVE_0, KEY_RESERVE_1],
+					encoding: 'hex'
+				},
 				policy: 'NetworkOnly'
 			});
 			const state = result.data?.getStateByKeys;
-			const r0 = state?.['reserve0'];
-			const r1 = state?.['reserve1'];
+			const r0 = hexToBigInt(state?.[KEY_RESERVE_0]);
+			const r1 = hexToBigInt(state?.[KEY_RESERVE_1]);
 			if (r0 != null && r1 != null) {
 				return {
 					contractId: entry.contractId,
 					asset0,
 					asset1,
-					reserve0: BigInt(r0),
-					reserve1: BigInt(r1)
+					reserve0: r0,
+					reserve1: r1
 				};
 			}
 			break; // state fetched OK but reserves missing → fall through to indexer

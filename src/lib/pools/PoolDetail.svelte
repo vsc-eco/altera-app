@@ -1,19 +1,30 @@
 <script lang="ts">
 	import Tabs from '$lib/zag/Tabs.svelte';
-	import { ArrowLeft } from '@lucide/svelte';
+	import { ArrowLeft, Plus, Minus } from '@lucide/svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
-	import type { PoolRow } from './poolsData';
+	import type { PoolRow, MyPoolRow } from './poolsData';
 	import { getMagiIndexerUrl } from '../../client';
 	import moment from 'moment';
+	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
+	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
+	import { untrack } from 'svelte';
 
 	let {
 		pool,
-		onback
+		onback,
+		pools = [],
+		myPools = []
 	}: {
 		pool: PoolRow;
 		onback: () => void;
+		pools?: PoolRow[];
+		myPools?: MyPoolRow[];
 	} = $props();
+
+	let addLiquidityOpen = $state(false);
+	let removeLiquidityOpen = $state(false);
+	const hasUserPosition = $derived(myPools.some((p) => p.contractId === pool.contractId));
 
 	const poolId = pool.contractId;
 	const sym0 = pool.pairSymbols[0];
@@ -50,12 +61,19 @@
 		lp_burned: number;
 	};
 
+	const PAGE_SIZE = 20;
 	let swaps = $state<SwapEvent[]>([]);
 	let adds = $state<AddLiqEvent[]>([]);
 	let removes = $state<RemoveLiqEvent[]>([]);
 	let loadingSwaps = $state(true);
 	let loadingAdds = $state(true);
 	let loadingRemoves = $state(true);
+	// `hasMore*` gets flipped off when a page returns fewer than
+	// PAGE_SIZE rows, so the scroll handler stops firing follow-up
+	// requests once we've seen the tail.
+	let hasMoreSwaps = $state(true);
+	let hasMoreAdds = $state(true);
+	let hasMoreRemoves = $state(true);
 
 	async function hasuraFetch<T>(query: string, variables: Record<string, unknown>): Promise<T> {
 		const res = await fetch(getMagiIndexerUrl(), {
@@ -67,60 +85,118 @@
 		return json.data;
 	}
 
-	$effect(() => {
+	async function loadSwaps(mode: 'set' | 'extend') {
+		if (loadingSwaps) return;
+		if (mode === 'extend' && !hasMoreSwaps) return;
 		loadingSwaps = true;
-		hasuraFetch<{ dex_pool_swap_events: SwapEvent[] }>(
-			`query RecentSwaps($pool: String!, $limit: Int) {
+		const data = await hasuraFetch<{ dex_pool_swap_events: SwapEvent[] }>(
+			`query RecentSwaps($pool: String!, $limit: Int, $offset: Int) {
 				dex_pool_swap_events(
 					where: {indexer_contract_id: {_eq: $pool}}
 					order_by: {indexer_block_height: desc}
 					limit: $limit
+					offset: $offset
 				) {
 					indexer_tx_hash indexer_block_height indexer_ts
 					asset_in asset_out amount_in amount_out recipient
 				}
 			}`,
-			{ pool: poolId, limit: 20 }
-		).then((data) => {
-			swaps = data?.dex_pool_swap_events ?? [];
-			loadingSwaps = false;
-		});
+			{ pool: poolId, limit: PAGE_SIZE, offset: mode === 'extend' ? swaps.length : 0 }
+		);
+		const rows = data?.dex_pool_swap_events ?? [];
+		hasMoreSwaps = rows.length === PAGE_SIZE;
+		swaps = mode === 'set' ? rows : swaps.concat(rows);
+		loadingSwaps = false;
+	}
 
+	async function loadAdds(mode: 'set' | 'extend') {
+		if (loadingAdds) return;
+		if (mode === 'extend' && !hasMoreAdds) return;
 		loadingAdds = true;
-		hasuraFetch<{ dex_pool_add_liq_events: AddLiqEvent[] }>(
-			`query RecentAddLiquidity($pool: String!, $limit: Int) {
+		const data = await hasuraFetch<{ dex_pool_add_liq_events: AddLiqEvent[] }>(
+			`query RecentAddLiquidity($pool: String!, $limit: Int, $offset: Int) {
 				dex_pool_add_liq_events(
 					where: {indexer_contract_id: {_eq: $pool}}
 					order_by: {indexer_block_height: desc}
 					limit: $limit
+					offset: $offset
 				) {
 					indexer_tx_hash indexer_block_height indexer_ts
 					provider amount0 amount1 lp_minted
 				}
 			}`,
-			{ pool: poolId, limit: 20 }
-		).then((data) => {
-			adds = data?.dex_pool_add_liq_events ?? [];
-			loadingAdds = false;
-		});
+			{ pool: poolId, limit: PAGE_SIZE, offset: mode === 'extend' ? adds.length : 0 }
+		);
+		const rows = data?.dex_pool_add_liq_events ?? [];
+		hasMoreAdds = rows.length === PAGE_SIZE;
+		adds = mode === 'set' ? rows : adds.concat(rows);
+		loadingAdds = false;
+	}
 
+	async function loadRemoves(mode: 'set' | 'extend') {
+		if (loadingRemoves) return;
+		if (mode === 'extend' && !hasMoreRemoves) return;
 		loadingRemoves = true;
-		hasuraFetch<{ dex_pool_rem_liq_events: RemoveLiqEvent[] }>(
-			`query RecentRemoveLiquidity($pool: String!, $limit: Int) {
+		const data = await hasuraFetch<{ dex_pool_rem_liq_events: RemoveLiqEvent[] }>(
+			`query RecentRemoveLiquidity($pool: String!, $limit: Int, $offset: Int) {
 				dex_pool_rem_liq_events(
 					where: {indexer_contract_id: {_eq: $pool}}
 					order_by: {indexer_block_height: desc}
 					limit: $limit
+					offset: $offset
 				) {
 					indexer_tx_hash indexer_block_height indexer_ts
 					provider amount0 amount1 lp_burned
 				}
 			}`,
-			{ pool: poolId, limit: 20 }
-		).then((data) => {
-			removes = data?.dex_pool_rem_liq_events ?? [];
-			loadingRemoves = false;
+			{ pool: poolId, limit: PAGE_SIZE, offset: mode === 'extend' ? removes.length : 0 }
+		);
+		const rows = data?.dex_pool_rem_liq_events ?? [];
+		hasMoreRemoves = rows.length === PAGE_SIZE;
+		removes = mode === 'set' ? rows : removes.concat(rows);
+		loadingRemoves = false;
+	}
+
+	// Fire initial loads whenever the pool changes. Wrap the actual
+	// load calls in `untrack` so the effect doesn't re-fire when the
+	// loaders write `swaps`/`adds`/`removes` back into state (the
+	// loaders read `.length` to compute the offset, which would
+	// otherwise turn this effect into an infinite loop).
+	$effect(() => {
+		poolId;
+		swaps = [];
+		adds = [];
+		removes = [];
+		hasMoreSwaps = true;
+		hasMoreAdds = true;
+		hasMoreRemoves = true;
+		loadingSwaps = false;
+		loadingAdds = false;
+		loadingRemoves = false;
+		untrack(() => {
+			loadSwaps('set');
+			loadAdds('set');
+			loadRemoves('set');
 		});
+	});
+
+	/** Which tab is currently active in the zag Tabs instance, so
+	 *  we only fire the load-more callback for the list the user is
+	 *  actually looking at. */
+	let activeTabValue = $state<string | null>('swaps');
+
+	function maybeLoadMore() {
+		const doc = document.documentElement;
+		const nearBottom = window.innerHeight + doc.scrollTop >= doc.scrollHeight - 64;
+		if (!nearBottom) return;
+		if (activeTabValue === 'swaps') loadSwaps('extend');
+		else if (activeTabValue === 'adds') loadAdds('extend');
+		else if (activeTabValue === 'removes') loadRemoves('extend');
+	}
+
+	$effect(() => {
+		window.addEventListener('scroll', maybeLoadMore, { passive: true });
+		return () => window.removeEventListener('scroll', maybeLoadMore);
 	});
 
 	function decimalsForAsset(symbol: string): number {
@@ -153,6 +229,26 @@
 			<ArrowLeft size="24" />
 		</PillButton>
 		<h4>{pool.pair}</h4>
+		<div class="header-actions">
+			<button
+				type="button"
+				class="header-action header-action-primary"
+				onclick={() => (addLiquidityOpen = true)}
+			>
+				<Plus size={14} />
+				Add Liquidity
+			</button>
+			{#if hasUserPosition}
+				<button
+					type="button"
+					class="header-action"
+					onclick={() => (removeLiquidityOpen = true)}
+				>
+					<Minus size={14} />
+					Remove Liquidity
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	<div class="summary">
@@ -175,6 +271,7 @@
 	</div>
 
 	<Tabs
+		bind:activeTab={activeTabValue}
 		items={[
 			{
 				value: 'swaps',
@@ -183,17 +280,29 @@
 			},
 			{
 				value: 'adds',
-				label: 'Add Liquidity',
+				label: 'Liquidity Added',
 				content: addsContent
 			},
 			{
 				value: 'removes',
-				label: 'Remove Liquidity',
+				label: 'Liquidity Removed',
 				content: removesContent
 			}
 		]}
 	/>
 </div>
+
+<AddLiquidityPopup
+	bind:open={addLiquidityOpen}
+	pools={pools.length ? pools : [pool]}
+	preselectedPool={pool}
+/>
+<RemoveLiquidityPopup
+	bind:open={removeLiquidityOpen}
+	pools={pools.length ? pools.filter((p) => myPools.some((m) => m.contractId === p.contractId)) : [pool]}
+	{myPools}
+	preselectedPool={pool}
+/>
 
 {#snippet skeletonRows(cols: number, count?: number)}
 	{#each Array(count ?? 8) as _}
@@ -362,6 +471,45 @@
 			font-weight: 600;
 			color: var(--dash-text-primary);
 		}
+	}
+	.header-actions {
+		margin-left: auto;
+		display: flex;
+		gap: 0.5rem;
+	}
+	.header-action {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.45rem 0.85rem;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 1.5rem;
+		background: transparent;
+		color: var(--dash-text-primary);
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.15s, border-color 0.15s;
+	}
+	.header-action:hover:not(:disabled) {
+		background: rgba(111, 106, 248, 0.12);
+		border-color: var(--dash-accent-purple);
+	}
+	.header-action:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+	.header-action.header-action-primary {
+		border: none;
+		color: #fff;
+		background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 40%, #5b54e0 100%);
+		box-shadow: 0 2px 8px rgba(111, 106, 248, 0.25);
+	}
+	.header-action.header-action-primary:hover:not(:disabled) {
+		background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 40%, #5b54e0 100%);
+		border-color: transparent;
+		box-shadow: 0 4px 14px rgba(111, 106, 248, 0.4);
 	}
 
 	.summary {

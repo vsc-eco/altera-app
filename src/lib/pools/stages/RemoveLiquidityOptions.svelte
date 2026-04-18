@@ -3,6 +3,8 @@
 	import type { PoolRow, MyPoolRow } from '$lib/pools/poolsData';
 	import { removeLiquidityDraftStore } from '$lib/pools/removeLiquidityStore';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
+	import { get } from 'svelte/store';
+	import { untrack } from 'svelte';
 
 	function getCoinIcon(symbol: string): string | undefined {
 		const s = symbol.toUpperCase();
@@ -22,10 +24,15 @@
 		myPools?: MyPoolRow[];
 	} = $props();
 
-	let selectedPool = $state<PoolRow | null>(null);
+	// When opened via a row/detail action the parent seeds
+	// `removeLiquidityDraftStore.selectedPool` before mounting.
+	const preseeded = untrack(() => get(removeLiquidityDraftStore).selectedPool);
+
+	let selectedPool = $state<PoolRow | null>(preseeded);
 	let lpAmount = $state('');
 
 	const poolOptions = $derived(pools.map((p) => ({ value: p.id, label: p.pair })));
+	const initialPoolId = preseeded?.id;
 
 	const selectedMyPool = $derived.by(() => {
 		if (!selectedPool) return null;
@@ -97,6 +104,7 @@
 		<span class="label">Pool</span>
 		<Select
 			items={poolOptions}
+			initial={initialPoolId}
 			styleType="dropdown"
 			placeholder="Select pool"
 			onValueChange={onPoolChange}

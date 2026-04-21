@@ -1148,19 +1148,19 @@
 						<div class="fee-row">
 							<span class="fee-label">Base Fee (0.08%)</span>
 							<span class="fee-value"
-								>{formatSmallUnits(swapResult.baseFee, fromDec)} {fromUnit}</span
+								>{formatSmallUnits(swapResult.baseFee, toDec)} {toUnit}</span
 							>
 						</div>
 						<div class="fee-row">
 							<span class="fee-label">CLP Fee</span>
 							<span class="fee-value"
-								>{formatSmallUnits(swapResult.clpFee, fromDec)} {fromUnit}</span
+								>{formatSmallUnits(swapResult.clpFee, toDec)} {toUnit}</span
 							>
 						</div>
 						<div class="fee-row highlight">
 							<span class="fee-label">Total Fee</span>
 							<span class="fee-value"
-								>{formatSmallUnits(swapResult.totalFee, fromDec)} {fromUnit}</span
+								>{formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}</span
 							>
 						</div>
 						<div class="fee-row">

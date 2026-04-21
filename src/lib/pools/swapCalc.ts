@@ -4,12 +4,17 @@
  * All amounts are in smallest units (3 decimal places for HIVE/HBD,
  * i.e. 1.000 HIVE = 1000).
  *
- * Formulas:
- *   base fee  = 0.0008 * x           (= x * 8 / 10000)
- *   CLP fee   = (x^2 * Y) / (x + X)^2
+ * Fees are denominated in the OUTPUT asset: the full `x` enters the
+ * pool, the constant-product invariant produces a gross output, and
+ * fees are carved off that.
+ *
+ * Formulas (mirror the on-chain Go contract):
+ *   grossOut  = Y - (X * Y) / (X + x)
+ *   base fee  = grossOut * feeBps / 10000        (output units, floor 1)
+ *   CLP fee   = (x^2 * Y) / (x + X)^2            (output units, floor 1)
  *   total fee = base fee + CLP fee
- *   expected output y = Y - (X * Y) / (X + x - totalFee)
- *   min_amount_out   = y * (10000 - slippageBps) / 10000
+ *   amountOut = grossOut - base fee - CLP fee
+ *   min_amount_out = amountOut * (10000 - slippageBps) / 10000
  */
 
 import { GetStateByKeysStore } from '$houdini';
@@ -143,25 +148,22 @@ export function calculateSwap(
 		};
 	}
 
-	// base fee = x * 8 / 10000  (0.0008 * x)
-	const baseFee = (x * 8n) / 10000n;
+	// grossOut = Y - (X * Y) / (X + x)  — constant-product invariant, pre-fee
+	const newX = X + x;
+	const grossOut = Y - (X * Y) / newX;
 
-	// CLP fee = (x^2 * Y) / (x + X)^2
-	const xPlusX = x + X;
-	const clpFee = (x * x * Y) / (xPlusX * xPlusX);
+	// base fee = grossOut * 8 / 10000  (output units, floor 1 to match contract)
+	let baseFee = (grossOut * 8n) / 10000n;
+	if (baseFee === 0n) baseFee = 1n;
+
+	// CLP fee = (x^2 * Y) / (x + X)^2  (output units, floor 1)
+	let clpFee = (x * x * Y) / (newX * newX);
+	if (clpFee === 0n) clpFee = 1n;
 
 	const totalFee = baseFee + clpFee;
 
-	// expected output: y = Y - (X * Y) / (X + x - totalFee)
-	const denominator = X + x - totalFee;
-	let expectedOutput: bigint;
-	if (denominator <= 0n) {
-		expectedOutput = 0n;
-	} else {
-		expectedOutput = Y - (X * Y) / denominator;
-	}
-
-	// Clamp to non-negative
+	// amountOut = grossOut - baseFee - clpFee
+	let expectedOutput = grossOut - baseFee - clpFee;
 	if (expectedOutput < 0n) {
 		expectedOutput = 0n;
 	}
@@ -350,16 +352,15 @@ export function calculateTwoHopSwap(
 	}
 	const hop2 = calculateSwap(hop1.expectedOutput, hop2Depths.X, hop2Depths.Y, slippageBps);
 
-	// Fees from hop1 are denominated in `assetIn`; fees from hop2 are
-	// in `hopAsset`. Returning the fees as hop1-denominated (input asset)
-	// makes them consistent with the single-hop path. Hop2 fees are
-	// effectively reflected via the reduced final output. So we return
-	// hop1 fees AS-IS and rely on expectedOutput from hop2 to show the
-	// net-of-both-hops number.
+	// Fees are now output-denominated at each hop: hop1 fees are in
+	// `hopAsset`, hop2 fees are in `assetOut`. For display consistency
+	// with the single-hop path (which reports fees in the final output
+	// asset), return hop2 fees directly. Hop1 fees are reflected via
+	// the reduced intermediate amount feeding into hop2.
 	return {
-		baseFee: hop1.baseFee,
-		clpFee: hop1.clpFee,
-		totalFee: hop1.totalFee,
+		baseFee: hop2.baseFee,
+		clpFee: hop2.clpFee,
+		totalFee: hop2.totalFee,
 		expectedOutput: hop2.expectedOutput,
 		minAmountOut: hop2.minAmountOut,
 		slippageBps

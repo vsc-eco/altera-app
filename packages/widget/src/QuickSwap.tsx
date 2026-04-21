@@ -62,7 +62,11 @@ export function MagiQuickSwap(props: MagiQuickSwapProps) {
 	const [customSlippageInput, setCustomSlippageInput] = useState('');
 
 	const [preview, setPreview] = useState<{
-		expectedOutput: bigint; minAmountOut: bigint; totalFee: bigint; hops: 1 | 2;
+		expectedOutput: bigint;
+		minAmountOut: bigint;
+		totalFee: bigint;
+		hops: 1 | 2;
+		hop1Fee?: { asset: string; totalFee: bigint };
 	} | null>(null);
 	const [previewError, setPreviewError] = useState<string | null>(null);
 	const [submitting, setSubmitting] = useState(false);
@@ -75,12 +79,26 @@ export function MagiQuickSwap(props: MagiQuickSwapProps) {
 
 	const [usdIn, setUsdIn] = useState<number | null>(null);
 	const [usdOut, setUsdOut] = useState<number | null>(null);
+	const [usdHop1, setUsdHop1] = useState<{ asset: string; usd: number } | null>(null);
 	useEffect(() => {
 		const p = magi.prices;
 		if (!p) return;
 		p.getUsdPerUnit(assetIn).then(setUsdIn).catch(() => setUsdIn(null));
 		p.getUsdPerUnit(assetOut).then(setUsdOut).catch(() => setUsdOut(null));
 	}, [magi, assetIn, assetOut]);
+	// Fetch USD/unit for the intermediate hop asset when two-hop, so the fee
+	// row can sum hop1 + hop2 USD for display.
+	useEffect(() => {
+		const p = magi.prices;
+		const hop1 = preview?.hop1Fee;
+		if (!p || !hop1) { setUsdHop1(null); return; }
+		const asset = hop1.asset.toUpperCase() as SwapAsset;
+		let cancelled = false;
+		p.getUsdPerUnit(asset).then((v: number | null) => {
+			if (!cancelled && v != null) setUsdHop1({ asset: hop1.asset, usd: v });
+		}).catch(() => { if (!cancelled) setUsdHop1(null); });
+		return () => { cancelled = true; };
+	}, [magi, preview?.hop1Fee]);
 
 	const isBtcInput = assetIn === 'BTC';
 
@@ -139,7 +157,7 @@ export function MagiQuickSwap(props: MagiQuickSwapProps) {
 						recipient: assetOut === 'BTC' ? 'bc1qpreviewplaceholderpreviewplaceholderxxxxxx' : (recipient || 'preview'),
 						slippageBps
 					});
-					if (!cancelled) setPreview({ expectedOutput: res.preview.expectedOutput, minAmountOut: res.preview.minAmountOut, totalFee: res.preview.totalFee, hops: res.preview.hops });
+					if (!cancelled) setPreview({ expectedOutput: res.preview.expectedOutput, minAmountOut: res.preview.minAmountOut, totalFee: res.preview.totalFee, hops: res.preview.hops, hop1Fee: res.preview.hop1Fee ? { asset: res.preview.hop1Fee.asset, totalFee: res.preview.hop1Fee.totalFee } : undefined });
 				}
 			} catch (err) {
 				if (!cancelled) { setPreviewError(err instanceof Error ? err.message : String(err)); setPreview(null); }
@@ -221,8 +239,25 @@ export function MagiQuickSwap(props: MagiQuickSwapProps) {
 
 	const feeLabel = useMemo(() => {
 		if (!preview) return '0.08% + CLP';
-		return `${new CoinAmount(preview.totalFee, assetIn).toDecimalString()} ${assetIn}`;
-	}, [preview, assetIn]);
+		const hop2Amt = new CoinAmount(preview.totalFee, assetOut);
+		const main = `${hop2Amt.toDecimalString()} ${assetOut}`;
+		const hop2Usd = usdOut != null ? Number(hop2Amt.toDecimalString()) * usdOut : null;
+		if (!preview.hop1Fee) {
+			return hop2Usd != null ? `${main} ${formatUsd(hop2Usd)}` : main;
+		}
+		const hopAsset = preview.hop1Fee.asset.toUpperCase() as SwapAsset;
+		const hop1Amt = new CoinAmount(preview.hop1Fee.totalFee, hopAsset);
+		const hop1Text = `${hop1Amt.toDecimalString()} ${hopAsset}`;
+		const combined = `${hop1Text} and ${main}`;
+		const hop1UsdVal =
+			usdHop1 && usdHop1.asset === preview.hop1Fee.asset
+				? Number(hop1Amt.toDecimalString()) * usdHop1.usd
+				: null;
+		if (hop2Usd != null && hop1UsdVal != null) {
+			return `${combined} ${formatUsd(hop2Usd + hop1UsdVal)}`;
+		}
+		return combined;
+	}, [preview, assetOut, usdOut, usdHop1]);
 
 	const routeLabel = useMemo(() => {
 		if (assetIn === 'HBD' || assetOut === 'HBD') return `${assetIn} → ${assetOut}`;

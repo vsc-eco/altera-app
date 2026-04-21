@@ -5,13 +5,18 @@ import type { PoolDepths, SwapCalcResult } from '../types/index.js';
  *
  * All amounts in smallest units (HIVE/HBD: 3 decimals, BTC: 8 decimals).
  *
- *   baseFee  = x * 8 / 10000                  (= 0.08% of input)
- *   clpFee   = (x^2 * Y) / (x + X)^2          (CLP curve fee)
+ * Fees are denominated in the OUTPUT asset: the full `x` enters the pool,
+ * the constant-product invariant produces a gross output, and fees are
+ * carved off that.
+ *
+ *   grossOut = Y − (X * Y) / (X + x)
+ *   baseFee  = grossOut * 8 / 10000           (output units, floor 1)
+ *   clpFee   = (x^2 * Y) / (x + X)^2          (output units, floor 1)
  *   totalFee = baseFee + clpFee
- *   output   = Y − (X * Y) / (X + x − totalFee)
+ *   output   = grossOut − baseFee − clpFee
  *   minOut   = output * (10000 − slippageBps) / 10000
  *
- * Ported verbatim from altera-app/src/lib/pools/swapCalc.ts:111-163 so that
+ * Ported verbatim from altera-app/src/lib/pools/swapCalc.ts:134-183 so that
  * fee previews match the contract bit-for-bit. Any change here must track
  * the Altera formula.
  */
@@ -32,18 +37,18 @@ export function calculateSwap(
 		};
 	}
 
-	const baseFee = (x * 8n) / 10000n;
-	const xPlusX = x + X;
-	const clpFee = (x * x * Y) / (xPlusX * xPlusX);
+	const newX = X + x;
+	const grossOut = Y - (X * Y) / newX;
+
+	let baseFee = (grossOut * 8n) / 10000n;
+	if (baseFee === 0n) baseFee = 1n;
+
+	let clpFee = (x * x * Y) / (newX * newX);
+	if (clpFee === 0n) clpFee = 1n;
+
 	const totalFee = baseFee + clpFee;
 
-	const denominator = X + x - totalFee;
-	let expectedOutput: bigint;
-	if (denominator <= 0n) {
-		expectedOutput = 0n;
-	} else {
-		expectedOutput = Y - (X * Y) / denominator;
-	}
+	let expectedOutput = grossOut - baseFee - clpFee;
 	if (expectedOutput < 0n) expectedOutput = 0n;
 
 	const slipBps = BigInt(Math.max(0, Math.min(slippageBps, 10000)));
@@ -67,7 +72,12 @@ export function getOrderedDepthsFor(
  * Two-hop swap calc: input → hopAsset (via pool1) → output (via pool2).
  * Slippage applies only to the final output, matching router behavior.
  *
- * Ported from altera-app/src/lib/pools/swapCalc.ts:289-342.
+ * Fees are output-denominated at each hop: hop1 fees are in `hopAsset`,
+ * hop2 fees are in `assetOut`. The top-level fee fields hold hop2 (in
+ * `assetOut`); `hop1Fee` carries hop1's separately so callers can render
+ * "<hop1Total> <hopAsset> and <hop2Total> <assetOut>".
+ *
+ * Ported from altera-app/src/lib/pools/swapCalc.ts:316-368.
  */
 export function calculateTwoHopSwap(
 	x: bigint,
@@ -90,29 +100,37 @@ export function calculateTwoHopSwap(
 		};
 	}
 	const hop1 = calculateSwap(x, hop1Depths.X, hop1Depths.Y, 0);
+	const hop1Fee = {
+		asset: hopAsset,
+		baseFee: hop1.baseFee,
+		clpFee: hop1.clpFee,
+		totalFee: hop1.totalFee
+	};
 	if (hop1.expectedOutput <= 0n) {
-		return { ...hop1, slippageBps };
+		return { ...hop1, slippageBps, hop1Fee };
 	}
 
 	const hop2Depths = getOrderedDepthsFor(pool2, hopAsset);
 	if (!hop2Depths) {
 		return {
-			baseFee: hop1.baseFee,
-			clpFee: hop1.clpFee,
-			totalFee: hop1.totalFee,
+			baseFee: 0n,
+			clpFee: 0n,
+			totalFee: 0n,
 			expectedOutput: 0n,
 			minAmountOut: 0n,
-			slippageBps
+			slippageBps,
+			hop1Fee
 		};
 	}
 	const hop2 = calculateSwap(hop1.expectedOutput, hop2Depths.X, hop2Depths.Y, slippageBps);
 
 	return {
-		baseFee: hop1.baseFee,
-		clpFee: hop1.clpFee,
-		totalFee: hop1.totalFee,
+		baseFee: hop2.baseFee,
+		clpFee: hop2.clpFee,
+		totalFee: hop2.totalFee,
 		expectedOutput: hop2.expectedOutput,
 		minAmountOut: hop2.minAmountOut,
-		slippageBps
+		slippageBps,
+		hop1Fee
 	};
 }

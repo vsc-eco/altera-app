@@ -74,4 +74,13 @@ export interface SwapCalcResult {
 	expectedOutput: bigint;
 	minAmountOut: bigint;
 	slippageBps: number;
+	/** Set on two-hop swaps. Hop1 takes its fees in the intermediate
+	 *  asset (e.g. HBD), separately from the top-level fee fields which
+	 *  always represent the final hop in `assetOut` units. */
+	hop1Fee?: {
+		asset: string;
+		baseFee: bigint;
+		clpFee: bigint;
+		totalFee: bigint;
+	};
 }

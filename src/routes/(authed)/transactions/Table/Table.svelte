@@ -426,4 +426,16 @@
 			opacity: 0.5;
 		}
 	}
+
+	@media (max-width: 600px) {
+		.card {
+			grid-template-columns: minmax(0, 1fr) auto auto;
+		}
+		.h-date {
+			display: none;
+		}
+		.body-scroll :global(td:first-child) {
+			display: none;
+		}
+	}
 </style>

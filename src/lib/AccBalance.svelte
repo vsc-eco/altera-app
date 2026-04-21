@@ -49,108 +49,88 @@
 <div class="balances-list">
 	<div class="balances-header">
 		<span class="balances-title">Balances</span>
-		<!-- <a href="/" class="see-all">See all</a> -->
 	</div>
 
 	<div class="balance-row">
 		<div class="row-icon hbd"><img src={Coin.hbd.icon} alt="" /></div>
 		<div class="row-info">
-			<span class="coin-name">{hbdAssetName}</span>
+			<div class="name-row">
+				<span class="coin-name">{hbdAssetName}</span>
+				<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true), hbdAssetName)}</span>
+			</div>
 			<span class="coin-sub">Hive Backed Dollar</span>
 		</div>
-		<span class="row-amount"
-			>{formatWithUnit(new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true), hbdAssetName)}</span
-		>
 	</div>
 
 	<div class="balance-row">
 		<div class="row-icon shbd"><img src={Coin.hbd.icon} alt="" /></div>
 		<div class="row-info">
-			<span class="coin-name">
-				s{hbdAssetName}
-				<span class="tooltip-inline"
-					><InfoToolip
-						>s{hbdAssetName} is {hbdAssetName} that remains transferable while earning 15% APR</InfoToolip
-					></span
-				>
-			</span>
+			<div class="name-row">
+				<span class="coin-name">
+					s{hbdAssetName}
+					<span class="tooltip-inline"><InfoToolip>s{hbdAssetName} is {hbdAssetName} that remains transferable while earning 15% APR</InfoToolip></span>
+				</span>
+				<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true), hbdAssetName)}</span>
+			</div>
 			<span class="coin-sub">Liquid Hive Dollar Savings</span>
 		</div>
-		<span class="row-amount"
-			>{formatWithUnit(
-				new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true),
-				hbdAssetName
-			)}</span
-		>
 	</div>
 
 	{#if $accountBalance.bal.pending_hbd_unstaking && $accountBalance.bal.pending_hbd_unstaking !== 0}
 		<div class="balance-row">
 			<div class="row-icon hbd"><img src={Coin.hbd.icon} alt="" /></div>
 			<div class="row-info">
-				<span class="coin-name">{hbdAssetName} Unstaking</span>
+				<div class="name-row">
+					<span class="coin-name">{hbdAssetName} Unstaking</span>
+					<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.pending_hbd_unstaking, Coin.hbd, true), hbdAssetName)}</span>
+				</div>
 			</div>
-			<span class="row-amount"
-				>{formatWithUnit(
-					new CoinAmount($accountBalance.bal.pending_hbd_unstaking, Coin.hbd, true),
-					hbdAssetName
-				)}</span
-			>
 		</div>
 	{/if}
 
 	<div class="balance-row">
 		<div class="row-icon hive"><img src={Coin.hive.icon} alt="" /></div>
 		<div class="row-info">
-			<span class="coin-name">{hiveAssetName}</span>
+			<div class="name-row">
+				<span class="coin-name">{hiveAssetName}</span>
+				<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hive, Coin.hive, true), hiveAssetName)}</span>
+			</div>
 			<span class="coin-sub">Native Hive Token</span>
 		</div>
-		<span class="row-amount"
-			>{formatWithUnit(
-				new CoinAmount($accountBalance.bal.hive, Coin.hive, true),
-				hiveAssetName
-			)}</span
-		>
 	</div>
 
 	<div class="balance-row">
 		<div class="row-icon consensus"><img src={Coin.hive.icon} alt="" /></div>
 		<div class="row-info">
-			<span class="coin-name">{hiveAssetName} Consensus</span>
+			<div class="name-row">
+				<span class="coin-name">{hiveAssetName} Consensus</span>
+				<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hive_consensus, Coin.hive, true), hiveAssetName)}</span>
+			</div>
 			<span class="coin-sub">Hive Consensus</span>
 		</div>
-		<span class="row-amount"
-			>{formatWithUnit(
-				new CoinAmount($accountBalance.bal.hive_consensus, Coin.hive, true),
-				hiveAssetName
-			)}</span
-		>
 	</div>
 
 	{#if $accountBalance.bal.consensus_unstaking !== 0}
 		<div class="balance-row">
 			<div class="row-icon hive"><img src={Coin.hive.icon} alt="" /></div>
 			<div class="row-info">
-				<span class="coin-name">{hiveAssetName} Unstaking</span>
+				<div class="name-row">
+					<span class="coin-name">{hiveAssetName} Unstaking</span>
+					<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.consensus_unstaking, Coin.hive, true), hiveAssetName)}</span>
+				</div>
 			</div>
-			<span class="row-amount"
-				>{formatWithUnit(
-					new CoinAmount($accountBalance.bal.consensus_unstaking, Coin.hive, true),
-					hiveAssetName
-				)}</span
-			>
 		</div>
 	{/if}
 
 	<div class="balance-row">
 		<div class="row-icon btc"><img src={Coin.btc.icon} alt="Bitcoin" /></div>
 		<div class="row-info">
-			<span class="coin-name">Bitcoin</span>
+			<div class="name-row">
+				<span class="coin-name">Bitcoin</span>
+				<span class="row-amount">{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</span>
+			</div>
 			<span class="coin-sub">Bitcoin Native Asset Mapping</span>
 		</div>
-		<span class="row-amount"
-			>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</span
-		>
 	</div>
 </div>
 
@@ -170,15 +150,6 @@
 		font-size: 0.85rem;
 		font-weight: 600;
 		color: var(--dash-text-primary);
-	}
-	.see-all {
-		color: var(--dash-accent-purple);
-		font-size: 0.8rem;
-		font-weight: 500;
-		text-decoration: none;
-	}
-	.see-all:hover {
-		text-decoration: underline;
 	}
 
 	.balance-row {
@@ -214,6 +185,16 @@
 		flex: 1;
 		min-width: 0;
 	}
+
+	.name-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.125rem 0.5rem;
+		min-width: 0;
+	}
+
 	.coin-name {
 		font-size: 0.875rem;
 		font-weight: 600;
@@ -221,6 +202,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
+		min-width: 0;
 	}
 	.coin-sub {
 		font-size: 0.75rem;
@@ -237,7 +219,6 @@
 		font-weight: 600;
 		color: var(--dash-text-primary);
 		white-space: nowrap;
-		margin-left: auto;
 		flex-shrink: 0;
 	}
 </style>

@@ -12,7 +12,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
     "test": "vitest run",
@@ -22,7 +24,9 @@
     "@aioha/aioha": "^1.8.0"
   },
   "peerDependenciesMeta": {
-    "@aioha/aioha": { "optional": true }
+    "@aioha/aioha": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@magi/core": "workspace:*"

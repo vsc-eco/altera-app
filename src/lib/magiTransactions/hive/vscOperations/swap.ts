@@ -100,7 +100,10 @@ export async function getHiveSwapOp(
 	const caller = `hive:${username}`;
 	const isNative = assetIn.value === Coin.hive.value || assetIn.value === Coin.hbd.value;
 
-	const feeQualifies = await qualifiesForAlteraFee(amount, assetOut, destinationChain);
+	// TODO (temporary): Restore this after cost investigation. Disabled this way because the refBps
+	// is a check for nil value not a check for  0
+	// const feeQualifies = await qualifiesForAlteraFee(amount, assetOut, destinationChain);
+	const feeQualifies = false;
 	// Contract validates min_amount_out AFTER the referral/altera deduction.
 	// Scale the caller's pre-fee min down by the same bps so slippage
 	// tolerance is measured against what the user actually receives.
@@ -110,7 +113,7 @@ export async function getHiveSwapOp(
 			: minAmountOut;
 
 	// TODO: estimate RC usage
-	let rcLimit = 2000
+	let rcLimit = 2000;
 	const payload: Record<string, string | number> = {
 		type: 'swap',
 		version: '1.0.0',
@@ -122,7 +125,7 @@ export async function getHiveSwapOp(
 	};
 	if (destinationChain) {
 		payload.destination_chain = destinationChain;
-		rcLimit = 10000
+		rcLimit = 10000;
 	}
 	if (feeQualifies) {
 		payload.beneficiary = ALTERA_FEE_BENEFICIARY;

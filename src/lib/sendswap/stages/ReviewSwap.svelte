@@ -313,6 +313,13 @@
 		auth.value ? (getUsernameFromAuth(auth) ?? auth.value.address ?? '') : ''
 	);
 	const receiverAddress = $derived($SendTxDetails.toUsername ?? '');
+
+	const isBtcSwap = $derived(
+		fromCoin.value === Coin.btc.value || toCoin.value === Coin.btc.value
+	);
+	const settlementTime = $derived(
+		isBtcSwap ? 'About 10 minutes' : ($SendTxDetails.method?.length ?? '')
+	);
 </script>
 
 {#snippet reviewContent()}
@@ -480,7 +487,7 @@
 			<ul>
 				<li class="side-by-side time">
 					<span class="sm-caption label">Settlement Time</span>
-					<span class="content">{$SendTxDetails.method?.length}</span>
+					<span class="content">{settlementTime}</span>
 				</li>
 				<li class="side-by-side date">
 					<span class="sm-caption label">Initiated On</span>

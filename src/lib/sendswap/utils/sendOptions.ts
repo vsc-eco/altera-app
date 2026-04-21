@@ -277,6 +277,8 @@ export type SendDetails = {
 	swapBaseFee: string | undefined;
 	swapClpFee: string | undefined;
 	swapTotalFee: string | undefined;
+	// Set on two-hop swaps: hop1's fee in the intermediate asset.
+	swapHop1Fee: { asset: string; totalFee: string } | undefined;
 	// BTC unmap fields
 	btcDeductFee: boolean;
 	btcMaxFee: number | undefined;

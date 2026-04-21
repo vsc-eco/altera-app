@@ -65,6 +65,15 @@ export interface SwapCalcResult {
 	expectedOutput: bigint;
 	minAmountOut: bigint;
 	slippageBps: number; // basis points (e.g. 100 = 1%)
+	/** Set on two-hop swaps. Hop1 takes its fees in the intermediate
+	 *  asset (e.g. HBD), separately from the top-level fee fields which
+	 *  always represent the final hop in the output asset. */
+	hop1Fee?: {
+		asset: string;
+		baseFee: bigint;
+		clpFee: bigint;
+		totalFee: bigint;
+	};
 }
 
 /**
@@ -335,34 +344,41 @@ export function calculateTwoHopSwap(
 	}
 	// First hop runs at its own pool and produces an intermediate amount.
 	const hop1 = calculateSwap(x, hop1Depths.X, hop1Depths.Y, 0);
+	const hop1Fee = {
+		asset: hopAsset,
+		baseFee: hop1.baseFee,
+		clpFee: hop1.clpFee,
+		totalFee: hop1.totalFee
+	};
 	if (hop1.expectedOutput <= 0n) {
-		return { ...hop1, slippageBps };
+		return { ...hop1, slippageBps, hop1Fee };
 	}
 
 	const hop2Depths = getOrderedDepthsFor(pool2, hopAsset);
 	if (!hop2Depths) {
 		return {
-			baseFee: hop1.baseFee,
-			clpFee: hop1.clpFee,
-			totalFee: hop1.totalFee,
+			baseFee: 0n,
+			clpFee: 0n,
+			totalFee: 0n,
 			expectedOutput: 0n,
 			minAmountOut: 0n,
-			slippageBps
+			slippageBps,
+			hop1Fee
 		};
 	}
 	const hop2 = calculateSwap(hop1.expectedOutput, hop2Depths.X, hop2Depths.Y, slippageBps);
 
-	// Fees are now output-denominated at each hop: hop1 fees are in
-	// `hopAsset`, hop2 fees are in `assetOut`. For display consistency
-	// with the single-hop path (which reports fees in the final output
-	// asset), return hop2 fees directly. Hop1 fees are reflected via
-	// the reduced intermediate amount feeding into hop2.
+	// Fees are output-denominated at each hop: hop1 fees are in `hopAsset`,
+	// hop2 fees are in `assetOut`. The top-level fee fields hold hop2 (in
+	// `assetOut`); `hop1Fee` carries hop1's separately so callers can
+	// render "<hop1Total> <hopAsset> and <hop2Total> <assetOut>".
 	return {
 		baseFee: hop2.baseFee,
 		clpFee: hop2.clpFee,
 		totalFee: hop2.totalFee,
 		expectedOutput: hop2.expectedOutput,
 		minAmountOut: hop2.minAmountOut,
-		slippageBps
+		slippageBps,
+		hop1Fee
 	};
 }

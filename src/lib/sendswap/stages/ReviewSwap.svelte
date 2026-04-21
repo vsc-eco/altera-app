@@ -307,6 +307,38 @@
 			alteraFeeInUsd = amt;
 		});
 	});
+
+	// USD equivalent of the pool fee(s). One-hop: convert the single
+	// output-asset total. Two-hop: convert each hop's total in its own
+	// asset, then sum — both amounts are what the user effectively pays.
+	let swapFeeInUsd = $state<CoinAmount<Coin>>();
+	$effect(() => {
+		const totalFeeRaw = $SendTxDetails.swapTotalFee;
+		const hop1 = $SendTxDetails.swapHop1Fee;
+		if (!totalFeeRaw || !$SendTxDetails.toCoin) {
+			swapFeeInUsd = undefined;
+			return;
+		}
+		const hop2Amt = new CoinAmount(Number(totalFeeRaw), toCoin, true);
+		const hop1Coin = hop1
+			? hop1.asset === Coin.hbd.value
+				? Coin.hbd
+				: hop1.asset === Coin.hive.value
+					? Coin.hive
+					: hop1.asset === Coin.btc.value
+						? Coin.btc
+						: null
+			: null;
+		const hop1Amt =
+			hop1 && hop1Coin ? new CoinAmount(Number(hop1.totalFee), hop1Coin, true) : null;
+
+		Promise.all([
+			hop2Amt.convertTo(Coin.usd, Network.lightning),
+			hop1Amt ? hop1Amt.convertTo(Coin.usd, Network.lightning) : Promise.resolve(null)
+		]).then(([hop2Usd, hop1Usd]) => {
+			swapFeeInUsd = hop1Usd ? hop2Usd.add(hop1Usd) : hop2Usd;
+		});
+	});
 	let today = moment().format('MMM D, YYYY');
 
 	const senderAddress = $derived(
@@ -370,9 +402,29 @@
 							<td class="sm-caption label">Fee</td>
 							<td class="content">
 								{#if $SendTxDetails.swapTotalFee && $SendTxDetails.toCoin}
-									{prettyWithDisplayUnit(
-										new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true)
-									)}
+									{#if $SendTxDetails.swapHop1Fee}
+										{@const hopCoin =
+											$SendTxDetails.swapHop1Fee.asset === Coin.hbd.value
+												? Coin.hbd
+												: $SendTxDetails.swapHop1Fee.asset === Coin.hive.value
+													? Coin.hive
+													: Coin.btc}
+										{prettyWithDisplayUnit(
+											new CoinAmount(Number($SendTxDetails.swapHop1Fee.totalFee), hopCoin, true)
+										)}
+										and
+										{prettyWithDisplayUnit(
+											new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true)
+										)}
+									{:else}
+										{prettyWithDisplayUnit(
+											new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true)
+										)}
+									{/if}
+									{#if swapFeeInUsd}
+										<EqualApproximately size={16} />
+										{swapFeeInUsd.toPrettyString()}
+									{/if}
 								{:else if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
 									No fee
 								{:else if !$SendTxDetails.fee || !feeInUsd}
@@ -392,7 +444,11 @@
 									<td class="icon"><Dot size="32" /></td>
 									<td class="sm-caption label">BTC Network Fee</td>
 									<td class="content">
-										~{formatSats(btcFeeEstimate.minSats)} – {formatSats(btcFeeEstimate.maxSats)} sats
+										~{new CoinAmount(btcFeeEstimate.minSats, Coin.btc, true)} - {new CoinAmount(
+											btcFeeEstimate.maxSats,
+											Coin.btc,
+											true
+										)}
 									</td>
 								</tr>
 							{/if}

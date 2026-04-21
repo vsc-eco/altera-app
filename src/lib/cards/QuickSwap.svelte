@@ -403,6 +403,14 @@
 			if ($SendTxDetails.swapBaseFee !== swapBaseFee) $SendTxDetails.swapBaseFee = swapBaseFee;
 			if ($SendTxDetails.swapClpFee !== swapClpFee) $SendTxDetails.swapClpFee = swapClpFee;
 			if ($SendTxDetails.swapTotalFee !== swapTotalFee) $SendTxDetails.swapTotalFee = swapTotalFee;
+			const hop1 = result.hop1Fee
+				? { asset: result.hop1Fee.asset, totalFee: result.hop1Fee.totalFee.toString() }
+				: undefined;
+			const prevHop1 = $SendTxDetails.swapHop1Fee;
+			const hop1Changed = hop1
+				? !prevHop1 || prevHop1.asset !== hop1.asset || prevHop1.totalFee !== hop1.totalFee
+				: !!prevHop1;
+			if (hop1Changed) $SendTxDetails.swapHop1Fee = hop1;
 
 			// Drive the TO amount input. Wrapped in untrack so reading
 			// toInputAmount here doesn't turn this effect into a loop;
@@ -1163,8 +1171,22 @@
 				<span class="detail-label">Fee</span>
 				<span class="detail-value">
 					{#if swapResult && $SendTxDetails.toCoin}
-						{formatFee(swapResult.totalFee, $SendTxDetails.toCoin.coin.decimalPlaces)}
-						{$SendTxDetails.toCoin.coin.label}
+						{#if swapResult.hop1Fee}
+							{@const hopCoin =
+								swapResult.hop1Fee.asset === Coin.hbd.value
+									? Coin.hbd
+									: swapResult.hop1Fee.asset === Coin.hive.value
+										? Coin.hive
+										: Coin.btc}
+							{formatFee(swapResult.hop1Fee.totalFee, hopCoin.decimalPlaces)}
+							{hopCoin.label}
+							and
+							{formatFee(swapResult.totalFee, $SendTxDetails.toCoin.coin.decimalPlaces)}
+							{$SendTxDetails.toCoin.coin.label}
+						{:else}
+							{formatFee(swapResult.totalFee, $SendTxDetails.toCoin.coin.decimalPlaces)}
+							{$SendTxDetails.toCoin.coin.label}
+						{/if}
 					{:else}
 						0.08% + CLP
 					{/if}

@@ -187,4 +187,16 @@
 		--bg-accent: var(--dash-chart-line);
 		--bg: transparent;
 	}
+
+	@media (max-width: 600px) {
+		.header-row {
+			flex-wrap: wrap;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.5rem;
+		}
+		.date-select {
+			width: 100%;
+		}
+	}
 </style>

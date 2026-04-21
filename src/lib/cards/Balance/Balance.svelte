@@ -117,7 +117,7 @@
 		display: block;
 		font-size: 0.85rem;
 		font-weight: 600;
-		color: var(--dash-text-muted);
+		color: var(--dash-text-primary);
 		margin-bottom: 0.5rem;
 	}
 
@@ -210,5 +210,17 @@
 		min-height: 0;
 		overflow: auto;
 		margin-top: 0.25rem;
+	}
+
+	@media (max-width: 480px) {
+		.dollars {
+			font-size: 1.75rem;
+		}
+		.balance-row {
+			margin-bottom: 1rem;
+		}
+		.action-buttons {
+			margin-bottom: 1.25rem;
+		}
 	}
 </style>

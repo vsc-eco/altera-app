@@ -1,8 +1,5 @@
 <script lang="ts">
-	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillBtn from '$lib/PillButton.svelte';
-	import { Coin } from '$lib/sendswap/utils/sendOptions';
-	import { accountBalance } from '$lib/stores/currentBalance';
 
 	type Props = {
 		onStake: () => void;
@@ -15,38 +12,35 @@
 	<div class="staking-header">
 		<span class="status-dot"></span>
 		<h5>Staking earnings (sHBD)</h5>
-	</div>
-	<div class="staking-details">
-		<!-- <div class="staking-stat">
-			<span class="label">Today:</span>
-			<span class="value down">$0.18 <span class="arrow">&#9660;</span></span>
-		</div>
-		<div class="staking-stat">
-			<span class="label">This month:</span>
-			<span class="value up">$7.42 <span class="arrow">&#9650;</span></span>
-		</div> -->
-		<div class="staking-stat">
-			<span class="label">Earn APR:</span>
-			<span class="value">15%</span>
-		</div>
-		<div class="staking-stat">
-			<span class="label">Currently Staked:</span>
-			<span class="value">{new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true)}</span>
-		</div>
-		<!-- <div class="staking-stat">
-			<span class="label">Next payout in:</span>
-			<span class="value">16h 30m</span>
-		</div> -->
 		<div class="staking-action">
 			<PillBtn
 				theme="primary"
 				styleType="outline"
+				style="--height: 1.75rem; font-size: 0.75rem; padding: 0 0.6rem;"
 				onclick={() => {
 					onStake();
 				}}
 			>
 				Staking
 			</PillBtn>
+		</div>
+	</div>
+	<div class="staking-details">
+		<div class="staking-stat">
+			<span class="label">Today:</span>
+			<span class="value down">$0.18 <span class="arrow">&#9660;</span></span>
+		</div>
+		<div class="staking-stat">
+			<span class="label">This month:</span>
+			<span class="value up">$7.42 <span class="arrow">&#9650;</span></span>
+		</div>
+		<div class="staking-stat">
+			<span class="label">Earn APR:</span>
+			<span class="value">15%</span>
+		</div>
+		<div class="staking-stat">
+			<span class="label">Next payout in:</span>
+			<span class="value">16h 30m</span>
 		</div>
 	</div>
 </div>
@@ -66,6 +60,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		justify-content: space-between;
 	}
 	.status-dot {
 		width: 8px;
@@ -82,16 +77,16 @@
 	}
 	.staking-details {
 		display: flex;
-		flex-wrap: nowrap;
-		gap: 1rem;
-		align-items: center;
-		overflow-x: auto;
+		flex-wrap: wrap;
+		gap: 0.75rem 1.25rem;
+		align-items: flex-start;
 	}
 	.staking-stat {
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
-		flex-shrink: 0;
+		flex: 1 1 auto;
+		min-width: max-content;
 	}
 	.staking-stat .label {
 		color: var(--dash-text-muted);
@@ -116,5 +111,7 @@
 	}
 	.staking-action {
 		margin-left: auto;
+		flex-shrink: 0;
 	}
+
 </style>

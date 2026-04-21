@@ -178,9 +178,12 @@
 		opacity: 0.6;
 	}
 
-	@media (max-width: 1200px) {
+	@media (max-width: 1440px) {
 		.dashboard-wrapper {
 			flex-direction: column;
+		}
+		.dashboard-main {
+			width: 100%;
 		}
 		.dashboard-right {
 			width: 100%;
@@ -193,9 +196,25 @@
 		}
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 1100px) {
 		.top-row {
 			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 600px) {
+		.dashboard-wrapper {
+			gap: 12px;
+		}
+		.dashboard-main {
+			gap: 12px;
+		}
+		.dashboard-right {
+			gap: 12px;
+		}
+		.card {
+			padding: 1rem;
+			border-radius: 20px;
 		}
 	}
 </style>

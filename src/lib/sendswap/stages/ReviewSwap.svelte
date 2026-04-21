@@ -89,19 +89,10 @@
 			? $SendTxDetails.fromAmount
 			: $SendTxDetails.enteredAmount
 	);
-	// For swaps where the pool takes a base + CLP fee out of the input,
-	// surface the *net* amount that actually enters the pool. The input
-	// here is tricky: `effectiveFromAmount` is a decimal string ("0.0001")
-	// while `swapTotalFee` is already in smallest units from calculateSwap
-	// ("388"). We have to normalise to smallest units before subtracting
-	// or the display collapses to zero.
-	let netSwapFromAmountCa = $derived.by(() => {
-		const gross = new CoinAmount(effectiveFromAmount, fromCoin);
-		const feeSmallest = $SendTxDetails.swapTotalFee ? Number($SendTxDetails.swapTotalFee) : 0;
-		if (!Number.isFinite(feeSmallest) || feeSmallest <= 0) return gross;
-		const netSmallest = Math.max(0, gross.amount - feeSmallest);
-		return new CoinAmount(netSmallest, fromCoin, true);
-	});
+	// Pool fees are now denominated in the OUTPUT asset: the full input
+	// enters the pool and fees are carved off the gross output. So the
+	// "amount in" the user commits is simply the gross entered amount.
+	let netSwapFromAmountCa = $derived(new CoinAmount(effectiveFromAmount, fromCoin));
 	let effectiveToAmount = $derived(
 		$SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'
 			? $SendTxDetails.toAmount
@@ -244,20 +235,19 @@
 	$effect(() => {
 		if (!$SendTxDetails.fromCoin || !$SendTxDetails.toCoin) return;
 
-		// Prefer the pool-math effective rate (expectedOutput / net input)
+		// Prefer the pool-math effective rate (expectedOutput / input)
 		// over the lightning off-chain reference rate. Otherwise the
 		// Market Rate row and the To row disagree whenever the pool is
 		// not at the lightning price — user sees "1 X = 0.06 Y" with
 		// "To 0.642 Y" for a 10 X input and it looks like broken math.
+		// Fees are output-denominated now, so the full entered amount
+		// is what goes into the pool.
 		const expectedRaw = $SendTxDetails.expectedOutput;
-		const swapFee = $SendTxDetails.swapTotalFee;
 		if (expectedRaw && expectedRaw !== '0') {
 			const expected = Number(expectedRaw);
 			const grossIn = new CoinAmount(effectiveFromAmount, fromCoin).amount;
-			const feeIn = swapFee ? Number(swapFee) : 0;
-			const netIn = Math.max(0, grossIn - feeIn);
-			if (netIn > 0 && Number.isFinite(expected)) {
-				const ratePerUnitSmallestOut = (expected * 10 ** fromCoin.decimalPlaces) / netIn;
+			if (grossIn > 0 && Number.isFinite(expected)) {
+				const ratePerUnitSmallestOut = (expected * 10 ** fromCoin.decimalPlaces) / grossIn;
 				fromInTo = new CoinAmount(Math.round(ratePerUnitSmallestOut), toCoin, true);
 				return;
 			}
@@ -357,25 +347,6 @@
 						{/if}
 						<tr>
 							<td class="icon"><Dot size="32" /></td>
-							<td class="sm-caption label">Fee</td>
-							<td class="content">
-								{#if $SendTxDetails.swapTotalFee && $SendTxDetails.fromCoin}
-									{prettyWithDisplayUnit(
-										new CoinAmount(Number($SendTxDetails.swapTotalFee), fromCoin, true)
-									)}
-								{:else if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
-									No fee
-								{:else if !$SendTxDetails.fee || !feeInUsd}
-									<div class="fee-loading"><WaveLoading /></div>
-								{:else}
-									{prettyWithDisplayUnit($SendTxDetails.fee)}
-									<EqualApproximately size={16} />
-									{feeInUsd.toPrettyString()}
-								{/if}
-							</td>
-						</tr>
-						<tr>
-							<td class="icon"><Dot size="32" /></td>
 							<td class="sm-caption label">Amount</td>
 							<td class="content">
 								{prettyWithDisplayUnit(netSwapFromAmountCa)}
@@ -394,6 +365,25 @@
 								</td>
 							</tr>
 						{/if}
+						<tr>
+							<td class="icon"><Dot size="32" /></td>
+							<td class="sm-caption label">Fee</td>
+							<td class="content">
+								{#if $SendTxDetails.swapTotalFee && $SendTxDetails.toCoin}
+									{prettyWithDisplayUnit(
+										new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true)
+									)}
+								{:else if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
+									No fee
+								{:else if !$SendTxDetails.fee || !feeInUsd}
+									<div class="fee-loading"><WaveLoading /></div>
+								{:else}
+									{prettyWithDisplayUnit($SendTxDetails.fee)}
+									<EqualApproximately size={16} />
+									{feeInUsd.toPrettyString()}
+								{/if}
+							</td>
+						</tr>
 						{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
 							{@const rawTo = convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)}
 							{@const netToAmount = Math.max(0, rawTo.amount - (alteraFeeAmount?.amount ?? 0))}

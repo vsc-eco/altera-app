@@ -1162,9 +1162,9 @@
 			<div class="detail-row">
 				<span class="detail-label">Fee</span>
 				<span class="detail-value">
-					{#if swapResult && $SendTxDetails.fromCoin}
-						{formatFee(swapResult.totalFee, $SendTxDetails.fromCoin.coin.decimalPlaces)}
-						{$SendTxDetails.fromCoin.coin.label}
+					{#if swapResult && $SendTxDetails.toCoin}
+						{formatFee(swapResult.totalFee, $SendTxDetails.toCoin.coin.decimalPlaces)}
+						{$SendTxDetails.toCoin.coin.label}
 					{:else}
 						0.08% + CLP
 					{/if}

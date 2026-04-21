@@ -234,6 +234,16 @@
 			if ($SendTxDetails.swapTotalFee !== swapTotalFee) {
 				$SendTxDetails.swapTotalFee = swapTotalFee;
 			}
+			const hop1 = result.hop1Fee
+				? { asset: result.hop1Fee.asset, totalFee: result.hop1Fee.totalFee.toString() }
+				: undefined;
+			const prevHop1 = $SendTxDetails.swapHop1Fee;
+			const hop1Changed = hop1
+				? !prevHop1 || prevHop1.asset !== hop1.asset || prevHop1.totalFee !== hop1.totalFee
+				: !!prevHop1;
+			if (hop1Changed) {
+				$SendTxDetails.swapHop1Fee = hop1;
+			}
 
 			const outputAmt = new CoinAmount(Number(result.expectedOutput), toCoin.coin, true);
 			const outputStr = outputAmt.toAmountString();
@@ -1074,6 +1084,15 @@
 			{@const toDec = $SendTxDetails.toCoin.coin.decimalPlaces}
 			{@const fromUnit = coinDisplayLabel($SendTxDetails.fromCoin.coin)}
 			{@const toUnit = coinDisplayLabel($SendTxDetails.toCoin.coin)}
+			{@const hop1FeeCoin = swapResult?.hop1Fee
+				? (swapResult.hop1Fee.asset === Coin.hbd.value
+					? Coin.hbd
+					: swapResult.hop1Fee.asset === Coin.hive.value
+						? Coin.hive
+						: swapResult.hop1Fee.asset === Coin.btc.value
+							? Coin.btc
+							: null)
+				: null}
 			<div class="swap-fees">
 				<!-- Always visible: slippage + toggle header -->
 				<div class="fees-header">
@@ -1157,11 +1176,30 @@
 								>{formatSmallUnits(swapResult.clpFee, toDec)} {toUnit}</span
 							>
 						</div>
+						{#if swapResult.hop1Fee && hop1FeeCoin}
+							<div class="fee-row">
+								<span class="fee-label">Hop Fee ({coinDisplayLabel(hop1FeeCoin)})</span>
+								<span class="fee-value"
+									>{formatSmallUnits(
+										swapResult.hop1Fee.totalFee,
+										hop1FeeCoin.decimalPlaces
+									)} {coinDisplayLabel(hop1FeeCoin)}</span
+								>
+							</div>
+						{/if}
 						<div class="fee-row highlight">
 							<span class="fee-label">Total Fee</span>
-							<span class="fee-value"
-								>{formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}</span
-							>
+							<span class="fee-value">
+								{#if swapResult.hop1Fee && hop1FeeCoin}
+									{formatSmallUnits(
+										swapResult.hop1Fee.totalFee,
+										hop1FeeCoin.decimalPlaces
+									)} {coinDisplayLabel(hop1FeeCoin)}
+									and {formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}
+								{:else}
+									{formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}
+								{/if}
+							</span>
 						</div>
 						<div class="fee-row">
 							<span class="fee-label">Min. Amount Out</span>

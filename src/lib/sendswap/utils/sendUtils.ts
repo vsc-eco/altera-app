@@ -65,6 +65,7 @@ export function blankDetails(): SendDetails {
 		swapBaseFee: undefined,
 		swapClpFee: undefined,
 		swapTotalFee: undefined,
+		swapHop1Fee: undefined,
 		btcDeductFee: false,
 		btcMaxFee: undefined
 	};

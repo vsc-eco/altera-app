@@ -8,6 +8,7 @@
 	import moment from 'moment';
 	import InfoToolip from './components/InfoTooltip.svelte';
 	import { numberFormatLanguage } from '$lib/constants';
+	import { sHbdAprStore } from '$lib/stores/aprStore';
 
 	type Props = {
 		did: string;
@@ -68,7 +69,7 @@
 			<div class="name-row">
 				<span class="coin-name">
 					s{hbdAssetName}
-					<span class="tooltip-inline"><InfoToolip>s{hbdAssetName} is {hbdAssetName} that remains transferable while earning 15% APR</InfoToolip></span>
+					<span class="tooltip-inline"><InfoToolip>s{hbdAssetName} is {hbdAssetName} that remains transferable while earning {$sHbdAprStore !== null ? `${$sHbdAprStore}%` : '~12%'} APR</InfoToolip></span>
 				</span>
 				<span class="row-amount">{formatWithUnit(new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true), hbdAssetName)}</span>
 			</div>

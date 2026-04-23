@@ -1,11 +1,37 @@
 <script lang="ts">
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillBtn from '$lib/PillButton.svelte';
+	import { sHbdAprStore } from '$lib/stores/aprStore';
+	import { accountBalance } from '$lib/stores/currentBalance';
+	import { Coin } from '$lib/sendswap/utils/sendOptions';
 
 	type Props = {
 		onStake: () => void;
 	};
 
 	let { onStake }: Props = $props();
+
+	// HBD savings balance in whole HBD (1 HBD ≈ $1 USD)
+	const hbdSavings = $derived(
+		$accountBalance.bal.hbd_savings / 10 ** Coin.hbd.decimalPlaces
+	);
+
+	const aprLabel = $derived($sHbdAprStore !== null ? `${$sHbdAprStore}%` : '—');
+
+	// Estimated earnings based on current balance × APR. HBD ≈ $1 so these
+	// double as approximate USD values. Shown as '—' while APR is loading or
+	// if the user has no sHBD balance.
+	const todayLabel = $derived.by(() => {
+		if ($sHbdAprStore === null || hbdSavings === 0) return '—';
+		const daily = (hbdSavings * ($sHbdAprStore / 100)) / 365;
+		return `$${daily.toFixed(3)}`;
+	});
+
+	const monthLabel = $derived.by(() => {
+		if ($sHbdAprStore === null || hbdSavings === 0) return '—';
+		const monthly = (hbdSavings * ($sHbdAprStore / 100)) / 12;
+		return `$${monthly.toFixed(2)}`;
+	});
 </script>
 
 <div class="staking-card dashboard-card">
@@ -28,19 +54,23 @@
 	<div class="staking-details">
 		<div class="staking-stat">
 			<span class="label">Today:</span>
-			<span class="value down">$0.18 <span class="arrow">&#9660;</span></span>
+			<span class="value">{todayLabel}</span>
 		</div>
 		<div class="staking-stat">
 			<span class="label">This month:</span>
-			<span class="value up">$7.42 <span class="arrow">&#9650;</span></span>
+			<span class="value">{monthLabel}</span>
 		</div>
 		<div class="staking-stat">
 			<span class="label">Earn APR:</span>
-			<span class="value">15%</span>
+			<span class="value">{aprLabel}</span>
+		</div>
+		<div class="staking-stat">
+			<span class="label">Currently Staked:</span>
+			<span class="value">{new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true)}</span>
 		</div>
 		<div class="staking-stat">
 			<span class="label">Next payout in:</span>
-			<span class="value">16h 30m</span>
+			<span class="value">—</span>
 		</div>
 	</div>
 </div>
@@ -100,18 +130,8 @@
 		font-size: 0.85rem;
 		white-space: nowrap;
 	}
-	.staking-stat .value.up {
-		color: var(--dash-accent-green);
-	}
-	.staking-stat .value.down {
-		color: var(--dash-accent-red);
-	}
-	.staking-stat .value .arrow {
-		font-size: 0.55rem;
-	}
 	.staking-action {
 		margin-left: auto;
 		flex-shrink: 0;
 	}
-
 </style>

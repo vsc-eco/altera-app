@@ -15,5 +15,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 	}
 
+	// Chrome DevTools probes this on every local dev server — ignore it silently.
+	if (event.url.pathname === '/.well-known/appspecific/com.chrome.devtools.json') {
+		return new Response(null, { status: 204 });
+	}
+
 	return resolve(event);
 };

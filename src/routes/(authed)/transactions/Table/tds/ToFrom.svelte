@@ -1,15 +1,13 @@
 <script lang="ts">
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
-	import { getAccountNameFromDid, getUsernameFromDid } from '$lib/getAccountName';
+	import { getUsernameFromDid } from '$lib/getAccountName';
 	import Avatar from '$lib/zag/Avatar.svelte';
-	import StatusBadge from '../StatusBadge.svelte';
 
 	let isHovered = $state(false);
 	let {
 		otherAccount,
-		memo,
-		status
-	}: { otherAccount: string; memo?: string | undefined; status?: string } = $props();
+		memo
+	}: { otherAccount: string; memo?: string | undefined } = $props();
 </script>
 
 <td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
@@ -19,17 +17,12 @@
 		</span>
 		<span class="toFrom">
 			<BasicCopy value={getUsernameFromDid(otherAccount)} show={isHovered}>
-				{getAccountNameFromDid(otherAccount)}
+				{getUsernameFromDid(otherAccount)}
 			</BasicCopy>
 		</span>
 		{#if memo}
 			<span class="memo">
 				"{memo}"
-			</span>
-		{/if}
-		{#if status && status != 'CONFIRMED'}
-			<span class="status">
-				<StatusBadge {status} />
 			</span>
 		{/if}
 	</span>
@@ -43,11 +36,13 @@
 	.to-from {
 		width: 100%;
 		display: grid;
-		grid-template: 'pfp toFrom memo status';
+		grid-template-areas: 'pfp toFrom memo';
+		grid-template-columns: auto minmax(0, 1fr) minmax(0, auto);
 		justify-content: left;
 		column-gap: 0.25rem;
 		align-items: center;
 		align-content: center;
+		overflow: hidden;
 		/* height: 4.5rem; */
 	}
 
@@ -56,9 +51,6 @@
 	}
 	.memo {
 		grid-area: memo;
-	}
-	.status {
-		grid-area: status;
 	}
 	.memo {
 		/* align-self: baseline; */
@@ -69,21 +61,41 @@
 		line-height: 1.5;
 	}
 
-	.to-from > .toFrom,
 	.to-from > .memo {
-		text-overflow: ellipsis;
 		overflow: hidden;
 		white-space: nowrap;
+		text-overflow: ellipsis;
 		display: flex;
 		align-items: center;
 		height: max-content;
 	}
 	.toFrom {
 		grid-area: toFrom;
+		display: flex;
+		align-items: center;
+		overflow: hidden;
+		min-width: 0;
+	}
+	/* BasicCopy wrapper — allow it to shrink and fill available space */
+	.toFrom :global(> span) {
+		min-width: 0;
+		overflow: hidden;
+		flex: 1;
+		display: flex;
+		align-items: center;
+	}
+	/* The actual text node inside BasicCopy — this is where ellipsis must live */
+	.toFrom :global(> span > .content) {
+		display: block;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		min-width: 0;
 	}
 	@media screen and (max-width: 450px) {
 		.to-from {
-			grid-template: 'pfp toFrom status';
+			grid-template-areas: 'pfp toFrom';
+			grid-template-columns: auto minmax(0, 1fr);
 		}
 		.memo {
 			display: none !important;

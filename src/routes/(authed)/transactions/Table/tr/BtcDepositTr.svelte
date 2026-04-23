@@ -10,6 +10,7 @@
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { satsToBtc } from '$lib/sendswap/utils/units';
 	import ToFrom from '../tds/ToFrom.svelte';
+	import Status from '../tds/Status.svelte';
 	import StatusView from './StatusView.svelte';
 	import { BTC_MAPPING_CONTRACT_ID, getVscExplorerTxUrl } from '$lib/constants';
 
@@ -98,6 +99,7 @@
 >
 	<td class="date">{moment(anchorTs).format('MMM DD')}</td>
 	<ToFrom otherAccount={event.sender} />
+	<Status status="CONFIRMED" />
 	<Amount amount={displayAmount} direction="incoming" />
 	<Type direction="incoming" t="deposit" />
 </tr>

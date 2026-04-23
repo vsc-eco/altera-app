@@ -2,7 +2,7 @@
 	let { direction, t }: { direction: 'incoming' | 'outgoing' | 'swap' | 'contract'; t: string } = $props();
 </script>
 
-<td>
+<td class="type-cell">
 	<span class={['badge', direction === 'incoming'
 			? 'deposit'
 			: direction === 'swap'
@@ -19,6 +19,9 @@
 </td>
 
 <style>
+	.type-cell {
+		justify-content: center;
+	}
 	.badge {
 		display: inline-block;
 		padding: 0.2rem 0.6rem;
@@ -28,6 +31,7 @@
 		text-transform: uppercase;
 		background: rgba(255, 255, 255, 0.1);
 		color: var(--dash-text-primary);
+		white-space: nowrap;
 	}
 	.badge.withdraw {
 		background: var(--dash-badge-withdraw-bg);

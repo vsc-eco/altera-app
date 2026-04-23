@@ -10,6 +10,7 @@
 	import { ExternalLink } from '@lucide/svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import Amount from '../tds/Amount.svelte';
+	import Status from '../tds/Status.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import ContractId from '../tds/ContractId.svelte';
@@ -31,36 +32,80 @@
 		}
 	}
 
-	const amt: string = $derived.by(() => {
-		const intents = op.data.intents;
-		if (!intents) return '0';
-		return intents[0]?.args?.limit ?? '0';
+	// Parse the swap payload from call/execute ops.
+	// Two formats exist:
+	//   New router (Altera):  { type:"swap", asset_in, asset_out, amount_in, min_amount_out }
+	//   Old pool (legacy):    { type:"deposit", asset0, asset1, amount0, amount1 }
+	// Both are normalised to { asset0, amount0, asset1, amount1 } for display.
+	const swapPayload = $derived.by(() => {
+		try {
+			const parsed = JSON.parse(op.data.payload ?? '');
+			// New router format
+			if (
+				parsed?.type === 'swap' &&
+				parsed?.asset_in &&
+				parsed?.asset_out &&
+				parsed?.amount_in != null
+			) {
+				return {
+					asset0: String(parsed.asset_in).toLowerCase(),
+					amount0: String(parsed.amount_in),
+					asset1: String(parsed.asset_out).toLowerCase(),
+					// min_amount_out is a floor; fall back to '0' if absent
+					amount1: String(parsed.min_amount_out ?? '0')
+				};
+			}
+			// Old pool format
+			if (parsed?.asset0 && parsed?.asset1 && parsed?.amount0 != null && parsed?.amount1 != null) {
+				return parsed as { asset0: string; amount0: string; asset1: string; amount1: string };
+			}
+		} catch {}
+		return null;
 	});
-	const coinVal: string = $derived.by(() => {
-		const intents = op.data.intents;
-		if (!intents || intents.length === 0) return Coin.hive.value;
-		return intents[0]?.args?.token ?? Coin.hive.value;
-	});
-	const amount = $derived(
-		new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.hive, true)
+
+	const isSwap = $derived(op.data.action === 'execute' && swapPayload !== null);
+
+	// For swaps: fromAmount = what user sends (asset0), amount = what user receives (asset1).
+	// For other contract calls: amount comes from intents limit.
+	const fromAmount = $derived(
+		isSwap && swapPayload
+			? new CoinAmount(
+					swapPayload.amount0,
+					Coin[swapPayload.asset0.split('_')[0] as keyof typeof Coin] || Coin.unk,
+					true
+				)
+			: null
 	);
+	const amount = $derived.by(() => {
+		if (isSwap && swapPayload) {
+			return new CoinAmount(
+				swapPayload.amount1,
+				Coin[swapPayload.asset1.split('_')[0] as keyof typeof Coin] || Coin.unk,
+				true
+			);
+		}
+		const intents = op.data.intents;
+		const amt = intents?.[0]?.args?.limit ?? '0';
+		const coinVal = intents?.[0]?.args?.token ?? Coin.hive.value;
+		return new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.hive, true);
+	});
+
 	let inUsd = $state('');
 	$effect(() => {
-		amount.convertTo(Coin.usd, Network.lightning).then((amount) => {
-			inUsd = amount.toAmountString();
+		amount.convertTo(Coin.usd, Network.lightning).then((a) => {
+			inUsd = a.toAmountString();
 		});
 	});
 
 	const displayType: string = $derived.by(() => {
+		if (isSwap) return 'swap';
 		try {
 			const payloadStr = op.data.payload;
 			if (typeof payloadStr === 'string') {
 				const parsed = JSON.parse(payloadStr);
 				if (parsed?.type) return parsed.type.replace(/_/g, ' ');
 			}
-		} catch {
-			// ignore parse errors
-		}
+		} catch {}
 		return op.data.action ?? op.type ?? 'call';
 	});
 </script>
@@ -73,9 +118,10 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
-	<ContractId address={op.data.contract_id ?? ''} status={tx.status} />
-	<Amount {amount} direction={'contract'} />
-	<Type direction="contract" t={displayType} />
+	<ContractId address={op.data.contract_id ?? ''} />
+	<Status status={tx.status} />
+	<Amount {amount} {fromAmount} direction={isSwap ? 'swap' : 'contract'} />
+	<Type direction={isSwap ? 'swap' : 'contract'} t={displayType} />
 </tr>
 
 {#snippet contractRowContent()}
@@ -86,8 +132,13 @@
 	</h2>
 	<div class="sections">
 		<div class="amount section">
-			<h3>Limit</h3>
-			{amount.toPrettyString()}
+			{#if isSwap && fromAmount}
+				<h3>Swap</h3>
+				{fromAmount.toPrettyString()} → {amount.toPrettyString()}
+			{:else}
+				<h3>Limit</h3>
+				{amount.toPrettyString()}
+			{/if}
 			<span class="approx-usd">
 				Approx. ${inUsd} USD
 			</span>

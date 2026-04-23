@@ -31,6 +31,21 @@ export interface BtcTransferEvent extends BtcMappingEventBase {
 	recipient: string; // recipient VSC DID
 }
 
+/**
+ * Returns true when Hasura errors indicate a schema-level issue (missing table or column)
+ * rather than a runtime failure. These are expected when the indexer build doesn't yet
+ * expose a particular table and should not be logged as errors.
+ */
+function isSchemaError(errors: Array<{ message: string }>): boolean {
+	return errors.some(
+		(e) =>
+			/field ['"]?\w+['"]? not found in type/i.test(e.message) ||
+			/no such field/i.test(e.message) ||
+			/column .* does not exist/i.test(e.message) ||
+			/relation .* does not exist/i.test(e.message)
+	);
+}
+
 /** Fetch a deposit (map) event by VSC transaction hash. */
 export async function fetchBtcDepositEvent(txHash: string): Promise<BtcDepositEvent | null> {
 	const query = `
@@ -46,7 +61,10 @@ export async function fetchBtcDepositEvent(txHash: string): Promise<BtcDepositEv
 			}
 		}
 	`;
-	const data = await hasuraQuery(query, { txHash });
+	const { data, errors } = await hasuraQueryRaw(query, { txHash });
+	if (errors && !isSchemaError(errors)) {
+		console.error('Hasura query error:', errors);
+	}
 	const rows = data?.btc_mapping_deposit_events as BtcDepositEvent[] | undefined;
 	return rows?.[0] ?? null;
 }
@@ -77,7 +95,11 @@ export async function fetchBtcUnmapEvent(txHash: string): Promise<BtcUnmapEvent 
 		result = await hasuraQueryRaw<UnmapResult>(buildQuery(false), { txHash });
 	}
 
-	if (result.errors) console.error('Hasura query error:', result.errors);
+	// Schema errors (table/column not present in this indexer build) → return null silently.
+	// Only log genuinely unexpected errors (non-schema failures).
+	if (result.errors && !isSchemaError(result.errors)) {
+		console.error('Hasura query error:', result.errors);
+	}
 	return result.data?.btc_mapping_unmap_events?.[0] ?? null;
 }
 
@@ -96,7 +118,11 @@ export async function fetchBtcTransferEvent(txHash: string): Promise<BtcTransfer
 			}
 		}
 	`;
-	const data = await hasuraQuery(query, { txHash });
+	const { data, errors } = await hasuraQueryRaw(query, { txHash });
+	// Schema errors → indexer doesn't have this table yet; return null silently.
+	if (errors && !isSchemaError(errors)) {
+		console.error('Hasura query error:', errors);
+	}
 	const rows = data?.btc_mapping_transfer_events as BtcTransferEvent[] | undefined;
 	return rows?.[0] ?? null;
 }

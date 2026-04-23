@@ -7,3 +7,9 @@
 <td>
 	<StatusBadge {status} />
 </td>
+
+<style>
+	td {
+		justify-content: center;
+	}
+</style>

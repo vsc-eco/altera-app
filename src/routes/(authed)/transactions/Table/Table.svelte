@@ -52,6 +52,7 @@
 			if (action === 'unmap' || action === 'transfer' || action === 'transferFrom') {
 				return 'btc-vsc';
 			}
+			if (action === 'increaseAllowance') return null;
 			return 'contract';
 		}
 		return null;
@@ -169,9 +170,11 @@
 </script>
 
 <div class={['card', { small: size === 'small' }]}>
+	<div class="table-scroll">
 	<div class="header-row">
 		<div class="h h-date">Date</div>
 		<div class="h h-to-from">To/From</div>
+		<div class="h h-status">Status</div>
 		<div class="h h-amount">Amount</div>
 		<div class="h h-type">Type</div>
 	</div>
@@ -249,6 +252,7 @@
 						<tr class="skeleton-row blurred-skeleton">
 							<td><div class="skeleton-cell date"></div></td>
 							<td><div class="skeleton-cell to-from"></div></td>
+							<td><div class="skeleton-cell status"></div></td>
 							<td><div class="skeleton-cell amount"></div></td>
 							<td><div class="skeleton-cell type"></div></td>
 						</tr>
@@ -259,6 +263,7 @@
 						<tr class="skeleton-row">
 							<td><div class="skeleton-cell date"></div></td>
 							<td><div class="skeleton-cell to-from"></div></td>
+							<td><div class="skeleton-cell status"></div></td>
 							<td><div class="skeleton-cell amount"></div></td>
 							<td><div class="skeleton-cell type"></div></td>
 						</tr>
@@ -271,6 +276,7 @@
 				<div class="no-transactions-message">No transactions found</div>
 			</div>
 		{/if}
+	</div>
 	</div>
 </div>
 
@@ -287,9 +293,8 @@
 
 <style lang="scss">
 	.card {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr) auto auto;
-		grid-template-rows: auto minmax(0, 1fr);
+		display: flex;
+		flex-direction: column;
 		width: 100%;
 		flex-grow: 1;
 		min-height: 0;
@@ -300,6 +305,23 @@
 		box-shadow: var(--dash-card-shadow);
 		padding: 1.25rem;
 		font-family: 'Nunito Sans', sans-serif;
+		/* overflow: clip preserves the border-radius visual clipping without
+		   blocking the child .table-scroll from showing its horizontal scrollbar. */
+		overflow: hidden; /* fallback for older browsers */
+		overflow: clip;
+	}
+	.table-scroll {
+		display: grid;
+		grid-template-columns:
+			minmax(5rem, 1fr)
+			minmax(12rem, 2fr)
+			minmax(8rem, 1fr)
+			minmax(min-content, 1fr)
+			minmax(min-content, 1fr);
+		grid-template-rows: auto minmax(0, 1fr);
+		flex: 1;
+		min-height: 0;
+		overflow-x: auto;
 	}
 	.header-row {
 		display: contents;
@@ -316,8 +338,10 @@
 	.h-to-from {
 		text-align: left;
 	}
-	.h-amount {
-		text-align: left;
+	.h-status,
+	.h-amount,
+	.h-type {
+		text-align: center;
 	}
 	.body-scroll {
 		grid-row: 2;
@@ -403,6 +427,7 @@
 		box-shadow: none;
 		background: transparent;
 		font-size: 0.8rem;
+		overflow: visible;
 	}
 	.card.small .h {
 		padding: 0.5rem 1rem 0.5rem 1.35rem;
@@ -428,8 +453,12 @@
 	}
 
 	@media (max-width: 600px) {
-		.card {
-			grid-template-columns: minmax(0, 1fr) auto auto;
+		.table-scroll {
+			grid-template-columns:
+				minmax(12rem, 2fr)
+				minmax(8rem, 1fr)
+				minmax(min-content, 1fr)
+				minmax(min-content, 1fr);
 		}
 		.h-date {
 			display: none;

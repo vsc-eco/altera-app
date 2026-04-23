@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ToFrom from '../tds/ToFrom.svelte';
+	import Status from '../tds/Status.svelte';
 	import Amount from '../tds/Amount.svelte';
 	import Type from '../tds/Type.svelte';
 	import { ExternalLink, X } from '@lucide/svelte';
@@ -28,7 +29,7 @@
 		onRowClick: (op: [string, number], content: () => ReturnType<Snippet>) => void;
 	};
 	let { tx, op, ledgerIndex, onRowClick }: Props = $props();
-	const did = $derived(getAuth()().value!.did);
+	const did = $derived(getAuth()().value?.did ?? '');
 	const {
 		ledger,
 		anchr_height: block_height,
@@ -197,7 +198,8 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(timestamp).format('MMM DD')}</td>
-	<ToFrom {otherAccount} memo={memoNoId?.get('msg') ?? undefined} {status} />
+	<ToFrom {otherAccount} memo={memoNoId?.get('msg') ?? undefined} />
+	<Status {status} />
 	<Amount {amount} {direction} />
 	<Type {direction} {t} />
 </tr>
@@ -240,7 +242,7 @@
 				>
 				{#if to.slice(0, 5) === 'hive:' && from.slice(0, 5) === 'hive:'}
 					<a
-						href={'https://www.hiveblockexplorer.com/tx/' + tx.id}
+						href={'https://hivehub.dev/tx/' + tx.id}
 						target="_blank"
 						rel="noreferrer"
 					>

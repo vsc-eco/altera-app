@@ -15,6 +15,7 @@
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { satsToBtc } from '$lib/sendswap/utils/units';
 	import ToFrom from '../tds/ToFrom.svelte';
+	import Status from '../tds/Status.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import StatusView from './StatusView.svelte';
 	import {
@@ -36,7 +37,7 @@
 	let fromAccount = $state('');
 	let toAccount = $state('');
 
-	const did = $derived(getAuth()().value!.did);
+	const did = $derived(getAuth()().value?.did ?? '');
 	const { anchr_height: block_height } = $derived(tx);
 
 	const contractInfo = $derived.by(() => {
@@ -60,10 +61,21 @@
 		};
 	});
 
-	// Fallback payload parsed from op.data — used while the indexer query is in flight.
+	// Fallback payload parsed from op.data — used while the indexer query is in flight
+	// and as a permanent fallback for internal VSC transfers that have no indexer event.
+	//
+	// Two payload shapes exist:
+	//   Plain JSON string  → op.data.payload = '{"amount":"432","to":"hive:v4vapp-test"}'
+	//   Legacy base64 obj  → op.data.payload = { Data: "<base64>" }
 	const payloadData = $derived.by(() => {
 		try {
-			const payloadDataBase64 = op.data?.payload?.Data;
+			const raw = op.data?.payload;
+			// Most common: plain JSON string (all new call/transfer and call/unmap ops)
+			if (typeof raw === 'string') {
+				return JSON.parse(raw) as { amount?: string; to?: string } | null;
+			}
+			// Legacy: payload is an object with a base64-encoded Data field
+			const payloadDataBase64 = raw?.Data;
 			if (!payloadDataBase64 || typeof payloadDataBase64 !== 'string') return null;
 			let decoded = atob(payloadDataBase64);
 			if (!decoded || decoded.trim() === '') return null;
@@ -101,14 +113,29 @@
 					fromAccount = result.event.sender || did;
 					toAccount = result.event.recipient || 'Unknown';
 				}
+			} else {
+				// No indexer entry — internal VSC transfers (call/transfer) never produce
+				// an on-chain BTC event so the indexer will always return null for them.
+				// Fall back to what we can read directly from the payload.
+				fromAccount = did;
+				toAccount = payloadData?.to ?? 'Unknown';
 			}
 		} catch (e) {
 			console.error('Failed to load BTC mapping indexer data', e);
+			fromAccount = did;
+			toAccount = payloadData?.to ?? 'Unknown';
 		}
 		loaded = true;
 	}
 
-	loadIndexerData();
+	// Run after auth resolves so `did` is populated for the fromAccount fallback.
+	// Re-runs if auth changes (e.g. wallet switch), resetting loaded so the drawer
+	// shows "Loading details..." rather than stale data from the previous account.
+	$effect(() => {
+		if (!did) return; // wait for auth to settle
+		loaded = false;
+		loadIndexerData();
+	});
 
 	// Amount: prefer indexer, fall back to op.data payload while loading.
 	// For unmap: use `deducted` (total cost to user). For transfer: use `amount`.
@@ -266,7 +293,8 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
-	<ToFrom {otherAccount} status={tx.status} />
+	<ToFrom {otherAccount} />
+	<Status status={tx.status} />
 	<Amount amount={displayAmount} direction={contractInfo.direction} />
 	<Type direction={contractInfo.direction} t={contractInfo.displayType} />
 </tr>

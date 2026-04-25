@@ -12,6 +12,8 @@ export class CoinAmount<C extends Coin> {
 		if (num == '' || Number.isNaN(num)) num = '0';
 		if (typeof num == 'number') {
 			amount = Math.round(num * (preshiftedInt ? 1 : 10 ** coin.decimalPlaces));
+		} else if (preshiftedInt && num.indexOf('.') === -1) {
+			amount = Number.parseInt(num);
 		} else {
 			const decIdx = num.indexOf('.');
 			if (decIdx == -1) {

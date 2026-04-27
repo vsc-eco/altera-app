@@ -1238,30 +1238,30 @@
 								>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span
 							>
 						</div>
-						{#if swapResult.hop1Fee && hop1FeeCoin}
-							<div class="fee-row">
-								<span class="fee-label">Pool Fee ({fromUnit} → {coinDisplayLabel(hop1FeeCoin)})</span>
-								<span class="fee-value"
-									>{formatSmallUnits(
-										swapResult.hop1Fee.totalFee,
-										hop1FeeCoin.decimalPlaces
-									)} {coinDisplayLabel(hop1FeeCoin)}</span
-								>
-							</div>
-							<div class="fee-row">
-								<span class="fee-label">Pool Fee ({coinDisplayLabel(hop1FeeCoin)} → {toUnit})</span>
-								<span class="fee-value"
-									>{formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}</span
-								>
-							</div>
-						{:else}
-							<div class="fee-row">
-								<span class="fee-label">Pool Fee</span>
-								<span class="fee-value"
-									>{formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}</span
-								>
-							</div>
-						{/if}
+						<!-- Base Fee (0.08% of gross output at each pool) -->
+						<div class="fee-row">
+							<span class="fee-label">Base Fee <span class="fee-sublabel">(0.08%)</span></span>
+							{#if swapResult.hop1Fee && hop1FeeCoin}
+								<span class="fee-value fee-value-stack">
+									<span>{formatSmallUnits(swapResult.hop1Fee.baseFee, hop1FeeCoin.decimalPlaces)} {coinDisplayLabel(hop1FeeCoin)}</span>
+									<span>{formatSmallUnits(swapResult.baseFee, toDec)} {toUnit}</span>
+								</span>
+							{:else}
+								<span class="fee-value">{formatSmallUnits(swapResult.baseFee, toDec)} {toUnit}</span>
+							{/if}
+						</div>
+						<!-- CLP Fee (quadratic, grows with trade size relative to pool depth) -->
+						<div class="fee-row">
+							<span class="fee-label">CLP Fee <span class="fee-sublabel">(liquidity)</span></span>
+							{#if swapResult.hop1Fee && hop1FeeCoin}
+								<span class="fee-value fee-value-stack">
+									<span>{formatSmallUnits(swapResult.hop1Fee.clpFee, hop1FeeCoin.decimalPlaces)} {coinDisplayLabel(hop1FeeCoin)}</span>
+									<span>{formatSmallUnits(swapResult.clpFee, toDec)} {toUnit}</span>
+								</span>
+							{:else}
+								<span class="fee-value">{formatSmallUnits(swapResult.clpFee, toDec)} {toUnit}</span>
+							{/if}
+						</div>
 						<div class="fee-row highlight">
 							<span class="fee-label">Total Fee</span>
 							{#if swapResult.hop1Fee && hop1FeeCoin}
@@ -1685,6 +1685,10 @@
 	.fee-label {
 		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
+	}
+	.fee-sublabel {
+		font-size: var(--text-xs);
+		opacity: 0.7;
 	}
 	.fee-value {
 		font-family: 'Noto Sans Mono Variable', monospace;

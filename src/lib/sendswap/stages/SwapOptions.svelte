@@ -49,10 +49,9 @@
 		fetchTypedPoolDepths,
 		getOrderedDepthsFor,
 		calculateTwoHopSwap,
+		checkExceedsPoolDepth,
 		type TypedPoolDepths,
 		calculateSwap,
-		getOrderedDepths,
-		type PoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
@@ -88,12 +87,6 @@
 			]);
 			if (hiveHbd) hiveHbdPool = hiveHbd;
 			if (btcHbd) btcHbdPool = btcHbd;
-			// Keep the legacy `poolDepths` populated from the HIVE/HBD
-			// pool so downstream code paths that still read it (e.g.
-			// any fallback UI) stay consistent.
-			if (hiveHbd) {
-				poolDepths = { reserve0: hiveHbd.reserve0, reserve1: hiveHbd.reserve1 };
-			}
 		})();
 	});
 	onDestroy(() => {
@@ -101,7 +94,6 @@
 	});
 
 	// Pool depths and swap calculation state
-	let poolDepths: PoolDepths | null = $state(null);
 	let hiveHbdPool = $state<TypedPoolDepths | null>(null);
 	let btcHbdPool = $state<TypedPoolDepths | null>(null);
 	let swapResult: SwapCalcResult | null = $state(null);
@@ -297,6 +289,26 @@
 		});
 	}
 
+	function formatUsd(amount: number): string {
+		return amount.toLocaleString(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		});
+	}
+
+	let expectedOutputUsd = $derived.by(() => {
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		return (Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+	});
+
+	let minAmountOutUsd = $derived.by(() => {
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!swapResult || swapResult.minAmountOut <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		return (Number(swapResult.minAmountOut) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+	});
+
 	const auth = $derived(getAuth()());
 
 	// ── Destination state (from SwapDestination) ──
@@ -389,10 +401,35 @@
 		return true;
 	});
 
+	/**
+	 * True when the input amount exceeds 50% of the relevant pool's input-side
+	 * reserve. The contract hard-caps swaps at this threshold; any transaction
+	 * beyond it will be rejected on-chain, so we block submission here.
+	 * For two-hop routes we check both pools: the direct input vs pool1, and
+	 * the estimated intermediate amount vs pool2's input reserve.
+	 */
+	let exceedsPoolDepth = $derived.by(() => {
+		const fromCoin = $SendTxDetails.fromCoin;
+		const toCoin = $SendTxDetails.toCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') return false;
+
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return false;
+
+		return checkExceedsPoolDepth(
+			BigInt(fromAmountInt),
+			fromCoin.coin.value,
+			toCoin.coin.value,
+			hiveHbdPool,
+			btcHbdPool
+		);
+	});
+
 	// Combined: enable button when swap fields valid, destination valid, not same coin, and has balance
 	$effect(() => {
 		if (!isActive) return;
-		editStage(swapFieldsValid && destValid && !sameCoinError && !insufficientBalance);
+		editStage(swapFieldsValid && destValid && !sameCoinError && !insufficientBalance && !exceedsPoolDepth);
 	});
 
 	let { assetOptions, networkOptions } = $state<ReturnType<typeof solveNetworkConstraints>>({
@@ -1029,6 +1066,13 @@
 					<span class="error">Insufficient {coinDisplayLabel($SendTxDetails.fromCoin.coin)} balance. You don't have enough funds for this swap.</span>
 				</div>
 			{/if}
+
+			<!-- Pool depth cap error -->
+			{#if exceedsPoolDepth && !sameCoinError && !insufficientBalance}
+				<div class="same-coin-error">
+					<span class="error">Amount exceeds 50% of pool depth — the swap will fail on-chain. Reduce the amount to continue.</span>
+				</div>
+			{/if}
 		</div>
 
 	</div>
@@ -1234,13 +1278,19 @@
 					<div class="fee-details">
 						<div class="fee-row">
 							<span class="fee-label">Expected Output</span>
-							<span class="fee-value"
-								>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span
-							>
+							<span class="fee-value fee-value-stack">
+								<span>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span>
+								{#if expectedOutputUsd !== null}
+									<span class="usd-approx">≈ ${formatUsd(expectedOutputUsd)}</span>
+								{/if}
+							</span>
 						</div>
-						<!-- Base Fee (0.08% of gross output at each pool) -->
+						<!-- Base fee: 0.08% per pool (0.16% total for two-hop routes) -->
 						<div class="fee-row">
-							<span class="fee-label">Base Fee <span class="fee-sublabel">(0.08%)</span></span>
+							<span class="fee-label">
+								Base Fee
+								<span class="fee-sublabel">({swapResult.hop1Fee ? '0.16%' : '0.08%'})</span>
+							</span>
 							{#if swapResult.hop1Fee && hop1FeeCoin}
 								<span class="fee-value fee-value-stack">
 									<span>{formatSmallUnits(swapResult.hop1Fee.baseFee, hop1FeeCoin.decimalPlaces)} {coinDisplayLabel(hop1FeeCoin)}</span>
@@ -1250,34 +1300,14 @@
 								<span class="fee-value">{formatSmallUnits(swapResult.baseFee, toDec)} {toUnit}</span>
 							{/if}
 						</div>
-						<!-- CLP Fee (quadratic, grows with trade size relative to pool depth) -->
-						<div class="fee-row">
-							<span class="fee-label">CLP Fee <span class="fee-sublabel">(liquidity)</span></span>
-							{#if swapResult.hop1Fee && hop1FeeCoin}
-								<span class="fee-value fee-value-stack">
-									<span>{formatSmallUnits(swapResult.hop1Fee.clpFee, hop1FeeCoin.decimalPlaces)} {coinDisplayLabel(hop1FeeCoin)}</span>
-									<span>{formatSmallUnits(swapResult.clpFee, toDec)} {toUnit}</span>
-								</span>
-							{:else}
-								<span class="fee-value">{formatSmallUnits(swapResult.clpFee, toDec)} {toUnit}</span>
-							{/if}
-						</div>
-						<div class="fee-row highlight">
-							<span class="fee-label">Total Fee</span>
-							{#if swapResult.hop1Fee && hop1FeeCoin}
-								<span class="fee-value fee-value-stack">
-									<span>{formatSmallUnits(swapResult.hop1Fee.totalFee, hop1FeeCoin.decimalPlaces)} {coinDisplayLabel(hop1FeeCoin)}</span>
-									<span>{formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}</span>
-								</span>
-							{:else}
-								<span class="fee-value">{formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}</span>
-							{/if}
-						</div>
 						<div class="fee-row">
 							<span class="fee-label">Min. Amount Out</span>
-							<span class="fee-value"
-								>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span
-							>
+							<span class="fee-value fee-value-stack">
+								<span>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
+								{#if minAmountOutUsd !== null}
+									<span class="usd-approx">≈ ${formatUsd(minAmountOutUsd)}</span>
+								{/if}
+							</span>
 						</div>
 					</div>
 				{/if}
@@ -1433,6 +1463,7 @@
 		flex-direction: column;
 		gap: 16px;
 		min-width: 0;
+		padding-bottom: 16px;
 	}
 
 	/* ── Quick Swap Card ── */
@@ -1638,7 +1669,6 @@
 
 	/* ── Fees Section (collapsible) ── */
 	.swap-fees {
-		margin-top: 0.375rem;
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--dash-card-border);
@@ -1674,13 +1704,6 @@
 		align-items: baseline;
 		gap: 0.75rem;
 		padding: 0.125rem 0;
-		&.highlight {
-			padding-top: 0.375rem;
-			margin-top: 0.125rem;
-			border-top: 1px solid var(--dash-card-border);
-			font-weight: 500;
-			align-items: start;
-		}
 	}
 	.fee-label {
 		color: var(--dash-text-muted);
@@ -1704,6 +1727,10 @@
 		align-items: flex-end;
 		gap: 0.125rem;
 		span { white-space: nowrap; }
+	}
+	.usd-approx {
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
 	}
 	.slippage-options {
 		display: flex;

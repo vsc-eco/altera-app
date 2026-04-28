@@ -37,10 +37,11 @@
 	import { modal } from '$lib/auth/reown';
 	import {
 		fetchTypedPoolDepths,
-		getOrderedDepthsFor,
 		calculateSwap,
 		calculateTwoHopSwap,
+		getOrderedDepthsFor,
 		checkExceedsPoolDepth,
+		calculatePriceImpact,
 		type TypedPoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
@@ -313,19 +314,51 @@
 	});
 
 	let priceImpactPct = $derived.by(() => {
-		const fromCoin = $SendTxDetails.fromCoin;
-		const fromAmount = $SendTxDetails.fromAmount;
-		if (!swapResult || !fromCoin || !fromAmount || fromAmount === '0') return 0;
-		if (fromPriceUsdRaw <= 0 || toPriceUsdRaw <= 0) return 0;
-		const inputAmt = parseFloat(fromAmount);
-		if (!Number.isFinite(inputAmt) || inputAmt <= 0) return 0;
+		const fromCoinDef = $SendTxDetails.fromCoin;
 		const toCoinDef = $SendTxDetails.toCoin;
-		if (!toCoinDef) return 0;
-		const outputAmt = Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces;
-		const inputUsd = inputAmt * fromPriceUsdRaw;
-		const outputUsd = outputAmt * toPriceUsdRaw;
-		if (inputUsd <= 0) return 0;
-		return Math.max(0, ((inputUsd - outputUsd) / inputUsd) * 100);
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoinDef || !toCoinDef || !fromAmount || fromAmount === '0') return 0;
+		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoinDef.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return 0;
+		return calculatePriceImpact(
+			BigInt(fromAmountInt),
+			fromCoinDef.coin.value,
+			toCoinDef.coin.value,
+			hiveHbdPool,
+			btcHbdPool
+		);
+	});
+
+	function formatUsd(amount: number): string {
+		return amount.toLocaleString(undefined, {
+			useGrouping: true,
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		});
+	}
+
+	let inputAmountUsd = $derived.by(() => {
+		if (fromPriceUsdRaw <= 0) return null;
+		const amt = inputAmount.toNumber();
+		if (!Number.isFinite(amt) || amt <= 0) return null;
+		return amt * fromPriceUsdRaw;
+	});
+
+	let expectedOutputUsd = $derived.by(() => {
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		return (Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+	});
+
+	/** Exchange fee: 0.25% (Altera) when selling HIVE/HBD for BTC, 0% on BTC→HIVE/HBD, hidden for HIVE↔HBD (TBD) */
+	let exchangeFeePct = $derived.by(() => {
+		const assetOut = $SendTxDetails.toCoin?.coin.value;
+		const assetIn = $SendTxDetails.fromCoin?.coin.value;
+		if (!assetOut || !assetIn) return null;
+		if (assetOut === Coin.btc.value) return 0.25;
+		if (assetIn === Coin.btc.value) return 0;
+		return null; // HIVE↔HBD fee TBD
 	});
 
 	// Pool-based fee calculation — resolve both HIVE/HBD and BTC/HBD
@@ -1241,11 +1274,21 @@
 				>
 			</div>
 			<div class="detail-row">
-				<span class="detail-label">Fee</span>
-				<span class="detail-value">
-					Protocol fee ({swapResult?.hop1Fee ? '0.16%' : '0.08%'})
-				</span>
+				<span class="detail-label">Protocol fee</span>
+				<span class="detail-value">{swapResult?.hop1Fee ? '0.16%' : '0.08%'}</span>
 			</div>
+			{#if exchangeFeePct !== null}
+				<div class="detail-row">
+					<span class="detail-label">Exchange fee <span class="detail-sublabel">(Altera)</span></span>
+					<span
+						class="detail-value"
+						class:detail-free={exchangeFeePct === 0}
+						class:detail-cost={exchangeFeePct > 0}
+					>
+						{exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
+					</span>
+				</div>
+			{/if}
 			<div class="detail-row">
 				<span class="detail-label">Route</span>
 				<span class="detail-value route">
@@ -1257,6 +1300,14 @@
 					{$SendTxDetails.toCoin.coin.label}
 				</span>
 			</div>
+			{#if swapResult && swapResult.minAmountOut > 0n && $SendTxDetails.toCoin}
+				{@const toCoinDef = $SendTxDetails.toCoin.coin}
+				{@const minOut = formatFee(swapResult.minAmountOut, toCoinDef.decimalPlaces)}
+				<div class="detail-row">
+					<span class="detail-label">Min amount received</span>
+					<span class="detail-value">{minOut} {toCoinDef.unit}</span>
+				</div>
+			{/if}
 			{#if swapResult && priceImpactPct > 0}
 				<div class="detail-row">
 					<span class="detail-label">Price Impact</span>
@@ -1771,6 +1822,23 @@
 	.detail-value.route {
 		color: #6f6af8;
 		font-weight: 600;
+	}
+	.detail-sublabel {
+		font-size: 0.65rem;
+		opacity: 0.7;
+	}
+	.detail-free {
+		color: var(--dash-accent-green) !important;
+	}
+	.detail-cost {
+		color: #f59e0b !important;
+	}
+	.field-usd-approx {
+		display: block;
+		font-size: 0.7rem;
+		color: var(--dash-text-muted);
+		margin-top: 0.2rem;
+		font-family: 'Noto Sans Mono Variable', monospace;
 	}
 	.impact-pct {
 		font-weight: 600;

@@ -316,6 +316,60 @@ export async function fetchTypedPoolDepths(
 }
 
 /**
+ * AMM-based price impact in percent (0–100) using the constant-product
+ * formula  impact = x / (X + x)  where X is the pool's input-side reserve
+ * and x is the trade size. Both must be in the same smallest-unit base.
+ *
+ * For two-hop routes (BTC ↔ HIVE via HBD) the impacts compound:
+ *   combined = 1 - (1 - impact1) × (1 - impact2)
+ *
+ * Returns 0 when any required pool data is missing.
+ */
+export function calculatePriceImpact(
+	x: bigint,
+	assetIn: string,
+	assetOut: string,
+	hiveHbdPool: TypedPoolDepths | null,
+	btcHbdPool: TypedPoolDepths | null
+): number {
+	if (x <= 0n) return 0;
+	const aIn = assetIn.toLowerCase();
+	const aOut = assetOut.toLowerCase();
+	const involvesBtc = aIn === 'btc' || aOut === 'btc';
+
+	if (!involvesBtc) {
+		// Single-hop: HIVE ↔ HBD
+		if (!hiveHbdPool) return 0;
+		const d = getOrderedDepthsFor(hiveHbdPool, aIn);
+		if (!d || d.X <= 0n) return 0;
+		// Use floating-point division — reserves are far below Number.MAX_SAFE_INTEGER
+		return (Number(x) / Number(d.X + x)) * 100;
+	}
+
+	if ((aIn === 'btc' && aOut === 'hbd') || (aIn === 'hbd' && aOut === 'btc')) {
+		// Single-hop: BTC ↔ HBD
+		if (!btcHbdPool) return 0;
+		const d = getOrderedDepthsFor(btcHbdPool, aIn);
+		if (!d || d.X <= 0n) return 0;
+		return (Number(x) / Number(d.X + x)) * 100;
+	}
+
+	// Two-hop: BTC ↔ HIVE via HBD
+	if (!btcHbdPool || !hiveHbdPool) return 0;
+	const pool1 = aIn === 'btc' ? btcHbdPool : hiveHbdPool;
+	const pool2 = aIn === 'btc' ? hiveHbdPool : btcHbdPool;
+	const d1 = getOrderedDepthsFor(pool1, aIn);
+	const d2 = getOrderedDepthsFor(pool2, 'hbd');
+	if (!d1 || !d2 || d1.X <= 0n || d2.X <= 0n) return 0;
+	const impact1 = Number(x) / Number(d1.X + x);
+	// Estimate intermediate grossOut (pre-fee) for sizing the second hop
+	const hop1Out = (x * d1.Y) / (d1.X + x);
+	if (hop1Out <= 0n) return 0;
+	const impact2 = Number(hop1Out) / Number(d2.X + hop1Out);
+	return (1 - (1 - impact1) * (1 - impact2)) * 100;
+}
+
+/**
  * Returns true when the input amount `x` would be rejected on-chain because
  * it exceeds 50 % of the input-side reserve in one or both hops.
  *

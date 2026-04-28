@@ -236,12 +236,8 @@
 		if (!$SendTxDetails.fromCoin || !$SendTxDetails.toCoin) return;
 
 		// Prefer the pool-math effective rate (expectedOutput / input)
-		// over the lightning off-chain reference rate. Otherwise the
-		// Market Rate row and the To row disagree whenever the pool is
-		// not at the lightning price — user sees "1 X = 0.06 Y" with
-		// "To 0.642 Y" for a 10 X input and it looks like broken math.
-		// Fees are output-denominated now, so the full entered amount
-		// is what goes into the pool.
+		// over the lightning off-chain reference rate. Fees are
+		// output-denominated, so the full entered amount goes into the pool.
 		const expectedRaw = $SendTxDetails.expectedOutput;
 		if (expectedRaw && expectedRaw !== '0') {
 			const expected = Number(expectedRaw);
@@ -376,6 +372,13 @@
 	const settlementTime = $derived(
 		isBtcSwap ? 'About 10 minutes' : ($SendTxDetails.method?.length ?? '')
 	);
+
+	/** Exchange fee: 0.25% (Altera) when selling HIVE/HBD for BTC, 0% on BTC→HIVE/HBD, null otherwise */
+	const exchangeFeePct = $derived.by(() => {
+		if (toCoin.value === Coin.btc.value) return 0.25;
+		if (fromCoin.value === Coin.btc.value) return 0;
+		return null;
+	});
 </script>
 
 {#snippet reviewContent()}
@@ -417,17 +420,6 @@
 								{inUsd?.toPrettyString()}
 							</td>
 						</tr>
-						{#if $SendTxDetails.fromCoin?.coin !== $SendTxDetails.toCoin?.coin}
-							<tr>
-								<td class="icon"><Dot size="32" /></td>
-								<td class="sm-caption label">Market Rate</td>
-								<td class="content">
-									{prettyMinFigsWithDisplayUnit(new CoinAmount(1, fromCoin))}
-									<EqualApproximately size="16" />
-									{fromInTo ? prettyWithDisplayUnit(fromInTo) : ''}
-								</td>
-							</tr>
-						{/if}
 						<tr>
 							<td class="icon"><Dot size="32" /></td>
 							<td class="sm-caption label">Fee</td>
@@ -470,6 +462,15 @@
 								{/if}
 							</td>
 						</tr>
+						{#if exchangeFeePct !== null}
+							<tr>
+								<td class="icon"><Dot size="32" /></td>
+								<td class="sm-caption label">Exchange Fee (Altera)</td>
+								<td class="content" class:fee-free={exchangeFeePct === 0} class:fee-cost={exchangeFeePct > 0}>
+									{exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
+								</td>
+							</tr>
+						{/if}
 						{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
 							{@const rawTo = convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)}
 							{@const netToAmount = Math.max(0, rawTo.amount - (alteraFeeAmount?.amount ?? 0))}
@@ -535,11 +536,7 @@
 							{#if $SendTxDetails.slippageBps != null}
 								<tr>
 									<td class="icon"><Dot size="32" /></td>
-									<td class="sm-caption label"
-										>Slippage ({($SendTxDetails.slippageBps / 100).toFixed(
-											$SendTxDetails.slippageBps % 100 === 0 ? 0 : 1
-										)}%)</td
-									>
+									<td class="sm-caption label">Min amount received</td>
 									<td class="content">
 										{#if $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
 											{@const minRaw = alteraFeeApplies
@@ -548,7 +545,7 @@
 													)
 												: Number($SendTxDetails.minAmountOut)}
 											{#if btcFeeEstimate}
-												Min. ~{prettyRangeWithDisplayUnit(
+												~{prettyRangeWithDisplayUnit(
 													new CoinAmount(
 														Math.max(0, minRaw - btcFeeEstimate.maxSats),
 														toCoin,
@@ -557,7 +554,7 @@
 													new CoinAmount(Math.max(0, minRaw - btcFeeEstimate.minSats), toCoin, true)
 												)}
 											{:else}
-												Min. {prettyWithDisplayUnit(new CoinAmount(minRaw, toCoin, true))}
+												{prettyWithDisplayUnit(new CoinAmount(minRaw, toCoin, true))}
 												{#if minAmountInUsd}
 													<EqualApproximately size={16} />
 													{minAmountInUsd.toPrettyString()}
@@ -686,6 +683,12 @@
 	}
 	.label {
 		grid-area: area-label;
+	}
+	.fee-free {
+		color: var(--dash-accent-green) !important;
+	}
+	.fee-cost {
+		color: #f59e0b !important;
 	}
 	.content {
 		line-height: 1.2;

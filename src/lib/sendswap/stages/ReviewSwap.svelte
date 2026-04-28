@@ -339,6 +339,30 @@
 			swapFeeInUsd = hop1Usd ? hop2Usd.add(hop1Usd) : hop2Usd;
 		});
 	});
+	// USD equivalent of the expected output amount.
+	let outputInUsd = $state<CoinAmount<Coin>>();
+	$effect(() => {
+		const amt = convertedToAmount;
+		if (!amt) { outputInUsd = undefined; return; }
+		amt.convertTo(Coin.usd, Network.lightning).then((usd) => { outputInUsd = usd; });
+	});
+
+	// USD equivalent of the min-amount-out (after Altera fee deduction if applicable).
+	let minAmountInUsd = $state<CoinAmount<Coin>>();
+	$effect(() => {
+		const minRaw = $SendTxDetails.minAmountOut;
+		if (!minRaw || !$SendTxDetails.toCoin) { minAmountInUsd = undefined; return; }
+		const minNet = alteraFeeApplies
+			? Math.floor((Number(minRaw) * (10000 - ALTERA_FEE_BPS)) / 10000)
+			: Number(minRaw);
+		new CoinAmount(minNet, toCoin, true)
+			.convertTo(Coin.usd, Network.lightning)
+			.then((usd) => { minAmountInUsd = usd; });
+	});
+
+	// Whether this is a two-hop swap (determines fee label %).
+	const isTwoHopSwap = $derived(!!$SendTxDetails.swapHop1Fee);
+
 	let today = moment().format('MMM D, YYYY');
 
 	const senderAddress = $derived(
@@ -409,29 +433,32 @@
 							<td class="sm-caption label">Fee</td>
 							<td class="content">
 								{#if $SendTxDetails.swapTotalFee && $SendTxDetails.toCoin}
-									{#if $SendTxDetails.swapHop1Fee}
-										{@const hopCoin =
-											$SendTxDetails.swapHop1Fee.asset === Coin.hbd.value
-												? Coin.hbd
-												: $SendTxDetails.swapHop1Fee.asset === Coin.hive.value
-													? Coin.hive
-													: Coin.btc}
-										{prettyWithDisplayUnit(
-											new CoinAmount(Number($SendTxDetails.swapHop1Fee.totalFee), hopCoin, true)
-										)}
-										and
-										{prettyWithDisplayUnit(
-											new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true)
-										)}
-									{:else}
-										{prettyWithDisplayUnit(
-											new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true)
-										)}
-									{/if}
-									{#if swapFeeInUsd}
-										<EqualApproximately size={16} />
-										{swapFeeInUsd.toPrettyString()}
-									{/if}
+									{@const hop1 = $SendTxDetails.swapHop1Fee}
+									{@const hop1Coin = hop1
+										? hop1.asset === Coin.hbd.value
+											? Coin.hbd
+											: hop1.asset === Coin.hive.value
+												? Coin.hive
+												: Coin.btc
+										: null}
+									<div class="swap-fee-detail">
+										<span class="fee-protocol-label">
+											Protocol fee ({isTwoHopSwap ? '0.16%' : '0.08%'})
+										</span>
+										<span class="fee-amounts-line">
+											{#if hop1 && hop1Coin}
+												{prettyWithDisplayUnit(new CoinAmount(Number(hop1.totalFee), hop1Coin, true))}
+												+
+												{prettyWithDisplayUnit(new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true))}
+											{:else}
+												{prettyWithDisplayUnit(new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true))}
+											{/if}
+											{#if swapFeeInUsd}
+												<EqualApproximately size={14} />
+												{swapFeeInUsd.toPrettyString()}
+											{/if}
+										</span>
+									</div>
 								{:else if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
 									No fee
 								{:else if !$SendTxDetails.fee || !feeInUsd}
@@ -498,6 +525,10 @@
 										)}
 									{:else}
 										{prettyWithDisplayUnit(new CoinAmount(netToAmount, toCoin, true))}
+										{#if outputInUsd}
+											<EqualApproximately size={16} />
+											{outputInUsd.toPrettyString()}
+										{/if}
 									{/if}
 								</td>
 							</tr>
@@ -527,6 +558,10 @@
 												)}
 											{:else}
 												Min. {prettyWithDisplayUnit(new CoinAmount(minRaw, toCoin, true))}
+												{#if minAmountInUsd}
+													<EqualApproximately size={16} />
+													{minAmountInUsd.toPrettyString()}
+												{/if}
 											{/if}
 										{:else}
 											—
@@ -601,6 +636,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
+		/* Ensure the dialog is wide enough on medium+ screens so values
+		   don't wrap onto a second line. max-content dialog sizing means
+		   this sets the effective minimum dialog width. */
+		min-width: clamp(22rem, 88vw, 36rem);
 	}
 	.line-positioner {
 		position: relative;
@@ -653,6 +692,8 @@
 		flex-basis: 0;
 		flex-grow: 1;
 		grid-area: area-content;
+		flex-wrap: wrap;
+		gap: 0.25rem;
 		:global(.lucide-equal-approximately) {
 			min-width: 16px;
 		}
@@ -661,6 +702,24 @@
 		height: 20px;
 		display: flex;
 		align-items: center;
+	}
+	.swap-fee-detail {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+	.fee-protocol-label {
+		color: var(--dash-text-secondary);
+		font-size: var(--text-xs);
+	}
+	.fee-amounts-line {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		flex-wrap: wrap;
+		:global(.lucide-equal-approximately) {
+			min-width: 14px;
+		}
 	}
 	li {
 		display: flex;

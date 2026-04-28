@@ -316,6 +316,58 @@ export async function fetchTypedPoolDepths(
 }
 
 /**
+ * Returns true when the input amount `x` would be rejected on-chain because
+ * it exceeds 50 % of the input-side reserve in one or both hops.
+ *
+ * The contract hard-rejects any swap where the input is greater than half the
+ * pool's input reserve (i.e. `x * 2 > X`). For two-hop routes we also check
+ * the intermediate output against the second pool's input reserve.
+ *
+ * All amounts are in smallest units. Asset names are lowercase strings.
+ */
+export function checkExceedsPoolDepth(
+	x: bigint,
+	assetIn: string,
+	assetOut: string,
+	hiveHbdPool: TypedPoolDepths | null,
+	btcHbdPool: TypedPoolDepths | null
+): boolean {
+	if (x <= 0n) return false;
+
+	const aIn = assetIn.toLowerCase();
+	const aOut = assetOut.toLowerCase();
+	const involvesBtc = aIn === 'btc' || aOut === 'btc';
+
+	if (!involvesBtc) {
+		// Single-hop: HIVE ↔ HBD
+		if (!hiveHbdPool) return false;
+		const d = getOrderedDepthsFor(hiveHbdPool, aIn);
+		return !!d && x * 2n > d.X;
+	}
+
+	if ((aIn === 'btc' && aOut === 'hbd') || (aIn === 'hbd' && aOut === 'btc')) {
+		// Single-hop: BTC ↔ HBD
+		if (!btcHbdPool) return false;
+		const d = getOrderedDepthsFor(btcHbdPool, aIn);
+		return !!d && x * 2n > d.X;
+	}
+
+	// Two-hop: BTC ↔ HIVE via HBD
+	if (!btcHbdPool || !hiveHbdPool) return false;
+	const pool1 = aIn === 'btc' ? btcHbdPool : hiveHbdPool;
+	const pool2 = aIn === 'btc' ? hiveHbdPool : btcHbdPool;
+	const d1 = getOrderedDepthsFor(pool1, aIn);
+	if (!d1) return false;
+	// Check hop1 input against pool1 input reserve
+	if (x * 2n > d1.X) return true;
+	// Estimate intermediate output (net of fees) and check against pool2 input reserve
+	const d2 = getOrderedDepthsFor(pool2, 'hbd');
+	if (!d2) return false;
+	const hop1Out = calculateSwap(x, d1.X, d1.Y, 0).expectedOutput;
+	return hop1Out * 2n > d2.X;
+}
+
+/**
  * Execute a two-hop swap calc: input → hopAsset (in pool1) →
  * output (in pool2). Fees accumulate from both hops. Slippage is
  * applied only to the FINAL output, which matches the router's

@@ -40,6 +40,7 @@
 		getOrderedDepthsFor,
 		calculateSwap,
 		calculateTwoHopSwap,
+		checkExceedsPoolDepth,
 		type TypedPoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
@@ -294,6 +295,37 @@
 					fromInTo = amt.toPrettyMinFigs();
 				});
 		}
+	});
+
+	let fromPriceUsdRaw = $state(0);
+	let toPriceUsdRaw = $state(0);
+	$effect(() => {
+		if ($SendTxDetails.fromCoin) {
+			new CoinAmount(1, $SendTxDetails.fromCoin.coin)
+				.convertTo(Coin.usd, Network.lightning)
+				.then((amt) => { fromPriceUsdRaw = amt.toNumber(); });
+		}
+		if ($SendTxDetails.toCoin) {
+			new CoinAmount(1, $SendTxDetails.toCoin.coin)
+				.convertTo(Coin.usd, Network.lightning)
+				.then((amt) => { toPriceUsdRaw = amt.toNumber(); });
+		}
+	});
+
+	let priceImpactPct = $derived.by(() => {
+		const fromCoin = $SendTxDetails.fromCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!swapResult || !fromCoin || !fromAmount || fromAmount === '0') return 0;
+		if (fromPriceUsdRaw <= 0 || toPriceUsdRaw <= 0) return 0;
+		const inputAmt = parseFloat(fromAmount);
+		if (!Number.isFinite(inputAmt) || inputAmt <= 0) return 0;
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!toCoinDef) return 0;
+		const outputAmt = Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces;
+		const inputUsd = inputAmt * fromPriceUsdRaw;
+		const outputUsd = outputAmt * toPriceUsdRaw;
+		if (inputUsd <= 0) return 0;
+		return Math.max(0, ((inputUsd - outputUsd) / inputUsd) * 100);
 	});
 
 	// Pool-based fee calculation — resolve both HIVE/HBD and BTC/HBD
@@ -640,12 +672,48 @@
 		return entered > maxSmallest;
 	});
 
+	const exceedsPoolDepth = $derived.by(() => {
+		const fromCoin = $SendTxDetails.fromCoin;
+		const toCoin = $SendTxDetails.toCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') return false;
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return false;
+		return checkExceedsPoolDepth(
+			BigInt(fromAmountInt),
+			fromCoin.coin.value,
+			toCoin.coin.value,
+			hiveHbdPool,
+			btcHbdPool
+		);
+	});
+
 	// Slippage tolerance in basis points. Matches the SwapOptions presets
 	// on the /swap page so the behavior is identical here.
 	const slippageOptions = [50, 100, 200, 300];
 	let slippageBps = $state(100);
 	let customSlippageOpen = $state(false);
 	let customSlippageInput = $state('');
+	let customSlippageInputEl: HTMLInputElement | null = $state(null);
+
+	$effect(() => {
+		if (customSlippageOpen && customSlippageInputEl) {
+			customSlippageInputEl.focus();
+			customSlippageInputEl.select();
+		}
+	});
+
+	function applyCustomSlippage() {
+		const raw = customSlippageInput.replace(',', '.').trim();
+		const v = parseFloat(raw);
+		if (!raw || isNaN(v) || v < 0.01 || v > 99.99) {
+			customSlippageOpen = false;
+			return;
+		}
+		slippageBps = Math.round(v * 100);
+		customSlippageInput = parseFloat(v.toFixed(2)).toString();
+		customSlippageOpen = false;
+	}
 
 	function setError(msg: string) {
 		swapStatus = msg;
@@ -698,6 +766,10 @@
 		}
 		if (exceedsBalance) {
 			setError('Amount exceeds your wallet balance');
+			return false;
+		}
+		if (exceedsPoolDepth) {
+			setError('Amount exceeds 50% of pool depth — reduce the amount to continue');
 			return false;
 		}
 
@@ -1126,17 +1198,16 @@
 			{#if customSlippageOpen}
 				<div class="custom-slippage">
 					<input
+						bind:this={customSlippageInputEl}
 						type="text"
 						inputmode="decimal"
-						placeholder="e.g. 5"
+						placeholder="0.5"
 						bind:value={customSlippageInput}
-						oninput={() => {
-							customSlippageInput = customSlippageInput.replace(',', '.');
-							let v = parseFloat(customSlippageInput);
-							if (isNaN(v)) return;
-							if (v < 0.01) v = 0.01;
-							if (v > 99.99) v = 99.99;
-							slippageBps = Math.round(v * 100);
+						oninput={() => { customSlippageInput = customSlippageInput.replace(',', '.'); }}
+						onblur={applyCustomSlippage}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') { applyCustomSlippage(); e.currentTarget.blur(); }
+							if (e.key === 'Escape') { customSlippageOpen = false; }
 						}}
 					/>
 					<span>%</span>
@@ -1147,10 +1218,12 @@
 					class:active={!slippageOptions.includes(slippageBps)}
 					onclick={() => {
 						customSlippageOpen = true;
-						customSlippageInput = (slippageBps / 100).toFixed(1);
+						customSlippageInput = slippageOptions.includes(slippageBps)
+							? ''
+							: parseFloat((slippageBps / 100).toFixed(2)).toString();
 					}}
 				>
-					{slippageOptions.includes(slippageBps) ? 'Custom' : `${(slippageBps / 100).toFixed(1)}%`}
+					{slippageOptions.includes(slippageBps) ? 'Custom' : `${parseFloat((slippageBps / 100).toFixed(2))}%`}
 				</button>
 			{/if}
 		</div>
@@ -1170,26 +1243,7 @@
 			<div class="detail-row">
 				<span class="detail-label">Fee</span>
 				<span class="detail-value">
-					{#if swapResult && $SendTxDetails.toCoin}
-						{#if swapResult.hop1Fee}
-							{@const hopCoin =
-								swapResult.hop1Fee.asset === Coin.hbd.value
-									? Coin.hbd
-									: swapResult.hop1Fee.asset === Coin.hive.value
-										? Coin.hive
-										: Coin.btc}
-							{formatFee(swapResult.hop1Fee.totalFee, hopCoin.decimalPlaces)}
-							{hopCoin.label}
-							and
-							{formatFee(swapResult.totalFee, $SendTxDetails.toCoin.coin.decimalPlaces)}
-							{$SendTxDetails.toCoin.coin.label}
-						{:else}
-							{formatFee(swapResult.totalFee, $SendTxDetails.toCoin.coin.decimalPlaces)}
-							{$SendTxDetails.toCoin.coin.label}
-						{/if}
-					{:else}
-						0.08% + CLP
-					{/if}
+					Protocol fee ({swapResult?.hop1Fee ? '0.16%' : '0.08%'})
 				</span>
 			</div>
 			<div class="detail-row">
@@ -1203,19 +1257,42 @@
 					{$SendTxDetails.toCoin.coin.label}
 				</span>
 			</div>
+			{#if swapResult && priceImpactPct > 0}
+				<div class="detail-row">
+					<span class="detail-label">Price Impact</span>
+					<span
+						class="detail-value impact-pct"
+						class:good={priceImpactPct < 2}
+						class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
+						class:bad={priceImpactPct >= 10}
+					>{priceImpactPct.toFixed(2)}%</span>
+				</div>
+			{/if}
 		</div>
+	{/if}
+
+	{#if priceImpactPct >= 10}
+		<p class="swap-status error" class:severe={priceImpactPct >= 15}>
+			{#if priceImpactPct >= 15}
+				⚠ Very high price impact — pool liquidity is low. Try a smaller amount.
+			{:else}
+				⚠ High price impact — consider a smaller amount for better rates.
+			{/if}
+		</p>
 	{/if}
 
 	{#if sameCoinSelected}
 		<p class="swap-status error">From and To assets must be different.</p>
 	{:else if exceedsBalance}
 		<p class="swap-status error">Amount exceeds your wallet balance.</p>
+	{:else if exceedsPoolDepth}
+		<p class="swap-status error">Amount exceeds 50% of pool depth — reduce the amount.</p>
 	{/if}
 
 	<!-- Exchange -->
 	<PillButton
 		onclick={requestSwap}
-		disabled={swapLoading || !hasAmount || sameCoinSelected || missingReceiver || exceedsBalance}
+		disabled={swapLoading || !hasAmount || sameCoinSelected || missingReceiver || exceedsBalance || exceedsPoolDepth}
 		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
@@ -1694,6 +1771,12 @@
 	.detail-value.route {
 		color: #6f6af8;
 		font-weight: 600;
+	}
+	.impact-pct {
+		font-weight: 600;
+		&.good { color: var(--dash-success, #22c55e); }
+		&.medium { color: var(--dash-warning, #f59e0b); }
+		&.bad { color: var(--dash-error, #ef4444); }
 	}
 
 	.swap-status {

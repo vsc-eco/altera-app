@@ -50,6 +50,7 @@
 		getOrderedDepthsFor,
 		calculateTwoHopSwap,
 		checkExceedsPoolDepth,
+		calculatePriceImpact,
 		type TypedPoolDepths,
 		calculateSwap,
 		type SwapCalcResult
@@ -307,6 +308,25 @@
 		const toCoinDef = $SendTxDetails.toCoin;
 		if (!swapResult || swapResult.minAmountOut <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
 		return (Number(swapResult.minAmountOut) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+	});
+
+	let inputAmountUsd = $derived.by(() => {
+		const fromCoinDef = $SendTxDetails.fromCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoinDef || !fromAmount || fromAmount === '0' || fromPriceUsdRaw <= 0) return null;
+		const amt = new CoinAmount(fromAmount, fromCoinDef.coin).toNumber();
+		if (!Number.isFinite(amt) || amt <= 0) return null;
+		return amt * fromPriceUsdRaw;
+	});
+
+	/** Exchange fee: 0.25% (Altera) when selling HIVE/HBD for BTC, 0% on BTC→HIVE/HBD */
+	let exchangeFeePct = $derived.by(() => {
+		const assetOut = $SendTxDetails.toCoin?.coin.value;
+		const assetIn = $SendTxDetails.fromCoin?.coin.value;
+		if (!assetOut || !assetIn) return null;
+		if (assetOut === Coin.btc.value) return 0.25;
+		if (assetIn === Coin.btc.value) return 0;
+		return null; // HIVE↔HBD fee TBD
 	});
 
 	const auth = $derived(getAuth()());
@@ -827,22 +847,21 @@
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? Coin.unk);
 
-	/** Estimated price impact in percent (0–100). Compares the USD value of
-	 *  `expectedOutput` against the USD value of the input using cached spot
-	 *  prices. Returns 0 when prices aren't loaded yet or no swap is active. */
 	let priceImpactPct = $derived.by(() => {
 		const fromCoinDef = $SendTxDetails.fromCoin;
 		const toCoinDef = $SendTxDetails.toCoin;
 		const fromAmount = $SendTxDetails.fromAmount;
-		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
 		if (!fromCoinDef || !toCoinDef || !fromAmount || fromAmount === '0') return 0;
-		if (fromPriceUsdRaw <= 0 || toPriceUsdRaw <= 0) return 0;
-		const inputAmt = new CoinAmount(fromAmount, fromCoinDef.coin).toNumber();
-		const inputUsd = inputAmt * fromPriceUsdRaw;
-		if (inputUsd <= 0) return 0;
-		const outputAmt = Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces;
-		const outputUsd = outputAmt * toPriceUsdRaw;
-		return Math.max(0, ((inputUsd - outputUsd) / inputUsd) * 100);
+		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoinDef.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return 0;
+		return calculatePriceImpact(
+			BigInt(fromAmountInt),
+			fromCoinDef.coin.value,
+			toCoinDef.coin.value,
+			hiveHbdPool,
+			btcHbdPool
+		);
 	});
 </script>
 
@@ -981,6 +1000,7 @@
 							{minAmount}
 							{maxAmount}
 							hideUnit
+							hideUsd
 						/>
 					</div>
 					<button class="token-selector-btn" onclick={() => openDialog('from')}>
@@ -997,6 +1017,9 @@
 						<ChevronDown size={14} />
 					</button>
 				</div>
+				{#if inputAmountUsd !== null}
+					<span class="section-usd-approx">≈ ${formatUsd(inputAmountUsd)}</span>
+				{/if}
 			</div>
 
 			<!-- Swap Arrow -->
@@ -1040,6 +1063,9 @@
 						<ChevronDown size={14} />
 					</button>
 				</div>
+				{#if expectedOutputUsd !== null}
+					<span class="section-usd-approx">≈ ${formatUsd(expectedOutputUsd)}</span>
+				{/if}
 			</div>
 
 			<!-- Route Info -->
@@ -1300,8 +1326,23 @@
 								<span class="fee-value">{formatSmallUnits(swapResult.baseFee, toDec)} {toUnit}</span>
 							{/if}
 						</div>
+						{#if exchangeFeePct !== null}
+							<div class="fee-row">
+								<span class="fee-label">
+									Exchange Fee
+									<span class="fee-sublabel">(Altera)</span>
+								</span>
+								<span
+									class="fee-value"
+									class:fee-free={exchangeFeePct === 0}
+									class:fee-cost={exchangeFeePct > 0}
+								>
+									{exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
+								</span>
+							</div>
+						{/if}
 						<div class="fee-row">
-							<span class="fee-label">Min. Amount Out</span>
+							<span class="fee-label">Min amount received</span>
 							<span class="fee-value fee-value-stack">
 								<span>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
 								{#if minAmountOutUsd !== null}
@@ -1731,6 +1772,17 @@
 	.usd-approx {
 		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
+	}
+	.section-usd-approx {
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
+		font-family: 'Noto Sans Mono Variable', monospace;
+	}
+	.fee-free {
+		color: var(--dash-accent-green) !important;
+	}
+	.fee-cost {
+		color: #f59e0b !important;
 	}
 	.slippage-options {
 		display: flex;

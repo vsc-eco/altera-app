@@ -8,6 +8,32 @@ import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 export const ALTERA_FEE_BENEFICIARY = 'hive:altera.app';
 export const ALTERA_FEE_BPS = 25;
 export const ALTERA_FEE_USD_THRESHOLD = 0;
+/**
+ * Master switch for the Altera exchange fee.
+ * Set to true to start charging ALTERA_FEE_BPS on qualifying swaps
+ * and show the amber fee badge in the UI.
+ * Set to false → fee is not charged and the UI shows "Free" (green).
+ */
+export const ALTERA_FEE_ACTIVE = false;
+
+/**
+ * Returns the exchange fee percentage to display in the UI for a given swap pair.
+ *
+ * - HIVE/HBD → BTC: ALTERA_FEE_ACTIVE ? ALTERA_FEE_BPS/100 : 0  (amber when >0, green "Free" when 0)
+ * - BTC → HIVE/HBD: always 0  ("Free" — Altera never charges on BTC purchases)
+ * - HIVE ↔ HBD:     null       (row hidden — no Altera fee applies)
+ *
+ * To change the fee rate: update ALTERA_FEE_BPS.
+ * To enable/disable:      flip ALTERA_FEE_ACTIVE.
+ */
+export function getAlteraFeePct(assetIn: string, assetOut: string): number | null {
+	const aIn = assetIn.toLowerCase();
+	const aOut = assetOut.toLowerCase();
+	const effectivePct = ALTERA_FEE_ACTIVE ? ALTERA_FEE_BPS / 100 : 0;
+	if (aOut === 'btc') return effectivePct;
+	if (aIn === 'btc') return 0; // BTC → HIVE/HBD always free
+	return null; // HIVE ↔ HBD — no Altera fee
+}
 
 /**
  * Altera charges a UI usage fee on swaps that leave the Hive/Magi ecosystem
@@ -100,10 +126,11 @@ export async function getHiveSwapOp(
 	const caller = `hive:${username}`;
 	const isNative = assetIn.value === Coin.hive.value || assetIn.value === Coin.hbd.value;
 
-	// TODO (temporary): Restore this after cost investigation. Disabled this way because the refBps
-	// is a check for nil value not a check for  0
+	// Gated by ALTERA_FEE_ACTIVE — set that to true (and restore the real call below)
+	// to re-enable. Note: refBps is a nil check on the contract, not a zero check,
+	// so we cannot disable by setting BPS to 0; we must omit the field entirely.
 	// const feeQualifies = await qualifiesForAlteraFee(amount, assetOut, destinationChain);
-	const feeQualifies = false;
+	const feeQualifies = ALTERA_FEE_ACTIVE && await qualifiesForAlteraFee(amount, assetOut, destinationChain);
 	// Contract validates min_amount_out AFTER the referral/altera deduction.
 	// Scale the caller's pre-fee min down by the same bps so slippage
 	// tolerance is measured against what the user actually receives.

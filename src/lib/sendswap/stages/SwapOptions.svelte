@@ -60,6 +60,7 @@
 	import { browser } from '$app/environment';
 	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 	import { isVscTestnet } from '../../../client';
+	import { getAlteraFeePct } from '$lib/magiTransactions/hive/vscOperations/swap';
 
 	let {
 		editStage,
@@ -319,14 +320,27 @@
 		return amt * fromPriceUsdRaw;
 	});
 
-	/** Exchange fee: 0.25% (Altera) when selling HIVE/HBD for BTC, 0% on BTC→HIVE/HBD */
-	let exchangeFeePct = $derived.by(() => {
-		const assetOut = $SendTxDetails.toCoin?.coin.value;
-		const assetIn = $SendTxDetails.fromCoin?.coin.value;
-		if (!assetOut || !assetIn) return null;
-		if (assetOut === Coin.btc.value) return 0.25;
-		if (assetIn === Coin.btc.value) return 0;
-		return null; // HIVE↔HBD fee TBD
+	let exchangeFeePct = $derived(
+		getAlteraFeePct(
+			$SendTxDetails.fromCoin?.coin.value ?? '',
+			$SendTxDetails.toCoin?.coin.value ?? ''
+		)
+	);
+
+	/**
+	 * Total protocol fee across all hops in USD.
+	 * For two-hop routes (BTC↔HIVE), the intermediate hop fee is denominated in
+	 * HBD (≈ $1 pegged). Final-hop fee is in the output coin.
+	 */
+	let totalProtocolFeeUsd = $derived.by(() => {
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!swapResult || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		const finalHopUsd =
+			(Number(swapResult.baseFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+		if (!swapResult.hop1Fee) return finalHopUsd;
+		// hop1 intermediate is always HBD for BTC↔HIVE routes; HBD ≈ $1 pegged
+		const hop1Usd = Number(swapResult.hop1Fee.baseFee) / 10 ** Coin.hbd.decimalPlaces;
+		return hop1Usd + finalHopUsd;
 	});
 
 	const auth = $derived(getAuth()());
@@ -635,7 +649,6 @@
 	});
 
 	let fromInUsd = $state('');
-	let fromInTo = $state('');
 	let toInUsd = $state('');
 	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
@@ -646,11 +659,6 @@
 				fromInUsd = amt.toPrettyMinFigs();
 				fromPriceUsdRaw = amt.toNumber();
 			});
-			if ($SendTxDetails.toCoin) {
-				oneFrom.convertTo($SendTxDetails.toCoin.coin, Network.lightning).then((amt) => {
-					fromInTo = amt.toPrettyMinFigs();
-				});
-			}
 		}
 		if ($SendTxDetails.toCoin) {
 			new CoinAmount(1, $SendTxDetails.toCoin.coin)
@@ -1311,20 +1319,19 @@
 								{/if}
 							</span>
 						</div>
-						<!-- Base fee: 0.08% per pool (0.16% total for two-hop routes) -->
+						<!-- Protocol fee: 0.08% per pool (0.16% total for two-hop routes) -->
 						<div class="fee-row">
 							<span class="fee-label">
-								Base Fee
+								Protocol Fee
 								<span class="fee-sublabel">({swapResult.hop1Fee ? '0.16%' : '0.08%'})</span>
 							</span>
-							{#if swapResult.hop1Fee && hop1FeeCoin}
-								<span class="fee-value fee-value-stack">
-									<span>{formatSmallUnits(swapResult.hop1Fee.baseFee, hop1FeeCoin.decimalPlaces)} {coinDisplayLabel(hop1FeeCoin)}</span>
-									<span>{formatSmallUnits(swapResult.baseFee, toDec)} {toUnit}</span>
-								</span>
-							{:else}
-								<span class="fee-value">{formatSmallUnits(swapResult.baseFee, toDec)} {toUnit}</span>
-							{/if}
+							<span class="fee-value">
+								{#if totalProtocolFeeUsd !== null}
+									≈ ${formatUsd(totalProtocolFeeUsd)}
+								{:else}
+									—
+								{/if}
+							</span>
 						</div>
 						{#if exchangeFeePct !== null}
 							<div class="fee-row">

@@ -51,7 +51,9 @@
 		SWAP_CONTRACT_ID,
 		qualifiesForAlteraFee,
 		ALTERA_FEE_BENEFICIARY,
-		ALTERA_FEE_BPS
+		ALTERA_FEE_BPS,
+		ALTERA_FEE_ACTIVE,
+		getAlteraFeePct
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 	import { executeTx } from '$lib/magiTransactions/hive';
@@ -293,19 +295,13 @@
 			new CoinAmount(1, $SendTxDetails.fromCoin.coin)
 				.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
 				.then((amt) => {
-					fromInTo = amt.toPrettyMinFigs();
+					fromInTo = formatRateAmount(amt);
 				});
 		}
 	});
 
-	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
 	$effect(() => {
-		if ($SendTxDetails.fromCoin) {
-			new CoinAmount(1, $SendTxDetails.fromCoin.coin)
-				.convertTo(Coin.usd, Network.lightning)
-				.then((amt) => { fromPriceUsdRaw = amt.toNumber(); });
-		}
 		if ($SendTxDetails.toCoin) {
 			new CoinAmount(1, $SendTxDetails.toCoin.coin)
 				.convertTo(Coin.usd, Network.lightning)
@@ -338,27 +334,46 @@
 		});
 	}
 
-	let inputAmountUsd = $derived.by(() => {
-		if (fromPriceUsdRaw <= 0) return null;
-		const amt = inputAmount.toNumber();
-		if (!Number.isFinite(amt) || amt <= 0) return null;
-		return amt * fromPriceUsdRaw;
-	});
+	/**
+	 * Formats a coin amount for the Rate row — always decimal notation, no scientific
+	 * notation, trailing zeros stripped, thousands separator on the integer part only.
+	 *   0.00000079 BTC  (not "7.900e-7 BTC" or "0.00000079000000 BTC")
+	 *   0.07 HBD        (not "0.070 HBD")
+	 *   1,265,822 HIVE
+	 */
+	function formatRateAmount(amt: CoinAmount<Coin>): string {
+		const val = amt.toNumber();
+		if (val === 0) return `0 ${amt.getDisplayUnit()}`;
+		const fixed = val
+			.toFixed(amt.coin.decimalPlaces)
+			.replace(/(\.\d*[1-9])0+$/, '$1')  // strip trailing zeros
+			.replace(/\.0*$/, '');              // strip trailing dot
+		const [intPart, decPart] = fixed.split('.');
+		const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (decPart ? `.${decPart}` : '');
+		return `${formatted} ${amt.getDisplayUnit()}`;
+	}
 
-	let expectedOutputUsd = $derived.by(() => {
+	let exchangeFeePct = $derived(
+		getAlteraFeePct(
+			$SendTxDetails.fromCoin?.coin.value ?? '',
+			$SendTxDetails.toCoin?.coin.value ?? ''
+		)
+	);
+
+	/**
+	 * Total protocol fee across all hops in USD.
+	 * For two-hop routes (BTC↔HIVE), the intermediate hop fee is denominated in
+	 * HBD (≈ $1 pegged). Final-hop fee is in the output coin.
+	 */
+	let totalProtocolFeeUsd = $derived.by(() => {
 		const toCoinDef = $SendTxDetails.toCoin;
-		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
-		return (Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
-	});
-
-	/** Exchange fee: 0.25% (Altera) when selling HIVE/HBD for BTC, 0% on BTC→HIVE/HBD, hidden for HIVE↔HBD (TBD) */
-	let exchangeFeePct = $derived.by(() => {
-		const assetOut = $SendTxDetails.toCoin?.coin.value;
-		const assetIn = $SendTxDetails.fromCoin?.coin.value;
-		if (!assetOut || !assetIn) return null;
-		if (assetOut === Coin.btc.value) return 0.25;
-		if (assetIn === Coin.btc.value) return 0;
-		return null; // HIVE↔HBD fee TBD
+		if (!swapResult || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		const finalHopUsd =
+			(Number(swapResult.baseFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+		if (!swapResult.hop1Fee) return finalHopUsd;
+		// hop1 intermediate is always HBD for BTC↔HIVE routes; HBD ≈ $1 pegged
+		const hop1Usd = Number(swapResult.hop1Fee.baseFee) / 10 ** Coin.hbd.decimalPlaces;
+		return hop1Usd + finalHopUsd;
 	});
 
 	// Pool-based fee calculation — resolve both HIVE/HBD and BTC/HBD
@@ -1010,7 +1025,7 @@
 			} else {
 				// EVM reown wallet path (no BTC reown since BTC is
 				// handled above).
-				const feeQualifies = await qualifiesForAlteraFee(
+				const feeQualifies = ALTERA_FEE_ACTIVE && await qualifiesForAlteraFee(
 					amount as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
 					toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
 					destinationChain || undefined
@@ -1269,13 +1284,22 @@
 				<span class="detail-label">Rate</span>
 				<span class="detail-value"
 					>{fromInTo
-						? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo} ${$SendTxDetails.toCoin.coin.label}`
+						? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo}`
 						: '—'}</span
 				>
 			</div>
 			<div class="detail-row">
-				<span class="detail-label">Protocol fee</span>
-				<span class="detail-value">{swapResult?.hop1Fee ? '0.16%' : '0.08%'}</span>
+				<span class="detail-label">
+					Protocol fee
+					<span class="detail-sublabel">({swapResult?.hop1Fee ? '0.16%' : '0.08%'})</span>
+				</span>
+				<span class="detail-value">
+					{#if totalProtocolFeeUsd !== null}
+						≈ ${formatUsd(totalProtocolFeeUsd)}
+					{:else}
+						—
+					{/if}
+				</span>
 			</div>
 			{#if exchangeFeePct !== null}
 				<div class="detail-row">
@@ -1809,6 +1833,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		margin-bottom: 1px;
 	}
 	.detail-label {
 		color: var(--dash-text-muted);

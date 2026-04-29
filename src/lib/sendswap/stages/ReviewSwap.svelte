@@ -20,7 +20,8 @@
 	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
 	import {
 		ALTERA_FEE_BPS,
-		ALTERA_FEE_USD_THRESHOLD
+		ALTERA_FEE_USD_THRESHOLD,
+		getAlteraFeePct
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 
 	const auth = $derived(getAuth()());
@@ -373,12 +374,7 @@
 		isBtcSwap ? 'About 10 minutes' : ($SendTxDetails.method?.length ?? '')
 	);
 
-	/** Exchange fee: 0.25% (Altera) when selling HIVE/HBD for BTC, 0% on BTC→HIVE/HBD, null otherwise */
-	const exchangeFeePct = $derived.by(() => {
-		if (toCoin.value === Coin.btc.value) return 0.25;
-		if (fromCoin.value === Coin.btc.value) return 0;
-		return null;
-	});
+	const exchangeFeePct = $derived(getAlteraFeePct(fromCoin.value, toCoin.value));
 </script>
 
 {#snippet reviewContent()}
@@ -438,16 +434,10 @@
 											Protocol fee ({isTwoHopSwap ? '0.16%' : '0.08%'})
 										</span>
 										<span class="fee-amounts-line">
-											{#if hop1 && hop1Coin}
-												{prettyWithDisplayUnit(new CoinAmount(Number(hop1.totalFee), hop1Coin, true))}
-												+
-												{prettyWithDisplayUnit(new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true))}
-											{:else}
-												{prettyWithDisplayUnit(new CoinAmount(Number($SendTxDetails.swapTotalFee), toCoin, true))}
-											{/if}
 											{#if swapFeeInUsd}
-												<EqualApproximately size={14} />
-												{swapFeeInUsd.toPrettyString()}
+												≈ {swapFeeInUsd.toPrettyString()}
+											{:else}
+												—
 											{/if}
 										</span>
 									</div>

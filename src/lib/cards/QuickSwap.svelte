@@ -37,9 +37,11 @@
 	import { modal } from '$lib/auth/reown';
 	import {
 		fetchTypedPoolDepths,
-		getOrderedDepthsFor,
 		calculateSwap,
 		calculateTwoHopSwap,
+		getOrderedDepthsFor,
+		checkExceedsPoolDepth,
+		calculatePriceImpact,
 		type TypedPoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
@@ -49,7 +51,9 @@
 		SWAP_CONTRACT_ID,
 		qualifiesForAlteraFee,
 		ALTERA_FEE_BENEFICIARY,
-		ALTERA_FEE_BPS
+		ALTERA_FEE_BPS,
+		ALTERA_FEE_ACTIVE,
+		getAlteraFeePct
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 	import { executeTx } from '$lib/magiTransactions/hive';
@@ -291,9 +295,85 @@
 			new CoinAmount(1, $SendTxDetails.fromCoin.coin)
 				.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
 				.then((amt) => {
-					fromInTo = amt.toPrettyMinFigs();
+					fromInTo = formatRateAmount(amt);
 				});
 		}
+	});
+
+	let toPriceUsdRaw = $state(0);
+	$effect(() => {
+		if ($SendTxDetails.toCoin) {
+			new CoinAmount(1, $SendTxDetails.toCoin.coin)
+				.convertTo(Coin.usd, Network.lightning)
+				.then((amt) => { toPriceUsdRaw = amt.toNumber(); });
+		}
+	});
+
+	let priceImpactPct = $derived.by(() => {
+		const fromCoinDef = $SendTxDetails.fromCoin;
+		const toCoinDef = $SendTxDetails.toCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoinDef || !toCoinDef || !fromAmount || fromAmount === '0') return 0;
+		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoinDef.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return 0;
+		return calculatePriceImpact(
+			BigInt(fromAmountInt),
+			fromCoinDef.coin.value,
+			toCoinDef.coin.value,
+			hiveHbdPool,
+			btcHbdPool
+		);
+	});
+
+	function formatUsd(amount: number): string {
+		return amount.toLocaleString(undefined, {
+			useGrouping: true,
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		});
+	}
+
+	/**
+	 * Formats a coin amount for the Rate row — always decimal notation, no scientific
+	 * notation, trailing zeros stripped, thousands separator on the integer part only.
+	 *   0.00000079 BTC  (not "7.900e-7 BTC" or "0.00000079000000 BTC")
+	 *   0.07 HBD        (not "0.070 HBD")
+	 *   1,265,822 HIVE
+	 */
+	function formatRateAmount(amt: CoinAmount<Coin>): string {
+		const val = amt.toNumber();
+		if (val === 0) return `0 ${amt.getDisplayUnit()}`;
+		const fixed = val
+			.toFixed(amt.coin.decimalPlaces)
+			.replace(/(\.\d*[1-9])0+$/, '$1')  // strip trailing zeros
+			.replace(/\.0*$/, '');              // strip trailing dot
+		const [intPart, decPart] = fixed.split('.');
+		const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (decPart ? `.${decPart}` : '');
+		return `${formatted} ${amt.getDisplayUnit()}`;
+	}
+
+	let exchangeFeePct = $derived(
+		getAlteraFeePct(
+			$SendTxDetails.fromCoin?.coin.value ?? '',
+			$SendTxDetails.toCoin?.coin.value ?? ''
+		)
+	);
+
+	/**
+	 * Total protocol fee across all hops in USD.
+	 * For two-hop routes (BTC↔HIVE), the intermediate hop fee is denominated in
+	 * HBD (≈ $1 pegged). Final-hop fee is in the output coin.
+	 */
+	let totalProtocolFeeUsd = $derived.by(() => {
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!swapResult || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		const finalHopUsd =
+			(Number(swapResult.baseFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+		if (!swapResult.hop1Fee) return finalHopUsd;
+		// hop1 intermediate is always HBD for BTC↔HIVE routes; HBD ≈ $1 pegged
+		const hop1Usd = Number(swapResult.hop1Fee.baseFee) / 10 ** Coin.hbd.decimalPlaces;
+		return hop1Usd + finalHopUsd;
 	});
 
 	// Pool-based fee calculation — resolve both HIVE/HBD and BTC/HBD
@@ -640,12 +720,48 @@
 		return entered > maxSmallest;
 	});
 
+	const exceedsPoolDepth = $derived.by(() => {
+		const fromCoin = $SendTxDetails.fromCoin;
+		const toCoin = $SendTxDetails.toCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') return false;
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return false;
+		return checkExceedsPoolDepth(
+			BigInt(fromAmountInt),
+			fromCoin.coin.value,
+			toCoin.coin.value,
+			hiveHbdPool,
+			btcHbdPool
+		);
+	});
+
 	// Slippage tolerance in basis points. Matches the SwapOptions presets
 	// on the /swap page so the behavior is identical here.
 	const slippageOptions = [50, 100, 200, 300];
 	let slippageBps = $state(100);
 	let customSlippageOpen = $state(false);
 	let customSlippageInput = $state('');
+	let customSlippageInputEl: HTMLInputElement | null = $state(null);
+
+	$effect(() => {
+		if (customSlippageOpen && customSlippageInputEl) {
+			customSlippageInputEl.focus();
+			customSlippageInputEl.select();
+		}
+	});
+
+	function applyCustomSlippage() {
+		const raw = customSlippageInput.replace(',', '.').trim();
+		const v = parseFloat(raw);
+		if (!raw || isNaN(v) || v < 0.01 || v > 99.99) {
+			customSlippageOpen = false;
+			return;
+		}
+		slippageBps = Math.round(v * 100);
+		customSlippageInput = parseFloat(v.toFixed(2)).toString();
+		customSlippageOpen = false;
+	}
 
 	function setError(msg: string) {
 		swapStatus = msg;
@@ -698,6 +814,10 @@
 		}
 		if (exceedsBalance) {
 			setError('Amount exceeds your wallet balance');
+			return false;
+		}
+		if (exceedsPoolDepth) {
+			setError('Amount exceeds 50% of pool depth — reduce the amount to continue');
 			return false;
 		}
 
@@ -905,7 +1025,7 @@
 			} else {
 				// EVM reown wallet path (no BTC reown since BTC is
 				// handled above).
-				const feeQualifies = await qualifiesForAlteraFee(
+				const feeQualifies = ALTERA_FEE_ACTIVE && await qualifiesForAlteraFee(
 					amount as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
 					toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
 					destinationChain || undefined
@@ -1126,17 +1246,16 @@
 			{#if customSlippageOpen}
 				<div class="custom-slippage">
 					<input
+						bind:this={customSlippageInputEl}
 						type="text"
 						inputmode="decimal"
-						placeholder="e.g. 5"
+						placeholder="0.5"
 						bind:value={customSlippageInput}
-						oninput={() => {
-							customSlippageInput = customSlippageInput.replace(',', '.');
-							let v = parseFloat(customSlippageInput);
-							if (isNaN(v)) return;
-							if (v < 0.01) v = 0.01;
-							if (v > 99.99) v = 99.99;
-							slippageBps = Math.round(v * 100);
+						oninput={() => { customSlippageInput = customSlippageInput.replace(',', '.'); }}
+						onblur={applyCustomSlippage}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') { applyCustomSlippage(); e.currentTarget.blur(); }
+							if (e.key === 'Escape') { customSlippageOpen = false; }
 						}}
 					/>
 					<span>%</span>
@@ -1147,10 +1266,12 @@
 					class:active={!slippageOptions.includes(slippageBps)}
 					onclick={() => {
 						customSlippageOpen = true;
-						customSlippageInput = (slippageBps / 100).toFixed(1);
+						customSlippageInput = slippageOptions.includes(slippageBps)
+							? ''
+							: parseFloat((slippageBps / 100).toFixed(2)).toString();
 					}}
 				>
-					{slippageOptions.includes(slippageBps) ? 'Custom' : `${(slippageBps / 100).toFixed(1)}%`}
+					{slippageOptions.includes(slippageBps) ? 'Custom' : `${parseFloat((slippageBps / 100).toFixed(2))}%`}
 				</button>
 			{/if}
 		</div>
@@ -1163,35 +1284,35 @@
 				<span class="detail-label">Rate</span>
 				<span class="detail-value"
 					>{fromInTo
-						? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo} ${$SendTxDetails.toCoin.coin.label}`
+						? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo}`
 						: '—'}</span
 				>
 			</div>
 			<div class="detail-row">
-				<span class="detail-label">Fee</span>
+				<span class="detail-label">
+					Protocol fee
+					<span class="detail-sublabel">({swapResult?.hop1Fee ? '0.16%' : '0.08%'})</span>
+				</span>
 				<span class="detail-value">
-					{#if swapResult && $SendTxDetails.toCoin}
-						{#if swapResult.hop1Fee}
-							{@const hopCoin =
-								swapResult.hop1Fee.asset === Coin.hbd.value
-									? Coin.hbd
-									: swapResult.hop1Fee.asset === Coin.hive.value
-										? Coin.hive
-										: Coin.btc}
-							{formatFee(swapResult.hop1Fee.totalFee, hopCoin.decimalPlaces)}
-							{hopCoin.label}
-							and
-							{formatFee(swapResult.totalFee, $SendTxDetails.toCoin.coin.decimalPlaces)}
-							{$SendTxDetails.toCoin.coin.label}
-						{:else}
-							{formatFee(swapResult.totalFee, $SendTxDetails.toCoin.coin.decimalPlaces)}
-							{$SendTxDetails.toCoin.coin.label}
-						{/if}
+					{#if totalProtocolFeeUsd !== null}
+						≈ ${formatUsd(totalProtocolFeeUsd)}
 					{:else}
-						0.08% + CLP
+						—
 					{/if}
 				</span>
 			</div>
+			{#if exchangeFeePct !== null}
+				<div class="detail-row">
+					<span class="detail-label">Exchange fee <span class="detail-sublabel">(Altera)</span></span>
+					<span
+						class="detail-value"
+						class:detail-free={exchangeFeePct === 0}
+						class:detail-cost={exchangeFeePct > 0}
+					>
+						{exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
+					</span>
+				</div>
+			{/if}
 			<div class="detail-row">
 				<span class="detail-label">Route</span>
 				<span class="detail-value route">
@@ -1203,19 +1324,50 @@
 					{$SendTxDetails.toCoin.coin.label}
 				</span>
 			</div>
+			{#if swapResult && swapResult.minAmountOut > 0n && $SendTxDetails.toCoin}
+				{@const toCoinDef = $SendTxDetails.toCoin.coin}
+				{@const minOut = formatFee(swapResult.minAmountOut, toCoinDef.decimalPlaces)}
+				<div class="detail-row">
+					<span class="detail-label">Min amount received</span>
+					<span class="detail-value">{minOut} {toCoinDef.unit}</span>
+				</div>
+			{/if}
+			{#if swapResult && priceImpactPct > 0}
+				<div class="detail-row">
+					<span class="detail-label">Price Impact</span>
+					<span
+						class="detail-value impact-pct"
+						class:good={priceImpactPct < 2}
+						class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
+						class:bad={priceImpactPct >= 10}
+					>{priceImpactPct.toFixed(2)}%</span>
+				</div>
+			{/if}
 		</div>
+	{/if}
+
+	{#if priceImpactPct >= 10}
+		<p class="swap-status error" class:severe={priceImpactPct >= 15}>
+			{#if priceImpactPct >= 15}
+				⚠ Very high price impact — pool liquidity is low. Try a smaller amount.
+			{:else}
+				⚠ High price impact — consider a smaller amount for better rates.
+			{/if}
+		</p>
 	{/if}
 
 	{#if sameCoinSelected}
 		<p class="swap-status error">From and To assets must be different.</p>
 	{:else if exceedsBalance}
 		<p class="swap-status error">Amount exceeds your wallet balance.</p>
+	{:else if exceedsPoolDepth}
+		<p class="swap-status error">Amount exceeds 50% of pool depth — reduce the amount.</p>
 	{/if}
 
 	<!-- Exchange -->
 	<PillButton
 		onclick={requestSwap}
-		disabled={swapLoading || !hasAmount || sameCoinSelected || missingReceiver || exceedsBalance}
+		disabled={swapLoading || !hasAmount || sameCoinSelected || missingReceiver || exceedsBalance || exceedsPoolDepth}
 		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
@@ -1681,6 +1833,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		margin-bottom: 1px;
 	}
 	.detail-label {
 		color: var(--dash-text-muted);
@@ -1694,6 +1847,29 @@
 	.detail-value.route {
 		color: #6f6af8;
 		font-weight: 600;
+	}
+	.detail-sublabel {
+		font-size: 0.65rem;
+		opacity: 0.7;
+	}
+	.detail-free {
+		color: var(--dash-accent-green) !important;
+	}
+	.detail-cost {
+		color: #f59e0b !important;
+	}
+	.field-usd-approx {
+		display: block;
+		font-size: 0.7rem;
+		color: var(--dash-text-muted);
+		margin-top: 0.2rem;
+		font-family: 'Noto Sans Mono Variable', monospace;
+	}
+	.impact-pct {
+		font-weight: 600;
+		&.good { color: var(--dash-success, #22c55e); }
+		&.medium { color: var(--dash-warning, #f59e0b); }
+		&.bad { color: var(--dash-error, #ef4444); }
 	}
 
 	.swap-status {

@@ -22,6 +22,7 @@
 		hideUnit = false,
 		borderless = false,
 		hideNetwork = false,
+		hideUsd = false,
 		id = $bindable(''),
 		disabled = false
 	}: {
@@ -36,6 +37,7 @@
 		hideUnit?: boolean;
 		borderless?: boolean;
 		hideNetwork?: boolean;
+		hideUsd?: boolean;
 		id?: string;
 		disabled?: boolean;
 	} = $props();
@@ -147,6 +149,7 @@
 	);
 
 	let showUsd = $derived(
+		!hideUsd &&
 		!(connectedCoinAmount?.coin.value === Coin.usd.value || selected.coin.value === Coin.usd.value)
 	);
 

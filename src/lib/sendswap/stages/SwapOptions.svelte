@@ -23,9 +23,9 @@
 		ArrowUpDown,
 		ArrowUpRight,
 		ChevronDown,
-		ChevronUp,
 		Search,
 		Send,
+		TriangleAlert,
 		Wallet,
 		X
 	} from '@lucide/svelte';
@@ -49,10 +49,10 @@
 		fetchTypedPoolDepths,
 		getOrderedDepthsFor,
 		calculateTwoHopSwap,
+		checkExceedsPoolDepth,
+		calculatePriceImpact,
 		type TypedPoolDepths,
 		calculateSwap,
-		getOrderedDepths,
-		type PoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
@@ -60,6 +60,7 @@
 	import { browser } from '$app/environment';
 	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 	import { isVscTestnet } from '../../../client';
+	import { getAlteraFeePct } from '$lib/magiTransactions/hive/vscOperations/swap';
 
 	let {
 		editStage,
@@ -88,12 +89,6 @@
 			]);
 			if (hiveHbd) hiveHbdPool = hiveHbd;
 			if (btcHbd) btcHbdPool = btcHbd;
-			// Keep the legacy `poolDepths` populated from the HIVE/HBD
-			// pool so downstream code paths that still read it (e.g.
-			// any fallback UI) stay consistent.
-			if (hiveHbd) {
-				poolDepths = { reserve0: hiveHbd.reserve0, reserve1: hiveHbd.reserve1 };
-			}
 		})();
 	});
 	onDestroy(() => {
@@ -101,7 +96,6 @@
 	});
 
 	// Pool depths and swap calculation state
-	let poolDepths: PoolDepths | null = $state(null);
 	let hiveHbdPool = $state<TypedPoolDepths | null>(null);
 	let btcHbdPool = $state<TypedPoolDepths | null>(null);
 	let swapResult: SwapCalcResult | null = $state(null);
@@ -109,6 +103,41 @@
 	const slippageOptions = [50, 100, 200, 300]; // 0.5%, 1%, 2%, 3%
 	let customSlippageOpen = $state(false);
 	let customSlippageInput = $state('');
+	let customSlippageInputEl: HTMLInputElement | null = $state(null);
+
+	// Auto-focus the custom input when it opens and pre-select the text.
+	$effect(() => {
+		if (customSlippageOpen && customSlippageInputEl) {
+			customSlippageInputEl.focus();
+			customSlippageInputEl.select();
+		}
+	});
+
+	// Whether the raw custom input is syntactically invalid (for red border).
+	let customSlippageInvalid = $derived.by(() => {
+		if (!customSlippageInput.trim()) return false;
+		const v = parseFloat(customSlippageInput.replace(',', '.'));
+		return isNaN(v) || v <= 0 || v > 99.99;
+	});
+
+	function applyCustomSlippage() {
+		const raw = customSlippageInput.replace(',', '.').trim();
+		if (!raw) {
+			customSlippageOpen = false;
+			return;
+		}
+		let v = parseFloat(raw);
+		if (isNaN(v) || v <= 0) {
+			customSlippageOpen = false;
+			return;
+		}
+		v = Math.min(Math.max(v, 0.01), 99.99);
+		// Round to at most 2 decimal places and strip trailing zeroes.
+		customSlippageInput = parseFloat(v.toFixed(2)).toString();
+		slippageBps = Math.round(v * 100);
+		// Collapse back to pill — shows as active button with the custom value.
+		customSlippageOpen = false;
+	}
 
 	// Mirror slippage into the shared store regardless of pair. The
 	// calculate-swap effect below only runs for HIVE↔HBD pairs, so for
@@ -262,6 +291,58 @@
 		});
 	}
 
+	function formatUsd(amount: number): string {
+		return amount.toLocaleString(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		});
+	}
+
+	let expectedOutputUsd = $derived.by(() => {
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		return (Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+	});
+
+	let minAmountOutUsd = $derived.by(() => {
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!swapResult || swapResult.minAmountOut <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		return (Number(swapResult.minAmountOut) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+	});
+
+	let inputAmountUsd = $derived.by(() => {
+		const fromCoinDef = $SendTxDetails.fromCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoinDef || !fromAmount || fromAmount === '0' || fromPriceUsdRaw <= 0) return null;
+		const amt = new CoinAmount(fromAmount, fromCoinDef.coin).toNumber();
+		if (!Number.isFinite(amt) || amt <= 0) return null;
+		return amt * fromPriceUsdRaw;
+	});
+
+	let exchangeFeePct = $derived(
+		getAlteraFeePct(
+			$SendTxDetails.fromCoin?.coin.value ?? '',
+			$SendTxDetails.toCoin?.coin.value ?? ''
+		)
+	);
+
+	/**
+	 * Total protocol fee across all hops in USD.
+	 * For two-hop routes (BTC↔HIVE), the intermediate hop fee is denominated in
+	 * HBD (≈ $1 pegged). Final-hop fee is in the output coin.
+	 */
+	let totalProtocolFeeUsd = $derived.by(() => {
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!swapResult || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		const finalHopUsd =
+			(Number(swapResult.baseFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+		if (!swapResult.hop1Fee) return finalHopUsd;
+		// hop1 intermediate is always HBD for BTC↔HIVE routes; HBD ≈ $1 pegged
+		const hop1Usd = Number(swapResult.hop1Fee.baseFee) / 10 ** Coin.hbd.decimalPlaces;
+		return hop1Usd + finalHopUsd;
+	});
+
 	const auth = $derived(getAuth()());
 
 	// ── Destination state (from SwapDestination) ──
@@ -354,10 +435,35 @@
 		return true;
 	});
 
+	/**
+	 * True when the input amount exceeds 50% of the relevant pool's input-side
+	 * reserve. The contract hard-caps swaps at this threshold; any transaction
+	 * beyond it will be rejected on-chain, so we block submission here.
+	 * For two-hop routes we check both pools: the direct input vs pool1, and
+	 * the estimated intermediate amount vs pool2's input reserve.
+	 */
+	let exceedsPoolDepth = $derived.by(() => {
+		const fromCoin = $SendTxDetails.fromCoin;
+		const toCoin = $SendTxDetails.toCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') return false;
+
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return false;
+
+		return checkExceedsPoolDepth(
+			BigInt(fromAmountInt),
+			fromCoin.coin.value,
+			toCoin.coin.value,
+			hiveHbdPool,
+			btcHbdPool
+		);
+	});
+
 	// Combined: enable button when swap fields valid, destination valid, not same coin, and has balance
 	$effect(() => {
 		if (!isActive) return;
-		editStage(swapFieldsValid && destValid && !sameCoinError && !insufficientBalance);
+		editStage(swapFieldsValid && destValid && !sameCoinError && !insufficientBalance && !exceedsPoolDepth);
 	});
 
 	let { assetOptions, networkOptions } = $state<ReturnType<typeof solveNetworkConstraints>>({
@@ -543,25 +649,23 @@
 	});
 
 	let fromInUsd = $state('');
-	let fromInTo = $state('');
 	let toInUsd = $state('');
+	let fromPriceUsdRaw = $state(0);
+	let toPriceUsdRaw = $state(0);
 	$effect(() => {
 		if ($SendTxDetails.fromCoin) {
 			const oneFrom = new CoinAmount(1, $SendTxDetails.fromCoin.coin);
 			oneFrom.convertTo(Coin.usd, Network.lightning).then((amt) => {
 				fromInUsd = amt.toPrettyMinFigs();
+				fromPriceUsdRaw = amt.toNumber();
 			});
-			if ($SendTxDetails.toCoin) {
-				oneFrom.convertTo($SendTxDetails.toCoin.coin, Network.lightning).then((amt) => {
-					fromInTo = amt.toPrettyMinFigs();
-				});
-			}
 		}
 		if ($SendTxDetails.toCoin) {
 			new CoinAmount(1, $SendTxDetails.toCoin.coin)
 				.convertTo(Coin.usd, Network.lightning)
 				.then((amt) => {
 					toInUsd = amt.toPrettyMinFigs();
+					toPriceUsdRaw = amt.toNumber();
 				});
 		}
 	});
@@ -651,7 +755,6 @@
 		return new CoinAmount(bal, from.coin, true);
 	});
 
-	let feesExpanded = $state(false);
 
 	let dialogOpen = $state(false);
 	let toggle = $state<(open?: boolean) => void>(() => {});
@@ -751,6 +854,23 @@
 	}
 
 	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? Coin.unk);
+
+	let priceImpactPct = $derived.by(() => {
+		const fromCoinDef = $SendTxDetails.fromCoin;
+		const toCoinDef = $SendTxDetails.toCoin;
+		const fromAmount = $SendTxDetails.fromAmount;
+		if (!fromCoinDef || !toCoinDef || !fromAmount || fromAmount === '0') return 0;
+		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
+		const fromAmountInt = new CoinAmount(fromAmount, fromCoinDef.coin).amount;
+		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return 0;
+		return calculatePriceImpact(
+			BigInt(fromAmountInt),
+			fromCoinDef.coin.value,
+			toCoinDef.coin.value,
+			hiveHbdPool,
+			btcHbdPool
+		);
+	});
 </script>
 
 {#snippet percentArrow(percent: number)}
@@ -888,6 +1008,7 @@
 							{minAmount}
 							{maxAmount}
 							hideUnit
+							hideUsd
 						/>
 					</div>
 					<button class="token-selector-btn" onclick={() => openDialog('from')}>
@@ -904,6 +1025,9 @@
 						<ChevronDown size={14} />
 					</button>
 				</div>
+				{#if inputAmountUsd !== null}
+					<span class="section-usd-approx">≈ ${formatUsd(inputAmountUsd)}</span>
+				{/if}
 			</div>
 
 			<!-- Swap Arrow -->
@@ -947,6 +1071,9 @@
 						<ChevronDown size={14} />
 					</button>
 				</div>
+				{#if expectedOutputUsd !== null}
+					<span class="section-usd-approx">≈ ${formatUsd(expectedOutputUsd)}</span>
+				{/if}
 			</div>
 
 			<!-- Route Info -->
@@ -971,6 +1098,13 @@
 			{#if insufficientBalance && !sameCoinError && $SendTxDetails.fromCoin}
 				<div class="same-coin-error">
 					<span class="error">Insufficient {coinDisplayLabel($SendTxDetails.fromCoin.coin)} balance. You don't have enough funds for this swap.</span>
+				</div>
+			{/if}
+
+			<!-- Pool depth cap error -->
+			{#if exceedsPoolDepth && !sameCoinError && !insufficientBalance}
+				<div class="same-coin-error">
+					<span class="error">Amount exceeds 50% of pool depth — the swap will fail on-chain. Reduce the amount to continue.</span>
 				</div>
 			{/if}
 		</div>
@@ -1094,6 +1228,21 @@
 							: null)
 				: null}
 			<div class="swap-fees">
+				<!-- Always visible: price impact summary row -->
+				<div class="fees-impact-row">
+					<span class="fee-label">Price Impact</span>
+					{#if swapResult && priceImpactPct > 0}
+						<span
+							class="impact-pct"
+							class:good={priceImpactPct < 2}
+							class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
+							class:bad={priceImpactPct >= 10}
+						>{priceImpactPct.toFixed(2)}%</span>
+					{:else}
+						<span class="impact-pct-empty">—</span>
+					{/if}
+				</div>
+
 				<!-- Always visible: slippage + toggle header -->
 				<div class="fees-header">
 					<span class="fee-label">Slippage Tolerance</span>
@@ -1108,104 +1257,105 @@
 								</button>
 							{/each}
 							{#if customSlippageOpen}
-								<div class="custom-slippage">
+								<div class="custom-slippage" class:invalid={customSlippageInvalid}>
 									<input
+										bind:this={customSlippageInputEl}
 										type="text"
 										inputmode="decimal"
-										placeholder="e.g. 5"
+										placeholder="0.5"
 										bind:value={customSlippageInput}
 										oninput={() => {
+											// Normalise decimal separator only — validate on commit.
 											customSlippageInput = customSlippageInput.replace(',', '.');
-											let v = parseFloat(customSlippageInput);
-											if (isNaN(v)) return;
-											if (v < 0.01) v = 0.01;
-											if (v > 99.99) v = 99.99;
-											slippageBps = Math.round(v * 100);
+										}}
+										onblur={applyCustomSlippage}
+										onkeydown={(e) => {
+											if (e.key === 'Enter') { applyCustomSlippage(); e.currentTarget.blur(); }
+											if (e.key === 'Escape') { customSlippageOpen = false; }
 										}}
 									/>
-									<span>%</span>
+									<span class="custom-slippage-unit">%</span>
 								</div>
 							{:else}
 								<button
 									class={{ active: !slippageOptions.includes(slippageBps) }}
 									onclick={() => {
 										customSlippageOpen = true;
-										customSlippageInput = (slippageBps / 100).toFixed(1);
+										customSlippageInput = slippageOptions.includes(slippageBps)
+											? ''
+											: parseFloat((slippageBps / 100).toFixed(2)).toString();
 									}}
 								>
-									{slippageOptions.includes(slippageBps) ? 'Custom' : `${(slippageBps / 100).toFixed(1)}%`}
+									{slippageOptions.includes(slippageBps) ? 'Custom' : `${parseFloat((slippageBps / 100).toFixed(2))}%`}
 								</button>
 							{/if}
 						</div>
-						{#if swapResult}
-							<button
-								class="fees-toggle-btn"
-								onclick={() => {
-									feesExpanded = !feesExpanded;
-								}}
-								aria-label="Toggle fee details"
-							>
-								{#if feesExpanded}
-									<ChevronUp size={16} />
-								{:else}
-									<ChevronDown size={16} />
-								{/if}
-							</button>
-						{/if}
 					</div>
 				</div>
 
-				<!-- Expandable fee details (HIVE↔HBD only for now) -->
-				{#if swapResult && feesExpanded}
+				<!-- Text warning for severe impact only (badge handles < 15%) -->
+				{#if priceImpactPct >= 10}
+					<div class="impact-warning" class:severe={priceImpactPct >= 15}>
+						<TriangleAlert size={14} />
+						<span>
+							{#if priceImpactPct >= 15}
+								Very high price impact — pool liquidity is low for this trade size. Try a smaller amount.
+							{:else}
+								High price impact — consider using a smaller amount for better rates.
+							{/if}
+						</span>
+					</div>
+				{/if}
+
+				<!-- Fee breakdown — always visible when a swap is calculated -->
+				{#if swapResult}
 					<div class="fee-details">
 						<div class="fee-row">
 							<span class="fee-label">Expected Output</span>
-							<span class="fee-value"
-								>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span
-							>
-						</div>
-						<div class="fee-row">
-							<span class="fee-label">Base Fee (0.08%)</span>
-							<span class="fee-value"
-								>{formatSmallUnits(swapResult.baseFee, toDec)} {toUnit}</span
-							>
-						</div>
-						<div class="fee-row">
-							<span class="fee-label">CLP Fee</span>
-							<span class="fee-value"
-								>{formatSmallUnits(swapResult.clpFee, toDec)} {toUnit}</span
-							>
-						</div>
-						{#if swapResult.hop1Fee && hop1FeeCoin}
-							<div class="fee-row">
-								<span class="fee-label">Hop Fee ({coinDisplayLabel(hop1FeeCoin)})</span>
-								<span class="fee-value"
-									>{formatSmallUnits(
-										swapResult.hop1Fee.totalFee,
-										hop1FeeCoin.decimalPlaces
-									)} {coinDisplayLabel(hop1FeeCoin)}</span
-								>
-							</div>
-						{/if}
-						<div class="fee-row highlight">
-							<span class="fee-label">Total Fee</span>
-							<span class="fee-value">
-								{#if swapResult.hop1Fee && hop1FeeCoin}
-									{formatSmallUnits(
-										swapResult.hop1Fee.totalFee,
-										hop1FeeCoin.decimalPlaces
-									)} {coinDisplayLabel(hop1FeeCoin)}
-									and {formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}
-								{:else}
-									{formatSmallUnits(swapResult.totalFee, toDec)} {toUnit}
+							<span class="fee-value fee-value-stack">
+								<span>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span>
+								{#if expectedOutputUsd !== null}
+									<span class="usd-approx">≈ ${formatUsd(expectedOutputUsd)}</span>
 								{/if}
 							</span>
 						</div>
+						<!-- Protocol fee: 0.08% per pool (0.16% total for two-hop routes) -->
 						<div class="fee-row">
-							<span class="fee-label">Min. Amount Out</span>
-							<span class="fee-value"
-								>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span
-							>
+							<span class="fee-label">
+								Protocol Fee
+								<span class="fee-sublabel">({swapResult.hop1Fee ? '0.16%' : '0.08%'})</span>
+							</span>
+							<span class="fee-value">
+								{#if totalProtocolFeeUsd !== null}
+									≈ ${formatUsd(totalProtocolFeeUsd)}
+								{:else}
+									—
+								{/if}
+							</span>
+						</div>
+						{#if exchangeFeePct !== null}
+							<div class="fee-row">
+								<span class="fee-label">
+									Exchange Fee
+									<span class="fee-sublabel">(Altera)</span>
+								</span>
+								<span
+									class="fee-value"
+									class:fee-free={exchangeFeePct === 0}
+									class:fee-cost={exchangeFeePct > 0}
+								>
+									{exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
+								</span>
+							</div>
+						{/if}
+						<div class="fee-row">
+							<span class="fee-label">Min amount received</span>
+							<span class="fee-value fee-value-stack">
+								<span>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
+								{#if minAmountOutUsd !== null}
+									<span class="usd-approx">≈ ${formatUsd(minAmountOutUsd)}</span>
+								{/if}
+							</span>
 						</div>
 					</div>
 				{/if}
@@ -1361,6 +1511,7 @@
 		flex-direction: column;
 		gap: 16px;
 		min-width: 0;
+		padding-bottom: 16px;
 	}
 
 	/* ── Quick Swap Card ── */
@@ -1566,7 +1717,6 @@
 
 	/* ── Fees Section (collapsible) ── */
 	.swap-fees {
-		margin-top: 0.375rem;
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--dash-card-border);
@@ -1580,29 +1730,13 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.75rem 1rem;
+		flex-wrap: wrap;
 	}
 	.fees-header-right {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-	}
-	.fees-toggle-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: none;
-		border: none;
-		color: var(--dash-text-muted);
-		cursor: pointer;
-		padding: 0.25rem;
-		border-radius: 0.25rem;
-		transition:
-			color 0.15s ease,
-			background-color 0.15s ease;
-		&:hover {
-			color: var(--dash-text-primary);
-			background-color: var(--dash-card-border);
-		}
+		flex-wrap: wrap;
 	}
 	.fee-details {
 		display: flex;
@@ -1613,29 +1747,53 @@
 		padding-top: 0.75rem;
 	}
 	.fee-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
+		display: grid;
+		grid-template-columns: 1fr auto;
+		align-items: baseline;
+		gap: 0.75rem;
 		padding: 0.125rem 0;
-		&.highlight {
-			padding-top: 0.375rem;
-			margin-top: 0.125rem;
-			border-top: 1px solid var(--dash-card-border);
-			font-weight: 500;
-		}
 	}
 	.fee-label {
 		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
+	}
+	.fee-sublabel {
+		font-size: var(--text-xs);
+		opacity: 0.7;
 	}
 	.fee-value {
 		font-family: 'Noto Sans Mono Variable', monospace;
 		font-weight: 400;
 		font-size: var(--text-sm);
 		color: var(--dash-text-primary);
+		text-align: right;
+		white-space: nowrap;
+	}
+	.fee-value-stack {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.125rem;
+		span { white-space: nowrap; }
+	}
+	.usd-approx {
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
+	}
+	.section-usd-approx {
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
+		font-family: 'Noto Sans Mono Variable', monospace;
+	}
+	.fee-free {
+		color: var(--dash-accent-green) !important;
+	}
+	.fee-cost {
+		color: #f59e0b !important;
 	}
 	.slippage-options {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.25rem;
 		align-items: center;
 		button {
@@ -1663,30 +1821,35 @@
 	.custom-slippage {
 		display: flex;
 		align-items: center;
-		gap: 0.2rem;
+		gap: 0.25rem;
+		padding: 0.25rem 0.5rem;
 		border: 1px solid var(--dash-accent-purple);
 		border-radius: 12px;
-		padding: 0.15rem 0.4rem;
-		background: transparent;
+		background: rgba(111, 106, 248, 0.1);
+		transition: border-color 0.15s ease;
+		&.invalid {
+			border-color: var(--dash-accent-red);
+			background: rgba(239, 68, 68, 0.08);
+		}
 		input {
-			width: 3rem;
+			width: 2.5rem;
 			border: none;
 			background: transparent;
 			color: var(--dash-text-primary);
+			font: inherit;
 			font-size: var(--text-xs);
-			font-weight: 500;
+			font-weight: 600;
 			outline: none;
-			text-align: right;
+			text-align: center;
 			-moz-appearance: textfield;
+			&::placeholder { color: var(--dash-text-muted); font-weight: 400; }
 			&::-webkit-inner-spin-button,
-			&::-webkit-outer-spin-button {
-				-webkit-appearance: none;
-				margin: 0;
-			}
+			&::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 		}
-		span {
+		.custom-slippage-unit {
 			font-size: var(--text-xs);
-			color: var(--dash-text-muted);
+			font-weight: 600;
+			color: var(--dash-accent-purple);
 		}
 	}
 
@@ -2140,6 +2303,42 @@
 		}
 	}
 
+	/* ── Price Impact Summary Row ── */
+	.fees-impact-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.625rem 1rem 0;
+	}
+	.impact-pct {
+		font-family: 'Noto Sans Mono Variable', monospace;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		&.good   { color: var(--dash-accent-green); }
+		&.medium { color: #d97706; }
+		&.bad    { color: var(--dash-accent-red); }
+	}
+	.impact-pct-empty {
+		font-family: 'Noto Sans Mono Variable', monospace;
+		font-size: var(--text-sm);
+		color: var(--dash-text-muted);
+	}
+
+	/* ── Price Impact Warning ── */
+	.impact-warning {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		border-top: 1px solid var(--dash-card-border);
+		color: #d97706; /* amber-600 */
+		font-size: var(--text-sm);
+		:global(svg) { flex-shrink: 0; }
+		&.severe {
+			color: var(--dash-accent-red);
+		}
+	}
+
 	/* ── Status & Waiting ── */
 	.status-wrapper {
 		max-width: 72rem;
@@ -2226,6 +2425,20 @@
 			margin-top: 15%;
 			margin-left: 1rem;
 			margin-right: 1rem;
+		}
+		/* Slippage: label on first line, pills on second line */
+		.fees-header {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.5rem;
+			padding: 0.625rem 0.875rem;
+		}
+		.fees-header-right {
+			width: 100%;
+		}
+		.slippage-options {
+			width: 100%;
+			justify-content: flex-start;
 		}
 	}
 </style>

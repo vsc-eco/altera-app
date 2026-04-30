@@ -17,7 +17,7 @@
 	let navWidth = $state(100);
 	let bodyWidth = $state(0);
 	let { visible = $bindable(false) } = $props();
-	let actuallyVisible = $derived(visible || bodyWidth >= 620);
+	let actuallyVisible = $derived(visible || bodyWidth >= 860);
 	let preload = $state(true);
 	let auth = $derived(getAuth()());
 
@@ -163,7 +163,7 @@
 	.preload {
 		transition-duration: 0.0001s !important;
 	}
-	@media screen and (min-width: 620px) {
+	@media screen and (min-width: 860px) {
 		nav {
 			z-index: 1;
 			position: sticky;
@@ -174,7 +174,7 @@
 			display: none !important;
 		}
 	}
-	@media screen and (max-width: 619px) {
+	@media screen and (max-width: 859px) {
 		.desktop-only {
 			display: none !important;
 		}

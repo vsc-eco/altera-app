@@ -305,7 +305,9 @@
 		if ($SendTxDetails.toCoin) {
 			new CoinAmount(1, $SendTxDetails.toCoin.coin)
 				.convertTo(Coin.usd, Network.lightning)
-				.then((amt) => { toPriceUsdRaw = amt.toNumber(); });
+				.then((amt) => {
+					toPriceUsdRaw = amt.toNumber();
+				});
 		}
 	});
 
@@ -346,10 +348,11 @@
 		if (val === 0) return `0 ${amt.getDisplayUnit()}`;
 		const fixed = val
 			.toFixed(amt.coin.decimalPlaces)
-			.replace(/(\.\d*[1-9])0+$/, '$1')  // strip trailing zeros
-			.replace(/\.0*$/, '');              // strip trailing dot
+			.replace(/(\.\d*[1-9])0+$/, '$1') // strip trailing zeros
+			.replace(/\.0*$/, ''); // strip trailing dot
 		const [intPart, decPart] = fixed.split('.');
-		const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (decPart ? `.${decPart}` : '');
+		const formatted =
+			intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (decPart ? `.${decPart}` : '');
 		return `${formatted} ${amt.getDisplayUnit()}`;
 	}
 
@@ -1025,11 +1028,13 @@
 			} else {
 				// EVM reown wallet path (no BTC reown since BTC is
 				// handled above).
-				const feeQualifies = ALTERA_FEE_ACTIVE && await qualifiesForAlteraFee(
-					amount as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
-					toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
-					destinationChain || undefined
-				);
+				const feeQualifies =
+					ALTERA_FEE_ACTIVE &&
+					(await qualifiesForAlteraFee(
+						amount as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+						toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+						destinationChain || undefined
+					));
 				const storeMin = $SendTxDetails.minAmountOut;
 				// Contract validates min_amount_out AFTER altera deduction,
 				// so scale the store's pre-fee min down by the same bps.
@@ -1251,11 +1256,18 @@
 						inputmode="decimal"
 						placeholder="0.5"
 						bind:value={customSlippageInput}
-						oninput={() => { customSlippageInput = customSlippageInput.replace(',', '.'); }}
+						oninput={() => {
+							customSlippageInput = customSlippageInput.replace(',', '.');
+						}}
 						onblur={applyCustomSlippage}
 						onkeydown={(e) => {
-							if (e.key === 'Enter') { applyCustomSlippage(); e.currentTarget.blur(); }
-							if (e.key === 'Escape') { customSlippageOpen = false; }
+							if (e.key === 'Enter') {
+								applyCustomSlippage();
+								e.currentTarget.blur();
+							}
+							if (e.key === 'Escape') {
+								customSlippageOpen = false;
+							}
 						}}
 					/>
 					<span>%</span>
@@ -1271,7 +1283,9 @@
 							: parseFloat((slippageBps / 100).toFixed(2)).toString();
 					}}
 				>
-					{slippageOptions.includes(slippageBps) ? 'Custom' : `${parseFloat((slippageBps / 100).toFixed(2))}%`}
+					{slippageOptions.includes(slippageBps)
+						? 'Custom'
+						: `${parseFloat((slippageBps / 100).toFixed(2))}%`}
 				</button>
 			{/if}
 		</div>
@@ -1283,9 +1297,7 @@
 			<div class="detail-row">
 				<span class="detail-label">Rate</span>
 				<span class="detail-value"
-					>{fromInTo
-						? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo}`
-						: '—'}</span
+					>{fromInTo ? `1 ${$SendTxDetails.fromCoin.coin.label} ≈ ${fromInTo}` : '—'}</span
 				>
 			</div>
 			<div class="detail-row">
@@ -1303,7 +1315,9 @@
 			</div>
 			{#if exchangeFeePct !== null}
 				<div class="detail-row">
-					<span class="detail-label">Exchange fee <span class="detail-sublabel">(Altera)</span></span>
+					<span class="detail-label"
+						>Exchange fee <span class="detail-sublabel">(Altera)</span></span
+					>
 					<span
 						class="detail-value"
 						class:detail-free={exchangeFeePct === 0}
@@ -1339,8 +1353,8 @@
 						class="detail-value impact-pct"
 						class:good={priceImpactPct < 2}
 						class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
-						class:bad={priceImpactPct >= 10}
-					>{priceImpactPct.toFixed(2)}%</span>
+						class:bad={priceImpactPct >= 10}>{priceImpactPct.toFixed(2)}%</span
+					>
 				</div>
 			{/if}
 		</div>
@@ -1349,9 +1363,9 @@
 	{#if priceImpactPct >= 10}
 		<p class="swap-status error" class:severe={priceImpactPct >= 15}>
 			{#if priceImpactPct >= 15}
-				⚠ Very high price impact — pool liquidity is low. Try a smaller amount.
+				⚠ Very high price impact. Pool liquidity is low. Try a smaller amount.
 			{:else}
-				⚠ High price impact — consider a smaller amount for better rates.
+				⚠ High price impact. Consider a smaller amount for better rates.
 			{/if}
 		</p>
 	{/if}
@@ -1367,7 +1381,12 @@
 	<!-- Exchange -->
 	<PillButton
 		onclick={requestSwap}
-		disabled={swapLoading || !hasAmount || sameCoinSelected || missingReceiver || exceedsBalance || exceedsPoolDepth}
+		disabled={swapLoading ||
+			!hasAmount ||
+			sameCoinSelected ||
+			missingReceiver ||
+			exceedsBalance ||
+			exceedsPoolDepth}
 		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
@@ -1406,7 +1425,9 @@
 				{#if btcDepositQr}
 					<div class="btc-deposit-qr">
 						<img src={btcDepositQr} alt="Deposit address QR code" width="220" height="220" />
-						<span class="btc-deposit-qr-hint">Scan with a Bitcoin wallet to prefill address &amp; amount</span>
+						<span class="btc-deposit-qr-hint"
+							>Scan with a Bitcoin wallet to prefill address &amp; amount</span
+						>
 					</div>
 				{/if}
 				<div class="btc-deposit-field">
@@ -1867,9 +1888,15 @@
 	}
 	.impact-pct {
 		font-weight: 600;
-		&.good { color: var(--dash-success, #22c55e); }
-		&.medium { color: var(--dash-warning, #f59e0b); }
-		&.bad { color: var(--dash-error, #ef4444); }
+		&.good {
+			color: var(--dash-success, #22c55e);
+		}
+		&.medium {
+			color: var(--dash-warning, #f59e0b);
+		}
+		&.bad {
+			color: var(--dash-error, #ef4444);
+		}
 	}
 
 	.swap-status {

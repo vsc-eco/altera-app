@@ -193,7 +193,7 @@
 	.mobile-menu {
 		display: none;
 	}
-	@media screen and (max-width: 620px) {
+	@media screen and (max-width: 860px) {
 		.mobile-menu {
 			display: flex;
 		}

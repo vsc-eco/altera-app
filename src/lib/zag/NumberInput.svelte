@@ -61,6 +61,7 @@
 	const service = useMachine(numberInput.machine, {
 		id,
 		min: 0,
+		locale: 'en-US',
 		get disabled() {
 			return disabled;
 		},
@@ -71,7 +72,7 @@
 		get formatOptions() {
 			return {
 				style: 'decimal' as const,
-				useGrouping: true,
+				useGrouping: false,
 				minimumFractionDigits: 0,
 				maximumFractionDigits: decimals
 			};
@@ -125,6 +126,12 @@
 				e.preventDefault();
 				e.stopPropagation();
 			}
+			// Treat comma as decimal separator — prevent the comma and
+			// insert a dot so Zag processes it as the decimal point.
+			if (e.key === ',') {
+				e.preventDefault();
+				document.execCommand('insertText', false, '.');
+			}
 		}}
 	/>
 	<!-- <div class="triggers">
@@ -155,7 +162,7 @@
 		max-width: 100%;
 		min-width: 0;
 		flex-grow: 1;
-		padding-right: 2rem;
+		padding-right: var(--number-input-padding-right, 2rem);
 		font-family: 'Nunito Sans', sans-serif;
 		color: var(--dash-text-primary);
 		background: transparent;

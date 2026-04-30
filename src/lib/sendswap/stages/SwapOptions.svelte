@@ -8,7 +8,7 @@
 		solveNetworkConstraints
 	} from '$lib/sendswap/utils/sendUtils';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
-	import { onDestroy, onMount, untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import swapOptions, {
 		Coin,
 		Network,
@@ -18,10 +18,6 @@
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import {
-		ArrowDownRight,
-		ArrowLeft,
-		ArrowUpDown,
-		ArrowUpRight,
 		ChevronDown,
 		Search,
 		Send,
@@ -30,16 +26,6 @@
 		X
 	} from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import {
-		updateHistoricalData,
-		HistoricalCoinData,
-		type CoinMarketMapData,
-		loadHistoricalCoinData,
-		saveHistoricalCoinData
-	} from '$lib/currency/historical';
-	import LineChart, { type Point } from '$lib/LineChart.svelte';
-	import Card from '$lib/cards/Card.svelte';
-	import moment from 'moment';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
@@ -77,7 +63,6 @@
 	} = $props();
 
 	onMount(() => {
-		loadHistoricalCoinData();
 		// Resolve each swap-eligible pool dynamically so calls are
 		// network-aware (mainnet vs testnet). Both are loaded in
 		// parallel — the swap-calc effect picks whichever it needs
@@ -90,9 +75,6 @@
 			if (hiveHbd) hiveHbdPool = hiveHbd;
 			if (btcHbd) btcHbdPool = btcHbd;
 		})();
-	});
-	onDestroy(() => {
-		saveHistoricalCoinData();
 	});
 
 	// Pool depths and swap calculation state
@@ -222,15 +204,7 @@
 			}
 			const pool1 = assetIn === Coin.btc.value ? btcHbdPool : hiveHbdPool;
 			const pool2 = assetIn === Coin.btc.value ? hiveHbdPool : btcHbdPool;
-			result = calculateTwoHopSwap(
-				x,
-				pool1,
-				pool2,
-				assetIn,
-				Coin.hbd.value,
-				assetOut,
-				slippageBps
-			);
+			result = calculateTwoHopSwap(x, pool1, pool2, assetIn, Coin.hbd.value, assetOut, slippageBps);
 		}
 
 		if (!result) {
@@ -301,13 +275,29 @@
 
 	let expectedOutputUsd = $derived.by(() => {
 		const toCoinDef = $SendTxDetails.toCoin;
-		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
+			return null;
 		return (Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+	});
+
+	/** "You Receive" display value — formatted with thousands separator, same locale as the rest of the UI */
+	let formattedToAmount = $derived.by(() => {
+		const raw = $SendTxDetails.toAmount;
+		const toCoinDef = $SendTxDetails.toCoin;
+		if (!raw || raw === '0' || !toCoinDef) return null;
+		const num = Number(raw);
+		if (!Number.isFinite(num)) return null;
+		return new Intl.NumberFormat(numberFormatLanguage, {
+			useGrouping: true,
+			minimumFractionDigits: 0,
+			maximumFractionDigits: toCoinDef.coin.decimalPlaces
+		}).format(num);
 	});
 
 	let minAmountOutUsd = $derived.by(() => {
 		const toCoinDef = $SendTxDetails.toCoin;
-		if (!swapResult || swapResult.minAmountOut <= 0n || toPriceUsdRaw <= 0 || !toCoinDef) return null;
+		if (!swapResult || swapResult.minAmountOut <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
+			return null;
 		return (Number(swapResult.minAmountOut) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
 	});
 
@@ -463,7 +453,9 @@
 	// Combined: enable button when swap fields valid, destination valid, not same coin, and has balance
 	$effect(() => {
 		if (!isActive) return;
-		editStage(swapFieldsValid && destValid && !sameCoinError && !insufficientBalance && !exceedsPoolDepth);
+		editStage(
+			swapFieldsValid && destValid && !sameCoinError && !insufficientBalance && !exceedsPoolDepth
+		);
 	});
 
 	let { assetOptions, networkOptions } = $state<ReturnType<typeof solveNetworkConstraints>>({
@@ -648,77 +640,24 @@
 		}
 	});
 
-	let fromInUsd = $state('');
-	let toInUsd = $state('');
 	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
 	$effect(() => {
 		if ($SendTxDetails.fromCoin) {
-			const oneFrom = new CoinAmount(1, $SendTxDetails.fromCoin.coin);
-			oneFrom.convertTo(Coin.usd, Network.lightning).then((amt) => {
-				fromInUsd = amt.toPrettyMinFigs();
-				fromPriceUsdRaw = amt.toNumber();
-			});
+			new CoinAmount(1, $SendTxDetails.fromCoin.coin)
+				.convertTo(Coin.usd, Network.lightning)
+				.then((amt) => {
+					fromPriceUsdRaw = amt.toNumber();
+				});
 		}
 		if ($SendTxDetails.toCoin) {
 			new CoinAmount(1, $SendTxDetails.toCoin.coin)
 				.convertTo(Coin.usd, Network.lightning)
 				.then((amt) => {
-					toInUsd = amt.toPrettyMinFigs();
 					toPriceUsdRaw = amt.toNumber();
 				});
 		}
 	});
-	// map of coin value (NOT ucid) fields to historical data
-	let graphsLoaded = $state(new Set<string>());
-	let fromData: CoinMarketMapData | undefined = $state();
-	let toData: CoinMarketMapData | undefined = $state();
-	let hoveredFromPoint: Point | undefined = $state();
-	let hoveredToPoint: Point | undefined = $state();
-	let lastDefined = $state.raw(new Set<string>());
-	$effect(() => {
-		let currentlyDefined = [$SendTxDetails.fromCoin?.coin, $SendTxDetails.toCoin?.coin].filter(
-			(coin) => coin !== undefined
-		);
-		untrack(() => {
-			const definedSet = new Set(currentlyDefined.map((coin) => coin.value));
-			if (definedSet.symmetricDifference(lastDefined).size === 0) return;
-			lastDefined = definedSet;
-			graphsLoaded = graphsLoaded.intersection(definedSet);
-
-			updateHistoricalData(currentlyDefined)
-				.then(() => {
-					if ($SendTxDetails.fromCoin && $SendTxDetails.fromCoin.coin.ucid) {
-						fromData = $HistoricalCoinData.get($SendTxDetails.fromCoin.coin.ucid);
-					}
-					if ($SendTxDetails.toCoin && $SendTxDetails.toCoin.coin.ucid) {
-						toData = $HistoricalCoinData.get($SendTxDetails.toCoin.coin.ucid);
-					}
-				})
-				.finally(() => (graphsLoaded = graphsLoaded.union(definedSet)));
-		});
-	});
-	function getPercentChange(points: Point[] | undefined, current?: number) {
-		if (!points || points.length === 0) return 0;
-		const first = points[0].value;
-		const last = points[points.length - 1].value;
-		return (last / first - 1) * 100;
-	}
-	function formatGraphValue(value: number) {
-		if (value > 10) {
-			return value.toLocaleString(numberFormatLanguage, {
-				useGrouping: true,
-				maximumFractionDigits: 2,
-				minimumFractionDigits: 2
-			});
-		} else {
-			return value.toLocaleString(numberFormatLanguage, {
-				useGrouping: true,
-				maximumFractionDigits: 4,
-				minimumFractionDigits: 2
-			});
-		}
-	}
 
 	let minAmount: CoinAmount<Coin> | undefined = $state();
 	$effect(() => {
@@ -754,7 +693,6 @@
 		if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
 		return new CoinAmount(bal, from.coin, true);
 	});
-
 
 	let dialogOpen = $state(false);
 	let toggle = $state<(open?: boolean) => void>(() => {});
@@ -873,17 +811,6 @@
 	});
 </script>
 
-{#snippet percentArrow(percent: number)}
-	<span class={{ up: percent >= 0, down: percent < 0 }}>
-		{#if percent >= 0}
-			<ArrowUpRight size="16" />
-		{:else}
-			<ArrowDownRight size="16" />
-		{/if}
-		{percent.toFixed(2) + '%'}
-	</span>
-{/snippet}
-
 <Dialog bind:open={dialogOpen} bind:toggle back={dialogBack}>
 	{#snippet title()}Select a token{/snippet}
 	{#snippet content()}
@@ -921,11 +848,13 @@
 				</div>
 				<span class="dialog-section-label">ALL ASSETS</span>
 				<div class="network-cards">
-					{#each tempCoinOpt.networks.filter(n => n.value !== Network.lightning.value) as net (net.value)}
+					{#each tempCoinOpt.networks.filter((n) => n.value !== Network.lightning.value) as net (net.value)}
 						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt!, net)}>
 							<img src={tempCoinOpt.coin.icon} alt="" class="network-card-icon" />
 							<div class="network-card-info">
-								<span class="network-card-name">{net.value === Network.magi.value ? 'Magi Network' : 'Mainnet'}</span>
+								<span class="network-card-name"
+									>{net.value === Network.magi.value ? 'Magi Network' : 'Mainnet'}</span
+								>
 							</div>
 							<div class="network-card-balance">
 								<span class="balance-amount"
@@ -941,62 +870,23 @@
 	{/snippet}
 </Dialog>
 
-<!-- ═══ Two-Column Layout ═══ -->
 <div class="swap-layout">
-	<!-- ── LEFT EAR: From Chart ── -->
-	<div class={['ear left-ear', { hide: !$SendTxDetails.fromCoin }]}>
-		{#if $SendTxDetails.fromCoin}
-			{@const coin = $SendTxDetails.fromCoin.coin}
-			<Card>
-				<div class="lc-wrapper">
-					<div class="lc-labels">
-						<div class="coin">
-							<img src={coin.icon} alt={coinDisplayLabel(coin)} />
-							<div class="label-network">
-								{coinDisplayLabel(coin)}
-								<span class="sm-caption">Native</span>
-							</div>
-						</div>
-						<div class="amount-percent">
-							{#if hoveredFromPoint}
-								<p>
-									{`${formatGraphValue(hoveredFromPoint.value)} ${Coin.usd.unit}`}
-								</p>
-								<p>{moment(hoveredFromPoint.date).format('MMM DD, HH:mm')}</p>
-							{:else}
-								{fromInUsd}
-								{@render percentArrow(getPercentChange(fromData?.quotes))}
-							{/if}
-						</div>
-					</div>
-					<LineChart
-						data={fromData?.quotes ?? []}
-						height={120}
-						isLoading={!graphsLoaded.has(coin.value)}
-						styleType="trend"
-						bind:hoveredPoint={hoveredFromPoint}
-					/>
-				</div>
-			</Card>
-		{/if}
-	</div>
-
-	<!-- ── CENTER LEFT: Swap Card ── -->
+	<!-- ── Swap Card ── -->
 	<div class="swap-col-left">
 		<div class="quick-swap-card">
 			<!-- From Section -->
 			<div class="swap-section">
 				<div class="section-header">
 					<span class="section-label">From</span>
-					<span class="section-info sm-caption">
-						{#if $SendTxDetails.fromCoin}
-							{#if $SendTxDetails.fromNetwork}
-								{$SendTxDetails.fromNetwork.label}
-							{/if}
-							{#if maxAmount}
-								&middot; Balance: {maxAmount.toPrettyAmountString()}
-								{coinDisplayLabel($SendTxDetails.fromCoin.coin)}
-							{/if}
+					<span class="section-header-center">
+						{#if $SendTxDetails.fromNetwork}
+							<span class="network-pill">{$SendTxDetails.fromNetwork.label}</span>
+						{/if}
+					</span>
+					<span class="section-balance sm-caption">
+						{#if $SendTxDetails.fromCoin && maxAmount}
+							Balance: {maxAmount.toPrettyAmountString()}
+							{coinDisplayLabel($SendTxDetails.fromCoin.coin)}
 						{/if}
 					</span>
 				</div>
@@ -1009,6 +899,7 @@
 							{maxAmount}
 							hideUnit
 							hideUsd
+							hideNetwork
 						/>
 					</div>
 					<button class="token-selector-btn" onclick={() => openDialog('from')}>
@@ -1025,9 +916,20 @@
 						<ChevronDown size={14} />
 					</button>
 				</div>
-				{#if inputAmountUsd !== null}
-					<span class="section-usd-approx">≈ ${formatUsd(inputAmountUsd)}</span>
-				{/if}
+				<div class="section-usd-row">
+					<span class="section-usd-approx">
+						{#if inputAmountUsd !== null}≈ ${formatUsd(inputAmountUsd)}{/if}
+					</span>
+					{#if sameCoinError}
+						<span class="section-error-inline">Select a different token</span>
+					{:else if insufficientBalance && $SendTxDetails.fromCoin}
+						<span class="section-error-inline"
+							>Insufficient {coinDisplayLabel($SendTxDetails.fromCoin.coin)} balance</span
+						>
+					{:else if exceedsPoolDepth}
+						<span class="section-error-inline">Amount exceeds pool depth</span>
+					{/if}
+				</div>
 			</div>
 
 			<!-- Swap Arrow -->
@@ -1041,7 +943,7 @@
 			<div class="swap-section">
 				<div class="section-header">
 					<span class="section-label">You Receive</span>
-					<span class="section-info sm-caption">
+					<span class="sm-caption" style="color: var(--dash-text-muted)">
 						{#if $SendTxDetails.toNetwork}
 							{$SendTxDetails.toNetwork.label}
 						{:else}
@@ -1051,8 +953,8 @@
 				</div>
 				<div class="section-input-row">
 					<div class="to-amount-display">
-						{#if $SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'}
-							<span class="to-amount-value">{$SendTxDetails.toAmount}</span>
+						{#if formattedToAmount}
+							<span class="to-amount-value">{formattedToAmount}</span>
 						{:else}
 							<span class="to-amount-placeholder">0</span>
 						{/if}
@@ -1071,9 +973,11 @@
 						<ChevronDown size={14} />
 					</button>
 				</div>
-				{#if expectedOutputUsd !== null}
-					<span class="section-usd-approx">≈ ${formatUsd(expectedOutputUsd)}</span>
-				{/if}
+				<div class="section-usd-row">
+					<span class="section-usd-approx">
+						{#if expectedOutputUsd !== null}≈ ${formatUsd(expectedOutputUsd)}{/if}
+					</span>
+				</div>
 			</div>
 
 			<!-- Route Info -->
@@ -1086,29 +990,7 @@
 					</span>
 				</div>
 			{/if}
-
-			<!-- Same coin error -->
-			{#if sameCoinError}
-				<div class="same-coin-error">
-					<span class="error">Cannot swap the same asset. Please select a different token to receive.</span>
-				</div>
-			{/if}
-
-			<!-- Insufficient balance error -->
-			{#if insufficientBalance && !sameCoinError && $SendTxDetails.fromCoin}
-				<div class="same-coin-error">
-					<span class="error">Insufficient {coinDisplayLabel($SendTxDetails.fromCoin.coin)} balance. You don't have enough funds for this swap.</span>
-				</div>
-			{/if}
-
-			<!-- Pool depth cap error -->
-			{#if exceedsPoolDepth && !sameCoinError && !insufficientBalance}
-				<div class="same-coin-error">
-					<span class="error">Amount exceeds 50% of pool depth — the swap will fail on-chain. Reduce the amount to continue.</span>
-				</div>
-			{/if}
 		</div>
-
 	</div>
 
 	<!-- ── CENTER RIGHT: Deliver To ── -->
@@ -1219,13 +1101,13 @@
 			{@const fromUnit = coinDisplayLabel($SendTxDetails.fromCoin.coin)}
 			{@const toUnit = coinDisplayLabel($SendTxDetails.toCoin.coin)}
 			{@const hop1FeeCoin = swapResult?.hop1Fee
-				? (swapResult.hop1Fee.asset === Coin.hbd.value
+				? swapResult.hop1Fee.asset === Coin.hbd.value
 					? Coin.hbd
 					: swapResult.hop1Fee.asset === Coin.hive.value
 						? Coin.hive
 						: swapResult.hop1Fee.asset === Coin.btc.value
 							? Coin.btc
-							: null)
+							: null
 				: null}
 			<div class="swap-fees">
 				<!-- Always visible: price impact summary row -->
@@ -1236,8 +1118,8 @@
 							class="impact-pct"
 							class:good={priceImpactPct < 2}
 							class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
-							class:bad={priceImpactPct >= 10}
-						>{priceImpactPct.toFixed(2)}%</span>
+							class:bad={priceImpactPct >= 10}>{priceImpactPct.toFixed(2)}%</span
+						>
 					{:else}
 						<span class="impact-pct-empty">—</span>
 					{/if}
@@ -1251,7 +1133,10 @@
 							{#each slippageOptions as bps}
 								<button
 									class={{ active: slippageBps === bps && !customSlippageOpen }}
-									onclick={() => { slippageBps = bps; customSlippageOpen = false; }}
+									onclick={() => {
+										slippageBps = bps;
+										customSlippageOpen = false;
+									}}
 								>
 									{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
 								</button>
@@ -1270,8 +1155,13 @@
 										}}
 										onblur={applyCustomSlippage}
 										onkeydown={(e) => {
-											if (e.key === 'Enter') { applyCustomSlippage(); e.currentTarget.blur(); }
-											if (e.key === 'Escape') { customSlippageOpen = false; }
+											if (e.key === 'Enter') {
+												applyCustomSlippage();
+												e.currentTarget.blur();
+											}
+											if (e.key === 'Escape') {
+												customSlippageOpen = false;
+											}
 										}}
 									/>
 									<span class="custom-slippage-unit">%</span>
@@ -1286,26 +1176,33 @@
 											: parseFloat((slippageBps / 100).toFixed(2)).toString();
 									}}
 								>
-									{slippageOptions.includes(slippageBps) ? 'Custom' : `${parseFloat((slippageBps / 100).toFixed(2))}%`}
+									{slippageOptions.includes(slippageBps)
+										? 'Custom'
+										: `${parseFloat((slippageBps / 100).toFixed(2))}%`}
 								</button>
 							{/if}
 						</div>
 					</div>
 				</div>
 
-				<!-- Text warning for severe impact only (badge handles < 15%) -->
-				{#if priceImpactPct >= 10}
-					<div class="impact-warning" class:severe={priceImpactPct >= 15}>
-						<TriangleAlert size={14} />
-						<span>
-							{#if priceImpactPct >= 15}
-								Very high price impact — pool liquidity is low for this trade size. Try a smaller amount.
-							{:else}
-								High price impact — consider using a smaller amount for better rates.
-							{/if}
-						</span>
+				<!-- Text warning — always rendered to reserve space; visibility toggled via CSS -->
+				<div
+					class="impact-warning"
+					class:severe={priceImpactPct >= 15}
+					class:hidden={priceImpactPct < 10}
+				>
+					<TriangleAlert size={14} />
+					<!-- Both messages stacked in the same grid cell so height never changes -->
+					<div class="impact-text">
+						<span class="impact-severe"
+							>Very high price impact. Pool liquidity is low for this trade size. Try a smaller
+							amount.</span
+						>
+						<span class="impact-medium"
+							>High price impact. Consider using a smaller amount for better rates.</span
+						>
 					</div>
-				{/if}
+				</div>
 
 				<!-- Fee breakdown — always visible when a swap is calculated -->
 				{#if swapResult}
@@ -1361,46 +1258,8 @@
 				{/if}
 			</div>
 		{/if}
-
 	</div>
 
-	<!-- ── RIGHT EAR: To Chart ── -->
-	<div class={['ear right-ear', { hide: !$SendTxDetails.toCoin }]}>
-		{#if $SendTxDetails.toCoin}
-			{@const coin = $SendTxDetails.toCoin.coin}
-			<Card>
-				<div class="lc-wrapper">
-					<div class="lc-labels">
-						<div class="coin">
-							<img src={coin.icon} alt={coinDisplayLabel(coin)} />
-							<div class="label-network">
-								{coinDisplayLabel(coin)}
-								<span class="sm-caption">Native</span>
-							</div>
-						</div>
-						<div class="amount-percent">
-							{#if hoveredToPoint}
-								<p>
-									{`${formatGraphValue(hoveredToPoint.value)} ${Coin.usd.unit}`}
-								</p>
-								<p>{moment(hoveredToPoint.date).format('MMM DD, HH:mm')}</p>
-							{:else}
-								{toInUsd}
-								{@render percentArrow(getPercentChange(toData?.quotes))}
-							{/if}
-						</div>
-					</div>
-					<LineChart
-						data={toData?.quotes ?? []}
-						height={120}
-						isLoading={!graphsLoaded.has(coin.value)}
-						styleType="trend"
-						bind:hoveredPoint={hoveredToPoint}
-					/>
-				</div>
-			</Card>
-		{/if}
-	</div>
 </div>
 
 <!-- Status & Waiting Overlay -->
@@ -1433,80 +1292,31 @@
 {/if}
 
 <style lang="scss">
-	/* ═══ Two-Column Layout ═══ */
+	/* ═══ Layout ═══ */
 	.swap-layout {
-		display: grid;
-		grid-template-columns: minmax(0, 300px) minmax(0, 480px) minmax(0, 300px);
-		grid-template-rows: auto auto;
+		display: flex;
+		flex-direction: column;
 		gap: 10px;
-		max-width: 1140px;
+		max-width: 480px;
+		min-width: 320px;
 		width: 100%;
 		margin: 0 auto;
 		padding: 0.5rem;
 		box-sizing: border-box;
-		justify-content: center;
 	}
-	.ear {
-		min-width: 0;
-		padding-top: 0.5rem;
-		&.hide { visibility: hidden; }
-		.lc-wrapper {
-			height: 100%;
-			box-sizing: border-box;
-			margin: -0.5rem;
-			.lc-labels {
-				padding: 0.5rem;
-				display: flex;
-				justify-content: space-between;
-				.coin {
-					display: inline-flex;
-					align-items: center;
-					gap: 0.5rem;
-					img {
-						width: 1.75rem;
-						height: 1.75rem;
-					}
-					.label-network {
-						display: flex;
-						flex-direction: column;
-						gap: 0.125rem;
-						color: var(--dash-text-primary);
-						font-size: 0.85rem;
-					}
-				}
-				.amount-percent {
-					display: flex;
-					flex-direction: column;
-					align-items: flex-end;
-					gap: 0.125rem;
-					color: var(--dash-text-primary);
-					font-size: 0.85rem;
-				}
-			}
+	/* On wide screens (sidebar visible) give the card a bit more room */
+	@media screen and (min-width: 860px) {
+		.swap-layout {
+			max-width: 560px;
 		}
-		.up,
-		.down {
-			display: inline-flex;
-			align-items: center;
-			font-family: 'Noto Sans Mono Variable', monospace;
-			width: fit-content;
-		}
-		.up { color: var(--dash-accent-green); }
-		.down { color: var(--dash-accent-red); }
 	}
-	.left-ear { grid-column: 1; grid-row: 1; align-self: start; }
-	.right-ear { grid-column: 3; grid-row: 1; align-self: start; }
 	.swap-col-left {
-		grid-column: 2;
-		grid-row: 1;
 		display: flex;
 		flex-direction: column;
 		gap: 0;
 		min-width: 0;
 	}
 	.swap-col-right {
-		grid-column: 2;
-		grid-row: 2;
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
@@ -1544,15 +1354,35 @@
 		align-items: baseline;
 	}
 	.section-label {
+		flex: 1;
 		font-size: 0.8rem;
 		color: var(--dash-text-muted);
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
 	}
-	.section-info {
+	.section-header-center {
+		flex: 1;
+		display: flex;
+		justify-content: center;
+	}
+	.section-balance {
+		flex: 1;
+		text-align: right;
 		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
+	}
+	.network-pill {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.1rem 0.45rem;
+		border-radius: 1rem;
+		border: 1px solid var(--dash-accent-purple);
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--dash-accent-purple);
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
 	}
 	.section-input-row {
 		display: flex;
@@ -1563,6 +1393,7 @@
 	.input-field {
 		flex: 1;
 		min-width: 0;
+		--number-input-padding-right: 0;
 	}
 	.input-field :global(.normal-wrapper label) {
 		display: none;
@@ -1570,29 +1401,36 @@
 	.input-field :global(.normal-wrapper .amount-input) {
 		border: none;
 		background: transparent;
+		padding: 0;
+		gap: 0;
 	}
 	.input-field :global(.normal-wrapper .amount-input > .icons),
 	.input-field :global(.normal-wrapper .amount-input > svg) {
 		display: none;
 	}
-	.input-field :global(.normal-wrapper .amount-input input) {
+	.input-field :global(.normal-wrapper .amount-input [data-part='input']) {
 		font-size: 1.5rem;
 		font-family: 'Nunito Sans', sans-serif;
 		font-weight: 500;
+		height: auto;
+		border: none;
+		border-radius: 0;
+		padding: 0.5rem 0;
 	}
 	.input-field :global(.normal-wrapper .amount-input:has(input:focus-visible)) {
 		box-shadow: none;
 		border-bottom-color: transparent;
 		border-radius: 0;
 	}
+	/* Hide AmountInput's internal validation error — errors are shown inline
+	   in the section-usd-row instead, which doesn't shift the layout. */
 	.input-field :global(.normal-wrapper .bottom-info) {
-		position: static;
-		padding-top: 0;
+		display: none;
 	}
 	.to-amount-display {
 		flex: 1;
 		min-width: 0;
-		padding: 0.5rem 0;
+		padding: 0.5rem 0.8rem;
 		font-size: 1.5rem;
 		font-family: 'Nunito Sans', sans-serif;
 		font-weight: 500;
@@ -1661,19 +1499,6 @@
 	}
 
 	/* ── Same Coin Error ── */
-	.same-coin-error {
-		margin-top: 0.5rem;
-		padding: 0.5rem 0.75rem;
-		border-radius: 12px;
-		background-color: rgba(239, 68, 68, 0.08);
-		border: 1px solid rgba(239, 68, 68, 0.2);
-		.error {
-			color: var(--dash-accent-red);
-			font-size: var(--text-sm);
-			font-weight: 500;
-		}
-	}
-
 	/* ── Route Info ── */
 	.route-info {
 		display: flex;
@@ -1682,13 +1507,6 @@
 		gap: 0.5rem;
 		padding: 0.375rem 0 0.125rem;
 		font-size: 0.75rem;
-	}
-	.route-path {
-		color: var(--dash-text-muted);
-	}
-	.route-rate {
-		color: var(--dash-text-secondary);
-		font-family: 'Noto Sans Mono Variable', monospace;
 	}
 	.route-tags {
 		display: flex;
@@ -1774,16 +1592,33 @@
 		flex-direction: column;
 		align-items: flex-end;
 		gap: 0.125rem;
-		span { white-space: nowrap; }
+		span {
+			white-space: nowrap;
+		}
 	}
 	.usd-approx {
 		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
 	}
+	.section-usd-row {
+		display: flex;
+		flex-wrap: wrap-reverse;
+		justify-content: space-between;
+		align-items: center;
+		min-height: 1.4em;
+		gap: 0.125rem 0.5rem;
+	}
 	.section-usd-approx {
 		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
 		font-family: 'Noto Sans Mono Variable', monospace;
+	}
+	.section-error-inline {
+		font-size: var(--text-xs);
+		color: var(--negative-text, #f87171);
+		font-family: 'Nunito Sans', sans-serif;
+		font-weight: 500;
+		margin-left: auto;
 	}
 	.fee-free {
 		color: var(--dash-accent-green) !important;
@@ -1842,9 +1677,15 @@
 			outline: none;
 			text-align: center;
 			-moz-appearance: textfield;
-			&::placeholder { color: var(--dash-text-muted); font-weight: 400; }
+			&::placeholder {
+				color: var(--dash-text-muted);
+				font-weight: 400;
+			}
 			&::-webkit-inner-spin-button,
-			&::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+			&::-webkit-outer-spin-button {
+				-webkit-appearance: none;
+				margin: 0;
+			}
 		}
 		.custom-slippage-unit {
 			font-size: var(--text-xs);
@@ -2059,117 +1900,7 @@
 		color: var(--dash-text-muted);
 	}
 
-	/* ── Charts Section ── */
-	.graphs {
-		&.hide {
-			display: none;
-		}
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		grid-template-rows: auto;
-		grid-template-areas: 'from to';
-		gap: 1rem;
-		width: 100%;
-		box-sizing: border-box;
-		.lc-wrapper {
-			height: 100%;
-			box-sizing: border-box;
-			margin: -0.5rem;
-			.lc-labels {
-				padding: 0.5rem;
-				display: flex;
-				justify-content: space-between;
-				.coin {
-					display: inline-flex;
-					align-items: center;
-					gap: 0.5rem;
-					img {
-						width: 1.75rem;
-						height: 1.75rem;
-					}
-					.label-network {
-						display: flex;
-						flex-direction: column;
-						gap: 0.125rem;
-						color: var(--dash-text-primary);
-						font-size: 0.85rem;
-					}
-				}
-				.amount-percent {
-					display: flex;
-					flex-direction: column;
-					align-items: flex-end;
-					gap: 0.125rem;
-					color: var(--dash-text-primary);
-					font-size: 0.85rem;
-				}
-			}
-		}
-		.up,
-		.down {
-			display: inline-flex;
-			align-items: center;
-			font-family: 'Noto Sans Mono Variable', monospace;
-			width: fit-content;
-		}
-		.up {
-			color: var(--dash-accent-green);
-		}
-		.down {
-			color: var(--dash-accent-red);
-		}
-	}
-
 	/* ── Dialog: Token Grid ── */
-	.dialog-title-row {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-		h5 {
-			flex: 1;
-			margin: 0;
-			font-size: var(--text-3xl);
-			font-weight: 600;
-			color: var(--dash-text-primary);
-		}
-	}
-	.dialog-close-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: none;
-		border: none;
-		color: var(--dash-text-muted);
-		cursor: pointer;
-		padding: 0.25rem;
-		border-radius: 50%;
-		transition: color 0.15s ease;
-		&:hover {
-			color: var(--dash-text-primary);
-		}
-	}
-	.dialog-back-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		background: none;
-		border: none;
-		color: var(--dash-text-muted);
-		cursor: pointer;
-		font: inherit;
-		font-size: var(--text-sm);
-		padding: 0.25rem 0.5rem 0.25rem 0;
-		transition: color 0.15s ease;
-		&:hover {
-			color: var(--dash-text-primary);
-		}
-	}
-	.dialog-title-icon {
-		width: 1.5rem;
-		height: 1.5rem;
-		border-radius: 50%;
-	}
 	.token-search-wrapper {
 		position: relative;
 		margin-bottom: 1rem;
@@ -2314,9 +2045,15 @@
 		font-family: 'Noto Sans Mono Variable', monospace;
 		font-size: var(--text-sm);
 		font-weight: 600;
-		&.good   { color: var(--dash-accent-green); }
-		&.medium { color: #d97706; }
-		&.bad    { color: var(--dash-accent-red); }
+		&.good {
+			color: var(--dash-accent-green);
+		}
+		&.medium {
+			color: #d97706;
+		}
+		&.bad {
+			color: var(--dash-accent-red);
+		}
 	}
 	.impact-pct-empty {
 		font-family: 'Noto Sans Mono Variable', monospace;
@@ -2327,16 +2064,38 @@
 	/* ── Price Impact Warning ── */
 	.impact-warning {
 		display: flex;
-		align-items: center;
+		align-items: start;
 		gap: 0.5rem;
-		padding: 0.5rem 1rem;
+		padding: 0.375rem 1rem;
 		border-top: 1px solid var(--dash-card-border);
 		color: #d97706; /* amber-600 */
 		font-size: var(--text-sm);
-		:global(svg) { flex-shrink: 0; }
+		:global(svg) {
+			flex-shrink: 0;
+		}
 		&.severe {
 			color: var(--dash-accent-red);
 		}
+		/* Hidden state — keeps layout space, just invisible */
+		&.hidden {
+			visibility: hidden;
+		}
+	}
+	/* Both message variants stacked in one grid cell — container height is
+	   always the taller of the two, so nothing shifts when the text changes. */
+	.impact-text {
+		display: grid;
+		.impact-severe,
+		.impact-medium {
+			grid-area: 1 / 1;
+			visibility: hidden;
+		}
+	}
+	.impact-warning.severe .impact-severe {
+		visibility: visible;
+	}
+	.impact-warning:not(.severe):not(.hidden) .impact-medium {
+		visibility: visible;
 	}
 
 	/* ── Status & Waiting ── */
@@ -2387,19 +2146,7 @@
 		}
 	}
 
-	/* ── Responsive: Stack on smaller screens ── */
-	@media screen and (max-width: 56rem) {
-		.swap-layout {
-			grid-template-columns: 1fr;
-			padding: 0.5rem;
-		}
-		.ear { display: none; }
-		.swap-col-left, .swap-col-right { grid-column: 1; }
-	}
 	@media screen and (max-width: 36rem) {
-		.swap-layout {
-			padding: 0.5rem;
-		}
 		.quick-swap-card {
 			padding: 1rem;
 		}
@@ -2416,10 +2163,6 @@
 		.dest-network-toggle button {
 			padding: 0.375rem 0.5rem;
 			font-size: var(--text-xs);
-		}
-		.graphs {
-			display: flex;
-			flex-direction: column;
 		}
 		.waiting-overlay .waiting-card {
 			margin-top: 15%;

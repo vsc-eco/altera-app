@@ -131,15 +131,21 @@
 		color: var(--dash-text-accent);
 	}
 
-	@media screen and (max-width: 620px) {
+	/* Sidebar overlay dimming — any width where sidebar isn't sticky */
+	@media screen and (max-width: 860px) {
 		.main-area {
-			padding: 0 1rem;
 			opacity: 1;
 			transition: opacity 0.2s;
 		}
 		.showSidebar .main-area {
 			pointer-events: none;
 			opacity: 0.2;
+		}
+	}
+	/* True mobile: tighten horizontal padding */
+	@media screen and (max-width: 620px) {
+		.main-area {
+			padding: 0 1rem;
 		}
 	}
 </style>

@@ -1729,6 +1729,7 @@
 	}
 	.custom-slippage input {
 		width: 3rem;
+		height: auto;
 		border: none;
 		background: transparent;
 		color: var(--dash-text-primary);

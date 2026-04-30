@@ -17,14 +17,7 @@
 	} from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import {
-		ChevronDown,
-		Search,
-		Send,
-		TriangleAlert,
-		Wallet,
-		X
-	} from '@lucide/svelte';
+	import { ChevronDown, Search, Send, TriangleAlert, Wallet, X } from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
@@ -1259,7 +1252,6 @@
 			</div>
 		{/if}
 	</div>
-
 </div>
 
 <!-- Status & Waiting Overlay -->
@@ -1668,6 +1660,7 @@
 		}
 		input {
 			width: 2.5rem;
+			height: auto;
 			border: none;
 			background: transparent;
 			color: var(--dash-text-primary);

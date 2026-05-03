@@ -10,8 +10,7 @@ import swapOptions, {
 	type CoinOnNetwork,
 	type CoinOptions,
 	type IntermediaryNetwork,
-	type NecessarySendDetails,
-	type SendDetails
+	type NecessarySendDetails
 } from './sendOptions';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
@@ -25,7 +24,7 @@ import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
 import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
 import { wagmiConfig } from '$lib/auth/reown';
-import { get, writable } from 'svelte/store';
+import { get } from 'svelte/store';
 import {
 	fetchTxs,
 	getTimestamp,
@@ -41,35 +40,7 @@ import {
 	type AccountBalance,
 	type HiveMainnetBalance
 } from '$lib/stores/currentBalance';
-
-export const SendTxDetails = writable<SendDetails>(blankDetails());
-
-export function blankDetails(): SendDetails {
-	return {
-		fromCoin: undefined,
-		fromNetwork: undefined,
-		fromAmount: '0',
-		enteredAmount: '0',
-		toCoin: undefined,
-		toNetwork: undefined,
-		toAmount: '0',
-		toUsername: '',
-		toDisplayName: '',
-		method: undefined,
-		account: undefined,
-		fee: undefined,
-		memo: '',
-		expectedOutput: undefined,
-		slippageBps: 100,
-		minAmountOut: undefined,
-		swapBaseFee: undefined,
-		swapClpFee: undefined,
-		swapTotalFee: undefined,
-		swapHop1Fee: undefined,
-		btcDeductFee: false,
-		btcMaxFee: undefined
-	};
-}
+import type { TxStateBase } from './txState.svelte';
 
 export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
 	const accBal = get(accountBalance);
@@ -379,20 +350,18 @@ export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment
 	return 'Never';
 }
 
-export async function getFee(toAmount: string) {
-	const store = get(SendTxDetails);
-
+export async function getFee(toAmount: string, state: TxStateBase) {
 	if (
-		store.fromCoin &&
-		store.fromNetwork &&
-		store.toCoin &&
-		store.toCoin.coin.value !== coins.usd.value &&
-		store.toNetwork
+		state.fromCoin &&
+		state.fromNetwork &&
+		state.toCoin &&
+		state.toCoin.coin.value !== coins.usd.value &&
+		state.toNetwork
 	) {
 		const fee = await getIntermediaryNetwork(
-			{ coin: store.fromCoin.coin, network: store.fromNetwork },
-			{ coin: store.toCoin.coin, network: store.toNetwork }
-		).feeCalculation(new CoinAmount(Number(toAmount), store.toCoin.coin), store.fromCoin.coin);
+			{ coin: state.fromCoin.coin, network: state.fromNetwork },
+			{ coin: state.toCoin.coin, network: state.toNetwork }
+		).feeCalculation(new CoinAmount(Number(toAmount), state.toCoin.coin), state.fromCoin.coin);
 		return fee;
 	}
 }
@@ -610,21 +579,20 @@ export function solveNetworkConstraints(
 	};
 }
 
-export function solveToNetworks(): Network[] {
-	const txDetails = get(SendTxDetails);
-	const recipientNetworks: Network[] | undefined = txDetails.toUsername
-		? getRecipientNetworks(getDidFromUsername(txDetails.toUsername)).filter((net) => !net.disabled)
+export function solveToNetworks(state: TxStateBase): Network[] {
+	const recipientNetworks: Network[] | undefined = state.toUsername
+		? getRecipientNetworks(getDidFromUsername(state.toUsername)).filter((net) => !net.disabled)
 		: undefined;
 	const coinNetworks =
-		txDetails.fromNetwork && txDetails.fromCoin ? txDetails.fromCoin.networks : undefined;
+		state.fromNetwork && state.fromCoin ? state.fromCoin.networks : undefined;
 	const intersection =
 		recipientNetworks && coinNetworks
 			? coinNetworks.filter((net) =>
 					recipientNetworks.map((rnet) => rnet.value).includes(net.value)
 				)
 			: (recipientNetworks ?? coinNetworks ?? []);
-	if (getUsernameFromAuth(getAuth()()) === txDetails.toUsername) {
-		return intersection.filter((net) => net.value !== txDetails.fromNetwork?.value);
+	if (getUsernameFromAuth(getAuth()()) === state.toUsername) {
+		return intersection.filter((net) => net.value !== state.fromNetwork?.value);
 	} else {
 		return intersection;
 	}
@@ -748,12 +716,11 @@ export async function send(
 		let extraOps: Operation[] = [];
 		let opType: string | undefined;
 
-		const tx = get(SendTxDetails);
 		if (isSwap) {
 			setStatus('Waiting for Hive wallet approval…');
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
-			const fromAmountStr = tx.fromAmount && tx.fromAmount !== '0' ? tx.fromAmount : amount;
-			const minOut = tx.minAmountOut ? Number(tx.minAmountOut) : undefined;
+			const fromAmountStr = details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : amount;
+			const minOut = details.minAmountOut ? Number(details.minAmountOut) : undefined;
 			const fromCa = new CoinAmount(fromAmountStr, fromCoin.coin);
 			if (fromCoin.coin.value === Coin.btc.value) {
 				extraOps.push(
@@ -799,7 +766,7 @@ export async function send(
 			toCoin.coin.value === Coin.btc.value &&
 			toNetwork.value === Network.btcMainnet.value
 		) {
-			// BTC unmap — pass deduct_fee and max_fee from store
+			// BTC unmap — pass deduct_fee and max_fee from NecessarySendDetails
 			opType = 'withdrawal';
 			setStatus('Waiting for Hive wallet approval…');
 			const { getBitcoinUnmapOp: getUnmapOp } =
@@ -809,8 +776,8 @@ export async function send(
 				auth.value.did,
 				toUsername,
 				new CoinAmount(amount, toCoin.coin),
-				tx.btcDeductFee || undefined,
-				tx.btcMaxFee
+				details.btcDeductFee || undefined,
+				details.btcMaxFee
 			);
 		} else {
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);

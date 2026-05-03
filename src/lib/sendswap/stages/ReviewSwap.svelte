@@ -4,7 +4,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network, TransferMethod } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
-	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import { Dot, EqualApproximately, X } from '@lucide/svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -47,6 +47,9 @@
 		popup?: boolean;
 	} = $props();
 
+	const txState = useTxState();
+	const asSwap = $derived(txState.kind === 'swap' ? txState : null);
+
 	// Mark the review stage as "complete" (user can proceed) as soon as it
 	// becomes the active stage. The user clicking the forward button is then
 	// what triggers the actual broadcast.
@@ -83,21 +86,21 @@
 		}
 	});
 
-	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? Coin.unk);
-	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? Coin.unk);
+	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
+	let fromCoin = $derived(txState.fromCoin?.coin ?? Coin.unk);
 	let effectiveFromAmount = $derived(
-		$SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0'
-			? $SendTxDetails.fromAmount
-			: $SendTxDetails.enteredAmount
+		txState.fromAmount && txState.fromAmount !== '0'
+			? txState.fromAmount
+			: txState.enteredAmount
 	);
 	// Pool fees are now denominated in the OUTPUT asset: the full input
 	// enters the pool and fees are carved off the gross output. So the
 	// "amount in" the user commits is simply the gross entered amount.
 	let netSwapFromAmountCa = $derived(new CoinAmount(effectiveFromAmount, fromCoin));
 	let effectiveToAmount = $derived(
-		$SendTxDetails.toAmount && $SendTxDetails.toAmount !== '0'
-			? $SendTxDetails.toAmount
-			: $SendTxDetails.enteredAmount
+		txState.toAmount && txState.toAmount !== '0'
+			? txState.toAmount
+			: txState.enteredAmount
 	);
 	// When from/to coins differ, the enteredAmount fallback is in the wrong denomination.
 	// Compute the converted "to" amount reactively so it displays correctly.
@@ -109,18 +112,18 @@
 	// Min. row render higher than the To row.
 	let convertedToAmount = $state<CoinAmount<Coin> | undefined>();
 	$effect(() => {
-		const expectedRaw = $SendTxDetails.expectedOutput;
+		const expectedRaw = asSwap?.expectedOutput;
 		if (expectedRaw && expectedRaw !== '0') {
 			convertedToAmount = new CoinAmount(Number(expectedRaw), toCoin, true);
 			return;
 		}
-		const toAmt = $SendTxDetails.toAmount;
+		const toAmt = txState.toAmount;
 		if (toAmt && toAmt !== '0') {
 			convertedToAmount = new CoinAmount(toAmt, toCoin);
 			return;
 		}
 		// toAmount not yet available — convert from the entered amount
-		const entered = $SendTxDetails.enteredAmount;
+		const entered = txState.enteredAmount;
 		if (!entered || entered === '0' || fromCoin.value === toCoin.value) {
 			convertedToAmount = new CoinAmount(entered || '0', toCoin);
 			return;
@@ -128,7 +131,7 @@
 		// Different coins: convert fromCoin → toCoin
 		new CoinAmount(entered, fromCoin).convertTo(toCoin, Network.lightning).then((converted) => {
 			// Only use if toAmount still not set
-			const current = $SendTxDetails.toAmount;
+			const current = txState.toAmount;
 			if (!current || current === '0') {
 				convertedToAmount = converted;
 			}
@@ -195,8 +198,8 @@
 	// user sees what will be deducted from `expectedOutput` and `minAmountOut`.
 	let btcFeeEstimate = $state<BtcFeeEstimate | null>(null);
 	const isToBtcMainnet = $derived(
-		$SendTxDetails.toNetwork?.value === Network.btcMainnet.value &&
-			$SendTxDetails.toCoin?.coin.value === Coin.btc.value
+		txState.toNetwork?.value === Network.btcMainnet.value &&
+			txState.toCoin?.coin.value === Coin.btc.value
 	);
 	$effect(() => {
 		if (!isToBtcMainnet) {
@@ -228,18 +231,18 @@
 	let inUsd = $state<CoinAmount<Coin>>();
 	let feeInUsd = $state<CoinAmount<Coin>>();
 	let total = $derived(
-		!$SendTxDetails.fee
+		!txState.fee
 			? new CoinAmount(effectiveFromAmount, fromCoin)
-			: new CoinAmount(effectiveFromAmount, fromCoin).add($SendTxDetails.fee)
+			: new CoinAmount(effectiveFromAmount, fromCoin).add(txState.fee)
 	);
 	let fromInTo = $state<CoinAmount<Coin>>();
 	$effect(() => {
-		if (!$SendTxDetails.fromCoin || !$SendTxDetails.toCoin) return;
+		if (!txState.fromCoin || !txState.toCoin) return;
 
 		// Prefer the pool-math effective rate (expectedOutput / input)
 		// over the lightning off-chain reference rate. Fees are
 		// output-denominated, so the full entered amount goes into the pool.
-		const expectedRaw = $SendTxDetails.expectedOutput;
+		const expectedRaw = asSwap?.expectedOutput;
 		if (expectedRaw && expectedRaw !== '0') {
 			const expected = Number(expectedRaw);
 			const grossIn = new CoinAmount(effectiveFromAmount, fromCoin).amount;
@@ -250,15 +253,15 @@
 			}
 		}
 
-		new CoinAmount(1, $SendTxDetails.fromCoin.coin)
-			.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
+		new CoinAmount(1, txState.fromCoin.coin)
+			.convertTo(txState.toCoin.coin, Network.lightning)
 			.then((amt) => {
 				fromInTo = amt;
 			});
 	});
 	let isInstructions = $derived(
 		auth.value?.provider === 'reown' &&
-			$SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value
+			txState.fromNetwork?.value === Network.hiveMainnet.value
 	);
 	$effect(() => {
 		netSwapFromAmountCa.convertTo(Coin.usd, Network.lightning).then((amt) => {
@@ -266,7 +269,7 @@
 		});
 	});
 	$effect(() => {
-		$SendTxDetails.fee?.convertTo(Coin.usd, Network.lightning).then((amount) => {
+		txState.fee?.convertTo(Coin.usd, Network.lightning).then((amount) => {
 			feeInUsd = amount;
 		});
 	});
@@ -280,8 +283,8 @@
 			});
 	});
 	const alteraFeeApplies = $derived(
-		!!$SendTxDetails.toNetwork &&
-			$SendTxDetails.toNetwork.value !== Network.magi.value &&
+		!!txState.toNetwork &&
+			txState.toNetwork.value !== Network.magi.value &&
 			toCoin.value !== Coin.hive.value &&
 			toCoin.value !== Coin.hbd.value &&
 			!!grossInUsd &&
@@ -310,9 +313,9 @@
 	// asset, then sum — both amounts are what the user effectively pays.
 	let swapFeeInUsd = $state<CoinAmount<Coin>>();
 	$effect(() => {
-		const totalFeeRaw = $SendTxDetails.swapTotalFee;
-		const hop1 = $SendTxDetails.swapHop1Fee;
-		if (!totalFeeRaw || !$SendTxDetails.toCoin) {
+		const totalFeeRaw = asSwap?.swapTotalFee;
+		const hop1 = asSwap?.swapHop1Fee;
+		if (!totalFeeRaw || !txState.toCoin) {
 			swapFeeInUsd = undefined;
 			return;
 		}
@@ -347,8 +350,8 @@
 	// USD equivalent of the min-amount-out (after Altera fee deduction if applicable).
 	let minAmountInUsd = $state<CoinAmount<Coin>>();
 	$effect(() => {
-		const minRaw = $SendTxDetails.minAmountOut;
-		if (!minRaw || !$SendTxDetails.toCoin) { minAmountInUsd = undefined; return; }
+		const minRaw = asSwap?.minAmountOut;
+		if (!minRaw || !txState.toCoin) { minAmountInUsd = undefined; return; }
 		const minNet = alteraFeeApplies
 			? Math.floor((Number(minRaw) * (10000 - ALTERA_FEE_BPS)) / 10000)
 			: Number(minRaw);
@@ -358,20 +361,20 @@
 	});
 
 	// Whether this is a two-hop swap (determines fee label %).
-	const isTwoHopSwap = $derived(!!$SendTxDetails.swapHop1Fee);
+	const isTwoHopSwap = $derived(!!asSwap?.swapHop1Fee);
 
 	let today = moment().format('MMM D, YYYY');
 
 	const senderAddress = $derived(
 		auth.value ? (getUsernameFromAuth(auth) ?? auth.value.address ?? '') : ''
 	);
-	const receiverAddress = $derived($SendTxDetails.toUsername ?? '');
+	const receiverAddress = $derived(txState.toUsername ?? '');
 
 	const isBtcSwap = $derived(
 		fromCoin.value === Coin.btc.value || toCoin.value === Coin.btc.value
 	);
 	const settlementTime = $derived(
-		isBtcSwap ? 'About 10 minutes' : ($SendTxDetails.method?.length ?? '')
+		isBtcSwap ? 'About 10 minutes' : (txState.method?.length ?? '')
 	);
 
 	const exchangeFeePct = $derived(getAlteraFeePct(fromCoin.value, toCoin.value));
@@ -394,13 +397,13 @@
 				</svg>
 				<table>
 					<tbody>
-						{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+						{#if txState.fromCoin && txState.fromNetwork}
 							<tr>
 								<td class="icon">
-									<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork} size={32} />
+									<CoinNetworkIcon coin={fromCoin} network={txState.fromNetwork} size={32} />
 								</td>
 								<td class="sm-caption label"
-									>From {fromCoinDisplayLabel} on {$SendTxDetails.fromNetwork?.label}{senderAddress
+									>From {fromCoinDisplayLabel} on {txState.fromNetwork?.label}{senderAddress
 										? ` (${senderAddress})`
 										: ''}</td
 								>
@@ -420,8 +423,8 @@
 							<td class="icon"><Dot size="32" /></td>
 							<td class="sm-caption label">Fee</td>
 							<td class="content">
-								{#if $SendTxDetails.swapTotalFee && $SendTxDetails.toCoin}
-									{@const hop1 = $SendTxDetails.swapHop1Fee}
+								{#if asSwap?.swapTotalFee && txState.toCoin}
+									{@const hop1 = asSwap.swapHop1Fee}
 									{@const hop1Coin = hop1
 										? hop1.asset === Coin.hbd.value
 											? Coin.hbd
@@ -441,12 +444,12 @@
 											{/if}
 										</span>
 									</div>
-								{:else if $SendTxDetails.method?.value === TransferMethod.magiTransfer.value}
+								{:else if txState.method?.value === TransferMethod.magiTransfer.value}
 									No fee
-								{:else if !$SendTxDetails.fee || !feeInUsd}
+								{:else if !txState.fee || !feeInUsd}
 									<div class="fee-loading"><WaveLoading /></div>
 								{:else}
-									{prettyWithDisplayUnit($SendTxDetails.fee)}
+									{prettyWithDisplayUnit(txState.fee)}
 									<EqualApproximately size={16} />
 									{feeInUsd.toPrettyString()}
 								{/if}
@@ -461,7 +464,7 @@
 								</td>
 							</tr>
 						{/if}
-						{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+						{#if txState.toCoin && txState.toNetwork}
 							{@const rawTo = convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)}
 							{@const netToAmount = Math.max(0, rawTo.amount - (alteraFeeAmount?.amount ?? 0))}
 							{#if isToBtcMainnet && btcFeeEstimate}
@@ -493,10 +496,10 @@
 							{/if}
 							<tr>
 								<td class="icon">
-									<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork} size={32} />
+									<CoinNetworkIcon coin={toCoin} network={txState.toNetwork} size={32} />
 								</td>
 								<td class="sm-caption label"
-									>To {toCoinDisplayLabel} on {$SendTxDetails.toNetwork?.label}{receiverAddress
+									>To {toCoinDisplayLabel} on {txState.toNetwork?.label}{receiverAddress
 										? ` (${receiverAddress})`
 										: ''}</td
 								>
@@ -523,17 +526,17 @@
 									{/if}
 								</td>
 							</tr>
-							{#if $SendTxDetails.slippageBps != null}
+							{#if asSwap?.slippageBps != null}
 								<tr>
 									<td class="icon"><Dot size="32" /></td>
 									<td class="sm-caption label">Min amount received</td>
 									<td class="content">
-										{#if $SendTxDetails.minAmountOut && $SendTxDetails.toCoin}
+										{#if asSwap.minAmountOut && txState.toCoin}
 											{@const minRaw = alteraFeeApplies
 												? Math.floor(
-														(Number($SendTxDetails.minAmountOut) * (10000 - ALTERA_FEE_BPS)) / 10000
+														(Number(asSwap.minAmountOut) * (10000 - ALTERA_FEE_BPS)) / 10000
 													)
-												: Number($SendTxDetails.minAmountOut)}
+												: Number(asSwap.minAmountOut)}
 											{#if btcFeeEstimate}
 												~{prettyRangeWithDisplayUnit(
 													new CoinAmount(
@@ -571,12 +574,6 @@
 					<span class="sm-caption label">Initiated On</span>
 					<span class="content">{today}</span>
 				</li>
-				{#if $SendTxDetails.memo}
-					<li class="side-by-side memo">
-						<span class="sm-caption label">Memo</span>
-						<span class="content">{$SendTxDetails.memo}</span>
-					</li>
-				{/if}
 			</ul>
 		</Card>
 	</div>
@@ -642,12 +639,6 @@
 	tbody,
 	tr {
 		width: calc(100% - 1rem);
-	}
-	.memo {
-		width: calc(100% - 1rem);
-		margin: 0 0.5rem;
-		padding: 1rem 0;
-		border-bottom: 1px solid var(--dash-card-border);
 	}
 	tr {
 		display: grid;

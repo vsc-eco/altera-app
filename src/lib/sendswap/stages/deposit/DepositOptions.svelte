@@ -3,7 +3,8 @@
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
-	import { scanForBalance, SendTxDetails } from '../../utils/sendUtils';
+	import { scanForBalance } from '../../utils/sendUtils';
+	import { useDepositState } from '../../utils/txState.svelte';
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
 	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
 	import LightningDeposit from './LightningDeposit.svelte';
@@ -22,6 +23,8 @@
 		onHomePage: boolean;
 		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
 	} = $props();
+
+	const txState = useDepositState();
 
 	const auth = $derived(getAuth()());
 
@@ -43,46 +46,40 @@
 		bitcoinMainnetOpen = open;
 	};
 
-	// using .update() here because it doesn't cause multiple state updates to change multiple values
 	$effect(() => {
 		if (!lightningOpen) return;
 		untrack(() => {
 			toggleHiveMainnet(false);
-			SendTxDetails.update((current) => {
-				const btcCoin = swapOptions.from.coins.find(
-					(coinOpt) => coinOpt.coin.value === Coin.btc.value
-				);
-				const shouldPreserveFromCoin =
-					current.fromCoin &&
-					current.fromCoin.networks?.some((n) => n.value === Network.lightning.value);
+			const btcCoin = swapOptions.from.coins.find(
+				(coinOpt) => coinOpt.coin.value === Coin.btc.value
+			);
+			const shouldPreserveFromCoin =
+				txState.fromCoin &&
+				txState.fromCoin.networks?.some((n) => n.value === Network.lightning.value);
 
-				const hiveCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
-				const hbdCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hbd.value);
+			const hiveCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
+			const hbdCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hbd.value);
 
-				let toCoinToUse = hiveCoin; // default
-				if (
-					current.toCoin &&
-					(current.toCoin.coin.value === Coin.hive.value ||
-						current.toCoin.coin.value === Coin.hbd.value)
-				) {
-					toCoinToUse = current.toCoin;
-				} else if (
-					current.fromCoin &&
-					(current.fromCoin.coin.value === Coin.hive.value ||
-						current.fromCoin.coin.value === Coin.hbd.value)
-				) {
-					toCoinToUse = current.fromCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
-				}
+			let toCoinToUse = hiveCoin; // default
+			if (
+				txState.toCoin &&
+				(txState.toCoin.coin.value === Coin.hive.value ||
+					txState.toCoin.coin.value === Coin.hbd.value)
+			) {
+				toCoinToUse = txState.toCoin;
+			} else if (
+				txState.fromCoin &&
+				(txState.fromCoin.coin.value === Coin.hive.value ||
+					txState.fromCoin.coin.value === Coin.hbd.value)
+			) {
+				toCoinToUse = txState.fromCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
+			}
 
-				return {
-					...current,
-					method: TransferMethod.lightningTransfer,
-					fromNetwork: Network.lightning,
-					fromCoin: shouldPreserveFromCoin ? current.fromCoin : btcCoin,
-					toNetwork: Network.magi,
-					toCoin: toCoinToUse
-				};
-			});
+			txState.method = TransferMethod.lightningTransfer;
+			txState.fromNetwork = Network.lightning;
+			txState.fromCoin = shouldPreserveFromCoin ? txState.fromCoin : btcCoin;
+			txState.toNetwork = Network.magi;
+			txState.toCoin = toCoinToUse;
 		});
 	});
 
@@ -90,50 +87,45 @@
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
 			toggleLightning(false);
-			SendTxDetails.update((current) => {
-				const hiveCoin =
-					swapOptions.from.coins.find(
-						(coinOpt) =>
-							coinOpt.coin.value === Coin.hive.value &&
-							coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
-					) ||
-					swapOptions.from.coins.find(
-						(coinOpt) =>
-							coinOpt.coin.value === Coin.hbd.value &&
-							coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
-					);
-				const hbdCoin = swapOptions.from.coins.find(
+			const hiveCoin =
+				swapOptions.from.coins.find(
+					(coinOpt) =>
+						coinOpt.coin.value === Coin.hive.value &&
+						coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
+				) ||
+				swapOptions.from.coins.find(
 					(coinOpt) =>
 						coinOpt.coin.value === Coin.hbd.value &&
 						coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
 				);
+			const hbdCoin = swapOptions.from.coins.find(
+				(coinOpt) =>
+					coinOpt.coin.value === Coin.hbd.value &&
+					coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
+			);
 
-				// For Hive Mainnet deposit, default to HIVE (or HBD) without
-				// requiring a Magi balance — user deposits precisely because
-				// their Magi balance may be 0.
-				let fromCoinToUse = hiveCoin;
-				if (
-					current.fromCoin &&
-					current.fromCoin.networks?.some((n) => n.value === Network.hiveMainnet.value)
-				) {
-					fromCoinToUse = current.fromCoin;
-				} else if (
-					current.toCoin &&
-					(current.toCoin.coin.value === Coin.hive.value ||
-						current.toCoin.coin.value === Coin.hbd.value)
-				) {
-					fromCoinToUse = current.toCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
-				}
+			// For Hive Mainnet deposit, default to HIVE (or HBD) without
+			// requiring a Magi balance — user deposits precisely because
+			// their Magi balance may be 0.
+			let fromCoinToUse = hiveCoin;
+			if (
+				txState.fromCoin &&
+				txState.fromCoin.networks?.some((n) => n.value === Network.hiveMainnet.value)
+			) {
+				fromCoinToUse = txState.fromCoin;
+			} else if (
+				txState.toCoin &&
+				(txState.toCoin.coin.value === Coin.hive.value ||
+					txState.toCoin.coin.value === Coin.hbd.value)
+			) {
+				fromCoinToUse = txState.toCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
+			}
 
-				return {
-					...current,
-					method: TransferMethod.magiTransfer,
-					fromNetwork: Network.hiveMainnet,
-					toNetwork: Network.magi,
-					fromCoin: fromCoinToUse,
-					toCoin: fromCoinToUse
-				};
-			});
+			txState.method = TransferMethod.magiTransfer;
+			txState.fromNetwork = Network.hiveMainnet;
+			txState.toNetwork = Network.magi;
+			txState.fromCoin = fromCoinToUse;
+			txState.toCoin = fromCoinToUse;
 		});
 	});
 

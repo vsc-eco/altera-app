@@ -256,34 +256,6 @@ export type CoinOptions = {
 	}[];
 };
 
-export type SendDetails = {
-	fromCoin: CoinOptions['coins'][number] | undefined;
-	fromNetwork: Network | undefined;
-	fromAmount: string;
-	enteredAmount: string;
-	toCoin: CoinOptions['coins'][number] | undefined;
-	toNetwork: Network | undefined;
-	toAmount: string;
-	toUsername: string;
-	fee: CoinAmount<Coin> | undefined;
-	method: TransferMethod | undefined;
-	account: SendAccount | undefined;
-	toDisplayName: string;
-	memo: string;
-	// Swap-specific fields
-	expectedOutput: string | undefined;
-	slippageBps: number | undefined;
-	minAmountOut: string | undefined;
-	swapBaseFee: string | undefined;
-	swapClpFee: string | undefined;
-	swapTotalFee: string | undefined;
-	// Set on two-hop swaps: hop1's fee in the intermediate asset.
-	swapHop1Fee: { asset: string; totalFee: string } | undefined;
-	// BTC unmap fields
-	btcDeductFee: boolean;
-	btcMaxFee: number | undefined;
-};
-
 export type NecessarySendDetails = {
 	fromCoin: CoinOptions['coins'][number];
 	fromNetwork: Network;
@@ -292,6 +264,14 @@ export type NecessarySendDetails = {
 	toNetwork: Network;
 	toUsername: string;
 	memo?: string;
+	/** Raw from-asset amount string used for swap ops (pre-fee input). */
+	fromAmount?: string;
+	/** Pool slippage minimum-out (swap flows only). */
+	minAmountOut?: string;
+	/** Whether to deduct the BTC network fee from the output (unmap flows only). */
+	btcDeductFee?: boolean;
+	/** Sat cap on the BTC network fee (unmap flows only). */
+	btcMaxFee?: number;
 };
 
 export type TransferMethod = {

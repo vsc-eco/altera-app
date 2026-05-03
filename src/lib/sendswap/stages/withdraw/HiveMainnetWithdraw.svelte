@@ -9,11 +9,11 @@
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import type { Contact } from '$lib/sendswap/contacts/contacts';
 	import swapOptions, { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
-	import { SendTxDetails, validateAddress } from '$lib/sendswap/utils/sendUtils';
+	import { validateAddress } from '$lib/sendswap/utils/sendUtils';
+	import { useWithdrawState } from '$lib/sendswap/utils/txState.svelte';
 	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
 	import Divider from '$lib/components/Divider.svelte';
-	import { get } from 'svelte/store';
 
 	let {
 		editStage,
@@ -21,12 +21,13 @@
 		secondaryMenu = $bindable(false)
 	}: { editStage: (complete: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
 
+	const txState = useWithdrawState();
 	const auth = $derived(getAuth()());
 
 	let coinAmount = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
-	// For EVM accounts, always start with empty string. For Hive accounts, use SendTxDetails.toUsername
+	// For EVM accounts, always start with empty string. For Hive accounts, use txState.toUsername
 	let hiveAccount = $state('');
 	let hiveAccountError = $state<string | undefined>(undefined);
 	let isHiveAccountValid = $state(false);
@@ -34,7 +35,7 @@
 	let contactOpen = $state(false);
 	let openToCreate = $state(false);
 	let createNew: string | undefined = $derived(
-		!contact && $SendTxDetails.toUsername ? $SendTxDetails.toUsername : undefined
+		!contact && txState.toUsername ? txState.toUsername : undefined
 	);
 	const toggleContact = (open = false) => {
 		contactOpen = open;
@@ -45,28 +46,14 @@
 	}
 
 	function setToUsername(nextValue: string) {
-		SendTxDetails.update((details) => {
-			if (details.toUsername === nextValue) return details;
-			return { ...details, toUsername: nextValue };
-		});
+		if (txState.toUsername !== nextValue) txState.toUsername = nextValue;
 	}
 	function syncAmountFromInput(nextAmount: CoinAmount<Coin>) {
 		if (!open) return;
 		const amt = nextAmount.toAmountString();
-		SendTxDetails.update((details) => {
-			if (
-				details.toAmount === amt &&
-				details.fromAmount === amt &&
-				details.enteredAmount === amt
-			)
-				return details;
-			return {
-				...details,
-				toAmount: amt,
-				fromAmount: amt,
-				enteredAmount: amt
-			};
-		});
+		if (txState.toAmount !== amt) txState.toAmount = amt;
+		if (txState.fromAmount !== amt) txState.fromAmount = amt;
+		if (txState.enteredAmount !== amt) txState.enteredAmount = amt;
 	}
 
 	let previousOpen: boolean | undefined;
@@ -84,12 +71,12 @@
 		previousOpen = open;
 		previousProvider = provider;
 
-		const currentUsername = get(SendTxDetails).toUsername || '';
+		const currentUsername = txState.toUsername || '';
 
 		if (open) {
 			if (auth.value?.provider === 'aioha') {
-				// For Hive accounts, use SendTxDetails.toUsername if available
-				hiveAccount = $SendTxDetails.toUsername || '';
+				// For Hive accounts, use txState.toUsername if available
+				hiveAccount = txState.toUsername || '';
 			} else {
 				const shouldReset =
 					!currentUsername || (currentUsername.length === 42 && currentUsername.startsWith('0x'));
@@ -101,7 +88,7 @@
 		} else {
 			// Reset when component closes
 			if (auth.value?.provider === 'aioha') {
-				hiveAccount = $SendTxDetails.toUsername || '';
+				hiveAccount = txState.toUsername || '';
 			} else {
 				hiveAccount = '';
 				setToUsername('');
@@ -109,10 +96,10 @@
 		}
 	});
 
-	// Keep local hiveAccount in sync with SendTxDetails (covers SelectContact updates)
+	// Keep local hiveAccount in sync with txState (covers SelectContact updates)
 	$effect(() => {
 		if (!open) return;
-		const current = ($SendTxDetails.toUsername ?? '').trim();
+		const current = (txState.toUsername ?? '').trim();
 		if (current === lastSyncedUsername) return;
 		lastSyncedUsername = current;
 		if (hiveAccount !== current) {
@@ -120,7 +107,7 @@
 		}
 	});
 
-	// Push local hiveAccount changes back into SendTxDetails
+	// Push local hiveAccount changes back into txState
 	$effect(() => {
 		if (!open) return;
 		const trimmed = hiveAccount.trim();
@@ -129,29 +116,31 @@
 		setToUsername(trimmed);
 	});
 
-	// Sync coinAmount → store. Uses local guard to avoid reading store reactively.
+	// Sync coinAmount → state. Uses local guard to avoid reading state reactively.
 	let lastSyncedAmt = '';
 	$effect(() => {
 		if (!open) return;
 		const amt = coinAmount.toAmountString();
 		if (amt === lastSyncedAmt) return;
 		lastSyncedAmt = amt;
-		SendTxDetails.update((d) => ({ ...d, fromAmount: amt, toAmount: amt, enteredAmount: amt }));
+		txState.fromAmount = amt;
+		txState.toAmount = amt;
+		txState.enteredAmount = amt;
 	});
 
 	let max = $state(new CoinAmount(0, Coin.hive));
 
 	// Update max when fromCoin changes for magi network
 	$effect(() => {
-		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
-		if ($SendTxDetails.fromNetwork.value !== Network.magi.value) return;
+		if (!open || !txState.fromCoin || !txState.fromNetwork) return;
+		if (txState.fromNetwork.value !== Network.magi.value) return;
 
-		const coinValue = $SendTxDetails.fromCoin.coin.value;
+		const coinValue = txState.fromCoin.coin.value;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
 			max = getBalanceAmount(
 				$accountBalance,
-				$SendTxDetails.fromCoin.coin,
-				$SendTxDetails.fromNetwork
+				txState.fromCoin.coin,
+				txState.fromNetwork
 			);
 		}
 	});
@@ -192,9 +181,8 @@
 				isHiveAccountValid = true;
 				hiveAccountError = undefined;
 				setToUsername(rawAccount);
-				if (result.displayName) {
-					$SendTxDetails.toDisplayName = result.displayName;
-				}
+				// toDisplayName not available on WithdrawTxState; skip write
+				// if (result.displayName) { txState.toDisplayName = result.displayName; }
 			} else {
 				isHiveAccountValid = false;
 				hiveAccountError = result.error;
@@ -205,9 +193,9 @@
 	$effect(() => {
 		if (!open) return;
 		const baseValidation = !!(
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromNetwork &&
+			txState.fromCoin &&
+			txState.toCoin &&
+			txState.fromNetwork &&
 			coinAmount.amount > 0 &&
 			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
 		);
@@ -217,14 +205,14 @@
 			editStage(baseValidation);
 		} else {
 			// For EVM accounts, also require valid Hive account
-			editStage(baseValidation && isHiveAccountValid && !!$SendTxDetails.toUsername);
+			editStage(baseValidation && isHiveAccountValid && !!txState.toUsername);
 		}
 	});
 
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
 	const coinOptions: CoinOnNetwork[] = $derived(
-		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
-			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+		txState.fromCoin && txState.fromNetwork
+			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
 			: [unkOpt]
 	);
 
@@ -233,9 +221,8 @@
 		assetOpen = open;
 		// When closing asset picker, sync toCoin to match the newly selected fromCoin
 		if (!open) {
-			const store = get(SendTxDetails);
-			if (store.fromCoin && store.toCoin?.coin?.value !== store.fromCoin?.coin?.value) {
-				SendTxDetails.update((d) => ({ ...d, toCoin: d.fromCoin }));
+			if (txState.fromCoin && txState.toCoin?.coin?.value !== txState.fromCoin?.coin?.value) {
+				txState.toCoin = txState.fromCoin;
 			}
 		}
 	}
@@ -253,8 +240,8 @@
 	<SelectAssetFlattened
 		availableCoins={[Coin.hive, Coin.hbd]}
 		close={toggleAsset}
-		bind:coin={$SendTxDetails.fromCoin}
-		bind:network={$SendTxDetails.fromNetwork}
+		bind:coin={txState.fromCoin}
+		bind:network={txState.fromNetwork}
 		bind:max
 	/>
 {:else}
@@ -278,10 +265,10 @@
 				<label for="asset-card">Withdraw From</label>
 				<ClickableCard onclick={() => toggleAsset(true)}>
 					<div class="asset-card">
-						{#if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+						{#if txState.fromCoin && txState.fromNetwork}
 							<BalanceInfo
-								coin={$SendTxDetails.fromCoin.coin}
-								network={$SendTxDetails.fromNetwork}
+								coin={txState.fromCoin.coin}
+								network={txState.fromNetwork}
 								size="large"
 								styleType="vertical"
 							/>
@@ -302,7 +289,7 @@
 						<AmountInput
 							bind:coinAmount
 							coinOpts={coinOptions}
-							expressIn={$SendTxDetails.fromCoin?.coin}
+							expressIn={txState.fromCoin?.coin}
 							maxAmount={max}
 							onAmountChange={syncAmountFromInput}
 							bind:id={inputId}

@@ -8,11 +8,11 @@
 		getLastPaidContact,
 		getLastPaidNetwork,
 		getRecipientNetworks,
-		SendTxDetails,
 		getFee,
 		solveToNetworks,
 		type NetworkOptionParam
 	} from '../utils/sendUtils';
+	import { useTransferState } from '../utils/txState.svelte';
 	import swapOptions, {
 		Coin,
 		Network,
@@ -54,6 +54,7 @@
 		editStage: (add: boolean) => void;
 	} = $props();
 
+	const txState = useTransferState();
 	const auth = $derived(getAuth()());
 
 	$effect(() => {
@@ -91,12 +92,12 @@
 
 	$effect(() => {
 		if (
-			$SendTxDetails.toUsername &&
-			$SendTxDetails.toNetwork &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.fromNetwork &&
-			$SendTxDetails.toAmount &&
+			txState.toUsername &&
+			txState.toNetwork &&
+			txState.toCoin &&
+			txState.fromCoin &&
+			txState.fromNetwork &&
+			txState.toAmount &&
 			inputAmt.amount > 0 &&
 			inputAmt.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER) &&
 			!toSelf
@@ -106,7 +107,7 @@
 			editStage(false);
 		}
 	});
-	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
+	const toDid = $derived(getDidFromUsername(txState.toUsername));
 
 	let lastPaid = $state('Never');
 	let lastNetwork = $state('Never');
@@ -114,7 +115,7 @@
 		if (!auth.value) return;
 		Promise.all([
 			getLastPaidContact(toDid),
-			getLastPaidNetwork($SendTxDetails.toNetwork?.value)
+			getLastPaidNetwork(txState.toNetwork?.value)
 		]).then(([paid, net]) => {
 			lastPaid = momentToLastPaidString(paid);
 			lastNetwork = momentToLastPaidString(net);
@@ -122,10 +123,10 @@
 	});
 
 	$effect(() => {
-		const newNetwork = $SendTxDetails.toNetwork;
-		const userNetworks = getRecipientNetworks(getDidFromUsername($SendTxDetails.toUsername));
+		const newNetwork = txState.toNetwork;
+		const userNetworks = getRecipientNetworks(getDidFromUsername(txState.toUsername));
 		if (userNetworks.find((net) => net.value === newNetwork?.value)?.disabled) {
-			$SendTxDetails.toNetwork = Network.magi;
+			txState.toNetwork = Network.magi;
 		}
 	});
 
@@ -138,7 +139,7 @@
 	let toggleContact = $state<(open?: boolean) => void>(() => {});
 	let contact = $state<Contact>();
 	let createNew: string | undefined = $derived(
-		!contact && $SendTxDetails.toUsername ? $SendTxDetails.toUsername : undefined
+		!contact && txState.toUsername ? txState.toUsername : undefined
 	);
 	let openToCreate = $state(false);
 
@@ -147,20 +148,20 @@
 		swapOptions.from.coins.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: $SendTxDetails.toNetwork, size: 'medium' }
+			snippetData: { fromOpt: opt, net: txState.toNetwork, size: 'medium' }
 		}))
 	);
 
 	let isSwap = $derived(
-		$SendTxDetails.fromCoin &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.fromCoin?.coin.value !== $SendTxDetails.toCoin?.coin.value
+		txState.fromCoin &&
+			txState.toCoin &&
+			txState.fromCoin?.coin.value !== txState.toCoin?.coin.value
 	);
 
 	// default to USD
 	$effect(() => {
-		if (isSwap && !$SendTxDetails.toCoin) {
-			$SendTxDetails.toCoin = {
+		if (isSwap && !txState.toCoin) {
+			txState.toCoin = {
 				coin: coins.usd,
 				networks: []
 			};
@@ -172,17 +173,17 @@
 	let max: CoinAmount<Coin> | undefined = $state();
 
 	$effect(() => {
-		if ($SendTxDetails.fromAmount !== inputAmt.toAmountString()) {
-			$SendTxDetails.fromAmount = inputAmt.toAmountString();
+		if (txState.fromAmount !== inputAmt.toAmountString()) {
+			txState.fromAmount = inputAmt.toAmountString();
 		}
-		if ($SendTxDetails.toAmount !== inputAmt.toAmountString()) {
-			$SendTxDetails.toAmount = inputAmt.toAmountString();
+		if (txState.toAmount !== inputAmt.toAmountString()) {
+			txState.toAmount = inputAmt.toAmountString();
 		}
 	});
 
 	let toSelf = $derived(
-		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
-			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
+		txState.toUsername === getUsernameFromAuth(auth) &&
+			txState.fromNetwork?.value === txState.toNetwork?.value
 	);
 
 	let assetOpen = $state(false);
@@ -193,32 +194,33 @@
 	let toNetworkOptions: NetworkOptionParam[] = $state([]);
 	let transferError = $state('');
 	function getDisabledReason() {
-		if ($SendTxDetails.toUsername === getUsernameFromAuth(auth)) {
+		if (txState.toUsername === getUsernameFromAuth(auth)) {
 			return 'Cannot send funds to yourself on the same network.';
 		}
-		if (getDidFromUsername($SendTxDetails.toUsername).startsWith('did:pkh:eip155:1:')) {
+		if (getDidFromUsername(txState.toUsername).startsWith('did:pkh:eip155:1:')) {
 			return 'EVM accounts may only receive funds on Magi.';
 		}
-		if ($SendTxDetails.fromCoin?.coin.value === Coin.shbd.value) {
+		if (txState.fromCoin?.coin.value === Coin.shbd.value) {
 			return 'Cannot transfer sHBD to external networks.';
 		}
 		return 'This option is not available given your parameters.';
 	}
 	$effect(() => {
-		$SendTxDetails;
+		// read reactive fields to track changes
+		txState.toUsername; txState.fromCoin; txState.fromNetwork; txState.toCoin;
 		untrack(() => {
-			const newOptions = solveToNetworks();
+			const newOptions = solveToNetworks(txState);
 			const oldSet = new Set(toNetworkOptions.map((net) => net.value));
 			const newSet = new Set(newOptions.map((net) => net.value));
 			if (
 				newOptions.length === 0 &&
-				$SendTxDetails.toUsername &&
-				$SendTxDetails.fromCoin &&
-				$SendTxDetails.fromNetwork
+				txState.toUsername &&
+				txState.fromCoin &&
+				txState.fromNetwork
 			) {
-				transferError = `Cannot transfer ${$SendTxDetails.fromCoin.coin.label} 
-					from ${$SendTxDetails.fromNetwork.label} 
-					to ${$SendTxDetails.toDisplayName}.`;
+				transferError = `Cannot transfer ${txState.fromCoin.coin.label} 
+					from ${txState.fromNetwork.label} 
+					to ${txState.toDisplayName}.`;
 			} else {
 				transferError = '';
 			}
@@ -243,15 +245,15 @@
 				currentType === 'internal'
 					? Network.magi
 					: toNetworkOptions.find((net) => net.value !== Network.magi.value);
-			if (network?.value === $SendTxDetails.toNetwork?.value) return;
-			$SendTxDetails.toNetwork = network;
+			if (network?.value === txState.toNetwork?.value) return;
+			txState.toNetwork = network;
 		});
 	});
 	$effect(() => {
-		$SendTxDetails.fromCoin;
+		txState.fromCoin;
 		untrack(() => {
-			if ($SendTxDetails.toCoin?.coin.value !== $SendTxDetails.fromCoin?.coin.value) {
-				$SendTxDetails.toCoin = $SendTxDetails.fromCoin;
+			if (txState.toCoin?.coin.value !== txState.fromCoin?.coin.value) {
+				txState.toCoin = txState.fromCoin;
 			}
 		});
 	});
@@ -278,7 +280,7 @@
 						| 'external',
 					label: `${net.value === Network.magi.value ? 'Internal' : 'External'} Transfer`,
 					to: net,
-					from: $SendTxDetails.fromNetwork,
+					from: txState.fromNetwork,
 					snippet: transferBar
 				}))
 				.sort((a, b) => (a.value === b.value ? 0 : a.value === 'internal' ? -1 : 1));
@@ -297,8 +299,8 @@
 	// BTC network-fee estimate (only relevant when the transfer settles out
 	// to BTC mainnet). Matches the math the VSC contract uses at unmap time.
 	const isToBtcMainnet = $derived(
-		$SendTxDetails.fromCoin?.coin.value === Coin.btc.value &&
-			$SendTxDetails.toNetwork?.value === Network.btcMainnet.value
+		txState.fromCoin?.coin.value === Coin.btc.value &&
+			txState.toNetwork?.value === Network.btcMainnet.value
 	);
 	let btcFeeEstimate = $state<BtcFeeEstimate | null>(null);
 	$effect(() => {
@@ -325,8 +327,8 @@
 	let inputId = $state('');
 
 	const coinOpts: CoinOnNetwork[] = $derived(
-		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
-			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+		txState.fromCoin && txState.fromNetwork
+			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
 			: [{ coin: Coin.unk, network: Network.unknown }]
 	);
 
@@ -352,8 +354,8 @@
 		if (balanceCount === 0) return;
 
 		const currentCoinHasBalance =
-			$SendTxDetails.fromCoin &&
-			coinsWithBalance.some((item) => item.coin.value === $SendTxDetails.fromCoin?.coin.value);
+			txState.fromCoin &&
+			coinsWithBalance.some((item) => item.coin.value === txState.fromCoin?.coin.value);
 
 		if (currentCoinHasBalance) return;
 
@@ -361,10 +363,10 @@
 		const coinToSelect = hiveCoin || coinsWithBalance[0];
 
 		if (coinToSelect) {
-			$SendTxDetails.fromCoin = coinToSelect.coinOpt;
-			$SendTxDetails.fromNetwork = Network.magi;
-			$SendTxDetails.toCoin = coinToSelect.coinOpt;
-			$SendTxDetails.toNetwork = Network.magi;
+			txState.fromCoin = coinToSelect.coinOpt;
+			txState.fromNetwork = Network.magi;
+			txState.toCoin = coinToSelect.coinOpt;
+			txState.toNetwork = Network.magi;
 		}
 	});
 </script>
@@ -377,7 +379,7 @@
 <div class="sections">
 	<div class="contact-search">
 		<RecipientCard edit={openContact} {contact} />
-		<ContactSearchBox bind:value={$SendTxDetails.toUsername} bind:selectedContact={contact} />
+		<ContactSearchBox bind:value={txState.toUsername} bind:selectedContact={contact} />
 	</div>
 	<Divider text="Amount" />
 	<ClickableCard onclick={() => toggleAsset(true)}>
@@ -387,14 +389,14 @@
 				<div class="error">
 					No balance found on your account. Please make a deposit to get started.
 				</div>
-			{:else if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+			{:else if txState.fromCoin && txState.fromNetwork}
 				<BalanceInfo
-					coin={$SendTxDetails.fromCoin.coin}
-					network={$SendTxDetails.fromNetwork}
+					coin={txState.fromCoin.coin}
+					network={txState.fromNetwork}
 					size="large"
 					styleType="vertical"
 				/>
-				<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
+				<!-- <AssetInfo coinOpt={txState.fromCoin} size="medium" /> -->
 			{:else}
 				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 				Select Asset
@@ -408,7 +410,7 @@
 			<AmountInput
 				bind:coinAmount={inputAmt}
 				{coinOpts}
-				expressIn={$SendTxDetails.fromCoin?.coin}
+				expressIn={txState.fromCoin?.coin}
 				maxAmount={max}
 				bind:id={inputId}
 			/>
@@ -420,7 +422,7 @@
 					networks: []
 				}}
 				network={undefined}
-				connectedCoinAmount={new CoinAmount(fromAmount, $SendTxDetails.fromCoin?.coin ?? Coin.unk)}
+				connectedCoinAmount={new CoinAmount(fromAmount, txState.fromCoin?.coin ?? Coin.unk)}
 			/> -->
 		</div>
 	</div>
@@ -439,12 +441,11 @@
 	{#if isToBtcMainnet}
 		<div class="btc-unmap-options">
 			<label class="deduct-fee-row">
-				<input
-					type="checkbox"
-					bind:checked={$SendTxDetails.btcDeductFee}
-				/>
+				<input type="checkbox" bind:checked={txState.btcDeductFee} />
 				<span class="deduct-fee-label">Deduct fee from amount</span>
-				<span class="deduct-fee-hint">Fee is subtracted from your withdrawal instead of added on top</span>
+				<span class="deduct-fee-hint"
+					>Fee is subtracted from your withdrawal instead of added on top</span
+				>
 			</label>
 			<div class="fee-row">
 				<div class="fee-field">
@@ -463,10 +464,10 @@
 					<input
 						type="number"
 						placeholder="No limit"
-						value={$SendTxDetails.btcMaxFee ?? ''}
+						value={txState.btcMaxFee ?? ''}
 						onchange={(e) => {
-							const val = parseInt(e.currentTarget.value);
-							$SendTxDetails.btcMaxFee = isNaN(val) ? undefined : val;
+							const val = parseInt(e.currentTarget.value)
+							txState.btcMaxFee = isNaN(val) ? undefined : val
 						}}
 					/>
 					<span class="fee-hint">Transaction reverts if total fee exceeds this amount</span>
@@ -482,7 +483,7 @@
 			bind:value={memo}
 			maxlength="300"
 			onchange={() => {
-				$SendTxDetails.memo = memo;
+				txState.memo = memo;
 			}}
 		/>
 		<span>Custom message to the recipient.</span>
@@ -504,8 +505,8 @@
 		<SelectAssetFlattened
 			availableCoins={fromAssetObjs}
 			close={toggleAsset}
-			bind:coin={$SendTxDetails.fromCoin}
-			bind:network={$SendTxDetails.fromNetwork}
+			bind:coin={txState.fromCoin}
+			bind:network={txState.fromNetwork}
 			bind:max
 			externalNetwork={Network.hiveMainnet}
 		/>

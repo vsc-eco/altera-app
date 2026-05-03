@@ -3,7 +3,8 @@
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
-	import { scanForBalance, SendTxDetails } from '../../utils/sendUtils';
+	import { scanForBalance } from '../../utils/sendUtils';
+	import { useWithdrawState } from '../../utils/txState.svelte';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
 	import BitcoinMainnetWithdraw from './BitcoinMainnetWithdraw.svelte';
 	import { untrack, type ComponentProps } from 'svelte';
@@ -22,6 +23,8 @@
 		customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined;
 	} = $props();
 
+	const txState = useWithdrawState();
+
 	let hiveMainnetOpen = $state(false);
 	let btcMainnetOpen = $state(false);
 	let secondaryMenu = $state(false);
@@ -36,71 +39,61 @@
 	$effect(() => {
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
-			SendTxDetails.update((current) => {
-				const hiveCoin =
-					swapOptions.from.coins.find(
-						(coinOpt) =>
-							coinOpt.coin.value === Coin.hive.value &&
-							coinOpt.networks.some((n) => n.value === Network.magi.value)
-					) ||
-					swapOptions.from.coins.find(
-						(coinOpt) =>
-							coinOpt.coin.value === Coin.hbd.value &&
-							coinOpt.networks.some((n) => n.value === Network.magi.value)
-					);
-				const hbdCoin = swapOptions.from.coins.find(
+			const hiveCoin =
+				swapOptions.from.coins.find(
+					(coinOpt) =>
+						coinOpt.coin.value === Coin.hive.value &&
+						coinOpt.networks.some((n) => n.value === Network.magi.value)
+				) ||
+				swapOptions.from.coins.find(
 					(coinOpt) =>
 						coinOpt.coin.value === Coin.hbd.value &&
 						coinOpt.networks.some((n) => n.value === Network.magi.value)
 				);
+			const hbdCoin = swapOptions.from.coins.find(
+				(coinOpt) =>
+					coinOpt.coin.value === Coin.hbd.value &&
+					coinOpt.networks.some((n) => n.value === Network.magi.value)
+			);
 
-				const hiveHasBalance = !!(
-					hiveCoin && scanForBalance([{ coin: hiveCoin.coin, network: Network.magi }]) !== undefined
-				);
-				const hbdHasBalance = !!(
-					hbdCoin && scanForBalance([{ coin: hbdCoin.coin, network: Network.magi }]) !== undefined
-				);
+			const hiveHasBalance = !!(
+				hiveCoin && scanForBalance([{ coin: hiveCoin.coin, network: Network.magi }]) !== undefined
+			);
+			const hbdHasBalance = !!(
+				hbdCoin && scanForBalance([{ coin: hbdCoin.coin, network: Network.magi }]) !== undefined
+			);
 
-				let fromCoinToUse = hiveHasBalance ? hiveCoin : hbdHasBalance ? hbdCoin : hiveCoin;
-				if (
-					current.fromCoin &&
-					current.fromCoin.networks?.some((n) => n.value === Network.magi.value) &&
-					(current.fromCoin.coin.value === Coin.hive.value ||
-						current.fromCoin.coin.value === Coin.hbd.value)
-				) {
-					fromCoinToUse = current.fromCoin;
-				}
+			let fromCoinToUse = hiveHasBalance ? hiveCoin : hbdHasBalance ? hbdCoin : hiveCoin;
+			if (
+				txState.fromCoin &&
+				txState.fromCoin.networks?.some((n) => n.value === Network.magi.value) &&
+				(txState.fromCoin.coin.value === Coin.hive.value ||
+					txState.fromCoin.coin.value === Coin.hbd.value)
+			) {
+				fromCoinToUse = txState.fromCoin;
+			}
 
-				return {
-					...current,
-					method: TransferMethod.magiTransfer,
-					fromNetwork: Network.magi,
-					fromCoin: fromCoinToUse,
-					toNetwork: Network.hiveMainnet,
-					toCoin: fromCoinToUse
-				};
-			});
+			txState.method = TransferMethod.magiTransfer;
+			txState.fromNetwork = Network.magi;
+			txState.fromCoin = fromCoinToUse;
+			txState.toNetwork = Network.hiveMainnet;
+			txState.toCoin = fromCoinToUse;
 		});
 	});
 
 	$effect(() => {
 		if (!btcMainnetOpen) return;
 		untrack(() => {
-			SendTxDetails.update((current) => {
-				const btcCoin = swapOptions.from.coins.find(
-					(coinOpt) =>
-						coinOpt.coin.value === Coin.btc.value &&
-						coinOpt.networks.some((n) => n.value === Network.magi.value)
-				);
-				return {
-					...current,
-					method: TransferMethod.magiTransfer,
-					fromNetwork: Network.magi,
-					fromCoin: btcCoin,
-					toNetwork: Network.btcMainnet,
-					toCoin: btcCoin
-				};
-			});
+			const btcCoin = swapOptions.from.coins.find(
+				(coinOpt) =>
+					coinOpt.coin.value === Coin.btc.value &&
+					coinOpt.networks.some((n) => n.value === Network.magi.value)
+			);
+			txState.method = TransferMethod.magiTransfer;
+			txState.fromNetwork = Network.magi;
+			txState.fromCoin = btcCoin;
+			txState.toNetwork = Network.btcMainnet;
+			txState.toCoin = btcCoin;
 		});
 	});
 

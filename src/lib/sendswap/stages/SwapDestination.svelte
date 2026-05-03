@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { useSwapState } from '$lib/sendswap/utils/txState.svelte';
 	import { Send, Wallet, X } from '@lucide/svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -10,6 +10,8 @@
 	import { browser } from '$app/environment';
 
 	const DEST_NETWORK_KEY = 'swap-dest-network';
+
+	const txState = useSwapState();
 
 	const auth = $derived(getAuth()());
 	let {
@@ -26,7 +28,7 @@
 		abort?: () => void;
 	} = $props();
 
-	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? Coin.unk);
+	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
 
 	function coinDisplayLabel(coin: (typeof Coin)[keyof typeof Coin]): string {
 		return coin.value === Coin.hive.value
@@ -69,18 +71,18 @@
 	// Update toNetwork based on destination choice
 	$effect(() => {
 		if (destChoice === 'wallet') {
-			if ($SendTxDetails.toNetwork?.value !== Network.magi.value) {
-				$SendTxDetails.toNetwork = Network.magi;
+			if (txState.toNetwork?.value !== Network.magi.value) {
+				txState.toNetwork = Network.magi;
 			}
 		} else {
 			const net =
 				destNetworkChoice === 'magi'
 					? Network.magi
-					: $SendTxDetails.toCoin?.networks?.find(
+					: txState.toCoin?.networks?.find(
 							(n: Network) => n.value !== Network.magi.value
 						) ?? Network.hiveMainnet;
-			if ($SendTxDetails.toNetwork?.value !== net.value) {
-				$SendTxDetails.toNetwork = net;
+			if (txState.toNetwork?.value !== net.value) {
+				txState.toNetwork = net;
 			}
 		}
 	});
@@ -88,7 +90,7 @@
 	// Update toUsername when sending to address
 	$effect(() => {
 		if (destChoice === 'address' && destAddress.trim()) {
-			$SendTxDetails.toUsername = destAddress.trim();
+			txState.toUsername = destAddress.trim();
 		}
 	});
 </script>
@@ -96,9 +98,9 @@
 <div class="swap-dest-wrapper">
 	<span class="deliver-label">DELIVER TO</span>
 
-	{#if $SendTxDetails.toCoin}
+	{#if txState.toCoin}
 		<div class="dest-header">
-			<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork ?? Network.magi} size={32} />
+			<CoinNetworkIcon coin={toCoin} network={txState.toNetwork ?? Network.magi} size={32} />
 			<h3>Where should {coinDisplayLabel(toCoin)} go?</h3>
 		</div>
 	{/if}

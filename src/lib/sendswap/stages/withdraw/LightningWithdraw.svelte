@@ -4,7 +4,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
-	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
 	import { ArrowRightLeft } from '@lucide/svelte';
@@ -12,22 +12,24 @@
 
 	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
 
+	const txState = useTxState();
+
 	let amount = $state('');
 	let lightningAddress = $state('');
 
 	$effect(() => {
 		if (!open) return;
-		if (!$SendTxDetails.toCoin) return;
-		if (shownCoin.coin.value === $SendTxDetails.toCoin.coin.value) {
-			const amt = new CoinAmount(amount, $SendTxDetails.toCoin.coin).toAmountString();
-			if (amt !== $SendTxDetails.toAmount)
-				$SendTxDetails.toAmount = $SendTxDetails.fromAmount = amt;
+		if (!txState.toCoin) return;
+		if (shownCoin.coin.value === txState.toCoin.coin.value) {
+			const amt = new CoinAmount(amount, txState.toCoin.coin).toAmountString();
+			if (amt !== txState.toAmount)
+				txState.toAmount = txState.fromAmount = amt;
 		} else {
 			new CoinAmount(amount, shownCoin.coin)
-				.convertTo($SendTxDetails.toCoin.coin, Network.lightning)
+				.convertTo(txState.toCoin.coin, Network.lightning)
 				.then((amt) => {
-					if ($SendTxDetails.toAmount !== amt.toAmountString()) {
-						$SendTxDetails.toAmount = $SendTxDetails.fromAmount = amt.toAmountString();
+					if (txState.toAmount !== amt.toAmountString()) {
+						txState.toAmount = txState.fromAmount = amt.toAmountString();
 					}
 				});
 		}
@@ -46,8 +48,8 @@
 	];
 
 	const max = $derived.by(() => {
-		const coin = $SendTxDetails.fromCoin?.coin;
-		const network = $SendTxDetails.fromNetwork;
+		const coin = txState.fromCoin?.coin;
+		const network = txState.fromNetwork;
 		if (!coin || !network) return;
 		return getBalanceAmount($accountBalance, coin, network);
 	});
@@ -56,10 +58,10 @@
 	$effect(() => {
 		if (!open) return;
 		if (
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.toCoin &&
-			$SendTxDetails.toAmount &&
-			$SendTxDetails.toNetwork &&
+			txState.fromCoin &&
+			txState.toCoin &&
+			txState.toAmount &&
+			txState.toNetwork &&
 			lightningAddress &&
 			amountNumber > 0 &&
 			amountNumber <= (max?.toNumber() ?? Number.MAX_SAFE_INTEGER)
@@ -72,8 +74,8 @@
 
 	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
 		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
-		if ($SendTxDetails.toCoin) {
-			result = [$SendTxDetails.toCoin, ...result];
+		if (txState.toCoin) {
+			result = [txState.toCoin, ...result];
 		}
 		return result;
 	});
@@ -105,7 +107,7 @@
 	});
 	let shownIndex = $state(0);
 	let shownCoin: CoinOptions['coins'][number] = $state(
-		$SendTxDetails.toCoin ?? { coin: Coin.usd, networks: [] }
+		txState.toCoin ?? { coin: Coin.usd, networks: [] }
 	);
 	function cycleShown() {
 		shownIndex = (shownIndex + 1) % possibleCoins.length;
@@ -114,9 +116,9 @@
 
 	$effect(() => {
 		if (open) {
-			$SendTxDetails.fromNetwork = Network.magi;
-			$SendTxDetails.toNetwork = Network.lightning;
-			$SendTxDetails.toUsername = lightningAddress;
+			txState.fromNetwork = Network.magi;
+			txState.toNetwork = Network.lightning;
+			txState.toUsername = lightningAddress;
 		}
 	});
 </script>
@@ -132,7 +134,7 @@
 				<AmountInput
 					bind:amount
 					coinOpt={shownCoin}
-					network={$SendTxDetails.toNetwork}
+					network={txState.toNetwork}
 					maxAmount={max}
 					id="withdraw-amount"
 				/>
@@ -149,10 +151,10 @@
 			<span class="label-like">Withdraw Asset</span>
 			<Select
 				items={toOptions}
-				initial={$SendTxDetails.toCoin?.coin.value}
+				initial={txState.toCoin?.coin.value}
 				onValueChange={(details) => {
 					if (open) {
-						$SendTxDetails.toCoin = $SendTxDetails.fromCoin = swapOptions.to.coins.find(
+						txState.toCoin = txState.fromCoin = swapOptions.to.coins.find(
 							(coinOpt) => coinOpt.coin.value === details.value[0]
 						);
 					}

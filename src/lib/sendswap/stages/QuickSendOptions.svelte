@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { SendTxDetails } from '../utils/sendUtils';
-	import { get } from 'svelte/store';
+	import { useTransferState } from '../utils/txState.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
@@ -34,43 +33,42 @@
 		onHomePage: boolean;
 		editStage: (complete: boolean) => void;
 	} = $props();
+
+	const txState = useTransferState();
 	const auth = $derived(getAuth()());
 
 	// EDIT STAGE
 	let toSelf = $derived(
-		$SendTxDetails.toUsername === getUsernameFromAuth(auth) &&
-			$SendTxDetails.fromNetwork?.value === $SendTxDetails.toNetwork?.value
+		txState.toUsername === getUsernameFromAuth(auth) &&
+			txState.fromNetwork?.value === txState.toNetwork?.value
 	);
 	// AMOUNT SECTION
 	let coinAmount = $state(new CoinAmount(0, Coin.hive));
 
 	// EDIT STAGE
 	let stageComplete = $derived(
-		!!$SendTxDetails.fromCoin &&
-			!!$SendTxDetails.fromNetwork &&
+		!!txState.fromCoin &&
+			!!txState.fromNetwork &&
 			coinAmount.amount !== 0 &&
 			!toSelf &&
-			!!$SendTxDetails.toUsername &&
-			!!$SendTxDetails.toNetwork
+			!!txState.toUsername &&
+			!!txState.toNetwork
 	);
 	$effect(() => {
 		editStage(stageComplete);
 	});
 	$effect(() => {
 		const amtStr = coinAmount.toAmountString();
-		SendTxDetails.update((s) => {
-			if (s.fromAmount === amtStr && s.toAmount === amtStr && s.enteredAmount === amtStr) {
-				return s;
-			}
-			return { ...s, fromAmount: amtStr, toAmount: amtStr, enteredAmount: amtStr };
-		});
+		if (txState.fromAmount !== amtStr) txState.fromAmount = amtStr;
+		if (txState.toAmount !== amtStr) txState.toAmount = amtStr;
+		if (txState.enteredAmount !== amtStr) txState.enteredAmount = amtStr;
 	});
 
 	const fromAssetObjs: AssetObject[] = $derived(
 		swapOptions.from.coins.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: $SendTxDetails.toNetwork, size: 'medium' }
+			snippetData: { fromOpt: opt, net: txState.toNetwork, size: 'medium' }
 		}))
 	);
 
@@ -80,16 +78,16 @@
 	let lastMaxBalance = -1;
 	let lastMaxCoin = '';
 	$effect(() => {
-		if (!$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
-		if ($SendTxDetails.fromNetwork.value !== Network.magi.value) return;
+		if (!txState.fromCoin || !txState.fromNetwork) return;
+		if (txState.fromNetwork.value !== Network.magi.value) return;
 
-		const coinValue = $SendTxDetails.fromCoin.coin.value;
+		const coinValue = txState.fromCoin.coin.value;
 		if (coinValue in $accountBalance.bal) {
 			const balance = $accountBalance.bal[coinValue as keyof AccountBalance];
 			if (balance !== lastMaxBalance || coinValue !== lastMaxCoin) {
 				lastMaxBalance = balance;
 				lastMaxCoin = coinValue;
-				max = new CoinAmount(balance, $SendTxDetails.fromCoin.coin, true);
+				max = new CoinAmount(balance, txState.fromCoin.coin, true);
 			}
 		}
 	});
@@ -100,10 +98,9 @@
 	};
 
 	$effect(() => {
-		const fromCoin = $SendTxDetails.fromCoin;
-		const current = get(SendTxDetails);
-		if (current.toCoin?.coin.value !== fromCoin?.coin.value) {
-			SendTxDetails.set({ ...current, toCoin: fromCoin });
+		const fromCoin = txState.fromCoin;
+		if (txState.toCoin?.coin.value !== fromCoin?.coin.value) {
+			txState.toCoin = fromCoin;
 		}
 	});
 
@@ -121,7 +118,7 @@
 		contactOpen = open;
 	};
 	let createNew: string | undefined = $derived(
-		!contact && $SendTxDetails.toUsername ? $SendTxDetails.toUsername : undefined
+		!contact && txState.toUsername ? txState.toUsername : undefined
 	);
 	let openToCreate = $state(false);
 	function openContact(create = false) {
@@ -131,8 +128,8 @@
 	let inputId = $state('');
 
 	const inputCoinOpt: CoinOnNetwork[] = $derived(
-		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
-			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+		txState.fromCoin && txState.fromNetwork
+			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
 			: [{ coin: Coin.unk, network: Network.unknown }]
 	);
 
@@ -157,23 +154,19 @@
 		const balanceCount = coinsWithBalance.length;
 		if (balanceCount === 0) return;
 
-		const current = get(SendTxDetails);
 		const currentCoinHasBalance =
-			current.fromCoin &&
-			coinsWithBalance.some((item) => item.coin.value === current.fromCoin?.coin.value);
+			txState.fromCoin &&
+			coinsWithBalance.some((item) => item.coin.value === txState.fromCoin?.coin.value);
 		if (currentCoinHasBalance) return;
 
 		const hiveCoin = coinsWithBalance.find((item) => item.coin.value === Coin.hive.value);
 		const coinToSelect = hiveCoin || coinsWithBalance[0];
 
 		if (coinToSelect) {
-			SendTxDetails.set({
-				...current,
-				fromCoin: coinToSelect.coinOpt,
-				fromNetwork: Network.magi,
-				toCoin: coinToSelect.coinOpt,
-				toNetwork: Network.magi
-			});
+			txState.fromCoin = coinToSelect.coinOpt;
+			txState.fromNetwork = Network.magi;
+			txState.toCoin = coinToSelect.coinOpt;
+			txState.toNetwork = Network.magi;
 		}
 	});
 </script>
@@ -201,8 +194,8 @@
 	<SelectAssetFlattened
 		availableCoins={fromAssetObjs}
 		close={toggleAsset}
-		bind:coin={$SendTxDetails.fromCoin}
-		bind:network={$SendTxDetails.fromNetwork}
+		bind:coin={txState.fromCoin}
+		bind:network={txState.fromNetwork}
 		bind:max
 	/>
 {/if}
@@ -212,7 +205,7 @@
 	<div class="sections">
 		<div class="section to">
 			<ContactSearchBox
-				bind:value={$SendTxDetails.toUsername}
+				bind:value={txState.toUsername}
 				bind:selectedContact={contact}
 				placeholder="Enter address"
 			/>
@@ -239,14 +232,14 @@
 					<div class="error">
 						No balance found on your account. Please make a deposit to get started.
 					</div>
-				{:else if $SendTxDetails.fromCoin && $SendTxDetails.fromNetwork}
+				{:else if txState.fromCoin && txState.fromNetwork}
 					<BalanceInfo
-						coin={$SendTxDetails.fromCoin.coin}
-						network={$SendTxDetails.fromNetwork}
+						coin={txState.fromCoin.coin}
+						network={txState.fromNetwork}
 						size="large"
 						styleType="vertical"
 					/>
-					<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
+					<!-- <AssetInfo coinOpt={txState.fromCoin} size="medium" /> -->
 				{:else}
 					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 					Select Asset
@@ -262,7 +255,7 @@
 					<AmountInput
 						bind:coinAmount
 						coinOpts={inputCoinOpt}
-						expressIn={$SendTxDetails.fromCoin?.coin}
+						expressIn={txState.fromCoin?.coin}
 						maxAmount={max}
 						bind:id={inputId}
 					/>
@@ -276,7 +269,7 @@
 				bind:value={memo}
 				maxlength="300"
 				onchange={() => {
-					$SendTxDetails.memo = memo;
+					txState.memo = memo;
 				}}
 				id="memo-input"
 			/>

@@ -1,14 +1,11 @@
 <script module lang="ts">
-	import { Coin, Network, SendAccount } from '$lib/sendswap/utils/sendOptions';
-	import AccountInfo from './AccountInfo.svelte';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import AssetInfo from './AssetInfo.svelte';
 	import {
-		SendTxDetails,
 		type CoinOptionParam,
 		type NetworkOptionParam,
 		type RecipientData
 	} from '$lib/sendswap/utils/sendUtils';
-	import { get } from 'svelte/store';
 	import NetworkInfo from './NetworkInfo.svelte';
 	import { type Contact } from '$lib/sendswap/contacts/contacts';
 	import ContactInfo from './ContactInfo.svelte';
@@ -29,7 +26,6 @@
 	}
 	export {
 		assetCardSnippet as assetCard,
-		accountCardSnippet as accountCard,
 		networkCardSnippet as networkCard,
 		contactCardSnippet as contactCard,
 		contactRecentCardSnippet as contactRecentCard,
@@ -51,15 +47,6 @@
 			disabledMemo={fromOpt.disabledMemo}
 			size={params.size}
 		/>
-	{/if}
-	<!-- </div> -->
-{/snippet}
-
-{#snippet accountCardSnippet(account: SendAccount | undefined)}
-	<!-- <div class="card-wrapper"> -->
-	{#if account}
-		{@const store = get(SendTxDetails)}
-		<AccountInfo {account} currentCoin={store.fromCoin?.coin} />
 	{/if}
 	<!-- </div> -->
 {/snippet}

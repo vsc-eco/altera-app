@@ -9,11 +9,13 @@
 	} from '$lib/getAccountName';
 	import { Coin, Network, SendAccount } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
-	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { useTransferState } from '$lib/sendswap/utils/txState.svelte';
 	import { ArrowDown } from '@lucide/svelte';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import Instructions from '../components/Instructions.svelte';
 	import TxStatus from '../components/shared/TxStatus.svelte';
+
+	const txState = useTransferState();
 
 	let auth = $derived(getAuth()());
 	let {
@@ -38,43 +40,43 @@
 		}
 	});
 
-	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
-	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
+	let toCoin = $derived(txState.toCoin?.coin ?? coins.unk);
+	let fromCoin = $derived(txState.fromCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
 	let isInstructions = $derived(
 		auth.value?.provider === 'reown' &&
-			$SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value
+			txState.fromNetwork?.value === Network.hiveMainnet.value
 	);
 	$effect(() => {
-		new CoinAmount($SendTxDetails.toAmount, toCoin)
+		new CoinAmount(txState.toAmount, toCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
 				inUsd = amount.toMinFigs();
 			});
 	});
-	let isSwap = $derived($SendTxDetails.account?.value === SendAccount.swap.value);
+	let isSwap = $derived(txState.account?.value === SendAccount.swap.value);
 	let today = moment().format('MMM D, YYYY');
 	// let fromAccount = $derived.by(() => {
-	// 	if ($SendTxDetails.account?.value === SendAccount.magiAccount.value) {
-	// 		return $SendTxDetails.account.label;
+	// 	if (txState.account?.value === SendAccount.magiAccount.value) {
+	// 		return txState.account.label;
 	// 	}
-	// 	if ($SendTxDetails.account?.value === SendAccount.deposit.value) {
-	// 		return `Deposit from ${$SendTxDetails.fromNetwork?.label ?? 'UNK'}`;
+	// 	if (txState.account?.value === SendAccount.deposit.value) {
+	// 		return `Deposit from ${txState.fromNetwork?.label ?? 'UNK'}`;
 	// 	}
 	// 	if (isSwap) {
-	// 		return `Swap from ${$SendTxDetails.fromNetwork?.label ?? 'UNK'}`;
+	// 		return `Swap from ${txState.fromNetwork?.label ?? 'UNK'}`;
 	// 	}
 	// });
 	let fromNetwork = $derived.by(() => {
-		if ($SendTxDetails.fromNetwork?.value === Network.hiveMainnet.value) {
-			return `Deposit from ${$SendTxDetails.fromNetwork.label}`;
+		if (txState.fromNetwork?.value === Network.hiveMainnet.value) {
+			return `Deposit from ${txState.fromNetwork.label}`;
 		}
-		if ($SendTxDetails.fromNetwork?.value === Network.lightning.value) {
-			return `Swap from ${$SendTxDetails.fromNetwork.label}`;
+		if (txState.fromNetwork?.value === Network.lightning.value) {
+			return `Swap from ${txState.fromNetwork.label}`;
 		}
-		return $SendTxDetails.fromNetwork?.label ?? 'UNK';
+		return txState.fromNetwork?.label ?? 'UNK';
 	});
-	let toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
+	let toDid = $derived(getDidFromUsername(txState.toUsername));
 
 	// $inspect(waiting);
 </script>
@@ -85,16 +87,16 @@
 	<Instructions />
 {:else}
 	<Card>
-		<span class="dark sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
+		<span class="dark sm-caption">Payment to {txState.toDisplayName}</span>
 		<div class={['amount', { compact }]}>
 			{#if isSwap}
 				<div class="swap-header">
-					<p>{new CoinAmount($SendTxDetails.fromAmount, fromCoin).toPrettyString()}</p>
+					<p>{new CoinAmount(txState.fromAmount, fromCoin).toPrettyString()}</p>
 					<ArrowDown />
 				</div>
 			{/if}
 			<h4>
-				{new CoinAmount($SendTxDetails.toAmount, toCoin).toPrettyString()}
+				{new CoinAmount(txState.toAmount, toCoin).toPrettyString()}
 				{`(${inUsd} US$)`}
 			</h4>
 		</div>
@@ -107,16 +109,16 @@
 	<div class={['recipient', { compact }]}>
 		<table>
 			<tbody>
-				{#if $SendTxDetails.toDisplayName !== $SendTxDetails.toUsername}
+				{#if txState.toDisplayName !== txState.toUsername}
 					<tr>
 						<td class="sm-caption label">Recipient</td>
-						<td class="content">{$SendTxDetails.toDisplayName}</td>
+						<td class="content">{txState.toDisplayName}</td>
 					</tr>
 				{/if}
 				<tr>
 					<td class="sm-caption label">Address</td>
 					<td class="content">
-						<BasicCopy value={$SendTxDetails.toUsername}>{getAccountNameFromDid(toDid)}</BasicCopy>
+						<BasicCopy value={txState.toUsername}>{getAccountNameFromDid(toDid)}</BasicCopy>
 					</td>
 				</tr>
 				<tr>
@@ -128,7 +130,7 @@
 				</tr>
 				<tr>
 					<td class="sm-caption label">Network</td>
-					<td class="content">{$SendTxDetails.toNetwork?.label}</td>
+					<td class="content">{txState.toNetwork?.label}</td>
 				</tr>
 			</tbody>
 		</table>
@@ -146,7 +148,7 @@
 					<td class="sm-caption label">Network</td>
 					<td class="content">{fromNetwork}</td>
 				</tr>
-				{#if isSwap && $SendTxDetails.fee}
+				{#if isSwap && txState.fee}
 					<tr>
 						<td class="sm-caption label">Asset</td>
 						<td class="content coin">
@@ -157,13 +159,13 @@
 					<tr>
 						<td class="sm-caption label">Fee</td>
 						<td class="content">
-							{$SendTxDetails.fee}
+							{txState.fee}
 						</td>
 					</tr>
 					<tr>
 						<td class="sm-caption label">Total</td>
 						<td class="content">
-							{$SendTxDetails.fee?.add(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
+							{txState.fee?.add(new CoinAmount(txState.fromAmount, fromCoin))}
 						</td>
 					</tr>
 				{/if}
@@ -174,13 +176,13 @@
 			</tbody>
 		</table>
 	</div>
-	{#if $SendTxDetails.memo}
+	{#if txState.memo}
 		<div class={['memo', { compact }]}>
 			<table>
 				<tbody>
 					<tr>
 						<td class="sm-caption label">Memo</td>
-						<td class="content">{$SendTxDetails.memo}</td>
+						<td class="content">{txState.memo}</td>
 					</tr>
 				</tbody>
 			</table>

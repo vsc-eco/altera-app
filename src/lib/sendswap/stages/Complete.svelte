@@ -3,7 +3,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
-	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import { goto } from '$app/navigation';
 	import PieTimer from '$lib/components/PieTimer.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -18,6 +18,8 @@
 		ALTERA_FEE_BPS,
 		ALTERA_FEE_USD_THRESHOLD
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
+
+	const txState = useTxState();
 
 	let timer = $state<PieTimer>();
 
@@ -65,10 +67,10 @@
 		}
 	});
 
-	const isSend = $derived($SendTxDetails.toUsername !== getUsernameFromAuth(getAuth()()));
+	const isSend = $derived(txState.toUsername !== getUsernameFromAuth(getAuth()()));
 
-	let fromCoin = $derived($SendTxDetails.fromCoin?.coin ?? coins.unk);
-	let toCoin = $derived($SendTxDetails.toCoin?.coin ?? coins.unk);
+	let fromCoin = $derived(txState.fromCoin?.coin ?? coins.unk);
+	let toCoin = $derived(txState.toCoin?.coin ?? coins.unk);
 	function prettyWithDisplayUnit(amt: CoinAmount<Coin>): string {
 		const isNegative = amt.amount < 0;
 		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
@@ -87,7 +89,7 @@
 	let inUsd = $state('');
 	let grossInUsdNum = $state(0);
 	$effect(() => {
-		new CoinAmount($SendTxDetails.fromAmount, fromCoin)
+		new CoinAmount(txState.fromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
 				inUsd = amount.toMinFigs();
@@ -95,15 +97,15 @@
 			});
 	});
 	const alteraFeeApplies = $derived(
-		!!$SendTxDetails.toNetwork &&
-			$SendTxDetails.toNetwork.value !== Network.magi.value &&
+		!!txState.toNetwork &&
+			txState.toNetwork.value !== Network.magi.value &&
 			toCoin.value !== Coin.hive.value &&
 			toCoin.value !== Coin.hbd.value &&
 			grossInUsdNum >= ALTERA_FEE_USD_THRESHOLD
 	);
 	const alteraFeeAmount = $derived.by(() => {
 		if (!alteraFeeApplies) return undefined;
-		const out = new CoinAmount($SendTxDetails.toAmount, toCoin);
+		const out = new CoinAmount(txState.toAmount, toCoin);
 		const feeSmallest = Math.floor((out.amount * ALTERA_FEE_BPS) / 10000);
 		if (feeSmallest <= 0) return undefined;
 		return new CoinAmount(feeSmallest, toCoin, true);
@@ -153,18 +155,18 @@
 	<Card>
 		<div class="amount">
 			{#if isSend}
-				<span class="sm-caption">Payment to {$SendTxDetails.toDisplayName}</span>
+				<span class="sm-caption">Payment to {txState.kind === 'transfer' ? txState.toDisplayName : txState.toUsername}</span>
 				<h4>
-					{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
+					{prettyWithDisplayUnit(new CoinAmount(txState.fromAmount, fromCoin))}
 					{`(\$US ${inUsd})`}
 				</h4>
-			{:else if $SendTxDetails.toNetwork && $SendTxDetails.fromNetwork}
+			{:else if txState.toNetwork && txState.fromNetwork}
 				<div class="swap-header">
 					<span class="from-icon">
-						<CoinNetworkIcon coin={fromCoin} network={$SendTxDetails.fromNetwork!} size={32} />
+						<CoinNetworkIcon coin={fromCoin} network={txState.fromNetwork!} size={32} />
 					</span>
 					<span class="from-amt">
-						{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.fromAmount, fromCoin))}
+						{prettyWithDisplayUnit(new CoinAmount(txState.fromAmount, fromCoin))}
 						<EqualApproximately size="16" />
 						{`${inUsd} USD`}
 					</span>
@@ -173,10 +175,10 @@
 					</span>
 
 					<span class="to-icon">
-						<CoinNetworkIcon coin={toCoin} network={$SendTxDetails.toNetwork!} size={32} />
+						<CoinNetworkIcon coin={toCoin} network={txState.toNetwork!} size={32} />
 					</span>
 					<span class="to-amt">
-						{prettyWithDisplayUnit(new CoinAmount($SendTxDetails.toAmount, toCoin))}
+						{prettyWithDisplayUnit(new CoinAmount(txState.toAmount, toCoin))}
 					</span>
 				</div>
 			{/if}

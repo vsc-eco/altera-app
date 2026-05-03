@@ -12,8 +12,10 @@
 	import CreateContact from './CreateContact.svelte';
 	import { contactCard, type ContactObj } from '../components/info/SendSnippets.svelte';
 	import { untrack } from 'svelte';
-	import { SendTxDetails } from '../utils/sendUtils';
+	import { useTxState } from '../utils/txState.svelte';
 	import Confirmation from '$lib/components/Confirmation.svelte';
+
+	const txState = useTxState();
 
 	let {
 		selectedContact = $bindable(),
@@ -120,7 +122,7 @@
 							return;
 						}
 						selectedContact = contact;
-						$SendTxDetails.toUsername = selectedContact.addresses[0].address;
+						txState.toUsername = selectedContact.addresses[0].address;
 						if (valCache) {
 							valCache = undefined;
 						} else {
@@ -131,7 +133,7 @@
 				}
 			}
 			selectedContact = undefined;
-			if (oldContact) $SendTxDetails.toUsername = '';
+			if (oldContact) txState.toUsername = '';
 		});
 	});
 </script>

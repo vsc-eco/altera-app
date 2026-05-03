@@ -3,7 +3,7 @@
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
-	import { SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { useWithdrawState } from '$lib/sendswap/utils/txState.svelte';
 	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
 	import {
@@ -14,6 +14,7 @@
 
 	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
 
+	const txState = useWithdrawState();
 	const auth = $derived(getAuth()());
 
 	let coinAmount = $state(new CoinAmount(0, Coin.btc));
@@ -52,37 +53,36 @@
 			isBtcAddressValid = false;
 			btcAddressError = 'Invalid Bitcoin mainnet address.';
 		}
-		SendTxDetails.update((d) => ({ ...d, toUsername: value }));
+		txState.toUsername = value;
 	}
 
-	// Sync deductFee and maxFee into store
+	// Sync deductFee and maxFee into state
 	$effect(() => {
 		const maxFee = maxFeeRaw ? parseInt(maxFeeRaw) : undefined;
-		SendTxDetails.update((d) => ({
-			...d,
-			btcDeductFee: deductFee,
-			btcMaxFee: maxFee !== undefined && !isNaN(maxFee) ? maxFee : undefined
-		}));
+		txState.btcDeductFee = deductFee;
+		txState.btcMaxFee = maxFee !== undefined && !isNaN(maxFee) ? maxFee : undefined;
 	});
 
 	let max = $state(new CoinAmount(0, Coin.btc));
 	$effect(() => {
-		if (!open || !$SendTxDetails.fromCoin || !$SendTxDetails.fromNetwork) return;
+		if (!open || !txState.fromCoin || !txState.fromNetwork) return;
 		max = getBalanceAmount(
 			$accountBalance,
-			$SendTxDetails.fromCoin.coin,
-			$SendTxDetails.fromNetwork
+			txState.fromCoin.coin,
+			txState.fromNetwork
 		);
 	});
 
-	// Sync coinAmount → store
+	// Sync coinAmount → state
 	let lastSyncedAmt = '';
 	$effect(() => {
 		if (!open) return;
 		const amt = coinAmount.toAmountString();
 		if (amt === lastSyncedAmt) return;
 		lastSyncedAmt = amt;
-		SendTxDetails.update((d) => ({ ...d, fromAmount: amt, toAmount: amt, enteredAmount: amt }));
+		txState.fromAmount = amt;
+		txState.toAmount = amt;
+		txState.enteredAmount = amt;
 	});
 
 	// Signal stage completion
@@ -90,8 +90,8 @@
 		if (!open) return;
 		const valid = !!(
 			isBtcAddressValid &&
-			$SendTxDetails.fromCoin &&
-			$SendTxDetails.fromNetwork &&
+			txState.fromCoin &&
+			txState.fromNetwork &&
 			coinAmount.amount > 0 &&
 			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
 		);
@@ -99,8 +99,8 @@
 	});
 
 	const coinOptions: CoinOnNetwork[] = $derived(
-		$SendTxDetails.fromCoin && $SendTxDetails.fromNetwork
-			? [{ coin: $SendTxDetails.fromCoin.coin, network: $SendTxDetails.fromNetwork }]
+		txState.fromCoin && txState.fromNetwork
+			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
 			: [{ coin: Coin.btc, network: Network.magi }]
 	);
 </script>
@@ -127,7 +127,7 @@
 				<AmountInput
 					bind:coinAmount
 					coinOpts={coinOptions}
-					expressIn={$SendTxDetails.fromCoin?.coin ?? Coin.btc}
+					expressIn={txState.fromCoin?.coin ?? Coin.btc}
 					maxAmount={max}
 					bind:id={inputId}
 				/>

@@ -1,11 +1,12 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { blankDetails, scanForBalance, SendTxDetails } from './utils/sendUtils';
+	import { scanForBalance } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
 	import ReviewTransfer from './stages/ReviewTransfer.svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from './utils/sendOptions';
 	import QuickTransferOptions from './stages/QuickSendOptions.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
+	import { TransferTxState, provideTxState } from './utils/txState.svelte';
 
 	let {
 		dialogOpen = $bindable(),
@@ -17,7 +18,10 @@
 		sessionId: number;
 	} = $props();
 
-	function quickDetails() {
+	const txState = new TransferTxState();
+	provideTxState(txState);
+
+	function applyQuickDetails() {
 		const balOpt = scanForBalance(
 			[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({
 				coin: c,
@@ -25,23 +29,27 @@
 			}))
 		);
 		const coinOpt = swapOptions.from.coins.find((c) => c.coin.value === balOpt?.coin.value);
-		return {
-			...blankDetails(),
-			fromCoin: coinOpt,
-			fromNetwork: Network.magi,
-			toCoin: coinOpt,
-			toNetwork: Network.magi,
-			method: TransferMethod.magiTransfer
-		};
+		txState.fromCoin = coinOpt;
+		txState.fromNetwork = Network.magi;
+		txState.toCoin = coinOpt;
+		txState.toNetwork = Network.magi;
+		txState.method = TransferMethod.magiTransfer;
+		txState.toUsername = '';
+		txState.toDisplayName = '';
+		txState.memo = '';
+		txState.fromAmount = '0';
+		txState.toAmount = '0';
+		txState.enteredAmount = '0';
+		txState.fee = undefined;
+		txState.account = undefined;
 	}
 
-	// Only seed the SendTxDetails store when the QuickSend dialog actually
-	// opens — otherwise this effect fires on every mount/render and wipes
-	// out QuickSwap's persisted selection (both cards share the same store).
+	// Only seed when the dialog opens — QuickSwap's state is now a separate
+	// instance so there's no longer any cross-contamination.
 	$effect(() => {
 		if (!dialogOpen) return;
 		sessionId;
-		SendTxDetails.set(quickDetails());
+		applyQuickDetails();
 	});
 
 	// STEPS
@@ -64,7 +72,7 @@
 				size="dialog"
 				txType="send"
 				{stepsData}
-				resetDetails={quickDetails}
+				resetState={applyQuickDetails}
 				{extraProps}
 				minHeight={632}
 			/>

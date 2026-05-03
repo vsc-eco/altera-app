@@ -4,9 +4,9 @@
 	import {
 		getLastPaidContact,
 		momentToLastPaidString,
-		SendTxDetails,
 		validateAddress
 	} from '$lib/sendswap/utils/sendUtils';
+	import { useTransferState } from '$lib/sendswap/utils/txState.svelte';
 	import { CircleUser, Plus } from '@lucide/svelte';
 	import ContactInfo from './info/ContactInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -14,19 +14,21 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import { untrack } from 'svelte';
 
+	const txState = useTransferState();
+
 	let {
 		basic = false,
 		contact,
 		edit
 	}: { basic?: boolean; contact?: Contact; edit?: (isOpen?: boolean) => void } = $props();
 
-	const toDid = $derived(getDidFromUsername($SendTxDetails.toUsername));
+	const toDid = $derived(getDidFromUsername(txState.toUsername));
 	let lastPaid: string | undefined = $state();
 	let isValid = $state(false);
 	let loading = $state(false);
 	let debounedUsername = $state('');
 	$effect(() => {
-		const addr = $SendTxDetails.toUsername;
+		const addr = txState.toUsername;
 		untrack(() => {
 			if (!addr || addr === debounedUsername) return;
 			if (!contact) loading = true;
@@ -37,12 +39,12 @@
 					const newDisplayName = contact
 						? contact.label
 						: (result.displayName ?? getAccountNameFromAddress(addr));
-					if ($SendTxDetails.toDisplayName !== newDisplayName)
-						$SendTxDetails.toDisplayName = newDisplayName;
+					if (txState.toDisplayName !== newDisplayName)
+						txState.toDisplayName = newDisplayName;
 				} else {
 					const newDisplayName = contact ? contact.label : getAccountNameFromAddress(addr);
-					if ($SendTxDetails.toDisplayName !== newDisplayName)
-						$SendTxDetails.toDisplayName = newDisplayName;
+					if (txState.toDisplayName !== newDisplayName)
+						txState.toDisplayName = newDisplayName;
 					warningBody = result.error;
 				}
 				loading = false;
@@ -62,7 +64,7 @@
 	);
 
 	const isAddButton = $derived(
-		!(loading || $SendTxDetails.toUsername || contact) || ($SendTxDetails.toUsername && !contact)
+		!(loading || txState.toUsername || contact) || (txState.toUsername && !contact)
 	);
 </script>
 
@@ -78,7 +80,7 @@
 			</span>
 		{:else if contact}
 			<ContactInfo
-				did={$SendTxDetails.toUsername !== '' ? toDid : undefined}
+				did={txState.toUsername !== '' ? toDid : undefined}
 				name={contact.label}
 				icon={contact.image}
 				accounts={contact.addresses}
@@ -86,11 +88,11 @@
 				size={basic ? 'medium' : 'large'}
 				showSelected
 			/>
-		{:else if $SendTxDetails.toUsername}
+		{:else if txState.toUsername}
 			<ContactInfo
 				did={toDid}
-				name={$SendTxDetails.toDisplayName}
-				accounts={[{ address: $SendTxDetails.toUsername, label: 'Primary' }]}
+				name={txState.toDisplayName}
+				accounts={[{ address: txState.toUsername, label: 'Primary' }]}
 				showSelected
 				{lastPaid}
 				warning={warningMsg}

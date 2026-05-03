@@ -1,15 +1,14 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import DepositOptions from './stages/deposit/DepositOptions.svelte';
-	import { Coin, Network, type SendDetails } from './utils/sendOptions';
+	import { Coin, Network } from './utils/sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { blankDetails, SendTxDetails } from './utils/sendUtils';
+	import { DepositTxState, provideTxState } from './utils/txState.svelte';
 	import Complete from './stages/Complete.svelte';
 	import ReviewSwap from './stages/ReviewSwap.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
-	import { get } from 'svelte/store';
 	import Card from '$lib/cards/Card.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -27,41 +26,32 @@
 
 	const auth = $derived(getAuth()());
 
-	function depositDetails(): SendDetails {
-		return {
-			...blankDetails(),
-			toNetwork: Network.magi,
-			toUsername: getUsernameFromAuth(auth) ?? '',
-			slippageBps: undefined
-		};
+	const txState = new DepositTxState();
+	provideTxState(txState);
+
+	function applyDepositDetails() {
+		txState.toNetwork = Network.magi;
+		txState.toUsername = getUsernameFromAuth(auth) ?? '';
+		txState.fromCoin = undefined;
+		txState.fromNetwork = undefined;
+		txState.toCoin = undefined;
+		txState.fromAmount = '0';
+		txState.toAmount = '0';
+		txState.enteredAmount = '0';
+		txState.fee = undefined;
+		txState.account = undefined;
 	}
 
-	// Snapshot whatever SendTxDetails was before the deposit dialog
-	// opened, then restore it on close. The whole dashboard shares a
-	// single global `SendTxDetails` store (QuickSwap, Deposit,
-	// Withdraw, Send all write to it), so seeding deposit defaults
-	// wipes whatever QuickSwap had selected. Without this restore the
-	// user opens Deposit → backs out → QuickSwap is blank.
-	let snapshotBeforeDeposit: SendDetails | null = null;
 	$effect(() => {
-		if (dialogOpen) {
-			// Opening — snapshot the current state BEFORE clobbering.
-			if (!snapshotBeforeDeposit) {
-				snapshotBeforeDeposit = { ...get(SendTxDetails) };
-			}
-			sessionId;
-			SendTxDetails.set(depositDetails());
-		} else if (snapshotBeforeDeposit) {
-			// Closing — restore QuickSwap / previous-card state.
-			SendTxDetails.set(snapshotBeforeDeposit);
-			snapshotBeforeDeposit = null;
-		}
+		if (!dialogOpen) return;
+		sessionId;
+		applyDepositDetails();
 	});
 	$effect(() => {
 		if (!auth || !dialogOpen) return;
 		const username = getUsernameFromAuth(auth);
-		if (username && username !== $SendTxDetails.toUsername) {
-			$SendTxDetails.toUsername = username;
+		if (username && username !== txState.toUsername) {
+			txState.toUsername = username;
 		}
 	});
 
@@ -129,7 +119,7 @@
 			<StepsMachine
 				size="dialog"
 				txType="deposit"
-				resetDetails={depositDetails}
+				resetState={applyDepositDetails}
 				{stepsData}
 				{extraProps}
 				minHeight={512}

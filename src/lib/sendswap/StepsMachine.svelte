@@ -2,7 +2,8 @@
 	import { getAuth } from '$lib/auth/store';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network, type NecessarySendDetails } from '$lib/sendswap/utils/sendOptions';
-	import { blankDetails, getTxSessionId, send, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { getTxSessionId, send } from '$lib/sendswap/utils/sendUtils';
+	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import V4VPopup from '$lib/sendswap/V4VPopup.svelte';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import * as steps from '@zag-js/steps';
@@ -36,7 +37,8 @@
 		size: 'page' | 'dialog';
 		minHeight?: number;
 		txType: string;
-		resetDetails?: typeof blankDetails;
+		/** Called when the user resets back to step 0 from the complete screen. */
+		resetState?: () => void;
 		stepsData: MixedStepsArray;
 		extraProps?: { [key: string]: any };
 		onSubmit?: (
@@ -45,7 +47,9 @@
 		) => Promise<Error | { id: string }>;
 	};
 
-	let { size, minHeight, txType, resetDetails, stepsData, extraProps, onSubmit }: Props = $props();
+	let { size, minHeight, txType, resetState, stepsData, extraProps, onSubmit }: Props = $props();
+
+	const txState = useTxState();
 
 	const auth = $derived(getAuth()());
 	let sessionId = $state(getTxSessionId());
@@ -119,7 +123,7 @@
 		} else if (api.value === api.count) {
 			api.setStep(0);
 			sessionId = getTxSessionId();
-			SendTxDetails.set(resetDetails ? resetDetails() : blankDetails());
+			resetState?.();
 		} else {
 			api.goToPrevStep();
 			setStatus('');
@@ -168,20 +172,20 @@
 
 	// START TRANSACTION
 	function initSend() {
-		console.log('[initSend] store snapshot:', {
-			toAmount: $SendTxDetails.toAmount,
-			fromAmount: $SendTxDetails.fromAmount,
-			enteredAmount: $SendTxDetails.enteredAmount
-		});
-		const store = $SendTxDetails;
-		const fromCoin = store.fromCoin;
-		const fromNetwork = store.fromNetwork;
-		const rawToAmount = store.toAmount;
-		const toUsername = store.toUsername;
-		const memo = store.memo;
+		const fromCoin = txState.fromCoin;
+		const fromNetwork = txState.fromNetwork;
+		const rawToAmount = txState.toAmount;
+		const toUsername = txState.toUsername;
+		const memo = txState.kind === 'transfer' ? txState.memo : undefined;
 		// For deposit/withdraw: toCoin mirrors fromCoin; toNetwork defaults based on txType
-		const toCoin = store.toCoin ?? fromCoin;
-		const toNetwork = store.toNetwork ?? (txType === 'deposit' ? Network.magi : txType === 'withdraw' ? Network.hiveMainnet : undefined);
+		const toCoin = txState.toCoin ?? fromCoin;
+		const toNetwork =
+			txState.toNetwork ??
+			(txType === 'deposit'
+				? Network.magi
+				: txType === 'withdraw'
+					? Network.hiveMainnet
+					: undefined);
 
 		if (!fromCoin || !fromNetwork || !toCoin || !toNetwork) {
 			return new Error('Required field undefined.');
@@ -192,10 +196,10 @@
 		const amount =
 			rawToAmount && rawToAmount !== '0'
 				? rawToAmount
-				: $SendTxDetails.fromAmount && $SendTxDetails.fromAmount !== '0'
-					? $SendTxDetails.fromAmount
-					: $SendTxDetails.enteredAmount && $SendTxDetails.enteredAmount !== '0'
-						? $SendTxDetails.enteredAmount
+				: txState.fromAmount && txState.fromAmount !== '0'
+					? txState.fromAmount
+					: txState.enteredAmount && txState.enteredAmount !== '0'
+						? txState.enteredAmount
 						: rawToAmount;
 
 		const importantDetails: NecessarySendDetails = {
@@ -205,7 +209,11 @@
 			toCoin,
 			toNetwork,
 			toUsername,
-			memo
+			memo,
+			fromAmount: txState.fromAmount,
+			minAmountOut: txState.kind === 'swap' ? txState.minAmountOut : undefined,
+			btcDeductFee: txState.btcDeductFee || undefined,
+			btcMaxFee: txState.btcMaxFee
 		};
 
 		let intermediary = getIntermediaryNetwork(
@@ -300,17 +308,17 @@
 	</div>
 {/key}
 
-{#if showV4VModal && $SendTxDetails.toCoin && $SendTxDetails.toNetwork && $SendTxDetails.fromAmount}
-	{@const toCoin = $SendTxDetails.toCoin}
-	{@const toNetwork = $SendTxDetails.toNetwork}
-	{@const toAmount = $SendTxDetails.toAmount}
+{#if showV4VModal && txState.toCoin && txState.toNetwork && txState.fromAmount}
+	{@const toCoin = txState.toCoin}
+	{@const toNetwork = txState.toNetwork}
+	{@const toAmount = txState.toAmount}
 
 	<V4VPopup
 		from={{ coin: Coin.sats, network: Network.lightning }}
 		to={{ coin: toCoin.coin, network: toNetwork }}
 		{toAmount}
 		{auth}
-		toUsername={$SendTxDetails.toUsername}
+		toUsername={txState.toUsername}
 		onerror={(v) => {
 			if (v.includes('Bad request')) {
 				setStatus('An error occured, please try again.', true);
@@ -330,7 +338,7 @@
 							amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
 							asset: toCoin.coin.unit.toLowerCase(),
 							from: `v4vapp`,
-							to: $SendTxDetails.toUsername,
+							to: txState.toUsername,
 							memo: `altera_id=${id}`,
 							type: 'transfer'
 						},

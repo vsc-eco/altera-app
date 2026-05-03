@@ -1,12 +1,7 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import swapOptions, {
-		Coin,
-		Network,
-		TransferMethod,
-		type SendDetails
-	} from '$lib/sendswap/utils/sendOptions';
-	import { blankDetails, scanForBalance, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import swapOptions, { Coin, Network, TransferMethod } from '$lib/sendswap/utils/sendOptions';
+	import { scanForBalance } from '$lib/sendswap/utils/sendUtils';
 	import {
 		SWAP_PAGE_PREF_KEY,
 		loadSwapSelection,
@@ -22,11 +17,20 @@
 	import ReviewTransfer from './stages/ReviewTransfer.svelte';
 	import ReviewSwap from './stages/ReviewSwap.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
+	import { SwapTxState, TransferTxState, provideTxState } from './utils/txState.svelte';
+	import { untrack } from 'svelte';
 
 	const { txType }: { txType: 'transfer' | 'swap' } = $props();
 
 	const auth = $derived(getAuth()());
-	function startDetails(): SendDetails {
+
+	// txType is a fixed string set by the parent route and never changes for the
+	// lifetime of this component; use untrack to suppress the "captures initial
+	// value" warning while still choosing the right state class at mount time.
+	const txState = untrack(() => txType === 'swap' ? new SwapTxState() : new TransferTxState());
+	provideTxState(txState);
+
+	function applyStartDetails() {
 		if (txType === 'swap') {
 			const stored = loadSwapSelection(SWAP_PAGE_PREF_KEY);
 			const fromOpt =
@@ -37,40 +41,31 @@
 				swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
 			const fromNet = findNetwork(stored?.fromNetwork) ?? Network.magi;
 			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
-			return {
-				...blankDetails(),
-				toNetwork: toNet,
-				method: TransferMethod.lightningTransfer,
-				fromCoin: fromOpt,
-				fromNetwork: fromNet,
-				toCoin: toOpt
-			};
+			txState.toNetwork = toNet;
+			txState.method = TransferMethod.lightningTransfer;
+			txState.fromCoin = fromOpt;
+			txState.fromNetwork = fromNet;
+			txState.toCoin = toOpt;
 		} else {
 			const balOpt = scanForBalance(
-				[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({
-					coin: c,
-					network: Network.magi
-				}))
+				[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({ coin: c, network: Network.magi }))
 			);
 			const coinOpt = swapOptions.from.coins.find((c) => c.coin.value === balOpt?.coin.value);
-
-			return {
-				...blankDetails(),
-				toNetwork: Network.magi,
-				fromNetwork: Network.magi,
-				fromCoin: coinOpt,
-				toCoin: coinOpt
-			};
+			txState.toNetwork = Network.magi;
+			txState.fromNetwork = Network.magi;
+			txState.fromCoin = coinOpt;
+			txState.toCoin = coinOpt;
 		}
 	}
 
-	SendTxDetails.set(startDetails());
+	applyStartDetails();
+
 	$effect(() => {
 		// sets username for swap
 		if (txType !== 'swap') return;
 		if (auth.value) {
 			const username = getUsernameFromAuth(auth);
-			if (username) $SendTxDetails.toUsername = username;
+			if (username) txState.toUsername = username;
 		}
 	});
 
@@ -79,10 +74,10 @@
 	// stays independent.
 	$effect(() => {
 		if (txType !== 'swap') return;
-		const fromCoin = $SendTxDetails.fromCoin?.coin.value;
-		const fromNetwork = $SendTxDetails.fromNetwork?.value;
-		const toCoin = $SendTxDetails.toCoin?.coin.value;
-		const toNetwork = $SendTxDetails.toNetwork?.value;
+		const fromCoin = txState.fromCoin?.coin.value;
+		const fromNetwork = txState.fromNetwork?.value;
+		const toCoin = txState.toCoin?.coin.value;
+		const toNetwork = txState.toNetwork?.value;
 		// Only save once both sides are populated; partial state isn't useful.
 		if (fromCoin && toCoin) {
 			saveSwapSelection(SWAP_PAGE_PREF_KEY, { fromCoin, fromNetwork, toCoin, toNetwork });
@@ -105,7 +100,7 @@
 </script>
 
 <div class="send-internal-wrapper">
-	<StepsMachine size="page" {txType} resetDetails={startDetails} {stepsData} />
+	<StepsMachine size="page" {txType} resetState={applyStartDetails} {stepsData} />
 </div>
 
 <style lang="scss">

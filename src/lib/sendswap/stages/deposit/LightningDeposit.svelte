@@ -6,9 +6,9 @@
 	import SelectAssetFlattened from '$lib/sendswap/components/assetSelection/SelectAssetFlattened.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
-	import { getFee, SendTxDetails } from '$lib/sendswap/utils/sendUtils';
+	import { getFee } from '$lib/sendswap/utils/sendUtils';
+	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
-	import { get } from 'svelte/store';
 	import { untrack } from 'svelte';
 
 	let {
@@ -17,17 +17,19 @@
 		secondaryMenu = $bindable()
 	}: { editStage: (add: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
 
+	const txState = useTxState();
+
 	let coinAmount: CoinAmount<Coin> = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
-	// Derived primitives from store — only change when the actual values change,
-	// preventing effects from re-running on every unrelated store mutation
-	const _fromCoinValue = $derived($SendTxDetails.fromCoin?.coin?.value);
-	const _toCoinValue = $derived($SendTxDetails.toCoin?.coin?.value);
-	const _fromNetwork = $derived($SendTxDetails.fromNetwork?.value);
-	const _toNetwork = $derived($SendTxDetails.toNetwork?.value);
+	// Derived primitives from state — only change when the actual values change,
+	// preventing effects from re-running on every unrelated state mutation
+	const _fromCoinValue = $derived(txState.fromCoin?.coin?.value);
+	const _toCoinValue = $derived(txState.toCoin?.coin?.value);
+	const _fromNetwork = $derived(txState.fromNetwork?.value);
+	const _toNetwork = $derived(txState.toNetwork?.value);
 	// Track toAmount so validation blocks Review until async conversion completes
-	const _toAmount = $derived($SendTxDetails.toAmount);
+	const _toAmount = $derived(txState.toAmount);
 
 	// Sync coinAmount → fromAmount, toAmount, fee atomically
 	// Single effect to avoid race conditions between separate from/to effects
@@ -40,57 +42,50 @@
 		const coinVal = coinAmount.coin.value;
 		const coinAmountSnapshot = coinAmount;
 		untrack(() => {
-			const store = get(SendTxDetails);
-			if (!store.fromCoin) return;
+			if (!txState.fromCoin) return;
 
 			// Always preserve the raw user input as enteredAmount
-			if (amt !== store.enteredAmount) {
-				SendTxDetails.update((s) => ({ ...s, enteredAmount: amt }));
+			if (amt !== txState.enteredAmount) {
+				txState.enteredAmount = amt;
 			}
 
 			// Compute fromAmount
 			if (coinVal === fromCoinVal) {
-				if (amt !== store.fromAmount) {
-					SendTxDetails.update((s) => ({ ...s, fromAmount: amt }));
+				if (amt !== txState.fromAmount) {
+					txState.fromAmount = amt;
 				}
 			} else {
 				coinAmountSnapshot
-					.convertTo(store.fromCoin.coin, Network.lightning)
+					.convertTo(txState.fromCoin.coin, Network.lightning)
 					.then((converted) => {
-						const current = get(SendTxDetails);
 						const convertedAmt = converted.toAmountString();
-						if (current.fromAmount !== convertedAmt) {
-							SendTxDetails.update((s) => ({
-								...s,
-								fromAmount: convertedAmt
-							}));
+						if (txState.fromAmount !== convertedAmt) {
+							txState.fromAmount = convertedAmt;
 						}
 					});
 			}
 
 			// Compute toAmount
-			if (!store.toCoin || !toCoinVal) return;
+			if (!txState.toCoin || !toCoinVal) return;
 			if (coinVal === toCoinVal) {
-				if (amt !== store.toAmount) {
-					SendTxDetails.update((s) => ({ ...s, toAmount: amt }));
+				if (amt !== txState.toAmount) {
+					txState.toAmount = amt;
 				}
 			} else {
 				coinAmountSnapshot
-					.convertTo(store.toCoin.coin, Network.lightning)
+					.convertTo(txState.toCoin.coin, Network.lightning)
 					.then((converted) => {
-						const current = get(SendTxDetails);
 						const convertedAmt = converted.toAmountString();
-						if (current.toAmount !== convertedAmt) {
-							SendTxDetails.update((s) => ({ ...s, toAmount: convertedAmt }));
+						if (txState.toAmount !== convertedAmt) {
+							txState.toAmount = convertedAmt;
 						}
 						// Compute fee based on converted toAmount
-						getFee(convertedAmt).then((fee) => {
-							const latest = get(SendTxDetails);
+						getFee(convertedAmt, txState).then((fee) => {
 							if (
-								fee?.amount !== latest.fee?.amount ||
-								fee?.coin.value !== latest.fee?.coin.value
+								fee?.amount !== txState.fee?.amount ||
+								fee?.coin.value !== txState.fee?.coin.value
 							) {
-								SendTxDetails.update((s) => ({ ...s, fee }));
+								txState.fee = fee;
 							}
 						});
 					});
@@ -107,8 +102,7 @@
 		const amt = coinAmount.amount;
 		const hasToAmount = !!_toAmount && _toAmount !== '0';
 		untrack(() => {
-			const store = get(SendTxDetails);
-			if (hasCoins && store.fromAmount && hasNetwork && amt > 0 && hasToAmount) {
+			if (hasCoins && txState.fromAmount && hasNetwork && amt > 0 && hasToAmount) {
 				editStage(true);
 			} else {
 				editStage(false);
@@ -124,18 +118,16 @@
 		const tCoin = _toCoinValue;
 		const fNet = _fromNetwork;
 		const tNet = _toNetwork;
-		// Use get() to access the full objects without subscribing the derived to the whole store
-		const store = get(SendTxDetails);
-		if (fCoin && fNet && store.fromCoin && store.fromNetwork) {
+		if (fCoin && fNet && txState.fromCoin && txState.fromNetwork) {
 			result.push({
-				coin: store.fromCoin.coin,
-				network: store.fromNetwork
+				coin: txState.fromCoin.coin,
+				network: txState.fromNetwork
 			});
 		}
-		if (tCoin && tNet && store.toCoin && store.toNetwork) {
+		if (tCoin && tNet && txState.toCoin && txState.toNetwork) {
 			result.push({
-				coin: store.toCoin.coin,
-				network: store.toNetwork
+				coin: txState.toCoin.coin,
+				network: txState.toNetwork
 			});
 		}
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {
@@ -165,8 +157,8 @@
 	<SelectAssetFlattened
 		availableCoins={[Coin.hive, Coin.hbd]}
 		close={toggleAsset}
-		bind:coin={$SendTxDetails.toCoin}
-		bind:network={$SendTxDetails.toNetwork}
+		bind:coin={txState.toCoin}
+		bind:network={txState.toNetwork}
 		isTo
 	/>
 {/if}
@@ -175,14 +167,14 @@
 		<label for="asset-card">Deposit To</label>
 		<ClickableCard onclick={() => toggleAsset(true)}>
 			<div class="asset-card">
-				{#if $SendTxDetails.toCoin && $SendTxDetails.toNetwork}
+				{#if txState.toCoin && txState.toNetwork}
 					<BalanceInfo
-						coin={$SendTxDetails.toCoin.coin}
-						network={$SendTxDetails.toNetwork}
+						coin={txState.toCoin.coin}
+						network={txState.toNetwork}
 						size="large"
 						styleType="vertical"
 					/>
-					<!-- <AssetInfo coinOpt={$SendTxDetails.fromCoin} size="medium" /> -->
+					<!-- <AssetInfo coinOpt={txState.fromCoin} size="medium" /> -->
 				{:else}
 					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 					Select Destination Account

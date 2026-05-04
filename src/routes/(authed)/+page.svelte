@@ -22,42 +22,43 @@
 </document:head>
 
 <div class="dashboard-wrapper">
-	<!-- Main dashboard (left) -->
-	<div class="dashboard-main">
-		<!-- Top row: Balance + Portfolio/Staking -->
-		<div class="top-row">
-			<div class="balance-col">
-				<Balance />
-			</div>
-			<div class="right-col">
-				<PortfolioValue />
-				<StakingEarnings onStake={() => toggleStake(true)} />
-			</div>
+	<!-- Row 1: Balance + Portfolio/Staking -->
+	<div class="top-row">
+		<div class="balance-col">
+			<Balance />
 		</div>
-
-		<!-- Bottom row: Transactions -->
-		<div class="transactions-section">
-			<div class="card transactions-card">
-				<div class="card-header">
-					<h4>Transaction</h4>
-					<button class="filter-btn" onclick={() => goto('/transactions')}>
-						All <span class="dropdown-arrow">&#9662;</span>
-					</button>
-				</div>
-				{#if auth.value}
-					<Table did={auth.value.did} allowPopup={false} limit={10} size="small" />
-				{/if}
-			</div>
+		<div class="right-col">
+			<PortfolioValue />
+			<StakingEarnings onStake={() => toggleStake(true)} />
 		</div>
 	</div>
 
-	<!-- Right panel -->
-	<div class="dashboard-right">
-		<MarketPrices />
-		<QuickSwap />
-		{#if auth.value}
-			<ResourceCredits {username} />
-		{/if}
+	<!-- Row 2: Cross-chain swap | Market prices + RC -->
+	<div class="widgets-row">
+		<div class="quickswap-col">
+			<QuickSwap />
+		</div>
+		<div class="market-rc-stack">
+			<MarketPrices />
+			{#if auth.value}
+				<ResourceCredits {username} />
+			{/if}
+		</div>
+	</div>
+
+	<!-- Row 3: Transactions — always last -->
+	<div class="transactions-section">
+		<div class="card transactions-card">
+			<div class="card-header">
+				<h4>Transaction</h4>
+				<button class="filter-btn" onclick={() => goto('/transactions')}>
+					All <span class="dropdown-arrow">&#9662;</span>
+				</button>
+			</div>
+			{#if auth.value}
+				<Table did={auth.value.did} allowPopup={false} limit={10} size="small" />
+			{/if}
+		</div>
 	</div>
 </div>
 
@@ -68,10 +69,10 @@
 <style lang="scss">
 	.dashboard-wrapper {
 		display: flex;
+		flex-direction: column;
 		gap: 16px;
 		width: 100%;
 		padding-bottom: 2rem;
-		align-items: flex-start;
 		:global(.dashboard-card),
 		:global(.card) {
 			border-color: rgba(255, 255, 255, 0.12) !important;
@@ -79,33 +80,10 @@
 			&:hover {
 				transform: translateY(-1px);
 			}
-			// :global(.light-theme) {
-			// 	border-color: var(--dash-card-border) !important;
-			// }
 		}
 	}
 
-	/* Main area — locked to SVG proportions */
-	.dashboard-main {
-		flex: 0 0 auto;
-		width: min(1100px, 65%);
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-	}
-
-	/* Right panel — fills ALL remaining space */
-	.dashboard-right {
-		flex: 1 1 0;
-		min-width: 280px;
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-		position: sticky;
-		top: 1rem;
-	}
-
+	/* Row 1 — Balance (left) + Portfolio/Staking (right) */
 	.top-row {
 		display: grid;
 		grid-template-columns: 37fr 63fr;
@@ -124,6 +102,28 @@
 		min-width: 0;
 	}
 
+	/* Row 2 — QuickSwap (left) | MarketPrices + RC stacked (right) */
+	.widgets-row {
+		display: flex;
+		flex-direction: row;
+		gap: 16px;
+		align-items: flex-start;
+	}
+
+	.quickswap-col {
+		flex: 3;
+		min-width: 0;
+	}
+
+	.market-rc-stack {
+		flex: 2;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	/* Row 3 — Transactions (always last) */
 	.transactions-section {
 		min-width: 0;
 	}
@@ -178,24 +178,26 @@
 		opacity: 0.6;
 	}
 
+	/* 1-column: widgets stack — QuickSwap first (3rd widget), then MarketPrices + RC */
 	@media (max-width: 1440px) {
-		.dashboard-wrapper {
+		.widgets-row {
 			flex-direction: column;
 		}
-		.dashboard-main {
+		.quickswap-col,
+		.market-rc-stack {
+			flex: none;
 			width: 100%;
 		}
-		.dashboard-right {
-			width: 100%;
-			position: static;
+		.market-rc-stack {
 			flex-direction: row;
 			flex-wrap: wrap;
-		}
-		.dashboard-right > :global(*) {
-			flex: 1 1 280px;
+			& > :global(*) {
+				flex: 1 1 280px;
+			}
 		}
 	}
 
+	/* top-row also collapses to single column at this point */
 	@media (max-width: 1100px) {
 		.top-row {
 			grid-template-columns: 1fr;
@@ -206,15 +208,12 @@
 		.dashboard-wrapper {
 			gap: 12px;
 		}
-		.dashboard-main {
-			gap: 12px;
-		}
-		.dashboard-right {
-			gap: 12px;
-		}
 		.card {
 			padding: 1rem;
 			border-radius: 20px;
+		}
+		.market-rc-stack {
+			gap: 12px;
 		}
 	}
 </style>

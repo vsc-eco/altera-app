@@ -198,6 +198,14 @@
 	.title-and-close.no-title {
 		height: 0;
 		margin-bottom: 0;
+		// Lift the X button out of the collapsed row so it sits at the same
+		// visual level as the back-arrow button when a title is present.
+		.close {
+			position: absolute;
+			right: 0;
+			top: 0;
+			margin-left: 0;
+		}
 	}
 
 	@media screen and (max-width: 36rem) {

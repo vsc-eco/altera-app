@@ -57,6 +57,9 @@ export class CoinAmount<C extends Coin> {
 			if (zeroes.length != 0) decimal = decimal.slice(0, -zeroes.length);
 			if (decimal.length == 0) return integer;
 		}
+		// Zero-decimal coins (e.g. sats) produce an empty decimal string — never
+		// emit a trailing dot regardless of keepTrailingZeroes.
+		if (decimal.length === 0) return `${isNegative ? '-' : ''}${integer || '0'}`;
 		const out = `${isNegative ? '-' : ''}${integer || '0'}.${decimal}`;
 		return out;
 	}

@@ -127,7 +127,19 @@
 				</li>
 			{/if}
 			{#each groupItems as item (item.value ?? item.label)}
-				<li {...api.getItemProps({ item })} class="real-item">
+				{@const itemProps = api.getItemProps({ item })}
+				<li
+					{...itemProps}
+					class="real-item"
+					onclick={(e) => {
+						// Call Zag's handler first (handles new selections + keyboard nav state).
+						itemProps.onclick?.(e);
+						// Zag's onSelect only fires when selection changes — manually
+						// close when the user re-clicks the already-selected item.
+						const itemVal = item.value ?? item.label;
+						if (itemVal === value) clickAsset(itemVal);
+					}}
+				>
 					{#if item.snippet}
 						{@render item.snippet(item.snippetData ?? item)}
 					{:else}

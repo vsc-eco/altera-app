@@ -14,6 +14,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import ContractId from '../tds/ContractId.svelte';
+	import PopupTitleRow from './PopupTitleRow.svelte';
 
 	type Props = {
 		tx: TransactionInter;
@@ -108,6 +109,12 @@
 		} catch {}
 		return op.data.action ?? op.type ?? 'call';
 	});
+
+	const popupTitle = $derived(
+		displayType
+			.replace(/_/g, ' ')
+			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase())
+	);
 </script>
 
 <tr
@@ -125,18 +132,16 @@
 </tr>
 
 {#snippet contractRowContent()}
-	<h2>
-		{displayType
-			.replace(/_/g, ' ')
-			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase())}
-	</h2>
+	<PopupTitleRow title={popupTitle} status={tx.status} />
+	<p class="popup-subtitle">
+		{moment(getTimestamp(tx)).format('MMM DD, YYYY [at] H:mm')}
+		{#if op.data.from} · {op.data.from}{/if}
+	</p>
 	<div class="sections">
-		<div class="amount section">
+		<div class="amount">
 			{#if isSwap && fromAmount}
-				<h3>Swap</h3>
 				{fromAmount.toPrettyString()} → {amount.toPrettyString()}
 			{:else}
-				<h3>Limit</h3>
 				{amount.toPrettyString()}
 			{/if}
 			<span class="approx-usd">
@@ -165,19 +170,21 @@
 		transition: background-color 1s;
 		animation: highlight-in 1s both;
 	}
-	h2 {
-		margin-top: 0 !important;
+	.popup-subtitle {
+		margin: 0;
+		font-size: 0.8rem;
+		color: var(--dash-text-muted);
 	}
 	.amount {
 		font-size: var(--text-4xl);
-		margin: 1rem 0;
+		margin: 0;
 	}
 	.approx-usd {
 		display: block;
 		text-wrap: wrap;
 		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
-		margin-top: 0.5rem;
+		margin-top: 0.25rem;
 	}
 	.date {
 		color: var(--dash-text-secondary);
@@ -210,11 +217,12 @@
 		/* align-items: stretch; */
 		flex: 1;
 		gap: 0.5rem;
+		margin-top: 0.75rem;
 	}
 
 	.links {
 		display: flex;
-		flex-wrap: wrap;
+		flex-direction: column;
 		gap: 0.5rem;
 	}
 
@@ -223,6 +231,6 @@
 	}
 
 	.tx-id.section {
-		margin-top: auto;
+		margin-top: 0.75rem;
 	}
 </style>

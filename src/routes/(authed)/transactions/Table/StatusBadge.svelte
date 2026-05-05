@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { status: rawStatus }: { status: string } = $props();
+	let { status: rawStatus, compact = false }: { status: string; compact?: boolean } = $props();
 	const status = $derived.by(() => {
 		if (rawStatus == 'INCLUDED') {
 			return 'unconfirmed';
@@ -12,7 +12,8 @@
 	class={{
 		secondary: status == 'failed',
 		primary: status == 'confirmed',
-		neutral: !['failed', 'confirmed'].includes(status)
+		neutral: !['failed', 'confirmed'].includes(status),
+		compact
 	}}>{status}</span
 >
 
@@ -26,5 +27,11 @@
 		display: inline-flex;
 		height: 1.25rem;
 		align-items: center;
+	}
+	span.compact {
+		font-size: 0.7rem;
+		padding: 0.1rem 0.35rem;
+		height: auto;
+		border-radius: 0.35rem;
 	}
 </style>

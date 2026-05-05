@@ -21,6 +21,8 @@
 	import { addNotification, type Notification } from '$lib/Topbar/notifications';
 	import { getHiveAssetName, getHbdAssetName } from '../../../../../client';
 	import { numberFormatLanguage } from '$lib/constants';
+	import { getAccountNameFromDid } from '$lib/getAccountName';
+	import PopupTitleRow from './PopupTitleRow.svelte';
 
 	type Props = {
 		tx: TransactionInter;
@@ -205,9 +207,20 @@
 </tr>
 
 {#snippet thisRowContent()}
-	<h2>
-		{formatOpType(t)}
-	</h2>
+	<PopupTitleRow title={formatOpType(t)} status={tx.status} />
+	<p class="popup-subtitle">
+		{moment(timestamp).format('MMM DD, YYYY [at] H:mm')}
+		{#if otherAccount}
+			·
+			{#if direction === 'incoming'}
+				Received from {getAccountNameFromDid(otherAccount)}
+			{:else if direction === 'outgoing'}
+				Sent to {getAccountNameFromDid(otherAccount)}
+			{:else}
+				{getAccountNameFromDid(otherAccount)}
+			{/if}
+		{/if}
+	</p>
 	<div class="amount">
 		{prettyWithDisplayUnit(amount)}
 		<span class="approx-usd">
@@ -264,14 +277,14 @@
 
 	.amount {
 		font-size: var(--text-4xl);
-		margin: 1rem 0;
+		margin: 0.75rem 0 0;
 	}
 	.approx-usd {
 		display: block;
 		text-wrap: wrap;
 		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
-		margin-top: 0.5rem;
+		margin-top: 0.25rem;
 	}
 	a {
 		display: inline-flex;
@@ -282,8 +295,10 @@
 		width: 16px;
 	}
 
-	h2 {
-		margin-top: 0 !important;
+	.popup-subtitle {
+		margin: 0;
+		font-size: 0.8rem;
+		color: var(--dash-text-muted);
 	}
 
 	.section h3 {
@@ -324,7 +339,7 @@
 
 	.links {
 		display: flex;
-		flex-wrap: wrap;
+		flex-direction: column;
 		gap: 0.5rem;
 	}
 
@@ -333,7 +348,7 @@
 	}
 
 	.tx-id.section {
-		margin-top: auto;
+		margin-top: 0.75rem;
 	}
 
 	.links-disabled a {

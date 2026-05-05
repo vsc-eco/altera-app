@@ -67,21 +67,41 @@ export function provideTxState(state: TxState) {
 }
 
 export function useTxState(): TxState {
-	return getContext<TxState>(TX_STATE_KEY)
+	const state = getContext<unknown>(TX_STATE_KEY)
+	if (!(state instanceof TxStateBase)) {
+		throw new Error(`useTxState() called outside a TxState provider (got ${typeof state})`)
+	}
+	return state as TxState
 }
 
 export function useSwapState(): SwapTxState {
-	return getContext<SwapTxState>(TX_STATE_KEY)
+	const state = getContext<unknown>(TX_STATE_KEY)
+	if (!(state instanceof SwapTxState)) {
+		throw new Error(`useSwapState() called with unexpected context value (got ${state?.constructor?.name ?? typeof state})`)
+	}
+	return state
 }
 
 export function useTransferState(): TransferTxState {
-	return getContext<TransferTxState>(TX_STATE_KEY)
+	const state = getContext<unknown>(TX_STATE_KEY)
+	if (!(state instanceof TransferTxState)) {
+		throw new Error(`useTransferState() called with unexpected context value (got ${state?.constructor?.name ?? typeof state})`)
+	}
+	return state
 }
 
 export function useDepositState(): DepositTxState {
-	return getContext<DepositTxState>(TX_STATE_KEY)
+	const state = getContext<unknown>(TX_STATE_KEY)
+	if (!(state instanceof DepositTxState)) {
+		throw new Error(`useDepositState() called with unexpected context value (got ${state?.constructor?.name ?? typeof state})`)
+	}
+	return state
 }
 
 export function useWithdrawState(): WithdrawTxState {
-	return getContext<WithdrawTxState>(TX_STATE_KEY)
+	const state = getContext<unknown>(TX_STATE_KEY)
+	if (!(state instanceof WithdrawTxState)) {
+		throw new Error(`useWithdrawState() called with unexpected context value (got ${state?.constructor?.name ?? typeof state})`)
+	}
+	return state
 }

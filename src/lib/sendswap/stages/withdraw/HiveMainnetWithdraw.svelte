@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -75,8 +76,8 @@
 
 		if (open) {
 			if (auth.value?.provider === 'aioha') {
-				// For Hive accounts, use txState.toUsername if available
-				hiveAccount = txState.toUsername || '';
+				// Autofill with the logged-in Hive username
+				hiveAccount = txState.toUsername || getUsernameFromAuth(auth) || '';
 			} else {
 				const shouldReset =
 					!currentUsername || (currentUsername.length === 42 && currentUsername.startsWith('0x'));

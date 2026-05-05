@@ -4,8 +4,8 @@
  * These tests verify three things without touching the network or moving tokens:
  *  1. State isolation  — two flow instances never share fields (the original bug).
  *  2. Correct defaults — each class starts with the expected zero-state.
- *  3. Payload building — the NecessarySendDetails fields produced for `send()`
- *     carry the right values for each flow kind, including BTC-specific ones.
+ *  3. Payload building — the kind-specific fields read by `send()` carry the
+ *     right values for each flow kind, including BTC-specific ones.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -16,21 +16,18 @@ import {
 	WithdrawTxState,
 	TxStateBase
 } from './txState.svelte'
-import type { NecessarySendDetails } from './sendOptions'
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Mirrors what StepsMachine.initSend() does: build the fields of
- * NecessarySendDetails that vary per flow kind.
+ * Mirrors what send() reads from txState for the kind-specific fields.
  * (coin/network/amount wiring is not tested here — only the kind-specific fields.)
  */
-function buildKindFields(txState: TxStateBase): Partial<NecessarySendDetails> {
+function buildKindFields(txState: TxStateBase) {
 	return {
 		toUsername: txState.toUsername,
 		fromAmount: txState.fromAmount,
-		memo: txState.kind === 'transfer' ? (txState as TransferTxState).memo : undefined,
-		minAmountOut: txState.kind === 'swap' ? (txState as SwapTxState).minAmountOut : undefined,
+		memo: txState instanceof TransferTxState ? txState.memo : undefined,
+		minAmountOut: txState instanceof SwapTxState ? txState.minAmountOut : undefined,
 		btcDeductFee: txState.btcDeductFee || undefined,
 		btcMaxFee: txState.btcMaxFee
 	}
@@ -141,7 +138,7 @@ describe('default values — each class starts at zero-state', () => {
 
 // ─── 3. Payload building ──────────────────────────────────────────────────────
 
-describe('payload building — kind-specific NecessarySendDetails fields', () => {
+describe('payload building — kind-specific fields read by send()', () => {
 	it('swap flow: minAmountOut is included, memo is absent', () => {
 		const state = new SwapTxState()
 		state.toUsername = 'alice'

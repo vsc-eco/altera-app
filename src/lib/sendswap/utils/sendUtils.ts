@@ -9,9 +9,9 @@ import swapOptions, {
 	TransferMethod,
 	type CoinOnNetwork,
 	type CoinOptions,
-	type IntermediaryNetwork,
-	type NecessarySendDetails
+	type IntermediaryNetwork
 } from './sendOptions';
+import { type TxState, SwapTxState, TransferTxState } from './txState.svelte';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
 import { getHiveSwapOp, getBtcApproveOp } from '$lib/magiTransactions/hive/vscOperations/swap';
@@ -599,14 +599,28 @@ export function solveToNetworks(state: TxStateBase): Network[] {
 }
 
 export async function send(
-	details: NecessarySendDetails,
+	details: TxState,
 	auth: Auth,
 	intermediary: IntermediaryNetwork,
 	setStatus: (status: string, isError?: boolean) => void,
 	signal?: AbortSignal | undefined
 ): Promise<Error | { id: string }> {
 	// console.log('start of send() function, details:', details);
-	const { fromCoin, fromNetwork, amount, toCoin, toNetwork, toUsername } = details;
+	const fromCoin = details.fromCoin!;
+	const fromNetwork = details.fromNetwork!;
+	const toCoin = details.toCoin!;
+	const toNetwork = details.toNetwork!;
+	const toUsername = details.toUsername;
+	// Resolve send amount — toAmount may lag on deposit/withdraw due to effect timing
+	const raw = details.toAmount;
+	const amount =
+		raw && raw !== '0'
+			? raw
+			: details.fromAmount && details.fromAmount !== '0'
+				? details.fromAmount
+				: details.enteredAmount && details.enteredAmount !== '0'
+					? details.enteredAmount
+					: raw;
 	if (intermediary == Network.magi) {
 		// console.log('intermediary network is Magi');
 		if (auth.value?.provider == 'reown') {
@@ -720,7 +734,7 @@ export async function send(
 			setStatus('Waiting for Hive wallet approval…');
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
 			const fromAmountStr = details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : amount;
-			const minOut = details.minAmountOut ? Number(details.minAmountOut) : undefined;
+			const minOut = details instanceof SwapTxState && details.minAmountOut ? Number(details.minAmountOut) : undefined;
 			const fromCa = new CoinAmount(fromAmountStr, fromCoin.coin);
 			if (fromCoin.coin.value === Coin.btc.value) {
 				extraOps.push(
@@ -766,7 +780,7 @@ export async function send(
 			toCoin.coin.value === Coin.btc.value &&
 			toNetwork.value === Network.btcMainnet.value
 		) {
-			// BTC unmap — pass deduct_fee and max_fee from NecessarySendDetails
+			// BTC unmap — pass deduct_fee and max_fee from txState
 			opType = 'withdrawal';
 			setStatus('Waiting for Hive wallet approval…');
 			const { getBitcoinUnmapOp: getUnmapOp } =
@@ -787,7 +801,7 @@ export async function send(
 				auth.value.username!,
 				getDidFromUsername(toUsername),
 				new CoinAmount(amount, toCoin.coin),
-				details.memo ? new URLSearchParams({ msg: details.memo }) : undefined
+				details instanceof TransferTxState && details.memo ? new URLSearchParams({ msg: details.memo }) : undefined
 			);
 		}
 
@@ -835,7 +849,7 @@ export async function send(
 					from: auth.value.username!,
 					to: toUsername,
 					amount: toCoinAmount.toPrettyString(),
-					memo: details.memo ?? ''
+					memo: details instanceof TransferTxState ? details.memo : ''
 				}
 			] satisfies TransferOperation
 		]);
@@ -849,7 +863,7 @@ export async function send(
 							asset: toCoin!.coin.unit.toLowerCase(),
 							from: auth.value.did,
 							to: getDidFromUsername(toUsername),
-							memo: details.memo ?? '',
+							memo: details instanceof TransferTxState ? details.memo : '',
 							type: 'transfer'
 						},
 						type: 'transfer',

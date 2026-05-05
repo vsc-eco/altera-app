@@ -256,24 +256,6 @@ export type CoinOptions = {
 	}[];
 };
 
-export type NecessarySendDetails = {
-	fromCoin: CoinOptions['coins'][number];
-	fromNetwork: Network;
-	amount: string;
-	toCoin: CoinOptions['coins'][number];
-	toNetwork: Network;
-	toUsername: string;
-	memo?: string;
-	/** Raw from-asset amount string used for swap ops (pre-fee input). */
-	fromAmount?: string;
-	/** Pool slippage minimum-out (swap flows only). */
-	minAmountOut?: string;
-	/** Whether to deduct the BTC network fee from the output (unmap flows only). */
-	btcDeductFee?: boolean;
-	/** Sat cap on the BTC network fee (unmap flows only). */
-	btcMaxFee?: number;
-};
-
 export type TransferMethod = {
 	label: string;
 	value: string;

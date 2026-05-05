@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { Coin, Network, type NecessarySendDetails } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { getTxSessionId, send } from '$lib/sendswap/utils/sendUtils';
 	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import V4VPopup from '$lib/sendswap/V4VPopup.svelte';
@@ -172,14 +172,10 @@
 
 	// START TRANSACTION
 	function initSend() {
-		const fromCoin = txState.fromCoin;
-		const fromNetwork = txState.fromNetwork;
-		const rawToAmount = txState.toAmount;
-		const toUsername = txState.toUsername;
-		const memo = txState.kind === 'transfer' ? txState.memo : undefined;
-		// For deposit/withdraw: toCoin mirrors fromCoin; toNetwork defaults based on txType
-		const toCoin = txState.toCoin ?? fromCoin;
-		const toNetwork =
+		// For deposit/withdraw: toCoin mirrors fromCoin; toNetwork defaults based on txType.
+		// Write resolved values back so send() can read them directly from txState.
+		txState.toCoin = txState.toCoin ?? txState.fromCoin;
+		txState.toNetwork =
 			txState.toNetwork ??
 			(txType === 'deposit'
 				? Network.magi
@@ -187,38 +183,13 @@
 					? Network.hiveMainnet
 					: undefined);
 
-		if (!fromCoin || !fromNetwork || !toCoin || !toNetwork) {
+		if (!txState.fromCoin || !txState.fromNetwork || !txState.toCoin || !txState.toNetwork) {
 			return new Error('Required field undefined.');
 		}
 
-		// Use toAmount, but fall back to fromAmount or enteredAmount if toAmount
-		// is stale '0' due to effect timing (e.g. deposit/withdraw sync race)
-		const amount =
-			rawToAmount && rawToAmount !== '0'
-				? rawToAmount
-				: txState.fromAmount && txState.fromAmount !== '0'
-					? txState.fromAmount
-					: txState.enteredAmount && txState.enteredAmount !== '0'
-						? txState.enteredAmount
-						: rawToAmount;
-
-		const importantDetails: NecessarySendDetails = {
-			fromCoin,
-			fromNetwork,
-			amount,
-			toCoin,
-			toNetwork,
-			toUsername,
-			memo,
-			fromAmount: txState.fromAmount,
-			minAmountOut: txState.kind === 'swap' ? txState.minAmountOut : undefined,
-			btcDeductFee: txState.btcDeductFee || undefined,
-			btcMaxFee: txState.btcMaxFee
-		};
-
 		let intermediary = getIntermediaryNetwork(
-			{ coin: fromCoin.coin, network: fromNetwork },
-			{ coin: toCoin.coin, network: toNetwork }
+			{ coin: txState.fromCoin.coin, network: txState.fromNetwork },
+			{ coin: txState.toCoin.coin, network: txState.toNetwork }
 		);
 
 		// console.log('found intermediary network:', intermediary.label);
@@ -231,7 +202,7 @@
 
 		waiting = true;
 		// console.log('waiting for signature');
-		send(importantDetails, auth, intermediary, setStatus, abortSend.signal).then((res) => {
+		send(txState, auth, intermediary, setStatus, abortSend.signal).then((res) => {
 			if (res instanceof Error) {
 				// log the error if it isn't caught
 				console.error(res.message);

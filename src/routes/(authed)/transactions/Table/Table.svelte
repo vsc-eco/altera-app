@@ -295,6 +295,7 @@
 	.card {
 		display: flex;
 		flex-direction: column;
+		box-sizing: border-box;
 		width: 100%;
 		flex-grow: 1;
 		min-height: 0;
@@ -303,7 +304,7 @@
 		border: 1px solid var(--dash-card-border);
 		border-radius: 27px;
 		box-shadow: var(--dash-card-shadow);
-		padding: 1.25rem;
+		padding: 1rem;
 		font-family: 'Nunito Sans', sans-serif;
 		/* overflow: clip preserves the border-radius visual clipping without
 		   blocking the child .table-scroll from showing its horizontal scrollbar. */
@@ -467,4 +468,5 @@
 			display: none;
 		}
 	}
+
 </style>

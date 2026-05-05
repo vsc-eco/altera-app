@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { getAccountNameFromDid } from '$lib/getAccountName';
 	import moment from 'moment';
-	import StatusBadge from '../StatusBadge.svelte';
 	type Props = {
 		from: string;
 		to: string;
@@ -40,11 +39,6 @@
 			To
 			{getAccountNameFromDid(to)}
 		</span>
-		{#if status && status != 'CONFIRMED'}
-			<span class="msg">
-				<StatusBadge {status} />
-			</span>
-		{/if}
 		<div class="to-ts ts msg">
 			{moment(anchor_ts).format('MMM DD [at] H:mm')}
 			{#if block_height != 0}

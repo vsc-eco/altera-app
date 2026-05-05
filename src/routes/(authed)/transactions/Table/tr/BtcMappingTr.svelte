@@ -24,6 +24,7 @@
 		type BtcMappingAction
 	} from '$lib/indexer/btcMappingQueries';
 	import { BTC_MAPPING_CONTRACT_ID, getVscExplorerTxUrl, getMemPoolTxUrl } from '$lib/constants';
+	import PopupTitleRow from './PopupTitleRow.svelte';
 
 	type Props = {
 		tx: TransactionInter;
@@ -59,6 +60,15 @@
 			displayType: formatOpType(op.type ?? tx.type),
 			direction: 'contract' as const
 		};
+	});
+
+	const popupTitle = $derived.by(() => {
+		if (contractInfo.action === 'unmap') return 'Withdrawal';
+		if (contractInfo.action === 'transfer') return 'Transfer';
+		if (contractInfo.action === 'transferFrom') return 'Transfer From';
+		return (op.type ?? tx.type)
+			.replace('_', ' ')
+			.replace(/\w\S*/g, (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase());
 	});
 
 	// Fallback payload parsed from op.data — used while the indexer query is in flight
@@ -172,29 +182,16 @@
 </script>
 
 {#snippet contractRowContent()}
-	<span>
-		{#if contractInfo.action === 'unmap'}
-			<h2>Withdrawal</h2>
-		{:else if contractInfo.action === 'transfer'}
-			<h2>Transfer</h2>
-		{:else if contractInfo.action === 'transferFrom'}
-			<h2>Transfer From</h2>
-		{:else}
-			<h2>
-				{(op.type ?? tx.type)
-					.replace('_', ' ')
-					.replace(
-						/\w\S*/g,
-						(text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
-					)}
-			</h2>
-		{/if}
-	</span>
+	<PopupTitleRow title={popupTitle} status={tx.status} />
+	<p class="popup-subtitle">
+		{moment(getTimestamp(tx)).format('MMM DD, YYYY [at] H:mm')}
+		{#if fromAccount} · {fromAccount} → {toAccount}{/if}
+	</p>
 	<div class="sections">
 		{#if !loaded}
 			<p>Loading details...</p>
 		{:else}
-			<div class="amount section">
+			<div class="amount">
 				{#if indexerEvent?.action === 'unmap'}
 					{satsToBtc(Number(indexerEvent.event.deducted))} BTC
 				{:else if indexerEvent?.action === 'transfer' || indexerEvent?.action === 'transferFrom'}
@@ -262,7 +259,7 @@
 				</div>
 			</div>
 
-			<div class="section">
+			<div class="tx-id section">
 				<h3>Transaction Id</h3>
 				<div class="copyable-text">
 					<BasicCopy value={tx.id} />
@@ -306,19 +303,22 @@
 		transition: background-color 1s;
 		animation: highlight-in 1s both;
 	}
-	h2 {
-		margin-top: 0 !important;
+	.popup-subtitle {
+		margin: 0;
+		font-size: 0.8rem;
+		color: var(--dash-text-muted);
 	}
+
 	.amount {
 		font-size: var(--text-4xl);
-		margin: 1rem 0;
+		margin: 0;
 	}
 	.approx-usd {
 		display: block;
 		text-wrap: wrap;
 		color: var(--dash-text-muted);
 		font-size: var(--text-sm);
-		margin-top: 0.5rem;
+		margin-top: 0.25rem;
 	}
 	.date {
 		color: var(--dash-text-secondary);
@@ -350,11 +350,16 @@
 		flex-direction: column;
 		flex: 1;
 		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+
+	.tx-id.section {
+		margin-top: 0.75rem;
 	}
 
 	.links {
 		display: flex;
-		flex-wrap: wrap;
+		flex-direction: column;
 		gap: 0.5rem;
 	}
 

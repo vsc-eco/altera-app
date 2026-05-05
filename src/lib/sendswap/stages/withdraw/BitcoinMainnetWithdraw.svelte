@@ -22,6 +22,17 @@
 	let btcAddress = $state('');
 	let btcAddressError = $state<string | undefined>(undefined);
 	let isBtcAddressValid = $state(false);
+	let previousOpen: boolean | undefined;
+
+	// Autofill BTC address when the user is logged in with a Bitcoin wallet
+	$effect(() => {
+		if (!open || open === previousOpen) return;
+		previousOpen = open;
+		if (auth.value?.did?.startsWith('did:pkh:bip122:') && auth.value?.address && !btcAddress) {
+			onAddressInput(auth.value.address);
+		}
+	});
+
 	let deductFee = $state(false);
 	let maxFeeRaw = $state('');
 	let btcFeeEstimate = $state<BtcFeeEstimate | null>(null);

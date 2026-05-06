@@ -172,6 +172,7 @@
 
 	// START TRANSACTION
 	function initSend() {
+		if (!txState) return new Error('initSend() called without a TxState provider');
 		// For deposit/withdraw: toCoin mirrors fromCoin; toNetwork defaults based on txType.
 		// Write resolved values back so send() can read them directly from txState.
 		txState.toCoin = txState.toCoin ?? txState.fromCoin;

@@ -46,6 +46,9 @@
 	.flex {
 		display: flex;
 		flex-direction: column;
-		height: calc(100vh - 6.5rem);
+		/* No fixed height — table sizes to its content so there's no blank
+		   space when only a few transactions are loaded. The page scrolls
+		   naturally for larger transaction sets. */
+		/* height: calc(100vh - 6.5rem); */
 	}
 </style>

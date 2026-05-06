@@ -36,7 +36,7 @@
 {/snippet}
 
 {#snippet poolsContent()}
-	<div class="tab-panel">
+	<div class="tab-panel pools-tab-panel">
 		<PoolsContent />
 	</div>
 {/snippet}
@@ -108,6 +108,13 @@
 		flex-direction: column;
 		height: 100%;
 		min-height: 0;
+	}
+
+	/* Pools tab: let the table size to its content instead of
+	   stretching to fill the full tab panel height. The tab's
+	   overflow:auto container provides scrolling when needed. */
+	.pools-tab-panel {
+		height: auto;
 	}
 
 	.send-internal-wrapper {

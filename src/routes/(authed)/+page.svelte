@@ -22,32 +22,27 @@
 </document:head>
 
 <div class="dashboard-wrapper">
-	<!-- Row 1: Balance + Portfolio/Staking -->
-	<div class="top-row">
-		<div class="balance-col">
-			<Balance />
-		</div>
-		<div class="right-col">
-			<PortfolioValue />
-			<StakingEarnings onStake={() => toggleStake(true)} />
-		</div>
+	<div class="area-balance">
+		<Balance />
 	</div>
 
-	<!-- Row 2: Cross-chain swap | Market prices + RC -->
-	<div class="widgets-row">
-		<div class="quickswap-col">
-			<QuickSwap />
-		</div>
-		<div class="market-rc-stack">
-			<MarketPrices />
-			{#if auth.value}
-				<ResourceCredits {username} />
-			{/if}
-		</div>
+	<div class="area-portfolio">
+		<PortfolioValue />
+		<StakingEarnings onStake={() => toggleStake(true)} />
 	</div>
 
-	<!-- Row 3: Transactions — always last -->
-	<div class="transactions-section">
+	<div class="area-rc-market">
+		{#if auth.value}
+			<ResourceCredits {username} />
+		{/if}
+		<MarketPrices />
+	</div>
+
+	<div class="area-quickswap">
+		<QuickSwap />
+	</div>
+
+	<div class="area-transactions">
 		<div class="card transactions-card">
 			<div class="card-header">
 				<h4>Transaction</h4>
@@ -55,9 +50,11 @@
 					All <span class="dropdown-arrow">&#9662;</span>
 				</button>
 			</div>
-			{#if auth.value}
-				<Table did={auth.value.did} allowPopup={false} limit={10} size="small" />
-			{/if}
+			<div class="table-body">
+				{#if auth.value}
+					<Table did={auth.value.did} allowPopup={false} limit={12} size="small" />
+				{/if}
+			</div>
 		</div>
 	</div>
 </div>
@@ -67,12 +64,9 @@
 {/if}
 
 <style lang="scss">
+	/* ── Shared card chrome (scoped to dashboard wrapper only) ──────────── */
+
 	.dashboard-wrapper {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-		width: 100%;
-		padding-bottom: 2rem;
 		:global(.dashboard-card),
 		:global(.card) {
 			border-color: rgba(255, 255, 255, 0.12) !important;
@@ -81,51 +75,6 @@
 				transform: translateY(-1px);
 			}
 		}
-	}
-
-	/* Row 1 — Balance (left) + Portfolio/Staking (right) */
-	.top-row {
-		display: grid;
-		grid-template-columns: 37fr 63fr;
-		gap: 16px;
-		align-items: stretch;
-	}
-
-	.balance-col {
-		min-width: 0;
-	}
-
-	.right-col {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-		min-width: 0;
-	}
-
-	/* Row 2 — QuickSwap (left) | MarketPrices + RC stacked (right) */
-	.widgets-row {
-		display: flex;
-		flex-direction: row;
-		gap: 16px;
-		align-items: flex-start;
-	}
-
-	.quickswap-col {
-		flex: 3;
-		min-width: 0;
-	}
-
-	.market-rc-stack {
-		flex: 2;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-	}
-
-	/* Row 3 — Transactions (always last) */
-	.transactions-section {
-		min-width: 0;
 	}
 
 	.card {
@@ -138,6 +87,8 @@
 
 	.transactions-card {
 		overflow: hidden;
+		height: 100%;
+		box-sizing: border-box;
 	}
 
 	.card-header {
@@ -178,31 +129,136 @@
 		opacity: 0.6;
 	}
 
-	/* 1-column: widgets stack — QuickSwap first (3rd widget), then MarketPrices + RC */
-	@media (max-width: 1440px) {
-		.widgets-row {
+	/* ── Areas that stack children vertically ────────────────────────────── */
+
+	.area-portfolio,
+	.area-rc-market {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	/* ── Default: 1 column (< 1024px) ───────────────────────────────────── */
+	/*  DOM order already matches desired visual order:
+	    balance → portfolio/staking → rc+market → quickswap → transactions  */
+
+	.dashboard-wrapper {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		width: 100%;
+		padding-bottom: 2rem;
+	}
+
+	/* ── 2-column layout (1024px – 1919px) ──────────────────────────────── */
+	/*  Row 1: balance | portfolio+staking
+	    Row 2: rc+market | quickswap
+	    Row 3: transactions (full width)                                      */
+
+	@media (min-width: 1024px) and (max-width: 1919px) {
+		.dashboard-wrapper {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			grid-template-areas:
+				'balance   portfolio'
+				'rc-mkt    quickswap'
+				'txs       txs';
+			align-items: start;
+		}
+
+		.area-balance {
+			grid-area: balance;
+			align-self: stretch;
+			display: flex;
 			flex-direction: column;
 		}
-		.quickswap-col,
-		.market-rc-stack {
-			flex: none;
-			width: 100%;
+		/* Make the Balance component fill the stretched area */
+		.area-balance > :global(*) {
+			flex: 1;
 		}
-		.market-rc-stack {
-			flex-direction: row;
-			flex-wrap: wrap;
-			& > :global(*) {
-				flex: 1 1 280px;
-			}
+		.area-portfolio { grid-area: portfolio; }
+		.area-rc-market {
+			grid-area: rc-mkt;
+			align-self: stretch;
+		}
+		/* Both cards grow equally to fill remaining height */
+		.area-rc-market > :global(*) {
+			flex: 1;
+		}
+		.area-quickswap {
+			grid-area: quickswap;
+			height: 755px;
+			overflow: hidden;
+		}
+		.area-transactions {
+			grid-area: txs;
+			max-height: 755px;
+			display: flex;
+			flex-direction: column;
+		}
+		.area-transactions .transactions-card {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
+		.area-transactions .table-body {
+			flex: 1;
+			overflow-y: auto;
+			min-height: 0;
 		}
 	}
 
-	/* top-row also collapses to single column at this point */
-	@media (max-width: 1100px) {
-		.top-row {
-			grid-template-columns: 1fr;
+	/* ── 3-column layout (≥ 1920px) ─────────────────────────────────────── */
+	/*  5-column grid (each unit = 1/5):
+	    Row 1: balance(2) | portfolio+staking(2) | rc+market(1)
+	    Row 2: quickswap(2) | transactions(3) — same height, table scrollable */
+
+	@media (min-width: 1920px) {
+		.dashboard-wrapper {
+			display: grid;
+			grid-template-columns: repeat(5, 1fr);
+			grid-template-areas:
+				'balance   balance   portfolio  portfolio  rc-mkt'
+				'quickswap quickswap txs        txs        txs';
+			/* row 1 items sit at their natural height */
+			align-items: start;
+		}
+
+		.area-balance { grid-area: balance; }
+		.area-portfolio { grid-area: portfolio; }
+		.area-rc-market { grid-area: rc-mkt; }
+
+		/* quickswap: fixed height prevents layout shifts when swap details
+		   appear/disappear. This also defines the row track height so
+		   the transactions card stretches to exactly the same size. */
+		.area-quickswap {
+			grid-area: quickswap;
+			align-self: start;
+			height: 755px;
+			overflow: hidden;
+		}
+		.area-transactions {
+			grid-area: txs;
+			align-self: start;
+			max-height: 755px;
+			display: flex;
+			flex-direction: column;
+		}
+		.area-transactions .transactions-card {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
+		.area-transactions .table-body {
+			flex: 1;
+			overflow-y: auto;
+			min-height: 0;
 		}
 	}
+
+	/* ── Mobile tweaks (≤ 600px) ─────────────────────────────────────────── */
 
 	@media (max-width: 600px) {
 		.dashboard-wrapper {
@@ -211,9 +267,6 @@
 		.card {
 			padding: 1rem;
 			border-radius: 20px;
-		}
-		.market-rc-stack {
-			gap: 12px;
 		}
 	}
 </style>

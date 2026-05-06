@@ -1276,6 +1276,8 @@
 		</div>
 	</div>
 
+	<!-- Variable content: grows to fill space, content anchored to bottom so button never moves -->
+	<div class="swap-middle">
 	<!-- Swap Details -->
 	{#if txState.fromCoin && txState.toCoin}
 		<div class="swap-details">
@@ -1362,6 +1364,7 @@
 	{:else if exceedsPoolDepth}
 		<p class="swap-status error">Amount exceeds 50% of pool depth — reduce the amount.</p>
 	{/if}
+	</div><!-- end .swap-middle -->
 
 	<!-- Exchange -->
 	<PillButton
@@ -1489,6 +1492,25 @@
 		border-radius: 27px;
 		padding: 1.25rem;
 		box-shadow: var(--dash-card-shadow);
+		/* Fill the fixed-height container set by the dashboard grid. */
+		height: 100%;
+		box-sizing: border-box;
+		overflow: hidden;
+		/* Flex column so .swap-middle grows and the button stays pinned. */
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Grows to fill space between slippage and the button.
+	   Content stacks from the top (flex-start); blank space sits below
+	   warnings so the Swap button stays pinned and nothing shifts. */
+	.swap-middle {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-start;
+		overflow: hidden;
 	}
 
 	/* Header */

@@ -15,6 +15,7 @@
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import ContractId from '../tds/ContractId.svelte';
 	import PopupTitleRow from './PopupTitleRow.svelte';
+	import { hasuraQuery } from '$lib/indexer/query';
 
 	type Props = {
 		tx: TransactionInter;
@@ -38,6 +39,8 @@
 	//   New router (Altera):  { type:"swap", asset_in, asset_out, amount_in, min_amount_out }
 	//   Old pool (legacy):    { type:"deposit", asset0, asset1, amount0, amount1 }
 	// Both are normalised to { asset0, amount0, asset1, amount1 } for display.
+	// isNewRouter flags the Altera format so we know to fetch the real amount_out from the
+	// indexer after confirmation (the payload only carries the slippage floor, not the actual fill).
 	const swapPayload = $derived.by(() => {
 		try {
 			const parsed = JSON.parse(op.data.payload ?? '');
@@ -52,19 +55,44 @@
 					asset0: String(parsed.asset_in).toLowerCase(),
 					amount0: String(parsed.amount_in),
 					asset1: String(parsed.asset_out).toLowerCase(),
-					// min_amount_out is a floor; fall back to '0' if absent
-					amount1: String(parsed.min_amount_out ?? '0')
+					// min_amount_out is a floor used while pending; replaced by actual fill once confirmed
+					amount1: String(parsed.min_amount_out ?? '0'),
+					isNewRouter: true
 				};
 			}
-			// Old pool format
+			// Old pool format — amount1 is the actual received value, no indexer lookup needed
 			if (parsed?.asset0 && parsed?.asset1 && parsed?.amount0 != null && parsed?.amount1 != null) {
-				return parsed as { asset0: string; amount0: string; asset1: string; amount1: string };
+				return { ...parsed, isNewRouter: false } as {
+					asset0: string; amount0: string; asset1: string; amount1: string; isNewRouter: false
+				};
 			}
 		} catch {}
 		return null;
 	});
 
 	const isSwap = $derived(op.data.action === 'execute' && swapPayload !== null);
+
+	// For confirmed new-router swaps, fetch the actual settled amount_out from the indexer.
+	// The payload only carries min_amount_out (the slippage floor), which is almost always
+	// lower than what the pool actually returned.
+	let indexerAmountOut = $state.raw<{ amount_out: number; asset_out: string } | null>(null);
+	let lastFetchedTxId = '';
+	$effect(() => {
+		if (!isSwap || !swapPayload?.isNewRouter || tx.isPending || tx.id === lastFetchedTxId) return;
+		lastFetchedTxId = tx.id;
+		hasuraQuery<{ dex_pool_swap_events: Array<{ amount_out: number; asset_out: string }> }>(
+			`query GetSwapActualOutput($txHash: String!) {
+				dex_pool_swap_events(where: {indexer_tx_hash: {_eq: $txHash}}, limit: 1) {
+					amount_out
+					asset_out
+				}
+			}`,
+			{ txHash: tx.id }
+		).then((data) => {
+			const event = data?.dex_pool_swap_events?.[0];
+			if (event) indexerAmountOut = event;
+		});
+	});
 
 	// For swaps: fromAmount = what user sends (asset0), amount = what user receives (asset1).
 	// For other contract calls: amount comes from intents limit.
@@ -79,6 +107,14 @@
 	);
 	const amount = $derived.by(() => {
 		if (isSwap && swapPayload) {
+			// Confirmed new-router swap: prefer actual fill from indexer over the min floor
+			if (indexerAmountOut && !tx.isPending) {
+				return new CoinAmount(
+					indexerAmountOut.amount_out,
+					Coin[indexerAmountOut.asset_out.split('_')[0] as keyof typeof Coin] || Coin.unk,
+					true
+				);
+			}
 			return new CoinAmount(
 				swapPayload.amount1,
 				Coin[swapPayload.asset1.split('_')[0] as keyof typeof Coin] || Coin.unk,

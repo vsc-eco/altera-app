@@ -1,13 +1,11 @@
 <script lang="ts">
-	import { getAccountNameFromAuth, getAccountNameFromDid } from '$lib/getAccountName';
+	import { getAccountNameFromDid } from '$lib/getAccountName';
 	import { page } from '$app/state';
 	import Table from './Table/Table.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { goto } from '$app/navigation';
-	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);
-	// let did = 'hive:techcoderx';
 	const autoOpenOp: [string, number] | undefined = $derived.by(() => {
 		const autoOpenTxId = page.url.searchParams.get('tx');
 		const autoOpenIndex = Number(page.url.searchParams.get('index'));

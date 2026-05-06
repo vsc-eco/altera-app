@@ -66,12 +66,10 @@ export function provideTxState(state: TxState) {
 	setContext(TX_STATE_KEY, state)
 }
 
-export function useTxState(): TxState {
+export function useTxState(): TxState | undefined {
 	const state = getContext<unknown>(TX_STATE_KEY)
-	if (!(state instanceof TxStateBase)) {
-		throw new Error(`useTxState() called outside a TxState provider (got ${typeof state})`)
-	}
-	return state as TxState
+	if (state instanceof TxStateBase) return state as TxState
+	return undefined
 }
 
 export function useSwapState(): SwapTxState {

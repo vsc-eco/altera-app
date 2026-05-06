@@ -624,6 +624,8 @@
 			if (amt !== txState.toAmount) txState.toAmount = amt;
 		} else {
 			inputAmount.convertTo(txState.toCoin.coin, Network.lightning).then((amt) => {
+				// Discard stale exchange-rate estimate if pool calc resolved while we waited
+				if (swapResult) return;
 				if (txState.toAmount !== amt.toAmountString()) {
 					txState.toAmount = amt.toAmountString();
 				}

@@ -82,7 +82,7 @@ export function initModal() {
 										? BTC_TESTNET_CAIP
 										: BTC_MAINNET_CAIP
 								}:${value.address!}`
-							: `did:pkh:eip155:1:${value.address!}`,
+							: `did:pkh:eip155:1:${value.address!.toLowerCase()}`,
 						openSettings: () => modal!.open()
 					}
 				});

@@ -54,7 +54,7 @@ export const getDidFromUsername = (username: string) => {
 		return `hive:${username}`;
 	}
 	if (username.startsWith('0x')) {
-		return `did:pkh:eip155:1:${username}`;
+		return `did:pkh:eip155:1:${username.toLowerCase()}`;
 	}
 	// Strip chain hash prefix if present (e.g. "000...e93:bc1q...")
 	const rawAddr = username.includes(':') ? username.split(':').at(-1)! : username;

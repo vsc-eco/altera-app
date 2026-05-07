@@ -210,7 +210,7 @@
 		{#snippet content()}
 			{@render completeBody()}
 			<div class="popup-buttons">
-				<PillButton onclick={() => onClose()} theme="accent" styleType="invert">Done</PillButton>
+				<PillButton onclick={() => { dialogToggle?.(false); onClose(); }} theme="accent" styleType="invert">Done</PillButton>
 			</div>
 		{/snippet}
 	</Dialog>

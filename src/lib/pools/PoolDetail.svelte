@@ -9,6 +9,9 @@
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import { untrack } from 'svelte';
+	import SidePopup from '$lib/components/SidePopup.svelte';
+	import { ExternalLink } from '@lucide/svelte';
+	import { getVscExplorerTxUrl } from '$lib/constants';
 
 	let {
 		pool,
@@ -221,6 +224,23 @@
 		const display = addr.startsWith('hive:') ? addr.slice(5) : addr;
 		return display.length > 14 ? `${display.slice(0, 6)}...${display.slice(-4)}` : display;
 	}
+
+	type PoolEvent =
+		| { kind: 'swap'; data: SwapEvent }
+		| { kind: 'add'; data: AddLiqEvent }
+		| { kind: 'remove'; data: RemoveLiqEvent };
+
+	let selectedEvent = $state<PoolEvent | null>(null);
+	let popupOpen = $state(false);
+
+	function openEvent(event: PoolEvent) {
+		selectedEvent = event;
+		popupOpen = true;
+	}
+	function closeEvent() {
+		popupOpen = false;
+		selectedEvent = null;
+	}
 </script>
 
 <div class="pool-detail">
@@ -338,7 +358,7 @@
 				<tbody>
 					{#if swaps.length > 0}
 						{#each swaps as s}
-							<tr class="data-row">
+							<tr class="data-row clickable-row" onclick={() => openEvent({ kind: 'swap', data: s })}>
 								<td class="date-cell">{fmtDate(s.indexer_ts)}</td>
 								<td class="addr-cell">
 									<span class="addr" title={s.recipient}>{shortAddr(s.recipient)}</span>
@@ -347,7 +367,7 @@
 								<td class="token-cell">{s.asset_in?.toUpperCase() ?? '-'}</td>
 								<td class="amount-cell mono">{fmtAmt(s.amount_out, decimalsForAsset(s.asset_out))}</td>
 								<td class="token-cell">{s.asset_out?.toUpperCase() ?? '-'}</td>
-								<td class="tx-cell">
+								<td class="tx-cell" onclick={(e) => e.stopPropagation()}>
 									<Clipboard value={s.indexer_tx_hash} label="" disabled={false} />
 								</td>
 							</tr>
@@ -382,7 +402,7 @@
 				<tbody>
 					{#if adds.length > 0}
 						{#each adds as a}
-							<tr class="data-row">
+							<tr class="data-row clickable-row" onclick={() => openEvent({ kind: 'add', data: a })}>
 								<td class="date-cell">{fmtDate(a.indexer_ts)}</td>
 								<td class="addr-cell">
 									<span class="addr" title={a.provider}>{shortAddr(a.provider)}</span>
@@ -390,7 +410,7 @@
 								<td class="amount-cell mono">{fmtAmt(a.amount0, decimalsForAsset(sym0))}</td>
 								<td class="amount-cell mono">{fmtAmt(a.amount1, decimalsForAsset(sym1))}</td>
 								<td class="amount-cell mono">{fmtAmt(a.lp_minted)}</td>
-								<td class="tx-cell">
+								<td class="tx-cell" onclick={(e) => e.stopPropagation()}>
 									<Clipboard value={a.indexer_tx_hash} label="" disabled={false} />
 								</td>
 							</tr>
@@ -425,7 +445,7 @@
 				<tbody>
 					{#if removes.length > 0}
 						{#each removes as r}
-							<tr class="data-row">
+							<tr class="data-row clickable-row" onclick={() => openEvent({ kind: 'remove', data: r })}>
 								<td class="date-cell">{fmtDate(r.indexer_ts)}</td>
 								<td class="addr-cell">
 									<span class="addr" title={r.provider}>{shortAddr(r.provider)}</span>
@@ -433,7 +453,7 @@
 								<td class="amount-cell mono">{fmtAmt(r.amount0, decimalsForAsset(sym0))} {sym0}</td>
 								<td class="amount-cell mono">{fmtAmt(r.amount1, decimalsForAsset(sym1))} {sym1}</td>
 								<td class="amount-cell mono">{fmtAmt(r.lp_burned)}</td>
-								<td class="tx-cell">
+								<td class="tx-cell" onclick={(e) => e.stopPropagation()}>
 									<Clipboard value={r.indexer_tx_hash} label="" disabled={false} />
 								</td>
 							</tr>
@@ -450,6 +470,94 @@
 		</div>
 	</div>
 {/snippet}
+
+{#snippet poolEventContent()}
+	{#if selectedEvent}
+		{@const e = selectedEvent}
+		{@const txHash = e.data.indexer_tx_hash}
+		<p class="popup-subtitle">{moment(e.data.indexer_ts).format('MMM DD, YYYY [at] H:mm')}</p>
+
+		{#if e.kind === 'swap'}
+			<div class="popup-amounts">
+				<div class="popup-amount-row">
+					<span class="popup-label">Amount In</span>
+					<span class="mono">{fmtAmt(e.data.amount_in, decimalsForAsset(e.data.asset_in))} {e.data.asset_in?.toUpperCase() ?? ''}</span>
+				</div>
+				<div class="popup-amount-row">
+					<span class="popup-label">Amount Out</span>
+					<span class="mono">{fmtAmt(e.data.amount_out, decimalsForAsset(e.data.asset_out))} {e.data.asset_out?.toUpperCase() ?? ''}</span>
+				</div>
+				<div class="popup-amount-row">
+					<span class="popup-label">Recipient</span>
+					<span class="mono addr" title={e.data.recipient}>{shortAddr(e.data.recipient)}</span>
+				</div>
+			</div>
+		{:else if e.kind === 'add'}
+			<div class="popup-amounts">
+				<div class="popup-amount-row">
+					<span class="popup-label">{sym0}</span>
+					<span class="mono">{fmtAmt(e.data.amount0, decimalsForAsset(sym0))}</span>
+				</div>
+				<div class="popup-amount-row">
+					<span class="popup-label">{sym1}</span>
+					<span class="mono">{fmtAmt(e.data.amount1, decimalsForAsset(sym1))}</span>
+				</div>
+				<div class="popup-amount-row">
+					<span class="popup-label">LP Minted</span>
+					<span class="mono">{fmtAmt(e.data.lp_minted)}</span>
+				</div>
+				<div class="popup-amount-row">
+					<span class="popup-label">Provider</span>
+					<span class="mono addr" title={e.data.provider}>{shortAddr(e.data.provider)}</span>
+				</div>
+			</div>
+		{:else}
+			<div class="popup-amounts">
+				<div class="popup-amount-row">
+					<span class="popup-label">{sym0}</span>
+					<span class="mono">{fmtAmt(e.data.amount0, decimalsForAsset(sym0))}</span>
+				</div>
+				<div class="popup-amount-row">
+					<span class="popup-label">{sym1}</span>
+					<span class="mono">{fmtAmt(e.data.amount1, decimalsForAsset(sym1))}</span>
+				</div>
+				<div class="popup-amount-row">
+					<span class="popup-label">LP Burned</span>
+					<span class="mono">{fmtAmt(e.data.lp_burned)}</span>
+				</div>
+				<div class="popup-amount-row">
+					<span class="popup-label">Provider</span>
+					<span class="mono addr" title={e.data.provider}>{shortAddr(e.data.provider)}</span>
+				</div>
+			</div>
+		{/if}
+
+		<div class="popup-section">
+			<h3>Transaction ID</h3>
+			<Clipboard value={txHash} label="" disabled={false} />
+		</div>
+		<div class="popup-section">
+			<h3>External Links</h3>
+			<a href={getVscExplorerTxUrl(txHash)} target="_blank" rel="noreferrer">
+				VSC Block Explorer <ExternalLink size={14} />
+			</a>
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet poolEventTitle()}
+	{#if selectedEvent}
+		{selectedEvent.kind === 'swap' ? 'Swap' : selectedEvent.kind === 'add' ? 'Add Liquidity' : 'Remove Liquidity'}
+	{/if}
+{/snippet}
+
+<SidePopup
+	toggle={closeEvent}
+	content={popupOpen ? poolEventContent : undefined}
+	open={popupOpen}
+>
+	{#snippet title()}{@render poolEventTitle()}{/snippet}
+</SidePopup>
 
 <style lang="scss">
 	.pool-detail {
@@ -599,6 +707,10 @@
 		&:hover {
 			background-color: var(--dash-surface-alt);
 		}
+
+		&.clickable-row {
+			cursor: pointer;
+		}
 	}
 
 	.date-cell {
@@ -694,6 +806,45 @@
 		}
 		50% {
 			opacity: 0.5;
+		}
+	}
+
+	.popup-subtitle {
+		margin: 0 0 1rem;
+		font-size: 0.8rem;
+		color: var(--dash-text-muted);
+	}
+	.popup-amounts {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+	}
+	.popup-amount-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 0.875rem;
+	}
+	.popup-label {
+		color: var(--dash-text-secondary);
+	}
+	.popup-section {
+		padding: 0.5rem;
+		border-radius: 12px;
+		margin-top: 0.5rem;
+		h3 {
+			font-size: var(--text-sm);
+			font-weight: 600;
+			margin: 0 0 0.4rem;
+			color: var(--dash-text-secondary);
+		}
+		a {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.25rem;
+			font-size: 0.875rem;
+			color: var(--dash-text-primary);
 		}
 	}
 </style>

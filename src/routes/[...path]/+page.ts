@@ -3,5 +3,5 @@ import { error } from '@sveltejs/kit';
 export const prerender = false;
 
 export function load() {
-	error(404, 'Page not found');
+	error(404, { message: 'Page not found' });
 }

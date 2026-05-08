@@ -26,20 +26,24 @@
 		<Balance />
 	</div>
 
+	<div class="area-quickswap">
+		<QuickSwap />
+	</div>
+
 	<div class="area-portfolio">
 		<PortfolioValue />
 		<StakingEarnings onStake={() => toggleStake(true)} />
 	</div>
 
 	<div class="area-rc-market">
-		{#if auth.value}
-			<ResourceCredits {username} />
-		{/if}
-		<MarketPrices />
-	</div>
-
-	<div class="area-quickswap">
-		<QuickSwap />
+		<div class="area-rc-inner">
+			{#if auth.value}
+				<ResourceCredits {username} />
+			{/if}
+		</div>
+		<div class="area-market-inner">
+			<MarketPrices />
+		</div>
 	</div>
 
 	<div class="area-transactions">
@@ -161,7 +165,7 @@
 			grid-template-columns: 1fr 1fr;
 			grid-template-areas:
 				'balance   portfolio'
-				'rc-mkt    quickswap'
+				'quickswap rc-mkt'
 				'txs       txs';
 			align-items: start;
 		}
@@ -180,9 +184,17 @@
 		.area-rc-market {
 			grid-area: rc-mkt;
 			align-self: stretch;
+			display: flex;
+			flex-direction: column;
 		}
-		/* Both cards grow equally to fill remaining height */
+		/* Both inner wrappers grow equally */
 		.area-rc-market > :global(*) {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+		}
+		/* Child components fill their wrapper */
+		.area-rc-market > :global(*) > :global(*) {
 			flex: 1;
 		}
 		.area-quickswap {
@@ -210,32 +222,45 @@
 	}
 
 	/* ── 3-column layout (≥ 1920px) ─────────────────────────────────────── */
-	/*  5-column grid (each unit = 1/5):
-	    Row 1: balance(2) | portfolio+staking(2) | rc+market(1)
-	    Row 2: quickswap(2) | transactions(3) — same height, table scrollable */
+	/*  3-column grid:
+	    Row 1: balance(1) | portfolio+staking(1) | quickswap(1, spans rows 1-2)
+	    Row 2: rc(1)      | market(1)            | quickswap (continued)
+	    Row 3: txs(3)                                                          */
 
 	@media (min-width: 1920px) {
 		.dashboard-wrapper {
 			display: grid;
-			grid-template-columns: repeat(5, 1fr);
+			grid-template-columns: repeat(3, 1fr);
 			grid-template-areas:
-				'balance   balance   portfolio  portfolio  rc-mkt'
-				'quickswap quickswap txs        txs        txs';
-			/* row 1 items sit at their natural height */
+				'balance   portfolio  quickswap'
+				'rc        market     quickswap'
+				'txs       txs        txs';
 			align-items: start;
 		}
 
 		.area-balance { grid-area: balance; }
 		.area-portfolio { grid-area: portfolio; }
-		.area-rc-market { grid-area: rc-mkt; }
 
-		/* quickswap: fixed height prevents layout shifts when swap details
-		   appear/disappear. This also defines the row track height so
-		   the transactions card stretches to exactly the same size. */
+		/* Wrapper becomes transparent — children are placed individually */
+		.area-rc-market { display: contents; }
+		.area-rc-inner {
+			grid-area: rc;
+			align-self: stretch;
+			display: flex;
+			flex-direction: column;
+		}
+		.area-rc-inner > :global(*) { flex: 1; }
+		.area-market-inner {
+			grid-area: market;
+			align-self: stretch;
+			display: flex;
+			flex-direction: column;
+		}
+		.area-market-inner > :global(*) { flex: 1; }
+
 		.area-quickswap {
 			grid-area: quickswap;
-			align-self: start;
-			height: 755px;
+			align-self: stretch;
 			overflow: hidden;
 		}
 		.area-transactions {

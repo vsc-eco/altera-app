@@ -281,8 +281,14 @@
 						<td class="col-fee">
 							<div class="amount-cell">
 								<span class="total">{pool.feeEarnedUsd}</span>
-								<span class="breakdown">{pool.feeEarnedAssets[0]}</span>
-								<span class="breakdown">{pool.feeEarnedAssets[1]}</span>
+								<span class="breakdown fee-row">
+									<span class="fee-label">LP</span>{pool.feeEarnedAssets[0]}
+									<span class="fee-sub">{pool.feeEarnedUsdBreakdown[0]}</span>
+								</span>
+								<span class="breakdown fee-row">
+									<span class="fee-label">Protocol</span>{pool.feeEarnedAssets[1]}
+									<span class="fee-sub">{pool.feeEarnedUsdBreakdown[1]}</span>
+								</span>
 							</div>
 						</td>
 						<td class="col-volume">
@@ -581,6 +587,27 @@
 	.amount-cell .total {
 		color: var(--dash-text-primary);
 		font-weight: 500;
+	}
+
+	.fee-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.25rem;
+		flex-wrap: wrap;
+	}
+	.fee-label {
+		font-size: 0.6rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--dash-text-muted);
+		opacity: 0.7;
+		flex-shrink: 0;
+	}
+	.fee-sub {
+		color: var(--dash-text-muted);
+		font-size: 0.6rem;
+		opacity: 0.6;
 	}
 
 	.placeholder-text {

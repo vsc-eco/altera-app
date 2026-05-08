@@ -287,6 +287,18 @@
 		<div class="stat">
 			<span class="stat-label">Fees</span>
 			<span class="stat-value">{pool.feeEarnedUsd}</span>
+			<div class="stat-fee-breakdown">
+				<span class="stat-fee-row">
+					<span class="stat-fee-label">LP</span>
+					<span>{pool.feeEarnedAssets[0]}</span>
+					<span class="stat-fee-usd">{pool.feeEarnedUsdBreakdown[0]}</span>
+				</span>
+				<span class="stat-fee-row">
+					<span class="stat-fee-label">Protocol</span>
+					<span>{pool.feeEarnedAssets[1]}</span>
+					<span class="stat-fee-usd">{pool.feeEarnedUsdBreakdown[1]}</span>
+				</span>
+			</div>
 		</div>
 	</div>
 
@@ -646,6 +658,32 @@
 				font-weight: 600;
 				color: var(--dash-text-primary);
 				font-size: var(--text-sm);
+			}
+
+			.stat-fee-breakdown {
+				display: flex;
+				flex-direction: column;
+				gap: 0.15rem;
+				margin-top: 0.35rem;
+			}
+			.stat-fee-row {
+				display: flex;
+				align-items: baseline;
+				gap: 0.25rem;
+				font-size: var(--text-xs);
+				color: var(--dash-text-muted);
+			}
+			.stat-fee-label {
+				font-size: 0.6rem;
+				font-weight: 700;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+				opacity: 0.7;
+				flex-shrink: 0;
+			}
+			.stat-fee-usd {
+				opacity: 0.6;
+				font-size: 0.6rem;
 			}
 		}
 	}

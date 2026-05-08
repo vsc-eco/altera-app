@@ -27,6 +27,7 @@ export interface PoolRow {
 	totalLiquidityAssets: [string, string];
 	feeEarnedUsd: string;
 	feeEarnedAssets: [string, string];
+	feeEarnedUsdBreakdown: [string, string]; // [LP fee USD, Protocol fee USD]
 	volumeUsd: string;
 	volumeAssets: [string, string];
 	// Raw chain-state values used by per-user computations (My Pools).
@@ -206,6 +207,10 @@ function mapStateToPoolRow(
 	// Compute USD totals
 	const totalLiquidityUsd = liqAmt0 * usd0 + liqAmt1 * usd1;
 	const feeEarnedUsdTotal = feeTotal * usd0;
+	const feeEarnedUsdBreakdown: [string, string] = [
+		formatNum(feeLp * usd0, '$', 2),
+		formatNum(feeMagi * usd0, '$', 2)
+	];
 	const volumeUsdTotal = volIn * usd0 + volOut * usd1;
 
 	return {
@@ -220,6 +225,7 @@ function mapStateToPoolRow(
 		totalLiquidityAssets,
 		feeEarnedUsd: formatNum(feeEarnedUsdTotal, '$', 2),
 		feeEarnedAssets,
+		feeEarnedUsdBreakdown,
 		volumeUsd: formatNum(volumeUsdTotal, '$', 2),
 		volumeAssets,
 		reserve0Raw,

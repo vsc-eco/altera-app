@@ -592,6 +592,14 @@
 			snippetData: { fromOpt: opt, net: txState.toNetwork, size: 'medium' }
 		}))
 	);
+
+	function isFromTokenAllowed(value: string): boolean {
+		return value !== txState.toCoin?.coin.value;
+	}
+
+	function isToTokenAllowed(value: string): boolean {
+		return value !== txState.fromCoin?.coin.value;
+	}
 	// Only the from coin for the amount input – no dropdown; from is changed only via the left card.
 	let amountInputCoinOpts: CoinOnNetwork[] = $derived(
 		txState.fromCoin && txState.fromNetwork
@@ -752,6 +760,8 @@
 	}
 
 	function selectToken(token: AssetObject) {
+		if (currentlyOpen === 'from' && !isFromTokenAllowed(token.value)) return;
+		if (currentlyOpen === 'to' && !isToTokenAllowed(token.value)) return;
 		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
@@ -818,7 +828,16 @@
 				</div>
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						<button class="token-chip" onclick={() => selectToken(token)}>
+						{@const disabled = currentlyOpen === 'from'
+							? !isFromTokenAllowed(token.value)
+							: !isToTokenAllowed(token.value)}
+						<button
+							class="token-chip"
+							class:disabled
+							{disabled}
+							title={disabled ? 'Already selected on the other side' : undefined}
+							onclick={() => selectToken(token)}
+						>
 							<img src={token.icon} alt={token.label} class="chip-icon" />
 							<span>{coinDisplayLabel(token)}</span>
 						</button>
@@ -832,8 +851,13 @@
 			<div class="dialog-content">
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
+						{@const disabled = currentlyOpen === 'from'
+							? !isFromTokenAllowed(token.value)
+							: !isToTokenAllowed(token.value)}
 						<button
-							class={['token-chip', { active: token.value === tempCoinOpt.coin.value }]}
+							class={['token-chip', { active: token.value === tempCoinOpt.coin.value, disabled }]}
+							{disabled}
+							title={disabled ? 'Already selected on the other side' : undefined}
 							onclick={() => selectToken(token)}
 						>
 							<img src={token.icon} alt={token.label} class="chip-icon" />
@@ -1973,6 +1997,12 @@
 	.token-chip.active {
 		border-color: var(--dash-accent-purple);
 		background-color: rgba(111, 106, 248, 0.15);
+	}
+	.token-chip.disabled,
+	.token-chip:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+		pointer-events: none;
 	}
 
 	/* ── Dialog: Network Cards (Source) ── */

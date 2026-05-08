@@ -55,7 +55,9 @@
 				getCryptoPrices(),
 				fetch(
 					'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_24hr_change=true'
-				).then((r) => r.json())
+				)
+					.then((r) => r.json())
+					.catch(() => null)
 			]);
 
 			const ethPrice: number = ethRes?.ethereum?.usd ?? 0;

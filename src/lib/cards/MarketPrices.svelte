@@ -10,6 +10,7 @@
 		price: string;
 		change: string;
 		changePositive: boolean;
+		comingSoon?: boolean;
 	};
 
 	let items: MarketItem[] = $state([
@@ -36,12 +37,30 @@
 			price: '--',
 			change: '--',
 			changePositive: true
+		},
+		{
+			symbol: 'Ξ',
+			name: 'Ethereum',
+			icon: '/eth/eth.svg',
+			price: '--',
+			change: '--',
+			changePositive: true,
+			comingSoon: true
 		}
 	]);
 
 	async function fetchPrices() {
 		try {
-			const prices = await getCryptoPrices();
+			const [prices, ethRes] = await Promise.all([
+				getCryptoPrices(),
+				fetch(
+					'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_24hr_change=true'
+				).then((r) => r.json())
+			]);
+
+			const ethPrice: number = ethRes?.ethereum?.usd ?? 0;
+			const ethChange: number = ethRes?.ethereum?.usd_24h_change ?? 0;
+
 			items = [
 				{
 					symbol: 'B',
@@ -66,6 +85,15 @@
 					price: `$${prices.hive_dollar.usd.toFixed(2)}`,
 					change: `0.1%`,
 					changePositive: false
+				},
+				{
+					symbol: 'Ξ',
+					name: 'Ethereum',
+					icon: '/eth/eth.svg',
+					price: ethPrice ? `$${ethPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}` : '--',
+					change: ethChange ? `${ethChange.toFixed(1)}%` : '--',
+					changePositive: ethChange >= 0,
+					comingSoon: true
 				}
 			];
 		} catch (e) {
@@ -84,7 +112,7 @@
 	<h4 class="section-title">Market Prices</h4>
 	<div class="price-list">
 		{#each items as item}
-			<div class="price-item">
+			<div class={['price-item', { 'coming-soon': item.comingSoon }]}>
 				<div class="coin-info">
 					<span class="coin-badge">
 						{#if item.icon}
@@ -94,9 +122,20 @@
 						{/if}
 					</span>
 					<div class="coin-details">
-						<span class="coin-symbol"
-							>{item.name === 'Bitcoin' ? 'BTC' : item.name === 'Hive' ? 'HIVE' : 'HBD'}</span
-						>
+						<div class="coin-symbol-row">
+							<span class="coin-symbol">
+								{item.name === 'Bitcoin'
+									? 'BTC'
+									: item.name === 'Hive'
+										? 'HIVE'
+										: item.name === 'Hive Dollar'
+											? 'HBD'
+											: 'ETH'}
+							</span>
+							{#if item.comingSoon}
+								<span class="soon-pill">Soon</span>
+							{/if}
+						</div>
 						<span class="coin-name">{item.name}</span>
 					</div>
 				</div>
@@ -201,5 +240,25 @@
 	}
 	.change.negative {
 		color: var(--dash-accent-red);
+	}
+	.coin-symbol-row {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+	.soon-pill {
+		font-size: 0.6rem;
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		color: var(--dash-text-muted);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 4px;
+		padding: 0.05rem 0.3rem;
+		line-height: 1.4;
+		opacity: 0.8;
+	}
+	.coming-soon {
+		opacity: 0.4;
+		pointer-events: none;
 	}
 </style>

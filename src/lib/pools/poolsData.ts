@@ -340,8 +340,16 @@ export async function fetchPools(range: TimeRange = '30d'): Promise<PoolRow[]> {
 			return [];
 		}
 
+		// Deduplicate registry entries by contractId (testnet can return duplicates)
+		const seen = new Set<string>();
+		const uniqueRegistry = registry.filter((entry) => {
+			if (seen.has(entry.contractId)) return false;
+			seen.add(entry.contractId);
+			return true;
+		});
+
 		const poolRows = await Promise.all(
-			registry.map((entry) =>
+			uniqueRegistry.map((entry) =>
 				fetchSinglePool(entry.contractId, entry.symbols, range, usdPrices)
 			)
 		);

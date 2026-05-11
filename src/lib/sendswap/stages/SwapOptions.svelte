@@ -57,24 +57,48 @@
 
 	const txState = useSwapState();
 
-	onMount(() => {
-		// Resolve each swap-eligible pool dynamically so calls are
-		// network-aware (mainnet vs testnet). Both are loaded in
-		// parallel — the swap-calc effect picks whichever it needs
-		// based on the user's selected pair.
-		(async () => {
+	// Pool depths and swap calculation state
+	let hiveHbdPool = $state.raw<TypedPoolDepths | null>(null);
+	let btcHbdPool = $state.raw<TypedPoolDepths | null>(null);
+	/** True when all pool-fetch retries have been exhausted without success. */
+	let poolLoadFailed = $state(false);
+	/** True while a retry round is in progress (disables the retry button). */
+	let poolLoadingRetry = $state(false);
+
+	// Resolve each swap-eligible pool dynamically so calls are
+	// network-aware (mainnet vs testnet). Both are loaded in
+	// parallel — the swap-calc effect picks whichever it needs
+	// based on the user's selected pair.
+	// Retries up to 3 times with exponential backoff if the
+	// indexer/chain-state is momentarily unreachable.
+	async function loadPoolsWithRetry(maxAttempts = 3) {
+		if (poolLoadingRetry) return; // prevent concurrent retry cycles
+		poolLoadFailed = false;
+		poolLoadingRetry = true;
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
 			const [hiveHbd, btcHbd] = await Promise.all([
-				fetchTypedPoolDepths('HIVE', 'HBD'),
-				fetchTypedPoolDepths('BTC', 'HBD')
+				hiveHbdPool ? null : fetchTypedPoolDepths('HIVE', 'HBD'),
+				btcHbdPool ? null : fetchTypedPoolDepths('BTC', 'HBD')
 			]);
 			if (hiveHbd) hiveHbdPool = hiveHbd;
 			if (btcHbd) btcHbdPool = btcHbd;
-		})();
+			if (hiveHbdPool && btcHbdPool) {
+				poolLoadingRetry = false;
+				return;
+			}
+			// Wait before retrying (1s, 2s, 4s)
+			if (attempt < maxAttempts - 1) {
+				await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+			}
+		}
+		poolLoadFailed = true;
+		poolLoadingRetry = false;
+	}
+
+	onMount(() => {
+		loadPoolsWithRetry();
 	});
 
-	// Pool depths and swap calculation state
-	let hiveHbdPool = $state<TypedPoolDepths | null>(null);
-	let btcHbdPool = $state<TypedPoolDepths | null>(null);
 	let swapResult: SwapCalcResult | null = $state(null);
 	let slippageBps = $state(100); // default 1%
 	const slippageOptions = [50, 100, 200, 300]; // 0.5%, 1%, 2%, 3%
@@ -455,11 +479,18 @@
 		);
 	});
 
-	// Combined: enable button when swap fields valid, destination valid, not same coin, and has balance
+	// Combined: enable button when swap fields valid, destination valid, not same coin, has balance,
+	// and pool-based swap calc has completed (swapResult non-null). Without swapResult the fee
+	// details aren't available and the tx would be built with stale/missing min_amount_out.
 	$effect(() => {
 		if (!isActive) return;
 		editStage(
-			swapFieldsValid && destValid && !sameCoinError && !insufficientBalance && !exceedsPoolDepth
+			swapFieldsValid &&
+				destValid &&
+				!sameCoinError &&
+				!insufficientBalance &&
+				!exceedsPoolDepth &&
+				!!swapResult
 		);
 	});
 
@@ -1303,6 +1334,18 @@
 							</span>
 						</div>
 					</div>
+				{:else if (poolLoadFailed || poolLoadingRetry) && txState.fromAmount && txState.fromAmount !== '0'}
+					<div class="pool-warning">
+						<TriangleAlert size={14} />
+						{#if poolLoadingRetry}
+							<span>Loading pool data...</span>
+						{:else}
+							<span>Unable to load pool data.</span>
+							<button type="button" class="pool-retry-btn" onclick={() => loadPoolsWithRetry()}>
+								Retry
+							</button>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		{/if}
@@ -1659,6 +1702,39 @@
 		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
 		font-family: 'Noto Sans Mono Variable', monospace;
+	}
+	.pool-warning {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		font-size: var(--text-sm);
+		color: #f59e0b;
+		margin: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid rgba(245, 158, 11, 0.25);
+		border-radius: 12px;
+		background: rgba(245, 158, 11, 0.06);
+	}
+	.pool-retry-btn {
+		padding: 0.2rem 0.6rem;
+		border: 1px solid rgba(111, 106, 248, 0.35);
+		border-radius: 12px;
+		background: transparent;
+		color: var(--dash-text-secondary);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		font-style: normal;
+		cursor: pointer;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease,
+			color 0.15s ease;
+		&:hover {
+			background: rgba(111, 106, 248, 0.15);
+			color: var(--dash-text-primary);
+			border-color: var(--dash-accent-purple);
+		}
 	}
 	.price-unavailable {
 		font-size: var(--text-xs);

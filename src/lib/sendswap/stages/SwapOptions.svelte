@@ -134,6 +134,7 @@
 		const fromAmount = txState.fromAmount;
 		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
 			swapResult = null;
+			txState.swapCalcPending = false;
 			return;
 		}
 
@@ -144,12 +145,14 @@
 			fromCoin.coin.value !== toCoin.coin.value;
 		if (!isSwap) {
 			swapResult = null;
+			txState.swapCalcPending = false;
 			return;
 		}
 
 		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
 		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) {
 			swapResult = null;
+			txState.swapCalcPending = false;
 			return;
 		}
 
@@ -167,11 +170,13 @@
 		if (!involvesBtc) {
 			if (!hiveHbdPool) {
 				swapResult = null;
+				txState.swapCalcPending = true;
 				return;
 			}
 			const depths = getOrderedDepthsFor(hiveHbdPool, assetIn);
 			if (!depths) {
 				swapResult = null;
+				txState.swapCalcPending = false;
 				return;
 			}
 			result = calculateSwap(x, depths.X, depths.Y, slippageBps);
@@ -181,11 +186,13 @@
 		) {
 			if (!btcHbdPool) {
 				swapResult = null;
+				txState.swapCalcPending = true;
 				return;
 			}
 			const depths = getOrderedDepthsFor(btcHbdPool, assetIn);
 			if (!depths) {
 				swapResult = null;
+				txState.swapCalcPending = false;
 				return;
 			}
 			result = calculateSwap(x, depths.X, depths.Y, slippageBps);
@@ -195,6 +202,7 @@
 			// the output asset.
 			if (!btcHbdPool || !hiveHbdPool) {
 				swapResult = null;
+				txState.swapCalcPending = true;
 				return;
 			}
 			const pool1 = assetIn === Coin.btc.value ? btcHbdPool : hiveHbdPool;
@@ -204,11 +212,13 @@
 
 		if (!result) {
 			swapResult = null;
+			txState.swapCalcPending = false;
 			return;
 		}
 		swapResult = result;
 
 		untrack(() => {
+			txState.swapCalcPending = false;
 			const expectedOutput = result.expectedOutput.toString();
 			const minAmountOut = result.minAmountOut.toString();
 			const swapBaseFee = result.baseFee.toString();

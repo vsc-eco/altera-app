@@ -251,12 +251,12 @@
 									{#if getCoinIcon(pool.pairSymbols[0])}
 										<img class="coin-icon icon-a" src={getCoinIcon(pool.pairSymbols[0])} alt={pool.pairSymbols[0]} />
 									{:else}
-										<span class="icon icon-a"></span>
+										<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
 									{/if}
 									{#if getCoinIcon(pool.pairSymbols[1])}
 										<img class="coin-icon icon-b" src={getCoinIcon(pool.pairSymbols[1])} alt={pool.pairSymbols[1]} />
 									{:else}
-										<span class="icon icon-b"></span>
+										<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
 								<span class="pair-label">{pool.pair}</span>
@@ -361,12 +361,12 @@
 									{#if getCoinIcon(row.pairSymbols[0])}
 										<img class="coin-icon icon-a" src={getCoinIcon(row.pairSymbols[0])} alt={row.pairSymbols[0]} />
 									{:else}
-										<span class="icon icon-a"></span>
+										<span class="icon icon-a">{row.pairSymbols[0].slice(0, 3)}</span>
 									{/if}
 									{#if getCoinIcon(row.pairSymbols[1])}
 										<img class="coin-icon icon-b" src={getCoinIcon(row.pairSymbols[1])} alt={row.pairSymbols[1]} />
 									{:else}
-										<span class="icon icon-b"></span>
+										<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
 								<span class="pair-label">{row.pair}</span>
@@ -546,6 +546,13 @@
 	}
 	.pair-icons .icon {
 		background-color: var(--dash-surface-alt);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.5rem;
+		font-weight: 600;
+		color: var(--dash-text-secondary);
+		letter-spacing: 0.02em;
 	}
 	.pair-icons .icon:first-child,
 	.pair-icons .coin-icon:first-child {

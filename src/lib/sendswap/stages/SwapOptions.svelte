@@ -995,7 +995,9 @@
 				</div>
 				<div class="section-input-row">
 					<div class="to-amount-display">
-						{#if formattedToAmount}
+						{#if txState.swapCalcPending}
+							<WaveLoading size={18} />
+						{:else if formattedToAmount}
 							<span class="to-amount-value">{formattedToAmount}</span>
 						{:else}
 							<span class="to-amount-placeholder">0</span>

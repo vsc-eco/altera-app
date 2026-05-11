@@ -531,7 +531,9 @@
 									<td class="icon"><Dot size="32" /></td>
 									<td class="sm-caption label">Min amount received</td>
 									<td class="content">
-										{#if asSwap.minAmountOut && txState.toCoin}
+										{#if asSwap.swapCalcPending}
+											<div class="fee-loading"><WaveLoading size={16} /></div>
+										{:else if asSwap.minAmountOut && txState.toCoin}
 											{@const minRaw = alteraFeeApplies
 												? Math.floor(
 														(Number(asSwap.minAmountOut) * (10000 - ALTERA_FEE_BPS)) / 10000

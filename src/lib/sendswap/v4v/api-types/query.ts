@@ -4,52 +4,64 @@ export function getQuerier<ReturnType>(url: string, keepAlive: seconds = 30) {
 	let cached: ReturnType | undefined = undefined;
 	let cachedAt = 0;
 	let isFetching = false;
-	let awaitingCache: ((value: ReturnType | PromiseLike<ReturnType>) => void)[] = [];
+	let awaitingResolve: ((value: ReturnType) => void)[] = [];
+	let awaitingReject: ((reason?: unknown) => void)[] = [];
 
 	return async function getReturnType(options?: { signal?: AbortSignal }): Promise<ReturnType> {
-		let now = Date.now();
-		if (cached != undefined) {
-			return cached;
-		}
-		if (cachedAt > now - keepAlive * 1000 && cached != undefined) {
+		const now = Date.now();
+
+		// Return cached value if it's still within the TTL window.
+		if (cached !== undefined && cachedAt > now - keepAlive * 1000) {
 			return cached;
 		}
 
+		// A fetch is already in flight — queue up and wait for it.
 		if (isFetching) {
-			return new Promise((resolve) => {
-				awaitingCache.push(resolve);
+			return new Promise<ReturnType>((resolve, reject) => {
+				awaitingResolve.push(resolve);
+				awaitingReject.push(reject);
 			});
 		}
 
 		isFetching = true;
-		let req = fetch(url, {
-			signal: options?.signal
-		});
-		if (cached != undefined) {
-			req.then(async (res) => {
-				if (res.ok) {
-					let out = await res.json();
+
+		// Stale cache available — return it immediately and refresh in background.
+		if (cached !== undefined) {
+			fetch(url, { signal: options?.signal })
+				.then(async (res) => {
+					if (!res.ok) throw new Error('Fetch failed.');
+					const out = (await res.json()) as ReturnType;
 					cached = out;
-					cachedAt = now;
-					for (const res of awaitingCache) {
-						res(out);
-					}
-				}
-			});
-			// return stale cache for this req,
-			// fetch fresh data for the next one
+					cachedAt = Date.now();
+					for (const resolve of awaitingResolve) resolve(out);
+				})
+				.catch((err) => {
+					for (const reject of awaitingReject) reject(err);
+				})
+				.finally(() => {
+					isFetching = false;
+					awaitingResolve = [];
+					awaitingReject = [];
+				});
 			return cached;
 		}
-		let res = await req;
-		if (res.ok) {
-			let out = await res.json();
+
+		// First fetch — must await the result.
+		try {
+			const res = await fetch(url, { signal: options?.signal });
+			if (!res.ok) throw new Error('Fetch failed.');
+			const out = (await res.json()) as ReturnType;
 			cached = out;
-			cachedAt = now;
-			for (const res of awaitingCache) {
-				res(out);
-			}
+			cachedAt = Date.now();
+			for (const resolve of awaitingResolve) resolve(out);
 			return out;
+		} catch (err) {
+			for (const reject of awaitingReject) reject(err);
+			throw err;
+		} finally {
+			isFetching = false;
+			awaitingResolve = [];
+			awaitingReject = [];
 		}
-		throw new Error('Fetch failed.');
 	};
 }

@@ -653,12 +653,17 @@
 
 	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
+	let pricesFailed = $state(false);
 	$effect(() => {
 		if (txState.fromCoin) {
 			new CoinAmount(1, txState.fromCoin.coin)
 				.convertTo(Coin.usd, Network.lightning)
 				.then((amt) => {
 					fromPriceUsdRaw = amt.toNumber();
+					pricesFailed = false;
+				})
+				.catch(() => {
+					pricesFailed = true;
 				});
 		}
 		if (txState.toCoin) {
@@ -666,6 +671,10 @@
 				.convertTo(Coin.usd, Network.lightning)
 				.then((amt) => {
 					toPriceUsdRaw = amt.toNumber();
+					pricesFailed = false;
+				})
+				.catch(() => {
+					pricesFailed = true;
 				});
 		}
 	});
@@ -947,7 +956,11 @@
 				</div>
 				<div class="section-usd-row">
 					<span class="section-usd-approx">
-						{#if inputAmountUsd !== null}≈ ${formatUsd(inputAmountUsd)}{/if}
+						{#if inputAmountUsd !== null}
+							≈ ${formatUsd(inputAmountUsd)}
+						{:else if pricesFailed && txState.fromCoin && txState.fromAmount && txState.fromAmount !== '0'}
+							<span class="price-unavailable">Price unavailable</span>
+						{/if}
 					</span>
 					{#if sameCoinError}
 						<span class="section-error-inline">Select a different token</span>
@@ -1004,7 +1017,11 @@
 				</div>
 				<div class="section-usd-row">
 					<span class="section-usd-approx">
-						{#if expectedOutputUsd !== null}≈ ${formatUsd(expectedOutputUsd)}{/if}
+						{#if expectedOutputUsd !== null}
+							≈ ${formatUsd(expectedOutputUsd)}
+						{:else if pricesFailed && txState.toCoin && txState.toAmount && txState.toAmount !== '0'}
+							<span class="price-unavailable">Price unavailable</span>
+						{/if}
 					</span>
 				</div>
 			</div>
@@ -1640,6 +1657,12 @@
 		font-size: var(--text-xs);
 		color: var(--dash-text-muted);
 		font-family: 'Noto Sans Mono Variable', monospace;
+	}
+	.price-unavailable {
+		font-size: var(--text-xs);
+		color: var(--dash-text-muted);
+		font-style: italic;
+		font-family: inherit;
 	}
 	.section-error-inline {
 		font-size: var(--text-xs);

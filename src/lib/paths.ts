@@ -1,6 +1,13 @@
-import { ArrowRightLeft, Droplets, Eye, LayoutDashboard, ScrollText, Send } from '@lucide/svelte';
+import { ArrowRightLeft, Coins, Droplets, Eye, LayoutDashboard, ScrollText, Send } from '@lucide/svelte';
 
-export const paths = [
+export type SidebarPath = {
+	name: string;
+	icon: typeof LayoutDashboard;
+	href: string;
+	requiresHive?: boolean;
+};
+
+export const paths: SidebarPath[] = [
 	{
 		name: 'Dashboard',
 		icon: LayoutDashboard,
@@ -26,5 +33,11 @@ export const paths = [
 		icon: Droplets,
 		href: '/swap?tab=pools'
 	},
-	{ name: 'Witness Assistant', icon: Eye, href: '/witness-assistant' }
+	{ name: 'Witness Assistant', icon: Eye, href: '/witness-assistant' },
+	{
+		name: 'Magi Tokens / NFTs',
+		icon: Coins,
+		href: '/custom-tokens',
+		requiresHive: true
+	}
 ];

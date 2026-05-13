@@ -48,10 +48,6 @@
 </script>
 
 <div class="balances-list">
-	<div class="balances-header">
-		<span class="balances-title">Balances</span>
-	</div>
-
 	<div class="balance-row">
 		<div class="row-icon hbd"><img src={Coin.hbd.icon} alt="" /></div>
 		<div class="row-info">

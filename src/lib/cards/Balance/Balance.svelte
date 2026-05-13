@@ -84,6 +84,7 @@
 		</div>
 
 		{#if did}
+			<span class="balances-title">Balances</span>
 			<div class="balances-section">
 				<AccBalance {did} />
 			</div>
@@ -205,11 +206,20 @@
 		box-shadow: 0 0 16px -4px rgba(111, 106, 248, 0.2);
 	}
 
+	.balances-title {
+		display: block;
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--dash-text-primary);
+		margin-bottom: 0.625rem;
+		flex-shrink: 0;
+	}
+
 	.balances-section {
 		flex: 1;
 		min-height: 0;
-		overflow: auto;
-		margin-top: 0.25rem;
+		overflow-y: auto;
+		padding-bottom: 0.5rem;
 	}
 
 	@media (max-width: 480px) {

@@ -15,13 +15,14 @@
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
 	let stakeOpen = $state(false);
 	let toggleStake = $state<(open?: boolean) => void>(() => {});
+	let portfolioHeight = $state(0);
 </script>
 
 <document:head>
 	<title>Dashboard</title>
 </document:head>
 
-<div class="dashboard-wrapper">
+<div class="dashboard-wrapper" style:--portfolio-h="{portfolioHeight}px">
 	<div class="area-balance">
 		<Balance />
 	</div>
@@ -30,7 +31,7 @@
 		<QuickSwap />
 	</div>
 
-	<div class="area-portfolio">
+	<div class="area-portfolio" bind:clientHeight={portfolioHeight}>
 		<PortfolioValue />
 		<StakingEarnings onStake={() => toggleStake(true)} />
 	</div>
@@ -154,6 +155,19 @@
 		padding-bottom: 2rem;
 	}
 
+	/* In single-column, cap the balance card so tokens scroll */
+	@media (max-width: 1023px) {
+		.area-balance {
+			max-height: 600px;
+			display: flex;
+			flex-direction: column;
+		}
+		.area-balance > :global(*) {
+			flex: 1;
+			min-height: 0;
+		}
+	}
+
 	/* ── 2-column layout (1024px – 1919px) ──────────────────────────────── */
 	/*  Row 1: balance | portfolio+staking
 	    Row 2: rc+market | quickswap
@@ -172,15 +186,17 @@
 
 		.area-balance {
 			grid-area: balance;
-			align-self: stretch;
+			height: var(--portfolio-h);
 			display: flex;
 			flex-direction: column;
 		}
-		/* Make the Balance component fill the stretched area */
 		.area-balance > :global(*) {
 			flex: 1;
+			min-height: 0;
 		}
-		.area-portfolio { grid-area: portfolio; }
+		.area-portfolio {
+			grid-area: portfolio;
+		}
 		.area-rc-market {
 			grid-area: rc-mkt;
 			align-self: stretch;
@@ -238,25 +254,42 @@
 			align-items: start;
 		}
 
-		.area-balance { grid-area: balance; }
-		.area-portfolio { grid-area: portfolio; }
+		.area-balance {
+			grid-area: balance;
+			height: var(--portfolio-h);
+			display: flex;
+			flex-direction: column;
+		}
+		.area-balance > :global(*) {
+			flex: 1;
+			min-height: 0;
+		}
+		.area-portfolio {
+			grid-area: portfolio;
+		}
 
 		/* Wrapper becomes transparent — children are placed individually */
-		.area-rc-market { display: contents; }
+		.area-rc-market {
+			display: contents;
+		}
 		.area-rc-inner {
 			grid-area: rc;
 			align-self: stretch;
 			display: flex;
 			flex-direction: column;
 		}
-		.area-rc-inner > :global(*) { flex: 1; }
+		.area-rc-inner > :global(*) {
+			flex: 1;
+		}
 		.area-market-inner {
 			grid-area: market;
 			align-self: stretch;
 			display: flex;
 			flex-direction: column;
 		}
-		.area-market-inner > :global(*) { flex: 1; }
+		.area-market-inner > :global(*) {
+			flex: 1;
+		}
 
 		.area-quickswap {
 			grid-area: quickswap;

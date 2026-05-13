@@ -20,6 +20,8 @@
 	let actuallyVisible = $derived(visible || bodyWidth >= 860);
 	let preload = $state(true);
 	let auth = $derived(getAuth()());
+	let isHiveUser = $derived(auth.value?.username != null);
+	let visiblePaths = $derived(paths.filter((p) => !p.requiresHive || isHiveUser));
 
 	let collapsed = $state(
 		browser ? localStorage.getItem(COLLAPSE_KEY) === 'true' : false
@@ -88,7 +90,7 @@
 		</div>
 
 		<div class="nav-items">
-			{#each paths as path}
+			{#each visiblePaths as path}
 				{@const Icon = path.icon}
 				<a
 					href={path.href}

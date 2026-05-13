@@ -34,47 +34,77 @@
 		}
 	}
 
-	// Parse the swap payload from call/execute ops.
-	// Two formats exist:
-	//   New router (Altera):  { type:"swap", asset_in, asset_out, amount_in, min_amount_out }
-	//   Old pool (legacy):    { type:"deposit", asset0, asset1, amount0, amount1 }
-	// Both are normalised to { asset0, amount0, asset1, amount1 } for display.
-	// isNewRouter flags the Altera format so we know to fetch the real amount_out from the
-	// indexer after confirmation (the payload only carries the slippage floor, not the actual fill).
-	const swapPayload = $derived.by(() => {
+	// ── Payload parsing ─────────────────────────────────────────────────────
+	// Parsed once and reused by swap / liquidity / fallback logic below.
+	const parsedPayload = $derived.by(() => {
 		try {
-			const parsed = JSON.parse(op.data.payload ?? '');
-			// New router format
-			if (
-				parsed?.type === 'swap' &&
-				parsed?.asset_in &&
-				parsed?.asset_out &&
-				parsed?.amount_in != null
-			) {
-				return {
-					asset0: String(parsed.asset_in).toLowerCase(),
-					amount0: String(parsed.amount_in),
-					asset1: String(parsed.asset_out).toLowerCase(),
-					// min_amount_out is a floor used while pending; replaced by actual fill once confirmed
-					amount1: String(parsed.min_amount_out ?? '0'),
-					isNewRouter: true
-				};
-			}
-			// Old pool format — amount1 is the actual received value, no indexer lookup needed
-			if (parsed?.asset0 && parsed?.asset1 && parsed?.amount0 != null && parsed?.amount1 != null) {
-				return { ...parsed, isNewRouter: false } as {
-					asset0: string; amount0: string; asset1: string; amount1: string; isNewRouter: false
-				};
-			}
-		} catch {}
+			return JSON.parse(op.data.payload ?? '') as Record<string, unknown>;
+		} catch {
+			return null;
+		}
+	});
+
+	// ── Operation classification ────────────────────────────────────────────
+	// Classify this contract call into one of: swap | add-liquidity | remove-liquidity | generic.
+	// The classification drives which amount/label/direction is used for both the
+	// table row and the side-popup detail view.
+	type OpKind = 'swap' | 'add-liquidity' | 'remove-liquidity' | 'generic';
+
+	const opKind: OpKind = $derived.by(() => {
+		if (op.data.action !== 'execute' || !parsedPayload) return 'generic';
+		const p = parsedPayload;
+
+		// Add liquidity: payload type="deposit" + 2 intents (both assets sent in)
+		if (
+			p.type === 'deposit' &&
+			p.asset0 && p.asset1 && p.amount0 != null && p.amount1 != null &&
+			(op.data.intents?.length ?? 0) >= 2
+		) return 'add-liquidity';
+
+		// Remove liquidity: payload type="withdrawal" + lp_amount present
+		if (p.type === 'withdrawal' && p.lp_amount != null) return 'remove-liquidity';
+
+		return 'generic';
+	});
+
+	// ── Swap detection ──────────────────────────────────────────────────────
+	// Two swap formats:
+	//   New router (Altera):  { type:"swap", asset_in, asset_out, amount_in, min_amount_out }
+	//   Old pool (legacy):    { type:"deposit", asset0, asset1, amount0, amount1 } (0-1 intents)
+	// Both normalised to { asset0, amount0, asset1, amount1 } for display.
+	const swapPayload = $derived.by(() => {
+		if (opKind !== 'generic' || op.data.action !== 'execute' || !parsedPayload) return null;
+		const p = parsedPayload;
+
+		// New router format
+		if (
+			p.type === 'swap' &&
+			p.asset_in && p.asset_out && p.amount_in != null
+		) {
+			return {
+				asset0: String(p.asset_in).toLowerCase(),
+				amount0: String(p.amount_in),
+				asset1: String(p.asset_out).toLowerCase(),
+				amount1: String(p.min_amount_out ?? '0'),
+				isNewRouter: true
+			};
+		}
+		// Old pool format — amount1 is the settled value. Only match when intent
+		// count ≤ 1 (add-liquidity has ≥ 2 intents and is already classified above).
+		if (
+			p.asset0 && p.asset1 && p.amount0 != null && p.amount1 != null &&
+			(!p.type || p.type === 'swap' || p.type === 'deposit')
+		) {
+			return { ...p, isNewRouter: false } as {
+				asset0: string; amount0: string; asset1: string; amount1: string; isNewRouter: false
+			};
+		}
 		return null;
 	});
 
-	const isSwap = $derived(op.data.action === 'execute' && swapPayload !== null);
+	const isSwap = $derived(swapPayload !== null);
 
 	// For confirmed new-router swaps, fetch the actual settled amount_out from the indexer.
-	// The payload only carries min_amount_out (the slippage floor), which is almost always
-	// lower than what the pool actually returned.
 	let indexerAmountOut = $state.raw<{ amount_out: number; asset_out: string } | null>(null);
 	let lastFetchedTxId = '';
 	$effect(() => {
@@ -94,33 +124,65 @@
 		});
 	});
 
-	// For swaps: fromAmount = what user sends (asset0), amount = what user receives (asset1).
-	// For other contract calls: amount comes from intents limit.
+	// ── Liquidity amounts ───────────────────────────────────────────────────
+	function coinFromAsset(asset: string): typeof Coin[keyof typeof Coin] {
+		return Coin[asset.split('_')[0] as keyof typeof Coin] || Coin.unk;
+	}
+
+	// Add-liquidity: both token amounts the user deposited into the pool.
+	const liqAmount0 = $derived(
+		opKind === 'add-liquidity' && parsedPayload
+			? new CoinAmount(String(parsedPayload.amount0), coinFromAsset(String(parsedPayload.asset0)), true)
+			: null
+	);
+	const liqAmount1 = $derived(
+		opKind === 'add-liquidity' && parsedPayload
+			? new CoinAmount(String(parsedPayload.amount1), coinFromAsset(String(parsedPayload.asset1)), true)
+			: null
+	);
+
+	// Remove-liquidity: the ledger contains the actual amounts the user received back.
+	// Fall back to LP token count from the payload when ledger is unavailable (pending tx).
+	const removeLiqAmount0 = $derived.by(() => {
+		if (opKind !== 'remove-liquidity') return null;
+		const entry = tx.ledger?.[0];
+		if (entry) return new CoinAmount(entry.amount, coinFromAsset(entry.asset), true);
+		return null;
+	});
+	const removeLiqAmount1 = $derived.by(() => {
+		if (opKind !== 'remove-liquidity') return null;
+		const entry = tx.ledger?.[1];
+		if (entry) return new CoinAmount(entry.amount, coinFromAsset(entry.asset), true);
+		return null;
+	});
+	const lpAmount = $derived(
+		opKind === 'remove-liquidity' && parsedPayload
+			? String(parsedPayload.lp_amount)
+			: null
+	);
+
+	// ── Swap amounts ────────────────────────────────────────────────────────
 	const fromAmount = $derived(
 		isSwap && swapPayload
-			? new CoinAmount(
-					swapPayload.amount0,
-					Coin[swapPayload.asset0.split('_')[0] as keyof typeof Coin] || Coin.unk,
-					true
-				)
+			? new CoinAmount(swapPayload.amount0, coinFromAsset(swapPayload.asset0), true)
 			: null
 	);
 	const amount = $derived.by(() => {
 		if (isSwap && swapPayload) {
-			// Confirmed new-router swap: prefer actual fill from indexer over the min floor
 			if (indexerAmountOut && !tx.isPending) {
 				return new CoinAmount(
 					indexerAmountOut.amount_out,
-					Coin[indexerAmountOut.asset_out.split('_')[0] as keyof typeof Coin] || Coin.unk,
+					coinFromAsset(indexerAmountOut.asset_out),
 					true
 				);
 			}
-			return new CoinAmount(
-				swapPayload.amount1,
-				Coin[swapPayload.asset1.split('_')[0] as keyof typeof Coin] || Coin.unk,
-				true
-			);
+			return new CoinAmount(swapPayload.amount1, coinFromAsset(swapPayload.asset1), true);
 		}
+		// Add-liquidity: show first token amount as the primary display
+		if (opKind === 'add-liquidity' && liqAmount0) return liqAmount0;
+		// Remove-liquidity: show first received amount from ledger
+		if (opKind === 'remove-liquidity' && removeLiqAmount0) return removeLiqAmount0;
+		// Generic: fall back to first intent limit
 		const intents = op.data.intents;
 		const amt = intents?.[0]?.args?.limit ?? '0';
 		const coinVal = intents?.[0]?.args?.token ?? Coin.hive.value;
@@ -134,16 +196,20 @@
 		});
 	});
 
+	// ── Display type & direction ────────────────────────────────────────────
 	const displayType: string = $derived.by(() => {
 		if (isSwap) return 'swap';
-		try {
-			const payloadStr = op.data.payload;
-			if (typeof payloadStr === 'string') {
-				const parsed = JSON.parse(payloadStr);
-				if (parsed?.type) return parsed.type.replace(/_/g, ' ');
-			}
-		} catch {}
+		if (opKind === 'add-liquidity') return 'add liquidity';
+		if (opKind === 'remove-liquidity') return 'remove liquidity';
+		if (parsedPayload?.type) return String(parsedPayload.type).replace(/_/g, ' ');
 		return op.data.action ?? op.type ?? 'call';
+	});
+
+	const direction: 'swap' | 'add-liquidity' | 'remove-liquidity' | 'contract' = $derived.by(() => {
+		if (isSwap) return 'swap';
+		if (opKind === 'add-liquidity') return 'add-liquidity';
+		if (opKind === 'remove-liquidity') return 'remove-liquidity';
+		return 'contract';
 	});
 
 	const popupTitle = $derived(
@@ -163,8 +229,14 @@
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<ContractId address={op.data.contract_id ?? ''} />
 	<Status status={tx.status} />
-	<Amount {amount} {fromAmount} direction={isSwap ? 'swap' : 'contract'} />
-	<Type direction={isSwap ? 'swap' : 'contract'} t={displayType} />
+	<Amount
+		{amount}
+		{fromAmount}
+		{direction}
+		secondAmount={opKind === 'add-liquidity' ? liqAmount1 : removeLiqAmount1}
+		lpInfo={lpAmount}
+	/>
+	<Type {direction} t={displayType} />
 </tr>
 
 {#snippet contractRowContent()}
@@ -177,6 +249,15 @@
 		<div class="amount">
 			{#if isSwap && fromAmount}
 				{fromAmount.toPrettyString()} → {amount.toPrettyString()}
+			{:else if opKind === 'add-liquidity' && liqAmount0 && liqAmount1}
+				{liqAmount0.toPrettyString()} + {liqAmount1.toPrettyString()}
+			{:else if opKind === 'remove-liquidity' && removeLiqAmount0 && removeLiqAmount1}
+				{removeLiqAmount0.toPrettyString()} + {removeLiqAmount1.toPrettyString()}
+				{#if lpAmount}
+					<span class="approx-usd">Burned {lpAmount} LP tokens</span>
+				{/if}
+			{:else if opKind === 'remove-liquidity' && lpAmount}
+				{lpAmount} LP tokens
 			{:else}
 				{amount.toPrettyString()}
 			{/if}

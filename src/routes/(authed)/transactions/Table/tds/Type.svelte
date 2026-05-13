@@ -1,19 +1,20 @@
 <script lang="ts">
-	let { direction, t }: { direction: 'incoming' | 'outgoing' | 'swap' | 'contract'; t: string } = $props();
+	let { direction, t }: { direction: 'incoming' | 'outgoing' | 'swap' | 'contract' | 'add-liquidity' | 'remove-liquidity'; t: string } = $props();
+
+	const badgeClass = $derived.by(() => {
+		if (direction === 'incoming') return 'deposit';
+		if (direction === 'swap') return 'swap';
+		if (direction === 'add-liquidity') return 'liquidity';
+		if (direction === 'remove-liquidity') return 'liquidity';
+		if (t.includes('withdraw')) return 'withdraw';
+		if (t.includes('stake')) return 'stake';
+		if (t.includes('reward')) return 'reward';
+		return 'default';
+	});
 </script>
 
 <td class="type-cell">
-	<span class={['badge', direction === 'incoming'
-			? 'deposit'
-			: direction === 'swap'
-				? 'swap'
-				: t.includes('withdraw')
-					? 'withdraw'
-					: t.includes('stake')
-						? 'stake'
-						: t.includes('reward')
-							? 'reward'
-							: 'default']}>
+	<span class={['badge', badgeClass]}>
 		{t.replaceAll('_', ' ')}
 	</span>
 </td>
@@ -48,6 +49,10 @@
 	.badge.stake {
 		background: rgba(111, 106, 248, 0.15);
 		color: #6f6af8;
+	}
+	.badge.liquidity {
+		background: rgba(59, 186, 220, 0.15);
+		color: #3bbad4;
 	}
 	.badge.reward {
 		background: var(--dash-badge-green-bg);

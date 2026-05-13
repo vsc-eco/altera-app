@@ -501,20 +501,20 @@ export const sampleSwapOld = {
 	]
 };
 
-// ─── 10. ADD LIQUIDITY 🔧 ───────────────────────────────────────────────────
-// Deposit both sides of a pool pair via the DEX router.
-// payload.type = "deposit" on DEX_ROUTER — same key as old swap (#9) but on the router.
-// Both amount0 + amount1 are sent IN (no output amount in the payload).
+// ─── 10. ADD LIQUIDITY ✅ ────────────────────────────────────────────────────
+// Deposit both sides of a pool pair into the AMM pool.
+// payload.type = "deposit" — same key as old swap (#9) but distinguished by
+// having 2 intents (both assets sent in) vs 0-1 for swaps.
+// Verified from hive:risingstarhub tx feb435c8917709863e9254b0249f8210579beb08.
 //
-// Distinguish from old swap: contract_id === DEX_ROUTER and payload.type === "deposit".
-//
-// TR component : ContractTr.svelte (currently shows as generic contract op)
-// Current display: first intent amount as "limit" → not ideal
-// Ideal display: amount0 asset0 + amount1 asset1 | Add Liquidity
+// TR component : ContractTr.svelte
+// Table display:
+//   Date    | pool addr (short) | Status | 7.038 HBD + 100.000 HIVE | Add Liquidity
 export const sampleAddLiquidity = {
-	id: 'sample-add-liquidity',
+	id: 'feb435c8917709863e9254b0249f8210579beb08',
 	type: 'hive',
 	status: 'CONFIRMED',
+	anchr_ts: '2026-05-11T10:00:00',
 	rc_limit: 0,
 	ledger: [],
 	ops: [
@@ -525,37 +525,43 @@ export const sampleAddLiquidity = {
 				action: 'execute',
 				contract_id: DEX_ROUTER,
 				intents: [
-					{ type: 'transfer.allow', args: { limit: '50000', token: 'hbd' } },
-					{ type: 'transfer.allow', args: { limit: '12345', token: 'hive' } }
+					{ type: 'transfer.allow', args: { limit: '7038', token: 'hbd' } },
+					{ type: 'transfer.allow', args: { limit: '100000', token: 'hive' } }
 				],
 				payload: JSON.stringify({
-					type: 'deposit', // "add liquidity" instruction to the router
+					type: 'deposit',
 					version: '1.0.0',
-					asset0: 'hbd',    // alphabetical order enforced by getAddLiquidityOp()
+					asset0: 'hbd',
 					asset1: 'hive',
-					amount0: '50000', // 50.000 HBD
-					amount1: '12345', // 12.345 HIVE
-					recipient: 'hive:milo-hpr'
+					amount0: '7038',   // 7.038 HBD
+					amount1: '100000', // 100.000 HIVE
+					recipient: 'hive:risingstarhub'
 				}),
-				rc_limit: 100000
+				rc_limit: 2000
 			}
 		}
 	]
 };
 
-// ─── 11. REMOVE LIQUIDITY 🔧 ────────────────────────────────────────────────
-// Burn LP tokens to withdraw both underlying assets from a pool via the DEX router.
+// ─── 11. REMOVE LIQUIDITY ✅ ────────────────────────────────────────────────
+// Burn LP tokens to withdraw both underlying assets from the AMM pool.
 // payload.type = "withdrawal". No intents (user is not sending assets in).
-// lp_amount = LP tokens to burn; actual output amounts come from ledger after confirmation.
+// lp_amount = LP tokens burned; actual output amounts come from ledger.
+// Verified from hive:forkyishere tx b5da6afc5089e6d789f1f433cab62a2a3fd6ff13.
 //
-// TR component : ContractTr.svelte (currently shows as generic contract op with 0 amount)
-// Ideal display: lp_amount LP tokens | Remove Liquidity
+// TR component : ContractTr.svelte
+// Table display:
+//   Date    | pool addr (short) | Status | 13.858 HBD + 186.933 HIVE | Remove Liquidity
 export const sampleRemoveLiquidity = {
-	id: 'sample-remove-liquidity',
+	id: 'b5da6afc5089e6d789f1f433cab62a2a3fd6ff13',
 	type: 'hive',
 	status: 'CONFIRMED',
+	anchr_ts: '2026-05-04T10:00:00',
 	rc_limit: 0,
-	ledger: [],
+	ledger: [
+		{ amount: 13858, asset: 'hbd', from: `contract:${DEX_ROUTER}`, to: 'hive:forkyishere', type: 'transfer', memo: '' },
+		{ amount: 186933, asset: 'hive', from: `contract:${DEX_ROUTER}`, to: 'hive:forkyishere', type: 'transfer', memo: '' }
+	],
 	ops: [
 		{
 			index: 0,
@@ -563,16 +569,16 @@ export const sampleRemoveLiquidity = {
 			data: {
 				action: 'execute',
 				contract_id: DEX_ROUTER,
-				intents: [], // no assets sent in
+				intents: [],
 				payload: JSON.stringify({
-					type: 'withdrawal', // "remove liquidity"
+					type: 'withdrawal',
 					version: '1.0.0',
 					asset0: 'hbd',
 					asset1: 'hive',
-					lp_amount: '2594', // LP tokens to burn
-					recipient: 'hive:milo-hpr'
+					lp_amount: '50331', // LP tokens burned
+					recipient: 'hive:forkyishere'
 				}),
-				rc_limit: 100000
+				rc_limit: 2000
 			}
 		}
 	]

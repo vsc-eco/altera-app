@@ -5,27 +5,44 @@
 
 	type Props = {
 		amount: UnkCoinAmount;
-		direction?: 'incoming' | 'outgoing' | 'swap' | 'contract';
+		direction?: 'incoming' | 'outgoing' | 'swap' | 'contract' | 'add-liquidity' | 'remove-liquidity';
 		fromAmount?: UnkCoinAmount | null;
+		secondAmount?: UnkCoinAmount | null;
+		lpInfo?: string | null;
 	};
-	let { amount, direction = 'incoming', fromAmount = null }: Props = $props();
+	let { amount, direction = 'incoming', fromAmount = null, secondAmount = null, lpInfo = null }: Props = $props();
 
-	const displayUnit = $derived(
-		amount?.coin.value === Coin.hive.value
-			? getHiveAssetName()
-			: amount?.coin.value === Coin.hbd.value
-				? getHbdAssetName()
-				: amount?.coin.unit ?? ''
-	);
+	function unitFor(coin: UnkCoinAmount['coin']): string {
+		if (coin.value === Coin.hive.value) return getHiveAssetName();
+		if (coin.value === Coin.hbd.value) return getHbdAssetName();
+		return coin.unit ?? '';
+	}
+
+	const displayUnit = $derived(unitFor(amount?.coin));
 </script>
 
 <td>
 	{#if direction === 'swap' && fromAmount}
 		<span class="amount outgoing">{fromAmount.toPrettyAmountString()}</span>
-		<span class="token outgoing">{fromAmount.coin.unit}</span>
+		<span class="token outgoing">{unitFor(fromAmount.coin)}</span>
 		<span class="swap-arrow">→</span>
 		<span class="amount green">{amount.toPrettyAmountString()}</span>
 		<span class="token green">{displayUnit}</span>
+	{:else if direction === 'add-liquidity' && secondAmount}
+		<span class="amount">{amount.toPrettyAmountString()}</span>
+		<span class="token">{displayUnit}</span>
+		<span class="swap-arrow">+</span>
+		<span class="amount">{secondAmount.toPrettyAmountString()}</span>
+		<span class="token">{unitFor(secondAmount.coin)}</span>
+	{:else if direction === 'remove-liquidity' && secondAmount}
+		<span class="amount green">{amount.toPrettyAmountString()}</span>
+		<span class="token green">{displayUnit}</span>
+		<span class="swap-arrow">+</span>
+		<span class="amount green">{secondAmount.toPrettyAmountString()}</span>
+		<span class="token green">{unitFor(secondAmount.coin)}</span>
+	{:else if direction === 'remove-liquidity' && lpInfo}
+		<span class="amount outgoing">{lpInfo}</span>
+		<span class="token outgoing">LP</span>
 	{:else}
 		{#if direction === 'contract'}
 			<span class="sm-caption">Limit:</span>

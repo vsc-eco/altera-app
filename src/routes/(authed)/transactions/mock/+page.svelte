@@ -52,8 +52,8 @@
 		toTx(sampleSwapNewHbdToHive),
 		toTx(sampleSwapNewBtcToHbd),
 		toTx(sampleSwapOld),
-		toTx(sampleAddLiquidity, '2026-01-02T10:00:00'),
-		toTx(sampleRemoveLiquidity, '2026-01-01T10:00:00'),
+		toTx(sampleAddLiquidity),
+		toTx(sampleRemoveLiquidity),
 		toTx(sampleBtcTransferToHive),
 		toTx(sampleBtcTransferToEvm),
 		toTx(sampleBtcUnmap),
@@ -115,8 +115,8 @@
 			<span class="tag verified">✅ Swap HBD→HIVE (new router)</span>
 			<span class="tag verified">✅ Swap BTC→HBD (old pool)</span>
 			<span class="tag verified">✅ Swap old pool format</span>
-			<span class="tag constructed">🔧 Add Liquidity</span>
-			<span class="tag constructed">🔧 Remove Liquidity</span>
+			<span class="tag verified">✅ Add Liquidity</span>
+			<span class="tag verified">✅ Remove Liquidity</span>
 			<span class="tag verified">✅ BTC Transfer → Hive acct</span>
 			<span class="tag verified">✅ BTC Transfer → EVM addr</span>
 			<span class="tag verified">✅ BTC Unmap (withdraw)</span>

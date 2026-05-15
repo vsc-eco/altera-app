@@ -3,10 +3,26 @@ import houdini from 'houdini/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import mkcert from 'vite-plugin-mkcert';
+import { execSync } from 'child_process';
 
 const isReverseProxyDev = process.env.DEV_BEHIND_PROXY === '1';
 
+// Build-time version stamp: short git SHA + ISO timestamp.
+// Used by the client to detect when a new deployment is live.
+const gitSha = (() => {
+	try {
+		return execSync('git rev-parse --short HEAD').toString().trim();
+	} catch {
+		return 'dev';
+	}
+})();
+const buildTime = new Date().toISOString();
+
 export default defineConfig({
+	define: {
+		__APP_VERSION__: JSON.stringify(gitSha),
+		__APP_BUILD_TIME__: JSON.stringify(buildTime)
+	},
 	plugins: [houdini(), sveltekit(), ...(isReverseProxyDev ? [] : [mkcert()])],
 	server: isReverseProxyDev
 		? {

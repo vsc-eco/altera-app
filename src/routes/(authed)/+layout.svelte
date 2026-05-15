@@ -12,6 +12,7 @@
 	import { clearAllStores } from '$lib/stores/txStores';
 	import { page } from '$app/state';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
+	import UpdateToast from '$lib/components/UpdateToast.svelte';
 
 	let { children } = $props();
 	let showSidebar = $state(false);
@@ -82,6 +83,8 @@
 		</main>
 	</div>
 </div>
+
+<UpdateToast />
 
 <style lang="scss">
 	.app-shell {

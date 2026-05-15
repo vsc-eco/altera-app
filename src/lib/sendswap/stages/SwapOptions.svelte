@@ -629,13 +629,6 @@
 		}))
 	);
 
-	function isFromTokenAllowed(value: string): boolean {
-		return value !== txState.toCoin?.coin.value;
-	}
-
-	function isToTokenAllowed(value: string): boolean {
-		return value !== txState.fromCoin?.coin.value;
-	}
 	// Only the from coin for the amount input – no dropdown; from is changed only via the left card.
 	let amountInputCoinOpts: CoinOnNetwork[] = $derived(
 		txState.fromCoin && txState.fromNetwork

@@ -318,20 +318,6 @@
 		return (Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
 	});
 
-	/** "You Receive" display value — formatted with thousands separator, same locale as the rest of the UI */
-	let formattedToAmount = $derived.by(() => {
-		const raw = txState.toAmount;
-		const toCoinDef = txState.toCoin;
-		if (!raw || raw === '0' || !toCoinDef) return null;
-		const num = Number(raw);
-		if (!Number.isFinite(num)) return null;
-		return new Intl.NumberFormat(numberFormatLanguage, {
-			useGrouping: true,
-			minimumFractionDigits: 0,
-			maximumFractionDigits: toCoinDef.coin.decimalPlaces
-		}).format(num);
-	});
-
 	let minAmountOutUsd = $derived.by(() => {
 		const toCoinDef = txState.toCoin;
 		if (!swapResult || swapResult.minAmountOut <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
@@ -690,6 +676,21 @@
 			});
 		}
 	});
+
+	// TO field — derives a CoinAmount from the calculated toAmount for the AmountInput.
+	// Currently read-only (disabled); will become editable when reverse swap calc is added.
+	const outputAmount = $derived.by(() => {
+		const toCoin = txState.toCoin?.coin ?? Coin.unk;
+		const raw = txState.toAmount;
+		const fromEmpty = !txState.fromAmount || txState.fromAmount === '0';
+		if (raw && raw !== '0' && !fromEmpty) return new CoinAmount(raw, toCoin);
+		return new CoinAmount(0, toCoin);
+	});
+	const toAmountCoinOpts: CoinOnNetwork[] = $derived(
+		txState.toCoin && txState.toNetwork
+			? [{ coin: txState.toCoin.coin, network: txState.toNetwork }]
+			: []
+	);
 
 	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
@@ -1090,14 +1091,19 @@
 					<span class="section-balance sm-caption"></span>
 				</div>
 				<div class="section-input-row">
-					<div class="to-amount-display">
-						{#if txState.swapCalcPending}
-							<WaveLoading size={18} />
-						{:else if formattedToAmount}
-							<span class="to-amount-value">{formattedToAmount}</span>
-						{:else}
-							<span class="to-amount-placeholder">0</span>
-						{/if}
+					<div class="input-field">
+						<!-- Recreate AmountInput on zero↔non-zero so its initializer
+						     produces an empty placeholder ('') instead of "0". -->
+						{#key outputAmount.amount === 0}
+							<AmountInput
+								coinAmount={outputAmount}
+								coinOpts={toAmountCoinOpts}
+								hideUnit
+								hideUsd
+								hideNetwork
+								disabled
+							/>
+						{/key}
 					</div>
 					<button class="token-selector-btn" onclick={() => openDialog('to')}>
 						{#if txState.toCoin}
@@ -1585,20 +1591,6 @@
 	   in the section-usd-row instead, which doesn't shift the layout. */
 	.input-field :global(.normal-wrapper .bottom-info) {
 		display: none;
-	}
-	.to-amount-display {
-		flex: 1;
-		min-width: 0;
-		padding: 0.5rem 0.8rem;
-		font-size: 1.5rem;
-		font-family: 'Nunito Sans', sans-serif;
-		font-weight: 500;
-	}
-	.to-amount-value {
-		color: var(--dash-text-primary);
-	}
-	.to-amount-placeholder {
-		color: var(--dash-text-muted);
 	}
 
 	/* ── Token Selector Button ── */

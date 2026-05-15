@@ -115,19 +115,11 @@
 		let result: CoinOnNetwork[] = [];
 		// Read derived primitives to track only actual value changes
 		const fCoin = _fromCoinValue;
-		const tCoin = _toCoinValue;
 		const fNet = _fromNetwork;
-		const tNet = _toNetwork;
 		if (fCoin && fNet && txState.fromCoin && txState.fromNetwork) {
 			result.push({
 				coin: txState.fromCoin.coin,
 				network: txState.fromNetwork
-			});
-		}
-		if (tCoin && tNet && txState.toCoin && txState.toNetwork) {
-			result.push({
-				coin: txState.toCoin.coin,
-				network: txState.toNetwork
 			});
 		}
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {

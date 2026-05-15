@@ -28,7 +28,7 @@
 		type AccountBalance
 	} from '$lib/stores/currentBalance';
 	import { untrack } from 'svelte';
-	import { ArrowDown, ChevronDown, Search } from '@lucide/svelte';
+	import { ArrowDown, ArrowUpDown, ChevronDown, Search } from '@lucide/svelte';
 	import { getHiveAssetName, getHbdAssetName, isVscTestnet } from '$lib/../client';
 	import { modal } from '$lib/auth/reown';
 	import {
@@ -625,9 +625,67 @@
 		return !fromValue || value !== fromValue;
 	}
 
+	/**
+	 * Whether the FROM ↔ TO swap button should be enabled.
+	 * It's safe to swap only when the current TO token is allowed
+	 * on the FROM side (wallet constraint) and both slots are filled.
+	 */
+	const canSwapPositions = $derived.by(() => {
+		const toValue = txState.toCoin?.coin.value;
+		if (!toValue || !txState.fromCoin) return false;
+		return fromAllowedValues.has(toValue);
+	});
+
+	/** Human-readable reason when the swap button is disabled. */
+	const swapBlockedReason = $derived.by(() => {
+		if (!txState.toCoin || !txState.fromCoin) return 'Select both tokens first';
+		return `${txState.toCoin.coin.label} can't be used as source with your wallet`;
+	});
+
+	/** Swap the FROM and TO tokens + networks. */
+	function swapPositions() {
+		if (!canSwapPositions) return;
+		const prevFrom = txState.fromCoin;
+		const prevFromNet = txState.fromNetwork;
+		txState.fromCoin = txState.toCoin;
+		txState.fromNetwork = txState.toNetwork;
+		txState.toCoin = prevFrom;
+		txState.toNetwork = prevFromNet;
+	}
+
 	function selectToken(token: AssetObject) {
 		if (currentlyOpen === 'from' && !isFromTokenAllowed(token.value)) return;
-		if (currentlyOpen === 'to' && !isToTokenAllowed(token.value)) return;
+
+		// If the user picks the token that's already in the OTHER slot,
+		// swap positions: FROM ↔ TO. This avoids ending up with the same
+		// token on both sides and feels natural (like PancakeSwap).
+		const otherValue =
+			currentlyOpen === 'from'
+				? txState.toCoin?.coin.value
+				: txState.fromCoin?.coin.value;
+
+		if (otherValue && token.value === otherValue) {
+			// The user picked the token that's in the other slot → swap positions.
+			// But first check: would the swap put a wallet-incompatible token in FROM?
+			// e.g. TO=BTC, user opens TO picker and clicks HIVE (current FROM) →
+			// swap would move BTC to FROM, which is blocked on a Hive wallet.
+			const wouldBeFrom = currentlyOpen === 'from' ? token.value : txState.toCoin?.coin.value;
+			if (wouldBeFrom && !fromAllowedValues.has(wouldBeFrom)) {
+				// Can't swap — just assign the token to the current slot instead.
+				// This may create a same-token pair; the existing sameCoinSelected
+				// warning will prompt the user to fix the other side.
+			} else {
+				const prevFrom = txState.fromCoin;
+				const prevFromNet = txState.fromNetwork;
+				txState.fromCoin = txState.toCoin;
+				txState.fromNetwork = txState.toNetwork;
+				txState.toCoin = prevFrom;
+				txState.toNetwork = prevFromNet;
+				closeDialog();
+				return;
+			}
+		}
+
 		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
@@ -1168,11 +1226,21 @@
 		{/if}
 	</div>
 
-	<!-- Divider arrow -->
-	<div class="swap-arrow-wrap" aria-hidden="true">
-		<div class="swap-arrow-icon">
-			<ArrowDown size={14} />
-		</div>
+	<!-- Swap direction button -->
+	<div class="swap-arrow-wrap">
+		<button
+			type="button"
+			class={['swap-arrow-btn', { disabled: !canSwapPositions }]}
+			disabled={!canSwapPositions}
+			onclick={swapPositions}
+			aria-label={canSwapPositions ? 'Swap token positions' : swapBlockedReason}
+		>
+			<span class="arrow-icon arrow-single"><ArrowDown size={14} /></span>
+			<span class="arrow-icon arrow-swap"><ArrowUpDown size={14} /></span>
+			{#if !canSwapPositions}
+				<span class="swap-arrow-tooltip">{swapBlockedReason}</span>
+			{/if}
+		</button>
 	</div>
 
 	<!-- To Field -->
@@ -1461,23 +1529,23 @@
 			</div>
 			<div class="token-chip-grid">
 				{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-					{@const disabled =
-						currentlyOpen === 'from'
-							? !isFromTokenAllowed(token.value)
-							: !isToTokenAllowed(token.value)}
-					{@const disabledReason =
-						currentlyOpen === 'from'
-							? 'Not supported by your connected wallet'
-							: 'Already selected as source'}
+					{@const walletBlocked =
+						currentlyOpen === 'from' && !isFromTokenAllowed(token.value)}
+					{@const isFrom = token.value === txState.fromCoin?.coin.value}
+					{@const isTo = token.value === txState.toCoin?.coin.value}
+					{@const isSelected = isFrom || isTo}
 					<button
-						class="token-chip"
-						class:disabled
-						{disabled}
+						class={['token-chip', { disabled: walletBlocked, muted: isSelected && !walletBlocked }]}
+						disabled={walletBlocked}
 						onclick={() => selectToken(token)}
-						title={disabled ? disabledReason : undefined}
 					>
 						<img src={token.icon} alt={token.label} class="chip-icon" />
 						<span>{coinDisplayLabel(token)}</span>
+						{#if walletBlocked}
+							<span class="chip-tooltip">Not supported by your wallet</span>
+						{:else if isSelected}
+							<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
+						{/if}
 					</button>
 				{/each}
 			</div>
@@ -1614,18 +1682,80 @@
 		margin: -0.35rem 0;
 		position: relative;
 		z-index: 1;
-		pointer-events: none;
 	}
-	.swap-arrow-icon {
-		width: 26px;
-		height: 26px;
+	.swap-arrow-btn {
+		all: unset;
+		width: 28px;
+		height: 28px;
 		border-radius: 50%;
 		background: var(--dash-card-bg);
-		border: 1px solid rgba(111, 106, 248, 0.35);
-		color: var(--dash-text-secondary);
+		border: 1px solid rgba(111, 106, 248, 0.4);
+		color: #6f6af8;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		cursor: pointer;
+		transition:
+			background-color 0.25s,
+			border-color 0.25s,
+			color 0.25s;
+		position: relative;
+
+		/* Icon crossfade: single arrow visible by default, swap arrow on hover */
+		.arrow-icon {
+			position: absolute;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: opacity 0.25s ease;
+		}
+		.arrow-single {
+			opacity: 1;
+		}
+		.arrow-swap {
+			opacity: 0;
+		}
+
+		&:hover:not(:disabled) {
+			background: #6f6af8;
+			border-color: #6f6af8;
+			color: #fff;
+			.arrow-single {
+				opacity: 0;
+			}
+			.arrow-swap {
+				opacity: 1;
+			}
+		}
+		&:active:not(:disabled) {
+			transform: scale(0.9);
+		}
+		&.disabled,
+		&:disabled {
+			cursor: not-allowed;
+			color: var(--dash-text-muted);
+			border-color: rgba(111, 106, 248, 0.15);
+			&:hover .swap-arrow-tooltip {
+				display: block;
+			}
+		}
+	}
+	.swap-arrow-tooltip {
+		display: none;
+		position: absolute;
+		top: calc(100% + 0.5rem);
+		left: 50%;
+		transform: translateX(-50%);
+		background: #6f6af8;
+		border-radius: 8px;
+		padding: 0.4rem 0.7rem;
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: #fff;
+		white-space: nowrap;
+		pointer-events: none;
+		z-index: 10;
+		box-shadow: 0 4px 14px rgba(111, 106, 248, 0.35);
 	}
 	.receiver-field {
 		display: flex;
@@ -1975,17 +2105,73 @@
 		}
 		&.disabled,
 		&:disabled {
-			opacity: 0.35;
+			opacity: 0.4;
 			cursor: not-allowed;
+			position: relative;
+			&::after {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: linear-gradient(
+					to top right,
+					transparent calc(50% - 1px),
+					var(--dash-text-muted) calc(50% - 1px),
+					var(--dash-text-muted) calc(50% + 1px),
+					transparent calc(50% + 1px)
+				);
+				border-radius: inherit;
+				pointer-events: none;
+			}
 			&:hover {
 				background-color: var(--dash-surface);
 				border-color: var(--dash-card-border);
 			}
 		}
+		&.muted {
+			opacity: 0.5;
+			position: relative;
+		}
+		.chip-role-badge {
+			position: absolute;
+			top: -0.4rem;
+			left: 50%;
+			transform: translateX(-50%);
+			font-size: 0.5rem;
+			font-weight: 700;
+			letter-spacing: 0.04em;
+			text-transform: uppercase;
+			color: #fff;
+			background: var(--dash-accent-purple, #6f6af8);
+			border-radius: 4px;
+			padding: 0.15rem 0.3rem 0.1rem;
+			line-height: 1;
+			pointer-events: none;
+			z-index: 1;
+		}
 		.chip-icon {
 			width: 1.25rem;
 			height: 1.25rem;
 			border-radius: 50%;
+		}
+		.chip-tooltip {
+			display: none;
+			position: absolute;
+			bottom: calc(100% + 0.5rem);
+			left: 50%;
+			transform: translateX(-50%);
+			background: #6f6af8;
+			border-radius: 8px;
+			padding: 0.4rem 0.7rem;
+			font-size: 0.7rem;
+			font-weight: 600;
+			color: #fff;
+			white-space: nowrap;
+			pointer-events: none;
+			z-index: 10;
+			box-shadow: 0 4px 14px rgba(111, 106, 248, 0.35);
+		}
+		&:hover .chip-tooltip {
+			display: block;
 		}
 	}
 	.dialog-section-label {

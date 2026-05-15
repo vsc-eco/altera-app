@@ -17,7 +17,16 @@
 	} from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import { ChevronDown, Search, Send, TriangleAlert, Wallet, X } from '@lucide/svelte';
+	import {
+		ArrowDown,
+		ArrowUpDown,
+		ChevronDown,
+		Search,
+		Send,
+		TriangleAlert,
+		Wallet,
+		X
+	} from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
@@ -809,9 +818,58 @@
 		return 'External network';
 	}
 
+	/**
+	 * Swap FROM ↔ TO via the arrow button.
+	 * Only tokens swap — FROM gets the old TO token and keeps its own
+	 * network source (user must re-pick via the dialog if they want a
+	 * different source). TO network is owned by the destChoice effect.
+	 */
+	function swapPositions() {
+		if (!txState.fromCoin || !txState.toCoin) return;
+		const prevFrom = txState.fromCoin;
+		const prevFromNet = txState.fromNetwork;
+		txState.fromCoin = txState.toCoin;
+		txState.fromNetwork = prevFromNet;
+		txState.toCoin = prevFrom;
+		// toNetwork is managed by the destChoice $effect — don't set it here.
+	}
+
+	const canSwapPositions = $derived(!!(txState.fromCoin && txState.toCoin));
+
 	function selectToken(token: AssetObject) {
-		if (currentlyOpen === 'from' && !isFromTokenAllowed(token.value)) return;
-		if (currentlyOpen === 'to' && !isToTokenAllowed(token.value)) return;
+		// If the user picks the token already in the OTHER slot, swap tokens.
+		const otherValue =
+			currentlyOpen === 'from'
+				? txState.toCoin?.coin.value
+				: txState.fromCoin?.coin.value;
+
+		if (otherValue && token.value === otherValue) {
+			if (currentlyOpen === 'from') {
+				// User is picking FROM and clicked the current TO token.
+				// Move old FROM → TO, show network picker for the new FROM.
+				const prevFrom = txState.fromCoin;
+				txState.toCoin = prevFrom;
+				// toNetwork stays managed by destChoice effect.
+				const coinOpt = swapOptions.from.coins.find(
+					(opt) => opt.coin.value === token.value
+				);
+				if (!coinOpt) return;
+				tempCoinOpt = coinOpt;
+				dialogStep = 'source';
+			} else {
+				// User is picking TO and clicked the current FROM token.
+				// Swap tokens: old FROM → TO, old TO → FROM (keep FROM network).
+				const prevFrom = txState.fromCoin;
+				const prevFromNet = txState.fromNetwork;
+				const prevTo = txState.toCoin;
+				txState.toCoin = prevFrom;
+				txState.fromCoin = prevTo;
+				txState.fromNetwork = prevFromNet;
+				closeDialog();
+			}
+			return;
+		}
+
 		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
@@ -878,18 +936,18 @@
 				</div>
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						{@const disabled = currentlyOpen === 'from'
-							? !isFromTokenAllowed(token.value)
-							: !isToTokenAllowed(token.value)}
+						{@const isFrom = token.value === txState.fromCoin?.coin.value}
+						{@const isTo = token.value === txState.toCoin?.coin.value}
+						{@const isSelected = isFrom || isTo}
 						<button
-							class="token-chip"
-							class:disabled
-							{disabled}
-							title={disabled ? 'Already selected on the other side' : undefined}
+							class={['token-chip', { muted: isSelected }]}
 							onclick={() => selectToken(token)}
 						>
 							<img src={token.icon} alt={token.label} class="chip-icon" />
 							<span>{coinDisplayLabel(token)}</span>
+							{#if isSelected}
+								<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
+							{/if}
 						</button>
 					{/each}
 				</div>
@@ -901,17 +959,18 @@
 			<div class="dialog-content">
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						{@const disabled = currentlyOpen === 'from'
-							? !isFromTokenAllowed(token.value)
-							: !isToTokenAllowed(token.value)}
+						{@const isFrom = token.value === txState.fromCoin?.coin.value}
+						{@const isTo = token.value === txState.toCoin?.coin.value}
+						{@const isSelected = isFrom || isTo}
 						<button
-							class={['token-chip', { active: token.value === tempCoinOpt.coin.value, disabled }]}
-							{disabled}
-							title={disabled ? 'Already selected on the other side' : undefined}
+							class={['token-chip', { active: token.value === tempCoinOpt.coin.value, muted: isSelected && token.value !== tempCoinOpt.coin.value }]}
 							onclick={() => selectToken(token)}
 						>
 							<img src={token.icon} alt={token.label} class="chip-icon" />
 							<span>{coinDisplayLabel(token)}</span>
+							{#if isSelected && token.value !== tempCoinOpt.coin.value}
+								<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
+							{/if}
 						</button>
 					{/each}
 				</div>
@@ -949,7 +1008,7 @@
 					<span class="section-label">From</span>
 					<span class="section-header-center">
 						{#if txState.fromNetwork}
-							<span class="network-pill">{txState.fromNetwork.label}</span>
+							<span class={['network-pill', { external: txState.fromNetwork.value !== 'magi' }]}>{txState.fromNetwork.label}</span>
 						{/if}
 					</span>
 					<span class="section-balance sm-caption">
@@ -1007,22 +1066,28 @@
 
 			<!-- Swap Arrow -->
 			<div class="swap-toggle-wrapper">
-				<div class="swap-arrow">
-					<ChevronDown size={18} />
-				</div>
+				<button
+					type="button"
+					class={['swap-arrow-btn', { disabled: !canSwapPositions }]}
+					disabled={!canSwapPositions}
+					onclick={swapPositions}
+					aria-label="Swap token positions"
+				>
+					<span class="arrow-icon arrow-single"><ArrowDown size={16} /></span>
+					<span class="arrow-icon arrow-swap"><ArrowUpDown size={16} /></span>
+				</button>
 			</div>
 
 			<!-- To Section -->
 			<div class="swap-section">
 				<div class="section-header">
 					<span class="section-label">You Receive</span>
-					<span class="sm-caption" style="color: var(--dash-text-muted)">
+					<span class="section-header-center">
 						{#if txState.toNetwork}
-							{txState.toNetwork.label}
-						{:else}
-							Select destination
+							<span class={['network-pill', { external: txState.toNetwork.value !== 'magi' }]}>{txState.toNetwork.label}</span>
 						{/if}
 					</span>
+					<span class="section-balance sm-caption"></span>
 				</div>
 				<div class="section-input-row">
 					<div class="to-amount-display">
@@ -1473,6 +1538,10 @@
 		color: var(--dash-accent-purple);
 		letter-spacing: 0.02em;
 		text-transform: uppercase;
+		&.external {
+			border-color: var(--dash-text-secondary);
+			color: var(--dash-text-secondary);
+		}
 	}
 	.section-input-row {
 		display: flex;
@@ -1575,17 +1644,58 @@
 		position: relative;
 		z-index: 1;
 	}
-	.swap-arrow {
+	.swap-arrow-btn {
+		all: unset;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 50%;
+		border: 1px solid rgba(111, 106, 248, 0.4);
+		background: var(--dash-card-bg);
+		color: #6f6af8;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 2.25rem;
-		height: 2.25rem;
-		border-radius: 12px;
-		border: 1px solid var(--dash-card-border);
-		background: var(--dash-card-bg);
-		color: var(--dash-text-secondary);
-		pointer-events: none;
+		cursor: pointer;
+		transition:
+			background-color 0.25s,
+			border-color 0.25s,
+			color 0.25s;
+		position: relative;
+
+		.arrow-icon {
+			position: absolute;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: opacity 0.25s ease;
+		}
+		.arrow-single {
+			opacity: 1;
+		}
+		.arrow-swap {
+			opacity: 0;
+		}
+
+		&:hover:not(:disabled) {
+			background: #6f6af8;
+			border-color: #6f6af8;
+			color: #fff;
+			.arrow-single {
+				opacity: 0;
+			}
+			.arrow-swap {
+				opacity: 1;
+			}
+		}
+		&:active:not(:disabled) {
+			transform: scale(0.9);
+		}
+		&.disabled,
+		&:disabled {
+			cursor: not-allowed;
+			color: var(--dash-text-muted);
+			border-color: var(--dash-card-border);
+		}
 	}
 
 	/* ── Same Coin Error ── */
@@ -2109,11 +2219,26 @@
 		border-color: var(--dash-accent-purple);
 		background-color: rgba(111, 106, 248, 0.15);
 	}
-	.token-chip.disabled,
-	.token-chip:disabled {
-		opacity: 0.35;
-		cursor: not-allowed;
+	.token-chip.muted {
+		opacity: 0.5;
+		position: relative;
+	}
+	.chip-role-badge {
+		position: absolute;
+		top: -0.4rem;
+		left: 50%;
+		transform: translateX(-50%);
+		font-size: 0.5rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: #fff;
+		background: var(--dash-accent-purple, #6f6af8);
+		border-radius: 4px;
+		padding: 0.15rem 0.3rem 0.1rem;
+		line-height: 1;
 		pointer-events: none;
+		z-index: 1;
 	}
 
 	/* ── Dialog: Network Cards (Source) ── */

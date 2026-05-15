@@ -67,7 +67,6 @@
 					<button
 						class="dialog-btn close"
 						{...api.getCloseTriggerProps()}
-						onclick={api.getTriggerProps().onclick!}
 					>
 						<X size={32} />
 					</button>
@@ -190,6 +189,7 @@
 	.title-and-close {
 		display: flex;
 		position: relative;
+		z-index: 2;
 		align-items: center;
 		gap: 0.5rem;
 		margin-bottom: 1rem;

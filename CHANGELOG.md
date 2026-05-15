@@ -2,6 +2,23 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.0] — 2026-05-15
+
+### Swap
+- Interactive swap direction toggle with icon crossfade (single arrow → double arrow on hover)
+- Auto-switch tokens when picking a token already in the other slot
+- FROM/TO role badges on selected token chips in picker dialog
+- Network pill in "You Receive" section with color differentiation for external chains
+- Replace TO display with AmountInput for consistent digit alignment
+
+### Fixes
+- Dialog close button not clickable in nested modals (deposit review)
+- Lightning deposit currency picker no longer shows HIVE/HBD options
+
+### Infrastructure
+- Deploy notification toast — polls server version, prompts refresh on new deploy
+- CHANGELOG.md for release tracking
+
 ## [0.2.0] — 2026-05-15
 
 ### Swap

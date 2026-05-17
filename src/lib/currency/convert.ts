@@ -1,8 +1,8 @@
-import Dinero from 'dinero.js';
-import { getCryptoPrices, type Cryptoprices } from '$lib/sendswap/v4v/api-types/cryptoprices';
-import { Network, Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
-import { btcToSats, satsToBtc } from '$lib/sendswap/utils/units';
-import type { CoinAmount, UnkCoinAmount } from './CoinAmount';
+import { Coin, Network, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions'
+import { btcToSats, satsToBtc } from '$lib/sendswap/utils/units'
+import { getCryptoPrices, type Cryptoprices } from '$lib/sendswap/v4v/api-types/cryptoprices'
+import Dinero from 'dinero.js'
+import type { CoinAmount, UnkCoinAmount } from './CoinAmount'
 Dinero.defaultPrecision = 10;
 const getLightningExchangeRates = async (base: Coin) => {
 	const prices = await getCryptoPrices();
@@ -61,7 +61,7 @@ function parseToRootedFormat(base: Coin, prices: Cryptoprices) {
 }
 
 export async function getExchangeRates(via: IntermediaryNetwork, base: Coin) {
-	if (via == Network.lightning) return await getLightningExchangeRates(base);
+	if (via.value === Network.lightning.value) return await getLightningExchangeRates(base);
 	throw new Error(`${via.label} network not supported.`);
 }
 

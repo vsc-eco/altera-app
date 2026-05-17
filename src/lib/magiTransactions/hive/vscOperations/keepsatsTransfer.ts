@@ -1,6 +1,8 @@
 import { CoinAmount } from '$lib/currency/CoinAmount'
 import { Coin } from '$lib/sendswap/utils/sendOptions'
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants'
 import type { CustomJsonOperation } from '@hiveio/dhive'
+import { isVscTestnet, vscNetworkId } from '../../../../client'
 
 /**
  * Create a custom_json operation to transfer MagiSats to V4VApp
@@ -21,18 +23,21 @@ type keepsatsTransferOp = {
 	rc_limit: number;
 };
 
+export const getKeepsatsDestinationDid = (): string =>
+	`hive:${isVscTestnet() ? 'v4vapp-test' : 'v4vapp'}`
+
 export function getKeepsatsTransferOp(
 	from: string,
 	amount: CoinAmount<typeof Coin.sats>
 ): CustomJsonOperation {
 	const jsonOutput: keepsatsTransferOp = {
-		net_id: 'vsc-mainnet',
+		net_id: vscNetworkId,
 		caller: `hive:${from}`,
-		contract_id: 'vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d',
+		contract_id: BTC_MAPPING_CONTRACT_ID,
 		action: 'transfer',
 		payload: {
 			amount: amount.toAmountString(),
-			to: 'hive:v4vapp',
+			to: getKeepsatsDestinationDid(),
 			memo: 'Deposit #sats'
 		},
 		rc_limit: 1000

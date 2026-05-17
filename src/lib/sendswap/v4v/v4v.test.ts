@@ -53,6 +53,6 @@ describe('createLightningInvoice', () => {
 		expect((firstCall as URL).pathname).toBe('/v1/new_invoice_hive');
 		expect((firstCall as URL).searchParams.get('hive_accname')).toBe('alice');
 		expect((firstCall as URL).searchParams.get('currency')).toBe('SATS');
-		expect((firstCall as URL).searchParams.get('receive_currency')).toBe('sats');
+		expect((firstCall as URL).searchParams.get('receive_currency')).toBe('magisats');
 	});
 });

@@ -1,15 +1,16 @@
 <script lang="ts">
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import NavButtons from '$lib/sendswap/components/NavButtons.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
+	import { untrack, type ComponentProps } from 'svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
 	import { scanForBalance } from '../../utils/sendUtils';
 	import { useWithdrawState } from '../../utils/txState.svelte';
-	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
 	import BitcoinMainnetWithdraw from './BitcoinMainnetWithdraw.svelte';
-	import { untrack, type ComponentProps } from 'svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
+	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
+	import KeepsatsWithdraw from './KeepsatsWithdraw.svelte';
 
 	let {
 		editStage,
@@ -27,6 +28,7 @@
 
 	let hiveMainnetOpen = $state(false);
 	let btcMainnetOpen = $state(false);
+	let lightningTransferOpen = $state(false);
 	let secondaryMenu = $state(false);
 
 	let toggleHiveMainnet: (open?: boolean) => void = (open = false) => {
@@ -34,6 +36,9 @@
 	};
 	let toggleBtcMainnet: (open?: boolean) => void = (open = false) => {
 		btcMainnetOpen = open;
+	};
+	let toggleLightningTransfer: (open?: boolean) => void = (open = false) => {
+		lightningTransferOpen = open;
 	};
 
 	$effect(() => {
@@ -98,7 +103,28 @@
 	});
 
 	$effect(() => {
-		onHomePage = hiveMainnetOpen || btcMainnetOpen;
+		if (!lightningTransferOpen) return;
+		untrack(() => {
+			const btcCoinFrom = swapOptions.from.coins.find(
+				(coinOpt) =>
+					coinOpt.coin.value === Coin.btc.value &&
+					coinOpt.networks.some((n) => n.value === Network.magi.value)
+			);
+			// Find BTC in to-coins without requiring lightning in networks,
+			// since lightning is the toNetwork and is set separately below.
+			const btcCoinTo = swapOptions.to.coins.find(
+				(coinOpt) => coinOpt.coin.value === Coin.btc.value
+			);
+			txState.method = TransferMethod.lightningTransfer;
+			txState.fromNetwork = Network.magi;
+			txState.fromCoin = btcCoinFrom;
+			txState.toNetwork = Network.lightning;
+			txState.toCoin = btcCoinTo;
+		});
+	});
+
+	$effect(() => {
+		onHomePage = hiveMainnetOpen || btcMainnetOpen || lightningTransferOpen;
 	});
 </script>
 
@@ -120,6 +146,14 @@
 		<h2>Bitcoin Mainnet Withdraw</h2>
 		<div class="withdraw-content">
 			<BitcoinMainnetWithdraw {editStage} open={btcMainnetOpen && isActive} />
+		</div>
+	{:else if lightningTransferOpen}
+		<PillButton onclick={() => toggleLightningTransfer()} styleType="icon-subtle">
+			<ArrowLeft size={32} />
+		</PillButton>
+		<h2>Keepsats on V4VApp Withdraw</h2>
+		<div class="withdraw-content">
+			<KeepsatsWithdraw {editStage} open={lightningTransferOpen && isActive} />
 		</div>
 	{:else}
 		<h2>Withdraw</h2>
@@ -167,11 +201,10 @@
 				</ClickableCard>
 			</div>
 			<div class="lightning-transfer">
-				<ClickableCard disabled={true} onclick={() => {}}>
+				<ClickableCard onclick={() => toggleLightningTransfer(true)}>
 					<div class="type-header">
 						<ImageIconRenderer icon={'/btc/lightning.svg'} alt={'lightning'} size={40} />
 						<span>Lightning Transfer</span>
-						<span class="error">Coming soon</span>
 						<div class="chevron">
 							<ChevronRight />
 						</div>

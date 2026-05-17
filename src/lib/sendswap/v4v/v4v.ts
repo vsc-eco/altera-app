@@ -31,16 +31,14 @@ export const createLightningInvoice = async (
 	}
 	// if (Number(amount) < 2) return `Not enough. Must be at least 2 ${of}.`;
 	console.log('on', on);
-	const mainnetAccount = on.value == Network.magi.value ? vscGateway : username;
+	const isMagiSats = on.value === Network.magi.value && into.toLowerCase() === 'sats';
+	const mainnetAccount =
+		on.value === Network.magi.value ? (isMagiSats ? username : vscGateway) : username;
 	console.log('mainnet account', mainnetAccount);
 	if (mainnetAccount.length > 16) {
 		return 'Invalid hive username.';
 	}
-	const invoicePath =
-		on.value === Network.magi.value && into.toLowerCase() === 'sats'
-			? '/v1/new_invoice'
-			: '/v1/new_invoice_hive';
-	const url = new URL(`${V4VAPP_API}${invoicePath}`);
+	const url = new URL(`${V4VAPP_API}/v1/new_invoice_hive`);
 	let message = new URLSearchParams(`to=${auth.value.address}`);
 	// let message = new URLSearchParams(`to=${vscGateway}`);
 	if (altera_id) {

@@ -147,7 +147,7 @@
 		</PillButton>
 	</div>
 	<SelectAssetFlattened
-		availableCoins={[Coin.hive, Coin.hbd]}
+		availableCoins={[Coin.hive, Coin.hbd, Coin.sats]}
 		close={toggleAsset}
 		bind:coin={txState.toCoin}
 		bind:network={txState.toNetwork}

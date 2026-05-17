@@ -36,7 +36,11 @@ export const createLightningInvoice = async (
 	if (mainnetAccount.length > 16) {
 		return 'Invalid hive username.';
 	}
-	const url = new URL(`${V4VAPP_API}/v1/new_invoice_hive`);
+	const invoicePath =
+		on.value === Network.magi.value && into.toLowerCase() === 'sats'
+			? '/v1/new_invoice'
+			: '/v1/new_invoice_hive';
+	const url = new URL(`${V4VAPP_API}${invoicePath}`);
 	let message = new URLSearchParams(`to=${auth.value.address}`);
 	// let message = new URLSearchParams(`to=${vscGateway}`);
 	if (altera_id) {

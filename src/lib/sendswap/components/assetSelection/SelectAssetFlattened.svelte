@@ -43,7 +43,11 @@
 
 	const auth = $derived(getAuth()());
 
-	const onMagi = $derived(availableCoins.filter((coin) => coin.value in $accountBalance.bal));
+	const onMagi = $derived(
+		availableCoins.filter(
+			(coin) => coin.value in $accountBalance.bal || (isTo && coin.value === Coin.sats.value)
+		)
+	);
 
 	let showEmptyAccounts = $state(untrack(() => isTo));
 
@@ -58,7 +62,7 @@
 			.map((coin) => {
 				// REMOVE FOR BITCOIN PROD
 				const coinAmt = new CoinAmount(
-					$accountBalance.bal[coin.value as keyof AccountBalance],
+					$accountBalance.bal[coin.value as keyof AccountBalance] ?? 0,
 					coin,
 					true
 				);

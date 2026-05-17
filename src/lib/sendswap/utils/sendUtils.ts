@@ -40,8 +40,7 @@ import swapOptions, {
     type CoinOptions,
     type IntermediaryNetwork
 } from './sendOptions'
-import type { TxStateBase } from './txState.svelte'
-import { SwapTxState, TransferTxState, type TxState } from './txState.svelte'
+import { SwapTxState, TransferTxState, type TxState, type TxStateBase } from './txState.svelte'
 
 export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
 	const accBal = get(accountBalance);

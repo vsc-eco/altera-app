@@ -1,4 +1,7 @@
-import { browser } from '$app/environment';
+// Added this file for local testsing to simulate being logged in without needing the login process flow.
+// Development only, not used in production. Checks if hostname is localhost or 127.0.0.1
+
+import { browser } from '$app/environment'
 import { goto } from '$app/navigation';
 import type { Aioha } from '@aioha/aioha';
 import { getContext } from 'svelte';

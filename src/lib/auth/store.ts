@@ -1,11 +1,10 @@
-import { browser } from '$app/environment'
-import { goto } from '$app/navigation'
-import { accountBalanceHistory } from '$lib/stores/balanceHistory'
-import { accountBalance, getDefaultBalance } from '$lib/stores/currentBalance'
-import { clearAllStores } from '$lib/stores/txStores'
-import type { Aioha } from '@aioha/aioha'
-import { getContext } from 'svelte'
-import { derived, writable } from 'svelte/store'
+import { goto } from '$app/navigation';
+import type { Aioha } from '@aioha/aioha';
+import { getContext } from 'svelte';
+import { derived, writable } from 'svelte/store';
+import { clearAllStores } from '$lib/stores/txStores';
+import { accountBalance, getDefaultBalance } from '$lib/stores/currentBalance';
+import { accountBalanceHistory } from '$lib/stores/balanceHistory';
 
 export type Auth = {
 	status: 'none' | 'pending' | 'authenticated';
@@ -39,31 +38,11 @@ export const getAuth = () => {
 export const _hiveAuthStore = writable<Auth>({ status: 'pending' });
 export const _reownAuthStore = writable<Auth>({ status: 'none' });
 
-const devLocalAuth: Auth = {
-	status: 'authenticated',
-	value: {
-		address: 'v4vapp-test',
-		username: 'v4vapp-test',
-		did: 'hive:v4vapp-test',
-		logout: async () => {
-			_hiveAuthStore.set({ status: 'none' });
-			cleanUpLogout();
-		},
-		provider: 'aioha',
-		openSettings: () => goto('/hive-account')
-	}
-};
-
 export const authStore = derived([_hiveAuthStore, _reownAuthStore], ([$hive, $reown]) => {
 	if ($hive.status !== 'none') {
 		return $hive;
 	} else if ($reown.status !== 'none') {
 		return $reown;
-	} else if (
-		browser &&
-		(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-	) {
-		return devLocalAuth;
 	} else {
 		const noneAuth = { status: 'none' as const };
 		return noneAuth as Auth;

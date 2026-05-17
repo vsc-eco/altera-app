@@ -61,7 +61,7 @@
 			const hbdCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hbd.value);
 			const satsCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.sats.value);
 
-			let toCoinToUse = hiveCoin; // default
+			let toCoinToUse = satsCoin; // default to Magi SATS
 			if (
 				txState.toCoin &&
 				(txState.toCoin.coin.value === Coin.hive.value ||

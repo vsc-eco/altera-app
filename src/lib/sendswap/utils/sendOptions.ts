@@ -153,12 +153,14 @@ const lightning: IntermediaryNetwork = {
 	icon: '/btc/lightning.svg',
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		const meta = await getV4VMetadata();
-		return (await input.convertTo(Coin.sats, Network.lightning))
-			.mul(
-				meta.config.conv_fee_percent
-			)
-			.add(new CoinAmount(meta.config.conv_fee_sats, Coin.sats))
-			.convertTo(outputCoin, Network.lightning);
+		const amt = await input.convertTo(Coin.sats, Network.lightning);
+		const feeInSats = amt
+			.mul(meta.config.conv_fee_percent)
+			.add(new CoinAmount(meta.config.conv_fee_sats, Coin.sats));
+		if (outputCoin.value === Coin.sats.value) {
+			return feeInSats;
+		}
+		return feeInSats.convertTo(outputCoin, Network.lightning);
 	}
 };
 

@@ -1,7 +1,7 @@
-import type { Auth } from '../../auth/store';
-import { getV4VMetadata } from '../v4v/api-types/metadata';
-import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
-import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte';
+import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte'
+import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount'
+import type { Auth } from '../../auth/store'
+import { getV4VMetadata } from '../v4v/api-types/metadata'
 const always: Enabled = () => true;
 const never: Enabled = () => false;
 
@@ -230,13 +230,14 @@ const lightning: IntermediaryNetwork = {
 	enabled: always,
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		const meta = await getV4VMetadata();
-		return (await input.convertTo(Coin.sats, Network.lightning))
-			.mul(
-				// meta.config.conv_fee_percent +
-				meta.config.v4v_fees_streaming_sats_to_hive_percent
-			)
-			.add(new CoinAmount(meta.config.conv_fee_sats, Coin.sats))
-			.convertTo(outputCoin, Network.lightning);
+		const amt = await input.convertTo(Coin.sats, Network.lightning);
+		const feeInSats = amt
+			.mul(meta.config.conv_fee_percent)
+			.add(new CoinAmount(meta.config.conv_fee_sats, Coin.sats));
+		if (outputCoin.value === Coin.sats.value) {
+			return feeInSats;
+		}
+		return feeInSats.convertTo(outputCoin, Network.lightning);
 	}
 };
 
@@ -283,7 +284,7 @@ export const TransferMethod = {
 };
 
 export const networkMap: Map<string, Coin[]> = new Map([
-	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc]],
+	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc, Coin.sats]],
 	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
 	[Network.lightning.value, [Coin.btc]]
 ]);
@@ -342,6 +343,10 @@ const swapOptions: {
 				// networks: [lightning, btcMainnet]
 				// networks: [lightning, magi, btcMainnet]
 				networks: [magi, btcMainnet]
+			},
+			{
+				coin: sats,
+				networks: [magi]
 			}
 		]
 	},
@@ -359,6 +364,10 @@ const swapOptions: {
 				coin: btc,
 				// networks: [lightning, btcMainnet, magi]
 				networks: [btcMainnet, magi]
+			},
+			{
+				coin: sats,
+				networks: [magi]
 			}
 		]
 	}

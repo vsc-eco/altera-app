@@ -71,6 +71,14 @@
 				if (amt !== txState.toAmount) {
 					txState.toAmount = amt;
 				}
+				getFee(amt, txState).then((fee) => {
+					if (
+						fee?.amount !== txState.fee?.amount ||
+						fee?.coin.value !== txState.fee?.coin.value
+					) {
+						txState.fee = fee;
+					}
+				});
 			} else {
 				coinAmountSnapshot
 					.convertTo(txState.toCoin.coin, Network.lightning)
@@ -125,9 +133,14 @@
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {
 			result.push({ coin: Coin.sats, network: Network.lightning });
 		}
-		if (result.length === 0) {
-			result.push({ coin: Coin.unk, network: Network.unknown });
-		}
+	if (
+		result.some((coinOpt) => coinOpt.coin.value === Coin.btc.value) &&
+		result.some((coinOpt) => coinOpt.coin.value === Coin.sats.value)
+	) {
+		result = result.sort((a, b) =>
+			a.coin.value === Coin.sats.value ? -1 : b.coin.value === Coin.sats.value ? 1 : 0
+		);
+	}
 		return result;
 	});
 
@@ -147,7 +160,7 @@
 		</PillButton>
 	</div>
 	<SelectAssetFlattened
-		availableCoins={[Coin.hive, Coin.hbd]}
+		availableCoins={[Coin.hive, Coin.hbd, Coin.sats]}
 		close={toggleAsset}
 		bind:coin={txState.toCoin}
 		bind:network={txState.toNetwork}

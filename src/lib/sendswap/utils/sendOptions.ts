@@ -1,3 +1,6 @@
+import type { Auth } from '../../auth/store'
+const always: Enabled = () => true;
+const never: Enabled = () => false;
 import { getV4VMetadata } from '../v4v/api-types/metadata';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte';
@@ -152,8 +155,7 @@ const lightning: IntermediaryNetwork = {
 		const meta = await getV4VMetadata();
 		return (await input.convertTo(Coin.sats, Network.lightning))
 			.mul(
-				// meta.config.conv_fee_percent +
-				meta.config.v4v_fees_streaming_sats_to_hive_percent
+				meta.config.conv_fee_percent
 			)
 			.add(new CoinAmount(meta.config.conv_fee_sats, Coin.sats))
 			.convertTo(outputCoin, Network.lightning);

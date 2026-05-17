@@ -9,7 +9,10 @@ import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
-import { getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
+import {
+	getKeepsatsDestinationDid,
+	getKeepsatsTransferOp
+} from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
 import { getBtcApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
 import {
     accountBalance,
@@ -901,7 +904,7 @@ export async function send(
 							amount: satsCoinAmount.toAmountString(),
 							asset: satsCoinAmount.coin.unit.toLowerCase(),
 							from: auth.value.did,
-							to: 'hive:v4vapp',
+							to: getKeepsatsDestinationDid(),
 							memo: 'Deposit #sats',
 							type: 'transfer'
 						},

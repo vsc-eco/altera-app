@@ -46,6 +46,7 @@ export const createLightningInvoice = async (
 	}
 	// Map BTC → SATS for V4V API compatibility
 	const v4vCurrency = toV4VCurrency(into);
+	const receiveCurrency = isMagiSats ? 'magisats' : v4vCurrency.toLowerCase();
 	// Convert amount: if the caller passed BTC but API needs SATS, multiply by 1e8
 	let numericAmount = Number(amount);
 	if (into.toLowerCase() === 'btc') {
@@ -60,7 +61,7 @@ export const createLightningInvoice = async (
 		hive_accname: mainnetAccount,
 		amount: roundedAmount,
 		currency: v4vCurrency.toUpperCase(),
-		receive_currency: v4vCurrency.toLowerCase(),
+		receive_currency: receiveCurrency,
 		// usd_hbd: 'false',
 		app_name: 'altera.app',
 		expiry: '600',

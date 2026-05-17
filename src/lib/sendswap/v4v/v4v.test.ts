@@ -35,9 +35,10 @@ describe('createLightningInvoice', () => {
 		const firstCall = fetchMock.mock.calls[0]?.[0];
 		expect(firstCall).toBeInstanceOf(URL);
 		expect((firstCall as URL).pathname).toBe('/v1/new_invoice_hive');
+		expect((firstCall as URL).searchParams.get('hive_accname')).toBe('vsc.gateway');
 	});
 
-	it('uses the sats invoice endpoint for Magi SATS deposits', async () => {
+	it('uses logged-in hive account and sats currency for Magi SATS deposits', async () => {
 		await createLightningInvoice(
 			'1000',
 			'sats',
@@ -49,6 +50,9 @@ describe('createLightningInvoice', () => {
 
 		const firstCall = fetchMock.mock.calls[0]?.[0];
 		expect(firstCall).toBeInstanceOf(URL);
-		expect((firstCall as URL).pathname).toBe('/v1/new_invoice');
+		expect((firstCall as URL).pathname).toBe('/v1/new_invoice_hive');
+		expect((firstCall as URL).searchParams.get('hive_accname')).toBe('alice');
+		expect((firstCall as URL).searchParams.get('currency')).toBe('SATS');
+		expect((firstCall as URL).searchParams.get('receive_currency')).toBe('sats');
 	});
 });

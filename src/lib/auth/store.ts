@@ -1,11 +1,11 @@
-import { browser } from '$app/environment';
-import { goto } from '$app/navigation';
-import type { Aioha } from '@aioha/aioha';
-import { getContext } from 'svelte';
-import { derived, writable } from 'svelte/store';
-import { clearAllStores } from '$lib/stores/txStores';
-import { accountBalance, getDefaultBalance } from '$lib/stores/currentBalance';
-import { accountBalanceHistory } from '$lib/stores/balanceHistory';
+import { browser } from '$app/environment'
+import { goto } from '$app/navigation'
+import { accountBalanceHistory } from '$lib/stores/balanceHistory'
+import { accountBalance, getDefaultBalance } from '$lib/stores/currentBalance'
+import { clearAllStores } from '$lib/stores/txStores'
+import type { Aioha } from '@aioha/aioha'
+import { getContext } from 'svelte'
+import { derived, writable } from 'svelte/store'
 
 export type Auth = {
 	status: 'none' | 'pending' | 'authenticated';

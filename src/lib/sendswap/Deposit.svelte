@@ -39,7 +39,6 @@
 		txState.toAmount = '0';
 		txState.enteredAmount = '0';
 		txState.fee = undefined;
-		txState.account = undefined;
 	}
 
 	$effect(() => {

@@ -3,20 +3,23 @@
 	import { X, RefreshCw } from '@lucide/svelte';
 
 	/**
-	 * Polls /api/version every 2 minutes. When the server's version
-	 * differs from the one baked into this JS bundle, a toast appears
-	 * prompting the user to refresh.
+	 * Checks /api/version once on mount and again whenever the tab
+	 * becomes visible (user returning to the app). If the server's
+	 * version differs from the one baked into this JS bundle, a toast
+	 * appears prompting the user to refresh.
+	 *
+	 * Rationale: constant polling is wasteful — users only act on the
+	 * toast when they're looking at the page anyway. Checking on
+	 * `visibilitychange` covers "I left this tab open all day and came
+	 * back" without burning requests every two minutes.
 	 *
 	 * Svelte notes:
 	 * - `$state` for the reactive `show` flag — toggles the toast.
-	 * - `$effect` to start/stop the polling interval tied to the
-	 *   component lifecycle (auto-cleanup on destroy).
-	 * - No `$derived` needed — `show` is set imperatively from the
-	 *   fetch callback, not computed from other reactive values.
+	 * - `$effect` to attach/detach the visibilitychange listener tied
+	 *   to the component lifecycle (auto-cleanup on destroy).
 	 */
 
 	const currentVersion = __APP_VERSION__;
-	const POLL_INTERVAL = 2 * 60 * 1000; // 2 minutes
 	const CHANGELOG_URL = 'https://github.com/vsc-eco/altera-app/blob/main/CHANGELOG.md';
 
 	let show = $state(false);
@@ -43,17 +46,21 @@
 					show = true;
 				}
 			} catch {
-				// Network error — silently ignore, retry next interval
+				// Network error — silently ignore, will retry on next visibility change
 			}
 		}
 
-		const interval = setInterval(checkVersion, POLL_INTERVAL);
-		// Also check once after a short delay (don't block initial load)
+		function onVisibilityChange() {
+			if (document.visibilityState === 'visible') checkVersion();
+		}
+
+		// Initial check after a short delay (don't block initial load).
 		const timeout = setTimeout(checkVersion, 10_000);
+		document.addEventListener('visibilitychange', onVisibilityChange);
 
 		return () => {
-			clearInterval(interval);
 			clearTimeout(timeout);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
 	});
 </script>

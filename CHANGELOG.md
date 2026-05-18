@@ -2,6 +2,28 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.2] — 2026-05-18
+
+### Swap
+- Selected token chips (FROM/TO) now show a thin purple border + role badge instead of being dimmed
+- Disabled tokens: cleaner dim treatment; removed diagonal strike-through
+- Tooltip on disabled chips is now readable (was rendering see-through due to parent opacity)
+
+### Infrastructure
+- Update toast no longer polls every 2 minutes — checks version on tab visibility change instead
+- New reusable `Tooltip` component (`$lib/components/Tooltip.svelte`) shared by chip + swap-arrow tooltips
+
+### Internals
+- Removed dead `enabled()` callbacks from `Coin` and `Network` definitions
+- Removed unused `account` field from `TxStateBase` (cleaner type, dropped always-false template branches in `ReviewTransfer`)
+
+## [0.3.1] — 2026-05-18
+
+### Tokens
+- Bump `@vsc.eco/token-widget` to 0.0.2
+- NFT details modal — click an NFT tile to see its info
+- Template-id mint tab in the token widget
+
 ## [0.3.0] — 2026-05-15
 
 ### Swap

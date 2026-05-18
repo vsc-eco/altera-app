@@ -91,37 +91,16 @@
 		});
 	});
 
-	// Get max balance
-	let max = $state(new CoinAmount(0, Coin.unk));
-	let balanceInSelectedCoin = $state('');
+	// Get max balance in whatever coin is currently selected. SATS and BTC share
+	// the same raw integer unit (satoshis), so balance.amount is valid for both —
+	// only the coin wrapper changes, which is what AmountInput needs for showMax.
+	let max = $state(new CoinAmount(0, Coin.sats));
+
 	$effect(() => {
 		if (!open || !txState.fromCoin || !txState.fromNetwork) return;
+		if (coinAmount.coin.value === Coin.unk.value) return;
 		const balance = getBalanceAmount($accountBalance, txState.fromCoin.coin, txState.fromNetwork);
-		max = balance;
-
-		// Convert balance display to selected coin unit for display
-		if (coinAmount.coin.value === Coin.sats.value && balance.coin.value === Coin.btc.value) {
-			// balance.amount is stored as raw BTC value (e.g., 3500 for 0.00003500 BTC)
-			// Since BTC has 8 decimal places, 3500 means 3500 * 10^-8 = 0.00003500 BTC
-			// To convert to SATS: 0.00003500 BTC * 100,000,000 = 3,500 SATS
-			// Which is: (3500 / 10^8) * 100,000,000 = 3,500
-			// Or simply: 3500 (no conversion needed!)
-			const satsAmount = balance.amount;
-			const formatter = new Intl.NumberFormat(undefined, {
-				useGrouping: true,
-				minimumFractionDigits: 0
-			});
-			balanceInSelectedCoin = `${formatter.format(satsAmount)} SATS`;
-		} else if (balance.coin.value === coinAmount.coin.value) {
-			const formatter = new Intl.NumberFormat(undefined, {
-				useGrouping: true,
-				minimumFractionDigits: balance.coin.decimalPlaces
-			});
-			const displayAmount = Math.abs(balance.amount) / 10 ** balance.coin.decimalPlaces;
-			balanceInSelectedCoin = `${formatter.format(displayAmount)} ${balance.coin.unit}`;
-		} else {
-			balanceInSelectedCoin = '';
-		}
+		max = new CoinAmount(balance.amount, coinAmount.coin, true);
 	});
 
 	// Validation
@@ -179,9 +158,6 @@
 	<div class="section">
 		<div class="amount-header">
 			<label for={inputId}>Amount</label>
-			{#if balanceInSelectedCoin}
-				<span class="balance-display">{balanceInSelectedCoin}</span>
-			{/if}
 		</div>
 		<div class="amount-row">
 			<div class="amount-input">
@@ -218,10 +194,6 @@
 		justify-content: space-between;
 		align-items: center;
 		margin-bottom: 0.5rem;
-	}
-	.balance-display {
-		font-size: 0.875rem;
-		color: var(--text-secondary, #999);
 	}
 	.amount-row {
 		display: flex;

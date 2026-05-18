@@ -20,6 +20,7 @@
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import Tooltip from '$lib/components/Tooltip.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import {
@@ -1238,7 +1239,7 @@
 			<span class="arrow-icon arrow-single"><ArrowDown size={14} /></span>
 			<span class="arrow-icon arrow-swap"><ArrowUpDown size={14} /></span>
 			{#if !canSwapPositions}
-				<span class="swap-arrow-tooltip">{swapBlockedReason}</span>
+				<Tooltip placement="bottom">{swapBlockedReason}</Tooltip>
 			{/if}
 		</button>
 	</div>
@@ -1542,7 +1543,7 @@
 						<img src={token.icon} alt={token.label} class="chip-icon" />
 						<span>{coinDisplayLabel(token)}</span>
 						{#if walletBlocked}
-							<span class="chip-tooltip">Not supported by your wallet</span>
+							<Tooltip>Not supported by your wallet</Tooltip>
 						{:else if isSelected}
 							<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
 						{/if}
@@ -1735,27 +1736,12 @@
 			cursor: not-allowed;
 			color: var(--dash-text-muted);
 			border-color: rgba(111, 106, 248, 0.15);
-			&:hover .swap-arrow-tooltip {
-				display: block;
+			&:hover :global(.tooltip),
+			&:focus-visible :global(.tooltip) {
+				opacity: 1;
+				visibility: visible;
 			}
 		}
-	}
-	.swap-arrow-tooltip {
-		display: none;
-		position: absolute;
-		top: calc(100% + 0.5rem);
-		left: 50%;
-		transform: translateX(-50%);
-		background: #6f6af8;
-		border-radius: 8px;
-		padding: 0.4rem 0.7rem;
-		font-size: 0.7rem;
-		font-weight: 600;
-		color: #fff;
-		white-space: nowrap;
-		pointer-events: none;
-		z-index: 10;
-		box-shadow: 0 4px 14px rgba(111, 106, 248, 0.35);
 	}
 	.receiver-field {
 		display: flex;
@@ -2105,22 +2091,13 @@
 		}
 		&.disabled,
 		&:disabled {
-			opacity: 0.4;
 			cursor: not-allowed;
 			position: relative;
-			&::after {
-				content: '';
-				position: absolute;
-				inset: 0;
-				background: linear-gradient(
-					to top right,
-					transparent calc(50% - 1px),
-					var(--dash-text-muted) calc(50% - 1px),
-					var(--dash-text-muted) calc(50% + 1px),
-					transparent calc(50% + 1px)
-				);
-				border-radius: inherit;
-				pointer-events: none;
+			color: var(--dash-text-muted);
+			background-color: var(--dash-surface);
+			border-color: var(--dash-card-border);
+			.chip-icon {
+				opacity: 0.4;
 			}
 			&:hover {
 				background-color: var(--dash-surface);
@@ -2128,8 +2105,8 @@
 			}
 		}
 		&.muted {
-			opacity: 0.5;
 			position: relative;
+			border-color: var(--dash-accent-purple);
 		}
 		.chip-role-badge {
 			position: absolute;
@@ -2153,25 +2130,10 @@
 			height: 1.25rem;
 			border-radius: 50%;
 		}
-		.chip-tooltip {
-			display: none;
-			position: absolute;
-			bottom: calc(100% + 0.5rem);
-			left: 50%;
-			transform: translateX(-50%);
-			background: #6f6af8;
-			border-radius: 8px;
-			padding: 0.4rem 0.7rem;
-			font-size: 0.7rem;
-			font-weight: 600;
-			color: #fff;
-			white-space: nowrap;
-			pointer-events: none;
-			z-index: 10;
-			box-shadow: 0 4px 14px rgba(111, 106, 248, 0.35);
-		}
-		&:hover .chip-tooltip {
-			display: block;
+		&:hover :global(.tooltip),
+		&:focus-within :global(.tooltip) {
+			opacity: 1;
+			visibility: visible;
 		}
 	}
 	.dialog-section-label {

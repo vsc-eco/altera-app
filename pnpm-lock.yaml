@@ -82,8 +82,8 @@ importers:
         specifier: ^0.0.7
         version: 0.0.7(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
       '@vsc.eco/token-widget':
-        specifier: ^0.0.1
-        version: 0.0.1(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^0.0.2
+        version: 0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@wagmi/core':
         specifier: ^3.3.1
         version: 3.3.1(@tanstack/query-core@5.85.5)(@types/react@18.3.28)(ox@0.14.15(typescript@5.9.3)(zod@3.25.76))(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@18.3.1))(viem@2.45.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
@@ -2568,14 +2568,14 @@ packages:
   '@vsc.eco/client@0.0.7':
     resolution: {integrity: sha512-ZubSSl8TMljkdUyHApJGfB7xVrXfqsTh1pHsYImvHcmznh1DV/gswe8EnhaVG6eDkAOJEIFsSfaKele1aFt0/Q==}
 
-  '@vsc.eco/token-core@0.0.1':
-    resolution: {integrity: sha512-p0QtjT7gQm0LeN2BQsQvMsDsoc4kYDdschWVGB68o4e83xaV1DaSLa49enqxwaWxDPZleZJ6LhNwcmSVZO4S3A==}
+  '@vsc.eco/token-core@0.0.2':
+    resolution: {integrity: sha512-5JBi2aLyfrsNcK/8ff/Fi8E8cLP+oAfJIn4FBwIjderVqlFb53a3m9R5lDZaxBVmGrq1sTuaMrwgcfX3CEvBag==}
 
-  '@vsc.eco/token-sdk@0.0.1':
-    resolution: {integrity: sha512-rEYeOC5K47FgrUOmRalp1iaj+wnl2ADXP0k+0khNH0HBSwZ00icg+KlFNHhQhj+VQzKLSE7ROssAagGkufknEA==}
+  '@vsc.eco/token-sdk@0.0.2':
+    resolution: {integrity: sha512-hNfTvhyORcFLJb5qkhVbjjrWFsWBGYWyS37HSDYBls2IMQK0lh/qRjsukfykF+A7N4XjHEiaNu7CVWwrNQ+CCg==}
 
-  '@vsc.eco/token-widget@0.0.1':
-    resolution: {integrity: sha512-pWaXQvRomLeAXxwQXvUn6VAjhCMjCfTiNYtOQfYRDZzRVyIY01SVC0HrFfLfEMi1B450B/VGcrVNth5yTVKNBQ==}
+  '@vsc.eco/token-widget@0.0.2':
+    resolution: {integrity: sha512-dpH2rsxuMcsl28GN2xpDGed8PZhsLJPv1iW8xg0VVEl8Cib82S4UpmQnIHGmEBjz086wu0y0M2JQd8yXzTEUeA==}
     peerDependencies:
       '@aioha/aioha': ^1.8.0
       react: '>=18.0.0'
@@ -9438,17 +9438,17 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@vsc.eco/token-core@0.0.1': {}
+  '@vsc.eco/token-core@0.0.2': {}
 
-  '@vsc.eco/token-sdk@0.0.1':
+  '@vsc.eco/token-sdk@0.0.2':
     dependencies:
-      '@vsc.eco/token-core': 0.0.1
+      '@vsc.eco/token-core': 0.0.2
 
-  '@vsc.eco/token-widget@0.0.1(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@vsc.eco/token-widget@0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@r2wc/react-to-web-component': 2.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@vsc.eco/token-core': 0.0.1
-      '@vsc.eco/token-sdk': 0.0.1
+      '@vsc.eco/token-core': 0.0.2
+      '@vsc.eco/token-sdk': 0.0.2
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     optionalDependencies:

@@ -100,7 +100,7 @@
 		"@types/qrcode": "^1.5.6",
 		"@vercel/analytics": "^1.6.1",
 		"@vsc.eco/client": "^0.0.7",
-		"@vsc.eco/token-widget": "^0.0.1",
+		"@vsc.eco/token-widget": "^0.0.2",
 		"@wagmi/core": "^3.3.1",
 		"@zag-js/avatar": "^1.33.1",
 		"@zag-js/clipboard": "^1.33.1",

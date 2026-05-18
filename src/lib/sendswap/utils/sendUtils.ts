@@ -1,46 +1,49 @@
-import { getAccounts } from '@aioha/aioha/build/rpc';
-import { type Account, postingMetadataFromString } from '$lib/auth/hive/accountTypes';
-import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
+import { postingMetadataFromString, type Account } from '$lib/auth/hive/accountTypes'
+import { wagmiConfig } from '$lib/auth/reown'
+import { authStore, getAuth, type Auth } from '$lib/auth/store'
+import { CoinAmount } from '$lib/currency/CoinAmount'
+import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName'
+import { btcSigner } from '$lib/magiTransactions/bitcoin/signer'
+import { getEVMOpType } from '$lib/magiTransactions/eth'
+import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client'
+import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
+import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
+import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
+import {
+	getKeepsatsDestinationDid,
+	getKeepsatsTransferOp
+} from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
+import { getBtcApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
+import {
+    accountBalance,
+    type AccountBalance,
+    type HiveMainnetBalance
+} from '$lib/stores/currentBalance'
+import {
+    fetchTxs,
+    getTimestamp,
+    magiTxsStore,
+    waitForExtend,
+    type TransactionInter
+} from '$lib/stores/txStores'
+import { getAccounts } from '@aioha/aioha/build/rpc'
+import type { Operation, TransferOperation } from '@hiveio/dhive'
+import { Network as BtcNetwork, validate } from 'bitcoin-address-validation'
+import moment, { type Moment } from 'moment'
+import { get } from 'svelte/store'
+import { addLocalTransaction } from '../../stores/localStorageTxs'
+import { getIntermediaryNetwork } from './getNetwork'
 import swapOptions, {
-	Coin,
-	Network,
-	networkMap,
-	SendAccount,
-	TransferMethod,
-	type CoinOnNetwork,
-	type CoinOptions,
-	type IntermediaryNetwork
-} from './sendOptions';
-import { type TxState, SwapTxState, TransferTxState } from './txState.svelte';
-import { authStore, getAuth, type Auth } from '$lib/auth/store';
-import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
-import { getHiveSwapOp, getBtcApproveOp } from '$lib/magiTransactions/hive/vscOperations/swap';
-import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
-import { getEVMOpType } from '$lib/magiTransactions/eth';
-import { CoinAmount } from '$lib/currency/CoinAmount';
-import type { Operation, TransferOperation } from '@hiveio/dhive';
-import { addLocalTransaction } from '../../stores/localStorageTxs';
-import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client';
-import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
-import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
-import { wagmiConfig } from '$lib/auth/reown';
-import { get } from 'svelte/store';
-import {
-	fetchTxs,
-	getTimestamp,
-	magiTxsStore,
-	waitForExtend,
-	type TransactionInter
-} from '$lib/stores/txStores';
-import moment, { type Moment } from 'moment';
-import { getIntermediaryNetwork } from './getNetwork';
-import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
-import {
-	accountBalance,
-	type AccountBalance,
-	type HiveMainnetBalance
-} from '$lib/stores/currentBalance';
-import type { TxStateBase } from './txState.svelte';
+    Coin,
+    Network,
+    networkMap,
+    SendAccount,
+    TransferMethod,
+    type CoinOnNetwork,
+    type CoinOptions,
+    type IntermediaryNetwork
+} from './sendOptions'
+import { SwapTxState, TransferTxState, type TxState, type TxStateBase } from './txState.svelte'
 
 export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
 	const accBal = get(accountBalance);
@@ -878,5 +881,46 @@ export async function send(
 		}
 		return new Error(res.error);
 	}
+
+	if (intermediary == Network.lightning) {
+		// Lightning Transfer withdrawal: Transfer to V4VApp on Magi (Keepsats)
+		if (!auth.value?.aioha) {
+			return new Error("Lightning Transfer Withdraw via an EVM wallet isn't supported yet.");
+		}
+		setStatus('Waiting for Hive wallet approval…');
+		// Convert BTC amount to SATS: BTC internal units == SATS units
+		// e.g. CoinAmount("0.00001", Coin.btc).amount = 1000 → CoinAmount(1000, Coin.sats)
+		const btcCoinAmount = new CoinAmount(amount, toCoin!.coin);
+		const satsCoinAmount = new CoinAmount(btcCoinAmount.amount, Coin.sats, true);
+		const keepSatsOp = getKeepsatsTransferOp(auth.value.username!, satsCoinAmount);
+
+		const res = await executeTx(auth.value.aioha, [keepSatsOp]);
+		if (res.success) {
+			setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+			addLocalTransaction({
+				ops: [
+					{
+						data: {
+							amount: satsCoinAmount.toAmountString(),
+							asset: satsCoinAmount.coin.unit.toLowerCase(),
+							from: auth.value.did,
+							to: getKeepsatsDestinationDid(),
+							memo: 'Deposit #sats',
+							type: 'transfer'
+						},
+						type: 'transfer',
+						index: 0
+					}
+				],
+				timestamp: new Date(),
+				id: res.result,
+				type: 'hive'
+			});
+			return { id: res.result };
+		}
+		setStatus(res.error, true);
+		return new Error(res.error);
+	}
+
 	return new Error('Unexpected Error: Unsupported transaction.');
 }

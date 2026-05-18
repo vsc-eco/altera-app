@@ -7,10 +7,9 @@
 		getAccountNameFromDid,
 		getDidFromUsername
 	} from '$lib/getAccountName';
-	import { Coin, Network, SendAccount } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
 	import { useTransferState } from '$lib/sendswap/utils/txState.svelte';
-	import { ArrowDown } from '@lucide/svelte';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import Instructions from '../components/Instructions.svelte';
 	import TxStatus from '../components/shared/TxStatus.svelte';
@@ -41,7 +40,6 @@
 	});
 
 	let toCoin = $derived(txState.toCoin?.coin ?? coins.unk);
-	let fromCoin = $derived(txState.fromCoin?.coin ?? coins.unk);
 	let inUsd = $state('');
 	let isInstructions = $derived(
 		auth.value?.provider === 'reown' &&
@@ -54,19 +52,7 @@
 				inUsd = amount.toMinFigs();
 			});
 	});
-	let isSwap = $derived(txState.account?.value === SendAccount.swap.value);
 	let today = moment().format('MMM D, YYYY');
-	// let fromAccount = $derived.by(() => {
-	// 	if (txState.account?.value === SendAccount.magiAccount.value) {
-	// 		return txState.account.label;
-	// 	}
-	// 	if (txState.account?.value === SendAccount.deposit.value) {
-	// 		return `Deposit from ${txState.fromNetwork?.label ?? 'UNK'}`;
-	// 	}
-	// 	if (isSwap) {
-	// 		return `Swap from ${txState.fromNetwork?.label ?? 'UNK'}`;
-	// 	}
-	// });
 	let fromNetwork = $derived.by(() => {
 		if (txState.fromNetwork?.value === Network.hiveMainnet.value) {
 			return `Deposit from ${txState.fromNetwork.label}`;
@@ -89,12 +75,6 @@
 	<Card>
 		<span class="dark sm-caption">Payment to {txState.toDisplayName}</span>
 		<div class={['amount', { compact }]}>
-			{#if isSwap}
-				<div class="swap-header">
-					<p>{new CoinAmount(txState.fromAmount, fromCoin).toPrettyString()}</p>
-					<ArrowDown />
-				</div>
-			{/if}
 			<h4>
 				{new CoinAmount(txState.toAmount, toCoin).toPrettyString()}
 				{`(${inUsd} US$)`}
@@ -138,37 +118,14 @@
 	<div class={['sender', { compact }]}>
 		<table>
 			<tbody>
-				{#if !isSwap}
-					<tr>
-						<td class="sm-caption label">From</td>
-						<td class="content">{getAccountNameFromAuth(auth)}</td>
-					</tr>
-				{/if}
+				<tr>
+					<td class="sm-caption label">From</td>
+					<td class="content">{getAccountNameFromAuth(auth)}</td>
+				</tr>
 				<tr>
 					<td class="sm-caption label">Network</td>
 					<td class="content">{fromNetwork}</td>
 				</tr>
-				{#if isSwap && txState.fee}
-					<tr>
-						<td class="sm-caption label">Asset</td>
-						<td class="content coin">
-							<img src={fromCoin.icon} alt={fromCoin.label} />
-							{fromCoin.label}
-						</td>
-					</tr>
-					<tr>
-						<td class="sm-caption label">Fee</td>
-						<td class="content">
-							{txState.fee}
-						</td>
-					</tr>
-					<tr>
-						<td class="sm-caption label">Total</td>
-						<td class="content">
-							{txState.fee?.add(new CoinAmount(txState.fromAmount, fromCoin))}
-						</td>
-					</tr>
-				{/if}
 				<tr>
 					<td class="sm-caption label">Initiated on</td>
 					<td class="content">{today}</td>

@@ -1,7 +1,7 @@
 import { getContext, setContext } from 'svelte';
 import type { CoinAmount } from '$lib/currency/CoinAmount';
 import type { Coin } from './sendOptions';
-import type { CoinOptions, Network, TransferMethod, SendAccount } from './sendOptions';
+import type { CoinOptions, Network, TransferMethod } from './sendOptions';
 
 // ─── Base (fields every flow shares) ─────────────────────────────────────────
 
@@ -16,7 +16,6 @@ export class TxStateBase {
 	toUsername: string = $state('');
 	fee: CoinAmount<Coin> | undefined = $state(undefined);
 	method: TransferMethod | undefined = $state(undefined);
-	account: SendAccount | undefined = $state(undefined);
 	/** Whether to deduct the BTC network fee from the output (BTC unmap flows). */
 	btcDeductFee: boolean = $state(false);
 	/** Sat cap on the BTC network fee (BTC unmap flows). */

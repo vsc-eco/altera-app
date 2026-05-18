@@ -11,6 +11,7 @@ All notable changes to Altera are documented here.
 
 ### Infrastructure
 - Update toast no longer polls every 2 minutes — checks version on tab visibility change instead
+- Dismissing the update toast remembers the version (sessionStorage) so it doesn't keep nagging for the same update
 - New reusable `Tooltip` component (`$lib/components/Tooltip.svelte`) shared by chip + swap-arrow tooltips
 
 ### Internals

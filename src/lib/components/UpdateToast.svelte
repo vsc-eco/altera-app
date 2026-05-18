@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import { X, RefreshCw } from '@lucide/svelte';
 
 	/**
@@ -13,57 +12,73 @@
 	 * `visibilitychange` covers "I left this tab open all day and came
 	 * back" without burning requests every two minutes.
 	 *
+	 * Dismiss is per-version (sessionStorage) so the toast won't keep
+	 * nagging within the same tab once the user has acknowledged a
+	 * specific update, but a brand-new deploy (different version) will
+	 * re-surface it.
+	 *
 	 * Svelte notes:
-	 * - `$state` for the reactive `show` flag — toggles the toast.
-	 * - `$effect` to attach/detach the visibilitychange listener tied
-	 *   to the component lifecycle (auto-cleanup on destroy).
+	 * - `$state` for `show`/`newVersion` — drive the template.
+	 * - `<svelte:document>` for the visibilitychange listener (preferred
+	 *   over manual addEventListener in an `$effect`).
+	 * - `$effect` is only used for the one-shot startup setTimeout, which
+	 *   needs lifecycle-bound cleanup.
 	 */
 
 	const currentVersion = __APP_VERSION__;
 	const CHANGELOG_URL = 'https://github.com/vsc-eco/altera-app/blob/main/CHANGELOG.md';
+	const DISMISSED_KEY = 'altera-update-toast-dismissed';
 
 	let show = $state(false);
 	let newVersion = $state('');
 
 	function dismiss() {
 		show = false;
+		if (newVersion) {
+			try {
+				sessionStorage.setItem(DISMISSED_KEY, newVersion);
+			} catch {
+				// sessionStorage unavailable (private mode etc.) — ignore
+			}
+		}
 	}
 
 	function refresh() {
 		window.location.reload();
 	}
 
-	$effect(() => {
-		if (!browser) return;
-
-		async function checkVersion() {
+	async function checkVersion() {
+		try {
+			const res = await fetch('/api/version', { cache: 'no-cache' });
+			if (!res.ok) return;
+			const data = await res.json();
+			if (!data.version || data.version === currentVersion) return;
+			let dismissedVersion: string | null = null;
 			try {
-				const res = await fetch('/api/version', { cache: 'no-cache' });
-				if (!res.ok) return;
-				const data = await res.json();
-				if (data.version && data.version !== currentVersion) {
-					newVersion = data.version;
-					show = true;
-				}
+				dismissedVersion = sessionStorage.getItem(DISMISSED_KEY);
 			} catch {
-				// Network error — silently ignore, will retry on next visibility change
+				// sessionStorage unavailable — treat as "not dismissed"
 			}
+			if (data.version === dismissedVersion) return;
+			newVersion = data.version;
+			show = true;
+		} catch {
+			// Network error — silently ignore, will retry on next visibility change
 		}
+	}
 
-		function onVisibilityChange() {
-			if (document.visibilityState === 'visible') checkVersion();
-		}
+	function onVisibilityChange() {
+		if (document.visibilityState === 'visible') checkVersion();
+	}
 
-		// Initial check after a short delay (don't block initial load).
+	// Initial check after a short delay (don't block initial load).
+	$effect(() => {
 		const timeout = setTimeout(checkVersion, 10_000);
-		document.addEventListener('visibilitychange', onVisibilityChange);
-
-		return () => {
-			clearTimeout(timeout);
-			document.removeEventListener('visibilitychange', onVisibilityChange);
-		};
+		return () => clearTimeout(timeout);
 	});
 </script>
+
+<svelte:document onvisibilitychange={onVisibilityChange} />
 
 {#if show}
 	<div class="update-toast" role="alert">

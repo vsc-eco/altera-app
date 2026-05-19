@@ -1,18 +1,20 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { getAuth } from '$lib/auth/store';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import NavButtons from '$lib/sendswap/components/NavButtons.svelte';
-	import { getIntermediaryNetwork } from '$lib/sendswap/utils/getNetwork';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { getTxSessionId, send } from '$lib/sendswap/utils/sendUtils';
 	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import V4VPopup from '$lib/sendswap/V4VPopup.svelte';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import * as steps from '@zag-js/steps';
-	import { normalizeProps, useMachine } from '@zag-js/svelte';
+	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { sleep } from 'aninest';
+	import NavButtons from '$lib/sendswap/components/NavButtons.svelte';
+	import { goto } from '$app/navigation';
+	import { getIntermediaryNetwork } from '$lib/sendswap/utils/getNetwork';
 	import { untrack, type Component, type ComponentProps } from 'svelte';
+	import { getDidFromUsername } from '$lib/getAccountName';
+	import { getSendOpType } from '$lib/magiTransactions/hive';
 
 	type TransferComponentTypes =
 		| { editStage: (complete: boolean) => void }

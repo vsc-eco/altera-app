@@ -1,10 +1,8 @@
-import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte'
-import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount'
-import { getV4VMetadata } from '../v4v/api-types/metadata'
-const always: Enabled = () => true
-const never: Enabled = () => false
+import { getV4VMetadata } from '../v4v/api-types/metadata';
+import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte';
 
-export type CoinOnNetwork = { coin: Coin; network: Network }
+export type CoinOnNetwork = { coin: Coin; network: Network };
 
 const hive: Coin = {
 	value: 'hive',

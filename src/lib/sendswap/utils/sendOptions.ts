@@ -1,4 +1,5 @@
-import type { Auth } from '../../auth/store'
+import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte'
+import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount'
 import { getV4VMetadata } from '../v4v/api-types/metadata'
 const always: Enabled = () => true
 const never: Enabled = () => false

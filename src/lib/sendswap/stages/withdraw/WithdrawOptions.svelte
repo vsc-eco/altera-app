@@ -7,9 +7,10 @@
 	import { useWithdrawState } from '../../utils/txState.svelte';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
 	import BitcoinMainnetWithdraw from './BitcoinMainnetWithdraw.svelte';
+	import KeepsatsWithdraw from './KeepsatsWithdraw.svelte';
 	import { untrack, type ComponentProps } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
+	import NavButtons from '$lib/sendswap/components/NavButtons.svelte';
 
 	let {
 		editStage,
@@ -190,7 +191,7 @@
 			<div class="coinbase">
 				<ClickableCard disabled={true} onclick={() => {}}>
 					<div class="type-header">
-						<ImageIconRenderer icon={'/btc/CoinBase_logo.svg'} alt={'Coinbase'} size={40} />
+						<ImageIconRenderer icon="/btc/CoinBase_logo.svg" alt="Coinbase" size={40} />
 						<span>Coinbase</span>
 						<span class="error">Coming soon</span>
 						<div class="chevron">
@@ -202,7 +203,7 @@
 			<div class="lightning-transfer">
 				<ClickableCard onclick={() => toggleLightningTransfer(true)}>
 					<div class="type-header">
-						<ImageIconRenderer icon={'/btc/lightning.svg'} alt={'lightning'} size={40} />
+						<ImageIconRenderer icon="/btc/lightning.svg" alt="lightning" size={40} />
 						<span>Lightning Transfer</span>
 						<div class="chevron">
 							<ChevronRight />

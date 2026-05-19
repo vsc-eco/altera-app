@@ -25,14 +25,16 @@
 		type Category
 	} from '$lib/nodeSelection/select';
 
-	function initAuto(cat: Category): boolean {
-		if (!browser) return true;
-		// isManualMode also covers legacy users (custom key set, no mode key).
-		return !isManualMode(cat);
+	// "Custom" = manual override of the dynamic node-finder. Unchecked = auto
+	// selection (textbox disabled). isManualMode also covers legacy users
+	// (custom key set, no explicit mode key).
+	function initCustom(cat: Category): boolean {
+		if (!browser) return false;
+		return isManualMode(cat);
 	}
-	let autoVsc = $state(initAuto('vsc'));
-	let autoIndexer = $state(initAuto('indexer'));
-	let autoHive = $state(initAuto('hive'));
+	let customVsc = $state(initCustom('vsc'));
+	let customIndexer = $state(initCustom('indexer'));
+	let customHive = $state(initCustom('hive'));
 
 	const DEFAULT_HIVE_API_URL = 'https://api.hive.blog';
 	const DEFAULT_VSC_NETWORK_ID = 'vsc-mainnet';
@@ -63,46 +65,46 @@
 				// strip a trailing /v1/graphql (or /v1/graphql/) if the user pasted the full URL
 				.replace(/\/+v1\/graphql\/?$/, '')
 				.replace(/\/+$/, '');
-			// Only validate a field's URL when it's in manual mode (auto
-			// has no user-entered URL to validate).
-			const vscUrl = autoVsc ? null : URL.parse(vscUrlStr);
-			if (!autoVsc && !vscUrl) {
+			// Only validate a field's URL when "Custom" is checked (auto has
+			// no user-entered URL to validate).
+			const vscUrl = customVsc ? URL.parse(vscUrlStr) : null;
+			if (customVsc && !vscUrl) {
 				console.error('Unexpected: API URL invalid');
 				return;
 			}
-			const hiveUrl = autoHive ? null : URL.parse(hiveUrlStr);
-			if (!autoHive && !hiveUrl) {
+			const hiveUrl = customHive ? URL.parse(hiveUrlStr) : null;
+			if (customHive && !hiveUrl) {
 				console.error('Unexpected: HIVE API URL invalid');
 				return;
 			}
-			if (!autoIndexer && !URL.parse(magiIndexerStr)) {
+			if (customIndexer && !URL.parse(magiIndexerStr)) {
 				console.error('Unexpected: Magi Indexer URL invalid');
 				return;
 			}
 			const allowBackups = hiveAllowBackupsCheckbox.checked;
 			// VSC
-			if (autoVsc) {
-				localStorage.removeItem(keyVscGql);
-				localStorage.setItem(MODE_KEY.vsc, 'auto');
-			} else {
+			if (customVsc) {
 				localStorage.setItem(keyVscGql, vscUrl!.origin);
 				localStorage.setItem(MODE_KEY.vsc, 'manual');
+			} else {
+				localStorage.removeItem(keyVscGql);
+				localStorage.setItem(MODE_KEY.vsc, 'auto');
 			}
 			// Magi Indexer
-			if (autoIndexer) {
-				localStorage.removeItem(keyMagiIndexer);
-				localStorage.setItem(MODE_KEY.indexer, 'auto');
-			} else {
+			if (customIndexer) {
 				localStorage.setItem(keyMagiIndexer, magiIndexerStr);
 				localStorage.setItem(MODE_KEY.indexer, 'manual');
+			} else {
+				localStorage.removeItem(keyMagiIndexer);
+				localStorage.setItem(MODE_KEY.indexer, 'auto');
 			}
 			// Hive
-			if (autoHive) {
-				localStorage.removeItem(keyHiveApiList);
-				localStorage.setItem(MODE_KEY.hive, 'auto');
-			} else {
+			if (customHive) {
 				localStorage.setItem(keyHiveApiList, hiveUrl!.origin);
 				localStorage.setItem(MODE_KEY.hive, 'manual');
+			} else {
+				localStorage.removeItem(keyHiveApiList);
+				localStorage.setItem(MODE_KEY.hive, 'auto');
 			}
 			localStorage.setItem(keyHiveApiAllowBackups, allowBackups.toString());
 			// Advanced inputs are only mounted when advancedOptions is true.
@@ -125,16 +127,16 @@
 			<InfoTooltip>Edit this to direct queries to a custom Magi node.</InfoTooltip>
 		</span>
 
-		<label class="auto-toggle">
-			<input type="checkbox" bind:checked={autoVsc} /> Automatic node selection
+		<label class="custom-toggle">
+			<input type="checkbox" bind:checked={customVsc} /> Custom (override auto node selection)
 		</label>
 		<input
 			id="keyVscApi"
 			bind:this={vscGqlUrlInput}
-			readonly={autoVsc}
-			value={autoVsc
-				? resolveNodeUrl('vsc')
-				: (browser && localStorage.getItem(keyVscGql)) || 'https://api.vsc.eco'}
+			disabled={!customVsc}
+			value={customVsc
+				? (browser && localStorage.getItem(keyVscGql)) || 'https://api.vsc.eco'
+				: resolveNodeUrl('vsc')}
 			type="url"
 		/>
 		<PillButton
@@ -154,16 +156,16 @@
 				indexer.
 			</InfoTooltip>
 		</span>
-		<label class="auto-toggle">
-			<input type="checkbox" bind:checked={autoIndexer} /> Automatic node selection
+		<label class="custom-toggle">
+			<input type="checkbox" bind:checked={customIndexer} /> Custom (override auto node selection)
 		</label>
 		<input
 			id="magi-indexer-url"
 			bind:this={magiIndexerInput}
-			readonly={autoIndexer}
-			value={autoIndexer
-				? resolveNodeUrl('indexer')
-				: (browser && localStorage.getItem(keyMagiIndexer)) || DEFAULT_MAGI_INDEXER_URL}
+			disabled={!customIndexer}
+			value={customIndexer
+				? (browser && localStorage.getItem(keyMagiIndexer)) || DEFAULT_MAGI_INDEXER_URL
+				: resolveNodeUrl('indexer')}
 			type="url"
 		/>
 		<PillButton
@@ -181,16 +183,16 @@
 			<InfoTooltip>Edit this to direct queries to a custom Hive node.</InfoTooltip>
 		</span>
 
-		<label class="auto-toggle">
-			<input type="checkbox" bind:checked={autoHive} /> Automatic node selection
+		<label class="custom-toggle">
+			<input type="checkbox" bind:checked={customHive} /> Custom (override auto node selection)
 		</label>
 		<input
 			id="vsc-gql-url"
 			bind:this={hiveApiUrlInput}
-			readonly={autoHive}
-			value={autoHive
-				? resolveNodeUrl('hive')
-				: (browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_API_URL}
+			disabled={!customHive}
+			value={customHive
+				? (browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_API_URL
+				: resolveNodeUrl('hive')}
 			type="url"
 		/>
 		<PillButton
@@ -328,11 +330,15 @@
 		display: flex;
 		align-items: center;
 	}
-	.auto-toggle {
+	.custom-toggle {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
 		color: var(--dash-text-secondary);
 		margin-bottom: 0.3rem;
+	}
+	input[type='url']:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
 	}
 </style>

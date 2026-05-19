@@ -9,7 +9,6 @@ export class TxStateBase {
 	fromCoin: CoinOptions['coins'][number] | undefined = $state(undefined);
 	fromNetwork: Network | undefined = $state(undefined);
 	fromAmount: string = $state('0');
-	enteredAmount: string = $state('0');
 	toCoin: CoinOptions['coins'][number] | undefined = $state(undefined);
 	toNetwork: Network | undefined = $state(undefined);
 	toAmount: string = $state('0');

@@ -88,21 +88,12 @@
 
 	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
 	let fromCoin = $derived(txState.fromCoin?.coin ?? Coin.unk);
-	let effectiveFromAmount = $derived(
-		txState.fromAmount && txState.fromAmount !== '0'
-			? txState.fromAmount
-			: txState.enteredAmount
-	);
+	let effectiveFromAmount = $derived(txState.fromAmount || '0');
 	// Pool fees are now denominated in the OUTPUT asset: the full input
 	// enters the pool and fees are carved off the gross output. So the
 	// "amount in" the user commits is simply the gross entered amount.
 	let netSwapFromAmountCa = $derived(new CoinAmount(effectiveFromAmount, fromCoin));
-	let effectiveToAmount = $derived(
-		txState.toAmount && txState.toAmount !== '0'
-			? txState.toAmount
-			: txState.enteredAmount
-	);
-	// When from/to coins differ, the enteredAmount fallback is in the wrong denomination.
+	let effectiveToAmount = $derived(txState.toAmount || '0');
 	// Compute the converted "to" amount reactively so it displays correctly.
 	// Prefer the pool-math `expectedOutput` (already post-fee, in smallest
 	// units) over the store's `toAmount` for swaps — otherwise the surface
@@ -122,14 +113,14 @@
 			convertedToAmount = new CoinAmount(toAmt, toCoin);
 			return;
 		}
-		// toAmount not yet available — convert from the entered amount
-		const entered = txState.enteredAmount;
-		if (!entered || entered === '0' || fromCoin.value === toCoin.value) {
-			convertedToAmount = new CoinAmount(entered || '0', toCoin);
+		// toAmount not yet available — fall back to fromAmount, converting
+		// across coins when needed.
+		const fromAmt = txState.fromAmount;
+		if (!fromAmt || fromAmt === '0' || fromCoin.value === toCoin.value) {
+			convertedToAmount = new CoinAmount(fromAmt || '0', toCoin);
 			return;
 		}
-		// Different coins: convert fromCoin → toCoin
-		new CoinAmount(entered, fromCoin).convertTo(toCoin, Network.lightning).then((converted) => {
+		new CoinAmount(fromAmt, fromCoin).convertTo(toCoin, Network.lightning).then((converted) => {
 			// Only use if toAmount still not set
 			const current = txState.toAmount;
 			if (!current || current === '0') {

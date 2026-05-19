@@ -7,7 +7,7 @@
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { getFee } from '$lib/sendswap/utils/sendUtils';
-	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
+	import { useDepositState } from '$lib/sendswap/utils/txState.svelte';
 	import { ArrowLeft, Coins } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 
@@ -17,7 +17,7 @@
 		secondaryMenu = $bindable()
 	}: { editStage: (add: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
 
-	const txState = useTxState();
+	const txState = useDepositState();
 
 	let coinAmount: CoinAmount<Coin> = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
@@ -43,11 +43,6 @@
 		const coinAmountSnapshot = coinAmount;
 		untrack(() => {
 			if (!txState.fromCoin) return;
-
-			// Always preserve the raw user input as enteredAmount
-			if (amt !== txState.enteredAmount) {
-				txState.enteredAmount = amt;
-			}
 
 			// Compute fromAmount
 			if (coinVal === fromCoinVal) {

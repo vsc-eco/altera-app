@@ -611,16 +611,11 @@ export async function send(
 	const toCoin = details.toCoin!;
 	const toNetwork = details.toNetwork!;
 	const toUsername = details.toUsername;
-	// Resolve send amount — toAmount may lag on deposit/withdraw due to effect timing
+	// Resolve send amount — toAmount may lag on deposit/withdraw due to effect timing,
+	// fall back to fromAmount which is always set by the stage components.
 	const raw = details.toAmount;
 	const amount =
-		raw && raw !== '0'
-			? raw
-			: details.fromAmount && details.fromAmount !== '0'
-				? details.fromAmount
-				: details.enteredAmount && details.enteredAmount !== '0'
-					? details.enteredAmount
-					: raw;
+		raw && raw !== '0' ? raw : details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : raw;
 	if (intermediary == Network.magi) {
 		// console.log('intermediary network is Magi');
 		if (auth.value?.provider == 'reown') {

@@ -61,7 +61,6 @@
 		const amtStr = coinAmount.toAmountString();
 		if (txState.fromAmount !== amtStr) txState.fromAmount = amtStr;
 		if (txState.toAmount !== amtStr) txState.toAmount = amtStr;
-		if (txState.enteredAmount !== amtStr) txState.enteredAmount = amtStr;
 	});
 
 	const fromAssetObjs: AssetObject[] = $derived(

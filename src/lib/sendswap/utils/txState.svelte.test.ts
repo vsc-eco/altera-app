@@ -100,7 +100,6 @@ describe('default values — each class starts at zero-state', () => {
 		expect(state.toUsername).toBe('')
 		expect(state.fromAmount).toBe('0')
 		expect(state.toAmount).toBe('0')
-		expect(state.enteredAmount).toBe('0')
 		expect(state.fee).toBeUndefined()
 		expect(state.fromCoin).toBeUndefined()
 		expect(state.toCoin).toBeUndefined()

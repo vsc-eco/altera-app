@@ -39,7 +39,6 @@
 		txState.memo = '';
 		txState.fromAmount = '0';
 		txState.toAmount = '0';
-		txState.enteredAmount = '0';
 		txState.fee = undefined;
 	}
 

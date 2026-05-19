@@ -93,7 +93,6 @@
 		lastSyncedAmt = amt;
 		txState.fromAmount = amt;
 		txState.toAmount = amt;
-		txState.enteredAmount = amt;
 	});
 
 	// Signal stage completion

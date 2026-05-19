@@ -147,7 +147,7 @@
 				type="button">Reset</PillButton
 			>
 		{/if}
-		{#if browser}
+		{#if browser && !customVsc}
 			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('vsc')}</span>
 		{/if}
 		<br />
@@ -179,7 +179,7 @@
 				type="button">Reset</PillButton
 			>
 		{/if}
-		{#if browser}
+		{#if browser && !customIndexer}
 			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('indexer')}</span>
 		{/if}
 		<br />
@@ -209,7 +209,7 @@
 				type="button">Reset</PillButton
 			>
 		{/if}
-		{#if browser}
+		{#if browser && !customHive}
 			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('hive')}</span>
 		{/if}
 		<div class="backup-box">

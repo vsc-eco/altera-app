@@ -9,6 +9,7 @@
 	import { onMount } from 'svelte';
 	import { themeStore, getInitialTheme, THEMES } from '$lib/theme';
 	import { cleanOldLocalStorage } from '$lib/cleanup';
+	import { refreshAllNodes } from '$lib/nodeSelection/select';
 
 	let { children } = $props();
 	injectAnalytics();
@@ -18,6 +19,7 @@
 		const initialTheme = getInitialTheme();
 		themeStore.set(THEMES[initialTheme]);
 		cleanOldLocalStorage();
+		refreshAllNodes();
 		// window.addEventListener(
 		// 	'keydown',
 		// 	(e) => {

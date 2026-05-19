@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import { HoudiniClient } from '$houdini';
+import { resolveNodeUrl } from '$lib/nodeSelection/select';
 // const DEFAULT_GQL_URL="http://localhost:8080" // for running backend locally
 export const DEFAULT_GQL_URL = 'https://api.vsc.eco';
 
@@ -27,7 +28,7 @@ export const DEX_ROUTER_CONTRACT_ID = (() => {
 		: 'vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45';
 })();
 
-export const currentGqlUrl = (browser && localStorage.getItem(keyVscGql)) || DEFAULT_GQL_URL;
+export const currentGqlUrl = browser ? resolveNodeUrl('vsc') : DEFAULT_GQL_URL;
 
 export const vscNetworkId =
 	(browser && localStorage.getItem(keyVscNetworkId)) || DEFAULT_VSC_NET_ID;
@@ -36,10 +37,8 @@ export const vscNetworkId =
 export const isVscTestnet = (): boolean => vscNetworkId === 'vsc-testnet';
 
 /** Configured Magi indexer base URL — falls back to okinoko/prod. */
-export const getMagiIndexerBaseUrl = (): string => {
-	const stored = browser && localStorage.getItem(keyMagiIndexer);
-	return stored || DEFAULT_MAGI_INDEXER_URL;
-};
+export const getMagiIndexerBaseUrl = (): string =>
+	browser ? resolveNodeUrl('indexer') : DEFAULT_MAGI_INDEXER_URL;
 
 /** Fully-qualified Hasura GraphQL URL (base + /v1/graphql).
  *  Use this when you need to issue a query. */

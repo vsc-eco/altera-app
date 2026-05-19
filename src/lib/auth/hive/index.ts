@@ -6,6 +6,7 @@ import { goto } from '$app/navigation';
 import { getAccounts } from '@aioha/aioha/build/rpc';
 import { postingMetadataFromString, type Account } from './accountTypes';
 import { vscNetworkId, isVscTestnet } from '../../../client';
+import { resolveNodeUrl } from '$lib/nodeSelection/select';
 
 // Hive L1 chain IDs. Mainnet has the well-known default; testnet uses a
 // different chain ID and MetaMask Snap refuses to sign anything unless the
@@ -18,7 +19,7 @@ const HIVE_TESTNET_CHAIN_ID =
 // Hive L1 RPC endpoints. Testnet must NOT fall through to api.hive.blog or
 // broadcasts get rejected ("missing active authority") because the mainnet
 // node can't verify a testnet-chain-id signature.
-const HIVE_MAINNET_API = 'https://api.hive.blog';
+const HIVE_MAINNET_API = browser ? resolveNodeUrl('hive') : 'https://api.hive.blog';
 const HIVE_TESTNET_API = 'https://testnet.techcoderx.com';
 
 async function getProfilePicUrl(username: string) {

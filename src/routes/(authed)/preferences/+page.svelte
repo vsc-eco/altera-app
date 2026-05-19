@@ -18,6 +18,15 @@
 		keyTbd
 	} from '../../../client';
 	import ToggleTheme from './ToggleTheme.svelte';
+	import { resolveNodeUrl, MODE_KEY, type Category } from '$lib/nodeSelection/select';
+
+	function initAuto(cat: Category): boolean {
+		if (!browser) return true;
+		return (localStorage.getItem(MODE_KEY[cat]) ?? 'auto') !== 'manual';
+	}
+	let autoVsc = $state(initAuto('vsc'));
+	let autoIndexer = $state(initAuto('indexer'));
+	let autoHive = $state(initAuto('hive'));
 
 	const DEFAULT_HIVE_API_URL = 'https://api.hive.blog';
 	const DEFAULT_VSC_NETWORK_ID = 'vsc-mainnet';
@@ -48,24 +57,47 @@
 				// strip a trailing /v1/graphql (or /v1/graphql/) if the user pasted the full URL
 				.replace(/\/+v1\/graphql\/?$/, '')
 				.replace(/\/+$/, '');
-			const vscUrl = URL.parse(vscUrlStr);
-			if (!vscUrl) {
+			// Only validate a field's URL when it's in manual mode (auto
+			// has no user-entered URL to validate).
+			const vscUrl = autoVsc ? null : URL.parse(vscUrlStr);
+			if (!autoVsc && !vscUrl) {
 				console.error('Unexpected: API URL invalid');
 				return;
 			}
-			const hiveUrl = URL.parse(hiveUrlStr);
-			if (!hiveUrl) {
+			const hiveUrl = autoHive ? null : URL.parse(hiveUrlStr);
+			if (!autoHive && !hiveUrl) {
 				console.error('Unexpected: HIVE API URL invalid');
 				return;
 			}
-			if (!URL.parse(magiIndexerStr)) {
+			if (!autoIndexer && !URL.parse(magiIndexerStr)) {
 				console.error('Unexpected: Magi Indexer URL invalid');
 				return;
 			}
 			const allowBackups = hiveAllowBackupsCheckbox.checked;
-			localStorage.setItem(keyVscGql, vscUrl.origin);
-			localStorage.setItem(keyHiveApiList, hiveUrl.origin);
-			localStorage.setItem(keyMagiIndexer, magiIndexerStr);
+			// VSC
+			if (autoVsc) {
+				localStorage.removeItem(keyVscGql);
+				localStorage.setItem(MODE_KEY.vsc, 'auto');
+			} else {
+				localStorage.setItem(keyVscGql, vscUrl!.origin);
+				localStorage.setItem(MODE_KEY.vsc, 'manual');
+			}
+			// Magi Indexer
+			if (autoIndexer) {
+				localStorage.removeItem(keyMagiIndexer);
+				localStorage.setItem(MODE_KEY.indexer, 'auto');
+			} else {
+				localStorage.setItem(keyMagiIndexer, magiIndexerStr);
+				localStorage.setItem(MODE_KEY.indexer, 'manual');
+			}
+			// Hive
+			if (autoHive) {
+				localStorage.removeItem(keyHiveApiList);
+				localStorage.setItem(MODE_KEY.hive, 'auto');
+			} else {
+				localStorage.setItem(keyHiveApiList, hiveUrl!.origin);
+				localStorage.setItem(MODE_KEY.hive, 'manual');
+			}
 			localStorage.setItem(keyHiveApiAllowBackups, allowBackups.toString());
 			// Advanced inputs are only mounted when advancedOptions is true.
 			if (advancedOptions) {
@@ -87,10 +119,16 @@
 			<InfoTooltip>Edit this to direct queries to a custom Magi node.</InfoTooltip>
 		</span>
 
+		<label class="auto-toggle">
+			<input type="checkbox" bind:checked={autoVsc} /> Automatic node selection
+		</label>
 		<input
 			id="keyVscApi"
 			bind:this={vscGqlUrlInput}
-			value={(browser && localStorage.getItem(keyVscGql)) || 'https://api.vsc.eco'}
+			readonly={autoVsc}
+			value={autoVsc
+				? resolveNodeUrl('vsc')
+				: (browser && localStorage.getItem(keyVscGql)) || 'https://api.vsc.eco'}
 			type="url"
 		/>
 		<PillButton
@@ -110,10 +148,16 @@
 				indexer.
 			</InfoTooltip>
 		</span>
+		<label class="auto-toggle">
+			<input type="checkbox" bind:checked={autoIndexer} /> Automatic node selection
+		</label>
 		<input
 			id="magi-indexer-url"
 			bind:this={magiIndexerInput}
-			value={(browser && localStorage.getItem(keyMagiIndexer)) || DEFAULT_MAGI_INDEXER_URL}
+			readonly={autoIndexer}
+			value={autoIndexer
+				? resolveNodeUrl('indexer')
+				: (browser && localStorage.getItem(keyMagiIndexer)) || DEFAULT_MAGI_INDEXER_URL}
 			type="url"
 		/>
 		<PillButton
@@ -131,10 +175,16 @@
 			<InfoTooltip>Edit this to direct queries to a custom Hive node.</InfoTooltip>
 		</span>
 
+		<label class="auto-toggle">
+			<input type="checkbox" bind:checked={autoHive} /> Automatic node selection
+		</label>
 		<input
 			id="vsc-gql-url"
 			bind:this={hiveApiUrlInput}
-			value={(browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_API_URL}
+			readonly={autoHive}
+			value={autoHive
+				? resolveNodeUrl('hive')
+				: (browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_API_URL}
 			type="url"
 		/>
 		<PillButton
@@ -271,5 +321,12 @@
 	.backup-box {
 		display: flex;
 		align-items: center;
+	}
+	.auto-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		color: var(--dash-text-secondary);
+		margin-bottom: 0.3rem;
 	}
 </style>

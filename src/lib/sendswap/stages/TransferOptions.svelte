@@ -1,27 +1,17 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
+	import Divider from '$lib/components/Divider.svelte';
+	import { numberFormatLanguage } from '$lib/constants';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
-	import { Coins } from '@lucide/svelte';
-	import { untrack, type ComponentProps, type Snippet } from 'svelte';
 	import {
-		momentToLastPaidString,
-		getLastPaidContact,
-		getLastPaidNetwork,
-		getRecipientNetworks,
-		getFee,
-		solveToNetworks,
-		type NetworkOptionParam
-	} from '../utils/sendUtils';
-	import { useTransferState } from '../utils/txState.svelte';
-	import swapOptions, {
-		Coin,
-		Network,
-		type CoinOnNetwork,
-		type CoinOptions
-	} from '../utils/sendOptions';
-	import Dialog from '$lib/zag/Dialog.svelte';
+		estimateBtcUnmapFee,
+		type BtcFeeEstimate
+	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
+	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
-	import RecipientCard from '../components/RecipientCard.svelte';
 	import {
 		compareContacts,
 		getAllLastPaid,
@@ -30,23 +20,31 @@
 		setAllContacts,
 		type Contact
 	} from '$lib/sendswap/contacts/contacts';
-	import ClickableCard from '$lib/cards/ClickableCard.svelte';
-	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
-	import AmountInput from '$lib/currency/AmountInput.svelte';
+	import { accountBalance, getBalanceAmount, type AccountBalance } from '$lib/stores/currentBalance';
+	import Dialog from '$lib/zag/Dialog.svelte';
+	import Select from '$lib/zag/Select.svelte';
+	import { Coins } from '@lucide/svelte';
+	import { untrack, type ComponentProps, type Snippet } from 'svelte';
+	import RecipientCard from '../components/RecipientCard.svelte';
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
-	import Select from '$lib/zag/Select.svelte';
-	import Divider from '$lib/components/Divider.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
+	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '../utils/sendOptions';
 	import {
-		estimateBtcUnmapFee,
-		type BtcFeeEstimate
-	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
-	import { numberFormatLanguage } from '$lib/constants';
+		getLastPaidContact,
+		getLastPaidNetwork,
+		getRecipientNetworks,
+		momentToLastPaidString,
+		solveToNetworks,
+		type NetworkOptionParam
+	} from '../utils/sendUtils';
+	import { useTransferState } from '../utils/txState.svelte';
 
 	let {
 		editStage
@@ -172,13 +170,33 @@
 	let inUsd = $state('');
 	let max: CoinAmount<Coin> | undefined = $state();
 
+	// True when the selected from-asset is BTC on the Magi network so we know
+	// to offer SATS as an alternate denomination and sync max accordingly.
+	const isBtcOnMagi = $derived(
+		txState.fromCoin?.coin.value === Coin.btc.value &&
+			txState.fromNetwork?.value === Network.magi.value
+	);
+
 	$effect(() => {
-		if (txState.fromAmount !== inputAmt.toAmountString()) {
-			txState.fromAmount = inputAmt.toAmountString();
+		const fromCoin = txState.fromCoin?.coin;
+		let amountStr: string;
+		// SATS and BTC share the same raw integer unit — rewrap in BTC denomination
+		// before storing so the transaction builder always receives a BTC-format string.
+		if (fromCoin && fromCoin.value === Coin.btc.value && inputAmt.coin.value === Coin.sats.value) {
+			amountStr = new CoinAmount(inputAmt.amount, fromCoin, true).toAmountString();
+		} else {
+			amountStr = inputAmt.toAmountString();
 		}
-		if (txState.toAmount !== inputAmt.toAmountString()) {
-			txState.toAmount = inputAmt.toAmountString();
-		}
+		if (txState.fromAmount !== amountStr) txState.fromAmount = amountStr;
+		if (txState.toAmount !== amountStr) txState.toAmount = amountStr;
+	});
+
+	// Keep max in the currently-selected coin so AmountInput's Max button and
+	// balance display stay visible for both SATS and BTC on Magi.
+	$effect(() => {
+		if (!isBtcOnMagi || inputAmt.coin.value === Coin.unk.value) return;
+		const balance = getBalanceAmount($accountBalance, txState.fromCoin!.coin, txState.fromNetwork!);
+		max = new CoinAmount(balance.amount, inputAmt.coin, true);
 	});
 
 	let toSelf = $derived(
@@ -218,8 +236,8 @@
 				txState.fromCoin &&
 				txState.fromNetwork
 			) {
-				transferError = `Cannot transfer ${txState.fromCoin.coin.label} 
-					from ${txState.fromNetwork.label} 
+				transferError = `Cannot transfer ${txState.fromCoin.coin.label}
+					from ${txState.fromNetwork.label}
 					to ${txState.toDisplayName}.`;
 			} else {
 				transferError = '';
@@ -326,11 +344,20 @@
 	let memo = $state('');
 	let inputId = $state('');
 
-	const coinOpts: CoinOnNetwork[] = $derived(
-		txState.fromCoin && txState.fromNetwork
-			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
-			: [{ coin: Coin.unk, network: Network.unknown }]
-	);
+	const coinOpts: CoinOnNetwork[] = $derived.by(() => {
+		if (!txState.fromCoin || !txState.fromNetwork) {
+			return [{ coin: Coin.unk, network: Network.unknown }];
+		}
+		const base: CoinOnNetwork[] = [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }];
+		// Offer SATS as an alternate denomination alongside BTC on Magi
+		if (isBtcOnMagi) {
+			base.push({ coin: Coin.sats, network: Network.magi });
+			base.sort((a, b) =>
+				a.coin.value === Coin.sats.value ? -1 : b.coin.value === Coin.sats.value ? 1 : 0
+			);
+		}
+		return base;
+	});
 
 	const coinsWithBalance = $derived.by(() => {
 		const result: Array<{ coin: Coin; coinOpt: CoinOptions['coins'][number] }> = [];
@@ -410,7 +437,7 @@
 			<AmountInput
 				bind:coinAmount={inputAmt}
 				{coinOpts}
-				expressIn={txState.fromCoin?.coin}
+				expressIn={isBtcOnMagi ? undefined : txState.fromCoin?.coin}
 				maxAmount={max}
 				bind:id={inputId}
 			/>

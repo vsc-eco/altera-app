@@ -1,5 +1,7 @@
 import { Client, type ClientOptions } from '@hiveio/dhive';
 import { browser } from '$app/environment';
+import { resolveNodeUrl } from '$lib/nodeSelection/select';
+import { hiveRpcNodes } from '$lib/nodeSelection/env';
 
 export const keyHiveApiList = 'hive-api';
 export const keyHiveApiAllowBackups = 'hive-api-allow-backup';
@@ -17,17 +19,11 @@ export const DEFAULT_HIVE_APIS = [
 ];
 
 const urls: string[] = (() => {
-	const storedStr = browser && localStorage.getItem(keyHiveApiList);
+	const primary = browser ? resolveNodeUrl('hive') : 'https://api.hive.blog';
 	const allowBackupStr = browser && localStorage.getItem(keyHiveApiAllowBackups);
-	if (storedStr) {
-		const api: string = storedStr;
-		const allowBackups: boolean = allowBackupStr ? allowBackupStr === 'true' : true;
-		if (!allowBackups) {
-			return [api];
-		}
-		return Array.from(new Set([api, ...DEFAULT_HIVE_APIS]));
-	}
-	return DEFAULT_HIVE_APIS;
+	const allowBackups = allowBackupStr ? allowBackupStr === 'true' : true;
+	if (!allowBackups) return [primary];
+	return Array.from(new Set([primary, ...hiveRpcNodes]));
 })();
 
 const opts: ClientOptions = {

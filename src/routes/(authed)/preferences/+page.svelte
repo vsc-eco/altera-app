@@ -137,17 +137,19 @@
 			value={(browser && localStorage.getItem(keyVscGql)) || 'https://api.vsc.eco'}
 			type="url"
 		/>
+		{#if customVsc}
+			<PillButton
+				styleType="outline"
+				onclick={(e) => {
+					localStorage.setItem(keyVscGql, DEFAULT_GQL_URL);
+					vscGqlUrlInput.value = DEFAULT_GQL_URL;
+				}}
+				type="button">Reset</PillButton
+			>
+		{/if}
 		{#if browser}
 			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('vsc')}</span>
 		{/if}
-		<PillButton
-			styleType="outline"
-			onclick={(e) => {
-				localStorage.setItem(keyVscGql, DEFAULT_GQL_URL);
-				vscGqlUrlInput.value = DEFAULT_GQL_URL;
-			}}
-			type="button">Reset</PillButton
-		>
 		<br />
 		<br />
 		<span class="label-tooltip">
@@ -167,17 +169,19 @@
 			value={(browser && localStorage.getItem(keyMagiIndexer)) || DEFAULT_MAGI_INDEXER_URL}
 			type="url"
 		/>
+		{#if customIndexer}
+			<PillButton
+				styleType="outline"
+				onclick={() => {
+					localStorage.setItem(keyMagiIndexer, DEFAULT_MAGI_INDEXER_URL);
+					magiIndexerInput.value = DEFAULT_MAGI_INDEXER_URL;
+				}}
+				type="button">Reset</PillButton
+			>
+		{/if}
 		{#if browser}
 			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('indexer')}</span>
 		{/if}
-		<PillButton
-			styleType="outline"
-			onclick={() => {
-				localStorage.setItem(keyMagiIndexer, DEFAULT_MAGI_INDEXER_URL);
-				magiIndexerInput.value = DEFAULT_MAGI_INDEXER_URL;
-			}}
-			type="button">Reset</PillButton
-		>
 		<br />
 		<br />
 		<span class="label-tooltip">
@@ -195,17 +199,19 @@
 			value={(browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_API_URL}
 			type="url"
 		/>
+		{#if customHive}
+			<PillButton
+				styleType="outline"
+				onclick={(e) => {
+					localStorage.setItem(keyHiveApiList, DEFAULT_HIVE_API_URL);
+					hiveApiUrlInput.value = DEFAULT_HIVE_API_URL;
+				}}
+				type="button">Reset</PillButton
+			>
+		{/if}
 		{#if browser}
 			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('hive')}</span>
 		{/if}
-		<PillButton
-			styleType="outline"
-			onclick={(e) => {
-				localStorage.setItem(keyHiveApiList, DEFAULT_HIVE_API_URL);
-				hiveApiUrlInput.value = DEFAULT_HIVE_API_URL;
-			}}
-			type="button">Reset</PillButton
-		>
 		<div class="backup-box">
 			<label for="hive-api-allow-backups">
 				<input

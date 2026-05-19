@@ -1,6 +1,7 @@
 <script lang="ts">
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import { getUsernameFromDid } from '$lib/getAccountName';
+	import { sanitizeBidiText } from '$lib';
 	import Avatar from '$lib/zag/Avatar.svelte';
 
 	let isHovered = $state(false);
@@ -8,6 +9,9 @@
 		otherAccount,
 		memo
 	}: { otherAccount: string; memo?: string | undefined } = $props();
+
+	// APP-14: strip bidi/control chars from the user-controlled memo.
+	let safeMemo = $derived(sanitizeBidiText(memo));
 </script>
 
 <td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
@@ -20,9 +24,9 @@
 				{getUsernameFromDid(otherAccount)}
 			</BasicCopy>
 		</span>
-		{#if memo}
+		{#if safeMemo}
 			<span class="memo">
-				"{memo}"
+				"{safeMemo}"
 			</span>
 		{/if}
 	</span>

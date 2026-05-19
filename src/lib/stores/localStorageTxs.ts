@@ -22,6 +22,19 @@ export type PendingTx = {
 	type: string;
 };
 
+// APP-12: localStorage contents are user-controlled and may be corrupted;
+// never let a raw JSON.parse throw and break the transactions UI.
+function safeParseTxs(raw: string | null): TransactionInter[] {
+	if (!raw) return [];
+	try {
+		const parsed = JSON.parse(raw);
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		console.warn('Failed to parse local transactions; treating as empty');
+		return [];
+	}
+}
+
 function toPendingTransactionInter(ptx: PendingTx): TransactionInter {
 	``;
 	return {
@@ -38,7 +51,7 @@ function toPendingTransactionInter(ptx: PendingTx): TransactionInter {
 
 export function addLocalTransaction(tx: PendingTx) {
 	const txString = localStorage.getItem('transactions');
-	let txList: TransactionInter[] = txString ? JSON.parse(txString) : [];
+	let txList: TransactionInter[] = safeParseTxs(txString);
 	txList.push(toPendingTransactionInter(tx));
 	localStorage.setItem('transactions', JSON.stringify(txList));
 	updateTxsFromLocalStorage(tx.ops[0].data.from);
@@ -46,7 +59,7 @@ export function addLocalTransaction(tx: PendingTx) {
 
 export function getLocalTransactions(): TransactionInter[] {
 	const txString = localStorage.getItem('transactions');
-	const jsonTxs: TransactionInter[] = txString ? JSON.parse(txString) : [];
+	const jsonTxs: TransactionInter[] = safeParseTxs(txString);
 	for (const tx of jsonTxs) {
 		if (new Date().getTime() - new Date(tx.first_seen).getTime() > 24 * 60 * 60 * 1000) {
 			removeLocalTransaction(tx.id);
@@ -57,10 +70,10 @@ export function getLocalTransactions(): TransactionInter[] {
 
 export function removeLocalTransaction(id: string) {
 	const txString = localStorage.getItem('transactions');
-	const txList: TransactionInter[] = txString ? JSON.parse(txString) : null;
-	if (!txList) {
+	if (!txString) {
 		return Error('No items in local storage.');
 	}
+	const txList: TransactionInter[] = safeParseTxs(txString);
 	const newTxList = txList.filter((element, _) => element.id !== id);
 	localStorage.setItem('transactions', JSON.stringify(newTxList));
 }

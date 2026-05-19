@@ -39,6 +39,41 @@ const PROBE: Record<Category, (n: string[]) => Promise<string>> = {
 	hive: probeHiveRpc
 };
 
+/** APP-03/04: allowlisted root domains for manual node overrides. A manual
+ *  override URL is only honoured when it is https (or http on localhost) and
+ *  its hostname is one of these roots or a subdomain thereof. Anything else is
+ *  ignored and resolution falls back to the auto/default node. */
+const ALLOWED_ROOT_DOMAINS = [
+	'okinoko.io',
+	'magi.eco',
+	'vsc.eco',
+	'techcoderx.com',
+	'milohpr.com',
+	'hive.blog',
+	'openhive.network',
+	'deathwing.me'
+];
+
+function isAllowedNodeUrl(raw: string): boolean {
+	let u: URL;
+	try {
+		u = new URL(raw);
+	} catch {
+		return false;
+	}
+	const host = u.hostname.toLowerCase();
+	const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+	if (u.protocol === 'http:') {
+		if (!isLocalhost) return false;
+	} else if (u.protocol !== 'https:') {
+		return false;
+	}
+	if (isLocalhost) return true;
+	return ALLOWED_ROOT_DOMAINS.some(
+		(root) => host === root || host.endsWith('.' + root)
+	);
+}
+
 function ls(): Storage | null {
 	try {
 		if (!browser || typeof localStorage === 'undefined') return null;
@@ -78,7 +113,12 @@ export function resolveNodeUrl(cat: Category): string {
 	const s = ls();
 	if (s && isManualMode(cat)) {
 		const manual = s.getItem(MANUAL_KEY[cat]);
-		if (manual && manual.trim()) return manual.trim();
+		// APP-03/04: validate the user-controlled override before trusting it as
+		// a GraphQL/indexer endpoint. Invalid/untrusted hosts fall through to
+		// the safe default rather than throwing.
+		if (manual && manual.trim() && isAllowedNodeUrl(manual.trim())) {
+			return manual.trim();
+		}
 	}
 	return autoSelectedNodeUrl(cat);
 }

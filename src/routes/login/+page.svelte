@@ -10,8 +10,15 @@
 	let loginOpen = $state(false);
 
 	let auth = $derived(getAuth()());
-	let redirectTo =
-		browser && new URL(localStorage.getItem('redirect_url') ?? window.location.origin);
+	// APP-10: never honour a stored redirect that points off-origin (open
+	// redirect via attacker-controlled localStorage / login link). Computed
+	// once (no reassignment) so it stays a non-reactive init-time constant.
+	const redirectTo = browser
+		? (() => {
+				const url = new URL(localStorage.getItem('redirect_url') ?? window.location.origin);
+				return url.origin === window.location.origin ? url : new URL(window.location.origin);
+			})()
+		: false;
 	$effect(() => {
 		if (auth?.status == 'authenticated' && browser) {
 			localStorage.removeItem('redirect_url');

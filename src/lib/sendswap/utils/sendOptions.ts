@@ -286,4 +286,7 @@ const swapOptions: {
 
 export default swapOptions;
 
-globalThis.coins = Coin;
+// APP-17: only expose internals on globalThis in development builds.
+if (import.meta.env.DEV) {
+	globalThis.coins = Coin;
+}

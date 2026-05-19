@@ -13,7 +13,7 @@ function isAuthenticated(): Promise<Auth | false> {
 
 		const handle = (v: Auth | { status: 'none', value: undefined }) => {
 			if (v.status === 'authenticated' || !browser) {
-				console.log('authenticated with value ', v.value);
+				// APP-15: removed console.log that leaked authenticated auth value.
 				resolve(v);
 				unsubscribe();
 			} else if (v.status === 'none') {

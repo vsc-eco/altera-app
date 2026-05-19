@@ -63,6 +63,15 @@ export function isManualMode(cat: Category): boolean {
 	return false;
 }
 
+/** The node auto-selection currently resolves to, ignoring any manual
+ *  override: auto cache → first env node. Useful for showing the user what
+ *  the dynamic node-finder picked even while a Custom override is active. */
+export function autoSelectedNodeUrl(cat: Category): string {
+	const cached = ls()?.getItem(CACHE_KEY[cat]);
+	if (cached && cached.trim()) return cached.trim();
+	return NODES[cat][0];
+}
+
 /** Synchronous resolution for module-load consumers (client.ts/dhive.ts).
  *  Precedence: manual (if manual mode) → auto cache → first env node. */
 export function resolveNodeUrl(cat: Category): string {
@@ -71,9 +80,7 @@ export function resolveNodeUrl(cat: Category): string {
 		const manual = s.getItem(MANUAL_KEY[cat]);
 		if (manual && manual.trim()) return manual.trim();
 	}
-	const cached = s?.getItem(CACHE_KEY[cat]);
-	if (cached && cached.trim()) return cached.trim();
-	return NODES[cat][0];
+	return autoSelectedNodeUrl(cat);
 }
 
 function isFresh(cat: Category): boolean {

@@ -20,6 +20,7 @@
 	import ToggleTheme from './ToggleTheme.svelte';
 	import {
 		resolveNodeUrl,
+		autoSelectedNodeUrl,
 		isManualMode,
 		MODE_KEY,
 		type Category
@@ -139,6 +140,9 @@
 				: resolveNodeUrl('vsc')}
 			type="url"
 		/>
+		{#if browser}
+			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('vsc')}</span>
+		{/if}
 		<PillButton
 			styleType="outline"
 			onclick={(e) => {
@@ -168,6 +172,9 @@
 				: resolveNodeUrl('indexer')}
 			type="url"
 		/>
+		{#if browser}
+			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('indexer')}</span>
+		{/if}
 		<PillButton
 			styleType="outline"
 			onclick={() => {
@@ -195,6 +202,9 @@
 				: resolveNodeUrl('hive')}
 			type="url"
 		/>
+		{#if browser}
+			<span class="auto-note">Auto-selected: {autoSelectedNodeUrl('hive')}</span>
+		{/if}
 		<PillButton
 			styleType="outline"
 			onclick={(e) => {
@@ -340,5 +350,13 @@
 	input[type='url']:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
+	}
+	.auto-note {
+		display: block;
+		margin-top: 0.15rem;
+		font-size: 0.7rem;
+		color: var(--dash-text-secondary);
+		opacity: 0.75;
+		word-break: break-all;
 	}
 </style>

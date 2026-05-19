@@ -14,7 +14,7 @@ vi.mock('./env', () => ({
 	hiveRpcNodes: ['https://hive-default']
 }));
 
-import { resolveNodeUrl, refreshNode, isManualMode } from './select';
+import { resolveNodeUrl, refreshNode, isManualMode, autoSelectedNodeUrl } from './select';
 
 class MemStorage {
 	m = new Map<string, string>();
@@ -52,6 +52,13 @@ describe('resolveNodeUrl precedence', () => {
 		localStorage.setItem('vsc-gql-url', 'https://legacy-custom');
 		expect(isManualMode('vsc')).toBe(true);
 		expect(resolveNodeUrl('vsc')).toBe('https://legacy-custom');
+	});
+	it('autoSelectedNodeUrl ignores manual override (cache → env first)', () => {
+		expect(autoSelectedNodeUrl('indexer')).toBe('https://idx-default');
+		localStorage.setItem('node-auto-indexer', 'https://cached-idx');
+		localStorage.setItem('node-mode-indexer', 'manual');
+		localStorage.setItem('magi-indexer-url', 'https://my-manual');
+		expect(autoSelectedNodeUrl('indexer')).toBe('https://cached-idx');
 	});
 	it('explicit auto mode is respected even if a legacy key lingers', () => {
 		localStorage.setItem('vsc-gql-url', 'https://legacy-custom');

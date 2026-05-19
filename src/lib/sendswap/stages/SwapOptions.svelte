@@ -2205,8 +2205,8 @@
 		background-color: rgba(111, 106, 248, 0.15);
 	}
 	.token-chip.muted {
-		opacity: 0.5;
 		position: relative;
+		border-color: var(--dash-accent-purple);
 	}
 	.chip-role-badge {
 		position: absolute;

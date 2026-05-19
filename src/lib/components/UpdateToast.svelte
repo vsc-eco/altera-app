@@ -1,62 +1,84 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import { X, RefreshCw } from '@lucide/svelte';
 
 	/**
-	 * Polls /api/version every 2 minutes. When the server's version
-	 * differs from the one baked into this JS bundle, a toast appears
-	 * prompting the user to refresh.
+	 * Checks /api/version once on mount and again whenever the tab
+	 * becomes visible (user returning to the app). If the server's
+	 * version differs from the one baked into this JS bundle, a toast
+	 * appears prompting the user to refresh.
+	 *
+	 * Rationale: constant polling is wasteful — users only act on the
+	 * toast when they're looking at the page anyway. Checking on
+	 * `visibilitychange` covers "I left this tab open all day and came
+	 * back" without burning requests every two minutes.
+	 *
+	 * Dismiss is per-version (sessionStorage) so the toast won't keep
+	 * nagging within the same tab once the user has acknowledged a
+	 * specific update, but a brand-new deploy (different version) will
+	 * re-surface it.
 	 *
 	 * Svelte notes:
-	 * - `$state` for the reactive `show` flag — toggles the toast.
-	 * - `$effect` to start/stop the polling interval tied to the
-	 *   component lifecycle (auto-cleanup on destroy).
-	 * - No `$derived` needed — `show` is set imperatively from the
-	 *   fetch callback, not computed from other reactive values.
+	 * - `$state` for `show`/`newVersion` — drive the template.
+	 * - `<svelte:document>` for the visibilitychange listener (preferred
+	 *   over manual addEventListener in an `$effect`).
+	 * - `$effect` is only used for the one-shot startup setTimeout, which
+	 *   needs lifecycle-bound cleanup.
 	 */
 
 	const currentVersion = __APP_VERSION__;
-	const POLL_INTERVAL = 2 * 60 * 1000; // 2 minutes
 	const CHANGELOG_URL = 'https://github.com/vsc-eco/altera-app/blob/main/CHANGELOG.md';
+	const DISMISSED_KEY = 'altera-update-toast-dismissed';
 
 	let show = $state(false);
 	let newVersion = $state('');
 
 	function dismiss() {
 		show = false;
+		if (newVersion) {
+			try {
+				sessionStorage.setItem(DISMISSED_KEY, newVersion);
+			} catch {
+				// sessionStorage unavailable (private mode etc.) — ignore
+			}
+		}
 	}
 
 	function refresh() {
 		window.location.reload();
 	}
 
-	$effect(() => {
-		if (!browser) return;
-
-		async function checkVersion() {
+	async function checkVersion() {
+		try {
+			const res = await fetch('/api/version', { cache: 'no-cache' });
+			if (!res.ok) return;
+			const data = await res.json();
+			if (!data.version || data.version === currentVersion) return;
+			let dismissedVersion: string | null = null;
 			try {
-				const res = await fetch('/api/version', { cache: 'no-cache' });
-				if (!res.ok) return;
-				const data = await res.json();
-				if (data.version && data.version !== currentVersion) {
-					newVersion = data.version;
-					show = true;
-				}
+				dismissedVersion = sessionStorage.getItem(DISMISSED_KEY);
 			} catch {
-				// Network error — silently ignore, retry next interval
+				// sessionStorage unavailable — treat as "not dismissed"
 			}
+			if (data.version === dismissedVersion) return;
+			newVersion = data.version;
+			show = true;
+		} catch {
+			// Network error — silently ignore, will retry on next visibility change
 		}
+	}
 
-		const interval = setInterval(checkVersion, POLL_INTERVAL);
-		// Also check once after a short delay (don't block initial load)
+	function onVisibilityChange() {
+		if (document.visibilityState === 'visible') checkVersion();
+	}
+
+	// Initial check after a short delay (don't block initial load).
+	$effect(() => {
 		const timeout = setTimeout(checkVersion, 10_000);
-
-		return () => {
-			clearInterval(interval);
-			clearTimeout(timeout);
-		};
+		return () => clearTimeout(timeout);
 	});
 </script>
+
+<svelte:document onvisibilitychange={onVisibilityChange} />
 
 {#if show}
 	<div class="update-toast" role="alert">

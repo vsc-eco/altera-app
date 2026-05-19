@@ -4,23 +4,11 @@ import type { Auth } from '../../auth/store'
 import { getV4VMetadata } from '../v4v/api-types/metadata'
 const always: Enabled = () => true;
 const never: Enabled = () => false;
-
-const _nothingSelected: Enabled = (from, to) => {
-	return from == undefined && to == undefined;
-};
+import { getV4VMetadata } from '../v4v/api-types/metadata';
+import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte';
 
 export type CoinOnNetwork = { coin: Coin; network: Network };
-const _eitherNetworkEquals = (
-	from: CoinOnNetwork | undefined,
-	to: CoinOnNetwork | undefined,
-	value: Network
-) => {
-	return from?.network == value || to?.network == value;
-};
-
-const _coinIsOneOf = (source: CoinOnNetwork | undefined, arr: Coin[]) => {
-	return !(source?.coin && !arr.includes(source.coin));
-};
 
 const hive: Coin = {
 	value: 'hive',
@@ -28,16 +16,6 @@ const hive: Coin = {
 	icon: '/hive/hive.svg',
 	unit: 'HIVE',
 	ucid: '5370',
-	enabled: (going, info, auth, mode) => {
-		// allow swap from hive (e.g. TESTS) to hbd (e.g. TBD) or btc
-		if (going == 'from' && mode == 'swap') return true;
-
-		if (info.from?.network == Network.lightning) return true;
-		if (info.from?.coin == undefined) return true;
-		if (going == 'from') return true;
-		if (info.from?.coin == Coin.hive) return true;
-		return false;
-	},
 	decimalPlaces: 3
 };
 const hbd: Coin = {
@@ -46,16 +24,6 @@ const hbd: Coin = {
 	icon: '/hive/hbd.svg',
 	unit: 'HBD',
 	ucid: '5375',
-	enabled: (going, info, auth, mode) => {
-		// allow swap from hbd (e.g. TBD) to hive (e.g. TESTS) or btc
-		if (going == 'from' && mode == 'swap') return true;
-
-		if (info.from?.network == Network.lightning) return true;
-		if (info.from?.coin == undefined) return true;
-		if (going == 'from') return true;
-		if (info.from?.coin == Coin.hbd) return true;
-		return false;
-	},
 	decimalPlaces: 3
 };
 const shbd: Coin = {
@@ -64,7 +32,6 @@ const shbd: Coin = {
 	icon: '/hive/hbd.svg',
 	unit: 'sHBD',
 	ucid: '5375',
-	enabled: () => false,
 	decimalPlaces: 3
 };
 const btc: Coin = {
@@ -73,9 +40,6 @@ const btc: Coin = {
 	icon: '/btc/btc.svg',
 	unit: 'BTC',
 	ucid: '1',
-	enabled: (going) => {
-		return going == 'from';
-	},
 	decimalPlaces: 8
 };
 
@@ -84,7 +48,6 @@ const usd: Coin = {
 	label: 'USD',
 	icon: '/fiat/usd.svg',
 	unit: 'USD',
-	enabled: never,
 	decimalPlaces: 2
 };
 
@@ -93,9 +56,6 @@ const sats: Coin = {
 	label: 'SATS',
 	icon: '/btc/btc.svg',
 	unit: 'SATS',
-	enabled: (going) => {
-		return going == 'from';
-	},
 	decimalPlaces: 0
 };
 const unk: Coin = {
@@ -103,7 +63,6 @@ const unk: Coin = {
 	label: 'UNK',
 	icon: '/unk.svg',
 	unit: 'UNK',
-	enabled: never,
 	decimalPlaces: 8
 };
 
@@ -139,36 +98,15 @@ export type Coin = {
 	 */
 	ucid?: string;
 	/**
-	 * A function which returns whether a currency is available to trade to/from
-	 * based on the network and currency it's going to/from
-	 */
-	enabled: Enabled;
-	/**
 	 * Number of decimal places to use for arithmetic and display
 	 */
 	decimalPlaces: number;
 };
 
-type Enabled = (
-	going: 'to' | 'from',
-	info: {
-		from?: Partial<CoinOnNetwork> | undefined;
-		to?: Partial<CoinOnNetwork> | undefined;
-	},
-	auth: Auth,
-	mode: 'send' | 'swap'
-) => boolean;
-
 const magi: IntermediaryNetwork = {
 	value: 'magi',
 	label: 'Magi',
 	icon: '/magi.svg',
-	enabled: (going, { from, to }) => {
-		if (from?.coin == undefined || to?.coin == undefined) return true;
-		if (from?.coin == to?.coin) return true;
-		if (from?.network == Network.lightning) return true;
-		return false;
-	},
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		// 0 fees (uses HP but HP usage isn't displayed)
 		return new CoinAmount(0, outputCoin);
@@ -178,7 +116,6 @@ const unknown: IntermediaryNetwork = {
 	value: 'unk',
 	label: 'Unknown',
 	icon: '/unk.svg',
-	enabled: never,
 	feeCalculation: async (from: UnkCoinAmount, outputCoin: Coin) => {
 		if (from.coin.value == outputCoin.value) {
 			return new CoinAmount(0, from.coin); // no fee if going between same currency type
@@ -190,14 +127,6 @@ const hiveMainnet: IntermediaryNetwork = {
 	value: 'hive_mainnet',
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
-	enabled: (going, { from, to }, auth, mode) => {
-		if (auth.value?.aioha == undefined && going == 'from') return false;
-		if (auth.value?.aioha == undefined && mode == 'swap') return false;
-		if (from?.coin == undefined || to?.coin == undefined) return true;
-		if (from?.coin == to?.coin) return true;
-		if (from?.network == Network.lightning) return true;
-		return false;
-	},
 	feeCalculation: async (from, outputCoin) => {
 		return new CoinAmount(0, outputCoin);
 	}
@@ -211,7 +140,6 @@ export type Network = {
 	value: string;
 	label: string;
 	icon: ImageIconOption;
-	enabled?: Enabled;
 	feeCalculation?: FeeCalculation<UnkCoinAmount, Coin>;
 };
 
@@ -220,14 +148,12 @@ export type IntermediaryNetwork = Network & { feeCalculation: FeeCalculation<Unk
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
 	label: 'BTC Mainnet',
-	icon: '/btc/btc.svg',
-	enabled: never
+	icon: '/btc/btc.svg'
 };
 const lightning: IntermediaryNetwork = {
 	value: 'lightning',
 	label: 'Lightning',
 	icon: '/btc/lightning.svg',
-	enabled: always,
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		const meta = await getV4VMetadata();
 		const amt = await input.convertTo(Coin.sats, Network.lightning);

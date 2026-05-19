@@ -2,6 +2,18 @@
 
 All notable changes to Altera are documented here.
 
+## PROPOSED CHANGES
+
+### Send/Transfer
+- Added SATS as a first-class BTC denomination option in Magi internal transfer flows.
+- Updated transfer UI and review states to consistently show BTC/SATS values across quick send, deposit, withdraw, and confirmation steps.
+- Improved amount-state handling so SATS-based values remain accurate through max-amount, conversion, and submit flows.
+
+### Lightning
+- Added Lightning withdraw support for KeepSats on v4vapp.
+- Fixed Lightning invoice parameter handling to ensure request payloads are formed correctly for withdraw/deposit operations.
+
+
 ## [0.3.2] — 2026-05-18
 
 ### Swap

@@ -80,3 +80,36 @@ export async function probeVscApi(nodes: string[]): Promise<string> {
 	);
 	return pickFreshest(nodes, results);
 }
+
+export async function probeHiveRpc(nodes: string[]): Promise<string> {
+	const results = await Promise.allSettled(
+		nodes.map((origin) =>
+			withTimeout(async (signal): Promise<ProbeResult> => {
+				const base = origin.replace(/\/+$/, '');
+				let healthy = false;
+				try {
+					const h = await fetch(base + '/health', { signal });
+					healthy = h.ok;
+				} catch {
+					healthy = false;
+				}
+				const json = (await postJson(
+					base,
+					{
+						jsonrpc: '2.0',
+						method: 'database_api.get_dynamic_global_properties',
+						params: {},
+						id: 1
+					},
+					signal
+				)) as { result?: { head_block_number?: number } };
+				const head = json?.result?.head_block_number;
+				if (head == null) throw new Error('no head_block_number');
+				// Primary rank = head_block_number; /health adds a hair so a
+				// healthy node beats an unhealthy one only at equal height.
+				return { url: origin, freshness: Number(head) * 10 + (healthy ? 1 : 0) };
+			})
+		)
+	);
+	return pickFreshest(nodes, results);
+}

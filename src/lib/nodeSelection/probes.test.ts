@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { probeIndexer, probeVscApi } from './probes';
+import { probeIndexer, probeVscApi, probeHiveRpc } from './probes';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -37,5 +37,26 @@ describe('probeVscApi', () => {
 		});
 		const pick = await probeVscApi(['https://lo.example', 'https://hi.example']);
 		expect(pick).toBe('https://hi.example');
+	});
+});
+
+describe('probeHiveRpc', () => {
+	it('ranks by head_block_number, /health only as tie-breaker', async () => {
+		mockFetch((url, init) => {
+			const isRpc = init?.method === 'POST';
+			if (url.startsWith('https://lo')) {
+				if (!isRpc) return {}; // /health 200 but lower block
+				return { result: { head_block_number: 1000 } };
+			}
+			if (!isRpc) return new Error('no /health'); // hi: no health endpoint
+			return { result: { head_block_number: 9999 } };
+		});
+		const pick = await probeHiveRpc(['https://lo.example', 'https://hi.example']);
+		expect(pick).toBe('https://hi.example'); // higher head wins despite no /health
+	});
+	it('falls back to first node when all fail', async () => {
+		mockFetch(() => new Error('down'));
+		const pick = await probeHiveRpc(['https://h1', 'https://h2']);
+		expect(pick).toBe('https://h1');
 	});
 });

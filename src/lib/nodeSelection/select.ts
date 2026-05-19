@@ -49,7 +49,18 @@ function ls(): Storage | null {
 }
 
 export function isManualMode(cat: Category): boolean {
-	return ls()?.getItem(MODE_KEY[cat]) === 'manual';
+	const s = ls();
+	if (!s) return false;
+	const mode = s.getItem(MODE_KEY[cat]);
+	if (mode === 'manual') return true;
+	// Legacy migration: users who set a custom endpoint before this feature
+	// have the manual key populated but no explicit mode key. Treat that as
+	// manual so auto-selection never silently discards their override.
+	if (mode === null) {
+		const legacy = s.getItem(MANUAL_KEY[cat]);
+		return !!(legacy && legacy.trim());
+	}
+	return false;
 }
 
 /** Synchronous resolution for module-load consumers (client.ts/dhive.ts).

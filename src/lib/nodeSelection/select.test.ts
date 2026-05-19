@@ -47,6 +47,19 @@ describe('resolveNodeUrl precedence', () => {
 		expect(isManualMode('indexer')).toBe(true);
 		expect(resolveNodeUrl('indexer')).toBe('https://my-manual');
 	});
+	it('legacy migration: manual key set + no mode key → manual', () => {
+		localStorage.setItem('node-auto-vsc', 'https://cached-vsc');
+		localStorage.setItem('vsc-gql-url', 'https://legacy-custom');
+		expect(isManualMode('vsc')).toBe(true);
+		expect(resolveNodeUrl('vsc')).toBe('https://legacy-custom');
+	});
+	it('explicit auto mode is respected even if a legacy key lingers', () => {
+		localStorage.setItem('vsc-gql-url', 'https://legacy-custom');
+		localStorage.setItem('node-mode-vsc', 'auto');
+		localStorage.setItem('node-auto-vsc', 'https://cached-vsc');
+		expect(isManualMode('vsc')).toBe(false);
+		expect(resolveNodeUrl('vsc')).toBe('https://cached-vsc');
+	});
 });
 
 describe('refreshNode', () => {

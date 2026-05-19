@@ -18,11 +18,17 @@
 		keyTbd
 	} from '../../../client';
 	import ToggleTheme from './ToggleTheme.svelte';
-	import { resolveNodeUrl, MODE_KEY, type Category } from '$lib/nodeSelection/select';
+	import {
+		resolveNodeUrl,
+		isManualMode,
+		MODE_KEY,
+		type Category
+	} from '$lib/nodeSelection/select';
 
 	function initAuto(cat: Category): boolean {
 		if (!browser) return true;
-		return (localStorage.getItem(MODE_KEY[cat]) ?? 'auto') !== 'manual';
+		// isManualMode also covers legacy users (custom key set, no mode key).
+		return !isManualMode(cat);
 	}
 	let autoVsc = $state(initAuto('vsc'));
 	let autoIndexer = $state(initAuto('indexer'));

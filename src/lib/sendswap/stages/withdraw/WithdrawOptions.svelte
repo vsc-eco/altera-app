@@ -1,16 +1,15 @@
 <script lang="ts">
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
-	import PillButton from '$lib/PillButton.svelte';
-	import NavButtons from '$lib/sendswap/components/NavButtons.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
-	import { untrack, type ComponentProps } from 'svelte';
 	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
 	import { scanForBalance } from '../../utils/sendUtils';
 	import { useWithdrawState } from '../../utils/txState.svelte';
-	import BitcoinMainnetWithdraw from './BitcoinMainnetWithdraw.svelte';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
-	import KeepsatsWithdraw from './KeepsatsWithdraw.svelte';
+	import BitcoinMainnetWithdraw from './BitcoinMainnetWithdraw.svelte';
+	import { untrack, type ComponentProps } from 'svelte';
+	import PillButton from '$lib/PillButton.svelte';
+	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
 
 	let {
 		editStage,

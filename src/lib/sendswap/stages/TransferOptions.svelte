@@ -1,17 +1,27 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import ClickableCard from '$lib/cards/ClickableCard.svelte';
-	import Divider from '$lib/components/Divider.svelte';
-	import { numberFormatLanguage } from '$lib/constants';
-	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
+	import { Coins } from '@lucide/svelte';
+	import { untrack, type ComponentProps, type Snippet } from 'svelte';
 	import {
-		estimateBtcUnmapFee,
-		type BtcFeeEstimate
-	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
-	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
+		momentToLastPaidString,
+		getLastPaidContact,
+		getLastPaidNetwork,
+		getRecipientNetworks,
+		getFee,
+		solveToNetworks,
+		type NetworkOptionParam
+	} from '../utils/sendUtils';
+	import { useTransferState } from '../utils/txState.svelte';
+	import swapOptions, {
+		Coin,
+		Network,
+		type CoinOnNetwork,
+		type CoinOptions
+	} from '../utils/sendOptions';
+	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
+	import RecipientCard from '../components/RecipientCard.svelte';
 	import {
 		compareContacts,
 		getAllLastPaid,
@@ -20,31 +30,23 @@
 		setAllContacts,
 		type Contact
 	} from '$lib/sendswap/contacts/contacts';
-	import { accountBalance, getBalanceAmount, type AccountBalance } from '$lib/stores/currentBalance';
-	import Dialog from '$lib/zag/Dialog.svelte';
-	import Select from '$lib/zag/Select.svelte';
-	import { Coins } from '@lucide/svelte';
-	import { untrack, type ComponentProps, type Snippet } from 'svelte';
-	import RecipientCard from '../components/RecipientCard.svelte';
+	import ClickableCard from '$lib/cards/ClickableCard.svelte';
+	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
+	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
+	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
+	import Select from '$lib/zag/Select.svelte';
+	import Divider from '$lib/components/Divider.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
-	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
-	import swapOptions, {
-		Coin,
-		Network,
-		type CoinOnNetwork,
-		type CoinOptions
-	} from '../utils/sendOptions';
+	import PillButton from '$lib/PillButton.svelte';
+	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
 	import {
-		getLastPaidContact,
-		getLastPaidNetwork,
-		getRecipientNetworks,
-		momentToLastPaidString,
-		solveToNetworks,
-		type NetworkOptionParam
-	} from '../utils/sendUtils';
-	import { useTransferState } from '../utils/txState.svelte';
+		estimateBtcUnmapFee,
+		type BtcFeeEstimate
+	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
+	import { numberFormatLanguage } from '$lib/constants';
 
 	let {
 		editStage

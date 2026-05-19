@@ -1,17 +1,18 @@
 <script lang="ts">
-	import { getAuth } from '$lib/auth/store';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
+	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
+	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
+	import { scanForBalance } from '../../utils/sendUtils';
+	import { useDepositState } from '../../utils/txState.svelte';
+	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
+	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
+	import LightningDeposit from './LightningDeposit.svelte';
+	import { untrack, type ComponentProps } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import NavButtons, { type NavButton } from '$lib/sendswap/components/NavButtons.svelte';
-	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
-	import { untrack, type ComponentProps } from 'svelte';
-	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
-	import { useDepositState } from '../../utils/txState.svelte';
 	import BtcMainnetDeposit from './BitcoinMainnetDeposit.svelte';
-	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
-	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
-	import LightningDeposit from './LightningDeposit.svelte';
+	import { getAuth } from '$lib/auth/store';
 
 	let {
 		editStage,

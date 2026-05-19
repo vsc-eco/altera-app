@@ -19,7 +19,6 @@
 	} from '../../../client';
 	import ToggleTheme from './ToggleTheme.svelte';
 	import {
-		resolveNodeUrl,
 		autoSelectedNodeUrl,
 		isManualMode,
 		MODE_KEY,
@@ -135,9 +134,7 @@
 			id="keyVscApi"
 			bind:this={vscGqlUrlInput}
 			disabled={!customVsc}
-			value={customVsc
-				? (browser && localStorage.getItem(keyVscGql)) || 'https://api.vsc.eco'
-				: resolveNodeUrl('vsc')}
+			value={(browser && localStorage.getItem(keyVscGql)) || 'https://api.vsc.eco'}
 			type="url"
 		/>
 		{#if browser}
@@ -167,9 +164,7 @@
 			id="magi-indexer-url"
 			bind:this={magiIndexerInput}
 			disabled={!customIndexer}
-			value={customIndexer
-				? (browser && localStorage.getItem(keyMagiIndexer)) || DEFAULT_MAGI_INDEXER_URL
-				: resolveNodeUrl('indexer')}
+			value={(browser && localStorage.getItem(keyMagiIndexer)) || DEFAULT_MAGI_INDEXER_URL}
 			type="url"
 		/>
 		{#if browser}
@@ -197,9 +192,7 @@
 			id="vsc-gql-url"
 			bind:this={hiveApiUrlInput}
 			disabled={!customHive}
-			value={customHive
-				? (browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_API_URL
-				: resolveNodeUrl('hive')}
+			value={(browser && localStorage.getItem(keyHiveApiList)) || DEFAULT_HIVE_API_URL}
 			type="url"
 		/>
 		{#if browser}

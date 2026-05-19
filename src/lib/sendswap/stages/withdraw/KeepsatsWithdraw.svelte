@@ -91,16 +91,17 @@
 		});
 	});
 
-	// Get max balance in whatever coin is currently selected. SATS and BTC share
-	// the same raw integer unit (satoshis), so balance.amount is valid for both —
-	// only the coin wrapper changes, which is what AmountInput needs for showMax.
+	// Get max balance — always in the currently-selected coin so AmountInput shows
+	// the balance label and Max button regardless of which coin is active.
 	let max = $state(new CoinAmount(0, Coin.sats));
 
 	$effect(() => {
 		if (!open || !txState.fromCoin || !txState.fromNetwork) return;
-		if (coinAmount.coin.value === Coin.unk.value) return;
+		const isSats = coinAmount.coin.value === Coin.sats.value;
 		const balance = getBalanceAmount($accountBalance, txState.fromCoin.coin, txState.fromNetwork);
-		max = new CoinAmount(balance.amount, coinAmount.coin, true);
+		max = isSats
+			? new CoinAmount(balance.amount, Coin.sats, true)
+			: new CoinAmount(balance.amount, Coin.btc, true);
 	});
 
 	// Validation

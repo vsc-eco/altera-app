@@ -1,14 +1,14 @@
 <script lang="ts">
-	import PillButton from '$lib/PillButton.svelte';
-	import NumberInput from '$lib/zag/NumberInput.svelte';
-	import Select from '$lib/zag/Select.svelte';
-	import { DollarSign } from '@lucide/svelte';
 	import { untrack } from 'svelte';
-	import { getHbdAssetName, getHiveAssetName } from '../../client';
 	import { Coin, Network, type CoinOnNetwork } from '../sendswap/utils/sendOptions';
-	import BigInput from './BigInput.svelte';
-	import { CoinAmount } from './CoinAmount';
 	import CoinNetworkIcon from './CoinNetworkIcon.svelte';
+	import { CoinAmount } from './CoinAmount';
+	import PillButton from '$lib/PillButton.svelte';
+	import { DollarSign } from '@lucide/svelte';
+	import NumberInput from '$lib/zag/NumberInput.svelte';
+	import BigInput from './BigInput.svelte';
+	import Select from '$lib/zag/Select.svelte';
+	import { getHiveAssetName, getHbdAssetName } from '../../client';
 
 	let {
 		coinAmount = $bindable(),

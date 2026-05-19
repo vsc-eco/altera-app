@@ -9,22 +9,19 @@ import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
-import {
-	getKeepsatsDestinationDid,
-	getKeepsatsTransferOp
-} from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
+import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
 import { getBtcApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
 import {
-    accountBalance,
-    type AccountBalance,
-    type HiveMainnetBalance
+	accountBalance,
+	type AccountBalance,
+	type HiveMainnetBalance
 } from '$lib/stores/currentBalance'
 import {
-    fetchTxs,
-    getTimestamp,
-    magiTxsStore,
-    waitForExtend,
-    type TransactionInter
+	fetchTxs,
+	getTimestamp,
+	magiTxsStore,
+	waitForExtend,
+	type TransactionInter
 } from '$lib/stores/txStores'
 import { getAccounts } from '@aioha/aioha/build/rpc'
 import type { Operation, TransferOperation } from '@hiveio/dhive'
@@ -34,16 +31,17 @@ import { get } from 'svelte/store'
 import { addLocalTransaction } from '../../stores/localStorageTxs'
 import { getIntermediaryNetwork } from './getNetwork'
 import swapOptions, {
-    Coin,
-    Network,
-    networkMap,
-    SendAccount,
-    TransferMethod,
-    type CoinOnNetwork,
-    type CoinOptions,
-    type IntermediaryNetwork
+	Coin,
+	Network,
+	networkMap,
+	SendAccount,
+	TransferMethod,
+	type CoinOnNetwork,
+	type CoinOptions,
+	type IntermediaryNetwork
 } from './sendOptions'
-import { SwapTxState, TransferTxState, type TxState, type TxStateBase } from './txState.svelte'
+import type { TxStateBase } from './txState.svelte'
+import { SwapTxState, TransferTxState, type TxState } from './txState.svelte'
 
 export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
 	const accBal = get(accountBalance);

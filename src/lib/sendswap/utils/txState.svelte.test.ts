@@ -100,7 +100,6 @@ describe('default values — each class starts at zero-state', () => {
 		expect(state.toUsername).toBe('')
 		expect(state.fromAmount).toBe('0')
 		expect(state.toAmount).toBe('0')
-		expect(state.fee).toBeUndefined()
 		expect(state.fromCoin).toBeUndefined()
 		expect(state.toCoin).toBeUndefined()
 		expect(state.fromNetwork).toBeUndefined()
@@ -112,6 +111,7 @@ describe('default values — each class starts at zero-state', () => {
 	it('SwapTxState-specific defaults', () => {
 		const state = new SwapTxState()
 		expect(state.kind).toBe('swap')
+		expect(state.fee).toBeUndefined()
 		expect(state.expectedOutput).toBeUndefined()
 		expect(state.slippageBps).toBe(100)
 		expect(state.minAmountOut).toBeUndefined()
@@ -126,12 +126,16 @@ describe('default values — each class starts at zero-state', () => {
 		expect(state.toDisplayName).toBe('')
 	})
 
-	it('DepositTxState kind', () => {
-		expect(new DepositTxState().kind).toBe('deposit')
+	it('DepositTxState-specific defaults', () => {
+		const state = new DepositTxState()
+		expect(state.kind).toBe('deposit')
+		expect(state.fee).toBeUndefined()
 	})
 
-	it('WithdrawTxState kind', () => {
-		expect(new WithdrawTxState().kind).toBe('withdraw')
+	it('WithdrawTxState-specific defaults', () => {
+		const state = new WithdrawTxState()
+		expect(state.kind).toBe('withdraw')
+		expect(state.fee).toBeUndefined()
 	})
 })
 

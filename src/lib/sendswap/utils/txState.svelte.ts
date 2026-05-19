@@ -13,7 +13,6 @@ export class TxStateBase {
 	toNetwork: Network | undefined = $state(undefined);
 	toAmount: string = $state('0');
 	toUsername: string = $state('');
-	fee: CoinAmount<Coin> | undefined = $state(undefined);
 	method: TransferMethod | undefined = $state(undefined);
 	/** Whether to deduct the BTC network fee from the output (BTC unmap flows). */
 	btcDeductFee: boolean = $state(false);
@@ -25,6 +24,8 @@ export class TxStateBase {
 
 export class SwapTxState extends TxStateBase {
 	readonly kind = 'swap' as const;
+	/** Cross-chain bridge fee for the swap (Lightning gateway, etc). */
+	fee: CoinAmount<Coin> | undefined = $state(undefined);
 	expectedOutput: string | undefined = $state(undefined);
 	slippageBps: number | undefined = $state(100);
 	minAmountOut: string | undefined = $state(undefined);
@@ -47,12 +48,16 @@ export class TransferTxState extends TxStateBase {
 
 export class DepositTxState extends TxStateBase {
 	readonly kind = 'deposit' as const;
+	/** Gateway fee for the deposit (Lightning, BTC mapping, etc). */
+	fee: CoinAmount<Coin> | undefined = $state(undefined);
 }
 
 // ─── Withdraw (Magi → L1) ────────────────────────────────────────────────────
 
 export class WithdrawTxState extends TxStateBase {
 	readonly kind = 'withdraw' as const;
+	/** Gateway fee for the withdrawal (Lightning, BTC unmap, etc). */
+	fee: CoinAmount<Coin> | undefined = $state(undefined);
 }
 
 // ─── Union & context ─────────────────────────────────────────────────────────

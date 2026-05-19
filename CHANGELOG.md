@@ -2,23 +2,18 @@
 
 All notable changes to Altera are documented here.
 
+
+## PROPOSED CHANGES
+
+### Lightning
+- Added Lightning withdraw support for KeepSats on v4vapp.
+- Added Lightning deposit support for Sats direct via v4vapp.
+
 ## [0.3.3] — 2026-05-19
 
 ### Infrastructure
 - Multi-node failover: indexer / VSC API / Hive RPC endpoints are health-checked on app open and the freshest node is auto-selected (5-min cache); optional `PUBLIC_INDEXER_NODES` / `PUBLIC_VSC_API_NODES` / `PUBLIC_HIVE_RPC_NODES` runtime overrides, hardcoded fallbacks otherwise
 - Preferences: per-endpoint "Custom" toggle to pin a specific node (off = automatic, shows the auto-selected node)
-
-## PROPOSED CHANGES
-
-### Send/Transfer
-- Added SATS as a first-class BTC denomination option in Magi internal transfer flows.
-- Updated transfer UI and review states to consistently show BTC/SATS values across quick send, deposit, withdraw, and confirmation steps.
-- Improved amount-state handling so SATS-based values remain accurate through max-amount, conversion, and submit flows.
-
-### Lightning
-- Added Lightning withdraw support for KeepSats on v4vapp.
-- Fixed Lightning invoice parameter handling to ensure request payloads are formed correctly for withdraw/deposit operations.
-
 
 ## [0.3.2] — 2026-05-18
 

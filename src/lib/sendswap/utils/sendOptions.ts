@@ -1,10 +1,8 @@
-import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte'
-import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount'
-import { getV4VMetadata } from '../v4v/api-types/metadata'
-const always: Enabled = () => true
-const never: Enabled = () => false
+import { getV4VMetadata } from '../v4v/api-types/metadata';
+import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte';
 
-export type CoinOnNetwork = { coin: Coin; network: Network }
+export type CoinOnNetwork = { coin: Coin; network: Network };
 
 const hive: Coin = {
 	value: 'hive',
@@ -265,10 +263,6 @@ const swapOptions: {
 				// networks: [lightning, btcMainnet]
 				// networks: [lightning, magi, btcMainnet]
 				networks: [magi, btcMainnet]
-			},
-			{
-				coin: sats,
-				networks: [magi]
 			}
 		]
 	},
@@ -286,10 +280,6 @@ const swapOptions: {
 				coin: btc,
 				// networks: [lightning, btcMainnet, magi]
 				networks: [btcMainnet, magi]
-			},
-			{
-				coin: sats,
-				networks: [magi]
 			}
 		]
 	}
@@ -297,4 +287,7 @@ const swapOptions: {
 
 export default swapOptions;
 
-globalThis.coins = Coin;
+// APP-17: only expose internals on globalThis in development builds.
+if (import.meta.env.DEV) {
+	globalThis.coins = Coin;
+}

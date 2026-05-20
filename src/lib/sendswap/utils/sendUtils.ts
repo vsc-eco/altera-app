@@ -1,49 +1,47 @@
-import { postingMetadataFromString, type Account } from '$lib/auth/hive/accountTypes'
-import { wagmiConfig } from '$lib/auth/reown'
-import { authStore, getAuth, type Auth } from '$lib/auth/store'
-import { CoinAmount } from '$lib/currency/CoinAmount'
-import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName'
-import { btcSigner } from '$lib/magiTransactions/bitcoin/signer'
-import { getEVMOpType } from '$lib/magiTransactions/eth'
-import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client'
-import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
-import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
-import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
-import {
-	getKeepsatsDestinationDid,
-	getKeepsatsTransferOp
-} from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
-import { getBtcApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
-import {
-    accountBalance,
-    type AccountBalance,
-    type HiveMainnetBalance
-} from '$lib/stores/currentBalance'
-import {
-    fetchTxs,
-    getTimestamp,
-    magiTxsStore,
-    waitForExtend,
-    type TransactionInter
-} from '$lib/stores/txStores'
-import { getAccounts } from '@aioha/aioha/build/rpc'
-import type { Operation, TransferOperation } from '@hiveio/dhive'
-import { Network as BtcNetwork, validate } from 'bitcoin-address-validation'
-import moment, { type Moment } from 'moment'
-import { get } from 'svelte/store'
-import { addLocalTransaction } from '../../stores/localStorageTxs'
-import { getIntermediaryNetwork } from './getNetwork'
+import { getAccounts } from '@aioha/aioha/build/rpc';
+import { type Account, postingMetadataFromString } from '$lib/auth/hive/accountTypes';
+import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
 import swapOptions, {
-    Coin,
-    Network,
-    networkMap,
-    SendAccount,
-    TransferMethod,
-    type CoinOnNetwork,
-    type CoinOptions,
-    type IntermediaryNetwork
-} from './sendOptions'
-import { SwapTxState, TransferTxState, type TxState, type TxStateBase } from './txState.svelte'
+	Coin,
+	Network,
+	networkMap,
+	SendAccount,
+	TransferMethod,
+	type CoinOnNetwork,
+	type CoinOptions,
+	type IntermediaryNetwork
+} from './sendOptions';
+import { type TxState, SwapTxState, TransferTxState } from './txState.svelte';
+import { authStore, getAuth, type Auth } from '$lib/auth/store';
+import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
+import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer';
+import { getHiveSwapOp, getBtcApproveOp } from '$lib/magiTransactions/hive/vscOperations/swap';
+import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
+import { getEVMOpType } from '$lib/magiTransactions/eth';
+import { CoinAmount } from '$lib/currency/CoinAmount';
+import type { Operation, TransferOperation } from '@hiveio/dhive';
+import { addLocalTransaction } from '../../stores/localStorageTxs';
+import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client';
+import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
+import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
+import { wagmiConfig } from '$lib/auth/reown';
+import { get } from 'svelte/store';
+import {
+	fetchTxs,
+	getTimestamp,
+	magiTxsStore,
+	waitForExtend,
+	type TransactionInter
+} from '$lib/stores/txStores';
+import moment, { type Moment } from 'moment';
+import { getIntermediaryNetwork } from './getNetwork';
+import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
+import {
+	accountBalance,
+	type AccountBalance,
+	type HiveMainnetBalance
+} from '$lib/stores/currentBalance';
+import type { TxStateBase } from './txState.svelte';
 
 export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
 	const accBal = get(accountBalance);
@@ -184,7 +182,7 @@ function getMethodNetworks(method: TransferMethod) {
 }
 
 function getDidNetworks(did: string) {
-	let result = [Network.magi, Network.lightning];
+	const result = [Network.magi, Network.lightning];
 	if (did.startsWith('hive:')) result.push(Network.hiveMainnet);
 	return result;
 }
@@ -258,8 +256,8 @@ export type RecipientData = {
 };
 export async function getRecentContacts(auth: Auth): Promise<RecipientData[]> {
 	if (!auth.value) return [];
-	let result = new Map<string, RecipientData>();
-	let leaveOut = ['v4vapp'];
+	const result = new Map<string, RecipientData>();
+	const leaveOut = ['v4vapp'];
 	let lastChecked = 0;
 	let lastLength = 0;
 	let store: TransactionInter[] = get(magiTxsStore);
@@ -384,7 +382,7 @@ export function getFromOptions(
 		return;
 	}
 	if (method.value === TransferMethod.magiTransfer.value) {
-		let result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
+		const result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
 		if (did.startsWith('hive:')) {
 			result.accounts.push(SendAccount.deposit);
 			result.networks = [Network.hiveMainnet];
@@ -457,7 +455,7 @@ function combineAssetOptions(
 	const available = to ? from.intersection(to) : from;
 	const notInFrom = all.difference(from);
 	const notInTo = to ? all.difference(to).difference(notInFrom) : new Set<string>();
-	let result: CoinOptionParam[] = Array.from(available)
+	const result: CoinOptionParam[] = Array.from(available)
 		.map((val) => allObjs.find((coinOpt) => coinOpt.coin.value === val))
 		.filter((item): item is CoinOptionParam => item !== undefined);
 	for (const val of notInFrom) {
@@ -490,7 +488,7 @@ function combineNetworkOptions(
 ): NetworkOptionParam[] {
 	const allObjs = Object.values(Network);
 	const notInFrom = all.difference(from);
-	let result: NetworkOptionParam[] = Array.from(from)
+	const result: NetworkOptionParam[] = Array.from(from)
 		.map((val) => allObjs.find((net) => net.value === val))
 		.filter((item): item is NetworkOptionParam => item !== undefined);
 	for (const val of notInFrom) {
@@ -514,7 +512,7 @@ export function solveNetworkConstraints(
 	toNetwork: Network | undefined,
 	did: string | undefined,
 	fromNetwork?: Network,
-	allAssets: Boolean = false
+	allAssets: boolean = false
 ): Constraints {
 	// console.log("parameters to solve constraints", method, fromCoin, did, account);
 	if (!did)
@@ -530,7 +528,7 @@ export function solveNetworkConstraints(
 	const networkOptions = combineNetworkOptions(networksGivenMethod, networksGivenMethod, did);
 
 	const assetsGivenMethod = (() => {
-		let result = new Set<string>();
+		const result = new Set<string>();
 		for (const net of method ? getMethodNetworks(method) : inUseNetworks) {
 			const coins = networkMap.get(net.value);
 			if (coins) {
@@ -543,7 +541,7 @@ export function solveNetworkConstraints(
 	})();
 	const fromNetworkOptions: Network[] = fromNetwork ? [fromNetwork] : networkOptions;
 	const assetsGivenFromNetworks = (() => {
-		let result = new Set<string>();
+		const result = new Set<string>();
 		for (const net of fromNetworkOptions) {
 			const coins = networkMap.get(net.value);
 			if (coins) {
@@ -730,7 +728,7 @@ export async function send(
 
 		let sendOp: Operation;
 		// Extra op prepended for the L1→Magi case (the deposit).
-		let extraOps: Operation[] = [];
+		const extraOps: Operation[] = [];
 		let opType: string | undefined;
 
 		if (isSwap) {

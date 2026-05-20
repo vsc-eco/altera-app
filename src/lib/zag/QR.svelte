@@ -12,16 +12,36 @@
 		})
 	);
 	const api = $derived(qrCode.connect(service, normalizeProps));
+
+	// APP-19: only treat the QR payload as a navigable link when it uses an
+	// expected safe scheme; otherwise render a non-link container.
+	const safeHref = $derived(
+		typeof data === 'string' &&
+			(data.startsWith('lightning:') || data.startsWith('https://'))
+			? data
+			: undefined
+	);
 </script>
 
-<a href={data} {...api.getRootProps()}>
-	<svg {...api.getFrameProps()}>
-		<path {...api.getPatternProps()}></path>
-	</svg>
-	<div {...api.getOverlayProps()}>
-		<img src="magi-padded.svg" alt="" />
+{#if safeHref}
+	<a href={safeHref} {...api.getRootProps()}>
+		<svg {...api.getFrameProps()}>
+			<path {...api.getPatternProps()}></path>
+		</svg>
+		<div {...api.getOverlayProps()}>
+			<img src="magi-padded.svg" alt="" />
+		</div>
+	</a>
+{:else}
+	<div {...api.getRootProps()}>
+		<svg {...api.getFrameProps()}>
+			<path {...api.getPatternProps()}></path>
+		</svg>
+		<div {...api.getOverlayProps()}>
+			<img src="magi-padded.svg" alt="" />
+		</div>
 	</div>
-</a>
+{/if}
 
 <style>
 	[data-part='root'] {

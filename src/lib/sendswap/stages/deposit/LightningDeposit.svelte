@@ -133,14 +133,14 @@
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {
 			result.push({ coin: Coin.sats, network: Network.lightning });
 		}
-	if (
-		result.some((coinOpt) => coinOpt.coin.value === Coin.btc.value) &&
-		result.some((coinOpt) => coinOpt.coin.value === Coin.sats.value)
-	) {
-		result = result.sort((a, b) =>
-			a.coin.value === Coin.sats.value ? -1 : b.coin.value === Coin.sats.value ? 1 : 0
-		);
-	}
+		if (
+			result.some((coinOpt) => coinOpt.coin.value === Coin.btc.value) &&
+			result.some((coinOpt) => coinOpt.coin.value === Coin.sats.value)
+		) {
+			result = result.sort((a, b) =>
+				a.coin.value === Coin.sats.value ? -1 : b.coin.value === Coin.sats.value ? 1 : 0
+			);
+		}
 		return result;
 	});
 

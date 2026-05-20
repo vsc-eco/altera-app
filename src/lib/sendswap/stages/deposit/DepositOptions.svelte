@@ -50,6 +50,10 @@
 		if (!lightningOpen) return;
 		untrack(() => {
 			toggleHiveMainnet(false);
+			const satsCoin = {
+				coin: Coin.sats,
+				networks: [Network.magi]
+			};
 			const btcCoin = swapOptions.from.coins.find(
 				(coinOpt) => coinOpt.coin.value === Coin.btc.value
 			);
@@ -59,8 +63,6 @@
 
 			const hiveCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
 			const hbdCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hbd.value);
-			const satsCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.sats.value);
-
 			let toCoinToUse = satsCoin; // default to Magi SATS
 			if (
 				txState.toCoin &&

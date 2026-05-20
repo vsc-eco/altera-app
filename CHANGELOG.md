@@ -2,17 +2,21 @@
 
 All notable changes to Altera are documented here.
 
-## PROPOSED CHANGES
 
-### Send/Transfer
-- Added SATS as a first-class BTC denomination option in Magi internal transfer flows.
-- Updated transfer UI and review states to consistently show BTC/SATS values across quick send, deposit, withdraw, and confirmation steps.
-- Improved amount-state handling so SATS-based values remain accurate through max-amount, conversion, and submit flows.
+## PROPOSED CHANGES
 
 ### Lightning
 - Added Lightning withdraw support for KeepSats on v4vapp.
-- Fixed Lightning invoice parameter handling to ensure request payloads are formed correctly for withdraw/deposit operations.
+- Added Lightning deposit support for Sats direct via v4vapp.
 
+## [0.3.3] — 2026-05-19
+
+### Security
+- Baseline security response headers added (`hooks.server.ts`): `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (geolocation/microphone/camera off), and a Content-Security-Policy with `frame-ancestors 'none'`, `worker-src 'self'`, and `object-src 'none'` — addresses the missing clickjacking/MIME-sniffing protections (audit APP-08). CSP is intentionally permissive (keeps `'unsafe-inline'`/`'unsafe-eval'` for SvelteKit hydration and the WASM-based Hive signer) so it hardens framing/sniffing without breaking the app
+
+### Infrastructure
+- Multi-node failover: indexer / VSC API / Hive RPC endpoints are health-checked on app open and the freshest node is auto-selected (5-min cache); optional `PUBLIC_INDEXER_NODES` / `PUBLIC_VSC_API_NODES` / `PUBLIC_HIVE_RPC_NODES` runtime overrides, hardcoded fallbacks otherwise
+- Preferences: per-endpoint "Custom" toggle to pin a specific node (off = automatic, shows the auto-selected node)
 
 ## [0.3.2] — 2026-05-18
 

@@ -23,13 +23,15 @@ import {
  * (coin/network/amount wiring is not tested here — only the kind-specific fields.)
  */
 function buildKindFields(txState: TxStateBase) {
+	const carriesFeeFields =
+		txState instanceof WithdrawTxState || txState instanceof TransferTxState
 	return {
 		toUsername: txState.toUsername,
 		fromAmount: txState.fromAmount,
 		memo: txState instanceof TransferTxState ? txState.memo : undefined,
 		minAmountOut: txState instanceof SwapTxState ? txState.minAmountOut : undefined,
-		btcDeductFee: txState.btcDeductFee || undefined,
-		btcMaxFee: txState.btcMaxFee
+		deductFee: carriesFeeFields && txState.deductFee ? txState.deductFee : undefined,
+		maxFee: carriesFeeFields ? txState.maxFee : undefined
 	}
 }
 
@@ -80,15 +82,16 @@ describe('state isolation — two flow instances never share fields', () => {
 		expect(t2.toDisplayName).toBe('')
 	})
 
-	it('DepositTxState and WithdrawTxState do not share btc fields', () => {
-		const deposit = new DepositTxState()
+	it('Withdraw flow fee fields are isolated from other flows', () => {
 		const withdraw = new WithdrawTxState()
+		const swap = new SwapTxState()
 
-		withdraw.btcDeductFee = true
-		withdraw.btcMaxFee = 5000
+		withdraw.deductFee = true
+		withdraw.maxFee = 5000
 
-		expect(deposit.btcDeductFee).toBe(false)
-		expect(deposit.btcMaxFee).toBeUndefined()
+		// Other flows don't even have these fields on their class
+		expect((swap as TxStateBase as { deductFee?: boolean }).deductFee).toBeUndefined()
+		expect((swap as TxStateBase as { maxFee?: number }).maxFee).toBeUndefined()
 	})
 })
 
@@ -104,8 +107,6 @@ describe('default values — each class starts at zero-state', () => {
 		expect(state.toCoin).toBeUndefined()
 		expect(state.fromNetwork).toBeUndefined()
 		expect(state.toNetwork).toBeUndefined()
-		expect(state.btcDeductFee).toBe(false)
-		expect(state.btcMaxFee).toBeUndefined()
 	})
 
 	it('SwapTxState-specific defaults', () => {
@@ -124,6 +125,8 @@ describe('default values — each class starts at zero-state', () => {
 		expect(state.kind).toBe('transfer')
 		expect(state.memo).toBe('')
 		expect(state.toDisplayName).toBe('')
+		expect(state.deductFee).toBe(false)
+		expect(state.maxFee).toBeUndefined()
 	})
 
 	it('DepositTxState-specific defaults', () => {
@@ -136,6 +139,8 @@ describe('default values — each class starts at zero-state', () => {
 		const state = new WithdrawTxState()
 		expect(state.kind).toBe('withdraw')
 		expect(state.fee).toBeUndefined()
+		expect(state.deductFee).toBe(false)
+		expect(state.maxFee).toBeUndefined()
 	})
 })
 
@@ -154,8 +159,8 @@ describe('payload building — kind-specific fields read by send()', () => {
 		expect(payload.fromAmount).toBe('5000')
 		expect(payload.minAmountOut).toBe('4750')
 		expect(payload.memo).toBeUndefined()
-		expect(payload.btcDeductFee).toBeUndefined()
-		expect(payload.btcMaxFee).toBeUndefined()
+		expect(payload.deductFee).toBeUndefined()
+		expect(payload.maxFee).toBeUndefined()
 	})
 
 	it('transfer flow: memo is included, minAmountOut is absent', () => {
@@ -169,48 +174,48 @@ describe('payload building — kind-specific fields read by send()', () => {
 		expect(payload.toUsername).toBe('bob')
 		expect(payload.memo).toBe('for lunch')
 		expect(payload.minAmountOut).toBeUndefined()
-		expect(payload.btcDeductFee).toBeUndefined()
-		expect(payload.btcMaxFee).toBeUndefined()
+		expect(payload.deductFee).toBeUndefined()
+		expect(payload.maxFee).toBeUndefined()
 	})
 
-	it('withdraw flow targeting BTC mainnet: btcDeductFee and btcMaxFee are included', () => {
+	it('withdraw flow targeting BTC mainnet: deductFee and maxFee are included', () => {
 		const state = new WithdrawTxState()
 		state.toUsername = 'bc1qalice'
-		state.btcDeductFee = true
-		state.btcMaxFee = 3000
+		state.deductFee = true
+		state.maxFee = 3000
 
 		const payload = buildKindFields(state)
 
-		expect(payload.btcDeductFee).toBe(true)
-		expect(payload.btcMaxFee).toBe(3000)
+		expect(payload.deductFee).toBe(true)
+		expect(payload.maxFee).toBe(3000)
 		expect(payload.memo).toBeUndefined()
 		expect(payload.minAmountOut).toBeUndefined()
 	})
 
-	it('transfer flow targeting BTC mainnet: btcDeductFee and btcMaxFee also flow through', () => {
+	it('transfer flow targeting BTC mainnet: deductFee and maxFee also flow through', () => {
 		// TransferOptions.svelte renders the BTC fee UI for external BTC transfers.
-		// btcDeductFee/btcMaxFee live on TxStateBase so they pass through
-		// for transfer kind too — previously a bug (kind === 'withdraw' guard
-		// in StepsMachine would have swallowed them).
+		// deductFee/maxFee live on both TransferTxState and WithdrawTxState so
+		// they pass through for transfer kind too — previously a bug (kind ===
+		// 'withdraw' guard in StepsMachine would have swallowed them).
 		const state = new TransferTxState()
 		state.toUsername = 'bc1qbob'
-		state.btcDeductFee = true
-		state.btcMaxFee = 5000
+		state.deductFee = true
+		state.maxFee = 5000
 
 		const payload = buildKindFields(state)
 
-		expect(payload.btcDeductFee).toBe(true)
-		expect(payload.btcMaxFee).toBe(5000)
+		expect(payload.deductFee).toBe(true)
+		expect(payload.maxFee).toBe(5000)
 	})
 
-	it('btcDeductFee=false collapses to undefined in payload (no-op for contract)', () => {
+	it('deductFee=false collapses to undefined in payload (no-op for contract)', () => {
 		const state = new WithdrawTxState()
-		state.btcDeductFee = false
+		state.deductFee = false
 
 		const payload = buildKindFields(state)
 
 		// false || undefined = undefined — the contract receives no deduct_fee flag
-		expect(payload.btcDeductFee).toBeUndefined()
+		expect(payload.deductFee).toBeUndefined()
 	})
 
 	it('deposit flow: no memo, no minAmountOut, no btc fields', () => {
@@ -223,8 +228,8 @@ describe('payload building — kind-specific fields read by send()', () => {
 		expect(payload.toUsername).toBe('carol')
 		expect(payload.memo).toBeUndefined()
 		expect(payload.minAmountOut).toBeUndefined()
-		expect(payload.btcDeductFee).toBeUndefined()
-		expect(payload.btcMaxFee).toBeUndefined()
+		expect(payload.deductFee).toBeUndefined()
+		expect(payload.maxFee).toBeUndefined()
 	})
 })
 

@@ -70,8 +70,8 @@
 	// Sync deductFee and maxFee into state
 	$effect(() => {
 		const maxFee = maxFeeRaw ? parseInt(maxFeeRaw) : undefined;
-		txState.btcDeductFee = deductFee;
-		txState.btcMaxFee = maxFee !== undefined && !isNaN(maxFee) ? maxFee : undefined;
+		txState.deductFee = deductFee;
+		txState.maxFee = maxFee !== undefined && !isNaN(maxFee) ? maxFee : undefined;
 	});
 
 	let max = $state(new CoinAmount(0, Coin.btc));

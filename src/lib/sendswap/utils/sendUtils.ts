@@ -11,7 +11,7 @@ import swapOptions, {
 	type CoinOptions,
 	type IntermediaryNetwork
 } from './sendOptions';
-import { type TxState, SwapTxState, TransferTxState } from './txState.svelte';
+import { type TxState, SwapTxState, TransferTxState, WithdrawTxState } from './txState.svelte';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
 import { getHiveSwapOp, getBtcApproveOp } from '$lib/magiTransactions/hive/vscOperations/swap';
@@ -775,9 +775,15 @@ export async function send(
 			toCoin.coin.value === Coin.btc.value &&
 			toNetwork.value === Network.btcMainnet.value
 		) {
-			// BTC unmap — pass deduct_fee and max_fee from txState
+			// BTC unmap — pass deduct_fee and max_fee from txState.
+			// Both Withdraw and Transfer flows can target BTC mainnet, so we
+			// read the network-fee fields off either flow's subclass.
 			opType = 'withdrawal';
 			setStatus('Waiting for Hive wallet approval…');
+			const carriesFeeFields =
+				details instanceof WithdrawTxState || details instanceof TransferTxState;
+			const deductFee = carriesFeeFields ? details.deductFee : false;
+			const maxFee = carriesFeeFields ? details.maxFee : undefined;
 			const { getBitcoinUnmapOp: getUnmapOp } =
 				await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
 			sendOp = getUnmapOp(
@@ -785,8 +791,8 @@ export async function send(
 				auth.value.did,
 				toUsername,
 				new CoinAmount(amount, toCoin.coin),
-				details.btcDeductFee || undefined,
-				details.btcMaxFee
+				deductFee || undefined,
+				maxFee
 			);
 		} else {
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);

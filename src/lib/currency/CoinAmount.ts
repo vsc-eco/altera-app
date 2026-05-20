@@ -149,4 +149,7 @@ declare global {
 	// eslint-disable-next-line no-var
 	var coins: typeof Coin;
 }
-globalThis.ca = CoinAmount;
+// APP-17: only expose internals on globalThis in development builds.
+if (import.meta.env.DEV) {
+	globalThis.ca = CoinAmount;
+}

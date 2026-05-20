@@ -172,13 +172,33 @@
 	let inUsd = $state('');
 	let max: CoinAmount<Coin> | undefined = $state();
 
+	// True when the selected from-asset is BTC on the Magi network so we know
+	// to offer SATS as an alternate denomination and sync max accordingly.
+	const isBtcOnMagi = $derived(
+		txState.fromCoin?.coin.value === Coin.btc.value &&
+			txState.fromNetwork?.value === Network.magi.value
+	);
+
 	$effect(() => {
-		if (txState.fromAmount !== inputAmt.toAmountString()) {
-			txState.fromAmount = inputAmt.toAmountString();
+		const fromCoin = txState.fromCoin?.coin;
+		let amountStr: string;
+		// SATS and BTC share the same raw integer unit — rewrap in BTC denomination
+		// before storing so the transaction builder always receives a BTC-format string.
+		if (fromCoin && fromCoin.value === Coin.btc.value && inputAmt.coin.value === Coin.sats.value) {
+			amountStr = new CoinAmount(inputAmt.amount, fromCoin, true).toAmountString();
+		} else {
+			amountStr = inputAmt.toAmountString();
 		}
-		if (txState.toAmount !== inputAmt.toAmountString()) {
-			txState.toAmount = inputAmt.toAmountString();
-		}
+		if (txState.fromAmount !== amountStr) txState.fromAmount = amountStr;
+		if (txState.toAmount !== amountStr) txState.toAmount = amountStr;
+	});
+
+	// Keep max in the currently-selected coin so AmountInput's Max button and
+	// balance display stay visible for both SATS and BTC on Magi.
+	$effect(() => {
+		if (!isBtcOnMagi || inputAmt.coin.value === Coin.unk.value) return;
+		const balance = getBalanceAmount($accountBalance, txState.fromCoin!.coin, txState.fromNetwork!);
+		max = new CoinAmount(balance.amount, inputAmt.coin, true);
 	});
 
 	let toSelf = $derived(
@@ -218,8 +238,8 @@
 				txState.fromCoin &&
 				txState.fromNetwork
 			) {
-				transferError = `Cannot transfer ${txState.fromCoin.coin.label} 
-					from ${txState.fromNetwork.label} 
+				transferError = `Cannot transfer ${txState.fromCoin.coin.label}
+					from ${txState.fromNetwork.label}
 					to ${txState.toDisplayName}.`;
 			} else {
 				transferError = '';
@@ -326,11 +346,20 @@
 	let memo = $state('');
 	let inputId = $state('');
 
-	const coinOpts: CoinOnNetwork[] = $derived(
-		txState.fromCoin && txState.fromNetwork
-			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
-			: [{ coin: Coin.unk, network: Network.unknown }]
-	);
+	const coinOpts: CoinOnNetwork[] = $derived.by(() => {
+		if (!txState.fromCoin || !txState.fromNetwork) {
+			return [{ coin: Coin.unk, network: Network.unknown }];
+		}
+		const base: CoinOnNetwork[] = [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }];
+		// Offer SATS as an alternate denomination alongside BTC on Magi
+		if (isBtcOnMagi) {
+			base.push({ coin: Coin.sats, network: Network.magi });
+			base.sort((a, b) =>
+				a.coin.value === Coin.sats.value ? -1 : b.coin.value === Coin.sats.value ? 1 : 0
+			);
+		}
+		return base;
+	});
 
 	const coinsWithBalance = $derived.by(() => {
 		const result: Array<{ coin: Coin; coinOpt: CoinOptions['coins'][number] }> = [];
@@ -410,7 +439,7 @@
 			<AmountInput
 				bind:coinAmount={inputAmt}
 				{coinOpts}
-				expressIn={txState.fromCoin?.coin}
+				expressIn={isBtcOnMagi ? undefined : txState.fromCoin?.coin}
 				maxAmount={max}
 				bind:id={inputId}
 			/>

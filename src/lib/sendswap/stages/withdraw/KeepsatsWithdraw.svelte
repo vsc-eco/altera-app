@@ -1,38 +1,27 @@
 <script lang="ts">
-	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import PillButton from '$lib/PillButton.svelte';
-	import SelectAssetFlattened from '$lib/sendswap/components/assetSelection/SelectAssetFlattened.svelte';
-	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
 	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { getFee } from '$lib/sendswap/utils/sendUtils';
-	import { useDepositState } from '$lib/sendswap/utils/txState.svelte';
-	import { ArrowLeft, Coins } from '@lucide/svelte';
+	import { useWithdrawState } from '$lib/sendswap/utils/txState.svelte';
+	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import { untrack } from 'svelte';
 
-	let {
-		editStage,
-		open,
-		secondaryMenu = $bindable()
-	}: { editStage: (add: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
+	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
 
-	const txState = useDepositState();
+	const txState = useWithdrawState();
 
 	let coinAmount: CoinAmount<Coin> = $state(new CoinAmount(0, Coin.unk));
 	let inputId = $state('');
 
-	// Derived primitives from state — only change when the actual values change,
-	// preventing effects from re-running on every unrelated state mutation
+	// Derived primitives from state
 	const _fromCoinValue = $derived(txState.fromCoin?.coin?.value);
 	const _toCoinValue = $derived(txState.toCoin?.coin?.value);
 	const _fromNetwork = $derived(txState.fromNetwork?.value);
 	const _toNetwork = $derived(txState.toNetwork?.value);
-	// Track toAmount so validation blocks Review until async conversion completes
 	const _toAmount = $derived(txState.toAmount);
 
-	// Sync coinAmount → fromAmount, toAmount, fee atomically
-	// Single effect to avoid race conditions between separate from/to effects
+	// Sync coinAmount → fromAmount, toAmount, fee atomically (following LightningDeposit pattern)
 	$effect(() => {
 		if (!open) return;
 		const fromCoinVal = _fromCoinValue;
@@ -66,6 +55,7 @@
 				if (amt !== txState.toAmount) {
 					txState.toAmount = amt;
 				}
+				// Calculate fee based on toAmount
 				getFee(amt, txState).then((fee) => {
 					if (
 						fee?.amount !== txState.fee?.amount ||
@@ -82,7 +72,7 @@
 						if (txState.toAmount !== convertedAmt) {
 							txState.toAmount = convertedAmt;
 						}
-						// Compute fee based on converted toAmount
+						// Calculate fee based on converted toAmount
 						getFee(convertedAmt, txState).then((fee) => {
 							if (
 								fee?.amount !== txState.fee?.amount ||
@@ -96,8 +86,20 @@
 		});
 	});
 
-	// Validation — only re-runs when coin/network presence, coinAmount, or toAmount changes
-	// Requires toAmount to be non-zero so Review is blocked until async conversion completes
+	// Get max balance — always in the currently-selected coin so AmountInput shows
+	// the balance label and Max button regardless of which coin is active.
+	let max = $state(new CoinAmount(0, Coin.sats));
+
+	$effect(() => {
+		if (!open || !txState.fromCoin || !txState.fromNetwork) return;
+		const isSats = coinAmount.coin.value === Coin.sats.value;
+		const balance = getBalanceAmount($accountBalance, txState.fromCoin.coin, txState.fromNetwork);
+		max = isSats
+			? new CoinAmount(balance.amount, Coin.sats, true)
+			: new CoinAmount(balance.amount, Coin.btc, true);
+	});
+
+	// Validation
 	$effect(() => {
 		if (!open) return;
 		const hasCoins = !!_fromCoinValue && !!_toCoinValue;
@@ -113,10 +115,9 @@
 		});
 	});
 
-	// Coin options derived — uses primitives so it only recalculates when coins/networks actually change
+	// Coin options: BTC and SATS, with SATS sorted first (default)
 	const coinOptions: CoinOnNetwork[] = $derived.by(() => {
 		let result: CoinOnNetwork[] = [];
-		// Read derived primitives to track only actual value changes
 		const fCoin = _fromCoinValue;
 		const fNet = _fromNetwork;
 		if (fCoin && fNet && txState.fromCoin && txState.fromNetwork) {
@@ -126,8 +127,9 @@
 			});
 		}
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {
-			result.push({ coin: Coin.sats, network: Network.lightning });
+			result.push({ coin: Coin.sats, network: Network.magi });
 		}
+		// Sort so SATS appears first (default selection)
 		if (
 			result.some((coinOpt) => coinOpt.coin.value === Coin.btc.value) &&
 			result.some((coinOpt) => coinOpt.coin.value === Coin.sats.value)
@@ -139,62 +141,41 @@
 		return result;
 	});
 
-	let assetOpen = $state(false);
-	const toggleAsset = (open = false) => {
-		assetOpen = open;
-	};
+	// Initialize coinAmount to SATS by default
 	$effect(() => {
-		secondaryMenu = assetOpen;
+		if (coinAmount.coin.value === Coin.unk.value && coinOptions.length > 0) {
+			const defaultCoin = coinOptions[0].coin;
+			coinAmount = new CoinAmount(0, defaultCoin);
+		}
 	});
 </script>
 
-{#if assetOpen}
-	<div class="back-button">
-		<PillButton onclick={() => toggleAsset()} styleType="icon-subtle">
-			<ArrowLeft size="32" />
-		</PillButton>
-	</div>
-	<SelectAssetFlattened
-		availableCoins={[Coin.hive, Coin.hbd, Coin.sats]}
-		close={toggleAsset}
-		bind:coin={txState.toCoin}
-		bind:network={txState.toNetwork}
-		isTo
-	/>
-{/if}
-<div class={['sections', { hide: assetOpen }]}>
-	<div class="deposit section">
-		<label for="asset-card">Deposit To</label>
-		<ClickableCard onclick={() => toggleAsset(true)}>
-			<div class="asset-card">
-				{#if txState.toCoin && txState.toNetwork}
-					<BalanceInfo
-						coin={txState.toCoin.coin}
-						network={txState.toNetwork}
-						size="large"
-						styleType="vertical"
-					/>
-					<!-- <AssetInfo coinOpt={txState.fromCoin} size="medium" /> -->
-				{:else}
-					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-					Select Destination Account
-				{/if}
-				<span class="edit"> Edit </span>
-			</div>
-		</ClickableCard>
-	</div>
+<div class="sections">
 	<div class="section">
-		<label for={inputId}>Amount</label>
+		<div class="amount-header">
+			<label for={inputId}>Amount</label>
+		</div>
 		<div class="amount-row">
 			<div class="amount-input">
 				<AmountInput
 					bind:coinAmount
 					coinOpts={coinOptions}
+					maxAmount={max}
 					bind:id={inputId}
-					minAmount={new CoinAmount(250, Coin.sats)}
 				/>
 			</div>
 		</div>
+	</div>
+	<div class="section fee-display">
+		<label for="fee-display-info">Estimated Fee</label>
+		<div id="fee-display-info" class="fee-info">
+			{#if txState.fee}
+				<span class="fee-amount">{txState.fee.toPrettyAmountString()} {txState.fee.coin.unit}</span>
+			{:else}
+				<span class="fee-loading">…</span>
+			{/if}
+		</div>
+		<span class="hint">V4V Gateway fee based on conversion rate</span>
 	</div>
 </div>
 
@@ -203,9 +184,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
-		&.hide {
-			display: none;
-		}
+	}
+	.amount-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.5rem;
 	}
 	.amount-row {
 		display: flex;
@@ -216,13 +200,30 @@
 			height: 65px;
 		}
 	}
-	.asset-card {
+	.fee-display {
 		display: flex;
-		align-items: center;
-		gap: 1.5rem;
-		padding: 0.5rem;
-		.edit {
-			margin-left: auto;
+		flex-direction: column;
+		gap: 0.5rem;
+		.fee-info {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+			padding: 0.75rem 1rem;
+			background: var(--card-bg, transparent);
+			border: 1px solid var(--border-color, #444);
+			border-radius: 8px;
+			min-height: 3rem;
+			.fee-amount {
+				font-size: 1rem;
+				font-weight: 500;
+			}
+			.fee-loading {
+				opacity: 0.5;
+			}
 		}
+	}
+	.hint {
+		font-size: 0.875rem;
+		opacity: 0.7;
 	}
 </style>

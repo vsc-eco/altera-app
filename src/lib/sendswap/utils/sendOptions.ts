@@ -150,13 +150,14 @@ const lightning: IntermediaryNetwork = {
 	icon: '/btc/lightning.svg',
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		const meta = await getV4VMetadata();
-		return (await input.convertTo(Coin.sats, Network.lightning))
-			.mul(
-				// meta.config.conv_fee_percent +
-				meta.config.v4v_fees_streaming_sats_to_hive_percent
-			)
-			.add(new CoinAmount(meta.config.conv_fee_sats, Coin.sats))
-			.convertTo(outputCoin, Network.lightning);
+		const amt = await input.convertTo(Coin.sats, Network.lightning);
+		const feeInSats = amt
+			.mul(meta.config.conv_fee_percent)
+			.add(new CoinAmount(meta.config.conv_fee_sats, Coin.sats));
+		if (outputCoin.value === Coin.sats.value) {
+			return feeInSats;
+		}
+		return feeInSats.convertTo(outputCoin, Network.lightning);
 	}
 };
 
@@ -203,7 +204,7 @@ export const TransferMethod = {
 };
 
 export const networkMap: Map<string, Coin[]> = new Map([
-	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc]],
+	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc, Coin.sats]],
 	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
 	[Network.lightning.value, [Coin.btc]]
 ]);
@@ -231,4 +232,7 @@ const swapOptions: {
 
 export default swapOptions;
 
-globalThis.coins = Coin;
+// APP-17: only expose internals on globalThis in development builds.
+if (import.meta.env.DEV) {
+	globalThis.coins = Coin;
+}

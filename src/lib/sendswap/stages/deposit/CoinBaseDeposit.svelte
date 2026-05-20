@@ -40,11 +40,13 @@
 				amount: coinAmount.toAmountString()
 			});
 
-			if (response.data.onrampUrl) {
-				window.location.href = response.data.onrampUrl;
+			// APP-11: only navigate to a trusted Coinbase onramp URL.
+			const onrampUrl = response.data.onrampUrl;
+			if (typeof onrampUrl === 'string' && onrampUrl.startsWith('https://pay.coinbase.com/')) {
+				window.location.href = onrampUrl;
 			} else {
 				isPurchasing = false;
-				console.error('No onramp URL received');
+				console.error('No valid onramp URL received');
 			}
 		} catch (error) {
 			isPurchasing = false;

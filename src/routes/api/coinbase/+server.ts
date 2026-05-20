@@ -1,124 +1,17 @@
-import axios from 'axios';
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { generateJwt } from '@coinbase/cdp-sdk/auth';
-import { COINBASE_ID, COINBASE_PRIVATE_KEY, ALTERA_ORIGIN } from '$env/static/private';
-import { currentUserBtcDepositAddress } from '$lib/sendswap/utils/bitcoinAddress';
 
-export interface CoinbaseOnramp {
-	session: Session;
-	quote: Quote;
-}
+// APP-01: The Coinbase onramp is disabled.
+//
+// The previous implementation fell back to a hardcoded developer BTC wallet
+// (`bc1qqdg2720lvh3l0ydjaw6smqffm76yag59jlsh8v`) because per-user deposit
+// address derivation is not yet available (empty PUBLICKEY, see APP-02).
+// Any user completing a purchase would have sent funds to that single wallet
+// (real fund-loss path). It also performed an unvalidated client-IP geo
+// lookup (APP-07). The entire onramp handler — including the hardcoded
+// wallet and the geo lookup — has been removed until proper per-user
+// derivation is restored. Re-enabling requires reinstating
+// `currentUserBtcDepositAddress(did)` with a real contract pubkey.
 
-export interface Quote {
-	paymentTotal: string;
-	paymentSubtotal: string;
-	paymentCurrency: string;
-	purchaseAmount: string;
-	purchaseCurrency: string;
-	destinationNetwork: string;
-	fees: Fee[];
-	exchangeRate: string;
-}
-
-export interface Fee {
-	type: string;
-	amount: string;
-	currency: string;
-}
-
-export interface Session {
-	onrampUrl: string;
-}
-
-const COINBASE_SESSION_EXPIRY_TIME = 30; // 30 seconds
-
-async function getGeoFromIp(
-	ip: string | null
-): Promise<{ country?: string; subdivision?: string }> {
-	if (!ip) return {};
-
-	try {
-		const { data } = await axios.get(`https://ipapi.co/${ip}/json/`);
-		const country = typeof data.country_code === 'string' ? data.country_code : undefined;
-		const subdivision = typeof data.region_code === 'string' ? data.region_code : undefined;
-
-		return { country, subdivision };
-	} catch (error) {
-		console.error('Failed to resolve geo from IP', error);
-		return {};
-	}
-}
-
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
-	const responseHeader: HeadersInit = {
-		'Cache-Control': 'no-cache',
-		'Access-Control-Allow-Origin': ALTERA_ORIGIN,
-		'Access-Control-Allow-Methods': 'POST, OPTIONS'
-	};
-
-	const requestOrigin = request.headers.get('origin');
-	if (requestOrigin === null || requestOrigin.toLowerCase() !== ALTERA_ORIGIN) {
-		return new Response('CORS failed', { status: 403, headers: responseHeader });
-	}
-
-	const requestBody = await request.json();
-	if (!requestBody.did || !requestBody.amount) {
-		return json({ error: 'invalid request' }, { status: 400, headers: responseHeader });
-	}
-
-	const { did, amount } = requestBody;
-
-	const paymentAmount = Number(amount);
-	if (isNaN(paymentAmount)) {
-		return json({ error: 'invalid fiat amount' }, { status: 400, headers: responseHeader });
-	}
-
-	// const walletAddr = currentUserBtcDepositAddress(did);
-	// temporary (my wallet address) until Coinbase approval
-	const walletAddr = 'bc1qqdg2720lvh3l0ydjaw6smqffm76yag59jlsh8v';
-	const clientIp = getClientAddress();
-
-	const { country, subdivision } = await getGeoFromIp(clientIp);
-
-	try {
-		const jwtToken = await generateJwt({
-			apiKeyId: COINBASE_ID,
-			apiKeySecret: COINBASE_PRIVATE_KEY,
-			requestMethod: 'POST',
-			requestHost: 'api.cdp.coinbase.com',
-			requestPath: '/platform/v2/onramp/sessions',
-			expiresIn: COINBASE_SESSION_EXPIRY_TIME
-		});
-
-		const request = await axios.post<CoinbaseOnramp>(
-			'https://api.cdp.coinbase.com/platform/v2/onramp/sessions',
-			{
-				destinationAddress: walletAddr,
-				purchaseCurrency: 'BTC',
-				destinationNetwork: 'bitcoin',
-				paymentAmount: paymentAmount.toString(),
-				paymentCurrency: 'USD',
-				paymentMethod: 'CARD',
-				country: country ?? 'US',
-				subdivision: subdivision ?? 'NY',
-				clientIp: clientIp,
-				redirectUrl: 'https://altera.magi.eco/' // TODO: create a custom url for purcase receipt
-			},
-			{
-				headers: {
-					Authorization: `Bearer ${jwtToken}`,
-					'Content-Type': 'application/json'
-				}
-			}
-		);
-
-		return json(
-			{ onrampUrl: request.data.session.onrampUrl },
-			{ status: 200, headers: responseHeader }
-		);
-	} catch (error) {
-		console.error(error);
-		return json({ error: 'Something went wrong.' }, { status: 500, headers: responseHeader });
-	}
+export const POST: RequestHandler = async () => {
+	return new Response('Coinbase onramp disabled', { status: 503 });
 };

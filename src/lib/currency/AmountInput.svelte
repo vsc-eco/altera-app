@@ -183,6 +183,10 @@
 	});
 	function updateAmount(newCoin: Coin) {
 		if (lastModification.toNumber() === 0) {
+			// Still propagate the coin change so parent bindings (and their derived
+			// max/validation effects) see the new selection even when amount is 0.
+			coinAmount = new CoinAmount(0, newCoin);
+			lastModification = coinAmount;
 			return;
 		}
 		coinChangeUpdateGuard = true;

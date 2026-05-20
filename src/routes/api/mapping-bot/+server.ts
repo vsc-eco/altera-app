@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
 // The mapping bot runs outside our infra and has no CORS headers,
@@ -10,7 +11,14 @@ export const prerender = false;
 const MAPPING_BOT_MAINNET = 'https://btc.magi.milohpr.com';
 const MAPPING_BOT_TESTNET = 'https://btc.testnet.magi.milohpr.com';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, url }) => {
+	// APP-05: reject cross-origin callers — this is an internal same-origin proxy.
+	const allowedOrigin = (env.ALTERA_ORIGIN || url.origin).toLowerCase();
+	const reqOrigin = request.headers.get('origin');
+	if (reqOrigin === null || reqOrigin.toLowerCase() !== allowedOrigin) {
+		throw error(403, 'forbidden');
+	}
+
 	let body: { instruction?: unknown; network?: unknown };
 	try {
 		body = await request.json();
@@ -23,7 +31,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		throw error(400, 'instruction required');
 	}
 
-	const network = body.network === 'testnet' ? 'testnet' : 'mainnet';
+	// APP-05: require an explicit, valid network — no silent mainnet default.
+	if (body.network !== 'testnet' && body.network !== 'mainnet') {
+		throw error(400, "network must be 'testnet' or 'mainnet'");
+	}
+	const network = body.network;
 	const upstream = network === 'testnet' ? MAPPING_BOT_TESTNET : MAPPING_BOT_MAINNET;
 
 	const res = await fetch(upstream, {

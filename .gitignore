@@ -26,4 +26,3 @@ vite.config.ts.timestamp-*
 
 # VSCode
 .vscode/settings.json
-src/lib/auth/store-local-logged-in.ts

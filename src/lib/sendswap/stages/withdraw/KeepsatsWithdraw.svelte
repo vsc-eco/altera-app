@@ -33,11 +33,6 @@
 		untrack(() => {
 			if (!txState.fromCoin) return;
 
-			// Always preserve the raw user input as enteredAmount
-			if (amt !== txState.enteredAmount) {
-				txState.enteredAmount = amt;
-			}
-
 			// Compute fromAmount
 			if (coinVal === fromCoinVal) {
 				if (amt !== txState.fromAmount) {

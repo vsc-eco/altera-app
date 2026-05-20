@@ -41,7 +41,6 @@
 		lastSyncedAmt = amt;
 		txState.fromAmount = amt;
 		txState.toAmount = amt;
-		txState.enteredAmount = amt;
 	});
 
 	let max = $state(new CoinAmount(0, Coin.hive));

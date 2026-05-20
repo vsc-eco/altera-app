@@ -9,23 +9,19 @@ export class TxStateBase {
 	fromCoin: CoinOptions['coins'][number] | undefined = $state(undefined);
 	fromNetwork: Network | undefined = $state(undefined);
 	fromAmount: string = $state('0');
-	enteredAmount: string = $state('0');
 	toCoin: CoinOptions['coins'][number] | undefined = $state(undefined);
 	toNetwork: Network | undefined = $state(undefined);
 	toAmount: string = $state('0');
 	toUsername: string = $state('');
-	fee: CoinAmount<Coin> | undefined = $state(undefined);
 	method: TransferMethod | undefined = $state(undefined);
-	/** Whether to deduct the BTC network fee from the output (BTC unmap flows). */
-	btcDeductFee: boolean = $state(false);
-	/** Sat cap on the BTC network fee (BTC unmap flows). */
-	btcMaxFee: number | undefined = $state(undefined);
 }
 
 // ─── Swap (QuickSwap card, /swap page) ───────────────────────────────────────
 
 export class SwapTxState extends TxStateBase {
 	readonly kind = 'swap' as const;
+	/** Cross-chain bridge fee for the swap (Lightning gateway, etc). */
+	fee: CoinAmount<Coin> | undefined = $state(undefined);
 	expectedOutput: string | undefined = $state(undefined);
 	slippageBps: number | undefined = $state(100);
 	minAmountOut: string | undefined = $state(undefined);
@@ -42,18 +38,30 @@ export class TransferTxState extends TxStateBase {
 	readonly kind = 'transfer' as const;
 	toDisplayName: string = $state('');
 	memo: string = $state('');
+	/** Whether to deduct the network fee from the output (e.g. BTC unmap via transfer). */
+	deductFee: boolean = $state(false);
+	/** Cap on the network fee in the source coin's smallest units. */
+	maxFee: number | undefined = $state(undefined);
 }
 
 // ─── Deposit (L1 → Magi) ─────────────────────────────────────────────────────
 
 export class DepositTxState extends TxStateBase {
 	readonly kind = 'deposit' as const;
+	/** Gateway fee for the deposit (Lightning, BTC mapping, etc). */
+	fee: CoinAmount<Coin> | undefined = $state(undefined);
 }
 
 // ─── Withdraw (Magi → L1) ────────────────────────────────────────────────────
 
 export class WithdrawTxState extends TxStateBase {
 	readonly kind = 'withdraw' as const;
+	/** Gateway fee for the withdrawal (Lightning, BTC unmap, etc). */
+	fee: CoinAmount<Coin> | undefined = $state(undefined);
+	/** Whether to deduct the network fee from the output (BTC unmap flow). */
+	deductFee: boolean = $state(false);
+	/** Cap on the network fee in the source coin's smallest units. */
+	maxFee: number | undefined = $state(undefined);
 }
 
 // ─── Union & context ─────────────────────────────────────────────────────────

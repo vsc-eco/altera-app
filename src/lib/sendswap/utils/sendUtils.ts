@@ -5,13 +5,12 @@ import swapOptions, {
 	Coin,
 	Network,
 	networkMap,
-	SendAccount,
 	TransferMethod,
 	type CoinOnNetwork,
 	type CoinOptions,
 	type IntermediaryNetwork
 } from './sendOptions';
-import { type TxState, SwapTxState, TransferTxState } from './txState.svelte';
+import { type TxState, SwapTxState, TransferTxState, WithdrawTxState } from './txState.svelte';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer';
@@ -367,36 +366,6 @@ export async function getFee(toAmount: string, state: TxStateBase) {
 	}
 }
 
-type AccsNetsPair =
-	| {
-			accounts: SendAccount[];
-			networks?: Network[];
-	  }
-	| undefined;
-
-export function getFromOptions(
-	method: TransferMethod | undefined,
-	did: string | undefined
-): AccsNetsPair {
-	if (!method || !did) {
-		return;
-	}
-	if (method.value === TransferMethod.magiTransfer.value) {
-		const result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
-		if (did.startsWith('hive:')) {
-			result.accounts.push(SendAccount.deposit);
-			result.networks = [Network.hiveMainnet];
-		}
-		return result;
-	} else if (method.value === TransferMethod.lightningTransfer.value) {
-		return {
-			accounts: [SendAccount.swap],
-			networks: [Network.lightning]
-		};
-	}
-	return;
-}
-
 type CoinOptList = CoinOptions['coins'][number];
 export interface CoinOptionParam extends CoinOptList {
 	disabled?: boolean;
@@ -406,23 +375,19 @@ export interface NetworkOptionParam extends Network {
 	disabled?: boolean;
 	disabledMemo?: string;
 }
-export interface AccountOptionParam extends SendAccount {
-	disabled?: boolean;
-	disabledMemo?: string;
-}
 
 type Constraints = {
 	assetOptions: CoinOptionParam[];
 	networkOptions: NetworkOptionParam[];
 };
 
-export function optionsEqual<T>(
-	a: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[],
-	b: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[]
+export function optionsEqual(
+	a: (CoinOptionParam | NetworkOptionParam)[],
+	b: (CoinOptionParam | NetworkOptionParam)[]
 ): boolean {
 	if (a.length !== b.length) return false;
 
-	const getValue = (item: CoinOptionParam | AccountOptionParam | NetworkOptionParam) =>
+	const getValue = (item: CoinOptionParam | NetworkOptionParam) =>
 		'coin' in item ? item.coin.value : item.value;
 
 	return a.every(
@@ -612,16 +577,11 @@ export async function send(
 	const toCoin = details.toCoin!;
 	const toNetwork = details.toNetwork!;
 	const toUsername = details.toUsername;
-	// Resolve send amount — toAmount may lag on deposit/withdraw due to effect timing
+	// Resolve send amount — toAmount may lag on deposit/withdraw due to effect timing,
+	// fall back to fromAmount which is always set by the stage components.
 	const raw = details.toAmount;
 	const amount =
-		raw && raw !== '0'
-			? raw
-			: details.fromAmount && details.fromAmount !== '0'
-				? details.fromAmount
-				: details.enteredAmount && details.enteredAmount !== '0'
-					? details.enteredAmount
-					: raw;
+		raw && raw !== '0' ? raw : details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : raw;
 	if (intermediary == Network.magi) {
 		// console.log('intermediary network is Magi');
 		if (auth.value?.provider == 'reown') {
@@ -781,9 +741,15 @@ export async function send(
 			toCoin.coin.value === Coin.btc.value &&
 			toNetwork.value === Network.btcMainnet.value
 		) {
-			// BTC unmap — pass deduct_fee and max_fee from txState
+			// BTC unmap — pass deduct_fee and max_fee from txState.
+			// Both Withdraw and Transfer flows can target BTC mainnet, so we
+			// read the network-fee fields off either flow's subclass.
 			opType = 'withdrawal';
 			setStatus('Waiting for Hive wallet approval…');
+			const carriesFeeFields =
+				details instanceof WithdrawTxState || details instanceof TransferTxState;
+			const deductFee = carriesFeeFields ? details.deductFee : false;
+			const maxFee = carriesFeeFields ? details.maxFee : undefined;
 			const { getBitcoinUnmapOp: getUnmapOp } =
 				await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
 			sendOp = getUnmapOp(
@@ -791,8 +757,8 @@ export async function send(
 				auth.value.did,
 				toUsername,
 				new CoinAmount(amount, toCoin.coin),
-				details.btcDeductFee || undefined,
-				details.btcMaxFee
+				deductFee || undefined,
+				maxFee
 			);
 		} else {
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);

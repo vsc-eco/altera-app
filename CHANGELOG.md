@@ -2,12 +2,32 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.5] — 2026-05-20
 
-## PROPOSED CHANGES
+### Swap (QuickSwap dashboard card)
+- Detail rows now spread vertically with `flex: 1` + `space-evenly` so the area between slippage and the Swap button doesn't sit half-empty
+- "Min amount received" and "Price impact" are always visible — show `—` placeholder until the pool calc resolves, instead of popping in and out and shifting layout
+- Cleared FROM amount now correctly empties the TO field (was leaving the stale converted value behind because `expectedOutput` wasn't being reset in early-return branches of the swap calc)
+- Empty TO field renders the grey placeholder instead of literal "0" after clearing FROM
+
+### Infrastructure
+- Balance-history GraphQL query batched into chunks of 12 aliases (84 field selections) with bounded concurrency of 4 parallel requests — satisfies the indexer's new 100-selection cap (security hardening on the backend) and avoids flooding the browser's per-origin connection pool on 365-day ranges
+
+### Fixes
+- Portfolio chart default range: dropdown label and graph data now agree on "Last 7 Days" at first load (previously the dropdown said 7 days while the data was for 30)
+
+### Internals (TX state cleanup pass 2)
+- Removed redundant `enteredAmount` fallback from `TxStateBase` — relied-upon comment admitted it was in the wrong denomination across coins; consumers now use `fromAmount`/`toAmount` with proper conversion
+- Moved `fee` field from `TxStateBase` to the per-flow subclasses that actually carry one (`SwapTxState`, `DepositTxState`, `WithdrawTxState` — not `TransferTxState`)
+- Generalized `btcDeductFee` / `btcMaxFee` (now `deductFee` / `maxFee`) and moved them off the base class to `WithdrawTxState` + `TransferTxState` only — `sendUtils` reads them via `instanceof` narrowing
+- Pruned dead exports from `sendOptions` (`SendAccount` type + 3 constants, `CoinOptions.default`, `TransferMethod.fees`, commented-out network variants) and `sendUtils` (`getFromOptions`, `AccountOptionParam`)
+- Deleted orphan `AccountInfo.svelte` (no imports remained)
+
+## [0.3.4] — 2026-05-20
 
 ### Lightning
-- Added Lightning withdraw support for KeepSats on v4vapp.
-- Added Lightning deposit support for Sats direct via v4vapp.
+- Added Lightning withdraw support for KeepSats on v4vapp
+- Added Lightning deposit support for Sats direct via v4vapp
 
 ## [0.3.3] — 2026-05-19
 

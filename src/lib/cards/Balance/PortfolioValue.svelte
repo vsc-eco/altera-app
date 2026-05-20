@@ -64,7 +64,9 @@
 			end: moment().toDate()
 		}
 	];
-	let selectedDateRange = $state(dateRanges[1]);
+	// Default range must match Date.svelte's `initial` (dateRanges[0]) so the
+	// dropdown label and the plotted data don't disagree on first load.
+	let selectedDateRange = $state(dateRanges[0]);
 	let hourly = $derived(moment(selectedDateRange.end).diff(selectedDateRange.start, 'day') < 14);
 	let interval = $derived(hourly ? moment.duration(1, 'hour') : moment.duration(1, 'day'));
 	// Mock data for visual demo — not used automatically

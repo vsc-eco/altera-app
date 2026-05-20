@@ -8,11 +8,20 @@ export const FALLBACK_INDEXER_NODES = [
 	'https://indexer.magi.milohpr.com'
 ];
 export const FALLBACK_VSC_API_NODES = ['https://api.vsc.eco', 'https://vsc.techcoderx.com'];
+// Dropped previously-listed nodes that are unreachable from the browser:
+//   - techcoderx.com:    Hive node registry shows 0% uptime, no CORS
+//   - api.deathwing.me:  recently returning 503, no CORS for our origin
+// Both polluted the browser console with CORS errors on every probe. Kept
+// only nodes with a recent track record of liveness (>= 97% per the public
+// Hive node registry). First node is what the resolver falls back to when
+// browser probes fail (which is currently always — Hive RPCs don't expose
+// CORS for our origin). Users can still override via PUBLIC_HIVE_RPC_NODES.
 export const FALLBACK_HIVE_RPC_NODES = [
 	'https://api.hive.blog',
 	'https://api.openhive.network',
-	'https://techcoderx.com',
-	'https://api.deathwing.me'
+	'https://api.c0ff33a.uk',
+	'https://hapi.ecency.com',
+	'https://api.syncad.com'
 ];
 
 /** Parse a comma-separated node list; bare hosts get https://; trailing

@@ -2,6 +2,12 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.6] — 2026-05-20
+
+### Fixes
+- CSP now allows `https://va.vercel-scripts.com` — Vercel Web Analytics was being blocked in prod by the audit-added `script-src`. Listed in both `script-src` and `script-src-elem` for browsers that consult the latter first
+- Pruned `https://techcoderx.com` and `https://api.deathwing.me` from `FALLBACK_HIVE_RPC_NODES` — both unreachable from the browser (0% uptime / 503 / no CORS) so they only generated console noise on every health probe. Users can still add them back via `PUBLIC_HIVE_RPC_NODES` env var
+
 ## [0.3.5] — 2026-05-20
 
 ### Swap (QuickSwap dashboard card)

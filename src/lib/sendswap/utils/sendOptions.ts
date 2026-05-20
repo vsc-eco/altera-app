@@ -172,29 +172,29 @@ export type CoinOptions = {
 	coins: {
 		coin: Coin;
 		networks: Network[];
-		default?: Coin;
 	}[];
 };
 
+/**
+ * UI-facing labels for the two transfer rails. `length` is the ETA copy shown
+ * in ReviewSwap; `value` is the discriminator used by store + routing logic.
+ */
 export type TransferMethod = {
 	label: string;
 	value: string;
 	length: string;
-	fees: string;
 };
 
 const magiTransfer: TransferMethod = {
 	label: 'Magi Transfer',
 	value: 'magi-transfer',
-	length: 'Instant',
-	fees: 'No Fees'
+	length: 'Instant'
 };
 
 const lightningTransfer: TransferMethod = {
 	label: 'Lightning Network',
 	value: 'lightning',
-	length: 'About a Minute',
-	fees: '2% Fee'
+	length: 'About a Minute'
 };
 
 export const TransferMethod = {
@@ -208,78 +208,23 @@ export const networkMap: Map<string, Coin[]> = new Map([
 	[Network.lightning.value, [Coin.btc]]
 ]);
 
-export type SendAccount = {
-	value: string;
-	label: string;
-	icon?: string;
-	fee?: string;
-};
-
-const magiAccount: SendAccount = {
-	label: 'Magi Account',
-	value: 'magi-account',
-	icon: '/magi.svg'
-};
-
-const deposit: SendAccount = {
-	label: 'Deposit',
-	value: 'deposit',
-	fee: '0-3%'
-};
-
-const swap: SendAccount = {
-	label: 'Swap',
-	value: 'swap',
-	fee: '0-3%'
-};
-
-export const SendAccount = {
-	magiAccount,
-	deposit,
-	swap
-};
-
 const swapOptions: {
 	from: CoinOptions;
 	to: CoinOptions;
 } = {
 	from: {
 		coins: [
-			{
-				coin: hive,
-				networks: [magi, hiveMainnet]
-			},
-			{
-				coin: hbd,
-				networks: [magi, hiveMainnet]
-			},
-			{
-				coin: shbd,
-				networks: [magi]
-			},
-			{
-				coin: btc,
-				// networks: [lightning, btcMainnet]
-				// networks: [lightning, magi, btcMainnet]
-				networks: [magi, btcMainnet]
-			}
+			{ coin: hive, networks: [magi, hiveMainnet] },
+			{ coin: hbd, networks: [magi, hiveMainnet] },
+			{ coin: shbd, networks: [magi] },
+			{ coin: btc, networks: [magi, btcMainnet] }
 		]
 	},
 	to: {
 		coins: [
-			{
-				coin: hive,
-				networks: [magi, hiveMainnet]
-			},
-			{
-				coin: hbd,
-				networks: [magi, hiveMainnet]
-			},
-			{
-				coin: btc,
-				// networks: [lightning, btcMainnet, magi]
-				networks: [btcMainnet, magi]
-			}
+			{ coin: hive, networks: [magi, hiveMainnet] },
+			{ coin: hbd, networks: [magi, hiveMainnet] },
+			{ coin: btc, networks: [btcMainnet, magi] }
 		]
 	}
 };

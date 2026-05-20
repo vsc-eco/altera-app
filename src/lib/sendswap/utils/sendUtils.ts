@@ -5,7 +5,6 @@ import swapOptions, {
 	Coin,
 	Network,
 	networkMap,
-	SendAccount,
 	TransferMethod,
 	type CoinOnNetwork,
 	type CoinOptions,
@@ -366,36 +365,6 @@ export async function getFee(toAmount: string, state: TxStateBase) {
 	}
 }
 
-type AccsNetsPair =
-	| {
-			accounts: SendAccount[];
-			networks?: Network[];
-	  }
-	| undefined;
-
-export function getFromOptions(
-	method: TransferMethod | undefined,
-	did: string | undefined
-): AccsNetsPair {
-	if (!method || !did) {
-		return;
-	}
-	if (method.value === TransferMethod.magiTransfer.value) {
-		let result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
-		if (did.startsWith('hive:')) {
-			result.accounts.push(SendAccount.deposit);
-			result.networks = [Network.hiveMainnet];
-		}
-		return result;
-	} else if (method.value === TransferMethod.lightningTransfer.value) {
-		return {
-			accounts: [SendAccount.swap],
-			networks: [Network.lightning]
-		};
-	}
-	return;
-}
-
 type CoinOptList = CoinOptions['coins'][number];
 export interface CoinOptionParam extends CoinOptList {
 	disabled?: boolean;
@@ -405,23 +374,19 @@ export interface NetworkOptionParam extends Network {
 	disabled?: boolean;
 	disabledMemo?: string;
 }
-export interface AccountOptionParam extends SendAccount {
-	disabled?: boolean;
-	disabledMemo?: string;
-}
 
 type Constraints = {
 	assetOptions: CoinOptionParam[];
 	networkOptions: NetworkOptionParam[];
 };
 
-export function optionsEqual<T>(
-	a: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[],
-	b: (CoinOptionParam | AccountOptionParam | NetworkOptionParam)[]
+export function optionsEqual(
+	a: (CoinOptionParam | NetworkOptionParam)[],
+	b: (CoinOptionParam | NetworkOptionParam)[]
 ): boolean {
 	if (a.length !== b.length) return false;
 
-	const getValue = (item: CoinOptionParam | AccountOptionParam | NetworkOptionParam) =>
+	const getValue = (item: CoinOptionParam | NetworkOptionParam) =>
 		'coin' in item ? item.coin.value : item.value;
 
 	return a.every(

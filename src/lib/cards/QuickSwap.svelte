@@ -383,12 +383,30 @@
 		if (btcHbd) btcHbdPool = btcHbd;
 	})();
 
+	/**
+	 * Clear local + mirrored swap state when there's no valid result yet
+	 * (e.g. user cleared the FROM amount, or pool data isn't loaded). Wrapped
+	 * in untrack because callers run inside the swap-calc $effect and we
+	 * don't want these writes to retrigger the effect that's already running.
+	 */
+	function resetSwapState() {
+		swapResult = null;
+		untrack(() => {
+			if (txState.expectedOutput !== undefined) txState.expectedOutput = undefined;
+			if (txState.minAmountOut !== undefined) txState.minAmountOut = undefined;
+			if (txState.swapBaseFee !== undefined) txState.swapBaseFee = undefined;
+			if (txState.swapClpFee !== undefined) txState.swapClpFee = undefined;
+			if (txState.swapTotalFee !== undefined) txState.swapTotalFee = undefined;
+			if (txState.swapHop1Fee !== undefined) txState.swapHop1Fee = undefined;
+		});
+	}
+
 	$effect(() => {
 		const fromCoin = txState.fromCoin;
 		const toCoin = txState.toCoin;
 		const fromAmount = txState.fromAmount;
 		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
-			swapResult = null;
+			resetSwapState();
 			return;
 		}
 		const swapAssets = new Set([Coin.hive.value, Coin.hbd.value, Coin.btc.value]);
@@ -397,13 +415,13 @@
 			!swapAssets.has(toCoin.coin.value) ||
 			fromCoin.coin.value === toCoin.coin.value
 		) {
-			swapResult = null;
+			resetSwapState();
 			return;
 		}
 
 		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
 		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) {
-			swapResult = null;
+			resetSwapState();
 			return;
 		}
 
@@ -415,12 +433,12 @@
 		let result: SwapCalcResult | null = null;
 		if (!involvesBtc) {
 			if (!hiveHbdPool) {
-				swapResult = null;
+				resetSwapState();
 				return;
 			}
 			const d = getOrderedDepthsFor(hiveHbdPool, assetIn);
 			if (!d) {
-				swapResult = null;
+				resetSwapState();
 				return;
 			}
 			result = calculateSwap(x, d.X, d.Y, slippageBps);
@@ -429,19 +447,19 @@
 			(assetIn === Coin.hbd.value && assetOut === Coin.btc.value)
 		) {
 			if (!btcHbdPool) {
-				swapResult = null;
+				resetSwapState();
 				return;
 			}
 			const d = getOrderedDepthsFor(btcHbdPool, assetIn);
 			if (!d) {
-				swapResult = null;
+				resetSwapState();
 				return;
 			}
 			result = calculateSwap(x, d.X, d.Y, slippageBps);
 		} else {
 			// BTC ↔ HIVE: two-hop via HBD.
 			if (!btcHbdPool || !hiveHbdPool) {
-				swapResult = null;
+				resetSwapState();
 				return;
 			}
 			const pool1 = assetIn === Coin.btc.value ? btcHbdPool : hiveHbdPool;
@@ -450,7 +468,7 @@
 		}
 
 		if (!result) {
-			swapResult = null;
+			resetSwapState();
 			return;
 		}
 		swapResult = result;
@@ -1260,13 +1278,18 @@
 			</button>
 		</div>
 		<div class="input-wrap">
-			<AmountInput
-				bind:coinAmount={toInputAmount}
-				coinOpts={toOnlyCoinOpts.length > 0 ? toOnlyCoinOpts : possibleCoins}
-				styleType="simple"
-				hideUnit
-				hideNetwork
-			/>
+			<!-- Recreate AmountInput when amount transitions to/from zero so its
+			     initializer produces the empty placeholder ('') instead of "0"
+			     for the no-swap-result state (e.g. user wiped FROM). -->
+			{#key toInputAmount.amount === 0}
+				<AmountInput
+					bind:coinAmount={toInputAmount}
+					coinOpts={toOnlyCoinOpts.length > 0 ? toOnlyCoinOpts : possibleCoins}
+					styleType="simple"
+					hideUnit
+					hideNetwork
+				/>
+			{/key}
 		</div>
 	</div>
 
@@ -1394,25 +1417,30 @@
 					{txState.toCoin.coin.label}
 				</span>
 			</div>
-			{#if swapResult && swapResult.minAmountOut > 0n && txState.toCoin}
-				{@const toCoinDef = txState.toCoin.coin}
-				{@const minOut = formatFee(swapResult.minAmountOut, toCoinDef.decimalPlaces)}
-				<div class="detail-row">
-					<span class="detail-label">Min amount received</span>
-					<span class="detail-value">{minOut} {toCoinDef.unit}</span>
-				</div>
-			{/if}
-			{#if swapResult && priceImpactPct > 0}
-				<div class="detail-row">
-					<span class="detail-label">Price Impact</span>
+			<div class="detail-row">
+				<span class="detail-label">Min amount received</span>
+				<span class="detail-value">
+					{#if swapResult && swapResult.minAmountOut > 0n && txState.toCoin}
+						{formatFee(swapResult.minAmountOut, txState.toCoin.coin.decimalPlaces)}
+						{txState.toCoin.coin.unit}
+					{:else}
+						—
+					{/if}
+				</span>
+			</div>
+			<div class="detail-row">
+				<span class="detail-label">Price Impact</span>
+				{#if swapResult && priceImpactPct > 0}
 					<span
 						class="detail-value impact-pct"
 						class:good={priceImpactPct < 2}
 						class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
 						class:bad={priceImpactPct >= 10}>{priceImpactPct.toFixed(2)}%</span
 					>
-				</div>
-			{/if}
+				{:else}
+					<span class="detail-value">—</span>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
@@ -1965,10 +1993,16 @@
 		}
 	}
 
-	/* Swap details */
+	/* Swap details
+	   Grows to fill the space between slippage and the bottom of .swap-middle,
+	   distributing rows evenly. When a warning/status appears below, .swap-details
+	   shrinks naturally to make room. Min-gap kept so rows don't collide in
+	   tight layouts (mobile, many rows). */
 	.swap-details {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
+		justify-content: space-evenly;
 		gap: 0.375rem;
 		padding: 0.75rem 0 0.25rem;
 		border-top: 1px solid rgba(255, 255, 255, 0.04);

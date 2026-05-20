@@ -10,8 +10,13 @@ import { cleanUpLogout, loginRetry } from '../store';
 import { isBtcTestnetAddress } from '$lib/stores/currentBalance';
 import { BTC_MAINNET_CAIP, BTC_TESTNET_CAIP } from '../btcCaip';
 
+import { env as publicEnv } from '$env/dynamic/public';
+
 // 1. Get a project ID at https://cloud.reown.com
-export const projectId = '55a54e098e74ddb214919fe0da4ac384';
+// APP-16: read from PUBLIC_REOWN_PROJECT_ID when set; fall back to the
+// previous literal so the app still works without the env var configured.
+export const projectId =
+	publicEnv.PUBLIC_REOWN_PROJECT_ID || '55a54e098e74ddb214919fe0da4ac384';
 
 // Mainnet-first for BTC so Xverse (which defaults to Mainnet) doesn't
 // get handed a testnet network it isn't configured for when the

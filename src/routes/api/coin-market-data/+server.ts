@@ -3,8 +3,17 @@ import axios from 'axios';
 import type { RequestHandler } from '@sveltejs/kit';
 import type { CoinMarketResponse } from '$lib/currency/historical';
 import { CMC_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, request }) => {
+	// APP-09: reject cross-origin callers so the CMC-keyed proxy is only
+	// usable same-origin from the app itself.
+	const allowedOrigin = (env.ALTERA_ORIGIN || url.origin).toLowerCase();
+	const reqOrigin = request.headers.get('origin');
+	if (reqOrigin === null || reqOrigin.toLowerCase() !== allowedOrigin) {
+		return json({ error: 'forbidden' }, { status: 403 });
+	}
+
 	const id = url.searchParams.get('id');
 	const time_start = url.searchParams.get('time_start');
 	const time_end = url.searchParams.get('time_end');

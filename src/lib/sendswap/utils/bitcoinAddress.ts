@@ -3,6 +3,12 @@ import * as crypto from 'crypto';
 
 const PUBLICKEY = '';
 
+/** APP-02: true when no signing pubkey is configured, in which case any
+ *  derived P2WSH address would be invalid/unspendable and must not be served. */
+export function isBtcDepositAddressAvailable(): boolean {
+	return PUBLICKEY.trim().length > 0;
+}
+
 export function currentUserBtcDepositAddress(did: string) {
 	let depositInstruction = `deposit_to=${did}`;
 	const tag = crypto.hash('sha256', depositInstruction);

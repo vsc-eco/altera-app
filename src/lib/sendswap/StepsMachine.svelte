@@ -195,7 +195,7 @@
 
 		// console.log('found intermediary network:', intermediary.label);
 
-		if (intermediary === Network.lightning) {
+		if (intermediary === Network.lightning && txType !== 'withdraw') {
 			setStatus('Generating Lightning transfer');
 			openV4V();
 			return;

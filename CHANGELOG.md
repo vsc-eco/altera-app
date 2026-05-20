@@ -2,6 +2,13 @@
 
 All notable changes to Altera are documented here.
 
+
+## PROPOSED CHANGES
+
+### Lightning
+- Added Lightning withdraw support for KeepSats on v4vapp.
+- Added Lightning deposit support for Sats direct via v4vapp.
+
 ## [0.3.3] — 2026-05-19
 
 ### Security

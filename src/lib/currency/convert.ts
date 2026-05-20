@@ -61,7 +61,7 @@ function parseToRootedFormat(base: Coin, prices: Cryptoprices) {
 }
 
 export async function getExchangeRates(via: IntermediaryNetwork, base: Coin) {
-	if (via == Network.lightning) return await getLightningExchangeRates(base);
+	if (via.value === Network.lightning.value) return await getLightningExchangeRates(base);
 	throw new Error(`${via.label} network not supported.`);
 }
 

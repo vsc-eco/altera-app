@@ -50,6 +50,10 @@
 		if (!lightningOpen) return;
 		untrack(() => {
 			toggleHiveMainnet(false);
+			const satsCoin = {
+				coin: Coin.sats,
+				networks: [Network.magi]
+			};
 			const btcCoin = swapOptions.from.coins.find(
 				(coinOpt) => coinOpt.coin.value === Coin.btc.value
 			);
@@ -59,20 +63,26 @@
 
 			const hiveCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
 			const hbdCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hbd.value);
-
-			let toCoinToUse = hiveCoin; // default
+			let toCoinToUse = satsCoin; // default to Magi SATS
 			if (
 				txState.toCoin &&
 				(txState.toCoin.coin.value === Coin.hive.value ||
-					txState.toCoin.coin.value === Coin.hbd.value)
+					txState.toCoin.coin.value === Coin.hbd.value ||
+					txState.toCoin.coin.value === Coin.sats.value)
 			) {
 				toCoinToUse = txState.toCoin;
 			} else if (
 				txState.fromCoin &&
 				(txState.fromCoin.coin.value === Coin.hive.value ||
-					txState.fromCoin.coin.value === Coin.hbd.value)
+					txState.fromCoin.coin.value === Coin.hbd.value ||
+					txState.fromCoin.coin.value === Coin.sats.value)
 			) {
-				toCoinToUse = txState.fromCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
+				toCoinToUse =
+					txState.fromCoin.coin.value === Coin.hive.value
+						? hiveCoin
+						: txState.fromCoin.coin.value === Coin.hbd.value
+							? hbdCoin
+							: satsCoin;
 			}
 
 			txState.method = TransferMethod.lightningTransfer;

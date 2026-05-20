@@ -14,6 +14,7 @@ import swapOptions, {
 import { type TxState, SwapTxState, TransferTxState } from './txState.svelte';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
+import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer';
 import { getHiveSwapOp, getBtcApproveOp } from '$lib/magiTransactions/hive/vscOperations/swap';
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 import { getEVMOpType } from '$lib/magiTransactions/eth';
@@ -181,7 +182,7 @@ function getMethodNetworks(method: TransferMethod) {
 }
 
 function getDidNetworks(did: string) {
-	let result = [Network.magi, Network.lightning];
+	const result = [Network.magi, Network.lightning];
 	if (did.startsWith('hive:')) result.push(Network.hiveMainnet);
 	return result;
 }
@@ -255,8 +256,8 @@ export type RecipientData = {
 };
 export async function getRecentContacts(auth: Auth): Promise<RecipientData[]> {
 	if (!auth.value) return [];
-	let result = new Map<string, RecipientData>();
-	let leaveOut = ['v4vapp'];
+	const result = new Map<string, RecipientData>();
+	const leaveOut = ['v4vapp'];
 	let lastChecked = 0;
 	let lastLength = 0;
 	let store: TransactionInter[] = get(magiTxsStore);
@@ -381,7 +382,7 @@ export function getFromOptions(
 		return;
 	}
 	if (method.value === TransferMethod.magiTransfer.value) {
-		let result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
+		const result: AccsNetsPair = { accounts: [SendAccount.magiAccount] };
 		if (did.startsWith('hive:')) {
 			result.accounts.push(SendAccount.deposit);
 			result.networks = [Network.hiveMainnet];
@@ -454,7 +455,7 @@ function combineAssetOptions(
 	const available = to ? from.intersection(to) : from;
 	const notInFrom = all.difference(from);
 	const notInTo = to ? all.difference(to).difference(notInFrom) : new Set<string>();
-	let result: CoinOptionParam[] = Array.from(available)
+	const result: CoinOptionParam[] = Array.from(available)
 		.map((val) => allObjs.find((coinOpt) => coinOpt.coin.value === val))
 		.filter((item): item is CoinOptionParam => item !== undefined);
 	for (const val of notInFrom) {
@@ -487,7 +488,7 @@ function combineNetworkOptions(
 ): NetworkOptionParam[] {
 	const allObjs = Object.values(Network);
 	const notInFrom = all.difference(from);
-	let result: NetworkOptionParam[] = Array.from(from)
+	const result: NetworkOptionParam[] = Array.from(from)
 		.map((val) => allObjs.find((net) => net.value === val))
 		.filter((item): item is NetworkOptionParam => item !== undefined);
 	for (const val of notInFrom) {
@@ -511,7 +512,7 @@ export function solveNetworkConstraints(
 	toNetwork: Network | undefined,
 	did: string | undefined,
 	fromNetwork?: Network,
-	allAssets: Boolean = false
+	allAssets: boolean = false
 ): Constraints {
 	// console.log("parameters to solve constraints", method, fromCoin, did, account);
 	if (!did)
@@ -527,7 +528,7 @@ export function solveNetworkConstraints(
 	const networkOptions = combineNetworkOptions(networksGivenMethod, networksGivenMethod, did);
 
 	const assetsGivenMethod = (() => {
-		let result = new Set<string>();
+		const result = new Set<string>();
 		for (const net of method ? getMethodNetworks(method) : inUseNetworks) {
 			const coins = networkMap.get(net.value);
 			if (coins) {
@@ -540,7 +541,7 @@ export function solveNetworkConstraints(
 	})();
 	const fromNetworkOptions: Network[] = fromNetwork ? [fromNetwork] : networkOptions;
 	const assetsGivenFromNetworks = (() => {
-		let result = new Set<string>();
+		const result = new Set<string>();
 		for (const net of fromNetworkOptions) {
 			const coins = networkMap.get(net.value);
 			if (coins) {
@@ -727,7 +728,7 @@ export async function send(
 
 		let sendOp: Operation;
 		// Extra op prepended for the L1→Magi case (the deposit).
-		let extraOps: Operation[] = [];
+		const extraOps: Operation[] = [];
 		let opType: string | undefined;
 
 		if (isSwap) {
@@ -878,5 +879,46 @@ export async function send(
 		}
 		return new Error(res.error);
 	}
+
+	if (intermediary == Network.lightning) {
+		// Lightning Transfer withdrawal: Transfer to V4VApp on Magi (Keepsats)
+		if (!auth.value?.aioha) {
+			return new Error("Lightning Transfer Withdraw via an EVM wallet isn't supported yet.");
+		}
+		setStatus('Waiting for Hive wallet approval…');
+		// Convert BTC amount to SATS: BTC internal units == SATS units
+		// e.g. CoinAmount("0.00001", Coin.btc).amount = 1000 → CoinAmount(1000, Coin.sats)
+		const btcCoinAmount = new CoinAmount(amount, toCoin!.coin);
+		const satsCoinAmount = new CoinAmount(btcCoinAmount.amount, Coin.sats, true);
+		const keepSatsOp = getKeepsatsTransferOp(auth.value.username!, satsCoinAmount);
+
+		const res = await executeTx(auth.value.aioha, [keepSatsOp]);
+		if (res.success) {
+			setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+			addLocalTransaction({
+				ops: [
+					{
+						data: {
+							amount: satsCoinAmount.toAmountString(),
+							asset: satsCoinAmount.coin.unit.toLowerCase(),
+							from: auth.value.did,
+							to: getKeepsatsDestinationDid(),
+							memo: 'Deposit #sats',
+							type: 'transfer'
+						},
+						type: 'transfer',
+						index: 0
+					}
+				],
+				timestamp: new Date(),
+				id: res.result,
+				type: 'hive'
+			});
+			return { id: res.result };
+		}
+		setStatus(res.error, true);
+		return new Error(res.error);
+	}
+
 	return new Error('Unexpected Error: Unsupported transaction.');
 }

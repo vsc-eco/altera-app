@@ -470,7 +470,7 @@
 	{#if isToBtcMainnet}
 		<div class="btc-unmap-options">
 			<label class="deduct-fee-row">
-				<input type="checkbox" bind:checked={txState.btcDeductFee} />
+				<input type="checkbox" bind:checked={txState.deductFee} />
 				<span class="deduct-fee-label">Deduct fee from amount</span>
 				<span class="deduct-fee-hint"
 					>Fee is subtracted from your withdrawal instead of added on top</span
@@ -493,10 +493,10 @@
 					<input
 						type="number"
 						placeholder="No limit"
-						value={txState.btcMaxFee ?? ''}
+						value={txState.maxFee ?? ''}
 						onchange={(e) => {
 							const val = parseInt(e.currentTarget.value)
-							txState.btcMaxFee = isNaN(val) ? undefined : val
+							txState.maxFee = isNaN(val) ? undefined : val
 						}}
 					/>
 					<span class="fee-hint">Transaction reverts if total fee exceeds this amount</span>

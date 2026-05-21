@@ -39,8 +39,6 @@
 		txState.memo = '';
 		txState.fromAmount = '0';
 		txState.toAmount = '0';
-		txState.enteredAmount = '0';
-		txState.fee = undefined;
 	}
 
 	// Only seed when the dialog opens — QuickSwap's state is now a separate

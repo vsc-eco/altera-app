@@ -33,11 +33,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 		'Permissions-Policy',
 		'geolocation=(), microphone=(), camera=()'
 	);
+	// va.vercel-scripts.com hosts Vercel Web Analytics; without it `script-src`
+	// blocks the analytics bundle. Listed in both `script-src` and
+	// `script-src-elem` because some browsers consult the latter for <script>
+	// tag loads and fall back to `script-src` only when it's absent.
 	response.headers.set(
 		'Content-Security-Policy',
 		[
 			"default-src 'self'",
-			"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
+			"script-src-elem 'self' 'unsafe-inline' https://va.vercel-scripts.com",
 			"style-src 'self' 'unsafe-inline'",
 			"img-src 'self' data: blob: https:",
 			"font-src 'self' data:",

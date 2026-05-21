@@ -1,6 +1,9 @@
 import { browser } from '$app/environment';
 import { indexerNodes, vscApiNodes, hiveRpcNodes } from './env';
-import { probeIndexer, probeVscApi, probeHiveRpc } from './probes';
+// APP-03/04: manual node overrides are gated against an allowlist. The list +
+// validator live in ./allowlist so the GraphQL proxy server route can reuse
+// the exact same SSRF guard.
+import { isAllowedNodeUrl } from './allowlist';
 
 export type Category = 'indexer' | 'vsc' | 'hive';
 
@@ -33,46 +36,6 @@ const NODES: Record<Category, string[]> = {
 	vsc: vscApiNodes,
 	hive: hiveRpcNodes
 };
-const PROBE: Record<Category, (n: string[]) => Promise<string>> = {
-	indexer: probeIndexer,
-	vsc: probeVscApi,
-	hive: probeHiveRpc
-};
-
-/** APP-03/04: allowlisted root domains for manual node overrides. A manual
- *  override URL is only honoured when it is https (or http on localhost) and
- *  its hostname is one of these roots or a subdomain thereof. Anything else is
- *  ignored and resolution falls back to the auto/default node. */
-const ALLOWED_ROOT_DOMAINS = [
-	'okinoko.io',
-	'magi.eco',
-	'vsc.eco',
-	'techcoderx.com',
-	'milohpr.com',
-	'hive.blog',
-	'openhive.network',
-	'deathwing.me'
-];
-
-function isAllowedNodeUrl(raw: string): boolean {
-	let u: URL;
-	try {
-		u = new URL(raw);
-	} catch {
-		return false;
-	}
-	const host = u.hostname.toLowerCase();
-	const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
-	if (u.protocol === 'http:') {
-		if (!isLocalhost) return false;
-	} else if (u.protocol !== 'https:') {
-		return false;
-	}
-	if (isLocalhost) return true;
-	return ALLOWED_ROOT_DOMAINS.some(
-		(root) => host === root || host.endsWith('.' + root)
-	);
-}
 
 function ls(): Storage | null {
 	try {
@@ -131,12 +94,20 @@ function isFresh(cat: Category): boolean {
 }
 
 /** Background probe + cache write. No-op when manual, cache fresh, or no
- *  storage. Failures leave the previous cache untouched. */
+ *  storage. Failures leave the previous cache untouched.
+ *
+ *  The probe runs server-side (/api/node-probe) rather than in the browser:
+ *  Hive RPC and several indexer/VSC nodes don't expose CORS for our origin,
+ *  so client-side probing always failed and spammed the console. Server-to-
+ *  server has no CORS, so the freshness ranking actually works. */
 export async function refreshNode(cat: Category): Promise<void> {
 	const s = ls();
 	if (!s || isManualMode(cat) || isFresh(cat)) return;
 	try {
-		const url = await PROBE[cat](NODES[cat]);
+		const res = await fetch(`/api/node-probe?category=${cat}`);
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const { url } = (await res.json()) as { url?: string };
+		if (!url) throw new Error('no url in probe response');
 		s.setItem(CACHE_KEY[cat], url);
 		s.setItem(CACHE_TS_KEY[cat], String(Date.now()));
 	} catch {

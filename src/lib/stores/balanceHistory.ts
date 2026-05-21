@@ -6,7 +6,7 @@ import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import config from '../../../houdini.config';
 import { type Point } from '../LineChart.svelte';
 import { type AccountBalance, getDefaultBalance } from './currentBalance';
-import { currentGqlUrl } from '../../client';
+import { currentGqlUrl, GQL_PROXY_VSC, gqlUpstreamHeaders } from '../../client';
 
 export type BalanceOption =
 	| 'hbd'
@@ -124,9 +124,9 @@ async function fetchBalancesBatch(
 	blockHeights: number[]
 ): Promise<Record<string, AccountBalance>> {
 	const queryString = buildMultiHeightQuery(account, blockHeights);
-	const response = await fetch(`${currentGqlUrl}/api/v1/graphql`, {
+	const response = await fetch(GQL_PROXY_VSC, {
 		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
+		headers: gqlUpstreamHeaders(currentGqlUrl),
 		body: JSON.stringify({ query: queryString, variables: {} })
 	});
 	if (!response.ok) {
@@ -179,9 +179,7 @@ export async function fetchBalancesHTTP(
 		// concurrency so a 365-day series doesn't flood the connection pool.
 		const batches: number[][] = [];
 		for (let i = 0; i < blockHeightSeries.length; i += MAX_HEIGHTS_PER_QUERY) {
-			batches.push(
-				blockHeightSeries.slice(i, i + MAX_HEIGHTS_PER_QUERY).map((s) => s.blockHeight)
-			);
+			batches.push(blockHeightSeries.slice(i, i + MAX_HEIGHTS_PER_QUERY).map((s) => s.blockHeight));
 		}
 		const batchResults = await runWithConcurrency(batches, MAX_PARALLEL_BATCHES, (batch) =>
 			fetchBalancesBatch(account, batch)

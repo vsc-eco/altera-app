@@ -4,7 +4,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import type { PoolRow, MyPoolRow } from './poolsData';
-	import { getMagiIndexerUrl } from '../../client';
+	import { getMagiIndexerBaseUrl, GQL_PROXY_INDEXER, gqlUpstreamHeaders } from '../../client';
 	import moment from 'moment';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
@@ -79,9 +79,9 @@
 	let hasMoreRemoves = $state(true);
 
 	async function hasuraFetch<T>(query: string, variables: Record<string, unknown>): Promise<T> {
-		const res = await fetch(getMagiIndexerUrl(), {
+		const res = await fetch(GQL_PROXY_INDEXER, {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: gqlUpstreamHeaders(getMagiIndexerBaseUrl()),
 			body: JSON.stringify({ query, variables })
 		});
 		const json = await res.json();

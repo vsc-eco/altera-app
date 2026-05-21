@@ -1,4 +1,4 @@
-import { getAccounts } from '@aioha/aioha/build/rpc';
+import { getHiveAccounts as getAccounts } from '$lib/auth/hive/getHiveAccounts';
 import { type Account, postingMetadataFromString } from '$lib/auth/hive/accountTypes';
 import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
 import swapOptions, {

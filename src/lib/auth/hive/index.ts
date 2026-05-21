@@ -23,7 +23,10 @@ const HIVE_MAINNET_API = browser ? resolveNodeUrl('hive') : 'https://api.hive.bl
 const HIVE_TESTNET_API = 'https://testnet.techcoderx.com';
 
 async function getProfilePicUrl(username: string) {
-	const res: Account = (await getAccounts([username])).result[0];
+	// getAccounts() defaults to Aioha's hardcoded RPC (techcoderx.com, which is
+	// down / lacks CORS). Pass our configured Hive node so this respects the
+	// user's node choice and uses a reachable endpoint.
+	const res: Account = (await getAccounts([username], HIVE_MAINNET_API)).result[0];
 	if (res) return postingMetadataFromString(res.posting_json_metadata).profile.profile_image;
 }
 let aioha: Aioha;

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Auth } from '$lib/auth/store';
 	import { getAuth } from '$lib/auth/store';
-	import { getAccounts } from '@aioha/aioha/build/rpc';
+	import { getHiveAccounts as getAccounts } from '$lib/auth/hive/getHiveAccounts';
 	import Form from './form.svelte';
 	let auth: Auth = $derived(getAuth()());
 </script>

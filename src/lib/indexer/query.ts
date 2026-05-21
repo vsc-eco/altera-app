@@ -1,4 +1,4 @@
-import { getMagiIndexerUrl } from '../../client';
+import { getMagiIndexerBaseUrl, GQL_PROXY_INDEXER, gqlUpstreamHeaders } from '../../client';
 
 export interface AggregateResult {
 	aggregate: {
@@ -26,9 +26,9 @@ export async function hasuraQueryRaw<T = Record<string, unknown>>(
 	query: string,
 	variables: Record<string, unknown>
 ): Promise<{ data: T | null; errors: Array<{ message: string }> | null }> {
-	const res = await fetch(getMagiIndexerUrl(), {
+	const res = await fetch(GQL_PROXY_INDEXER, {
 		method: 'POST',
-		headers: { 'content-type': 'application/json' },
+		headers: gqlUpstreamHeaders(getMagiIndexerBaseUrl()),
 		body: JSON.stringify({ query, variables })
 	});
 	const json = await res.json();

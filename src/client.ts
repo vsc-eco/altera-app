@@ -13,11 +13,8 @@ export const keyTbd = 'prefs-tbd';
 const DEFAULT_VSC_NET_ID = 'vsc-mainnet';
 
 /** Default Magi indexer (Hasura) base URL — same as okinoko/prod.
- *  The Hasura `/v1/graphql` path is appended by getMagiIndexerUrl(). */
+ *  The `/v1/graphql` path is appended by the GraphQL proxy route. */
 export const DEFAULT_MAGI_INDEXER_URL = 'https://indexer.magi.milohpr.com';
-
-/** Standard Hasura GraphQL path suffix. */
-export const HASURA_GRAPHQL_PATH = '/v1/graphql';
 
 /** DEX Router contract — routes swaps and BTC/HBD liquidity deposits.
  *  Network-switched between mainnet and testnet. */
@@ -36,32 +33,36 @@ export const vscNetworkId =
 /** True when the configured VSC network is the testnet. */
 export const isVscTestnet = (): boolean => vscNetworkId === 'vsc-testnet';
 
-/** Configured Magi indexer base URL — falls back to okinoko/prod. */
+/** Configured Magi indexer base URL — falls back to okinoko/prod.
+ *  The GraphQL path is appended by the proxy route, not here. */
 export const getMagiIndexerBaseUrl = (): string =>
 	browser ? resolveNodeUrl('indexer') : DEFAULT_MAGI_INDEXER_URL;
-
-/** Fully-qualified Hasura GraphQL URL (base + /v1/graphql).
- *  Use this when you need to issue a query. */
-export const getMagiIndexerUrl = (): string => {
-	const base = getMagiIndexerBaseUrl().replace(/\/+$/, '');
-	return base + HASURA_GRAPHQL_PATH;
-};
 
 /** Display unit for Hive (e.g. TESTS on testnet). Use for UI only. */
 export const getHiveAssetName = (): string => (browser && localStorage.getItem(keyTests)) || 'HIVE';
 /** Display unit for HBD (e.g. TBD on testnet). Use for UI only. */
 export const getHbdAssetName = (): string => (browser && localStorage.getItem(keyTbd)) || 'HBD';
 
-export default new HoudiniClient({
-	url: currentGqlUrl + '/api/v1/graphql'
+/**
+ * Same-origin GraphQL proxy endpoint. The browser POSTs here instead of
+ * hitting the upstream node directly, so the audit-tightened CORS on the
+ * backend no longer blocks non-default nodes. The chosen node is passed via
+ * the `x-gql-upstream` header (see routes/api/gql/+server.ts).
+ */
+export const GQL_PROXY_VSC = '/api/gql?service=vsc';
+export const GQL_PROXY_INDEXER = '/api/gql?service=indexer';
 
-	// uncomment this to configure the network call (for things like authentication)
-	// for more information, please visit here: https://www.houdinigraphql.com/guides/authentication
-	// fetchParams({ session }) {
-	//     return {
-	//         headers: {
-	//             Authentication: `Bearer ${session.token}`,
-	//         }
-	//     }
-	// }
+/** Header carrying the chosen upstream node base URL to the GQL proxy. */
+export function gqlUpstreamHeaders(base: string): Record<string, string> {
+	return { 'content-type': 'application/json', 'x-gql-upstream': base };
+}
+
+export default new HoudiniClient({
+	url: GQL_PROXY_VSC,
+	// Inject the chosen VSC node as the upstream the proxy should forward to.
+	fetchParams() {
+		return {
+			headers: { 'x-gql-upstream': currentGqlUrl }
+		};
+	}
 });

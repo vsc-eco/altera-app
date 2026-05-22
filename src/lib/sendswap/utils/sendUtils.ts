@@ -355,7 +355,7 @@ export async function getFee(toAmount: string, state: TxStateBase) {
 		state.fromCoin &&
 		state.fromNetwork &&
 		state.toCoin &&
-		state.toCoin.coin.value !== coins.usd.value &&
+		state.toCoin.coin.value !== Coin.usd.value &&
 		state.toNetwork
 	) {
 		const fee = await getIntermediaryNetwork(

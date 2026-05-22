@@ -23,6 +23,10 @@
 		ALTERA_FEE_USD_THRESHOLD,
 		getAlteraFeePct
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
+	import {
+		computeNetToAmountSmallest,
+		isLightningWithdrawFlow
+	} from '$lib/sendswap/utils/reviewSwapFees';
 
 	const auth = $derived(getAuth()());
 	let {
@@ -94,6 +98,25 @@
 	// "amount in" the user commits is simply the gross entered amount.
 	let netSwapFromAmountCa = $derived(new CoinAmount(effectiveFromAmount, fromCoin));
 	let effectiveToAmount = $derived(txState.toAmount || '0');
+	const exchangeFeePct = $derived(getAlteraFeePct(fromCoin.value, toCoin.value));
+	const isLightningWithdraw = $derived(
+		isLightningWithdrawFlow({
+			kind: txState.kind,
+			fromNetwork: txState.fromNetwork?.value,
+			toNetwork: txState.toNetwork?.value,
+			fromCoin: fromCoin.value,
+			toCoin: toCoin.value
+		})
+	);
+	const effectiveAlteraFeeBps = $derived(
+		exchangeFeePct !== null ? Math.round(exchangeFeePct * 100) : 0
+	);
+	const alteraFeeLabelPct = $derived.by(() => {
+		if (exchangeFeePct === null) return null;
+		return Number.isInteger(exchangeFeePct)
+			? exchangeFeePct.toFixed(1)
+			: exchangeFeePct.toFixed(2);
+	});
 	// Compute the converted "to" amount reactively so it displays correctly.
 	// Prefer the pool-math `expectedOutput` (already post-fee, in smallest
 	// units) over the store's `toAmount` for swaps — otherwise the surface
@@ -221,11 +244,11 @@
 	}
 	let inUsd = $state<CoinAmount<Coin>>();
 	let feeInUsd = $state<CoinAmount<Coin>>();
-	let total = $derived(
-		!txState.fee
-			? new CoinAmount(effectiveFromAmount, fromCoin)
-			: new CoinAmount(effectiveFromAmount, fromCoin).add(txState.fee)
-	);
+	let total = $derived.by(() => {
+		const gross = new CoinAmount(effectiveFromAmount, fromCoin);
+		if (!txState.fee || isLightningWithdraw) return gross;
+		return gross.add(txState.fee);
+	});
 	let fromInTo = $state<CoinAmount<Coin>>();
 	$effect(() => {
 		if (!txState.fromCoin || !txState.toCoin) return;
@@ -274,6 +297,7 @@
 			});
 	});
 	const alteraFeeApplies = $derived(
+		effectiveAlteraFeeBps > 0 &&
 		!!txState.toNetwork &&
 			txState.toNetwork.value !== Network.magi.value &&
 			toCoin.value !== Coin.hive.value &&
@@ -284,7 +308,7 @@
 	const alteraFeeAmount = $derived.by(() => {
 		if (!alteraFeeApplies) return undefined;
 		const out = convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin);
-		const feeSmallest = Math.floor((out.amount * ALTERA_FEE_BPS) / 10000);
+		const feeSmallest = Math.floor((out.amount * effectiveAlteraFeeBps) / 10000);
 		if (feeSmallest <= 0) return undefined;
 		return new CoinAmount(feeSmallest, toCoin, true);
 	});
@@ -335,7 +359,16 @@
 	$effect(() => {
 		const amt = convertedToAmount;
 		if (!amt) { outputInUsd = undefined; return; }
-		amt.convertTo(Coin.usd, Network.lightning).then((usd) => { outputInUsd = usd; });
+		const netToSmallest = computeNetToAmountSmallest({
+			rawToAmount: amt.amount,
+			alteraFeeAmount: alteraFeeAmount?.amount,
+			gatewayFeeAmount: txState.fee?.amount,
+			isLightningWithdraw,
+			gatewayFeeCoinMatchesToCoin: txState.fee?.coin.value === toCoin.value
+		});
+		new CoinAmount(netToSmallest, toCoin, true)
+			.convertTo(Coin.usd, Network.lightning)
+			.then((usd) => { outputInUsd = usd; });
 	});
 
 	// USD equivalent of the min-amount-out (after Altera fee deduction if applicable).
@@ -344,7 +377,7 @@
 		const minRaw = asSwap?.minAmountOut;
 		if (!minRaw || !txState.toCoin) { minAmountInUsd = undefined; return; }
 		const minNet = alteraFeeApplies
-			? Math.floor((Number(minRaw) * (10000 - ALTERA_FEE_BPS)) / 10000)
+			? Math.floor((Number(minRaw) * (10000 - effectiveAlteraFeeBps)) / 10000)
 			: Number(minRaw);
 		new CoinAmount(minNet, toCoin, true)
 			.convertTo(Coin.usd, Network.lightning)
@@ -368,7 +401,6 @@
 		isBtcSwap ? 'About 10 minutes' : (txState.method?.length ?? '')
 	);
 
-	const exchangeFeePct = $derived(getAlteraFeePct(fromCoin.value, toCoin.value));
 </script>
 
 {#snippet reviewContent()}
@@ -412,7 +444,7 @@
 						</tr>
 						<tr>
 							<td class="icon"><Dot size="32" /></td>
-							<td class="sm-caption label">Fee</td>
+							<td class="sm-caption label">{isLightningWithdraw ? 'V4V Fee' : 'Fee'}</td>
 							<td class="content">
 								{#if asSwap?.swapTotalFee && txState.toCoin}
 									{@const hop1 = asSwap.swapHop1Fee}
@@ -457,7 +489,13 @@
 						{/if}
 						{#if txState.toCoin && txState.toNetwork}
 							{@const rawTo = convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin)}
-							{@const netToAmount = Math.max(0, rawTo.amount - (alteraFeeAmount?.amount ?? 0))}
+							{@const netToAmount = computeNetToAmountSmallest({
+								rawToAmount: rawTo.amount,
+								alteraFeeAmount: alteraFeeAmount?.amount,
+								gatewayFeeAmount: txState.fee?.amount,
+								isLightningWithdraw,
+								gatewayFeeCoinMatchesToCoin: txState.fee?.coin.value === toCoin.value
+							})}
 							{#if isToBtcMainnet && btcFeeEstimate}
 								<tr>
 									<td class="icon"><Dot size="32" /></td>
@@ -471,16 +509,20 @@
 									</td>
 								</tr>
 							{/if}
-							{#if alteraFeeAmount}
+							{#if exchangeFeePct !== null}
 								<tr>
 									<td class="icon"><Dot size="32" /></td>
-									<td class="sm-caption label">Altera Fee ({(ALTERA_FEE_BPS / 100).toFixed(2)}%)</td
+									<td class="sm-caption label">Altera Fee ({alteraFeeLabelPct}%)</td
 									>
 									<td class="content">
-										{prettyWithDisplayUnit(alteraFeeAmount)}
-										{#if alteraFeeInUsd}
-											<EqualApproximately size={16} />
-											{alteraFeeInUsd.toPrettyString()}
+										{#if alteraFeeAmount}
+											{prettyWithDisplayUnit(alteraFeeAmount)}
+											{#if alteraFeeInUsd}
+												<EqualApproximately size={16} />
+												{alteraFeeInUsd.toPrettyString()}
+											{/if}
+										{:else}
+											Free
 										{/if}
 									</td>
 								</tr>
@@ -527,7 +569,8 @@
 										{:else if asSwap.minAmountOut && txState.toCoin}
 											{@const minRaw = alteraFeeApplies
 												? Math.floor(
-														(Number(asSwap.minAmountOut) * (10000 - ALTERA_FEE_BPS)) / 10000
+														(Number(asSwap.minAmountOut) * (10000 - effectiveAlteraFeeBps)) /
+															10000
 													)
 												: Number(asSwap.minAmountOut)}
 											{#if btcFeeEstimate}

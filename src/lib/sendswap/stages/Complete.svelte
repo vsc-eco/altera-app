@@ -69,8 +69,8 @@
 
 	const isSend = $derived(txState.toUsername !== getUsernameFromAuth(getAuth()()));
 
-	let fromCoin = $derived(txState.fromCoin?.coin ?? coins.unk);
-	let toCoin = $derived(txState.toCoin?.coin ?? coins.unk);
+	let fromCoin = $derived(txState.fromCoin?.coin ?? Coin.unk);
+	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
 	function prettyWithDisplayUnit(amt: CoinAmount<Coin>): string {
 		const isNegative = amt.amount < 0;
 		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;

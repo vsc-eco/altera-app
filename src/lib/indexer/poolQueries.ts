@@ -35,29 +35,37 @@ export async function fetchPoolVolume(
 	};
 }
 
-export async function fetchPoolFees(
-	poolId: string,
-	range: TimeRange
-): Promise<{ totalFee: number; magiFee: number; lpFee: number }> {
-	const gte = getTimeGte(range);
-	const whereClause = gte
-		? `{indexer_contract_id: {_eq: $pool}, indexer_ts: {_gte: "${gte}"}}`
-		: `{indexer_contract_id: {_eq: $pool}}`;
+export type PoolAssetFee = { asset: string; magiFee: number; lpFee: number };
 
+/**
+ * Per-asset fee breakdown for a pool.
+ *
+ * A pool collects fees in BOTH of its assets — one per swap direction — so the
+ * old approach (summing `dex_pool_fee_events` into a single number, then
+ * pricing it as one asset in poolsData) inflated the figure several-fold:
+ * HIVE-denominated fees were counted as HBD. `dex_pool_fees_by_asset` keeps the
+ * per-asset split, which the caller values at each asset's own price.
+ *
+ * NOTE: this view is all-time (no timestamp), so unlike the old query this is
+ * NOT range-aware. Restoring range filtering needs a time-bucketed per-asset
+ * rollup (or group-by) on the indexer.
+ */
+export async function fetchPoolFees(poolId: string): Promise<PoolAssetFee[]> {
 	const query = `
-		query PoolFees($pool: String!) {
-			result: dex_pool_fee_events_aggregate(where: ${whereClause}) {
-				aggregate { sum { total_fee magi_fee lp_fee } }
+		query PoolFeesByAsset($pool: String!) {
+			dex_pool_fees_by_asset(where: {pool_contract: {_eq: $pool}}) {
+				asset lp_fees protocol_fees
 			}
 		}
 	`;
 	const data = await hasuraQuery(query, { pool: poolId });
-	const sum = (data?.result as AggregateResult)?.aggregate?.sum;
-	return {
-		totalFee: sum?.total_fee ?? 0,
-		magiFee: sum?.magi_fee ?? 0,
-		lpFee: sum?.lp_fee ?? 0
-	};
+	const rows =
+		(data?.dex_pool_fees_by_asset as Array<Record<string, number | string>> | undefined) ?? [];
+	return rows.map((r) => ({
+		asset: String(r.asset),
+		magiFee: Number(r.protocol_fees) || 0,
+		lpFee: Number(r.lp_fees) || 0
+	}));
 }
 
 /**

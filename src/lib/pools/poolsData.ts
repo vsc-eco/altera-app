@@ -9,7 +9,8 @@ import {
 	fetchPoolRegistry,
 	fetchUserLpPositions,
 	type UserLpPosition,
-	type PoolRegistryEntry
+	type PoolRegistryEntry,
+	type PoolAssetFee
 } from '$lib/indexer/poolQueries';
 
 export type { TimeRange, UserLpPosition, PoolRegistryEntry } from '$lib/indexer/poolQueries';
@@ -99,7 +100,7 @@ function mapStateToPoolRow(
 	state: PoolState,
 	indexerData: {
 		volume: { count: number; amountIn: number; amountOut: number };
-		fees: { totalFee: number; magiFee: number; lpFee: number };
+		fees: PoolAssetFee[];
 		liquidity: {
 			netAmount0: number;
 			netAmount1: number;
@@ -187,13 +188,35 @@ function mapStateToPoolRow(
 		? totalLpRawParsed
 		: snapshot?.totalLp ?? 0;
 
-	// Fees from indexer — all fee values are denominated in sym0 (dec0)
-	const feeTotal = fees.totalFee / 10 ** dec0;
-	const feeLp = fees.lpFee / 10 ** dec0;
-	const feeMagi = fees.magiFee / 10 ** dec0;
+	// Fees are collected PER ASSET (a pool takes a fee in both assets, one per
+	// swap direction). Value each asset's fees at ITS OWN price/decimals — the
+	// old code summed everything and priced it as sym0, which inflated the
+	// figure several-fold (HIVE fees counted as HBD).
+	let feeLpUsd = 0;
+	let feeMagiUsd = 0;
+	const lpParts: string[] = [];
+	const magiParts: string[] = [];
+	// Order the per-asset rows to match the pair (sym0 first, then sym1) so the
+	// breakdown reads consistently with the pair label; unknown assets last.
+	const feeRank = (s: string) => {
+		const i = [sym0, sym1].indexOf(s.toUpperCase());
+		return i === -1 ? 99 : i;
+	};
+	const orderedFees = [...fees].sort((a, b) => feeRank(a.asset) - feeRank(b.asset));
+	for (const f of orderedFees) {
+		const fSym = f.asset.toUpperCase();
+		const fDec = decimalPlaces(fSym);
+		const fUsd = getUsdPrice(fSym);
+		const lpAmt = f.lpFee / 10 ** fDec;
+		const magiAmt = f.magiFee / 10 ** fDec;
+		feeLpUsd += lpAmt * fUsd;
+		feeMagiUsd += magiAmt * fUsd;
+		if (lpAmt > 0) lpParts.push(formatNum(lpAmt, fSym, fDec));
+		if (magiAmt > 0) magiParts.push(formatNum(magiAmt, fSym, fDec));
+	}
 	const feeEarnedAssets: [string, string] = [
-		formatNum(feeLp, sym0, dec0),
-		formatNum(feeMagi, sym0, dec0)
+		lpParts.join(' + ') || formatNum(0, sym0, dec0),
+		magiParts.join(' + ') || formatNum(0, sym0, dec0)
 	];
 
 	// Volume from indexer
@@ -206,10 +229,10 @@ function mapStateToPoolRow(
 
 	// Compute USD totals
 	const totalLiquidityUsd = liqAmt0 * usd0 + liqAmt1 * usd1;
-	const feeEarnedUsdTotal = feeTotal * usd0;
+	const feeEarnedUsdTotal = feeLpUsd + feeMagiUsd;
 	const feeEarnedUsdBreakdown: [string, string] = [
-		formatNum(feeLp * usd0, '$', 2),
-		formatNum(feeMagi * usd0, '$', 2)
+		formatNum(feeLpUsd, '$', 2),
+		formatNum(feeMagiUsd, '$', 2)
 	];
 	const volumeUsdTotal = volIn * usd0 + volOut * usd1;
 
@@ -312,7 +335,7 @@ async function fetchSinglePool(
 			policy: 'NetworkOnly'
 		}),
 		fetchPoolVolume(contractId, range),
-		fetchPoolFees(contractId, range),
+		fetchPoolFees(contractId),
 		fetchPoolLiquidity(contractId)
 	]);
 

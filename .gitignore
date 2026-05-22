@@ -26,3 +26,4 @@ vite.config.ts.timestamp-*
 
 # VSCode
 .vscode/settings.json
+.vscode/extensions.json

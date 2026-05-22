@@ -49,7 +49,6 @@
 	const auth = $derived(getAuth()());
 	const did = $derived(auth.value?.did);
 	let myPools = $state<MyPoolRow[]>([]);
-	let myPoolsLoading = $state(false);
 	// PoolRow subset for pools the user has LP in — passed to the
 	// Remove Liquidity dialog so it only lists pools the user can
 	// actually withdraw from.
@@ -74,7 +73,6 @@
 			return;
 		}
 		let cancelled = false;
-		myPoolsLoading = true;
 		fetchMyPoolPositions(currentDid, currentPools)
 			.then((rows) => {
 				if (cancelled) return;
@@ -83,9 +81,6 @@
 			.catch((err) => {
 				console.error('Failed to fetch user pool positions', err);
 				if (!cancelled) myPools = [];
-			})
-			.finally(() => {
-				if (!cancelled) myPoolsLoading = false;
 			});
 		return () => {
 			cancelled = true;
@@ -178,17 +173,13 @@
 
 	{@render poolsTable(sortedPools)}
 
-	{#if did && (myPools.length > 0 || myPoolsLoading)}
+	<!-- Only render once we actually have positions. Gating on `myPoolsLoading`
+	     too caused the section to flash in and out on every filter change (the
+	     position fetch re-runs when `pools` is reassigned, finds none, hides). -->
+	{#if did && myPools.length > 0}
 		<div class="my-pools-section">
-			<h3 class="section-title">
-				My liquidity
-				{#if myPoolsLoading}<span class="muted">loading…</span>{/if}
-			</h3>
-			{#if myPools.length > 0}
-				{@render myPoolsTable(myPools)}
-			{:else if !myPoolsLoading}
-				<p class="placeholder-text">No active LP positions.</p>
-			{/if}
+			<h3 class="section-title">My liquidity</h3>
+			{@render myPoolsTable(myPools)}
 		</div>
 	{/if}
 </div>
@@ -617,11 +608,6 @@
 		opacity: 0.6;
 	}
 
-	.placeholder-text {
-		color: var(--dash-text-muted);
-		padding: 0.5rem 0;
-	}
-
 	.my-pools-section {
 		margin-top: 1.25rem;
 		display: flex;
@@ -637,11 +623,6 @@
 		display: flex;
 		align-items: baseline;
 		gap: 0.5rem;
-	}
-	.muted {
-		font-weight: 500;
-		font-size: 0.7rem;
-		color: var(--dash-text-muted);
 	}
 	.share-pct,
 	.lp-amount {

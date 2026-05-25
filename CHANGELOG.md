@@ -2,6 +2,22 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.8] — 2026-05-25
+
+### Pools
+
+- Pool "Fee Earned" is now valued **per asset**. The fee column summed a pool's fees across both assets into one number and priced it all as the first asset — so HIVE-denominated fees were counted as HBD, inflating the figure several-fold (e.g. ~$382 shown vs ~$32 actual). Each asset's fees are now valued at its own price via `dex_pool_fees_by_asset`. (All-time for now — range-aware fees need a per-asset `fees_by_asset_since($pool, $ts)` view on the indexer)
+- "My liquidity" no longer flashes in and out when changing the timeframe. The section re-fetched positions on every range change and rendered during the loading window, then hid when empty; it now only renders once positions are loaded
+
+### Staking (sHBD)
+
+- The staking card's "Next payout" shows an estimate (`≈ N days`) instead of a hardcoded `—`. sHBD interest is the VSC gateway's L1 HBD-savings interest, distributed to holders automatically (~monthly); the estimate is `hbd_claim` (last distribution block) + ~30 days, shown only when the user holds sHBD
+
+### Witness Assistant
+
+- Added an `ⓘ` tooltip beside the Stake and Unstake headings explaining what staking does — deposits HIVE into VSC, locked while staked, ~1-day unstake cooldown, Hive accounts only — with a link to the docs
+- Loosened the cramped field spacing in the stake / unstake forms
+
 ## [0.3.7] — 2026-05-21
 
 ### Infrastructure (CORS elimination)

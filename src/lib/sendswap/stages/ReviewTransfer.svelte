@@ -39,7 +39,7 @@
 		}
 	});
 
-	let toCoin = $derived(txState.toCoin?.coin ?? coins.unk);
+	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
 	let inUsd = $state('');
 	let isInstructions = $derived(
 		auth.value?.provider === 'reown' &&

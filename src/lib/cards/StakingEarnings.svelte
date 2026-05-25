@@ -4,6 +4,8 @@
 	import { sHbdAprStore } from '$lib/stores/aprStore';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
+	import { getDateFromBlockHeight } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
+	import moment from 'moment';
 
 	type Props = {
 		onStake: () => void;
@@ -31,6 +33,19 @@
 		if ($sHbdAprStore === null || hbdSavings === 0) return '—';
 		const monthly = (hbdSavings * ($sHbdAprStore / 100)) / 12;
 		return `$${monthly.toFixed(2)}`;
+	});
+
+	// sHBD interest is the VSC gateway's L1 HBD-savings interest: the gateway
+	// holds the backing HBD in Hive savings, and when it RECEIVES that interest
+	// (~every 30 days) it's distributed to sHBD holders automatically — no
+	// per-user claim (per techcoderx). `hbd_claim` is the block of the last
+	// distribution, so the next is ≈ 30 days later. Approximate — gateway-driven.
+	const PAYOUT_PERIOD_DAYS = 30;
+	const nextPayoutLabel = $derived.by(() => {
+		const lastPayoutBlock = $accountBalance.bal.hbd_claim;
+		if (hbdSavings === 0 || !lastPayoutBlock) return '—';
+		const next = getDateFromBlockHeight(lastPayoutBlock).add(PAYOUT_PERIOD_DAYS, 'days');
+		return next.isAfter(moment()) ? `≈ ${next.fromNow(true)}` : 'soon';
 	});
 </script>
 
@@ -69,8 +84,8 @@
 			<span class="value">{new CoinAmount($accountBalance.bal.hbd_savings, Coin.hbd, true)}</span>
 		</div>
 		<div class="staking-stat">
-			<span class="label">Next payout in:</span>
-			<span class="value">—</span>
+			<span class="label">Next payout:</span>
+			<span class="value">{nextPayoutLabel}</span>
 		</div>
 	</div>
 </div>
@@ -117,6 +132,10 @@
 		gap: 0.2rem;
 		flex: 1 1 auto;
 		min-width: max-content;
+		/* Right-align each label + its value so the number lines up under its
+		   label instead of floating at the left of the (flex-grown) cell. */
+		align-items: flex-end;
+		text-align: right;
 	}
 	.staking-stat .label {
 		color: var(--dash-text-muted);

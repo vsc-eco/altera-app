@@ -120,6 +120,9 @@ async function fetchOnChainBtcBalance(address: string): Promise<number> {
 export type AccountBalance = {
 	hbd: number;
 	hbd_savings: number;
+	/** Block height of the last sHBD interest payout (mirrors Hive's
+	 *  savings_hbd_last_interest_payment). Used to estimate the next payout. */
+	hbd_claim: number;
 	pending_hbd_unstaking: number;
 	hive: number;
 	hive_consensus: number;
@@ -156,6 +159,7 @@ export function getDefaultBalance(): AccountBalance {
 	return {
 		hbd: 0,
 		hbd_savings: 0,
+		hbd_claim: 0,
 		pending_hbd_unstaking: 0,
 		hive: 0,
 		hive_consensus: 0,
@@ -220,6 +224,7 @@ async function fetchAccountData(auth: Auth) {
 				const balances: AccountBalance = {
 					hbd: resultBal?.hbd ?? 0,
 					hbd_savings: resultBal?.hbd_savings ?? 0,
+					hbd_claim: resultBal?.hbd_claim ?? 0,
 					pending_hbd_unstaking: resultBal?.pending_hbd_unstaking ?? 0,
 					hive: resultBal?.hive ?? 0,
 					hive_consensus: resultBal?.hive_consensus ?? 0,

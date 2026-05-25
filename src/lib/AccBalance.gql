@@ -4,6 +4,7 @@ query GetAccountBalance($account: String!) {
     consensus_unstaking
     hbd
     hbd_savings
+    hbd_claim
     hive_consensus
     hive
   }

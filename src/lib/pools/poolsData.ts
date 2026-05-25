@@ -335,7 +335,7 @@ async function fetchSinglePool(
 			policy: 'NetworkOnly'
 		}),
 		fetchPoolVolume(contractId, range),
-		fetchPoolFees(contractId),
+		fetchPoolFees(contractId, range),
 		fetchPoolLiquidity(contractId)
 	]);
 

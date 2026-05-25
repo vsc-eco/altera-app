@@ -6,7 +6,9 @@ All notable changes to Altera are documented here.
 
 ### Pools
 
-- Pool "Fee Earned" is now valued **per asset**. The fee column summed a pool's fees across both assets into one number and priced it all as the first asset — so HIVE-denominated fees were counted as HBD, inflating the figure several-fold (e.g. ~$382 shown vs ~$32 actual). Each asset's fees are now valued at its own price via `dex_pool_fees_by_asset`. (All-time for now — range-aware fees need a per-asset `fees_by_asset_since($pool, $ts)` view on the indexer)
+- Pool "Fee Earned" is now valued **per asset**. The fee column summed a pool's fees across both assets into one number and priced it all as the first asset — so HIVE-denominated fees were counted as HBD, inflating the figure several-fold (e.g. ~$382 shown vs ~$32 actual). Each asset's fees are now valued at its own price.
+- Fee Earned is **range-aware** again — it tracks the selected 1d/7d/30d/Max window like Volume, instead of always showing all-time. We aggregate the raw per-asset `dex_pool_fee_events` (which carry a timestamp) for the chosen window rather than the all-time `dex_pool_fees_by_asset` rollup
+- Time-range buttons are disabled while a fetch is in flight, and stale responses are dropped if the range changes mid-request — prevents overlapping queries from showing the wrong window's numbers
 - "My liquidity" no longer flashes in and out when changing the timeframe. The section re-fetched positions on every range change and rendered during the loading window, then hid when empty; it now only renders once positions are loaded
 
 ### Staking (sHBD)

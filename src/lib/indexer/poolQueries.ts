@@ -38,34 +38,46 @@ export async function fetchPoolVolume(
 export type PoolAssetFee = { asset: string; magiFee: number; lpFee: number };
 
 /**
- * Per-asset fee breakdown for a pool.
+ * Per-asset fee breakdown for a pool, over the selected time window.
  *
  * A pool collects fees in BOTH of its assets — one per swap direction — so the
- * old approach (summing `dex_pool_fee_events` into a single number, then
- * pricing it as one asset in poolsData) inflated the figure several-fold:
- * HIVE-denominated fees were counted as HBD. `dex_pool_fees_by_asset` keeps the
- * per-asset split, which the caller values at each asset's own price.
+ * old approach (summing into a single number and pricing it as one asset)
+ * inflated the figure several-fold (HIVE fees counted as HBD). We aggregate the
+ * raw `dex_pool_fee_events` (which carry `asset` + `indexer_ts`) per asset for
+ * the chosen range, so fees stay correct AND track the timeframe like volume;
+ * the caller values each asset at its own price.
  *
- * NOTE: this view is all-time (no timestamp), so unlike the old query this is
- * NOT range-aware. Restoring range filtering needs a time-bucketed per-asset
- * rollup (or group-by) on the indexer.
+ * PERF: for wide windows (30d/max) across the whole pool list this pulls a few
+ * hundred rows per pool. When the indexer exposes a per-asset rollup that takes
+ * a `$since` timestamp (e.g. `fees_by_asset_since(pool, since)`), swap the query
+ * below for a single aggregated call — the return shape stays the same.
  */
-export async function fetchPoolFees(poolId: string): Promise<PoolAssetFee[]> {
+export async function fetchPoolFees(poolId: string, range: TimeRange): Promise<PoolAssetFee[]> {
+	const gte = getTimeGte(range);
+	const whereClause = gte
+		? `{indexer_contract_id: {_eq: $pool}, indexer_ts: {_gte: "${gte}"}}`
+		: `{indexer_contract_id: {_eq: $pool}}`;
+
 	const query = `
-		query PoolFeesByAsset($pool: String!) {
-			dex_pool_fees_by_asset(where: {pool_contract: {_eq: $pool}}) {
-				asset lp_fees protocol_fees
+		query PoolFeeEvents($pool: String!) {
+			dex_pool_fee_events(where: ${whereClause}) {
+				asset lp_fee magi_fee
 			}
 		}
 	`;
 	const data = await hasuraQuery(query, { pool: poolId });
 	const rows =
-		(data?.dex_pool_fees_by_asset as Array<Record<string, number | string>> | undefined) ?? [];
-	return rows.map((r) => ({
-		asset: String(r.asset),
-		magiFee: Number(r.protocol_fees) || 0,
-		lpFee: Number(r.lp_fees) || 0
-	}));
+		(data?.dex_pool_fee_events as Array<Record<string, number | string>> | undefined) ?? [];
+
+	const byAsset = new Map<string, PoolAssetFee>();
+	for (const r of rows) {
+		const asset = String(r.asset);
+		const entry = byAsset.get(asset) ?? { asset, lpFee: 0, magiFee: 0 };
+		entry.lpFee += Number(r.lp_fee) || 0;
+		entry.magiFee += Number(r.magi_fee) || 0;
+		byAsset.set(asset, entry);
+	}
+	return [...byAsset.values()];
 }
 
 /**

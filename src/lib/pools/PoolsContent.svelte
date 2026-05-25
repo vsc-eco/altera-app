@@ -58,11 +58,19 @@
 
 	$effect(() => {
 		const range = timeRange;
+		let cancelled = false;
 		loading = true;
 		fetchPools(range).then((result) => {
+			// Guard against out-of-order resolves: if the range changed while
+			// this fetch was in flight, drop the stale result so it can't
+			// overwrite the newer range's numbers.
+			if (cancelled) return;
 			pools = result;
 			loading = false;
 		});
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	$effect(() => {
@@ -163,6 +171,7 @@
 					type="button"
 					class="time-btn"
 					class:active={timeRange === tr.value}
+					disabled={loading}
 					onclick={() => (timeRange = tr.value)}
 				>
 					{tr.label}
@@ -444,13 +453,17 @@
 		padding: 0.5rem 0.75rem;
 		cursor: pointer;
 		transition: background-color 0.1s, color 0.1s;
-		&:hover {
+		&:not(:disabled):hover {
 			background-color: var(--dash-surface-alt);
 			color: var(--dash-text-primary);
 		}
 		&.active {
 			background-color: #6F6AF8;
 			color: #FFFFFF;
+		}
+		&:disabled {
+			cursor: progress;
+			opacity: 0.6;
 		}
 	}
 

@@ -8,6 +8,7 @@
 	import { consensusUnstakeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
@@ -73,13 +74,20 @@
 			});
 		}}
 	>
-		<h2>Consensus Unstaking</h2>
+		<div class="modal-title">
+			<h2>Consensus Unstaking</h2>
+			<InfoTooltip>
+				Staking deposits your HIVE into VSC and locks it while staked. Unstaking has a short
+				cooldown (about a day) before the HIVE returns to your liquid balance. Only Hive accounts
+				can stake. <a href="https://docs.vsc.eco" target="_blank" rel="noopener">Learn more →</a>
+			</InfoTooltip>
+		</div>
 		<p>Be sure to be signed in with the account you'd like to unstake hive from.</p>
 		<p>
 			<b>Note:</b> Unstaked coins will be made available after an unbonding period of five elections
 			(about a day).
 		</p>
-		<p class="error">{error}</p>
+		{#if error}<p class="error">{error}</p>{/if}
 		<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
 		<div class="amount-flex">
 			<Amount
@@ -110,6 +118,14 @@
 	form {
 		box-sizing: border-box;
 		padding-top: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+	}
+	.modal-title {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
 	}
 	.amount-flex {
 		display: flex;
@@ -118,7 +134,7 @@
 		color: var(--dash-accent-purple);
 	}
 	p {
-		margin-bottom: 0.5rem;
+		margin: 0;
 	}
 	b {
 		color: var(--dash-accent-red);

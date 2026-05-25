@@ -9,6 +9,7 @@
 	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type OperationError, type OperationResult } from '@aioha/aioha/build/types';
+	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let nodeRunnerAccount: string | undefined = $state();
@@ -98,9 +99,16 @@
 		});
 	}}
 >
-	<h2>Consensus Staking</h2>
+	<div class="modal-title">
+		<h2>Consensus Staking</h2>
+		<InfoTooltip>
+			Staking deposits your HIVE into VSC and locks it while staked. Unstaking has a short
+			cooldown (about a day) before the HIVE returns to your liquid balance. Only Hive accounts
+			can stake. <a href="https://docs.vsc.eco" target="_blank" rel="noopener">Learn more →</a>
+		</InfoTooltip>
+	</div>
 	<p>Be sure to be signed in with the account you'd like to deposit and stake hive from.</p>
-	<p class="error">{error}</p>
+	{#if error}<p class="error">{error}</p>{/if}
 	<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
 	<div class="amount-flex">
 		<Amount
@@ -134,6 +142,14 @@
 	form {
 		box-sizing: border-box;
 		padding-top: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+	}
+	.modal-title {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
 	}
 	.amount-flex {
 		display: flex;
@@ -142,6 +158,6 @@
 		color: var(--dash-accent-purple);
 	}
 	p {
-		margin-bottom: 0.5rem;
+		margin: 0;
 	}
 </style>

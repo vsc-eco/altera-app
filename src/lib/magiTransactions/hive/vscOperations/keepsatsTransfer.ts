@@ -24,7 +24,7 @@ type keepsatsTransferOp = {
 };
 
 export const getKeepsatsDestinationDid = (): string =>
-	`hive:${isVscTestnet() ? 'v4vapp-test' : 'v4vapp'}`
+	`hive:${isVscTestnet() ? 'devser.v4vapp' : 'v4vapp'}`
 
 export function getKeepsatsTransferOp(
 	from: string,

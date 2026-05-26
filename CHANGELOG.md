@@ -2,6 +2,17 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.9] — 2026-05-26
+
+### Fixes
+
+- **`/login` and `/logout` no longer 500 on a direct/hard navigation in production.** Both routes defaulted to server-side rendering, so the Vercel function tried to server-render them and import the browser-only wallet SDK graph (Reown AppKit / wagmi / `@metamask/sdk` via the auth store) — whose optional deps aren't bundled into the function, throwing "Cannot find module" at request time. Reaching `/login` via the client-side redirect from `/` never crashed because `/` is an `(authed)` route with `ssr=false`. Both routes are now `ssr=false` to match, so they render client-side; `prerender` stays false so they're still served as functions with a CSR shell
+- **Pool "Fee Earned" no longer shows a stray `NULL` currency in the Max range.** 84 `dex_pool_fee_events` (two pools, 2026-04-16→18) have a null `asset` and only the Max window reaches them; they bucketed under `"null"` and rendered as `… NULL`. They're now excluded at the query and guarded in aggregation (the underlying indexer rows still need their `asset` backfilled)
+
+### Security
+
+- Added a styled self-XSS warning in the browser console on load — deters the common scam of telling users to paste code into devtools, which in a non-custodial wallet can leak keys and drain funds
+
 ## [0.3.8] — 2026-05-25
 
 ### Pools

@@ -10,12 +10,14 @@
 	import { themeStore, getInitialTheme, THEMES } from '$lib/theme';
 	import { cleanOldLocalStorage } from '$lib/cleanup';
 	import { refreshAllNodes } from '$lib/nodeSelection/select';
+	import { showConsoleSecurityWarning } from '$lib/consoleWarning';
 
 	let { children } = $props();
 	injectAnalytics();
 	let allowFocusVisible = false;
 	// set the theme on load
 	onMount(() => {
+		showConsoleSecurityWarning();
 		const initialTheme = getInitialTheme();
 		themeStore.set(THEMES[initialTheme]);
 		cleanOldLocalStorage();

@@ -24,11 +24,15 @@ export interface BtcUnmapEvent extends BtcMappingEventBase {
 	tx_id: string; // Bitcoin transaction ID (once broadcast)
 }
 
-// btc_mapping_transfer_events — emitted on `transfer` / `transferFrom` (VSC → VSC)
+// btc_mapping_transfer_events — emitted on `transfer` / `transferFrom` (VSC → VSC).
+// NOTE: unlike the deposit table (sender/recipient), this table names its parties
+// `from_addr` / `to_addr` (same as the unmap table). Using sender/recipient here made
+// every query fail with "field not found", which isSchemaError() swallowed → the lookup
+// silently returned null and transfer rows never enriched in the UI.
 export interface BtcTransferEvent extends BtcMappingEventBase {
 	amount: string; // satoshis
-	sender: string; // sender VSC DID
-	recipient: string; // recipient VSC DID
+	from_addr: string; // sender VSC DID
+	to_addr: string; // recipient VSC DID
 }
 
 /**
@@ -113,8 +117,8 @@ export async function fetchBtcTransferEvent(txHash: string): Promise<BtcTransfer
 				indexer_tx_hash
 				indexer_block_height
 				amount
-				sender
-				recipient
+				from_addr
+				to_addr
 			}
 		}
 	`;

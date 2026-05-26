@@ -2,6 +2,12 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.10] — 2026-05-26
+
+### Fixes
+
+- BTC (sats) **transfer** rows now enrich correctly in the transactions detail view. `fetchBtcTransferEvent` queried `btc_mapping_transfer_events` for `sender`/`recipient`, but that table actually uses `from_addr`/`to_addr` (only the deposit table uses sender/recipient). The bad column names errored, were swallowed as a schema error, and the lookup silently returned `null` — so VSC→VSC sats transfers (e.g. issue #94) always fell back to payload-only display and never showed the indexed counterparties. Aligned the type, query, and the `BtcMappingTr` consumer to `from_addr`/`to_addr`; deposit/unmap were already correct
+
 ## [0.3.9] — 2026-05-26
 
 ### Fixes

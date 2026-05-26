@@ -119,14 +119,21 @@
 					// to_addr is null on older unmap rows — fall back to the original
 					// call payload's `to` field (the BTC destination address).
 					toAccount = result.event.to_addr || payloadData?.to || 'Unknown';
-				} else {
+				} else if (result.action === 'map') {
+					// deposit table names its parties sender/recipient
 					fromAccount = result.event.sender || did;
 					toAccount = result.event.recipient || 'Unknown';
+				} else {
+					// transfer / transferFrom (VSC → VSC) — the transfer table uses
+					// from_addr/to_addr, same as unmap.
+					fromAccount = result.event.from_addr || did;
+					toAccount = result.event.to_addr || payloadData?.to || 'Unknown';
 				}
 			} else {
-				// No indexer entry — internal VSC transfers (call/transfer) never produce
-				// an on-chain BTC event so the indexer will always return null for them.
-				// Fall back to what we can read directly from the payload.
+				// No indexer row yet. Internal transfers DO emit a
+				// btc_mapping_transfer_events row, but it can lag the contract-state
+				// finality (and map/unmap rows can also be briefly absent), so fall
+				// back to what we can read directly from the payload meanwhile.
 				fromAccount = did;
 				toAccount = payloadData?.to ?? 'Unknown';
 			}

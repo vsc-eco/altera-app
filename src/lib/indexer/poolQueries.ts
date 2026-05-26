@@ -54,9 +54,13 @@ export type PoolAssetFee = { asset: string; magiFee: number; lpFee: number };
  */
 export async function fetchPoolFees(poolId: string, range: TimeRange): Promise<PoolAssetFee[]> {
 	const gte = getTimeGte(range);
+	// Exclude rows with no `asset` tag. A 3-day indexer window (2026-04-16..18)
+	// emitted fee events with a null asset; they only surface in the `max`
+	// range (older than 30d), where they were aggregating under the key
+	// "null" and rendering as a bogus "… NULL" currency in the breakdown.
 	const whereClause = gte
-		? `{indexer_contract_id: {_eq: $pool}, indexer_ts: {_gte: "${gte}"}}`
-		: `{indexer_contract_id: {_eq: $pool}}`;
+		? `{indexer_contract_id: {_eq: $pool}, indexer_ts: {_gte: "${gte}"}, asset: {_is_null: false}}`
+		: `{indexer_contract_id: {_eq: $pool}, asset: {_is_null: false}}`;
 
 	const query = `
 		query PoolFeeEvents($pool: String!) {
@@ -71,6 +75,9 @@ export async function fetchPoolFees(poolId: string, range: TimeRange): Promise<P
 
 	const byAsset = new Map<string, PoolAssetFee>();
 	for (const r of rows) {
+		// Defensive: skip any untagged row that slips past the query filter so
+		// it can't create a "null"/"NULL" asset bucket.
+		if (r.asset == null) continue;
 		const asset = String(r.asset);
 		const entry = byAsset.get(asset) ?? { asset, lpFee: 0, magiFee: 0 };
 		entry.lpFee += Number(r.lp_fee) || 0;

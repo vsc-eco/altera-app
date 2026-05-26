@@ -848,8 +848,67 @@ export async function send(
 
 	if (intermediary == Network.lightning) {
 		// Lightning Transfer withdrawal: Transfer to V4VApp on Magi (Keepsats)
+		if (auth.value?.did?.startsWith('did:pkh:bip122:')) {
+			return new Error('Lightning Transfer Withdraw via a BTC wallet is not supported yet.');
+		}
+
+		if (auth.value?.provider === 'reown') {
+			setStatus('Preparing transaction for signing…');
+			if (!wagmiConfig) {
+				throw new Error('EVM wallet not initialised — click Connect Wallet first');
+			}
+			const client = createClient(auth.value.did);
+			const evmOp = getEVMOpType(
+				fromNetwork,
+				Network.magi,
+				auth.value.did,
+				getKeepsatsDestinationDid(),
+				new CoinAmount(amount, toCoin!.coin)
+			);
+
+			const id = await signAndBrodcastTransaction(
+				[evmOp],
+				wagmiSigner,
+				client,
+				signal,
+				wagmiConfig
+			)
+				.then((result) => {
+					setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+					addLocalTransaction({
+						ops: [
+							{
+								data: {
+									amount: new CoinAmount(amount, toCoin!.coin).toAmountString(),
+									asset: toCoin!.coin.unit.toLowerCase(),
+									from: auth.value!.did,
+									to: getKeepsatsDestinationDid(),
+									memo: 'Deposit #sats',
+									type: 'transfer'
+								},
+								type: 'transfer',
+								index: 0
+							}
+						],
+						timestamp: new Date(),
+						id: result.id,
+						type: 'vsc'
+					});
+					return { id: result.id };
+				})
+				.catch((error) => {
+					if (error instanceof Error) {
+						setStatus(error.message, true);
+						return error;
+					}
+					setStatus('Transaction failed.', true);
+					return new Error('Transaction failed.');
+				});
+			return id;
+		}
+
 		if (!auth.value?.aioha) {
-			return new Error("Lightning Transfer Withdraw via an EVM wallet isn't supported yet.");
+			return new Error('Lightning Transfer Withdraw requires a Hive or EVM wallet.');
 		}
 		setStatus('Waiting for Hive wallet approval…');
 		// Convert BTC amount to SATS: BTC internal units == SATS units

@@ -2,7 +2,7 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
-	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
+	import swapOptions, { getToOption, Coin, Network, TransferMethod } from '../../utils/sendOptions';
 	import { scanForBalance } from '../../utils/sendUtils';
 	import { useWithdrawState } from '../../utils/txState.svelte';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
@@ -45,17 +45,17 @@
 		if (!hiveMainnetOpen) return;
 		untrack(() => {
 			const hiveCoin =
-				swapOptions.from.coins.find(
+				swapOptions.from.find(
 					(coinOpt) =>
 						coinOpt.coin.value === Coin.hive.value &&
 						coinOpt.networks.some((n) => n.value === Network.magi.value)
 				) ||
-				swapOptions.from.coins.find(
+				swapOptions.from.find(
 					(coinOpt) =>
 						coinOpt.coin.value === Coin.hbd.value &&
 						coinOpt.networks.some((n) => n.value === Network.magi.value)
 				);
-			const hbdCoin = swapOptions.from.coins.find(
+			const hbdCoin = swapOptions.from.find(
 				(coinOpt) =>
 					coinOpt.coin.value === Coin.hbd.value &&
 					coinOpt.networks.some((n) => n.value === Network.magi.value)
@@ -89,7 +89,7 @@
 	$effect(() => {
 		if (!btcMainnetOpen) return;
 		untrack(() => {
-			const btcCoin = swapOptions.from.coins.find(
+			const btcCoin = swapOptions.from.find(
 				(coinOpt) =>
 					coinOpt.coin.value === Coin.btc.value &&
 					coinOpt.networks.some((n) => n.value === Network.magi.value)
@@ -105,16 +105,14 @@
 	$effect(() => {
 		if (!lightningTransferOpen) return;
 		untrack(() => {
-			const btcCoinFrom = swapOptions.from.coins.find(
+			const btcCoinFrom = swapOptions.from.find(
 				(coinOpt) =>
 					coinOpt.coin.value === Coin.btc.value &&
 					coinOpt.networks.some((n) => n.value === Network.magi.value)
 			);
 			// Find BTC in to-coins without requiring lightning in networks,
 			// since lightning is the toNetwork and is set separately below.
-			const btcCoinTo = swapOptions.to.coins.find(
-				(coinOpt) => coinOpt.coin.value === Coin.btc.value
-			);
+			const btcCoinTo = getToOption(Coin.btc.value);
 			txState.method = TransferMethod.lightningTransfer;
 			txState.fromNetwork = Network.magi;
 			txState.fromCoin = btcCoinFrom;

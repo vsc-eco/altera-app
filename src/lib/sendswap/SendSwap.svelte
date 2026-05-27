@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import swapOptions, { Coin, Network, TransferMethod } from '$lib/sendswap/utils/sendOptions';
+	import { getFromOption, getToOption, Coin, Network, TransferMethod } from '$lib/sendswap/utils/sendOptions';
 	import { scanForBalance } from '$lib/sendswap/utils/sendUtils';
 	import {
 		SWAP_PAGE_PREF_KEY,
@@ -35,10 +35,10 @@
 			const stored = loadSwapSelection(SWAP_PAGE_PREF_KEY);
 			const fromOpt =
 				findFromOpt(stored?.fromCoin) ??
-				swapOptions.from.coins.find((c) => c.coin.value === Coin.btc.value);
+				getFromOption(Coin.btc.value);
 			const toOpt =
 				findToOpt(stored?.toCoin) ??
-				swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
+				getToOption(Coin.hive.value);
 			const fromNet = findNetwork(stored?.fromNetwork) ?? Network.magi;
 			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
 			txState.toNetwork = toNet;
@@ -50,7 +50,7 @@
 			const balOpt = scanForBalance(
 				[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({ coin: c, network: Network.magi }))
 			);
-			const coinOpt = swapOptions.from.coins.find((c) => c.coin.value === balOpt?.coin.value);
+			const coinOpt = getFromOption(balOpt?.coin.value);
 			txState.toNetwork = Network.magi;
 			txState.fromNetwork = Network.magi;
 			txState.fromCoin = coinOpt;

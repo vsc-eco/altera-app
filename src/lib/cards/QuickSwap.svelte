@@ -2,7 +2,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { solveNetworkConstraints, optionsEqual } from '$lib/sendswap/utils/sendUtils';
 	import { SwapTxState, provideTxState } from '$lib/sendswap/utils/txState.svelte';
-	import swapOptions, {
+	import swapOptions, { getFromOption, getToOption,
 		Coin,
 		Network,
 		TransferMethod,
@@ -84,7 +84,7 @@
 		)
 			return Network.hiveMainnet;
 		// Generic fallback: first non-magi, non-lightning network on the coin
-		const opt = swapOptions.from.coins.find((c) => c.coin.value === coinValue);
+		const opt = getFromOption(coinValue);
 		const native = opt?.networks.find(
 			(n) => n.value !== Network.magi.value && n.value !== Network.lightning.value
 		);
@@ -96,10 +96,10 @@
 
 	function applyStartDetails() {
 		const stored = loadSwapSelection(SWAP_QUICK_PREF_KEY);
-		const btcFromOption = swapOptions.from.coins.find((c) => c.coin.value === Coin.btc.value);
-		const hiveFromOption = swapOptions.from.coins.find((c) => c.coin.value === Coin.hive.value);
-		const btcToOption = swapOptions.to.coins.find((c) => c.coin.value === Coin.btc.value);
-		const hiveToOption = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
+		const btcFromOption = getFromOption(Coin.btc.value);
+		const hiveFromOption = getFromOption(Coin.hive.value);
+		const btcToOption = getToOption(Coin.btc.value);
+		const hiveToOption = getToOption(Coin.hive.value);
 
 		const isReownBtc =
 			auth.value?.provider === 'reown' && auth.value.did?.startsWith('did:pkh:bip122:');
@@ -202,7 +202,7 @@
 
 	// From tokens: all available coins (BTC, HIVE, HBD) — exclude sHBD
 	const fromAssetObjs: AssetObject[] = $derived(
-		swapOptions.from.coins
+		swapOptions.from
 			.filter((opt) => opt.coin.value !== Coin.shbd?.value)
 			.map((opt) => ({
 				...opt.coin,
@@ -216,7 +216,7 @@
 	);
 	// To tokens: all coins Magi supports (show all, not just those with balance) — exclude sHBD
 	const toAssetObjs: AssetObject[] = $derived(
-		swapOptions.to.coins
+		swapOptions.to
 			.filter((opt) => opt.coin.value !== Coin.shbd?.value)
 			.map((opt) => ({
 				...opt.coin,
@@ -705,7 +705,7 @@
 			}
 		}
 
-		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
+		const source = currentlyOpen === 'from' ? swapOptions.from : swapOptions.to;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
 

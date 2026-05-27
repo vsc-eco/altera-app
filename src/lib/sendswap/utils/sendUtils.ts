@@ -36,7 +36,7 @@ import swapOptions, {
 	networkMap,
 	TransferMethod,
 	type CoinOnNetwork,
-	type CoinOptions,
+	type AssetOption,
 	type IntermediaryNetwork
 } from './sendOptions'
 import type { TxStateBase } from './txState.svelte'
@@ -366,7 +366,7 @@ export async function getFee(toAmount: string, state: TxStateBase) {
 	}
 }
 
-type CoinOptList = CoinOptions['coins'][number];
+type CoinOptList = AssetOption;
 export interface CoinOptionParam extends CoinOptList {
 	disabled?: boolean;
 	disabledMemo?: string;
@@ -416,7 +416,7 @@ function combineAssetOptions(
 	toNetwork?: Network,
 	fromNetwork?: Network
 ): CoinOptionParam[] {
-	const allObjs = Object.values(swapOptions.from.coins);
+	const allObjs = swapOptions.from;
 	const available = to ? from.intersection(to) : from;
 	const notInFrom = all.difference(from);
 	const notInTo = to ? all.difference(to).difference(notInFrom) : new Set<string>();
@@ -473,7 +473,7 @@ function combineNetworkOptions(
 
 export function solveNetworkConstraints(
 	method: TransferMethod | undefined,
-	fromCoin: CoinOptions['coins'][number] | undefined,
+	fromCoin: AssetOption | undefined,
 	toNetwork: Network | undefined,
 	did: string | undefined,
 	fromNetwork?: Network,
@@ -486,7 +486,7 @@ export function solveNetworkConstraints(
 			networkOptions: []
 		};
 	const inUseNetworks = [Network.magi, Network.hiveMainnet, Network.lightning];
-	const allAssetsSet = createSet(swapOptions.from['coins'].map((item) => item.coin));
+	const allAssetsSet = createSet(swapOptions.from.map((item) => item.coin));
 
 	const networksGivenMethod = createSet(method ? getMethodNetworks(method) : undefined);
 	const networksGivenBoth = createSet(getDidNetworks(did)).intersection(networksGivenMethod);

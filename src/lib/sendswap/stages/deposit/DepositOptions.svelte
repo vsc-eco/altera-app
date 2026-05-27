@@ -2,7 +2,7 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
-	import swapOptions, { Coin, Network, TransferMethod } from '../../utils/sendOptions';
+	import swapOptions, { getFromOption, getToOption, Coin, Network, TransferMethod, type AssetOption } from '../../utils/sendOptions';
 	import { scanForBalance } from '../../utils/sendUtils';
 	import { useDepositState } from '../../utils/txState.svelte';
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
@@ -54,16 +54,14 @@
 				coin: Coin.sats,
 				networks: [Network.magi]
 			};
-			const btcCoin = swapOptions.from.coins.find(
-				(coinOpt) => coinOpt.coin.value === Coin.btc.value
-			);
+			const btcCoin = getFromOption(Coin.btc.value);
 			const shouldPreserveFromCoin =
 				txState.fromCoin &&
 				txState.fromCoin.networks?.some((n) => n.value === Network.lightning.value);
 
-			const hiveCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hive.value);
-			const hbdCoin = swapOptions.to.coins.find((c) => c.coin.value === Coin.hbd.value);
-			let toCoinToUse = satsCoin; // default to Magi SATS
+			const hiveCoin = getToOption(Coin.hive.value);
+			const hbdCoin = getToOption(Coin.hbd.value);
+			let toCoinToUse: AssetOption | undefined = satsCoin; // default to Magi SATS
 			if (
 				txState.toCoin &&
 				(txState.toCoin.coin.value === Coin.hive.value ||
@@ -98,17 +96,17 @@
 		untrack(() => {
 			toggleLightning(false);
 			const hiveCoin =
-				swapOptions.from.coins.find(
+				swapOptions.from.find(
 					(coinOpt) =>
 						coinOpt.coin.value === Coin.hive.value &&
 						coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
 				) ||
-				swapOptions.from.coins.find(
+				swapOptions.from.find(
 					(coinOpt) =>
 						coinOpt.coin.value === Coin.hbd.value &&
 						coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)
 				);
-			const hbdCoin = swapOptions.from.coins.find(
+			const hbdCoin = swapOptions.from.find(
 				(coinOpt) =>
 					coinOpt.coin.value === Coin.hbd.value &&
 					coinOpt.networks.some((n) => n.value === Network.hiveMainnet.value)

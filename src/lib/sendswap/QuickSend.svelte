@@ -3,7 +3,7 @@
 	import { scanForBalance } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
 	import ReviewTransfer from './stages/ReviewTransfer.svelte';
-	import swapOptions, { Coin, Network, TransferMethod } from './utils/sendOptions';
+	import { getFromOption, Coin, Network, TransferMethod } from './utils/sendOptions';
 	import QuickTransferOptions from './stages/QuickSendOptions.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { TransferTxState, provideTxState } from './utils/txState.svelte';
@@ -28,7 +28,7 @@
 				network: Network.magi
 			}))
 		);
-		const coinOpt = swapOptions.from.coins.find((c) => c.coin.value === balOpt?.coin.value);
+		const coinOpt = getFromOption(balOpt?.coin.value);
 		txState.fromCoin = coinOpt;
 		txState.fromNetwork = Network.magi;
 		txState.toCoin = coinOpt;

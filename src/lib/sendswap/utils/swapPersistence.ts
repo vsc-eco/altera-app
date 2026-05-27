@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import swapOptions, { Coin, Network } from './sendOptions';
+import { getFromOption, getToOption, Coin, Network } from './sendOptions';
 
 /**
  * Persists the user's last source/target selection on swap surfaces
@@ -38,14 +38,12 @@ export function saveSwapSelection(key: string, sel: SwapSelection) {
 
 /** Resolve the rich `from` coin option (with networks) by Coin.value. */
 export function findFromOpt(coinValue: string | undefined) {
-	if (!coinValue) return undefined;
-	return swapOptions.from.coins.find((c) => c.coin.value === coinValue);
+	return getFromOption(coinValue);
 }
 
 /** Resolve the rich `to` coin option (with networks) by Coin.value. */
 export function findToOpt(coinValue: string | undefined) {
-	if (!coinValue) return undefined;
-	return swapOptions.to.coins.find((c) => c.coin.value === coinValue);
+	return getToOption(coinValue);
 }
 
 /** Resolve a Network instance by Network.value. */

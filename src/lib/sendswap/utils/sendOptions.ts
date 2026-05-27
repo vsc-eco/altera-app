@@ -169,12 +169,14 @@ export const Network = {
 	unknown
 };
 
-export type CoinOptions = {
-	coins: {
-		coin: Coin;
-		networks: Network[];
-	}[];
+/** A selectable asset: a coin plus the networks it can move over. */
+export type AssetOption = {
+	coin: Coin;
+	networks: Network[];
 };
+
+/** Ordered list of selectable assets (was `{ coins: AssetOption[] }`). */
+export type CoinOptions = AssetOption[];
 
 /**
  * UI-facing labels for the two transfer rails. `length` is the ETA copy shown
@@ -213,24 +215,30 @@ const swapOptions: {
 	from: CoinOptions;
 	to: CoinOptions;
 } = {
-	from: {
-		coins: [
-			{ coin: hive, networks: [magi, hiveMainnet] },
-			{ coin: hbd, networks: [magi, hiveMainnet] },
-			{ coin: shbd, networks: [magi] },
-			{ coin: btc, networks: [magi, btcMainnet] }
-		]
-	},
-	to: {
-		coins: [
-			{ coin: hive, networks: [magi, hiveMainnet] },
-			{ coin: hbd, networks: [magi, hiveMainnet] },
-			{ coin: btc, networks: [btcMainnet, magi] }
-		]
-	}
+	from: [
+		{ coin: hive, networks: [magi, hiveMainnet] },
+		{ coin: hbd, networks: [magi, hiveMainnet] },
+		{ coin: shbd, networks: [magi] },
+		{ coin: btc, networks: [magi, btcMainnet] }
+	],
+	to: [
+		{ coin: hive, networks: [magi, hiveMainnet] },
+		{ coin: hbd, networks: [magi, hiveMainnet] },
+		{ coin: btc, networks: [btcMainnet, magi] }
+	]
 };
 
 export default swapOptions;
+
+/**
+ * Look up the `from` / `to` asset option by coin value. Replaces the ~20
+ * hand-written `swapOptions.from.coins.find((c) => c.coin.value === v)` calls
+ * scattered across the send/swap stages.
+ */
+export const getFromOption = (coinValue: string | undefined): AssetOption | undefined =>
+	swapOptions.from.find((o) => o.coin.value === coinValue);
+export const getToOption = (coinValue: string | undefined): AssetOption | undefined =>
+	swapOptions.to.find((o) => o.coin.value === coinValue);
 
 // APP-17: only expose internals on globalThis in development builds.
 if (import.meta.env.DEV) {

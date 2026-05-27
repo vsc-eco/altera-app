@@ -7,6 +7,11 @@ All notable changes to Altera are documented here.
 ### Fixes
 
 - BTC (sats) **transfer** rows now enrich correctly in the transactions detail view. `fetchBtcTransferEvent` queried `btc_mapping_transfer_events` for `sender`/`recipient`, but that table actually uses `from_addr`/`to_addr` (only the deposit table uses sender/recipient). The bad column names errored, were swallowed as a schema error, and the lookup silently returned `null` — so VSC→VSC sats transfers (e.g. issue #94) always fell back to payload-only display and never showed the indexed counterparties. Aligned the type, query, and the `BtcMappingTr` consumer to `from_addr`/`to_addr`; deposit/unmap were already correct
+- QuickSwap token picker: the FROM/TO role badge is no longer suppressed on a dimmed chip. A token that's your current TO but can't be a source on your wallet (e.g. BTC on a Hive wallet) now shows **both** the role badge and the "not supported" tooltip, instead of only the tooltip
+
+### Internals
+
+- Flattened `swapOptions` — `CoinOptions` is now the array itself (`AssetOption[]`, dropping the `{ coins: [...] }` wrapper) and the relic `CoinOptions['coins'][number]` type is replaced by a named `AssetOption`. Added `getFromOption`/`getToOption` helpers that collapse ~20 hand-written `swapOptions.from.coins.find((c) => c.coin.value === v)` lookups (network-filtered finds left as-is). No behavior change — same coins, networks, and from/to data
 
 ## [0.3.9] — 2026-05-26
 

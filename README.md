@@ -28,7 +28,7 @@ You can preview the production build with `npm run preview`.
 
 The V4VAPP API is a RESTful API that provides access to the V4VAPP backend. It is used by the V4VAPP frontend to fetch data and perform actions such as generate deposit invoices.
 
-The API is available at `https://api.v4v.app` in production, and `https://devapi.v4v.app` in development. You can also set the API base URL using the `V4VAPP_API_BASE` environment variable.
+The API is available at `https://api.v4v.app` in production and `https://devapi.v4v.app` in development. The app selects the development API when `PUBLIC_V4VAPP_API_MODE` is set to `dev`; otherwise it uses the production API.
 
 To use the development API, set the `PUBLIC_V4VAPP_API_MODE` environment variable to `dev` in your `.env` file:
 

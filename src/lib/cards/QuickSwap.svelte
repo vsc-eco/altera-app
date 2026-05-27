@@ -1570,10 +1570,15 @@
 					>
 						<img src={token.icon} alt={token.label} class="chip-icon" />
 						<span>{coinDisplayLabel(token)}</span>
+						<!-- A chip can be both the current FROM/TO *and* blocked as a FROM pick
+						     (e.g. BTC is your TO but can't be a source on a Hive wallet). Show the
+						     role badge whenever selected, and the tooltip independently when blocked,
+						     so the role label isn't suppressed on a dimmed chip. -->
+						{#if isSelected}
+							<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
+						{/if}
 						{#if walletBlocked}
 							<Tooltip>Not supported by your wallet</Tooltip>
-						{:else if isSelected}
-							<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
 						{/if}
 					</button>
 				{/each}

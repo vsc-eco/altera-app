@@ -1,4 +1,5 @@
-import { getQuerier } from './query';
+import { V4VAPP_API_BASE } from '../config'
+import { getQuerier } from './query'
 
 export type Cryptoprices = {
 	bitcoin: {
@@ -62,5 +63,5 @@ export type Cryptoprices = {
 	};
 };
 
-const url = 'https://api.v4v.app/v1/cryptoprices/';
+const url = `${V4VAPP_API_BASE}/v1/cryptoprices/`;
 export const getCryptoPrices = getQuerier<Cryptoprices>(url);

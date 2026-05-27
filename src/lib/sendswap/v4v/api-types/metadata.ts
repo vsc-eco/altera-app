@@ -1,4 +1,5 @@
-import { getQuerier } from './query';
+import { V4VAPP_API_BASE } from '../config'
+import { getQuerier } from './query'
 
 export type Metadata = {
 	message: string;
@@ -48,6 +49,6 @@ export type Metadata = {
 };
 
 export const getV4VMetadata = getQuerier<Metadata>(
-	'https://api.v4v.app/v1?get_crypto=false',
+	`${V4VAPP_API_BASE}/v1?get_crypto=false`,
 	5 * 60 // refresh every 5 mins at most
 );

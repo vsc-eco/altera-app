@@ -2,7 +2,10 @@ import type { Auth } from '$lib/auth/store'
 import { vscGateway } from '$lib/constants'
 import { sleep } from 'aninest'
 import { Network } from '../utils/sendOptions'
-const V4VAPP_API = 'https://api.v4v.app';
+import { V4VAPP_API_BASE } from './config'
+
+const V4VAPP_API = V4VAPP_API_BASE
+
 type Token = 'hive' | 'hbd' | 'sats';
 // V4V API only accepts: HIVE, HBD, USD, SATS (uppercase) / hive, hbd, sats (lowercase)
 function toV4VCurrency(token: string): string {

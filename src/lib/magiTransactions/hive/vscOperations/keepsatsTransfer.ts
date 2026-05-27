@@ -1,8 +1,9 @@
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants'
 import { CoinAmount } from '$lib/currency/CoinAmount'
 import { Coin } from '$lib/sendswap/utils/sendOptions'
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants'
+import { V4V_KEEPSATS_DESTINATION_ACCOUNT } from '$lib/sendswap/v4v/config'
 import type { CustomJsonOperation } from '@hiveio/dhive'
-import { isVscTestnet, vscNetworkId } from '../../../../client'
+import { vscNetworkId } from '../../../../client'
 
 /**
  * Create a custom_json operation to transfer MagiSats to V4VApp
@@ -24,7 +25,7 @@ type keepsatsTransferOp = {
 };
 
 export const getKeepsatsDestinationDid = (): string =>
-	`hive:${isVscTestnet() ? 'devser.v4vapp' : 'v4vapp'}`
+	`hive:${V4V_KEEPSATS_DESTINATION_ACCOUNT}`
 
 export function getKeepsatsTransferOp(
 	from: string,

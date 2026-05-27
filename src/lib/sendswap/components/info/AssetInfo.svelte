@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { isValidBalanceField } from '$lib/stores/balanceHistory';
 	import { get } from 'svelte/store';
-	import { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network, type AssetOption } from '$lib/sendswap/utils/sendOptions';
 	import InfoSegment from './InfoSegment.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -15,7 +15,7 @@
 		basic = false,
 		size = 'small'
 	}: {
-		coinOpt: CoinOptions['coins'][number];
+		coinOpt: AssetOption;
 		network?: Network | undefined;
 		lastPaid?: string;
 		disabledMemo?: string;

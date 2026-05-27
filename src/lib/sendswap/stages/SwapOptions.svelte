@@ -9,11 +9,11 @@
 	import { useSwapState } from '$lib/sendswap/utils/txState.svelte';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import { onMount, untrack } from 'svelte';
-	import swapOptions, {
+	import swapOptions, { getFromOption, getToOption,
 		Coin,
 		Network,
 		type CoinOnNetwork,
-		type CoinOptions
+		type AssetOption
 	} from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -533,21 +533,19 @@
 			return bal > 0.001;
 		});
 		if (!(txState.toCoin && txState.toNetwork)) {
-			let nextToCoin: (typeof swapOptions.to.coins)[number] | undefined;
+			let nextToCoin: (typeof swapOptions.to)[number] | undefined;
 			let nextToNetwork: Network | undefined;
 			if (visibleToObjs.length > 0) {
 				const hiveTo = visibleToObjs.find((obj) => obj.value === Coin.hive.value);
 				const firstAvailableTo = visibleToObjs[0];
 				if (hiveTo) {
-					const swapTo = swapOptions.to.coins.find((opt) => opt.coin.value === Coin.hive.value);
+					const swapTo = getToOption(Coin.hive.value);
 					if (swapTo) {
 						nextToCoin = swapTo;
 						nextToNetwork = Array.isArray(swapTo.networks) ? swapTo.networks[0] : undefined;
 					}
 				} else if (firstAvailableTo) {
-					const swapTo = swapOptions.to.coins.find(
-						(opt) => opt.coin.value === firstAvailableTo.value
-					);
+					const swapTo = getToOption(firstAvailableTo.value);
 					if (swapTo) {
 						nextToCoin = swapTo;
 						nextToNetwork = Array.isArray(swapTo.networks) ? swapTo.networks[0] : undefined;
@@ -622,7 +620,7 @@
 		}
 	]);
 	const toAssetObjs: AssetObject[] = $derived(
-		swapOptions.to.coins.map((opt) => ({
+		swapOptions.to.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
 			snippetData: { fromOpt: opt, net: txState.toNetwork, size: 'medium' }
@@ -762,7 +760,7 @@
 				}
 			: undefined
 	);
-	let tempCoinOpt: CoinOptions['coins'][number] | undefined = $state();
+	let tempCoinOpt: AssetOption | undefined = $state();
 	let tokenSearch = $state('');
 
 	function openDialog(state: 'from' | 'to') {
@@ -844,9 +842,7 @@
 				const prevFrom = txState.fromCoin;
 				txState.toCoin = prevFrom;
 				// toNetwork stays managed by destChoice effect.
-				const coinOpt = swapOptions.from.coins.find(
-					(opt) => opt.coin.value === token.value
-				);
+				const coinOpt = getFromOption(token.value);
 				if (!coinOpt) return;
 				tempCoinOpt = coinOpt;
 				dialogStep = 'source';
@@ -864,7 +860,7 @@
 			return;
 		}
 
-		const source = currentlyOpen === 'from' ? swapOptions.from.coins : swapOptions.to.coins;
+		const source = currentlyOpen === 'from' ? swapOptions.from : swapOptions.to;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
 		tempCoinOpt = coinOpt;
@@ -878,13 +874,13 @@
 		}
 	}
 
-	function confirmFromSelection(coinOpt: CoinOptions['coins'][number], network: Network) {
+	function confirmFromSelection(coinOpt: AssetOption, network: Network) {
 		txState.fromCoin = coinOpt;
 		txState.fromNetwork = network;
 		closeDialog();
 	}
 
-	function confirmToSelection(coinOpt: CoinOptions['coins'][number], network: Network) {
+	function confirmToSelection(coinOpt: AssetOption, network: Network) {
 		txState.toCoin = coinOpt;
 		txState.toNetwork = network;
 		closeDialog();

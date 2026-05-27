@@ -3,7 +3,7 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
 	import BalanceInfo from '$lib/sendswap/components/info/BalanceInfo.svelte';
-	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import { getToOption, Coin, Network, type CoinOptions, type AssetOption } from '$lib/sendswap/utils/sendOptions';
 	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
@@ -72,14 +72,14 @@
 		}
 	});
 
-	let possibleCoins: CoinOptions['coins'] = $derived.by(() => {
-		let result: CoinOptions['coins'] = [{ coin: Coin.usd, networks: [] }];
+	let possibleCoins: CoinOptions = $derived.by(() => {
+		let result: CoinOptions = [{ coin: Coin.usd, networks: [] }];
 		if (txState.toCoin) {
 			result = [txState.toCoin, ...result];
 		}
 		return result;
 	});
-	let lastPossibleCoins: CoinOptions['coins'] = $state([]);
+	let lastPossibleCoins: CoinOptions = $state([]);
 	$effect(() => {
 		possibleCoins;
 		untrack(() => {
@@ -106,7 +106,7 @@
 		});
 	});
 	let shownIndex = $state(0);
-	let shownCoin: CoinOptions['coins'][number] = $state(
+	let shownCoin: AssetOption = $state(
 		txState.toCoin ?? { coin: Coin.usd, networks: [] }
 	);
 	function cycleShown() {
@@ -154,9 +154,7 @@
 				initial={txState.toCoin?.coin.value}
 				onValueChange={(details) => {
 					if (open) {
-						txState.toCoin = txState.fromCoin = swapOptions.to.coins.find(
-							(coinOpt) => coinOpt.coin.value === details.value[0]
-						);
+						txState.toCoin = txState.fromCoin = getToOption(details.value[0]);
 					}
 				}}
 				styleType="dropdown"

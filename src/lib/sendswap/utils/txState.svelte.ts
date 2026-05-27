@@ -1,15 +1,15 @@
 import { getContext, setContext } from 'svelte';
 import type { CoinAmount } from '$lib/currency/CoinAmount';
 import type { Coin } from './sendOptions';
-import type { CoinOptions, Network, TransferMethod } from './sendOptions';
+import type { AssetOption, Network, TransferMethod } from './sendOptions';
 
 // ─── Base (fields every flow shares) ─────────────────────────────────────────
 
 export class TxStateBase {
-	fromCoin: CoinOptions['coins'][number] | undefined = $state(undefined);
+	fromCoin: AssetOption | undefined = $state(undefined);
 	fromNetwork: Network | undefined = $state(undefined);
 	fromAmount: string = $state('0');
-	toCoin: CoinOptions['coins'][number] | undefined = $state(undefined);
+	toCoin: AssetOption | undefined = $state(undefined);
 	toNetwork: Network | undefined = $state(undefined);
 	toAmount: string = $state('0');
 	toUsername: string = $state('');

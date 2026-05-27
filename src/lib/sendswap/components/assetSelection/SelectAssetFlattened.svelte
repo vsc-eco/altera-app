@@ -1,5 +1,5 @@
 <script lang="ts">
-	import swapOptions, { Coin, Network, type CoinOptions } from '$lib/sendswap/utils/sendOptions';
+	import { getFromOption, Coin, Network, type AssetOption } from '$lib/sendswap/utils/sendOptions';
 	import { untrack, type Snippet } from 'svelte';
 	import AssetList from './AssetList.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
@@ -31,13 +31,13 @@
 		dialogTitle = 'Select an Asset'
 	}: {
 		availableCoins: Coin[];
-		coin: CoinOptions['coins'][number] | undefined;
+		coin: AssetOption | undefined;
 		network: Network | undefined;
 		max?: CoinAmount<Coin> | undefined;
 		close: () => void;
 		externalNetwork?: Network;
 		isTo?: boolean;
-		onSelect?: (coin: CoinOptions['coins'][number], network: Network) => void;
+		onSelect?: (coin: AssetOption, network: Network) => void;
 		dialogTitle?: string;
 	} = $props();
 
@@ -138,7 +138,7 @@
 	// REMOVE -1 FOR BITCOIN LAUNCH
 	let maxItems = $derived(onMagi.length - 1 + externalTotalLength);
 
-	let tmpAsset: CoinOptions['coins'][number] | undefined = $state();
+	let tmpAsset: AssetOption | undefined = $state();
 
 	let tmpNetwork: Network | undefined = $state();
 	let tmpNetworkVal: string | undefined = $state();
@@ -158,7 +158,7 @@
 		const assetVal = balanceVal.split(':')[0];
 		const networkVal = balanceVal.split(':')[1];
 		const balanceObj = [...magiItems, ...externalItems].find((item) => item.value === balanceVal);
-		tmpAsset = swapOptions.from.coins.find((coinOpts) => coinOpts.coin.value === assetVal);
+		tmpAsset = getFromOption(assetVal);
 		tmpNetwork =
 			[Network.magi, externalNetwork].find((net) => net?.value === networkVal) ?? Network.magi;
 		if (!tmpAsset) {

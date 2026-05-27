@@ -17,7 +17,7 @@
 		Coin,
 		Network,
 		type CoinOnNetwork,
-		type CoinOptions
+		type AssetOption
 	} from '../utils/sendOptions';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import SelectContact from '$lib/sendswap/contacts/SelectContact.svelte';
@@ -145,7 +145,7 @@
 
 	// AMOUNT
 	const fromAssetObjs: AssetObject[] = $derived(
-		swapOptions.from.coins.map((opt) => ({
+		swapOptions.from.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
 			snippetData: { fromOpt: opt, net: txState.toNetwork, size: 'medium' }
@@ -362,8 +362,8 @@
 	});
 
 	const coinsWithBalance = $derived.by(() => {
-		const result: Array<{ coin: Coin; coinOpt: CoinOptions['coins'][number] }> = [];
-		for (const coinOpt of swapOptions.from.coins) {
+		const result: Array<{ coin: Coin; coinOpt: AssetOption }> = [];
+		for (const coinOpt of swapOptions.from) {
 			const coinValue = coinOpt.coin.value;
 			if (coinValue in $accountBalance.bal) {
 				const balance = $accountBalance.bal[coinValue as keyof AccountBalance];

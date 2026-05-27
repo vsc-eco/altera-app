@@ -1,8 +1,11 @@
-import type { Auth } from '$lib/auth/store';
-import { vscGateway } from '$lib/constants';
-import { Network } from '../utils/sendOptions';
-import { sleep } from 'aninest';
-const V4VAPP_API = 'https://api.v4v.app';
+import type { Auth } from '$lib/auth/store'
+import { vscGateway } from '$lib/constants'
+import { sleep } from 'aninest'
+import { Network } from '../utils/sendOptions'
+import { V4VAPP_API_BASE } from './config'
+
+const V4VAPP_API = V4VAPP_API_BASE
+
 type Token = 'hive' | 'hbd' | 'sats';
 // V4V API only accepts: HIVE, HBD, USD, SATS (uppercase) / hive, hbd, sats (lowercase)
 function toV4VCurrency(token: string): string {
@@ -35,11 +38,17 @@ export const createLightningInvoice = async (
 	const mainnetAccount =
 		on.value === Network.magi.value ? (isMagiSats ? username : vscGateway) : username;
 	console.log('mainnet account', mainnetAccount);
-	if (mainnetAccount.length > 16) {
-		return 'Invalid hive username.';
-	}
+	console.log('creating invoice with params', {
+		amount,
+		of,
+		into,
+		on,
+		auth: auth.value.address,
+		username,
+		altera_id
+	});
 	const url = new URL(`${V4VAPP_API}/v1/new_invoice_hive`);
-	let message = new URLSearchParams(`to=${auth.value.address}`);
+	const message = new URLSearchParams(`to=${auth.value.address}`);
 	// let message = new URLSearchParams(`to=${vscGateway}`);
 	if (altera_id) {
 		message.append('altera_id', altera_id);
@@ -120,7 +129,7 @@ export const checkLightningSuccess = async (
 			out = 'The invoice expired. Try creating a new one.';
 			break;
 		}
-		await sleep(1);
+		await sleep(2);
 	}
 	return out;
 };

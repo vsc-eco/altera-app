@@ -1,6 +1,35 @@
-import { getHiveAccounts as getAccounts } from '$lib/auth/hive/getHiveAccounts';
-import { type Account, postingMetadataFromString } from '$lib/auth/hive/accountTypes';
-import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
+import { postingMetadataFromString, type Account } from '$lib/auth/hive/accountTypes'
+import { wagmiConfig } from '$lib/auth/reown'
+import { authStore, getAuth, type Auth } from '$lib/auth/store'
+import { CoinAmount } from '$lib/currency/CoinAmount'
+import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName'
+import { btcSigner } from '$lib/magiTransactions/bitcoin/signer'
+import { getEVMOpType } from '$lib/magiTransactions/eth'
+import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client'
+import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
+import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
+import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
+import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
+import { getBtcApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
+import {
+	accountBalance,
+	type AccountBalance,
+	type HiveMainnetBalance
+} from '$lib/stores/currentBalance'
+import {
+	fetchTxs,
+	getTimestamp,
+	magiTxsStore,
+	waitForExtend,
+	type TransactionInter
+} from '$lib/stores/txStores'
+import { getAccounts } from '@aioha/aioha/build/rpc'
+import type { Operation, TransferOperation } from '@hiveio/dhive'
+import { Network as BtcNetwork, validate } from 'bitcoin-address-validation'
+import moment, { type Moment } from 'moment'
+import { get } from 'svelte/store'
+import { addLocalTransaction } from '../../stores/localStorageTxs'
+import { getIntermediaryNetwork } from './getNetwork'
 import swapOptions, {
 	Coin,
 	Network,
@@ -9,38 +38,9 @@ import swapOptions, {
 	type CoinOnNetwork,
 	type CoinOptions,
 	type IntermediaryNetwork
-} from './sendOptions';
-import { type TxState, SwapTxState, TransferTxState, WithdrawTxState } from './txState.svelte';
-import { authStore, getAuth, type Auth } from '$lib/auth/store';
-import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
-import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer';
-import { getHiveSwapOp, getBtcApproveOp } from '$lib/magiTransactions/hive/vscOperations/swap';
-import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
-import { getEVMOpType } from '$lib/magiTransactions/eth';
-import { CoinAmount } from '$lib/currency/CoinAmount';
-import type { Operation, TransferOperation } from '@hiveio/dhive';
-import { addLocalTransaction } from '../../stores/localStorageTxs';
-import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client';
-import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
-import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
-import { wagmiConfig } from '$lib/auth/reown';
-import { get } from 'svelte/store';
-import {
-	fetchTxs,
-	getTimestamp,
-	magiTxsStore,
-	waitForExtend,
-	type TransactionInter
-} from '$lib/stores/txStores';
-import moment, { type Moment } from 'moment';
-import { getIntermediaryNetwork } from './getNetwork';
-import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
-import {
-	accountBalance,
-	type AccountBalance,
-	type HiveMainnetBalance
-} from '$lib/stores/currentBalance';
-import type { TxStateBase } from './txState.svelte';
+} from './sendOptions'
+import type { TxStateBase } from './txState.svelte'
+import { SwapTxState, TransferTxState, WithdrawTxState, type TxState } from './txState.svelte'
 
 export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
 	const accBal = get(accountBalance);
@@ -848,8 +848,67 @@ export async function send(
 
 	if (intermediary == Network.lightning) {
 		// Lightning Transfer withdrawal: Transfer to V4VApp on Magi (Keepsats)
+		if (auth.value?.did?.startsWith('did:pkh:bip122:')) {
+			return new Error('Lightning Transfer Withdraw via a BTC wallet is not supported yet.');
+		}
+
+		if (auth.value?.provider === 'reown') {
+			setStatus('Preparing transaction for signing…');
+			if (!wagmiConfig) {
+				throw new Error('EVM wallet not initialised — click Connect Wallet first');
+			}
+			const client = createClient(auth.value.did);
+			const evmOp = getEVMOpType(
+				fromNetwork,
+				Network.magi,
+				auth.value.did,
+				getKeepsatsDestinationDid(),
+				new CoinAmount(amount, toCoin!.coin)
+			);
+
+			const id = await signAndBrodcastTransaction(
+				[evmOp],
+				wagmiSigner,
+				client,
+				signal,
+				wagmiConfig
+			)
+				.then((result) => {
+					setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+					addLocalTransaction({
+						ops: [
+							{
+								data: {
+									amount: new CoinAmount(amount, toCoin!.coin).toAmountString(),
+									asset: toCoin!.coin.unit.toLowerCase(),
+									from: auth.value!.did,
+									to: getKeepsatsDestinationDid(),
+									memo: 'Deposit #sats',
+									type: 'transfer'
+								},
+								type: 'transfer',
+								index: 0
+							}
+						],
+						timestamp: new Date(),
+						id: result.id,
+						type: 'vsc'
+					});
+					return { id: result.id };
+				})
+				.catch((error) => {
+					if (error instanceof Error) {
+						setStatus(error.message, true);
+						return error;
+					}
+					setStatus('Transaction failed.', true);
+					return new Error('Transaction failed.');
+				});
+			return id;
+		}
+
 		if (!auth.value?.aioha) {
-			return new Error("Lightning Transfer Withdraw via an EVM wallet isn't supported yet.");
+			return new Error('Lightning Transfer Withdraw requires a Hive or EVM wallet.');
 		}
 		setStatus('Waiting for Hive wallet approval…');
 		// Convert BTC amount to SATS: BTC internal units == SATS units

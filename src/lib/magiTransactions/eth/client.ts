@@ -202,7 +202,7 @@ function createVSCTransactionContainer(
 		headers: {
 			nonce: client.nonce!,
 			required_auths: Array.from(requiredAuthsSet),
-			rc_limit: 500,
+			rc_limit: 1000,
 			net_id: client.netId
 		},
 		tx: ops.map((op) => ({

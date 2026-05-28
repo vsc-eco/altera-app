@@ -105,9 +105,21 @@
 		const hasCoins = !!_fromCoinValue && !!_toCoinValue;
 		const hasNetwork = !!_fromNetwork;
 		const amt = coinAmount.amount;
+		// Reading max.amount in the tracked region so the effect re-runs when the
+		// balance loads or the user switches between SATS/BTC views. Without this
+		// gate the Withdraw button stayed enabled for amounts exceeding the
+		// available balance (matches the BitcoinMainnetWithdraw pattern).
+		const maxAmt = max.amount;
 		const hasToAmount = !!_toAmount && _toAmount !== '0';
 		untrack(() => {
-			if (hasCoins && txState.fromAmount && hasNetwork && amt > 0 && hasToAmount) {
+			if (
+				hasCoins &&
+				txState.fromAmount &&
+				hasNetwork &&
+				amt > 0 &&
+				amt <= maxAmt &&
+				hasToAmount
+			) {
 				editStage(true);
 			} else {
 				editStage(false);

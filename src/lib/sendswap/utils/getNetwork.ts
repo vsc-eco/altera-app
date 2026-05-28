@@ -38,3 +38,20 @@ function throughMagi(from: CoinOnNetwork, to: CoinOnNetwork) {
 		magiSupportedNetworks.includes(to.network.value)
 	);
 }
+
+/**
+ * Human-readable ETA for a TX that touches the given networks. Picks the
+ * slowest network's `settlementSeconds` and formats it. `undefined` entries
+ * (e.g. an unset `rail`) are skipped. Returns the empty string when no network
+ * is provided.
+ */
+export function settlementLabel(networks: (Network | undefined)[]): string {
+	const seconds = networks.reduce(
+		(max, n) => (n ? Math.max(max, n.settlementSeconds) : max),
+		-1
+	);
+	if (seconds < 0) return '';
+	if (seconds <= 5) return 'Instant';
+	if (seconds < 300) return 'About a minute';
+	return `About ${Math.round(seconds / 60)} minutes`;
+}

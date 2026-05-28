@@ -14,7 +14,8 @@
 	const externalPlaceholder: Network = {
 		value: 'external',
 		label: 'External Network',
-		icon: Globe
+		icon: Globe,
+		settlementSeconds: 0
 	};
 </script>
 

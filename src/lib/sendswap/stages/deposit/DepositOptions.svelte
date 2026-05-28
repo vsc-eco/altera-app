@@ -2,7 +2,7 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
-	import swapOptions, { getFromOption, getToOption, Coin, Network, TransferMethod, type AssetOption } from '../../utils/sendOptions';
+	import swapOptions, { getFromOption, getToOption, Coin, Network, type AssetOption } from '../../utils/sendOptions';
 	import { scanForBalance } from '../../utils/sendUtils';
 	import { useDepositState } from '../../utils/txState.svelte';
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
@@ -83,7 +83,7 @@
 							: satsCoin;
 			}
 
-			txState.method = TransferMethod.lightningTransfer;
+			txState.rail = Network.lightning;
 			txState.fromNetwork = Network.lightning;
 			txState.fromCoin = shouldPreserveFromCoin ? txState.fromCoin : btcCoin;
 			txState.toNetwork = Network.magi;
@@ -129,7 +129,7 @@
 				fromCoinToUse = txState.toCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
 			}
 
-			txState.method = TransferMethod.magiTransfer;
+			txState.rail = Network.magi;
 			txState.fromNetwork = Network.hiveMainnet;
 			txState.toNetwork = Network.magi;
 			txState.fromCoin = fromCoinToUse;

@@ -2,7 +2,8 @@
 	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { Coin, Network, TransferMethod } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
+	import { settlementLabel } from '$lib/sendswap/utils/getNetwork';
 	import moment from 'moment';
 	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import { Dot, EqualApproximately, X } from '@lucide/svelte';
@@ -397,8 +398,13 @@
 	const isBtcSwap = $derived(
 		fromCoin.value === Coin.btc.value || toCoin.value === Coin.btc.value
 	);
+	// Settlement-time copy: the slowest network among those involved in the TX.
+	// `rail` (when set) carries the explicit intermediary; for BTC swaps the
+	// btcMainnet floor preserves the legacy ~10 min override even on
+	// magi-internal sats↔hbd swaps where the chosen networks would otherwise
+	// suggest "Instant".
 	const settlementTime = $derived(
-		isBtcSwap ? 'About 10 minutes' : (txState.method?.length ?? '')
+		settlementLabel([txState.rail, isBtcSwap ? Network.btcMainnet : undefined])
 	);
 
 </script>
@@ -467,7 +473,7 @@
 											{/if}
 										</span>
 									</div>
-								{:else if txState.method?.value === TransferMethod.magiTransfer.value}
+								{:else if txState.rail?.value === Network.magi.value}
 									No fee
 								{:else if !txState.fee || !feeInUsd}
 									<div class="fee-loading"><WaveLoading /></div>

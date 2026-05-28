@@ -34,7 +34,6 @@ import swapOptions, {
 	Coin,
 	Network,
 	networkMap,
-	TransferMethod,
 	type CoinOnNetwork,
 	type AssetOption,
 	type IntermediaryNetwork
@@ -171,10 +170,15 @@ export function getRecipientNetworks(did: string): NetworkOptionParam[] {
 	return [];
 }
 
-function getMethodNetworks(method: TransferMethod) {
-	if (method.value === TransferMethod.magiTransfer.value) {
+/**
+ * Networks reachable via a given rail. Mirrors the old `getMethodNetworks`:
+ * `magi` rail → magi + hiveMainnet; `lightning` rail → lightning. Used by
+ * `solveNetworkConstraints` to constrain available networks/assets.
+ */
+function getRailNetworks(rail: Network | undefined) {
+	if (rail?.value === Network.magi.value) {
 		return [Network.magi, Network.hiveMainnet];
-	} else if (method.value === TransferMethod.lightningTransfer.value) {
+	} else if (rail?.value === Network.lightning.value) {
 		return [Network.lightning];
 	}
 	return [];
@@ -472,14 +476,13 @@ function combineNetworkOptions(
 }
 
 export function solveNetworkConstraints(
-	method: TransferMethod | undefined,
+	rail: Network | undefined,
 	fromCoin: AssetOption | undefined,
 	toNetwork: Network | undefined,
 	did: string | undefined,
 	fromNetwork?: Network,
 	allAssets: boolean = false
 ): Constraints {
-	// console.log("parameters to solve constraints", method, fromCoin, did, account);
 	if (!did)
 		return {
 			assetOptions: [],
@@ -488,13 +491,13 @@ export function solveNetworkConstraints(
 	const inUseNetworks = [Network.magi, Network.hiveMainnet, Network.lightning];
 	const allAssetsSet = createSet(swapOptions.from.map((item) => item.coin));
 
-	const networksGivenMethod = createSet(method ? getMethodNetworks(method) : undefined);
-	const networksGivenBoth = createSet(getDidNetworks(did)).intersection(networksGivenMethod);
-	const networkOptions = combineNetworkOptions(networksGivenMethod, networksGivenMethod, did);
+	const networksGivenRail = createSet(rail ? getRailNetworks(rail) : undefined);
+	const networksGivenBoth = createSet(getDidNetworks(did)).intersection(networksGivenRail);
+	const networkOptions = combineNetworkOptions(networksGivenRail, networksGivenRail, did);
 
-	const assetsGivenMethod = (() => {
+	const assetsGivenRail = (() => {
 		const result = new Set<string>();
-		for (const net of method ? getMethodNetworks(method) : inUseNetworks) {
+		for (const net of rail ? getRailNetworks(rail) : inUseNetworks) {
 			const coins = networkMap.get(net.value);
 			if (coins) {
 				for (const coin of coins) {
@@ -525,8 +528,8 @@ export function solveNetworkConstraints(
 		return createSet(coinOpts);
 	})();
 
-	let coinNetworkOptions: Set<string> = method
-		? createSet(getMethodNetworks(method))
+	let coinNetworkOptions: Set<string> = rail
+		? createSet(getRailNetworks(rail))
 		: createSet(Object.values(Network));
 	if (fromCoin) {
 		const coinNetworks = createSet(fromCoin.networks);
@@ -535,9 +538,9 @@ export function solveNetworkConstraints(
 
 	return {
 		assetOptions: combineAssetOptions(
-			allAssets ? allAssetsSet : assetsGivenMethod,
+			allAssets ? allAssetsSet : assetsGivenRail,
 			assetsGivenFromNetworks,
-			method?.value === TransferMethod.lightningTransfer.value ? undefined : assetsGivenToNetwork,
+			rail?.value === Network.lightning.value ? undefined : assetsGivenToNetwork,
 			toNetwork,
 			fromNetwork
 		),

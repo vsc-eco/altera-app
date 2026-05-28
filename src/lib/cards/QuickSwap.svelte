@@ -5,7 +5,6 @@
 	import swapOptions, { getFromOption, getToOption,
 		Coin,
 		Network,
-		TransferMethod,
 		type CoinOnNetwork
 	} from '$lib/sendswap/utils/sendOptions';
 	import {
@@ -113,7 +112,7 @@
 		const fromNet = fromOpt ? nativeNetworkFor(fromOpt.coin.value) : undefined;
 		const toNet = toOpt ? nativeNetworkFor(toOpt.coin.value) : undefined;
 
-		txState.method = TransferMethod.lightningTransfer;
+		txState.rail = Network.lightning;
 		txState.fromCoin = fromOpt ?? undefined;
 		txState.fromNetwork = fromNet;
 		txState.toCoin = toOpt ?? undefined;
@@ -188,7 +187,7 @@
 	});
 	$effect(() => {
 		const result = solveNetworkConstraints(
-			txState.method,
+			txState.rail,
 			txState.fromCoin,
 			txState.toNetwork,
 			auth.value?.did,

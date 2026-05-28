@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import { getFromOption, getToOption, Coin, Network, TransferMethod } from '$lib/sendswap/utils/sendOptions';
+	import { getFromOption, getToOption, Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { scanForBalance } from '$lib/sendswap/utils/sendUtils';
 	import {
 		SWAP_PAGE_PREF_KEY,
@@ -42,7 +42,7 @@
 			const fromNet = findNetwork(stored?.fromNetwork) ?? Network.magi;
 			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
 			txState.toNetwork = toNet;
-			txState.method = TransferMethod.lightningTransfer;
+			txState.rail = Network.lightning;
 			txState.fromCoin = fromOpt;
 			txState.fromNetwork = fromNet;
 			txState.toCoin = toOpt;

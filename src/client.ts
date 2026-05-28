@@ -21,9 +21,31 @@ export const DEFAULT_MAGI_INDEXER_URL = 'https://indexer.magi.milohpr.com';
 export const DEX_ROUTER_CONTRACT_ID = (() => {
 	const isTestnet = (browser && localStorage.getItem(keyVscNetworkId)) === 'vsc-testnet';
 	return isTestnet
-		? 'vsc1BmjY9JwFQyvRwYhLpiXFCYeUqxmU8ykrAM'
+		? 'vsc1Bens5nrhnbbHEUftCWaLPYegDx9LGLXEUP'
 		: 'vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45';
 })();
+
+/** Pools bound to superseded testnet routers. The indexer still lists them, so
+ *  we flag them here to mark them withdraw-only in the UI: the pair name is
+ *  struck through and "Add liquidity" is disabled, while "Remove liquidity"
+ *  stays available so existing LPs can exit. Mainnet has no legacy pools. */
+const TESTNET_DEPRECATED_POOL_IDS = [
+	'vsc1Brm1QpGF8WXvRCvwgbpB6fiHtTBJzyZUC9', // legacy "DEX Router" HIVE/HBD
+	'vsc1BgwiEg8P5u2qYSV7DL8FCqrj5E7hWSYKmf', // legacy "DEX Router" BTC/HBD
+	'vsc1BhV2bjSAt9NY48mRhL9XzBSxnt4aYbfkZR', // superseded dex_router HIVE/HBD (no reserves)
+	'vsc1BVMsKovjCSBiU5V4hD3YcC7x8rN5m9ErSz' // superseded dex_router BTC/HBD
+];
+
+const deprecatedPoolIds: ReadonlySet<string> = new Set(
+	(browser && localStorage.getItem(keyVscNetworkId)) === 'vsc-testnet'
+		? TESTNET_DEPRECATED_POOL_IDS
+		: []
+);
+
+/** True for pools tied to a retired router — shown but withdraw-only. */
+export function isDeprecatedPool(contractId: string): boolean {
+	return deprecatedPoolIds.has(contractId);
+}
 
 export const currentGqlUrl = browser ? resolveNodeUrl('vsc') : DEFAULT_GQL_URL;
 

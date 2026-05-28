@@ -4,7 +4,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import type { PoolRow, MyPoolRow } from './poolsData';
-	import { getMagiIndexerBaseUrl, GQL_PROXY_INDEXER, gqlUpstreamHeaders } from '../../client';
+	import { getMagiIndexerBaseUrl, GQL_PROXY_INDEXER, gqlUpstreamHeaders, isDeprecatedPool } from '../../client';
 	import moment from 'moment';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
@@ -28,6 +28,7 @@
 	let addLiquidityOpen = $state(false);
 	let removeLiquidityOpen = $state(false);
 	const hasUserPosition = $derived(myPools.some((p) => p.contractId === pool.contractId));
+	const deprecated = $derived(isDeprecatedPool(pool.contractId));
 
 	const poolId = pool.contractId;
 	const sym0 = pool.pairSymbols[0];
@@ -248,12 +249,19 @@
 		<PillButton onclick={onback} styleType="icon-subtle">
 			<ArrowLeft size="24" />
 		</PillButton>
-		<h4>{pool.pair}</h4>
+		<h4 class:deprecated>{pool.pair}</h4>
+		{#if deprecated}
+			<span class="deprecated-tag">deprecated</span>
+		{/if}
 		<div class="header-actions">
 			<button
 				type="button"
 				class="header-action header-action-primary"
-				onclick={() => (addLiquidityOpen = true)}
+				disabled={deprecated}
+				title={deprecated ? 'Deprecated pool — adding liquidity is disabled' : undefined}
+				onclick={() => {
+					if (!deprecated) addLiquidityOpen = true;
+				}}
 			>
 				<Plus size={14} />
 				Add Liquidity
@@ -326,7 +334,7 @@
 
 <AddLiquidityPopup
 	bind:open={addLiquidityOpen}
-	pools={pools.length ? pools : [pool]}
+	pools={(pools.length ? pools : [pool]).filter((p) => !isDeprecatedPool(p.contractId))}
 	preselectedPool={pool}
 />
 <RemoveLiquidityPopup
@@ -591,6 +599,21 @@
 			font-weight: 600;
 			color: var(--dash-text-primary);
 		}
+		h4.deprecated {
+			text-decoration: line-through;
+			color: var(--dash-text-muted);
+		}
+	}
+	.deprecated-tag {
+		font-size: 0.55rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--dash-text-muted);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 0.75rem;
+		padding: 0.1rem 0.45rem;
+		opacity: 0.8;
 	}
 	.header-actions {
 		margin-left: auto;

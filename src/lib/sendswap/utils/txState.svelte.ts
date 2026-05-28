@@ -1,11 +1,23 @@
 import { getContext, setContext } from 'svelte';
 import type { CoinAmount } from '$lib/currency/CoinAmount';
 import type { Coin } from './sendOptions';
-import type { AssetOption, Network, TransferMethod } from './sendOptions';
+import type { AssetOption, CoinOnNetwork, Network, TransferMethod } from './sendOptions';
 
 // ─── Base (fields every flow shares) ─────────────────────────────────────────
 
 export class TxStateBase {
+	// ─── #3/#6 migration: new collapsed selection fields ───────────────────────
+	// `from`/`to` carry the user's chosen (coin, network) as a single value —
+	// matching what UI inputs produce (`CoinOnNetwork`). Eventually replaces the
+	// paired `fromCoin`+`fromNetwork` / `toCoin`+`toNetwork` below.
+	// `rail` is the explicit intermediary network — replaces the `method` field
+	// (#6). When set (e.g. Reown-BTC lightning swap), it overrides the
+	// `getIntermediaryNetwork(from, to)` derivation.
+	from: CoinOnNetwork | undefined = $state(undefined);
+	to: CoinOnNetwork | undefined = $state(undefined);
+	rail: Network | undefined = $state(undefined);
+
+	// ─── legacy fields (still authoritative; will be removed once consumers migrate)
 	fromCoin: AssetOption | undefined = $state(undefined);
 	fromNetwork: Network | undefined = $state(undefined);
 	fromAmount: string = $state('0');

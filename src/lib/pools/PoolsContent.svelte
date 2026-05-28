@@ -7,6 +7,7 @@
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import PoolDetail from './PoolDetail.svelte';
 	import { getAuth } from '$lib/auth/store';
+	import { isDeprecatedPool } from '../../client';
 
 	function getCoinIcon(symbol: string): string | undefined {
 		const s = symbol.toUpperCase();
@@ -244,6 +245,7 @@
 			</thead>
 			<tbody>
 				{#each rows as pool (pool.id)}
+					{@const deprecated = isDeprecatedPool(pool.contractId)}
 					<tr class="clickable" onclick={() => (selectedPool = pool)}>
 						<td class="col-pair">
 							<div class="pair-cell">
@@ -259,7 +261,10 @@
 										<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
-								<span class="pair-label">{pool.pair}</span>
+								<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
+								{#if deprecated}
+									<span class="deprecated-tag">deprecated</span>
+								{/if}
 							</div>
 						</td>
 						<td class="col-price">
@@ -304,8 +309,11 @@
 									type="button"
 									class="row-action row-action-primary"
 									aria-label="Add liquidity to {pool.pair}"
+									disabled={deprecated}
+									title={deprecated ? 'Deprecated pool — adding liquidity is disabled' : undefined}
 									onclick={(e) => {
 										e.stopPropagation();
+										if (deprecated) return;
 										openAddForPool(pool);
 									}}
 								>
@@ -369,7 +377,7 @@
 										<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
-								<span class="pair-label">{row.pair}</span>
+								<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}>{row.pair}</span>
 							</div>
 						</td>
 						<td class="col-share">
@@ -392,7 +400,11 @@
 	</div>
 {/snippet}
 
-<AddLiquidityPopup bind:open={addLiquidityOpen} {pools} preselectedPool={addPrefillPool} />
+<AddLiquidityPopup
+	bind:open={addLiquidityOpen}
+	pools={pools.filter((p) => !isDeprecatedPool(p.contractId))}
+	preselectedPool={addPrefillPool}
+/>
 <RemoveLiquidityPopup
 	bind:open={removeLiquidityOpen}
 	pools={myPoolsAsRows}
@@ -570,6 +582,21 @@
 		font-weight: 500;
 		color: var(--dash-text-primary);
 	}
+	.pair-label.deprecated {
+		text-decoration: line-through;
+		color: var(--dash-text-muted);
+	}
+	.deprecated-tag {
+		font-size: 0.55rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--dash-text-muted);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 0.75rem;
+		padding: 0.05rem 0.4rem;
+		opacity: 0.8;
+	}
 
 	.price-cell {
 		display: flex;
@@ -674,8 +701,14 @@
 		background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 40%, #5b54e0 100%);
 		box-shadow: 0 2px 8px rgba(111, 106, 248, 0.25);
 	}
-	.row-action-primary:hover {
+	.row-action-primary:hover:not(:disabled) {
 		box-shadow: 0 4px 14px rgba(111, 106, 248, 0.4);
+	}
+	.row-action:disabled {
+		cursor: not-allowed;
+		opacity: 0.4;
+		box-shadow: none;
+		filter: grayscale(0.7);
 	}
 	.row-action-outline {
 		border: 1px solid var(--dash-card-border);

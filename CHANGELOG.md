@@ -2,6 +2,17 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.11] — 2026-05-28
+
+### Fixes
+
+- Lightning Withdraw (Keepsats) button no longer enables when the entered amount exceeds the wallet balance. The validation effect only required `amount > 0` and skipped the balance check that the sibling Bitcoin Mainnet withdraw already had — now mirrors the same `amount <= max` gate, with `max.amount` read in the tracked region so it re-runs when the balance loads or the user flips between SATS / BTC views
+
+### Internals
+
+- Replaced the legacy `method` field + `TransferMethod` type with a typed `rail: Network | undefined` on `txState`. Each `Network` now carries a `settlementSeconds` (magi = 0, hiveMainnet = 3, lightning = 60, btcMainnet = 600); the settlement-time copy in ReviewSwap is computed by a new `settlementLabel(networks[])` helper that picks the slowest involved network. No user-visible behavior change — the BTC ~10 min override is preserved (via `btcMainnet`'s 600 s floor), the "No fee" branch fires on the same flows (`rail === magi`), and `solveNetworkConstraints` keeps the same mapping under the renamed `getRailNetworks`
+- Added groundwork for the broader `txState` reshape (#3): `from` / `to` (`CoinOnNetwork`) and `rail` (`Network`) live on `TxStateBase` alongside the legacy `fromCoin` / `fromNetwork` / `toCoin` / `toNetwork`. Consumers migrate in a follow-up; legacy fields stay authoritative until then
+
 ## [0.3.10] — 2026-05-26
 
 ### Fixes

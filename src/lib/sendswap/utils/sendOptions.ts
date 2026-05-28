@@ -101,6 +101,7 @@ const magi: IntermediaryNetwork = {
 	value: 'magi',
 	label: 'Magi',
 	icon: '/magi.svg',
+	settlementSeconds: 0, // instant
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		// 0 fees (uses HP but HP usage isn't displayed)
 		return new CoinAmount(0, outputCoin);
@@ -110,6 +111,7 @@ const unknown: IntermediaryNetwork = {
 	value: 'unk',
 	label: 'Unknown',
 	icon: '/unk.svg',
+	settlementSeconds: 0,
 	feeCalculation: async (from: UnkCoinAmount, outputCoin: Coin) => {
 		if (from.coin.value == outputCoin.value) {
 			return new CoinAmount(0, from.coin); // no fee if going between same currency type
@@ -121,6 +123,7 @@ const hiveMainnet: IntermediaryNetwork = {
 	value: 'hive_mainnet',
 	label: 'Hive Mainnet',
 	icon: '/hive/hive.svg',
+	settlementSeconds: 3, // ~Hive block; effectively instant for display
 	feeCalculation: async (from, outputCoin) => {
 		return new CoinAmount(0, outputCoin);
 	}
@@ -135,6 +138,13 @@ export type Network = {
 	label: string;
 	icon: ImageIconOption;
 	feeCalculation?: FeeCalculation<UnkCoinAmount, Coin>;
+	/**
+	 * Typical settlement time for a TX touching this network, in seconds. Used
+	 * by `settlementLabel(networks[])` to pick the longest among the networks
+	 * involved in a TX and format the human-readable ETA shown in ReviewSwap.
+	 * 0 = effectively instant.
+	 */
+	settlementSeconds: number;
 };
 
 export type IntermediaryNetwork = Network & { feeCalculation: FeeCalculation<UnkCoinAmount, Coin> };
@@ -142,12 +152,14 @@ export type IntermediaryNetwork = Network & { feeCalculation: FeeCalculation<Unk
 const btcMainnet: Network = {
 	value: 'btc_mainnet',
 	label: 'BTC Mainnet',
-	icon: '/btc/btc.svg'
+	icon: '/btc/btc.svg',
+	settlementSeconds: 600 // ~10 min on L1
 };
 const lightning: IntermediaryNetwork = {
 	value: 'lightning',
 	label: 'Lightning',
 	icon: '/btc/lightning.svg',
+	settlementSeconds: 60, // ~1 min via the v4v gateway
 	feeCalculation: async (input: UnkCoinAmount, outputCoin: Coin) => {
 		const meta = await getV4VMetadata();
 		const amt = await input.convertTo(Coin.sats, Network.lightning);
@@ -177,33 +189,6 @@ export type AssetOption = {
 
 /** Ordered list of selectable assets (was `{ coins: AssetOption[] }`). */
 export type CoinOptions = AssetOption[];
-
-/**
- * UI-facing labels for the two transfer rails. `length` is the ETA copy shown
- * in ReviewSwap; `value` is the discriminator used by store + routing logic.
- */
-export type TransferMethod = {
-	label: string;
-	value: string;
-	length: string;
-};
-
-const magiTransfer: TransferMethod = {
-	label: 'Magi Transfer',
-	value: 'magi-transfer',
-	length: 'Instant'
-};
-
-const lightningTransfer: TransferMethod = {
-	label: 'Lightning Network',
-	value: 'lightning',
-	length: 'About a Minute'
-};
-
-export const TransferMethod = {
-	magiTransfer,
-	lightningTransfer
-};
 
 export const networkMap: Map<string, Coin[]> = new Map([
 	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc, Coin.sats]],

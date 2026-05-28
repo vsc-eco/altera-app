@@ -3,7 +3,7 @@
 	import { scanForBalance } from './utils/sendUtils';
 	import Complete from './stages/Complete.svelte';
 	import ReviewTransfer from './stages/ReviewTransfer.svelte';
-	import { getFromOption, Coin, Network, TransferMethod } from './utils/sendOptions';
+	import { getFromOption, Coin, Network } from './utils/sendOptions';
 	import QuickTransferOptions from './stages/QuickSendOptions.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { TransferTxState, provideTxState } from './utils/txState.svelte';
@@ -33,7 +33,7 @@
 		txState.fromNetwork = Network.magi;
 		txState.toCoin = coinOpt;
 		txState.toNetwork = Network.magi;
-		txState.method = TransferMethod.magiTransfer;
+		txState.rail = Network.magi;
 		txState.toUsername = '';
 		txState.toDisplayName = '';
 		txState.memo = '';

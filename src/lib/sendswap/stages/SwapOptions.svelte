@@ -496,7 +496,7 @@
 	$effect(() => {
 		const { assetOptions: newAssetOptions, networkOptions: newNetworkOptions } =
 			solveNetworkConstraints(
-				txState.method,
+				txState.rail,
 				txState.fromCoin,
 				txState.toNetwork,
 				auth.value?.did,

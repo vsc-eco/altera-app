@@ -2,7 +2,7 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ImageIconRenderer from '$lib/components/ImageIconRenderer.svelte';
 	import { ArrowLeft, ChevronRight } from '@lucide/svelte';
-	import swapOptions, { getToOption, Coin, Network, TransferMethod } from '../../utils/sendOptions';
+	import swapOptions, { getToOption, Coin, Network } from '../../utils/sendOptions';
 	import { scanForBalance } from '../../utils/sendUtils';
 	import { useWithdrawState } from '../../utils/txState.svelte';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
@@ -78,7 +78,7 @@
 				fromCoinToUse = txState.fromCoin;
 			}
 
-			txState.method = TransferMethod.magiTransfer;
+			txState.rail = Network.magi;
 			txState.fromNetwork = Network.magi;
 			txState.fromCoin = fromCoinToUse;
 			txState.toNetwork = Network.hiveMainnet;
@@ -94,7 +94,7 @@
 					coinOpt.coin.value === Coin.btc.value &&
 					coinOpt.networks.some((n) => n.value === Network.magi.value)
 			);
-			txState.method = TransferMethod.magiTransfer;
+			txState.rail = Network.magi;
 			txState.fromNetwork = Network.magi;
 			txState.fromCoin = btcCoin;
 			txState.toNetwork = Network.btcMainnet;
@@ -113,7 +113,7 @@
 			// Find BTC in to-coins without requiring lightning in networks,
 			// since lightning is the toNetwork and is set separately below.
 			const btcCoinTo = getToOption(Coin.btc.value);
-			txState.method = TransferMethod.lightningTransfer;
+			txState.rail = Network.lightning;
 			txState.fromNetwork = Network.magi;
 			txState.fromCoin = btcCoinFrom;
 			txState.toNetwork = Network.lightning;

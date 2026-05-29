@@ -41,20 +41,16 @@
 				getToOption(Coin.hive.value);
 			const fromNet = findNetwork(stored?.fromNetwork) ?? Network.magi;
 			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
-			txState.toNetwork = toNet;
 			txState.rail = Network.lightning;
-			txState.fromCoin = fromOpt;
-			txState.fromNetwork = fromNet;
-			txState.toCoin = toOpt;
+			txState.from = fromOpt ? { coin: fromOpt.coin, network: fromNet } : undefined;
+			txState.to = toOpt ? { coin: toOpt.coin, network: toNet } : undefined;
 		} else {
 			const balOpt = scanForBalance(
 				[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({ coin: c, network: Network.magi }))
 			);
 			const coinOpt = getFromOption(balOpt?.coin.value);
-			txState.toNetwork = Network.magi;
-			txState.fromNetwork = Network.magi;
-			txState.fromCoin = coinOpt;
-			txState.toCoin = coinOpt;
+			txState.from = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
+			txState.to = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
 		}
 	}
 

@@ -173,25 +173,25 @@
 	// START TRANSACTION
 	function initSend() {
 		if (!txState) return new Error('initSend() called without a TxState provider');
-		// For deposit/withdraw: toCoin mirrors fromCoin; toNetwork defaults based on txType.
-		// Write resolved values back so send() can read them directly from txState.
-		txState.toCoin = txState.toCoin ?? txState.fromCoin;
-		txState.toNetwork =
-			txState.toNetwork ??
-			(txType === 'deposit'
-				? Network.magi
-				: txType === 'withdraw'
-					? Network.hiveMainnet
-					: undefined);
+		// For deposit/withdraw: when the user hasn't picked a destination, default
+		// `to` to the same coin as `from` on the txType's canonical network.
+		if (!txState.to && txState.from) {
+			const defaultToNetwork =
+				txType === 'deposit'
+					? Network.magi
+					: txType === 'withdraw'
+						? Network.hiveMainnet
+						: undefined;
+			if (defaultToNetwork) {
+				txState.to = { coin: txState.from.coin, network: defaultToNetwork };
+			}
+		}
 
-		if (!txState.fromCoin || !txState.fromNetwork || !txState.toCoin || !txState.toNetwork) {
+		if (!txState.from || !txState.to) {
 			return new Error('Required field undefined.');
 		}
 
-		let intermediary = getIntermediaryNetwork(
-			{ coin: txState.fromCoin.coin, network: txState.fromNetwork },
-			{ coin: txState.toCoin.coin, network: txState.toNetwork }
-		);
+		let intermediary = getIntermediaryNetwork(txState.from, txState.to);
 
 		// console.log('found intermediary network:', intermediary.label);
 
@@ -280,14 +280,13 @@
 	</div>
 {/key}
 
-{#if showV4VModal && txState.toCoin && txState.toNetwork && txState.fromAmount}
-	{@const toCoin = txState.toCoin}
-	{@const toNetwork = txState.toNetwork}
+{#if showV4VModal && txState.to && txState.fromAmount}
+	{@const to = txState.to}
 	{@const toAmount = txState.toAmount}
 
 	<V4VPopup
 		from={{ coin: Coin.sats, network: Network.lightning }}
-		to={{ coin: toCoin.coin, network: toNetwork }}
+		{to}
 		{toAmount}
 		{auth}
 		toUsername={txState.toUsername}

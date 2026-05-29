@@ -29,10 +29,8 @@
 			}))
 		);
 		const coinOpt = getFromOption(balOpt?.coin.value);
-		txState.fromCoin = coinOpt;
-		txState.fromNetwork = Network.magi;
-		txState.toCoin = coinOpt;
-		txState.toNetwork = Network.magi;
+		txState.from = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
+		txState.to = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
 		txState.rail = Network.magi;
 		txState.toUsername = '';
 		txState.toDisplayName = '';

@@ -40,19 +40,18 @@
 	// EDIT STAGE
 	let toSelf = $derived(
 		txState.toUsername === getUsernameFromAuth(auth) &&
-			txState.fromNetwork?.value === txState.toNetwork?.value
+			txState.from?.network.value === txState.to?.network.value
 	);
 	// AMOUNT SECTION
 	let coinAmount = $state(new CoinAmount(0, Coin.hive));
 
 	// EDIT STAGE
 	let stageComplete = $derived(
-		!!txState.fromCoin &&
-			!!txState.fromNetwork &&
+		!!txState.from &&
 			coinAmount.amount !== 0 &&
 			!toSelf &&
 			!!txState.toUsername &&
-			!!txState.toNetwork
+			!!txState.to
 	);
 	$effect(() => {
 		editStage(stageComplete);
@@ -67,7 +66,7 @@
 		swapOptions.from.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: txState.toNetwork, size: 'medium' }
+			snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
 		}))
 	);
 
@@ -77,16 +76,16 @@
 	let lastMaxBalance = -1;
 	let lastMaxCoin = '';
 	$effect(() => {
-		if (!txState.fromCoin || !txState.fromNetwork) return;
-		if (txState.fromNetwork.value !== Network.magi.value) return;
+		if (!txState.from) return;
+		if (txState.from.network.value !== Network.magi.value) return;
 
-		const coinValue = txState.fromCoin.coin.value;
+		const coinValue = txState.from.coin.value;
 		if (coinValue in $accountBalance.bal) {
 			const balance = $accountBalance.bal[coinValue as keyof AccountBalance];
 			if (balance !== lastMaxBalance || coinValue !== lastMaxCoin) {
 				lastMaxBalance = balance;
 				lastMaxCoin = coinValue;
-				max = new CoinAmount(balance, txState.fromCoin.coin, true);
+				max = new CoinAmount(balance, txState.from.coin, true);
 			}
 		}
 	});
@@ -96,10 +95,13 @@
 		assetOpen = open;
 	};
 
+	// QuickSend is magi-internal: keep `to`'s coin in sync with `from`'s coin.
 	$effect(() => {
-		const fromCoin = txState.fromCoin;
-		if (txState.toCoin?.coin.value !== fromCoin?.coin.value) {
-			txState.toCoin = fromCoin;
+		const fromVal = txState.from;
+		if (txState.to?.coin.value !== fromVal?.coin.value) {
+			txState.to = fromVal
+				? { coin: fromVal.coin, network: txState.to?.network ?? Network.magi }
+				: undefined;
 		}
 	});
 
@@ -127,9 +129,7 @@
 	let inputId = $state('');
 
 	const inputCoinOpt: CoinOnNetwork[] = $derived(
-		txState.fromCoin && txState.fromNetwork
-			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
-			: [{ coin: Coin.unk, network: Network.unknown }]
+		txState.from ? [txState.from] : [{ coin: Coin.unk, network: Network.unknown }]
 	);
 
 	const coinsWithBalance = $derived.by(() => {
@@ -154,18 +154,16 @@
 		if (balanceCount === 0) return;
 
 		const currentCoinHasBalance =
-			txState.fromCoin &&
-			coinsWithBalance.some((item) => item.coin.value === txState.fromCoin?.coin.value);
+			txState.from &&
+			coinsWithBalance.some((item) => item.coin.value === txState.from?.coin.value);
 		if (currentCoinHasBalance) return;
 
 		const hiveCoin = coinsWithBalance.find((item) => item.coin.value === Coin.hive.value);
 		const coinToSelect = hiveCoin || coinsWithBalance[0];
 
 		if (coinToSelect) {
-			txState.fromCoin = coinToSelect.coinOpt;
-			txState.fromNetwork = Network.magi;
-			txState.toCoin = coinToSelect.coinOpt;
-			txState.toNetwork = Network.magi;
+			txState.from = { coin: coinToSelect.coin, network: Network.magi };
+			txState.to = { coin: coinToSelect.coin, network: Network.magi };
 		}
 	});
 </script>
@@ -231,10 +229,10 @@
 					<div class="error">
 						No balance found on your account. Please make a deposit to get started.
 					</div>
-				{:else if txState.fromCoin && txState.fromNetwork}
+				{:else if txState.from}
 					<BalanceInfo
-						coin={txState.fromCoin.coin}
-						network={txState.fromNetwork}
+						coin={txState.from.coin}
+						network={txState.from.network}
 						size="large"
 						styleType="vertical"
 					/>
@@ -254,7 +252,7 @@
 					<AmountInput
 						bind:coinAmount
 						coinOpts={inputCoinOpt}
-						expressIn={txState.fromCoin?.coin}
+						expressIn={txState.from?.coin}
 						maxAmount={max}
 						bind:id={inputId}
 					/>

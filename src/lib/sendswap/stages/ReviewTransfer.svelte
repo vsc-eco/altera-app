@@ -39,11 +39,11 @@
 		}
 	});
 
-	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
+	let toCoin = $derived(txState.to?.coin ?? Coin.unk);
 	let inUsd = $state('');
 	let isInstructions = $derived(
 		auth.value?.provider === 'reown' &&
-			txState.fromNetwork?.value === Network.hiveMainnet.value
+			txState.from?.network.value === Network.hiveMainnet.value
 	);
 	$effect(() => {
 		new CoinAmount(txState.toAmount, toCoin)
@@ -54,13 +54,14 @@
 	});
 	let today = moment().format('MMM D, YYYY');
 	let fromNetwork = $derived.by(() => {
-		if (txState.fromNetwork?.value === Network.hiveMainnet.value) {
-			return `Deposit from ${txState.fromNetwork.label}`;
+		const net = txState.from?.network;
+		if (net?.value === Network.hiveMainnet.value) {
+			return `Deposit from ${net.label}`;
 		}
-		if (txState.fromNetwork?.value === Network.lightning.value) {
-			return `Swap from ${txState.fromNetwork.label}`;
+		if (net?.value === Network.lightning.value) {
+			return `Swap from ${net.label}`;
 		}
-		return txState.fromNetwork?.label ?? 'UNK';
+		return net?.label ?? 'UNK';
 	});
 	let toDid = $derived(getDidFromUsername(txState.toUsername));
 
@@ -110,7 +111,7 @@
 				</tr>
 				<tr>
 					<td class="sm-caption label">Network</td>
-					<td class="content">{txState.toNetwork?.label}</td>
+					<td class="content">{txState.to?.network.label}</td>
 				</tr>
 			</tbody>
 		</table>

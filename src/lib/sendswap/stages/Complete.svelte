@@ -69,8 +69,8 @@
 
 	const isSend = $derived(txState.toUsername !== getUsernameFromAuth(getAuth()()));
 
-	let fromCoin = $derived(txState.fromCoin?.coin ?? Coin.unk);
-	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
+	let fromCoin = $derived(txState.from?.coin ?? Coin.unk);
+	let toCoin = $derived(txState.to?.coin ?? Coin.unk);
 	function prettyWithDisplayUnit(amt: CoinAmount<Coin>): string {
 		const isNegative = amt.amount < 0;
 		const n = Math.abs(amt.amount) / 10 ** amt.coin.decimalPlaces;
@@ -97,8 +97,8 @@
 			});
 	});
 	const alteraFeeApplies = $derived(
-		!!txState.toNetwork &&
-			txState.toNetwork.value !== Network.magi.value &&
+		!!txState.to &&
+			txState.to.network.value !== Network.magi.value &&
 			toCoin.value !== Coin.hive.value &&
 			toCoin.value !== Coin.hbd.value &&
 			grossInUsdNum >= ALTERA_FEE_USD_THRESHOLD
@@ -160,10 +160,10 @@
 					{prettyWithDisplayUnit(new CoinAmount(txState.fromAmount, fromCoin))}
 					{`(\$US ${inUsd})`}
 				</h4>
-			{:else if txState.toNetwork && txState.fromNetwork}
+			{:else if txState.to && txState.from}
 				<div class="swap-header">
 					<span class="from-icon">
-						<CoinNetworkIcon coin={fromCoin} network={txState.fromNetwork!} size={32} />
+						<CoinNetworkIcon coin={fromCoin} network={txState.from.network} size={32} />
 					</span>
 					<span class="from-amt">
 						{prettyWithDisplayUnit(new CoinAmount(txState.fromAmount, fromCoin))}
@@ -175,7 +175,7 @@
 					</span>
 
 					<span class="to-icon">
-						<CoinNetworkIcon coin={toCoin} network={txState.toNetwork!} size={32} />
+						<CoinNetworkIcon coin={toCoin} network={txState.to.network} size={32} />
 					</span>
 					<span class="to-amt">
 						{prettyWithDisplayUnit(new CoinAmount(txState.toAmount, toCoin))}

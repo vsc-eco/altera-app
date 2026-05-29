@@ -1,6 +1,6 @@
 <script lang="ts">
 	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, isValidAmountString } from '$lib/currency/CoinAmount';
 	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { getFee } from '$lib/sendswap/utils/sendUtils';
 	import { useWithdrawState } from '$lib/sendswap/utils/txState.svelte';
@@ -110,7 +110,7 @@
 		// gate the Withdraw button stayed enabled for amounts exceeding the
 		// available balance (matches the BitcoinMainnetWithdraw pattern).
 		const maxAmt = max.amount;
-		const hasToAmount = !!_toAmount && _toAmount !== '0';
+		const hasToAmount = isValidAmountString(_toAmount);
 		untrack(() => {
 			if (
 				hasCoins &&

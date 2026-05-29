@@ -3,6 +3,23 @@ import { Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions'
 import { getExchangeRates } from './convert';
 import { getHiveAssetName, getHbdAssetName } from '../../client';
 export type UnkCoinAmount = CoinAmount<Coin>;
+
+/**
+ * Canonical "the user has entered a usable amount" check for raw amount
+ * strings (the kind bound to AmountInput / stored in txState.fromAmount,
+ * txState.toAmount, etc.). True iff `s` parses to a finite number > 0.
+ *
+ * Replaces ad-hoc `Number(amount) > 0`, `Number(amount) == 0`,
+ * `parseFloat(amount)` and `!!amount && amount !== '0'` patterns scattered
+ * across the send/swap/withdraw flows — those are equivalent only by accident
+ * and all reject NaN/negatives less consistently than this does.
+ */
+export function isValidAmountString(s: string | undefined | null): boolean {
+	if (!s) return false;
+	const n = Number(s);
+	return Number.isFinite(n) && n > 0;
+}
+
 export class CoinAmount<C extends Coin> {
 	coin: C;
 	amount: number;

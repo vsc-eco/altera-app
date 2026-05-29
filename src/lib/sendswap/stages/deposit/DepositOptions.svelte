@@ -50,44 +50,52 @@
 		if (!lightningOpen) return;
 		untrack(() => {
 			toggleHiveMainnet(false);
-			const satsCoin = {
+			const satsCoin: AssetOption = {
 				coin: Coin.sats,
 				networks: [Network.magi]
 			};
 			const btcCoin = getFromOption(Coin.btc.value);
-			const shouldPreserveFromCoin =
-				txState.fromCoin &&
-				txState.fromCoin.networks?.some((n) => n.value === Network.lightning.value);
+
+			const fromAsset = txState.from ? getFromOption(txState.from.coin.value) : undefined;
+			const shouldPreserveFromCoin = !!fromAsset?.networks?.some(
+				(n) => n.value === Network.lightning.value
+			);
 
 			const hiveCoin = getToOption(Coin.hive.value);
 			const hbdCoin = getToOption(Coin.hbd.value);
 			let toCoinToUse: AssetOption | undefined = satsCoin; // default to Magi SATS
 			if (
-				txState.toCoin &&
-				(txState.toCoin.coin.value === Coin.hive.value ||
-					txState.toCoin.coin.value === Coin.hbd.value ||
-					txState.toCoin.coin.value === Coin.sats.value)
+				txState.to &&
+				(txState.to.coin.value === Coin.hive.value ||
+					txState.to.coin.value === Coin.hbd.value ||
+					txState.to.coin.value === Coin.sats.value)
 			) {
-				toCoinToUse = txState.toCoin;
+				// SATS isn't in swapOptions.to, so fall back to the local satsCoin
+				// rather than calling getToOption (which would return undefined).
+				toCoinToUse =
+					txState.to.coin.value === Coin.sats.value
+						? satsCoin
+						: getToOption(txState.to.coin.value);
 			} else if (
-				txState.fromCoin &&
-				(txState.fromCoin.coin.value === Coin.hive.value ||
-					txState.fromCoin.coin.value === Coin.hbd.value ||
-					txState.fromCoin.coin.value === Coin.sats.value)
+				txState.from &&
+				(txState.from.coin.value === Coin.hive.value ||
+					txState.from.coin.value === Coin.hbd.value ||
+					txState.from.coin.value === Coin.sats.value)
 			) {
 				toCoinToUse =
-					txState.fromCoin.coin.value === Coin.hive.value
+					txState.from.coin.value === Coin.hive.value
 						? hiveCoin
-						: txState.fromCoin.coin.value === Coin.hbd.value
+						: txState.from.coin.value === Coin.hbd.value
 							? hbdCoin
 							: satsCoin;
 			}
 
 			txState.rail = Network.lightning;
-			txState.fromNetwork = Network.lightning;
-			txState.fromCoin = shouldPreserveFromCoin ? txState.fromCoin : btcCoin;
-			txState.toNetwork = Network.magi;
-			txState.toCoin = toCoinToUse;
+			const newFromCoin = shouldPreserveFromCoin ? fromAsset : btcCoin;
+			txState.from = newFromCoin
+				? { coin: newFromCoin.coin, network: Network.lightning }
+				: undefined;
+			txState.to = toCoinToUse ? { coin: toCoinToUse.coin, network: Network.magi } : undefined;
 		});
 	});
 
@@ -115,25 +123,24 @@
 			// For Hive Mainnet deposit, default to HIVE (or HBD) without
 			// requiring a Magi balance — user deposits precisely because
 			// their Magi balance may be 0.
+			const fromAsset = txState.from ? getFromOption(txState.from.coin.value) : undefined;
 			let fromCoinToUse = hiveCoin;
-			if (
-				txState.fromCoin &&
-				txState.fromCoin.networks?.some((n) => n.value === Network.hiveMainnet.value)
-			) {
-				fromCoinToUse = txState.fromCoin;
+			if (fromAsset?.networks?.some((n) => n.value === Network.hiveMainnet.value)) {
+				fromCoinToUse = fromAsset;
 			} else if (
-				txState.toCoin &&
-				(txState.toCoin.coin.value === Coin.hive.value ||
-					txState.toCoin.coin.value === Coin.hbd.value)
+				txState.to &&
+				(txState.to.coin.value === Coin.hive.value || txState.to.coin.value === Coin.hbd.value)
 			) {
-				fromCoinToUse = txState.toCoin.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
+				fromCoinToUse = txState.to.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
 			}
 
 			txState.rail = Network.magi;
-			txState.fromNetwork = Network.hiveMainnet;
-			txState.toNetwork = Network.magi;
-			txState.fromCoin = fromCoinToUse;
-			txState.toCoin = fromCoinToUse;
+			txState.from = fromCoinToUse
+				? { coin: fromCoinToUse.coin, network: Network.hiveMainnet }
+				: undefined;
+			txState.to = fromCoinToUse
+				? { coin: fromCoinToUse.coin, network: Network.magi }
+				: undefined;
 		});
 	});
 

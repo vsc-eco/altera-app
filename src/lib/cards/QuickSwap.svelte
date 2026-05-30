@@ -113,10 +113,8 @@
 		const toNet = toOpt ? nativeNetworkFor(toOpt.coin.value) : undefined;
 
 		txState.rail = Network.lightning;
-		txState.fromCoin = fromOpt ?? undefined;
-		txState.fromNetwork = fromNet;
-		txState.toCoin = toOpt ?? undefined;
-		txState.toNetwork = toNet;
+		txState.from = fromOpt && fromNet ? { coin: fromOpt.coin, network: fromNet } : undefined;
+		txState.to = toOpt && toNet ? { coin: toOpt.coin, network: toNet } : undefined;
 	}
 
 	let swapDetailsInitialized = $state(false);
@@ -133,10 +131,10 @@
 	// as dependencies on the first (gated) effect run — otherwise this
 	// effect would never re-fire when the user changes a selection.
 	$effect(() => {
-		const fromCoin = txState.fromCoin?.coin.value;
-		const fromNetwork = txState.fromNetwork?.value;
-		const toCoin = txState.toCoin?.coin.value;
-		const toNetwork = txState.toNetwork?.value;
+		const fromCoin = txState.from?.coin.value;
+		const fromNetwork = txState.from?.network.value;
+		const toCoin = txState.to?.coin.value;
+		const toNetwork = txState.to?.network.value;
 		if (!swapDetailsInitialized) return;
 		if (fromCoin || toCoin) {
 			saveSwapSelection(SWAP_QUICK_PREF_KEY, { fromCoin, fromNetwork, toCoin, toNetwork });
@@ -155,7 +153,7 @@
 	$effect(() => {
 		if (!auth.value) return;
 		const provider = auth.value.provider;
-		const toValue = txState.toCoin?.coin.value;
+		const toValue = txState.to?.coin.value;
 
 		const walletMatchesTo =
 			(provider === 'aioha' && (toValue === Coin.hive.value || toValue === Coin.hbd.value)) ||
@@ -188,10 +186,10 @@
 	$effect(() => {
 		const result = solveNetworkConstraints(
 			txState.rail,
-			txState.fromCoin,
-			txState.toNetwork,
+			getFromOption(txState.from?.coin.value),
+			txState.to?.network,
 			auth.value?.did,
-			txState.fromNetwork,
+			txState.from?.network,
 			true
 		);
 		if (!optionsEqual(result.assetOptions, assetOptions)) assetOptions = result.assetOptions;
@@ -226,12 +224,8 @@
 
 	let possibleCoins: CoinOnNetwork[] = $derived.by(() => {
 		const result: CoinOnNetwork[] = [];
-		if (txState.fromCoin && txState.fromNetwork) {
-			result.push({ coin: txState.fromCoin.coin, network: txState.fromNetwork });
-		}
-		if (txState.toCoin && txState.toNetwork) {
-			result.push({ coin: txState.toCoin.coin, network: txState.toNetwork });
-		}
+		if (txState.from) result.push(txState.from);
+		if (txState.to) result.push(txState.to);
 		const btcIndex = result.findIndex((c) => c.coin.value === Coin.btc.value);
 		if (btcIndex !== -1) {
 			result.splice(btcIndex + 1, 0, { coin: Coin.sats, network: result[btcIndex].network });
@@ -240,26 +234,20 @@
 	});
 
 	// Single-option list for From amount input so AmountInput does not show internal dropdown
-	const fromOnlyCoinOpts: CoinOnNetwork[] = $derived.by(() => {
-		if (!txState.fromCoin || !txState.fromNetwork) return [];
-		return [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }];
-	});
+	const fromOnlyCoinOpts: CoinOnNetwork[] = $derived(txState.from ? [txState.from] : []);
 
 	// Single-option list for To amount input
-	const toOnlyCoinOpts: CoinOnNetwork[] = $derived.by(() => {
-		if (!txState.toCoin || !txState.toNetwork) return [];
-		return [{ coin: txState.toCoin.coin, network: txState.toNetwork }];
-	});
+	const toOnlyCoinOpts: CoinOnNetwork[] = $derived(txState.to ? [txState.to] : []);
 
 	let inputAmount = $state(new CoinAmount(0, Coin.unk));
 	let toInputAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
-		if (!txState.fromCoin) return;
-		if (inputAmount.coin.value === txState.fromCoin.coin.value) {
+		if (!txState.from) return;
+		if (inputAmount.coin.value === txState.from.coin.value) {
 			const amt = inputAmount.toAmountString();
 			if (amt !== txState.fromAmount) txState.fromAmount = amt;
 		} else {
-			inputAmount.convertTo(txState.fromCoin.coin, Network.lightning).then((amt) => {
+			inputAmount.convertTo(txState.from.coin, Network.lightning).then((amt) => {
 				if (txState.fromAmount !== amt.toAmountString()) {
 					txState.fromAmount = amt.toAmountString();
 				}
@@ -267,12 +255,12 @@
 		}
 	});
 	$effect(() => {
-		if (!txState.toCoin) return;
-		if (toInputAmount.coin.value === txState.toCoin.coin.value) {
+		if (!txState.to) return;
+		if (toInputAmount.coin.value === txState.to.coin.value) {
 			const amt = toInputAmount.toAmountString();
 			if (amt !== txState.toAmount) txState.toAmount = amt;
 		} else {
-			toInputAmount.convertTo(txState.toCoin.coin, Network.lightning).then((amt) => {
+			toInputAmount.convertTo(txState.to.coin, Network.lightning).then((amt) => {
 				if (txState.toAmount !== amt.toAmountString()) {
 					txState.toAmount = amt.toAmountString();
 				}
@@ -282,9 +270,9 @@
 
 	let fromInTo = $state('');
 	$effect(() => {
-		if (txState.fromCoin && txState.toCoin) {
-			new CoinAmount(1, txState.fromCoin.coin)
-				.convertTo(txState.toCoin.coin, Network.lightning)
+		if (txState.from && txState.to) {
+			new CoinAmount(1, txState.from.coin)
+				.convertTo(txState.to.coin, Network.lightning)
 				.then((amt) => {
 					fromInTo = formatRateAmount(amt);
 				});
@@ -293,16 +281,16 @@
 
 	let toPriceUsdRaw = $state(0);
 	$effect(() => {
-		if (txState.toCoin) {
-			new CoinAmount(1, txState.toCoin.coin).convertTo(Coin.usd, Network.lightning).then((amt) => {
+		if (txState.to) {
+			new CoinAmount(1, txState.to.coin).convertTo(Coin.usd, Network.lightning).then((amt) => {
 				toPriceUsdRaw = amt.toNumber();
 			});
 		}
 	});
 
 	let priceImpactPct = $derived.by(() => {
-		const fromCoinDef = txState.fromCoin;
-		const toCoinDef = txState.toCoin;
+		const fromCoinDef = txState.from;
+		const toCoinDef = txState.to;
 		const fromAmount = txState.fromAmount;
 		if (!fromCoinDef || !toCoinDef || !fromAmount || fromAmount === '0') return 0;
 		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
@@ -346,7 +334,7 @@
 	}
 
 	let exchangeFeePct = $derived(
-		getAlteraFeePct(txState.fromCoin?.coin.value ?? '', txState.toCoin?.coin.value ?? '')
+		getAlteraFeePct(txState.from?.coin.value ?? '', txState.to?.coin.value ?? '')
 	);
 
 	/**
@@ -355,7 +343,7 @@
 	 * HBD (≈ $1 pegged). Final-hop fee is in the output coin.
 	 */
 	let totalProtocolFeeUsd = $derived.by(() => {
-		const toCoinDef = txState.toCoin;
+		const toCoinDef = txState.to;
 		if (!swapResult || toPriceUsdRaw <= 0 || !toCoinDef) return null;
 		const finalHopUsd =
 			(Number(swapResult.baseFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
@@ -401,8 +389,8 @@
 	}
 
 	$effect(() => {
-		const fromCoin = txState.fromCoin;
-		const toCoin = txState.toCoin;
+		const fromCoin = txState.from;
+		const toCoin = txState.to;
 		const fromAmount = txState.fromAmount;
 		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
 			resetSwapState();
@@ -517,7 +505,7 @@
 	// user deleted the FROM amount or picked incompatible coins.
 	$effect(() => {
 		const expectedRaw = txState.expectedOutput;
-		const coin = txState.toCoin?.coin;
+		const coin = txState.to?.coin;
 		if (!coin) return;
 		if (expectedRaw && expectedRaw !== '0') return;
 		untrack(() => {
@@ -554,12 +542,11 @@
 	// Hive (from the L1 account) and BTC (from mempool.space via the
 	// reown BitcoinAdapter address).
 	const maxAmount = $derived.by(() => {
-		const coin = txState.fromCoin?.coin;
-		const network = txState.fromNetwork;
-		if (!coin || !network) return undefined;
-		const raw = getBalanceSmallestUnits($accountBalance, coin, network);
+		const from = txState.from;
+		if (!from) return undefined;
+		const raw = getBalanceSmallestUnits($accountBalance, from.coin, from.network);
 		if (raw <= 0) return undefined;
-		return new CoinAmount(raw, coin, true);
+		return new CoinAmount(raw, from.coin, true);
 	});
 
 	let dialogOpen = $state(false);
@@ -639,7 +626,7 @@
 	 * anyway, but disabling it at pick time is clearer to the user.)
 	 */
 	function isToTokenAllowed(value: string): boolean {
-		const fromValue = txState.fromCoin?.coin.value;
+		const fromValue = txState.from?.coin.value;
 		return !fromValue || value !== fromValue;
 	}
 
@@ -649,26 +636,24 @@
 	 * on the FROM side (wallet constraint) and both slots are filled.
 	 */
 	const canSwapPositions = $derived.by(() => {
-		const toValue = txState.toCoin?.coin.value;
-		if (!toValue || !txState.fromCoin) return false;
+		const toValue = txState.to?.coin.value;
+		if (!toValue || !txState.from) return false;
 		return fromAllowedValues.has(toValue);
 	});
 
 	/** Human-readable reason when the swap button is disabled. */
 	const swapBlockedReason = $derived.by(() => {
-		if (!txState.toCoin || !txState.fromCoin) return 'Select both tokens first';
-		return `${txState.toCoin.coin.label} can't be used as source with your wallet`;
+		if (!txState.to || !txState.from) return 'Select both tokens first';
+		return `${txState.to.coin.label} can't be used as source with your wallet`;
 	});
 
 	/** Swap the FROM and TO tokens + networks. */
 	function swapPositions() {
 		if (!canSwapPositions) return;
-		const prevFrom = txState.fromCoin;
-		const prevFromNet = txState.fromNetwork;
-		txState.fromCoin = txState.toCoin;
-		txState.fromNetwork = txState.toNetwork;
-		txState.toCoin = prevFrom;
-		txState.toNetwork = prevFromNet;
+		if (!txState.from || !txState.to) return;
+		const prevFrom = txState.from;
+		txState.from = txState.to;
+		txState.to = prevFrom;
 	}
 
 	function selectToken(token: AssetObject) {
@@ -679,26 +664,25 @@
 		// token on both sides and feels natural (like PancakeSwap).
 		const otherValue =
 			currentlyOpen === 'from'
-				? txState.toCoin?.coin.value
-				: txState.fromCoin?.coin.value;
+				? txState.to?.coin.value
+				: txState.from?.coin.value;
 
 		if (otherValue && token.value === otherValue) {
 			// The user picked the token that's in the other slot → swap positions.
 			// But first check: would the swap put a wallet-incompatible token in FROM?
 			// e.g. TO=BTC, user opens TO picker and clicks HIVE (current FROM) →
 			// swap would move BTC to FROM, which is blocked on a Hive wallet.
-			const wouldBeFrom = currentlyOpen === 'from' ? token.value : txState.toCoin?.coin.value;
+			const wouldBeFrom = currentlyOpen === 'from' ? token.value : txState.to?.coin.value;
 			if (wouldBeFrom && !fromAllowedValues.has(wouldBeFrom)) {
 				// Can't swap — just assign the token to the current slot instead.
 				// This may create a same-token pair; the existing sameCoinSelected
 				// warning will prompt the user to fix the other side.
 			} else {
-				const prevFrom = txState.fromCoin;
-				const prevFromNet = txState.fromNetwork;
-				txState.fromCoin = txState.toCoin;
-				txState.fromNetwork = txState.toNetwork;
-				txState.toCoin = prevFrom;
-				txState.toNetwork = prevFromNet;
+				if (txState.from && txState.to) {
+					const prevFrom = txState.from;
+					txState.from = txState.to;
+					txState.to = prevFrom;
+				}
 				closeDialog();
 				return;
 			}
@@ -713,12 +697,14 @@
 		// asset's native mainnet (btcMainnet for BTC, hiveMainnet for
 		// HIVE/HBD), never Magi.
 		const net = nativeNetworkFor(coinOpt.coin.value);
+		if (!net) {
+			closeDialog();
+			return;
+		}
 		if (currentlyOpen === 'from') {
-			txState.fromCoin = coinOpt;
-			txState.fromNetwork = net;
+			txState.from = { coin: coinOpt.coin, network: net };
 		} else {
-			txState.toCoin = coinOpt;
-			txState.toNetwork = net;
+			txState.to = { coin: coinOpt.coin, network: net };
 		}
 		closeDialog();
 	}
@@ -770,25 +756,24 @@
 		!!txState.fromAmount && txState.fromAmount !== '0' && inputAmount.amount > 0
 	);
 	const sameCoinSelected = $derived(
-		!!txState.fromCoin &&
-			!!txState.toCoin &&
-			txState.fromCoin.coin.value === txState.toCoin.coin.value
+		!!txState.from &&
+			!!txState.to &&
+			txState.from.coin.value === txState.to.coin.value
 	);
 	const missingReceiver = $derived(!txState.toUsername?.trim());
 	const exceedsBalance = $derived.by(() => {
-		const coin = txState.fromCoin?.coin;
-		const network = txState.fromNetwork;
-		if (!coin || !network) return false;
+		const from = txState.from;
+		if (!from) return false;
 		const entered = inputAmount.amount;
 		if (!Number.isFinite(entered) || entered <= 0) return false;
-		const maxSmallest = getBalanceSmallestUnits($accountBalance, coin, network);
+		const maxSmallest = getBalanceSmallestUnits($accountBalance, from.coin, from.network);
 		if (maxSmallest <= 0) return false;
 		return entered > maxSmallest;
 	});
 
 	const exceedsPoolDepth = $derived.by(() => {
-		const fromCoin = txState.fromCoin;
-		const toCoin = txState.toCoin;
+		const fromCoin = txState.from;
+		const toCoin = txState.to;
 		const fromAmount = txState.fromAmount;
 		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') return false;
 		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
@@ -847,7 +832,7 @@
 			setError('Connect your wallet first');
 			return false;
 		}
-		if (!txState.fromCoin || !txState.toCoin) {
+		if (!txState.from || !txState.to) {
 			setError('Select both tokens');
 			return false;
 		}
@@ -866,7 +851,7 @@
 		// BTC target: receiver must be a valid Bitcoin address on the
 		// appropriate network. Reject early so we never send a swap
 		// instruction with a malformed/non-BTC recipient.
-		if (txState.toCoin?.coin.value === Coin.btc.value) {
+		if (txState.to?.coin.value === Coin.btc.value) {
 			const addr = txState.toUsername?.trim() ?? '';
 			const net = isVscTestnet() ? BtcNetwork.testnet : BtcNetwork.mainnet;
 			if (!validateBtcAddr(addr, net)) {
@@ -887,7 +872,7 @@
 			return false;
 		}
 
-		const fromCoinDef = txState.fromCoin.coin;
+		const fromCoinDef = txState.from.coin;
 		const provider = auth.value.provider;
 		const did = auth.value.did ?? '';
 		const isHiveAsset =
@@ -921,7 +906,7 @@
 		if (
 			auth.value?.provider === 'reown' &&
 			auth.value.did?.startsWith('did:pkh:bip122:') &&
-			txState.fromCoin?.coin.value === Coin.btc.value
+			txState.from?.coin.value === Coin.btc.value
 		) {
 			btcDepositAddress = null;
 			btcDepositError = null;
@@ -934,7 +919,7 @@
 					: rawReceiver.startsWith('@')
 						? `hive:${rawReceiver.slice(1)}`
 						: `hive:${rawReceiver}`;
-				const toAsset = txState.toCoin!.coin.value;
+				const toAsset = txState.to!.coin.value;
 				// Map the target coin to the chain the DEX router should
 				// settle on. Without this the swapped funds stay in Magi
 				// instead of being withdrawn to the user's mainnet wallet.
@@ -1010,10 +995,10 @@
 	}
 
 	async function confirmSwap() {
-		if (!auth.value || !txState.fromCoin || !txState.toCoin) return;
+		if (!auth.value || !txState.from || !txState.to) return;
 
-		const fromCoinDef = txState.fromCoin.coin;
-		const toCoinDef = txState.toCoin.coin;
+		const fromCoinDef = txState.from.coin;
+		const toCoinDef = txState.to.coin;
 		const amount = new CoinAmount(txState.fromAmount, fromCoinDef);
 		const caller = auth.value.did;
 
@@ -1211,9 +1196,9 @@
 					openDialog('from');
 				}}
 			>
-				{#if txState.fromCoin}
-					<img src={txState.fromCoin.coin.icon} alt="" class="token-img" />
-					<span class="token-name">{txState.fromCoin.coin.label}</span>
+				{#if txState.from}
+					<img src={txState.from.coin.icon} alt="" class="token-img" />
+					<span class="token-name">{txState.from.coin.label}</span>
 				{:else}
 					<span class="token-name muted">Select token</span>
 				{/if}
@@ -1235,7 +1220,7 @@
 			<div class="balance-row">
 				<span class="balance-label"
 					>Balance: {maxAmount.toPrettyAmountString()}
-					{txState.fromCoin?.coin.label ?? ''}</span
+					{txState.from?.coin.label ?? ''}</span
 				>
 				<button type="button" class="max-btn" onclick={() => (inputAmount = maxAmount!)}>
 					Max
@@ -1267,9 +1252,9 @@
 			<span class="field-label">To:</span>
 			<span class="network-tag">mainnet</span>
 			<button type="button" class="token-select" onclick={() => openDialog('to')}>
-				{#if txState.toCoin}
-					<img src={txState.toCoin.coin.icon} alt="" class="token-img" />
-					<span class="token-name">{txState.toCoin.coin.label}</span>
+				{#if txState.to}
+					<img src={txState.to.coin.icon} alt="" class="token-img" />
+					<span class="token-name">{txState.to.coin.label}</span>
 				{:else}
 					<span class="token-name muted">Select token</span>
 				{/if}
@@ -1370,12 +1355,12 @@
 	<!-- Variable content: grows to fill space, content anchored to bottom so button never moves -->
 	<div class="swap-middle">
 	<!-- Swap Details -->
-	{#if txState.fromCoin && txState.toCoin}
+	{#if txState.from && txState.to}
 		<div class="swap-details">
 			<div class="detail-row">
 				<span class="detail-label">Rate</span>
 				<span class="detail-value"
-					>{fromInTo ? `1 ${txState.fromCoin.coin.label} ≈ ${fromInTo}` : '—'}</span
+					>{fromInTo ? `1 ${txState.from.coin.label} ≈ ${fromInTo}` : '—'}</span
 				>
 			</div>
 			<div class="detail-row">
@@ -1408,20 +1393,20 @@
 			<div class="detail-row">
 				<span class="detail-label">Route</span>
 				<span class="detail-value route">
-					{txState.fromCoin.coin.label}
+					{txState.from.coin.label}
 					→
-					{#if txState.fromCoin.coin.value !== 'hbd' && txState.toCoin.coin.value !== 'hbd'}
+					{#if txState.from.coin.value !== 'hbd' && txState.to.coin.value !== 'hbd'}
 						HBD →
 					{/if}
-					{txState.toCoin.coin.label}
+					{txState.to.coin.label}
 				</span>
 			</div>
 			<div class="detail-row">
 				<span class="detail-label">Min amount received</span>
 				<span class="detail-value">
-					{#if swapResult && swapResult.minAmountOut > 0n && txState.toCoin}
-						{formatFee(swapResult.minAmountOut, txState.toCoin.coin.decimalPlaces)}
-						{txState.toCoin.coin.unit}
+					{#if swapResult && swapResult.minAmountOut > 0n && txState.to}
+						{formatFee(swapResult.minAmountOut, txState.to.coin.decimalPlaces)}
+						{txState.to.coin.unit}
 					{:else}
 						—
 					{/if}
@@ -1497,7 +1482,7 @@
 		<div class="btc-deposit">
 			<p class="btc-deposit-intro">
 				Send exactly the amount below to the address shown. The mapping bot observes the transaction
-				and forwards the swap to <strong>{txState.toUsername ?? ''}</strong> as {txState.toCoin
+				and forwards the swap to <strong>{txState.toUsername ?? ''}</strong> as {txState.to
 					?.coin.label ?? ''} on Magi.
 			</p>
 
@@ -1559,8 +1544,8 @@
 				{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
 					{@const walletBlocked =
 						currentlyOpen === 'from' && !isFromTokenAllowed(token.value)}
-					{@const isFrom = token.value === txState.fromCoin?.coin.value}
-					{@const isTo = token.value === txState.toCoin?.coin.value}
+					{@const isFrom = token.value === txState.from?.coin.value}
+					{@const isTo = token.value === txState.to?.coin.value}
 					{@const isSelected = isFrom || isTo}
 					<button
 						class={['token-chip', { disabled: walletBlocked, muted: isSelected && !walletBlocked }]}

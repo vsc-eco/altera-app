@@ -191,8 +191,7 @@
 	<SelectAssetFlattened
 		availableCoins={fromAssetObjs}
 		close={toggleAsset}
-		bind:coin={txState.fromCoin}
-		bind:network={txState.fromNetwork}
+		bind:selected={txState.from}
 		bind:max
 	/>
 {/if}

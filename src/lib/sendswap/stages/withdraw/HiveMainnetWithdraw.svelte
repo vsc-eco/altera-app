@@ -235,8 +235,7 @@
 	<SelectAssetFlattened
 		availableCoins={[Coin.hive, Coin.hbd]}
 		close={toggleAsset}
-		bind:coin={txState.fromCoin}
-		bind:network={txState.fromNetwork}
+		bind:selected={txState.from}
 		bind:max
 	/>
 {:else}

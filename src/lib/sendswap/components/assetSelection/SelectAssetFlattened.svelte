@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getFromOption, Coin, Network, type AssetOption } from '$lib/sendswap/utils/sendOptions';
+	import { getFromOption, Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { untrack, type Snippet } from 'svelte';
 	import AssetList from './AssetList.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
@@ -21,23 +21,19 @@
 
 	let {
 		availableCoins,
-		coin = $bindable(),
-		network = $bindable(),
+		selected = $bindable(),
 		max = $bindable(),
 		close,
 		externalNetwork,
 		isTo = false,
-		onSelect,
 		dialogTitle = 'Select an Asset'
 	}: {
 		availableCoins: Coin[];
-		coin: AssetOption | undefined;
-		network: Network | undefined;
+		selected: CoinOnNetwork | undefined;
 		max?: CoinAmount<Coin> | undefined;
 		close: () => void;
 		externalNetwork?: Network;
 		isTo?: boolean;
-		onSelect?: (coin: AssetOption, network: Network) => void;
 		dialogTitle?: string;
 	} = $props();
 
@@ -138,19 +134,6 @@
 	// REMOVE -1 FOR BITCOIN LAUNCH
 	let maxItems = $derived(onMagi.length - 1 + externalTotalLength);
 
-	let tmpAsset: AssetOption | undefined = $state();
-
-	let tmpNetwork: Network | undefined = $state();
-	let tmpNetworkVal: string | undefined = $state();
-	$effect(() => {
-		const newFromNetwork = network;
-		untrack(() => {
-			if (newFromNetwork === undefined && tmpNetworkVal) {
-				tmpNetworkVal = undefined;
-			}
-		});
-	});
-
 	// $inspect('vscitems', magiItems);
 	// $inspect('externalitems', externalItems);
 
@@ -158,17 +141,14 @@
 		const assetVal = balanceVal.split(':')[0];
 		const networkVal = balanceVal.split(':')[1];
 		const balanceObj = [...magiItems, ...externalItems].find((item) => item.value === balanceVal);
-		tmpAsset = getFromOption(assetVal);
-		tmpNetwork =
+		const nextAsset = getFromOption(assetVal);
+		const nextNetwork =
 			[Network.magi, externalNetwork].find((net) => net?.value === networkVal) ?? Network.magi;
-		if (!tmpAsset) {
-			coin = undefined;
-			network = undefined;
+		if (!nextAsset) {
+			selected = undefined;
 			max = undefined;
 		} else {
-			network = tmpNetwork;
-			coin = tmpAsset;
-			onSelect?.(tmpAsset, tmpNetwork);
+			selected = { coin: nextAsset.coin, network: nextNetwork };
 			if (balanceObj && 'balance' in balanceObj) {
 				const coinObj: Coin = { ...balanceObj, value: assetVal };
 				max = new CoinAmount(balanceObj.balance, coinObj);
@@ -181,13 +161,10 @@
 	$effect(() => {
 		if (
 			availableCoins.length > 0 &&
-			coin &&
-			!availableCoins.map((coin) => coin.value).includes(coin?.coin.value)
+			selected &&
+			!availableCoins.map((c) => c.value).includes(selected.coin.value)
 		) {
-			coin = undefined;
-			if (network) {
-				network = undefined;
-			}
+			selected = undefined;
 		}
 	});
 </script>
@@ -214,7 +191,7 @@
 		<div class="listbox-wrapper">
 			<AssetList
 				items={[...magiItems, ...externalItems]}
-				value={`${coin?.coin.value}:${network?.value}`}
+				value={`${selected?.coin.value}:${selected?.network.value}`}
 				clickAsset={handleAssetClick}
 				type="balance"
 			/>

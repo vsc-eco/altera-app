@@ -102,8 +102,7 @@
 	<SelectAssetFlattened
 		availableCoins={[]}
 		close={toggleAsset}
-		bind:coin={txState.fromCoin}
-		bind:network={txState.fromNetwork}
+		bind:selected={txState.from}
 		bind:max
 		externalNetwork={Network.hiveMainnet}
 	/>

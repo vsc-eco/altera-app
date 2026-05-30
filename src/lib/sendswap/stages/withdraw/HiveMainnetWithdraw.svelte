@@ -129,18 +129,14 @@
 
 	let max = $state(new CoinAmount(0, Coin.hive));
 
-	// Update max when fromCoin changes for magi network
+	// Update max when from changes for magi network
 	$effect(() => {
-		if (!open || !txState.fromCoin || !txState.fromNetwork) return;
-		if (txState.fromNetwork.value !== Network.magi.value) return;
+		if (!open || !txState.from) return;
+		if (txState.from.network.value !== Network.magi.value) return;
 
-		const coinValue = txState.fromCoin.coin.value;
+		const coinValue = txState.from.coin.value;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
-			max = getBalanceAmount(
-				$accountBalance,
-				txState.fromCoin.coin,
-				txState.fromNetwork
-			);
+			max = getBalanceAmount($accountBalance, txState.from.coin, txState.from.network);
 		}
 	});
 	// Validate Hive account for EVM users
@@ -192,9 +188,8 @@
 	$effect(() => {
 		if (!open) return;
 		const baseValidation = !!(
-			txState.fromCoin &&
-			txState.toCoin &&
-			txState.fromNetwork &&
+			txState.from &&
+			txState.to &&
 			coinAmount.amount > 0 &&
 			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
 		);
@@ -210,18 +205,19 @@
 
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
 	const coinOptions: CoinOnNetwork[] = $derived(
-		txState.fromCoin && txState.fromNetwork
-			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
-			: [unkOpt]
+		txState.from ? [txState.from] : [unkOpt]
 	);
 
 	let assetOpen = $state(false);
 	function toggleAsset(open = false) {
 		assetOpen = open;
-		// When closing asset picker, sync toCoin to match the newly selected fromCoin
+		// When closing asset picker, sync `to` coin to match the newly selected `from`
 		if (!open) {
-			if (txState.fromCoin && txState.toCoin?.coin?.value !== txState.fromCoin?.coin?.value) {
-				txState.toCoin = txState.fromCoin;
+			if (txState.from && txState.to?.coin.value !== txState.from.coin.value) {
+				txState.to = {
+					coin: txState.from.coin,
+					network: txState.to?.network ?? Network.hiveMainnet
+				};
 			}
 		}
 	}
@@ -264,10 +260,10 @@
 				<label for="asset-card">Withdraw From</label>
 				<ClickableCard onclick={() => toggleAsset(true)}>
 					<div class="asset-card">
-						{#if txState.fromCoin && txState.fromNetwork}
+						{#if txState.from}
 							<BalanceInfo
-								coin={txState.fromCoin.coin}
-								network={txState.fromNetwork}
+								coin={txState.from.coin}
+								network={txState.from.network}
 								size="large"
 								styleType="vertical"
 							/>
@@ -288,7 +284,7 @@
 						<AmountInput
 							bind:coinAmount
 							coinOpts={coinOptions}
-							expressIn={txState.fromCoin?.coin}
+							expressIn={txState.from?.coin}
 							maxAmount={max}
 							onAmountChange={syncAmountFromInput}
 							bind:id={inputId}

@@ -70,10 +70,10 @@
 	// stays independent.
 	$effect(() => {
 		if (txType !== 'swap') return;
-		const fromCoin = txState.fromCoin?.coin.value;
-		const fromNetwork = txState.fromNetwork?.value;
-		const toCoin = txState.toCoin?.coin.value;
-		const toNetwork = txState.toNetwork?.value;
+		const fromCoin = txState.from?.coin.value;
+		const fromNetwork = txState.from?.network.value;
+		const toCoin = txState.to?.coin.value;
+		const toNetwork = txState.to?.network.value;
 		// Only save once both sides are populated; partial state isn't useful.
 		if (fromCoin && toCoin) {
 			saveSwapSelection(SWAP_PAGE_PREF_KEY, { fromCoin, fromNetwork, toCoin, toNetwork });

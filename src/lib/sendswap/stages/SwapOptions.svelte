@@ -162,8 +162,8 @@
 
 	// Recalculate swap whenever input amount, coins, or slippage changes.
 	$effect(() => {
-		const fromCoin = txState.fromCoin;
-		const toCoin = txState.toCoin;
+		const fromCoin = txState.from;
+		const toCoin = txState.to;
 		const fromAmount = txState.fromAmount;
 		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
 			swapResult = null;
@@ -312,21 +312,21 @@
 	}
 
 	let expectedOutputUsd = $derived.by(() => {
-		const toCoinDef = txState.toCoin;
+		const toCoinDef = txState.to;
 		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
 			return null;
 		return (Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
 	});
 
 	let minAmountOutUsd = $derived.by(() => {
-		const toCoinDef = txState.toCoin;
+		const toCoinDef = txState.to;
 		if (!swapResult || swapResult.minAmountOut <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
 			return null;
 		return (Number(swapResult.minAmountOut) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
 	});
 
 	let inputAmountUsd = $derived.by(() => {
-		const fromCoinDef = txState.fromCoin;
+		const fromCoinDef = txState.from;
 		const fromAmount = txState.fromAmount;
 		if (!fromCoinDef || !fromAmount || fromAmount === '0' || fromPriceUsdRaw <= 0) return null;
 		const amt = new CoinAmount(fromAmount, fromCoinDef.coin).toNumber();
@@ -336,8 +336,8 @@
 
 	let exchangeFeePct = $derived(
 		getAlteraFeePct(
-			txState.fromCoin?.coin.value ?? '',
-			txState.toCoin?.coin.value ?? ''
+			txState.from?.coin.value ?? '',
+			txState.to?.coin.value ?? ''
 		)
 	);
 
@@ -347,7 +347,7 @@
 	 * HBD (≈ $1 pegged). Final-hop fee is in the output coin.
 	 */
 	let totalProtocolFeeUsd = $derived.by(() => {
-		const toCoinDef = txState.toCoin;
+		const toCoinDef = txState.to;
 		if (!swapResult || toPriceUsdRaw <= 0 || !toCoinDef) return null;
 		const finalHopUsd =
 			(Number(swapResult.baseFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
@@ -382,18 +382,18 @@
 	// Update toNetwork based on destination choice
 	$effect(() => {
 		if (destChoice === 'wallet') {
-			if (txState.toNetwork?.value !== Network.magi.value) {
-				txState.toNetwork = Network.magi;
+			if (txState.to && txState.to.network.value !== Network.magi.value) {
+				txState.to = { coin: txState.to.coin, network: Network.magi };
 			}
 		} else {
 			const net =
 				destNetworkChoice === 'magi'
 					? Network.magi
-					: (txState.toCoin?.networks?.find(
+					: (getToOption(txState.to?.coin.value)?.networks?.find(
 							(n: Network) => n.value !== Network.magi.value
 						) ?? Network.hiveMainnet);
-			if (txState.toNetwork?.value !== net.value) {
-				txState.toNetwork = net;
+			if (txState.to && txState.to.network.value !== net.value) {
+				txState.to = { coin: txState.to.coin, network: net };
 			}
 		}
 	});
@@ -409,14 +409,12 @@
 	let swapFieldsValid = $state(false);
 	$effect(() => {
 		const valid = !!(
-			txState.toNetwork &&
+			txState.to &&
 			txState.toAmount &&
 			txState.toAmount !== '0' &&
-			txState.toCoin &&
-			txState.fromNetwork &&
+			txState.from &&
 			txState.fromAmount &&
-			txState.fromAmount !== '0' &&
-			txState.fromCoin
+			txState.fromAmount !== '0'
 		);
 		swapFieldsValid = valid;
 		untrack(() => {
@@ -440,7 +438,7 @@
 		if (destChoice === 'wallet') return true;
 		const addr = destAddress.trim();
 		if (!addr) return false;
-		const isBtcTarget = txState.toCoin?.coin.value === Coin.btc.value;
+		const isBtcTarget = txState.to?.coin.value === Coin.btc.value;
 		const wantsMainnet = destNetworkChoice === 'mainnet';
 		if (isBtcTarget && wantsMainnet) {
 			const net = isVscTestnet() ? BtcNetwork.testnet : BtcNetwork.mainnet;
@@ -457,8 +455,8 @@
 	 * the estimated intermediate amount vs pool2's input reserve.
 	 */
 	let exceedsPoolDepth = $derived.by(() => {
-		const fromCoin = txState.fromCoin;
-		const toCoin = txState.toCoin;
+		const fromCoin = txState.from;
+		const toCoin = txState.to;
 		const fromAmount = txState.fromAmount;
 		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') return false;
 
@@ -497,10 +495,10 @@
 		const { assetOptions: newAssetOptions, networkOptions: newNetworkOptions } =
 			solveNetworkConstraints(
 				txState.rail,
-				txState.fromCoin,
-				txState.toNetwork,
+				getFromOption(txState.from?.coin.value),
+				txState.to?.network,
 				auth.value?.did,
-				txState.fromNetwork,
+				txState.from?.network,
 				true
 			);
 		if (!optionsEqual(newAssetOptions, assetOptions)) {
@@ -513,15 +511,14 @@
 
 	$effect(() => {
 		// FROM auto selection
-		if (!(txState.fromCoin && txState.fromNetwork) && assetOptions.length > 0) {
+		if (!(txState.from) && assetOptions.length > 0) {
 			const btcOption = assetOptions.find(
 				(opt) => opt.coin.value === Coin.btc.value && !opt.disabled
 			);
 			const firstAvailable = assetOptions.find((opt) => !opt.disabled);
 			const fromOpt = btcOption ?? firstAvailable;
 			if (fromOpt) {
-				txState.fromCoin = fromOpt;
-				txState.fromNetwork = Network.magi;
+				txState.from = { coin: fromOpt.coin, network: Network.magi };
 			}
 		}
 
@@ -532,7 +529,7 @@
 			const bal = getBalanceSmallestUnits($accountBalance, coinDef, Network.magi);
 			return bal > 0.001;
 		});
-		if (!(txState.toCoin && txState.toNetwork)) {
+		if (!(txState.to)) {
 			let nextToCoin: (typeof swapOptions.to)[number] | undefined;
 			let nextToNetwork: Network | undefined;
 			if (visibleToObjs.length > 0) {
@@ -555,34 +552,31 @@
 				nextToCoin = undefined;
 				nextToNetwork = undefined;
 			}
-			const prevToCoin = txState.toCoin;
-			const prevToNetwork = txState.toNetwork;
-			const changed =
-				prevToCoin?.coin.value !== nextToCoin?.coin.value ||
-				prevToNetwork?.value !== nextToNetwork?.value;
-			if (changed) {
-				txState.toCoin = nextToCoin;
-				txState.toNetwork = nextToNetwork;
+			// Block only entered when `to` is undefined, so the previous-value
+			// comparison from the legacy code is no-op here — just set when we
+			// have a complete next pair.
+			if (nextToCoin && nextToNetwork) {
+				txState.to = { coin: nextToCoin.coin, network: nextToNetwork };
 			}
 		}
 	});
 
 	// Same-coin error: show when from and to are the same asset
 	let sameCoinError = $derived(
-		txState.fromCoin && txState.toCoin
-			? txState.fromCoin.coin.value === txState.toCoin.coin.value
+		txState.from && txState.to
+			? txState.from.coin.value === txState.to.coin.value
 			: false
 	);
 
 	// Insufficient balance: check if from amount exceeds available balance
 	let insufficientBalance = $derived.by(() => {
-		const from = txState.fromCoin;
+		const from = txState.from;
 		const fromAmount = txState.fromAmount;
 		if (!from || !fromAmount || fromAmount === '0') return false;
 		const bal = getBalanceSmallestUnits(
 			$accountBalance,
 			from.coin,
-			txState.fromNetwork ?? Network.magi
+			from.network
 		);
 		if (bal <= 0) return true;
 		const inputNum = new CoinAmount(fromAmount, from.coin).toNumber();
@@ -623,25 +617,23 @@
 		swapOptions.to.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: txState.toNetwork, size: 'medium' }
+			snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
 		}))
 	);
 
 	// Only the from coin for the amount input – no dropdown; from is changed only via the left card.
 	let amountInputCoinOpts: CoinOnNetwork[] = $derived(
-		txState.fromCoin && txState.fromNetwork
-			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
-			: []
+		txState.from ? [txState.from] : []
 	);
 
 	let inputAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
-		if (!txState.fromCoin) return;
-		if (inputAmount.coin.value === txState.fromCoin.coin.value) {
+		if (!txState.from) return;
+		if (inputAmount.coin.value === txState.from.coin.value) {
 			const amt = inputAmount.toAmountString();
 			if (amt !== txState.fromAmount) txState.fromAmount = amt;
 		} else {
-			inputAmount.convertTo(txState.fromCoin.coin, Network.lightning).then((amt) => {
+			inputAmount.convertTo(txState.from.coin, Network.lightning).then((amt) => {
 				if (txState.fromAmount !== amt.toAmountString()) {
 					txState.fromAmount = amt.toAmountString();
 				}
@@ -650,15 +642,15 @@
 	});
 
 	$effect(() => {
-		if (!txState.toCoin) return;
+		if (!txState.to) return;
 		// When pool-based swap calc is active, it sets toAmount directly
 		// (even when expectedOutput is 0 — e.g. amount exceeds pool reserves)
 		if (swapResult) return;
-		if (inputAmount.coin.value === txState.toCoin.coin.value) {
+		if (inputAmount.coin.value === txState.to.coin.value) {
 			const amt = inputAmount.toAmountString();
 			if (amt !== txState.toAmount) txState.toAmount = amt;
 		} else {
-			inputAmount.convertTo(txState.toCoin.coin, Network.lightning).then((amt) => {
+			inputAmount.convertTo(txState.to.coin, Network.lightning).then((amt) => {
 				// Discard stale exchange-rate estimate if pool calc resolved while we waited
 				if (swapResult) return;
 				if (txState.toAmount !== amt.toAmountString()) {
@@ -671,24 +663,22 @@
 	// TO field — derives a CoinAmount from the calculated toAmount for the AmountInput.
 	// Currently read-only (disabled); will become editable when reverse swap calc is added.
 	const outputAmount = $derived.by(() => {
-		const toCoin = txState.toCoin?.coin ?? Coin.unk;
+		const toCoin = txState.to?.coin ?? Coin.unk;
 		const raw = txState.toAmount;
 		const fromEmpty = !txState.fromAmount || txState.fromAmount === '0';
 		if (raw && raw !== '0' && !fromEmpty) return new CoinAmount(raw, toCoin);
 		return new CoinAmount(0, toCoin);
 	});
 	const toAmountCoinOpts: CoinOnNetwork[] = $derived(
-		txState.toCoin && txState.toNetwork
-			? [{ coin: txState.toCoin.coin, network: txState.toNetwork }]
-			: []
+		txState.to ? [txState.to] : []
 	);
 
 	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
 	let pricesFailed = $state(false);
 	$effect(() => {
-		if (txState.fromCoin) {
-			new CoinAmount(1, txState.fromCoin.coin)
+		if (txState.from) {
+			new CoinAmount(1, txState.from.coin)
 				.convertTo(Coin.usd, Network.lightning)
 				.then((amt) => {
 					fromPriceUsdRaw = amt.toNumber();
@@ -698,8 +688,8 @@
 					pricesFailed = true;
 				});
 		}
-		if (txState.toCoin) {
-			new CoinAmount(1, txState.toCoin.coin)
+		if (txState.to) {
+			new CoinAmount(1, txState.to.coin)
 				.convertTo(Coin.usd, Network.lightning)
 				.then((amt) => {
 					toPriceUsdRaw = amt.toNumber();
@@ -714,7 +704,7 @@
 	let minAmount: CoinAmount<Coin> | undefined = $state();
 	$effect(() => {
 		const amt =
-			txState.fromCoin?.coin.value === Coin.btc.value
+			txState.from?.coin.value === Coin.btc.value
 				? new CoinAmount(0.00000001, Coin.btc)
 				: undefined;
 		untrack(() => {
@@ -729,11 +719,10 @@
 	// reads from `$accountBalance.connectedBal` (the L1 account
 	// snapshot populated by aioha).
 	const maxAmount: CoinAmount<Coin> | undefined = $derived.by(() => {
-		const from = txState.fromCoin;
-		const fromNet = txState.fromNetwork;
+		const from = txState.from;
 		if (!from) return undefined;
 		const coinValue = from.coin.value;
-		if (fromNet?.value === Network.hiveMainnet.value) {
+		if (from.network.value === Network.hiveMainnet.value) {
 			const connected = $accountBalance.connectedBal;
 			if (!connected) return undefined;
 			const bal = connected[coinValue as keyof typeof connected];
@@ -817,44 +806,45 @@
 	 * different source). TO network is owned by the destChoice effect.
 	 */
 	function swapPositions() {
-		if (!txState.fromCoin || !txState.toCoin) return;
-		const prevFrom = txState.fromCoin;
-		const prevFromNet = txState.fromNetwork;
-		txState.fromCoin = txState.toCoin;
-		txState.fromNetwork = prevFromNet;
-		txState.toCoin = prevFrom;
-		// toNetwork is managed by the destChoice $effect — don't set it here.
+		if (!txState.from || !txState.to) return;
+		const prevFromCoin = txState.from.coin;
+		const prevFromNet = txState.from.network;
+		const prevToCoin = txState.to.coin;
+		// Tokens swap; FROM keeps its source network. TO network is managed
+		// by the destChoice $effect — don't set it here (preserve it).
+		txState.from = { coin: prevToCoin, network: prevFromNet };
+		txState.to = { coin: prevFromCoin, network: txState.to.network };
 	}
 
-	const canSwapPositions = $derived(!!(txState.fromCoin && txState.toCoin));
+	const canSwapPositions = $derived(!!(txState.from && txState.to));
 
 	function selectToken(token: AssetObject) {
 		// If the user picks the token already in the OTHER slot, swap tokens.
 		const otherValue =
 			currentlyOpen === 'from'
-				? txState.toCoin?.coin.value
-				: txState.fromCoin?.coin.value;
+				? txState.to?.coin.value
+				: txState.from?.coin.value;
 
 		if (otherValue && token.value === otherValue) {
 			if (currentlyOpen === 'from') {
 				// User is picking FROM and clicked the current TO token.
-				// Move old FROM → TO, show network picker for the new FROM.
-				const prevFrom = txState.fromCoin;
-				txState.toCoin = prevFrom;
-				// toNetwork stays managed by destChoice effect.
+				// Move old FROM → TO (keep TO network), show network picker for new FROM.
+				if (txState.from && txState.to) {
+					txState.to = { coin: txState.from.coin, network: txState.to.network };
+				}
 				const coinOpt = getFromOption(token.value);
 				if (!coinOpt) return;
 				tempCoinOpt = coinOpt;
 				dialogStep = 'source';
 			} else {
 				// User is picking TO and clicked the current FROM token.
-				// Swap tokens: old FROM → TO, old TO → FROM (keep FROM network).
-				const prevFrom = txState.fromCoin;
-				const prevFromNet = txState.fromNetwork;
-				const prevTo = txState.toCoin;
-				txState.toCoin = prevFrom;
-				txState.fromCoin = prevTo;
-				txState.fromNetwork = prevFromNet;
+				// Swap tokens: old FROM ↔ old TO (each keeps its own network).
+				if (txState.from && txState.to) {
+					const prevFromCoin = txState.from.coin;
+					const prevToCoin = txState.to.coin;
+					txState.to = { coin: prevFromCoin, network: txState.to.network };
+					txState.from = { coin: prevToCoin, network: txState.from.network };
+				}
 				closeDialog();
 			}
 			return;
@@ -875,14 +865,12 @@
 	}
 
 	function confirmFromSelection(coinOpt: AssetOption, network: Network) {
-		txState.fromCoin = coinOpt;
-		txState.fromNetwork = network;
+		txState.from = { coin: coinOpt.coin, network };
 		closeDialog();
 	}
 
 	function confirmToSelection(coinOpt: AssetOption, network: Network) {
-		txState.toCoin = coinOpt;
-		txState.toNetwork = network;
+		txState.to = { coin: coinOpt.coin, network };
 		closeDialog();
 	}
 
@@ -894,11 +882,11 @@
 				: coin.label;
 	}
 
-	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
+	let toCoin = $derived(txState.to?.coin ?? Coin.unk);
 
 	let priceImpactPct = $derived.by(() => {
-		const fromCoinDef = txState.fromCoin;
-		const toCoinDef = txState.toCoin;
+		const fromCoinDef = txState.from;
+		const toCoinDef = txState.to;
 		const fromAmount = txState.fromAmount;
 		if (!fromCoinDef || !toCoinDef || !fromAmount || fromAmount === '0') return 0;
 		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
@@ -926,8 +914,8 @@
 				</div>
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						{@const isFrom = token.value === txState.fromCoin?.coin.value}
-						{@const isTo = token.value === txState.toCoin?.coin.value}
+						{@const isFrom = token.value === txState.from?.coin.value}
+						{@const isTo = token.value === txState.to?.coin.value}
 						{@const isSelected = isFrom || isTo}
 						<button
 							class={['token-chip', { muted: isSelected }]}
@@ -949,8 +937,8 @@
 			<div class="dialog-content">
 				<div class="token-chip-grid">
 					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						{@const isFrom = token.value === txState.fromCoin?.coin.value}
-						{@const isTo = token.value === txState.toCoin?.coin.value}
+						{@const isFrom = token.value === txState.from?.coin.value}
+						{@const isTo = token.value === txState.to?.coin.value}
 						{@const isSelected = isFrom || isTo}
 						<button
 							class={['token-chip', { active: token.value === tempCoinOpt.coin.value, muted: isSelected && token.value !== tempCoinOpt.coin.value }]}
@@ -997,14 +985,14 @@
 				<div class="section-header">
 					<span class="section-label">From</span>
 					<span class="section-header-center">
-						{#if txState.fromNetwork}
-							<span class={['network-pill', { external: txState.fromNetwork.value !== 'magi' }]}>{txState.fromNetwork.label}</span>
+						{#if txState.from}
+							<span class={['network-pill', { external: txState.from.network.value !== 'magi' }]}>{txState.from.network.label}</span>
 						{/if}
 					</span>
 					<span class="section-balance sm-caption">
-						{#if txState.fromCoin && maxAmount}
+						{#if txState.from && maxAmount}
 							Balance: {maxAmount.toPrettyAmountString()}
-							{coinDisplayLabel(txState.fromCoin.coin)}
+							{coinDisplayLabel(txState.from.coin)}
 						{/if}
 					</span>
 				</div>
@@ -1021,13 +1009,13 @@
 						/>
 					</div>
 					<button class="token-selector-btn" onclick={() => openDialog('from')}>
-						{#if txState.fromCoin}
+						{#if txState.from}
 							<img
-								src={txState.fromCoin.coin.icon}
-								alt={coinDisplayLabel(txState.fromCoin.coin)}
+								src={txState.from.coin.icon}
+								alt={coinDisplayLabel(txState.from.coin)}
 								class="token-icon"
 							/>
-							<span class="token-name">{coinDisplayLabel(txState.fromCoin.coin)}</span>
+							<span class="token-name">{coinDisplayLabel(txState.from.coin)}</span>
 						{:else}
 							<span class="token-name">Select</span>
 						{/if}
@@ -1038,15 +1026,15 @@
 					<span class="section-usd-approx">
 						{#if inputAmountUsd !== null}
 							≈ ${formatUsd(inputAmountUsd)}
-						{:else if pricesFailed && txState.fromCoin && txState.fromAmount && txState.fromAmount !== '0'}
+						{:else if pricesFailed && txState.from && txState.fromAmount && txState.fromAmount !== '0'}
 							<span class="price-unavailable">Price unavailable</span>
 						{/if}
 					</span>
 					{#if sameCoinError}
 						<span class="section-error-inline">Select a different token</span>
-					{:else if insufficientBalance && txState.fromCoin}
+					{:else if insufficientBalance && txState.from}
 						<span class="section-error-inline"
-							>Insufficient {coinDisplayLabel(txState.fromCoin.coin)} balance</span
+							>Insufficient {coinDisplayLabel(txState.from.coin)} balance</span
 						>
 					{:else if exceedsPoolDepth}
 						<span class="section-error-inline">Amount exceeds pool depth</span>
@@ -1073,8 +1061,8 @@
 				<div class="section-header">
 					<span class="section-label">You Receive</span>
 					<span class="section-header-center">
-						{#if txState.toNetwork}
-							<span class={['network-pill', { external: txState.toNetwork.value !== 'magi' }]}>{txState.toNetwork.label}</span>
+						{#if txState.to}
+							<span class={['network-pill', { external: txState.to.network.value !== 'magi' }]}>{txState.to.network.label}</span>
 						{/if}
 					</span>
 					<span class="section-balance sm-caption"></span>
@@ -1095,13 +1083,13 @@
 						{/key}
 					</div>
 					<button class="token-selector-btn" onclick={() => openDialog('to')}>
-						{#if txState.toCoin}
+						{#if txState.to}
 							<img
-								src={txState.toCoin.coin.icon}
-								alt={coinDisplayLabel(txState.toCoin.coin)}
+								src={txState.to.coin.icon}
+								alt={coinDisplayLabel(txState.to.coin)}
 								class="token-icon"
 							/>
-							<span class="token-name">{coinDisplayLabel(txState.toCoin.coin)}</span>
+							<span class="token-name">{coinDisplayLabel(txState.to.coin)}</span>
 						{:else}
 							<span class="token-name">Select</span>
 						{/if}
@@ -1112,7 +1100,7 @@
 					<span class="section-usd-approx">
 						{#if expectedOutputUsd !== null}
 							≈ ${formatUsd(expectedOutputUsd)}
-						{:else if pricesFailed && txState.toCoin && txState.toAmount && txState.toAmount !== '0'}
+						{:else if pricesFailed && txState.to && txState.toAmount && txState.toAmount !== '0'}
 							<span class="price-unavailable">Price unavailable</span>
 						{/if}
 					</span>
@@ -1120,7 +1108,7 @@
 			</div>
 
 			<!-- Route Info -->
-			{#if txState.fromCoin && txState.toCoin}
+			{#if txState.from && txState.to}
 				<div class="route-info">
 					<span class="route-tags">
 						<span class="tag native">Native</span>
@@ -1138,11 +1126,11 @@
 		<div class="deliver-to-card">
 			<span class="deliver-label">DELIVER TO</span>
 
-			{#if txState.toCoin}
+			{#if txState.to}
 				<div class="dest-header">
 					<CoinNetworkIcon
 						coin={toCoin}
-						network={txState.toNetwork ?? Network.magi}
+						network={txState.to?.network ?? Network.magi}
 						size={28}
 					/>
 					<h3>Where should {coinDisplayLabel(toCoin)} go?</h3>
@@ -1234,11 +1222,11 @@
 			</div>
 		</div>
 		<!-- Fees Section (collapsible) -->
-		{#if txState.fromCoin && txState.toCoin}
-			{@const fromDec = txState.fromCoin.coin.decimalPlaces}
-			{@const toDec = txState.toCoin.coin.decimalPlaces}
-			{@const fromUnit = coinDisplayLabel(txState.fromCoin.coin)}
-			{@const toUnit = coinDisplayLabel(txState.toCoin.coin)}
+		{#if txState.from && txState.to}
+			{@const fromDec = txState.from.coin.decimalPlaces}
+			{@const toDec = txState.to.coin.decimalPlaces}
+			{@const fromUnit = coinDisplayLabel(txState.from.coin)}
+			{@const toUnit = coinDisplayLabel(txState.to.coin)}
 			{@const hop1FeeCoin = swapResult?.hop1Fee
 				? swapResult.hop1Fee.asset === Coin.hbd.value
 					? Coin.hbd

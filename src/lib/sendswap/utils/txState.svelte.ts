@@ -1,6 +1,6 @@
 import { getContext, setContext } from 'svelte';
 import type { CoinAmount } from '$lib/currency/CoinAmount';
-import { getFromOption, getToOption, type AssetOption, type Coin, type CoinOnNetwork, type Network } from './sendOptions';
+import type { Coin, CoinOnNetwork, Network } from './sendOptions';
 
 // ─── Base (fields every flow shares) ─────────────────────────────────────────
 
@@ -25,60 +25,6 @@ export class TxStateBase {
 	fromAmount: string = $state('0');
 	toAmount: string = $state('0');
 	toUsername: string = $state('');
-
-	// ─── Legacy shims (migration-only) ──────────────────────────────────────────
-	// These bridge the paired (fromCoin/fromNetwork, toCoin/toNetwork) API to
-	// the collapsed `from`/`to: CoinOnNetwork` source of truth. They exist so
-	// existing consumers keep working while each file is migrated to read/write
-	// the new fields directly. **Do not introduce new usages** — read `.from` /
-	// `.to` instead. Will be removed once every consumer is migrated.
-
-	/** @deprecated read `txState.from?.coin` and look the AssetOption up via `getFromOption()` if you need the list of available networks. */
-	get fromCoin(): AssetOption | undefined {
-		return this.from ? getFromOption(this.from.coin.value) : undefined;
-	}
-	set fromCoin(v: AssetOption | undefined) {
-		if (!v) {
-			this.from = undefined;
-			return;
-		}
-		const net = this.from?.network ?? v.networks[0];
-		if (net) this.from = { coin: v.coin, network: net };
-	}
-	/** @deprecated read `txState.from?.network`. */
-	get fromNetwork(): Network | undefined {
-		return this.from?.network;
-	}
-	set fromNetwork(v: Network | undefined) {
-		if (!v) {
-			this.from = undefined;
-			return;
-		}
-		if (this.from?.coin) this.from = { coin: this.from.coin, network: v };
-	}
-	/** @deprecated read `txState.to?.coin` and look the AssetOption up via `getToOption()` if you need the list of available networks. */
-	get toCoin(): AssetOption | undefined {
-		return this.to ? getToOption(this.to.coin.value) : undefined;
-	}
-	set toCoin(v: AssetOption | undefined) {
-		if (!v) {
-			this.to = undefined;
-			return;
-		}
-		const net = this.to?.network ?? v.networks[0];
-		if (net) this.to = { coin: v.coin, network: net };
-	}
-	/** @deprecated read `txState.to?.network`. */
-	get toNetwork(): Network | undefined {
-		return this.to?.network;
-	}
-	set toNetwork(v: Network | undefined) {
-		if (!v) {
-			this.to = undefined;
-			return;
-		}
-		if (this.to?.coin) this.to = { coin: this.to.coin, network: v };
-	}
 }
 
 // ─── Swap (QuickSwap card, /swap page) ───────────────────────────────────────

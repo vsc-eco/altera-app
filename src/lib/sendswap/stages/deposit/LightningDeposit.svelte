@@ -170,7 +170,6 @@
 						size="large"
 						styleType="vertical"
 					/>
-					<!-- <AssetInfo coinOpt={txState.fromCoin} size="medium" /> -->
 				{:else}
 					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 					Select Destination Account

@@ -35,6 +35,8 @@ import swapOptions, {
 	Coin,
 	Network,
 	networkMap,
+	getFromOption,
+	getToOption,
 	type CoinOnNetwork,
 	type AssetOption,
 	type IntermediaryNetwork
@@ -357,16 +359,14 @@ export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment
 
 export async function getFee(toAmount: string, state: TxStateBase) {
 	if (
-		state.fromCoin &&
-		state.fromNetwork &&
-		state.toCoin &&
-		state.toCoin.coin.value !== Coin.usd.value &&
-		state.toNetwork
+		state.from &&
+		state.to &&
+		state.to.coin.value !== Coin.usd.value
 	) {
-		const fee = await getIntermediaryNetwork(
-			{ coin: state.fromCoin.coin, network: state.fromNetwork },
-			{ coin: state.toCoin.coin, network: state.toNetwork }
-		).feeCalculation(new CoinAmount(Number(toAmount), state.toCoin.coin), state.fromCoin.coin);
+		const fee = await getIntermediaryNetwork(state.from, state.to).feeCalculation(
+			new CoinAmount(Number(toAmount), state.to.coin),
+			state.from.coin
+		);
 		return fee;
 	}
 }
@@ -553,8 +553,9 @@ export function solveToNetworks(state: TxStateBase): Network[] {
 	const recipientNetworks: Network[] | undefined = state.toUsername
 		? getRecipientNetworks(getDidFromUsername(state.toUsername)).filter((net) => !net.disabled)
 		: undefined;
-	const coinNetworks =
-		state.fromNetwork && state.fromCoin ? state.fromCoin.networks : undefined;
+	const coinNetworks = state.from
+		? getFromOption(state.from.coin.value)?.networks
+		: undefined;
 	const intersection =
 		recipientNetworks && coinNetworks
 			? coinNetworks.filter((net) =>
@@ -562,7 +563,7 @@ export function solveToNetworks(state: TxStateBase): Network[] {
 				)
 			: (recipientNetworks ?? coinNetworks ?? []);
 	if (getUsernameFromAuth(getAuth()()) === state.toUsername) {
-		return intersection.filter((net) => net.value !== state.fromNetwork?.value);
+		return intersection.filter((net) => net.value !== state.from?.network.value);
 	} else {
 		return intersection;
 	}
@@ -576,10 +577,13 @@ export async function send(
 	signal?: AbortSignal | undefined
 ): Promise<Error | { id: string }> {
 	// console.log('start of send() function, details:', details);
-	const fromCoin = details.fromCoin!;
-	const fromNetwork = details.fromNetwork!;
-	const toCoin = details.toCoin!;
-	const toNetwork = details.toNetwork!;
+	// `fromCoin`/`toCoin` are AssetOption (catalog entries with networks list)
+	// — needed downstream for `.networks` lookups. The coin and network
+	// themselves come from `details.from`/`details.to`.
+	const fromCoin = getFromOption(details.from!.coin.value)!;
+	const fromNetwork = details.from!.network;
+	const toCoin = getToOption(details.to!.coin.value)!;
+	const toNetwork = details.to!.network;
 	const toUsername = details.toUsername;
 	// Resolve send amount — toAmount may lag on deposit/withdraw due to effect timing,
 	// fall back to fromAmount which is always set by the stage components.

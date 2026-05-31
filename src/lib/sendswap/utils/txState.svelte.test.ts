@@ -16,7 +16,7 @@ import {
 	WithdrawTxState,
 	TxStateBase
 } from './txState.svelte'
-import { Coin, Network, getFromOption, getToOption } from './sendOptions'
+import { Coin, Network } from './sendOptions'
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -104,10 +104,8 @@ describe('default values — each class starts at zero-state', () => {
 		expect(state.toUsername).toBe('')
 		expect(state.fromAmount).toBe('0')
 		expect(state.toAmount).toBe('0')
-		expect(state.fromCoin).toBeUndefined()
-		expect(state.toCoin).toBeUndefined()
-		expect(state.fromNetwork).toBeUndefined()
-		expect(state.toNetwork).toBeUndefined()
+		expect(state.from).toBeUndefined()
+		expect(state.to).toBeUndefined()
 	})
 
 	it('SwapTxState-specific defaults', () => {
@@ -300,160 +298,3 @@ describe('from/to/rail source-of-truth fields', () => {
 	})
 })
 
-// ─── 6. Legacy shim contract (delete with the shims) ─────────────────────────
-//
-// These tests pin the exact behavior of the @deprecated fromCoin/fromNetwork/
-// toCoin/toNetwork getter-setters on TxStateBase. While shims exist, files
-// being migrated still use them; locking the contract here means we can
-// remove the shims at the end of #3 with confidence, and any per-file
-// migration that misreads the shim semantics will get caught.
-//
-// Delete this whole `describe` block when the shims are removed.
-
-describe('legacy shim: get fromCoin / get toCoin', () => {
-	it('returns undefined when `from` / `to` are unset', () => {
-		const state = new TransferTxState()
-		expect(state.fromCoin).toBeUndefined()
-		expect(state.toCoin).toBeUndefined()
-	})
-
-	it('returns the AssetOption matching from.coin for catalog hits', () => {
-		const state = new TransferTxState()
-		state.from = { coin: Coin.hive, network: Network.magi }
-		expect(state.fromCoin?.coin.value).toBe(Coin.hive.value)
-		expect(state.fromCoin).toBe(getFromOption(Coin.hive.value))
-	})
-
-	it('returns undefined for catalog misses even when `from` is set (SATS case)', () => {
-		// SATS isn't in swapOptions.from, so reading fromCoin yields undefined
-		// even though `from` itself holds a CoinOnNetwork. This is exactly why
-		// DepositOptions's Lightning branch needs an explicit SATS fallback.
-		const state = new TransferTxState()
-		state.from = { coin: Coin.sats, network: Network.magi }
-		expect(state.from).toBeDefined()
-		expect(state.fromCoin).toBeUndefined()
-	})
-
-	it('toCoin returns undefined for sHBD (sHBD is from-only)', () => {
-		const state = new TransferTxState()
-		state.to = { coin: Coin.shbd, network: Network.magi }
-		expect(state.toCoin).toBeUndefined()
-	})
-})
-
-describe('legacy shim: set fromCoin', () => {
-	it('clears `from` when assigned undefined', () => {
-		const state = new TransferTxState()
-		state.from = { coin: Coin.hive, network: Network.magi }
-		state.fromCoin = undefined
-		expect(state.from).toBeUndefined()
-	})
-
-	it('creates `from` with networks[0] when previously unset', () => {
-		const state = new TransferTxState()
-		const hiveOpt = getFromOption(Coin.hive.value)!
-		state.fromCoin = hiveOpt
-		expect(state.from?.coin.value).toBe(Coin.hive.value)
-		expect(state.from?.network.value).toBe(hiveOpt.networks[0].value)
-		// invariant: networks[0] is magi for every from-AssetOption
-		expect(state.from?.network.value).toBe(Network.magi.value)
-	})
-
-	it('preserves the existing network when `from` was already set', () => {
-		// Bug-class this prevents: a regression where reassigning fromCoin
-		// silently snaps the network back to magi.
-		const state = new TransferTxState()
-		state.from = { coin: Coin.hive, network: Network.hiveMainnet }
-		state.fromCoin = getFromOption(Coin.btc.value)!
-		expect(state.from?.coin.value).toBe(Coin.btc.value)
-		expect(state.from?.network.value).toBe(Network.hiveMainnet.value)
-	})
-
-	it('is a no-op when `from` is unset and the AssetOption has empty networks', () => {
-		// Pre-existing behavior: `set fromCoin({coin, networks: []})` with
-		// `from === undefined` resolves `net = v.networks[0] = undefined`, so
-		// the assignment falls through and `from` stays undefined. Pin this so
-		// nobody "improves" the shim by defaulting to magi here — the catalog
-		// itself enforces non-empty networks (see sendOptions.test.ts).
-		const state = new TransferTxState()
-		state.fromCoin = { coin: Coin.usd, networks: [] }
-		expect(state.from).toBeUndefined()
-	})
-})
-
-describe('legacy shim: set fromNetwork', () => {
-	it('clears `from` when assigned undefined', () => {
-		const state = new TransferTxState()
-		state.from = { coin: Coin.hive, network: Network.magi }
-		state.fromNetwork = undefined
-		expect(state.from).toBeUndefined()
-	})
-
-	it('swaps the network and preserves the coin when `from` is set', () => {
-		const state = new TransferTxState()
-		state.from = { coin: Coin.hive, network: Network.magi }
-		state.fromNetwork = Network.hiveMainnet
-		expect(state.from?.coin.value).toBe(Coin.hive.value)
-		expect(state.from?.network.value).toBe(Network.hiveMainnet.value)
-	})
-
-	it('is a no-op when `from` is undefined', () => {
-		// Pre-existing behavior: setting fromNetwork without a coin context
-		// has no effect. This was the silent regression that hid in SendSwap
-		// during the migration — the legacy `toNetwork = toNet` call was a
-		// no-op because `to.coin` hadn't been set yet. Pin it so the same
-		// trap is documented.
-		const state = new TransferTxState()
-		state.fromNetwork = Network.hiveMainnet
-		expect(state.from).toBeUndefined()
-	})
-})
-
-describe('legacy shim: set toCoin', () => {
-	it('clears `to` when assigned undefined', () => {
-		const state = new TransferTxState()
-		state.to = { coin: Coin.hive, network: Network.magi }
-		state.toCoin = undefined
-		expect(state.to).toBeUndefined()
-	})
-
-	it('creates `to` with networks[0] when previously unset', () => {
-		const state = new TransferTxState()
-		const btcTo = getToOption(Coin.btc.value)!
-		state.toCoin = btcTo
-		expect(state.to?.coin.value).toBe(Coin.btc.value)
-		// to-side BTC lists btcMainnet first.
-		expect(state.to?.network.value).toBe(Network.btcMainnet.value)
-	})
-
-	it('preserves the existing network when `to` was already set', () => {
-		const state = new TransferTxState()
-		state.to = { coin: Coin.hive, network: Network.hiveMainnet }
-		state.toCoin = getToOption(Coin.hbd.value)!
-		expect(state.to?.coin.value).toBe(Coin.hbd.value)
-		expect(state.to?.network.value).toBe(Network.hiveMainnet.value)
-	})
-})
-
-describe('legacy shim: set toNetwork', () => {
-	it('clears `to` when assigned undefined', () => {
-		const state = new TransferTxState()
-		state.to = { coin: Coin.hive, network: Network.magi }
-		state.toNetwork = undefined
-		expect(state.to).toBeUndefined()
-	})
-
-	it('swaps the network and preserves the coin when `to` is set', () => {
-		const state = new TransferTxState()
-		state.to = { coin: Coin.btc, network: Network.magi }
-		state.toNetwork = Network.btcMainnet
-		expect(state.to?.coin.value).toBe(Coin.btc.value)
-		expect(state.to?.network.value).toBe(Network.btcMainnet.value)
-	})
-
-	it('is a no-op when `to` is undefined', () => {
-		const state = new TransferTxState()
-		state.toNetwork = Network.btcMainnet
-		expect(state.to).toBeUndefined()
-	})
-})

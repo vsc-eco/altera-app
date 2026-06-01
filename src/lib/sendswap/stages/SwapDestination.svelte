@@ -2,6 +2,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { useSwapState } from '$lib/sendswap/utils/txState.svelte';
+	import { checkBtcRecipient, fetchUserBtcDepositAddress } from '$lib/sendswap/utils/btcAddressGuard';
 	import { Send, Wallet, X } from '@lucide/svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -44,6 +45,22 @@
 	let destChoice: 'wallet' | 'address' = $state('wallet');
 	let destAddress = $state('');
 
+	// The user's own BTC deposit address (bridge-controlled). Fetched lazily so
+	// we can refuse a swap that would send BTC out to it (vault→vault stranding).
+	let depositAddress = $state<string | null>(null);
+	let fetchedForDid = $state<string | null>(null);
+	$effect(() => {
+		const did = auth.value?.did ?? null;
+		if (!did || did === fetchedForDid) return;
+		fetchedForDid = did;
+		depositAddress = null;
+		fetchUserBtcDepositAddress(did).then((a) => {
+			if (auth.value?.did === did) depositAddress = a;
+		});
+	});
+
+	const recipientBlock = $derived(checkBtcRecipient(destAddress.trim(), depositAddress));
+
 	// Read preferred network from localStorage; default to 'mainnet' if not set
 	function getStoredNetwork(): string {
 		if (!browser) return 'mainnet';
@@ -64,7 +81,7 @@
 		if (destChoice === 'wallet') {
 			editStage(true);
 		} else {
-			editStage(!!destAddress.trim());
+			editStage(!!destAddress.trim() && !recipientBlock.blocked);
 		}
 	});
 
@@ -158,6 +175,9 @@
 		<p class="dest-hint sm-caption">
 			{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi' ? 'Magi' : chainLabel} &mdash; accepts Hive, BTC, EVM or DASH addresses
 		</p>
+		{#if destChoice === 'address' && recipientBlock.blocked}
+			<p class="dest-error error sm-caption">{recipientBlock.reason}</p>
+		{/if}
 	</div>
 </div>
 
@@ -385,6 +405,11 @@
 	.dest-hint {
 		margin: 0;
 		color: var(--dash-text-muted);
+	}
+	.dest-error {
+		margin: 0;
+		color: var(--dash-accent-red, #ff6b6b);
+		line-height: 1.3;
 	}
 
 	/* ── Status & Waiting ── */

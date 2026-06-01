@@ -1,6 +1,7 @@
 import { getContext, setContext } from 'svelte';
 import type { CoinAmount } from '$lib/currency/CoinAmount';
 import type { Coin, CoinOnNetwork, Network } from './sendOptions';
+import { getIntermediaryNetwork } from './getNetwork';
 
 // ─── Base (fields every flow shares) ─────────────────────────────────────────
 
@@ -14,13 +15,25 @@ export class TxStateBase {
 	/** Selected destination, mirror of `from`. */
 	to: CoinOnNetwork | undefined = $state(undefined);
 	/**
-	 * Optional intermediary override. When `undefined`, callers derive the
-	 * intermediary via `getIntermediaryNetwork(from, to)`; set explicitly only
-	 * for flows whose rail can't be inferred from the from/to networks (e.g.
-	 * the Reown-BTC → HIVE swap that goes via Lightning while neither network
-	 * is Lightning).
+	 * Explicit intermediary override. Set ONLY for flows whose rail can't be
+	 * inferred from the from/to networks (e.g. the QuickSwap / /swap routes
+	 * that bridge external assets via Lightning while neither network is
+	 * Lightning). Read via the derived `rail` getter — never read this field
+	 * directly outside of the writer.
 	 */
-	rail: Network | undefined = $state(undefined);
+	railOverride: Network | undefined = $state(undefined);
+
+	/**
+	 * The intermediary network this TX rails through. Derived from `from` and
+	 * `to` via `getIntermediaryNetwork` by default; falls back to
+	 * `railOverride` when set (for cases where the from/to networks don't
+	 * indicate the rail — see `railOverride` doc).
+	 */
+	get rail(): Network | undefined {
+		if (this.railOverride) return this.railOverride;
+		if (!this.from || !this.to) return undefined;
+		return getIntermediaryNetwork(this.from, this.to);
+	}
 
 	fromAmount: string = $state('0');
 	toAmount: string = $state('0');

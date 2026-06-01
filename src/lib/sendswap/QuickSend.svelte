@@ -31,7 +31,7 @@
 		const coinOpt = getFromOption(balOpt?.coin.value);
 		txState.from = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
 		txState.to = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
-		txState.rail = Network.magi;
+		// rail derives to magi from { magi → magi } — no explicit set needed
 		txState.toUsername = '';
 		txState.toDisplayName = '';
 		txState.memo = '';

@@ -112,7 +112,10 @@
 		const fromNet = fromOpt ? nativeNetworkFor(fromOpt.coin.value) : undefined;
 		const toNet = toOpt ? nativeNetworkFor(toOpt.coin.value) : undefined;
 
-		txState.rail = Network.lightning;
+		// Reown swap rails through Lightning even though neither from (e.g.
+		// BTC mainnet) nor to (e.g. HIVE mainnet) is the Lightning network.
+		// getIntermediaryNetwork(from, to) would pick magi — override here.
+		txState.railOverride = Network.lightning;
 		txState.from = fromOpt && fromNet ? { coin: fromOpt.coin, network: fromNet } : undefined;
 		txState.to = toOpt && toNet ? { coin: toOpt.coin, network: toNet } : undefined;
 	}

@@ -90,7 +90,7 @@
 							: satsCoin;
 			}
 
-			txState.rail = Network.lightning;
+			// rail derives to lightning from from.network = lightning
 			const newFromCoin = shouldPreserveFromCoin ? fromAsset : btcCoin;
 			txState.from = newFromCoin
 				? { coin: newFromCoin.coin, network: Network.lightning }
@@ -134,7 +134,7 @@
 				fromCoinToUse = txState.to.coin.value === Coin.hive.value ? hiveCoin : hbdCoin;
 			}
 
-			txState.rail = Network.magi;
+			// rail derives to magi from { hiveMainnet → magi }
 			txState.from = fromCoinToUse
 				? { coin: fromCoinToUse.coin, network: Network.hiveMainnet }
 				: undefined;

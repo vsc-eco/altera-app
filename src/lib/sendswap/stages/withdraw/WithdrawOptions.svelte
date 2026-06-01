@@ -84,7 +84,7 @@
 				coinToUse = txState.from.coin;
 			}
 
-			txState.rail = Network.magi;
+			// rail derives to magi from { magi → hiveMainnet }
 			txState.from = coinToUse ? { coin: coinToUse, network: Network.magi } : undefined;
 			txState.to = coinToUse ? { coin: coinToUse, network: Network.hiveMainnet } : undefined;
 		});
@@ -98,7 +98,7 @@
 					coinOpt.coin.value === Coin.btc.value &&
 					coinOpt.networks.some((n) => n.value === Network.magi.value)
 			);
-			txState.rail = Network.magi;
+			// rail derives to magi from { magi → btcMainnet }
 			txState.from = btcCoin ? { coin: btcCoin.coin, network: Network.magi } : undefined;
 			txState.to = btcCoin ? { coin: btcCoin.coin, network: Network.btcMainnet } : undefined;
 		});
@@ -115,7 +115,7 @@
 			// Find BTC in to-coins without requiring lightning in networks,
 			// since lightning is the toNetwork and is set separately below.
 			const btcCoinTo = getToOption(Coin.btc.value);
-			txState.rail = Network.lightning;
+			// rail derives to lightning from to.network = lightning
 			txState.from = btcCoinFrom ? { coin: btcCoinFrom.coin, network: Network.magi } : undefined;
 			txState.to = btcCoinTo ? { coin: btcCoinTo.coin, network: Network.lightning } : undefined;
 		});

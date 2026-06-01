@@ -41,7 +41,10 @@
 				getToOption(Coin.hive.value);
 			const fromNet = findNetwork(stored?.fromNetwork) ?? Network.magi;
 			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
-			txState.rail = Network.lightning;
+			// /swap page bridges external assets via Lightning even when
+			// neither from nor to is on the Lightning network — override the
+			// from/to-based derivation. See QuickSwap for the parallel case.
+			txState.railOverride = Network.lightning;
 			txState.from = fromOpt ? { coin: fromOpt.coin, network: fromNet } : undefined;
 			txState.to = toOpt ? { coin: toOpt.coin, network: toNet } : undefined;
 		} else {

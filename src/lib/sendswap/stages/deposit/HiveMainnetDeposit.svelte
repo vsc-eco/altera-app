@@ -14,7 +14,7 @@
 		type CoinOnNetwork,
 		type CoinOptions
 	} from '$lib/sendswap/utils/sendOptions';
-	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
+	import { useDepositState } from '$lib/sendswap/utils/txState.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
 	import { ArrowLeft, ArrowRightLeft, Coins } from '@lucide/svelte';
@@ -26,7 +26,7 @@
 		secondaryMenu = $bindable()
 	}: { editStage: (complete: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
 
-	const txState = useTxState();
+	const txState = useDepositState();
 	const auth = $derived(getAuth()());
 
 	let coinAmount = $state(new CoinAmount(0, Coin.unk));

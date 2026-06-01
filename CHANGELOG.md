@@ -2,6 +2,26 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.12] — 2026-06-01
+
+### Internals
+
+- Completed the `txState` reshape started in 0.3.11. `TxStateBase` now exposes a single `from` / `to: CoinOnNetwork` for each side instead of the paired `fromCoin` / `fromNetwork` / `toCoin` / `toNetwork` it had at the start of the cycle. ~340 active legacy refs migrated across 13 components (display surfaces, deposit/withdraw pickers, ReviewSwap, SendSwap, SwapOptions, QuickSwap, the Quick/Transfer pickers, and SelectAssetFlattened) before the `@deprecated` shim getter/setters were removed. No user-visible behavior change; the picker UI, swap flows, and fee math are all unchanged
+- `rail` is now a derived getter on `TxStateBase` that computes via `getIntermediaryNetwork(from, to)` instead of being set explicitly by each flow. Six redundant `txState.rail = …` writes deleted across `DepositOptions`, `WithdrawOptions`, and `QuickSend` (the from/to networks already indicate the rail). Two cases keep an explicit `railOverride` — the QuickSwap and `/swap` page Reown swap, which bridges via Lightning even though neither endpoint network is Lightning. `txState.rail` reads return the override when set, otherwise the derived value
+- `SelectAssetFlattened` collapsed its two `$bindable` props (`coin: AssetOption` + `network: Network`) into a single `selected: CoinOnNetwork` to match the new TxState shape. Drops three pieces of dead state (`tmpAsset` / `tmpNetwork` / `tmpNetworkVal`) and a `$effect` that only existed to reconcile paired writes. Eliminates an order-of-write trap where the old shim could silently discard the user's network pick on first-time selection
+- Added `isValidAmountString(s)` in `CoinAmount` — replaces the four scattered patterns (`Number(amount) > 0`, `parseFloat(amount)`, `!!amount && amount !== '0'`, etc.) used in tx-completion gates. Equivalent only by accident before — the new helper rejects NaN, negatives, Infinity, and `'0'` consistently. Currently consumed by `KeepsatsWithdraw`'s validation gate (which previously let through amounts exceeding the wallet balance — see 0.3.11)
+- `HiveMainnetDeposit` swapped from the generic `useTxState()` (returns `TxState | undefined`) to `useDepositState()` (throws on wrong context) — matches every other deposit/withdraw picker. Drops ~16 pre-existing `'txState' is possibly undefined'` TS warnings
+- `sendUtils.ts` — `getFee`, `solveToNetworks`, and `send()` migrated to read the new `from` / `to` fields; `send()` resolves the AssetOption catalog entries via `getFromOption` / `getToOption` for the downstream `.networks` lookups it needs
+
+### Testing
+
+- Test suite grew from 74 → 148 tests across 12 suites. New coverage:
+  - `getIntermediaryNetwork` routing rules (every magi / hiveMainnet / lightning / unknown pair) + `settlementLabel` ETA formatting — pins the function now that `rail` derives from it
+  - `swapOptions` catalog lookups including the SATS / USD / UNK / sHBD asymmetry that caused the DepositOptions Lightning fallback during the migration
+  - `isValidAmountString` edge cases (NaN, Infinity, `'0'`, negatives, whitespace, scientific notation)
+  - `txState` from/to source-of-truth + rail derivation (incl. the override-restores-derivation contract)
+- Fixed a SvelteKit `$env/dynamic/public` virtual-module crash in client tests via a `vi.mock` in `vitest-setup-client.ts` — previously `txState.svelte.test.ts` couldn't even load
+
 ## [0.3.11] — 2026-05-28
 
 ### Fixes

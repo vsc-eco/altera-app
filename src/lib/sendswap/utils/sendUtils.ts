@@ -11,6 +11,7 @@ import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransacti
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
 import { getBtcApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
+import { assertBtcRecipientAllowed } from './btcAddressGuard'
 import {
 	accountBalance,
 	type AccountBalance,
@@ -585,6 +586,21 @@ export async function send(
 	const raw = details.toAmount;
 	const amount =
 		raw && raw !== '0' ? raw : details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : raw;
+	// Refuse any BTC-mainnet settlement/withdrawal whose recipient is an address
+	// the app generated for this user (their own deposit address). Such a
+	// destination is bridge-controlled, so the funds would return to the vault
+	// and strand. Authoritative guard is in the btc-mapping contract; this fails
+	// the swap up front for a clear UX. (No-op when the deposit address can't be
+	// derived, so legitimate withdrawals are never blocked.)
+	if (toNetwork.value === Network.btcMainnet.value && auth.value?.did) {
+		try {
+			await assertBtcRecipientAllowed(toUsername, auth.value.did);
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : 'Invalid Bitcoin destination address.';
+			setStatus(msg, true);
+			return new Error(msg);
+		}
+	}
 	if (intermediary == Network.magi) {
 		// console.log('intermediary network is Magi');
 		if (auth.value?.provider == 'reown') {

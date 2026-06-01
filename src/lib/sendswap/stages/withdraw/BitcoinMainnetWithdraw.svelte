@@ -6,6 +6,7 @@
 	import { useWithdrawState } from '$lib/sendswap/utils/txState.svelte';
 	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
 	import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
+	import { checkBtcRecipient, fetchUserBtcDepositAddress } from '$lib/sendswap/utils/btcAddressGuard';
 	import {
 		estimateBtcUnmapFee,
 		type BtcFeeEstimate
@@ -23,6 +24,21 @@
 	let btcAddressError = $state<string | undefined>(undefined);
 	let isBtcAddressValid = $state(false);
 	let previousOpen: boolean | undefined;
+
+	// The user's own BTC deposit address (bridge-controlled). Withdrawing to it
+	// returns funds to the vault and strands them, so we refuse it.
+	let depositAddress = $state<string | null>(null);
+	let fetchedForDid = $state<string | null>(null);
+	$effect(() => {
+		const did = auth.value?.did ?? null;
+		if (!did || did === fetchedForDid) return;
+		fetchedForDid = did;
+		depositAddress = null;
+		fetchUserBtcDepositAddress(did).then((a) => {
+			if (auth.value?.did === did) depositAddress = a;
+		});
+	});
+	const depositBlock = $derived(checkBtcRecipient(btcAddress.trim(), depositAddress));
 
 	// Autofill BTC address when the user is logged in with a Bitcoin wallet
 	$effect(() => {
@@ -100,6 +116,7 @@
 		if (!open) return;
 		const valid = !!(
 			isBtcAddressValid &&
+			!depositBlock.blocked &&
 			txState.fromCoin &&
 			txState.fromNetwork &&
 			coinAmount.amount > 0 &&
@@ -128,6 +145,8 @@
 		/>
 		{#if btcAddressError}
 			<span class="error-message">{btcAddressError}</span>
+		{:else if depositBlock.blocked}
+			<span class="error-message">{depositBlock.reason}</span>
 		{/if}
 	</div>
 	<div class="section">

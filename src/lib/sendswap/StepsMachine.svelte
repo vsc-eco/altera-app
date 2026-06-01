@@ -11,7 +11,7 @@
 	import { sleep } from 'aninest';
 	import NavButtons from '$lib/sendswap/components/NavButtons.svelte';
 	import { goto } from '$app/navigation';
-	import { getIntermediaryNetwork } from '$lib/sendswap/utils/getNetwork';
+	import { decideBroadcast, type TxType } from '$lib/sendswap/utils/broadcastDecision';
 	import { untrack, type Component, type ComponentProps } from 'svelte';
 	import { getDidFromUsername } from '$lib/getAccountName';
 	import { getSendOpType } from '$lib/magiTransactions/hive';
@@ -173,29 +173,13 @@
 	// START TRANSACTION
 	function initSend() {
 		if (!txState) return new Error('initSend() called without a TxState provider');
-		// For deposit/withdraw: when the user hasn't picked a destination, default
-		// `to` to the same coin as `from` on the txType's canonical network.
-		if (!txState.to && txState.from) {
-			const defaultToNetwork =
-				txType === 'deposit'
-					? Network.magi
-					: txType === 'withdraw'
-						? Network.hiveMainnet
-						: undefined;
-			if (defaultToNetwork) {
-				txState.to = { coin: txState.from.coin, network: defaultToNetwork };
-			}
-		}
-
-		if (!txState.from || !txState.to) {
-			return new Error('Required field undefined.');
-		}
-
-		let intermediary = getIntermediaryNetwork(txState.from, txState.to);
-
-		// console.log('found intermediary network:', intermediary.label);
-
-		if (intermediary === Network.lightning && txType !== 'withdraw') {
+		// `txType` is `string` because pool dialogs / QuickSend pass display
+		// labels ('add liquidity', 'send'). initSend() only fires when no
+		// `onSubmit` override is provided — those code paths reach here with
+		// txType ∈ {swap, transfer, deposit, withdraw}. Cast at the boundary.
+		const decision = decideBroadcast(txState, txType as TxType);
+		if (decision.action === 'error') return new Error(decision.message);
+		if (decision.action === 'v4v') {
 			setStatus('Generating Lightning transfer');
 			openV4V();
 			return;
@@ -203,7 +187,7 @@
 
 		waiting = true;
 		// console.log('waiting for signature');
-		send(txState, auth, intermediary, setStatus, abortSend.signal).then((res) => {
+		send(txState, auth, decision.intermediary, setStatus, abortSend.signal).then((res) => {
 			if (res instanceof Error) {
 				// log the error if it isn't caught
 				console.error(res.message);
@@ -306,8 +290,8 @@
 				ops: [
 					{
 						data: {
-							amount: new CoinAmount(toAmount, toCoin!.coin).toAmountString(),
-							asset: toCoin.coin.unit.toLowerCase(),
+							amount: new CoinAmount(toAmount, to.coin).toAmountString(),
+							asset: to.coin.unit.toLowerCase(),
 							from: `v4vapp`,
 							to: txState.toUsername,
 							memo: `altera_id=${id}`,

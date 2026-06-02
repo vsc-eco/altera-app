@@ -104,7 +104,19 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	let status = $state<SessionStatusResponse | undefined>(undefined);
 	let phase = $state<DashSessionState['phase']>('idle');
 	let error = $state<string | undefined>(undefined);
-	let pollTimer: ReturnType<typeof setInterval> | undefined;
+	// Round-10 audit R10-OPS-POLL-OVERLAP-01: replaced the setInterval
+	// pattern with a recursive setTimeout that re-schedules ONLY after
+	// the previous poll resolves/aborts. Pre-R10 setInterval(2s) could
+	// stack ~15 concurrent /status fetches against a stalling server
+	// before the AbortController timeouts fired (browser per-host
+	// limit gates further). The new shape naturally bounds in-flight
+	// /status to 1, freeing other sockets for cancel/start.
+	let pollTimer: ReturnType<typeof setTimeout> | undefined;
+	// pollGen bumps on each stopPolling so an in-flight tick whose
+	// re-schedule would otherwise race past clearTimeout cancels itself
+	// after its await resolves. Solves the schedulePoll-vs-stopPolling
+	// re-arm race.
+	let pollGen = 0;
 	// Round-6 audit R6-SEC-01: trap-deadline timer for post-cancel
 	// polling. Set when the user clicks cancel and the server
 	// refuses (409) or the cancel request errors; if the next
@@ -127,12 +139,23 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	// fresh 240s timer after the first stopPolling has already
 	// cleared it.
 	let cancelling = false
+	// Round-10 audit R10-CORR-ORPHAN-SESSION-01: track the
+	// AbortController for an in-flight POST /session/start so stop()
+	// can cancel the request itself. Without this, a user who
+	// unmounts the modal between session/start being submitted and
+	// resolved leaks the server-side session for the full 30-min
+	// TTL — the R9-DESIGN-STOP-NOCANCEL-01 fire-and-forget /cancel
+	// couldn't fire because we had no sid yet.
+	let startAbort: AbortController | undefined
 
 	const terminal = $derived(status ? isTerminal(status.state) : false);
 
 	function stopPolling() {
+		// Bump the generation so any in-flight tick declines to
+		// re-arm itself after its await resolves.
+		pollGen++;
 		if (pollTimer !== undefined) {
-			clearInterval(pollTimer);
+			clearTimeout(pollTimer);
 			pollTimer = undefined;
 		}
 		if (postCancelDeadlineTimer !== undefined) {
@@ -144,6 +167,28 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// true whenever the poll loop reached a real terminal state
 		// before the deadline fired.
 		postCancelConflict = false;
+	}
+
+	// schedulePoll: recursive setTimeout that runs one poll, then
+	// schedules the next AFTER it resolves/aborts. Round-10 audit
+	// R10-OPS-POLL-OVERLAP-01 replaced setInterval with this shape
+	// so we never have more than one /status fetch in flight. The
+	// pollGen check inside tick guarantees a stopPolling that lands
+	// between tick start and tick end cancels the re-arm.
+	function schedulePoll() {
+		if (destroyed || !startResponse) return;
+		const sid = startResponse.sid;
+		const gen = ++pollGen;
+		const tick = async () => {
+			if (destroyed || gen !== pollGen) return;
+			await poll(sid);
+			if (destroyed || gen !== pollGen) return;
+			pollTimer = setTimeout(tick, POLL_INTERVAL_MS);
+		};
+		// Immediate first poll so phase=='waiting' flips quickly
+		// when the user paid before the modal opened (rare but
+		// possible — pre-cached deposit address).
+		pollTimer = setTimeout(tick, 0);
 	}
 
 	async function poll(sid: string) {
@@ -192,10 +237,15 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		if (phase !== 'idle' && phase !== 'failed') return;
 		phase = 'starting';
 		error = undefined;
+		// Round-10 audit R10-CORR-ORPHAN-SESSION-01: hand stop() a
+		// handle on the in-flight start so it can abort if the user
+		// unmounts before the server returns. Cleared in the
+		// finally branch below.
+		startAbort = new AbortController();
 		try {
 			const body: { op: IsOp; args?: CallArgs } = { op: opts.op };
 			if (opts.op === 'call' && opts.args) body.args = opts.args;
-			const sr = await client.startSession(body);
+			const sr = await client.startSession(body, startAbort.signal);
 			// Round-8 audit R8-CORR-02: stop() may have run while the
 			// fetch was in flight. If so, bail before arming pollTimer
 			// (which would otherwise write to $state for the full
@@ -203,17 +253,13 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			if (destroyed) return;
 			startResponse = sr;
 			phase = 'waiting';
-			pollTimer = setInterval(() => {
-				if (startResponse) void poll(startResponse.sid);
-			}, POLL_INTERVAL_MS);
-			// Immediate first poll so the UI surfaces ATTESTING quickly
-			// when the user paid before the modal even opened (rare but
-			// possible — pre-cached deposit address).
-			void poll(startResponse.sid);
+			schedulePoll();
 		} catch (e) {
 			if (destroyed) return;
 			phase = 'failed';
 			error = e instanceof Error ? e.message : 'failed to start session';
+		} finally {
+			startAbort = undefined;
 		}
 	}
 
@@ -231,12 +277,21 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// hostile server can't pin the user indefinitely. Cleared
 		// in the finally OR overwritten with the post-conflict
 		// timer below.
+		//
+		// Round-10 audit R10-CORR-03 + R10-DRIFT-CANCEL-PRE-AWAIT-...
+		// outerExpired flag signals 'deadline already fired' so a
+		// late await that resolves AFTER the timer doesn't re-arm
+		// the conflict banner or write phase. Belt-and-braces with
+		// the `cancelling` flag which the deadline callback already
+		// resets.
+		let outerExpired = false;
 		const cancelCallDeadline = setTimeout(() => {
 			if (destroyed) return;
+			outerExpired = true;
 			cancelling = false;
 			postCancelConflict = false;
 			stopPolling();
-			if (status && !isTerminal(status.state)) {
+			if (!status || !isTerminal(status.state)) {
 				phase = 'failed';
 				error = 'cancel did not complete in time';
 			}
@@ -255,7 +310,12 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			// keep polling so the user reaches a real terminal state.
 			if (sid && cancelToken) {
 				const outcome: CancelResult = await client.cancel(sid, cancelToken);
-				if (destroyed) return;
+				// Round-10 audit R10-CORR-03: bail if the outer
+				// trap-deadline already fired while the await was
+				// pending; otherwise we'd reset the banner and
+				// re-arm a fresh deadline against a session that's
+				// already been force-failed.
+				if (destroyed || outerExpired) return;
 				if (outcome === 'in-flight-conflict' || outcome === 'error') {
 					// Server is mid-attestation OR the cancel request
 					// couldn't be confirmed. Keep polling so the user
@@ -270,7 +330,12 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 							if (destroyed) return;
 							postCancelConflict = false;
 							stopPolling();
-							if (status && !isTerminal(status.state)) {
+							// Round-10 audit R10-CORR-CANCEL-NO-STATUS-01:
+							// the 'cancel acknowledged...' message is
+							// valid even when /status never landed
+							// (user paid before first poll, server
+							// rejected, etc). Don't gate it on status.
+							if (!status || !isTerminal(status.state)) {
 								phase = 'failed';
 								error = 'cancel acknowledged but session did not finish on the server in time';
 							}
@@ -280,7 +345,10 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 				}
 			}
 			stopPolling();
-			if (status && !isTerminal(status.state)) {
+			// Round-10 audit R10-CORR-CANCEL-NO-STATUS-01: same as
+			// above — the 'cancelled' message is valid regardless
+			// of whether /status has reported anything yet.
+			if (!status || !isTerminal(status.state)) {
 				phase = 'failed';
 				error = 'cancelled';
 			}
@@ -299,16 +367,29 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// Round-9 audit R9-DESIGN-STOP-NOCANCEL-01: fire-and-forget
 		// a server-side /cancel if we have a sid + token, so the
 		// server's session and dashd-watcher entries get released
-		// promptly rather than waiting for the 30-min TTL. The
-		// fetch runs detached — we don't await it — and the
-		// AbortController timeout in isClient bounds the request.
+		// promptly rather than waiting for the 30-min TTL.
+		//
+		// Round-10 audit R10-CORR-ORPHAN-SESSION-01: if the user
+		// unmounts BEFORE /session/start resolves, we have no sid
+		// yet — but we DO have an AbortController on the in-flight
+		// fetch. Abort it so the server either (a) sees the
+		// connection drop before PutNew (no leak) or (b) finishes
+		// after — same as today's worst case, but no
+		// indefinite-orphan window.
 		const sid = startResponse?.sid;
 		const token = startResponse?.addressSignature;
 		destroyed = true;
 		stopPolling();
+		if (startAbort !== undefined) {
+			startAbort.abort();
+		}
 		if (sid && token) {
-			void client.cancel(sid, token).catch(() => {
-				/* fire-and-forget; server TTL is the safety net */
+			// Round-10 audit R10-INFO-01: client.cancel never throws,
+			// but keep a defensive catch with a debug-level log so a
+			// future refactor making it throw surfaces in browser
+			// devtools instead of as an unhandled rejection.
+			void client.cancel(sid, token).catch((e) => {
+				console.debug('Dash session stop() fire-and-forget cancel rejected:', e);
 			});
 		}
 	}

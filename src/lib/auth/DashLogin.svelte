@@ -34,12 +34,14 @@
 	// cancel. We track open state through Dialog's open binding.
 	let open = $state(false);
 	$effect(() => {
-		// Round-9 audit R9-DESIGN-RETRY-01: also fire begin() on
-		// re-open after a 'failed' state so the retry() flow
-		// (close-then-open) actually restarts the session. Pre-R9
-		// the gate was 'idle'-only, so retry left the modal stuck
-		// on the failed screen.
-		if (open && (session.phase === 'idle' || session.phase === 'failed')) {
+		// Round-9 audit R9-DESIGN-RETRY-01 / round-10 audit R10-CORR-02:
+		// reverted to 'idle'-only gate. The broadened
+		// 'idle'||'failed' gate let a fast-rejecting startSession
+		// flip phase=failed→starting→failed→starting in a tight
+		// loop, hammering the server. The retry() flow now calls
+		// session.begin() explicitly after cancel + reopen so a
+		// single retry click triggers exactly one begin() attempt.
+		if (open && session.phase === 'idle') {
 			void session.begin();
 		}
 		if (!open && session.phase === 'waiting') {
@@ -184,18 +186,17 @@
 	}
 
 	async function retry() {
-		// Round-9 audit R9-DESIGN-RETRY-01: cancel + close/open is
-		// not enough — the session object is bound once at the top
-		// of the file (not re-created) and begin() only used to
-		// re-fire when phase was 'idle'. We broadened the open
-		// effect's gate to admit 'failed' too, so this flow now
-		// actually restarts the session. The 50ms close/open is
-		// preserved as the UX signal that the dialog briefly
-		// resets, but the gate fix is the real work.
+		// Round-10 audit R10-CORR-02: retry() drives begin() once,
+		// explicitly. The pre-R10 'broaden the effect gate' approach
+		// (R9-DESIGN-RETRY-01) flipped failed→starting→failed in a
+		// tight loop against a fast-rejecting server. The 50ms
+		// close/open is preserved for UX (visible reset feedback);
+		// the begin() call is what actually restarts the session.
 		await session.cancel();
 		open = false;
 		setTimeout(() => {
 			open = true;
+			void session.begin();
 		}, 50);
 	}
 </script>
@@ -243,6 +244,19 @@
 					<dd class="mono">{session.status.senderAddress}</dd>
 				{/if}
 			</dl>
+			{#if session.postCancelConflict}
+				<!-- Round-10 audit R10-DRIFT-DASHSESSION-UNUSED-PROPS:
+					 surface the R6-SEC-01 post-cancel-conflict banner
+					 so the user understands why the modal is still
+					 spinning after they clicked cancel: the server
+					 was mid-attestation and is finishing the on-chain
+					 step. Auto-clears when a terminal state arrives or
+					 the trap-deadline fires. -->
+				<p class="muted">
+					Cancel acknowledged. The validator attestation has already
+					started — finishing the on-chain step before unwinding…
+				</p>
+			{/if}
 			<p class="footnote">
 				The fingerprint should match the value Altera shows in its docs. If it doesn't, do
 				not pay — close this dialog and report the discrepancy.

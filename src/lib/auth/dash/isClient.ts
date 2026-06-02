@@ -119,25 +119,46 @@ export class IsServiceError extends Error {
 	}
 }
 
-// Round-9 audit R9-SEC-01 + R9-SEC-02: a malicious / misbehaving IS
-// service that accepts TCP then withholds the response body would
-// previously keep the fetch promise pending indefinitely — pinning
-// session.svelte.ts in cancelling=true (per R8-CORR-02 guard),
-// piling concurrent /status polls past the browser per-host limit,
-// or trapping startSession in phase='starting' forever. Every fetch
-// in this client now runs with an AbortController so a hostile peer
-// cannot prevent the timeout from firing client-side.
+// Round-9 audit R9-SEC-01 + R9-SEC-02 / round-10 audit R10-CORR-01:
+// a malicious / misbehaving IS service can stall any phase of the
+// HTTP exchange — headers, body chunks, or a never-closed
+// ReadableStream. The AbortController timer must outlive both the
+// fetch() promise AND the body-parse step; clearing it after fetch
+// alone (the R9 implementation) left a body-stream stall reopening
+// the slow-loris DoS. fetchAndParse now wraps the timer around the
+// entire request → parse cycle and only clears it after parse()
+// resolves.
 const FETCH_TIMEOUT_START_MS = 15_000;
 const FETCH_TIMEOUT_STATUS_MS = 30_000;
 const FETCH_TIMEOUT_CANCEL_MS = 30_000;
 
-async function fetchWithTimeout(input: RequestInfo, init: RequestInit, timeoutMs: number): Promise<Response> {
+/**
+ * fetchAndParse runs fetch() + a caller-supplied parse() step under a
+ * single AbortController whose timer covers BOTH phases. The signal
+ * can be externally supplied (R10-CORR-ORPHAN-SESSION-01 — so stop()
+ * can abort an in-flight startSession by aborting its own
+ * controller) and is composed via AbortSignal.any.
+ */
+async function fetchAndParse<T>(
+	input: RequestInfo,
+	init: RequestInit,
+	timeoutMs: number,
+	parse: (resp: Response) => Promise<T>,
+	externalSignal?: AbortSignal
+): Promise<T> {
 	const ctrl = new AbortController();
 	const t = setTimeout(() => ctrl.abort(), timeoutMs);
+	const onExternalAbort = () => ctrl.abort();
+	if (externalSignal) {
+		if (externalSignal.aborted) ctrl.abort();
+		else externalSignal.addEventListener('abort', onExternalAbort);
+	}
 	try {
-		return await fetch(input, { ...init, signal: ctrl.signal });
+		const resp = await fetch(input, { ...init, signal: ctrl.signal });
+		return await parse(resp);
 	} finally {
 		clearTimeout(t);
+		if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
 	}
 }
 
@@ -146,24 +167,40 @@ export class IsServiceClient {
 		this.baseUrl = baseUrl.replace(/\/+$/, '');
 	}
 
-	async startSession(req: SessionStartRequest): Promise<SessionStartResponse> {
-		const resp = await fetchWithTimeout(`${this.baseUrl}/session/start`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(req)
-		}, FETCH_TIMEOUT_START_MS);
-		if (!resp.ok) throw await this.errFromResp(resp);
-		return (await resp.json()) as SessionStartResponse;
+	/**
+	 * startSession accepts an optional externalSignal so callers
+	 * (session.svelte.ts) can abort an in-flight start when the
+	 * component unmounts mid-flight — closes the R10-CORR-ORPHAN-
+	 * SESSION-01 leak where stop() couldn't release the server
+	 * record until the 30-min TTL.
+	 */
+	async startSession(req: SessionStartRequest, externalSignal?: AbortSignal): Promise<SessionStartResponse> {
+		return fetchAndParse(
+			`${this.baseUrl}/session/start`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req)
+			},
+			FETCH_TIMEOUT_START_MS,
+			async (resp) => {
+				if (!resp.ok) throw await this.errFromResp(resp);
+				return (await resp.json()) as SessionStartResponse;
+			},
+			externalSignal
+		);
 	}
 
 	async getStatus(sid: string): Promise<SessionStatusResponse> {
-		const resp = await fetchWithTimeout(
+		return fetchAndParse(
 			`${this.baseUrl}/session/${encodeURIComponent(sid)}/status`,
 			{},
-			FETCH_TIMEOUT_STATUS_MS
+			FETCH_TIMEOUT_STATUS_MS,
+			async (resp) => {
+				if (!resp.ok) throw await this.errFromResp(resp);
+				return (await resp.json()) as SessionStatusResponse;
+			}
 		);
-		if (!resp.ok) throw await this.errFromResp(resp);
-		return (await resp.json()) as SessionStatusResponse;
 	}
 
 	/**
@@ -180,15 +217,22 @@ export class IsServiceClient {
 	 * session.svelte.ts.
 	 */
 	async cancel(sid: string, cancelToken: string): Promise<CancelResult> {
+		// Round-10 audit R10-CORR-01: route through fetchAndParse so
+		// the AbortController also bounds the (typically empty) body
+		// read. The cancel endpoint returns 204/401/404/409 with no
+		// JSON body to parse, but a hostile server could still stall
+		// on the Content-Length=0 read; fetchAndParse forces a single
+		// timer to cover the entire exchange.
 		let resp: Response;
 		try {
-			resp = await fetchWithTimeout(
+			resp = await fetchAndParse(
 				`${this.baseUrl}/session/${encodeURIComponent(sid)}/cancel`,
 				{
 					method: 'POST',
 					headers: { 'X-Cancel-Token': cancelToken }
 				},
-				FETCH_TIMEOUT_CANCEL_MS
+				FETCH_TIMEOUT_CANCEL_MS,
+				async (r) => r
 			);
 		} catch {
 			// Round-7 audit R7-DRIFT-02 / round-9 R9-SEC-01: catch

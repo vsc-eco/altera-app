@@ -24,12 +24,16 @@
  *                                          // fire-and-forgets a
  *                                          // server-side /cancel
  *
- * Polling cadence is 2s (matches the IS service's dashd-watcher);
- * once the state becomes terminal the loop self-stops. cancel() and
+ * Polling cadence is 2s on the happy path; on /status errors we
+ * exponentially back off (4s → 8s → … → 30s cap, resets on first
+ * success) so a fast-failing endpoint doesn't get hammered. Once
+ * the state becomes terminal the loop self-stops. cancel() and
  * begin() are no-ops after stop(); the `destroyed` flag is private.
  *
  * Cross-references: R6-SEC-01 trap-deadline (240s); R8-CORR-02
- * stop/cancel split; R9-SEC-01 AbortController timeouts in isClient.
+ * stop/cancel split; R9-SEC-01 AbortController timeouts in isClient;
+ * R11-OPS-POLL-NO-BACKOFF-01 exponential backoff; R12-CORR-POLLERRCOUNT-
+ * NOT-RESET-ACROSS-RETRY reset on schedulePoll entry.
  */
 import {
 	IsServiceClient,
@@ -172,6 +176,12 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// true whenever the poll loop reached a real terminal state
 		// before the deadline fired.
 		postCancelConflict = false;
+		// Round-12 audit R12-CORR-POLLERRCOUNT-NOT-RESET-ACROSS-RETRY:
+		// reset the backoff counter so the invariant 'no polling →
+		// no error history' holds uniformly. Without this, a session
+		// instance reused across retry cycles inherits the previous
+		// attempt's backoff inflation.
+		pollErrCount = 0;
 	}
 
 	// schedulePoll: recursive setTimeout that runs one poll, then
@@ -195,6 +205,13 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	const POLL_BACKOFF_MAX_MS = 30_000;
 	function schedulePoll() {
 		if (destroyed || !startResponse) return;
+		// Round-12 audit R12-CORR-POLLERRCOUNT-NOT-RESET-ACROSS-RETRY:
+		// fresh schedule = fresh backoff. Without this reset, a
+		// retry()→begin() cycle inherits the previous attempt's
+		// pollErrCount and the first failure on the new sid jumps
+		// straight to a longer delay instead of the documented
+		// 2s→4s→8s staircase.
+		pollErrCount = 0;
 		const sid = startResponse.sid;
 		const gen = ++pollGen;
 		const tick = async () => {
@@ -232,6 +249,17 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			const next = await client.getStatus(sid, pollAbort.signal);
 			if (destroyed || gen !== pollGen) return true;
 			status = next;
+			// Round-12 audit R12-OPS-BACKOFF-NO-VISIBILITY-01: log
+			// recovery once when we transition out of backoff so an
+			// operator scanning console can confirm a previously-
+			// stuck session resumed.
+			if (pollErrCount > 0) {
+				console.debug(
+					'Dash session: /status backoff recovered after',
+					pollErrCount,
+					'consecutive failures'
+				);
+			}
 			pollErrCount = 0;
 			if (isTerminal(next.state)) {
 				stopPolling();
@@ -266,6 +294,20 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 				return true; // terminal — no backoff needed
 			}
 			pollErrCount++;
+			// Round-12 audit R12-OPS-BACKOFF-NO-VISIBILITY-01: log
+			// the transition into backoff (first failure) and at the
+			// cap so operators have a devtools-greppable signal when
+			// a session is stuck at the slow cadence.
+			const cappedDelay = Math.min(
+				POLL_INTERVAL_MS * Math.pow(2, pollErrCount),
+				POLL_BACKOFF_MAX_MS
+			);
+			if (pollErrCount === 1 || cappedDelay === POLL_BACKOFF_MAX_MS) {
+				console.debug(
+					'Dash session: /status backoff',
+					{ consecutiveFails: pollErrCount, nextDelayMs: cappedDelay }
+				);
+			}
 			return false;
 		} finally {
 			pollAbort = undefined;
@@ -395,6 +437,13 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 					return;
 				}
 			}
+			// Round-12 audit R12-DESIGN-CANCEL-DOES-NOT-ABORT-POLLABORT:
+			// we intentionally do NOT abort pollAbort here. The
+			// gen-guard inside poll() already invalidates any
+			// post-await write, and the in-flight socket frees on
+			// its own 30s timeout. Aborting here would cancel a
+			// /status request that might be landing terminal at
+			// the very same instant.
 			stopPolling();
 			// Round-10 audit R10-CORR-CANCEL-NO-STATUS-01: same as
 			// above — the 'cancelled' message is valid regardless

@@ -134,13 +134,24 @@ const FETCH_TIMEOUT_CANCEL_MS = 30_000;
 
 /**
  * fetchAndParse runs fetch() + a caller-supplied parse() step under a
- * single AbortController whose timer covers BOTH phases. The signal
- * is composed with an optional externalSignal (R10-CORR-ORPHAN-SESSION-01
- * — so stop() can abort an in-flight startSession by aborting its own
- * controller). Round-11 audit R11-INFO-DOCSTRING-DRIFT-ABORTSIGNAL-ANY
- * + R11-INFO-FETCH-AND-PARSE-EXT-SIGNAL-ALREADY-ABORTED aligned the
- * implementation with the docstring's AbortSignal.any framing and
- * added an early bail when the external signal is already aborted.
+ * single AbortController whose timer covers BOTH phases. When an
+ * optional externalSignal is supplied (R10-CORR-ORPHAN-SESSION-01 —
+ * so stop() can abort an in-flight startSession by aborting its own
+ * controller), composition uses a manual addEventListener('abort',
+ * onExternalAbort) → ctrl.abort() forwarder + paired
+ * removeEventListener in the finally block.
+ *
+ * Round-12 audit R12-DRIFT-FETCHANDPARSE-DOCSTRING-ABORTSIGNALANY:
+ * the docstring previously claimed AbortSignal.any composition but
+ * the implementation has always used the manual listener pattern;
+ * rewritten here to match. (AbortSignal.any would be cleaner but
+ * still needs the timer-driven AbortController for the timeout
+ * path, so the manual listener is no worse.)
+ *
+ * The pre-aborted-external-signal fast-path throws DOMException
+ * synchronously instead of allocating a controller + timer that
+ * would never be used — round-11 audit R11-INFO-FETCH-AND-PARSE-
+ * EXT-SIGNAL-ALREADY-ABORTED.
  */
 async function fetchAndParse<T>(
 	input: RequestInfo,
@@ -192,7 +203,23 @@ export class IsServiceClient {
 			FETCH_TIMEOUT_START_MS,
 			async (resp) => {
 				if (!resp.ok) throw await this.errFromResp(resp);
-				return (await resp.json()) as SessionStartResponse;
+				const body = (await resp.json()) as unknown;
+				// Round-12 audit R12-INFO-BEGIN-ORPHAN-MICRORACE-MISSING-DEFENSIVE-CHECK:
+				// shape-check the response so a misbehaving server
+				// can't return 200 with body=null / {} / missing
+				// fields and slip past the TS `as` assertion.
+				// session.svelte.ts uses sid + addressSignature as
+				// the orphan-microrace cancel handle — a malformed
+				// response would silently skip that cancel.
+				if (
+					!body ||
+					typeof body !== 'object' ||
+					typeof (body as Record<string, unknown>).sid !== 'string' ||
+					typeof (body as Record<string, unknown>).addressSignature !== 'string'
+				) {
+					throw new IsServiceError(200, 'malformed /session/start response');
+				}
+				return body as SessionStartResponse;
 			},
 			externalSignal
 		);

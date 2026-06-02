@@ -95,13 +95,19 @@ export function isTerminal(s: IsSessionState): boolean {
 }
 
 /**
- * `cancel` resolves to this when the IS service refuses the cancel
- * because the orchestrator is mid-attestation or mid-L2-submit.
- * Round-5 audit R5-002 / R5-DRIFT-02: the client must NOT pre-set
- * phase='failed' on cancel attempts; instead it should resume
- * polling and let the server reach a terminal state on its own.
+ * Outcomes of `cancel()`. Round-5 audit R5-002 introduced the
+ * 'in-flight-conflict' branch (server returned 409 because the
+ * orchestrator is mid-attestation or mid-L2-submit). Round-6 audit
+ * R6-CORR-04 wired the session module to treat transient network /
+ * 5xx errors equivalently. Round-7 audit R7-DRIFT-02 widened the
+ * type so the discriminator is explicit at the type level and
+ * downstream callers don't have to handle the catch separately.
+ *
+ * In all three cases the caller must NOT pre-set phase='failed';
+ * the session module keeps polling /status until it reaches a
+ * terminal state (bounded by POST_CANCEL_DEADLINE_MS).
  */
-export type CancelResult = 'cancelled' | 'in-flight-conflict';
+export type CancelResult = 'cancelled' | 'in-flight-conflict' | 'error';
 
 export class IsServiceError extends Error {
 	constructor(
@@ -142,10 +148,19 @@ export class IsServiceClient {
 	 * leaking the watcher entry until TTL.
 	 */
 	async cancel(sid: string, cancelToken: string): Promise<CancelResult> {
-		const resp = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sid)}/cancel`, {
-			method: 'POST',
-			headers: { 'X-Cancel-Token': cancelToken }
-		});
+		let resp: Response;
+		try {
+			resp = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sid)}/cancel`, {
+				method: 'POST',
+				headers: { 'X-Cancel-Token': cancelToken }
+			});
+		} catch {
+			// Round-7 audit R7-DRIFT-02: catch the network error
+			// inside the client so the result type is the single
+			// source of truth — callers don't need a parallel
+			// try/catch path to handle the equivalent semantic.
+			return 'error';
+		}
 		// Round-5 audit R5-002 / R5-DRIFT-02: 409 Conflict is the
 		// R4-003 in-flight refusal — the server is mid-attestation
 		// or mid-L2-submit and cannot honour the cancel. Callers
@@ -156,7 +171,10 @@ export class IsServiceClient {
 		// 204 No Content is the happy case; 404/401 are acceptable —
 		// session already self-expired or never existed.
 		if (!resp.ok && resp.status !== 404 && resp.status !== 401) {
-			throw await this.errFromResp(resp);
+			// Treat any other non-OK (5xx, ...) as 'error' so the
+			// caller falls into the same keep-polling branch as
+			// the network-thrown case.
+			return 'error';
 		}
 		return 'cancelled';
 	}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import Qr from '$lib/zag/QR.svelte';
@@ -13,6 +14,15 @@
 	// Component-local. We only support op=auth here; op=call is a future
 	// surface (contract-call deep-link from inside the app's swap flow).
 	const session = createDashSession({ baseUrl: isServiceUrl, op: 'auth' });
+
+	// Round-7 audit R7-CORR-01-altera: clean up the poll interval AND
+	// the R6-SEC-01 post-cancel deadline timer if the component
+	// unmounts (e.g. user navigates away while the modal is open).
+	// session.cancel() is idempotent and runs stopPolling() which
+	// clears both timers.
+	onDestroy(() => {
+		void session.cancel();
+	});
 
 	let close = $state(() => {});
 

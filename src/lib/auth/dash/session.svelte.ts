@@ -18,6 +18,7 @@ import {
 	IsServiceError,
 	isTerminal,
 	type CallArgs,
+	type CancelResult,
 	type IsOp,
 	type IsSessionState,
 	type SessionStartResponse,
@@ -156,26 +157,17 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	async function cancel(): Promise<void> {
 		const sid = startResponse?.sid;
 		const cancelToken = startResponse?.addressSignature;
-		// Round-5 audit R5-002: don't pre-set phase='failed' before we
-		// know whether the server can honour the cancel. If it returns
-		// 409 (R4-003 in-flight refusal), the session is still
-		// progressing toward a real terminal state and we keep polling
-		// — destroying that flow here would lose a legitimate login.
-		//
-		// Round-6 audit R6-CORR-04: a transient network/5xx error on
-		// the cancel request shape this code as outcome='error'. The
-		// pre-R6 implementation had an empty branch that fell through
-		// to stopPolling()+phase='failed' — re-introducing R5-002 by
-		// a different door. Treat 'error' the same as
-		// 'in-flight-conflict': keep polling and let the next /status
-		// poll reach the real terminal state on its own.
+		// Round-7 audit R7-CORR-02: reset the conflict banner on
+		// every call so a later clean cancel clears the previous
+		// 'finishing server-side step' state.
+		postCancelConflict = false;
+		// Round-5 audit R5-002 + round-6 R6-CORR-04 + round-7 R7-DRIFT-02:
+		// the client's CancelResult discriminator now covers all three
+		// outcomes (clean cancel, server 409 in-flight refusal, transient
+		// network/5xx error). 'in-flight-conflict' and 'error' both
+		// keep polling so the user reaches a real terminal state.
 		if (sid && cancelToken) {
-			let outcome: 'cancelled' | 'in-flight-conflict' | 'error' = 'cancelled';
-			try {
-				outcome = await client.cancel(sid, cancelToken);
-			} catch {
-				outcome = 'error';
-			}
+			const outcome: CancelResult = await client.cancel(sid, cancelToken);
 			if (outcome === 'in-flight-conflict' || outcome === 'error') {
 				// Server is mid-attestation OR the cancel request
 				// couldn't be confirmed. Keep polling so the user
@@ -187,6 +179,7 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 				postCancelConflict = true;
 				if (postCancelDeadlineTimer === undefined) {
 					postCancelDeadlineTimer = setTimeout(() => {
+						postCancelConflict = false;
 						stopPolling();
 						if (status && !isTerminal(status.state)) {
 							phase = 'failed';

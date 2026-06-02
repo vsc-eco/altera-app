@@ -1,4 +1,3 @@
-import { V4VAPP_API_BASE } from '../config'
 import { getQuerier } from './query'
 
 export type Cryptoprices = {
@@ -63,5 +62,11 @@ export type Cryptoprices = {
 	};
 };
 
-const url = `${V4VAPP_API_BASE}/v1/cryptoprices/`;
+// Routes through a same-origin server proxy (`/api/cryptoprices`) because
+// v4v.app stopped sending CORS headers on this endpoint — the browser
+// fetch fails with `No 'Access-Control-Allow-Origin' header`. The proxy
+// forwards server-to-server, where CORS doesn't apply. Same pattern as
+// `/api/gql` (CHANGELOG 0.3.7). Dev-vs-prod v4v selection lives in the
+// proxy now (reads PUBLIC_V4VAPP_API_MODE server-side).
+const url = '/api/cryptoprices';
 export const getCryptoPrices = getQuerier<Cryptoprices>(url);

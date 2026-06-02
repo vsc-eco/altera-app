@@ -27,7 +27,7 @@
 		Wallet,
 		X
 	} from '@lucide/svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
@@ -303,15 +303,7 @@
 		});
 	}
 
-	function formatUsd(amount: number): string {
-		return amount.toLocaleString(numberFormatLanguage, {
-			useGrouping: true,
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2
-		});
-	}
-
-	let expectedOutputUsd = $derived.by(() => {
+let expectedOutputUsd = $derived.by(() => {
 		const toCoinDef = txState.to;
 		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
 			return null;
@@ -1025,7 +1017,7 @@
 				<div class="section-usd-row">
 					<span class="section-usd-approx">
 						{#if inputAmountUsd !== null}
-							≈ ${formatUsd(inputAmountUsd)}
+							≈ {formatUsd(inputAmountUsd)}
 						{:else if pricesFailed && txState.from && txState.fromAmount && txState.fromAmount !== '0'}
 							<span class="price-unavailable">Price unavailable</span>
 						{/if}
@@ -1099,7 +1091,7 @@
 				<div class="section-usd-row">
 					<span class="section-usd-approx">
 						{#if expectedOutputUsd !== null}
-							≈ ${formatUsd(expectedOutputUsd)}
+							≈ {formatUsd(expectedOutputUsd)}
 						{:else if pricesFailed && txState.to && txState.toAmount && txState.toAmount !== '0'}
 							<span class="price-unavailable">Price unavailable</span>
 						{/if}
@@ -1339,7 +1331,7 @@
 							<span class="fee-value fee-value-stack">
 								<span>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span>
 								{#if expectedOutputUsd !== null}
-									<span class="usd-approx">≈ ${formatUsd(expectedOutputUsd)}</span>
+									<span class="usd-approx">≈ {formatUsd(expectedOutputUsd)}</span>
 								{/if}
 							</span>
 						</div>
@@ -1351,7 +1343,7 @@
 							</span>
 							<span class="fee-value">
 								{#if totalProtocolFeeUsd !== null}
-									≈ ${formatUsd(totalProtocolFeeUsd)}
+									≈ {formatUsd(totalProtocolFeeUsd)}
 								{:else}
 									—
 								{/if}
@@ -1377,7 +1369,7 @@
 							<span class="fee-value fee-value-stack">
 								<span>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
 								{#if minAmountOutUsd !== null}
-									<span class="usd-approx">≈ ${formatUsd(minAmountOutUsd)}</span>
+									<span class="usd-approx">≈ {formatUsd(minAmountOutUsd)}</span>
 								{/if}
 							</span>
 						</div>

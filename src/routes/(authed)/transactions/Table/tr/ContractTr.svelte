@@ -11,7 +11,7 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import Amount from '../tds/Amount.svelte';
 	import Status from '../tds/Status.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import ContractId from '../tds/ContractId.svelte';
 	import PopupTitleRow from './PopupTitleRow.svelte';
@@ -189,10 +189,10 @@
 		return new CoinAmount(amt, Coin[coinVal.split('_')[0] as keyof typeof Coin] || Coin.hive, true);
 	});
 
-	let inUsd = $state('');
+	let inUsd = $state(0);
 	$effect(() => {
 		amount.convertTo(Coin.usd, Network.lightning).then((a) => {
-			inUsd = a.toAmountString();
+			inUsd = a.toNumber();
 		});
 	});
 
@@ -262,7 +262,7 @@
 				{amount.toPrettyString()}
 			{/if}
 			<span class="approx-usd">
-				Approx. ${inUsd} USD
+				Approx. {formatUsd(inUsd)}
 			</span>
 		</div>
 		<div class="tx-id section">

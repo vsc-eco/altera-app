@@ -54,6 +54,11 @@ export type SessionStatusResponse = {
 	sid: string;
 	state: IsSessionState;
 	dashTxId?: string;
+	/** Dash L1 address that paid the IS deposit. Populated from
+	 * IS_OBSERVED onwards; absent until then. The IS-service derives it
+	 * from the rawTx inputs (strict same-address-all-inputs rule per
+	 * spec §5.2.5). */
+	senderAddress?: string;
 	forwardedAt?: string;
 	sessionToken?: string;
 	forwardError?: string;

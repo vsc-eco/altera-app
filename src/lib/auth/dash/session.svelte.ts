@@ -1,17 +1,35 @@
 /**
- * Reactive session wrapper around IsServiceClient. Owns the polling loop,
- * lifecycle, and Svelte 5 $state so consumers can bind to status text /
- * QR data without managing intervals themselves.
+ * Reactive session wrapper around IsServiceClient. Owns the polling
+ * loop, lifecycle, and Svelte 5 $state so consumers can bind to
+ * status text / QR data without managing intervals themselves.
  *
- * Usage:
+ * Usage (round-9 audit R9-DRIFT-DOC-USAGE-01 — pre-R9 the docstring
+ * referenced session.start() / session.state / session.start_response
+ * which do not exist; the real names are begin/phase/startResponse,
+ * and stop() is the synchronous-teardown path that onDestroy must
+ * call):
  *
  *   const session = createDashSession({ baseUrl, op: 'auth' });
- *   session.start();                       // returns when start() resolves
- *   // ... UI binds to session.state, session.start_response, etc.
- *   session.cancel();                      // tears down poll + tells server
+ *   await session.begin();                 // POST /session/start
+ *   // UI binds to session.phase / session.startResponse / session.status
  *
- * Polling is 2s, matching the IS service's dashd-watcher cadence; once
- * the state becomes terminal the loop self-stops.
+ *   await session.cancel();                // user-initiated; tells
+ *                                          // server; may keep polling
+ *                                          // on 409 in-flight refusal
+ *
+ *   onDestroy(() => session.stop());       // synchronous teardown —
+ *                                          // sets destroyed=true,
+ *                                          // clears poll + trap-
+ *                                          // deadline timers, and
+ *                                          // fire-and-forgets a
+ *                                          // server-side /cancel
+ *
+ * Polling cadence is 2s (matches the IS service's dashd-watcher);
+ * once the state becomes terminal the loop self-stops. cancel() and
+ * begin() are no-ops after stop(); the `destroyed` flag is private.
+ *
+ * Cross-references: R6-SEC-01 trap-deadline (240s); R8-CORR-02
+ * stop/cancel split; R9-SEC-01 AbortController timeouts in isClient.
  */
 import {
 	IsServiceClient,
@@ -153,6 +171,11 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 				}
 			}
 		} catch (e) {
+			// Round-9 audit R9-CORR-01a: respect the destroyed gate
+			// here too. Without this guard a /status fetch that
+			// rejects (e.g. 404 after stop() races a Prune) would
+			// write to $state on an unmounted component.
+			if (destroyed) return;
 			// Network blip is non-fatal — server's own TTL bounds the
 			// session. Only escalate on a hard 4xx that says the session
 			// is gone.
@@ -201,6 +224,23 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// duplicate POST /cancel + re-arm the trap-deadline.
 		if (destroyed || cancelling) return;
 		cancelling = true;
+		// Round-9 audit R9-SEC-01: arm the R6-SEC-01 trap-deadline
+		// BEFORE the await. Defense in depth — even if a future
+		// regression removes the isClient AbortController, the
+		// deadline still fires and force-fails the modal so a
+		// hostile server can't pin the user indefinitely. Cleared
+		// in the finally OR overwritten with the post-conflict
+		// timer below.
+		const cancelCallDeadline = setTimeout(() => {
+			if (destroyed) return;
+			cancelling = false;
+			postCancelConflict = false;
+			stopPolling();
+			if (status && !isTerminal(status.state)) {
+				phase = 'failed';
+				error = 'cancel did not complete in time';
+			}
+		}, POST_CANCEL_DEADLINE_MS);
 		try {
 			const sid = startResponse?.sid;
 			const cancelToken = startResponse?.addressSignature;
@@ -245,6 +285,7 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 				error = 'cancelled';
 			}
 		} finally {
+			clearTimeout(cancelCallDeadline);
 			cancelling = false;
 		}
 	}
@@ -253,11 +294,23 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// Round-8 audit R8-CORR-02: synchronous teardown for Svelte's
 		// onDestroy. Mark destroyed first so any in-flight begin() /
 		// poll() / cancel() resolves with a no-op tail. Then clear
-		// timers. We do NOT fire a server-side /cancel here — the
-		// component is going away and the server's own TTL bounds the
-		// session.
+		// timers.
+		//
+		// Round-9 audit R9-DESIGN-STOP-NOCANCEL-01: fire-and-forget
+		// a server-side /cancel if we have a sid + token, so the
+		// server's session and dashd-watcher entries get released
+		// promptly rather than waiting for the 30-min TTL. The
+		// fetch runs detached — we don't await it — and the
+		// AbortController timeout in isClient bounds the request.
+		const sid = startResponse?.sid;
+		const token = startResponse?.addressSignature;
 		destroyed = true;
 		stopPolling();
+		if (sid && token) {
+			void client.cancel(sid, token).catch(() => {
+				/* fire-and-forget; server TTL is the safety net */
+			});
+		}
 	}
 
 	return {

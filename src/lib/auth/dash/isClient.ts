@@ -119,23 +119,49 @@ export class IsServiceError extends Error {
 	}
 }
 
+// Round-9 audit R9-SEC-01 + R9-SEC-02: a malicious / misbehaving IS
+// service that accepts TCP then withholds the response body would
+// previously keep the fetch promise pending indefinitely — pinning
+// session.svelte.ts in cancelling=true (per R8-CORR-02 guard),
+// piling concurrent /status polls past the browser per-host limit,
+// or trapping startSession in phase='starting' forever. Every fetch
+// in this client now runs with an AbortController so a hostile peer
+// cannot prevent the timeout from firing client-side.
+const FETCH_TIMEOUT_START_MS = 15_000;
+const FETCH_TIMEOUT_STATUS_MS = 30_000;
+const FETCH_TIMEOUT_CANCEL_MS = 30_000;
+
+async function fetchWithTimeout(input: RequestInfo, init: RequestInit, timeoutMs: number): Promise<Response> {
+	const ctrl = new AbortController();
+	const t = setTimeout(() => ctrl.abort(), timeoutMs);
+	try {
+		return await fetch(input, { ...init, signal: ctrl.signal });
+	} finally {
+		clearTimeout(t);
+	}
+}
+
 export class IsServiceClient {
 	constructor(private readonly baseUrl: string) {
 		this.baseUrl = baseUrl.replace(/\/+$/, '');
 	}
 
 	async startSession(req: SessionStartRequest): Promise<SessionStartResponse> {
-		const resp = await fetch(`${this.baseUrl}/session/start`, {
+		const resp = await fetchWithTimeout(`${this.baseUrl}/session/start`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(req)
-		});
+		}, FETCH_TIMEOUT_START_MS);
 		if (!resp.ok) throw await this.errFromResp(resp);
 		return (await resp.json()) as SessionStartResponse;
 	}
 
 	async getStatus(sid: string): Promise<SessionStatusResponse> {
-		const resp = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sid)}/status`);
+		const resp = await fetchWithTimeout(
+			`${this.baseUrl}/session/${encodeURIComponent(sid)}/status`,
+			{},
+			FETCH_TIMEOUT_STATUS_MS
+		);
 		if (!resp.ok) throw await this.errFromResp(resp);
 		return (await resp.json()) as SessionStatusResponse;
 	}
@@ -146,19 +172,31 @@ export class IsServiceClient {
 	 * (see handlers.go handleSessionCancel). Round-2 audit TC2-01
 	 * caught the original token-less call returning 401 silently and
 	 * leaking the watcher entry until TTL.
+	 *
+	 * Round-9 audit R9-SEC-01: this fetch runs under an
+	 * AbortController with a 30s timeout. An IS service that accepts
+	 * TCP then never replies surfaces as 'error' (AbortError caught
+	 * below) instead of pinning cancelling=true forever in
+	 * session.svelte.ts.
 	 */
 	async cancel(sid: string, cancelToken: string): Promise<CancelResult> {
 		let resp: Response;
 		try {
-			resp = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sid)}/cancel`, {
-				method: 'POST',
-				headers: { 'X-Cancel-Token': cancelToken }
-			});
+			resp = await fetchWithTimeout(
+				`${this.baseUrl}/session/${encodeURIComponent(sid)}/cancel`,
+				{
+					method: 'POST',
+					headers: { 'X-Cancel-Token': cancelToken }
+				},
+				FETCH_TIMEOUT_CANCEL_MS
+			);
 		} catch {
-			// Round-7 audit R7-DRIFT-02: catch the network error
-			// inside the client so the result type is the single
-			// source of truth — callers don't need a parallel
-			// try/catch path to handle the equivalent semantic.
+			// Round-7 audit R7-DRIFT-02 / round-9 R9-SEC-01: catch
+			// both network errors AND AbortController timeouts here
+			// so the result type is the single source of truth.
+			// Callers (session.svelte.ts cancel()) treat 'error' the
+			// same as 'in-flight-conflict' — keep polling under the
+			// R6-SEC-01 trap-deadline.
 			return 'error';
 		}
 		// Round-5 audit R5-002 / R5-DRIFT-02: 409 Conflict is the

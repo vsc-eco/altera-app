@@ -34,7 +34,12 @@
 	// cancel. We track open state through Dialog's open binding.
 	let open = $state(false);
 	$effect(() => {
-		if (open && session.phase === 'idle') {
+		// Round-9 audit R9-DESIGN-RETRY-01: also fire begin() on
+		// re-open after a 'failed' state so the retry() flow
+		// (close-then-open) actually restarts the session. Pre-R9
+		// the gate was 'idle'-only, so retry left the modal stuck
+		// on the failed screen.
+		if (open && (session.phase === 'idle' || session.phase === 'failed')) {
 			void session.begin();
 		}
 		if (!open && session.phase === 'waiting') {
@@ -179,9 +184,15 @@
 	}
 
 	async function retry() {
+		// Round-9 audit R9-DESIGN-RETRY-01: cancel + close/open is
+		// not enough — the session object is bound once at the top
+		// of the file (not re-created) and begin() only used to
+		// re-fire when phase was 'idle'. We broadened the open
+		// effect's gate to admit 'failed' too, so this flow now
+		// actually restarts the session. The 50ms close/open is
+		// preserved as the UX signal that the dialog briefly
+		// resets, but the gate fix is the real work.
 		await session.cancel();
-		// createDashSession is closed-over; re-create on retry to reset
-		// state cleanly. Svelte will re-run the open effect.
 		open = false;
 		setTimeout(() => {
 			open = true;

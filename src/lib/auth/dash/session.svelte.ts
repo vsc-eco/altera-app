@@ -147,6 +147,11 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	// TTL — the R9-DESIGN-STOP-NOCANCEL-01 fire-and-forget /cancel
 	// couldn't fire because we had no sid yet.
 	let startAbort: AbortController | undefined
+	// Round-11 audit R11-INFO-GETSTATUS-NO-EXTERNAL-SIGNAL: same
+	// pattern for in-flight /status fetches. stop() aborts any
+	// pending getStatus so the per-host socket frees immediately
+	// instead of holding for up to 30s.
+	let pollAbort: AbortController | undefined
 
 	const terminal = $derived(status ? isTerminal(status.state) : false);
 
@@ -175,28 +180,59 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	// so we never have more than one /status fetch in flight. The
 	// pollGen check inside tick guarantees a stopPolling that lands
 	// between tick start and tick end cancels the re-arm.
+	//
+	// Round-11 audit R11-CORR-POLL-WRITES-AFTER-STOPPOLLING /
+	// R11-CORR-POLL-LATE-WRITE-MILD: the gen value is now threaded
+	// into poll() so a late getStatus resolution after stopPolling
+	// can't overwrite phase/status (was a cancel-after-paid →
+	// logged-in-anyway race on tight RTT).
+	//
+	// Round-11 audit R11-OPS-POLL-NO-BACKOFF-01: a fast-failing
+	// /status (ECONNREFUSED, DNS error) used to re-fire every 2s
+	// steady-state. We now track pollErrCount and exponential-back
+	// off the next interval; reset on first success.
+	let pollErrCount = 0;
+	const POLL_BACKOFF_MAX_MS = 30_000;
 	function schedulePoll() {
 		if (destroyed || !startResponse) return;
 		const sid = startResponse.sid;
 		const gen = ++pollGen;
 		const tick = async () => {
 			if (destroyed || gen !== pollGen) return;
-			await poll(sid);
+			const ok = await poll(sid, gen);
 			if (destroyed || gen !== pollGen) return;
-			pollTimer = setTimeout(tick, POLL_INTERVAL_MS);
+			let nextDelay = POLL_INTERVAL_MS;
+			if (!ok) {
+				nextDelay = Math.min(
+					POLL_INTERVAL_MS * Math.pow(2, pollErrCount),
+					POLL_BACKOFF_MAX_MS
+				);
+			}
+			pollTimer = setTimeout(tick, nextDelay);
 		};
+		// R11-INFO-SCHEDULEPOLL-NO-CLEARTIMEOUT: defensive cleanup
+		// of any stale timer before arming. pollGen already
+		// invalidates an old tick's re-arm decision; this clears
+		// the not-yet-fired one too.
+		if (pollTimer !== undefined) clearTimeout(pollTimer);
 		// Immediate first poll so phase=='waiting' flips quickly
-		// when the user paid before the modal opened (rare but
-		// possible — pre-cached deposit address).
+		// when the user paid before the modal opened.
 		pollTimer = setTimeout(tick, 0);
 	}
 
-	async function poll(sid: string) {
-		if (destroyed) return;
+	// poll returns true on success (so the caller can reset the
+	// backoff) and false on caught error. Round-11 audit
+	// R11-CORR-POLL-WRITES-AFTER-STOPPOLLING: gen-gated post-await
+	// writes so a stopPolling that bumped pollGen during the
+	// in-flight fetch invalidates this tick's writes too.
+	async function poll(sid: string, gen: number): Promise<boolean> {
+		if (destroyed || gen !== pollGen) return true;
+		pollAbort = new AbortController();
 		try {
-			const next = await client.getStatus(sid);
-			if (destroyed) return;
+			const next = await client.getStatus(sid, pollAbort.signal);
+			if (destroyed || gen !== pollGen) return true;
 			status = next;
+			pollErrCount = 0;
 			if (isTerminal(next.state)) {
 				stopPolling();
 				if (next.state === 'ON_CHAIN' && next.sessionToken) {
@@ -215,12 +251,11 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 					error = readableFailure(next.state);
 				}
 			}
+			return true;
 		} catch (e) {
-			// Round-9 audit R9-CORR-01a: respect the destroyed gate
-			// here too. Without this guard a /status fetch that
-			// rejects (e.g. 404 after stop() races a Prune) would
-			// write to $state on an unmounted component.
-			if (destroyed) return;
+			// Round-9 audit R9-CORR-01a + round-11 R11-CORR-POLL-WRITES-AFTER-STOPPOLLING:
+			// respect both gates here too.
+			if (destroyed || gen !== pollGen) return false;
 			// Network blip is non-fatal — server's own TTL bounds the
 			// session. Only escalate on a hard 4xx that says the session
 			// is gone.
@@ -228,7 +263,12 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 				stopPolling();
 				phase = 'failed';
 				error = 'session no longer available on the server';
+				return true; // terminal — no backoff needed
 			}
+			pollErrCount++;
+			return false;
+		} finally {
+			pollAbort = undefined;
 		}
 	}
 
@@ -246,11 +286,22 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			const body: { op: IsOp; args?: CallArgs } = { op: opts.op };
 			if (opts.op === 'call' && opts.args) body.args = opts.args;
 			const sr = await client.startSession(body, startAbort.signal);
-			// Round-8 audit R8-CORR-02: stop() may have run while the
-			// fetch was in flight. If so, bail before arming pollTimer
-			// (which would otherwise write to $state for the full
-			// server TTL on a destroyed component).
-			if (destroyed) return;
+			// Round-8 audit R8-CORR-02 + round-11 audit
+			// R11-CORR-ORPHAN-FETCH-MICRORACE: stop() may have run
+			// while the fetch was in flight OR in the microtask gap
+			// between fetch resolution and this assignment. If the
+			// server already minted the session, abort() is a no-op
+			// against an already-resolved fetch — so emit a
+			// fire-and-forget /cancel here so the server-side record
+			// is released promptly rather than waiting 30 minutes.
+			if (destroyed) {
+				if (sr.sid && sr.addressSignature) {
+					void client.cancel(sr.sid, sr.addressSignature).catch((e) => {
+						console.debug('Dash session orphan-microrace cancel rejected:', e);
+					});
+				}
+				return;
+			}
 			startResponse = sr;
 			phase = 'waiting';
 			schedulePoll();
@@ -359,6 +410,13 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	}
 
 	function stop(): void {
+		// Round-11 audit R11-DESIGN-STOP-NO-REENTRY-GUARD: short-circuit
+		// repeat calls. Without this, a parent component that wires
+		// stop() to both an onDestroy AND a user-initiated 'close'
+		// button fires duplicate fire-and-forget /cancel + spurious
+		// 401 log noise on the second invocation. Mirrors the guard
+		// shape in begin()/cancel()/poll().
+		if (destroyed) return;
 		// Round-8 audit R8-CORR-02: synchronous teardown for Svelte's
 		// onDestroy. Mark destroyed first so any in-flight begin() /
 		// poll() / cancel() resolves with a no-op tail. Then clear
@@ -382,6 +440,12 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		stopPolling();
 		if (startAbort !== undefined) {
 			startAbort.abort();
+		}
+		// Round-11 audit R11-INFO-GETSTATUS-NO-EXTERNAL-SIGNAL: also
+		// abort any in-flight /status fetch so the socket frees
+		// immediately rather than holding for up to 30s after stop().
+		if (pollAbort !== undefined) {
+			pollAbort.abort();
 		}
 		if (sid && token) {
 			// Round-10 audit R10-INFO-01: client.cancel never throws,

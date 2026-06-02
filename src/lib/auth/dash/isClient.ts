@@ -135,9 +135,12 @@ const FETCH_TIMEOUT_CANCEL_MS = 30_000;
 /**
  * fetchAndParse runs fetch() + a caller-supplied parse() step under a
  * single AbortController whose timer covers BOTH phases. The signal
- * can be externally supplied (R10-CORR-ORPHAN-SESSION-01 — so stop()
- * can abort an in-flight startSession by aborting its own
- * controller) and is composed via AbortSignal.any.
+ * is composed with an optional externalSignal (R10-CORR-ORPHAN-SESSION-01
+ * — so stop() can abort an in-flight startSession by aborting its own
+ * controller). Round-11 audit R11-INFO-DOCSTRING-DRIFT-ABORTSIGNAL-ANY
+ * + R11-INFO-FETCH-AND-PARSE-EXT-SIGNAL-ALREADY-ABORTED aligned the
+ * implementation with the docstring's AbortSignal.any framing and
+ * added an early bail when the external signal is already aborted.
  */
 async function fetchAndParse<T>(
 	input: RequestInfo,
@@ -146,12 +149,16 @@ async function fetchAndParse<T>(
 	parse: (resp: Response) => Promise<T>,
 	externalSignal?: AbortSignal
 ): Promise<T> {
+	// Pre-aborted external signal → reject synchronously instead of
+	// wiring up an AbortController + setTimeout we'll never use.
+	if (externalSignal?.aborted) {
+		throw new DOMException('aborted', 'AbortError');
+	}
 	const ctrl = new AbortController();
 	const t = setTimeout(() => ctrl.abort(), timeoutMs);
 	const onExternalAbort = () => ctrl.abort();
 	if (externalSignal) {
-		if (externalSignal.aborted) ctrl.abort();
-		else externalSignal.addEventListener('abort', onExternalAbort);
+		externalSignal.addEventListener('abort', onExternalAbort);
 	}
 	try {
 		const resp = await fetch(input, { ...init, signal: ctrl.signal });
@@ -191,7 +198,14 @@ export class IsServiceClient {
 		);
 	}
 
-	async getStatus(sid: string): Promise<SessionStatusResponse> {
+	/**
+	 * getStatus accepts an optional externalSignal. Round-11 audit
+	 * R11-INFO-GETSTATUS-NO-EXTERNAL-SIGNAL: without this, an
+	 * in-flight /status poll held the per-host socket for up to 30s
+	 * after stop() — fast unmount/remount could queue new
+	 * /session/start behind the previous /status.
+	 */
+	async getStatus(sid: string, externalSignal?: AbortSignal): Promise<SessionStatusResponse> {
 		return fetchAndParse(
 			`${this.baseUrl}/session/${encodeURIComponent(sid)}/status`,
 			{},
@@ -199,7 +213,8 @@ export class IsServiceClient {
 			async (resp) => {
 				if (!resp.ok) throw await this.errFromResp(resp);
 				return (await resp.json()) as SessionStatusResponse;
-			}
+			},
+			externalSignal
 		);
 	}
 

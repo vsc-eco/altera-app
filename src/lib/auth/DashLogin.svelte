@@ -23,7 +23,19 @@
 	// without calling stopPolling. stop() marks the session
 	// destroyed AND clears both timers unconditionally — no server
 	// round-trip, no race with begin()'s post-await tail.
+	//
+	// Round-11 audit R11-INFO-RETRY-50MS-TIMER-LEAK-01: also clear
+	// the retry()'s 50ms close-then-open setTimeout. The
+	// destroyed-guard in session.begin() already protects against
+	// the late callback firing on a torn-down session, but
+	// clearing the timer prevents the setTimeout closure from
+	// holding onto component state past unmount.
+	let retryTimer: ReturnType<typeof setTimeout> | undefined;
 	onDestroy(() => {
+		if (retryTimer !== undefined) {
+			clearTimeout(retryTimer);
+			retryTimer = undefined;
+		}
 		session.stop();
 	});
 
@@ -192,9 +204,15 @@
 		// tight loop against a fast-rejecting server. The 50ms
 		// close/open is preserved for UX (visible reset feedback);
 		// the begin() call is what actually restarts the session.
+		//
+		// Round-11 audit R11-INFO-RETRY-50MS-TIMER-LEAK-01: track
+		// the timer handle so onDestroy can clear it if the user
+		// unmounts within 50ms of clicking Try again.
 		await session.cancel();
 		open = false;
-		setTimeout(() => {
+		if (retryTimer !== undefined) clearTimeout(retryTimer);
+		retryTimer = setTimeout(() => {
+			retryTimer = undefined;
 			open = true;
 			void session.begin();
 		}, 50);
@@ -246,15 +264,13 @@
 			</dl>
 			{#if session.postCancelConflict}
 				<!-- Round-10 audit R10-DRIFT-DASHSESSION-UNUSED-PROPS:
-					 surface the R6-SEC-01 post-cancel-conflict banner
-					 so the user understands why the modal is still
-					 spinning after they clicked cancel: the server
-					 was mid-attestation and is finishing the on-chain
-					 step. Auto-clears when a terminal state arrives or
-					 the trap-deadline fires. -->
+					 surface the R6-SEC-01 post-cancel-conflict banner.
+					 Round-11 audit R11-OPS-BANNER-COPY-01 dropped the
+					 'validator attestation' / 'on-chain step' jargon
+					 in favour of plain language at frustration-peak. -->
 				<p class="muted">
-					Cancel acknowledged. The validator attestation has already
-					started — finishing the on-chain step before unwinding…
+					Almost done — your sign-in is finishing the current step
+					before it can be cancelled. This usually takes a few seconds.
 				</p>
 			{/if}
 			<p class="footnote">

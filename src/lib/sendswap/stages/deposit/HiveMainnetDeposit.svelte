@@ -14,7 +14,7 @@
 		type CoinOnNetwork,
 		type CoinOptions
 	} from '$lib/sendswap/utils/sendOptions';
-	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
+	import { useDepositState } from '$lib/sendswap/utils/txState.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import Select from '$lib/zag/Select.svelte';
 	import { ArrowLeft, ArrowRightLeft, Coins } from '@lucide/svelte';
@@ -26,7 +26,7 @@
 		secondaryMenu = $bindable()
 	}: { editStage: (complete: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
 
-	const txState = useTxState();
+	const txState = useDepositState();
 	const auth = $derived(getAuth()());
 
 	let coinAmount = $state(new CoinAmount(0, Coin.unk));
@@ -45,19 +45,18 @@
 
 	let max = $state(new CoinAmount(0, Coin.hive));
 
-	// Update max when fromCoin or connectedBal changes (skip while asset picker is open)
+	// Update max when from or connectedBal changes (skip while asset picker is open)
 	$effect(() => {
 		if (assetOpen) return;
-		const fromCoin = txState.fromCoin;
-		const fromNetwork = txState.fromNetwork;
-		if (!open || !fromCoin || !fromNetwork) return;
-		if (fromNetwork.value !== Network.hiveMainnet.value) return;
+		const from = txState.from;
+		if (!open || !from) return;
+		if (from.network.value !== Network.hiveMainnet.value) return;
 
-		const coinValue = fromCoin.coin.value;
+		const coinValue = from.coin.value;
 		if (coinValue === Coin.hive.value || coinValue === Coin.hbd.value) {
 			const balance = $accountBalance.connectedBal?.[coinValue as 'hive' | 'hbd'];
 			if (balance !== undefined) {
-				max = new CoinAmount(balance, fromCoin.coin, true);
+				max = new CoinAmount(balance, from.coin, true);
 			}
 		}
 	});
@@ -73,18 +72,19 @@
 
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
 	const coinOptions: CoinOnNetwork[] = $derived(
-		txState.fromCoin && txState.fromNetwork
-			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
-			: [unkOpt]
+		txState.from ? [txState.from] : [unkOpt]
 	);
 
 	let assetOpen = $state(false);
 	function toggleAsset(open = false) {
 		assetOpen = open;
-		// When closing asset picker, sync toCoin to match the newly selected fromCoin
+		// When closing asset picker, sync `to` coin to match the newly selected `from`
 		if (!open) {
-			if (txState.fromCoin && txState.toCoin?.coin?.value !== txState.fromCoin?.coin?.value) {
-				txState.toCoin = txState.fromCoin;
+			if (txState.from && txState.to?.coin.value !== txState.from.coin.value) {
+				txState.to = {
+					coin: txState.from.coin,
+					network: txState.to?.network ?? Network.magi
+				};
 			}
 		}
 	}
@@ -102,8 +102,7 @@
 	<SelectAssetFlattened
 		availableCoins={[]}
 		close={toggleAsset}
-		bind:coin={txState.fromCoin}
-		bind:network={txState.fromNetwork}
+		bind:selected={txState.from}
 		bind:max
 		externalNetwork={Network.hiveMainnet}
 	/>
@@ -113,14 +112,13 @@
 			<label for="asset-card">Deposit From</label>
 			<ClickableCard onclick={() => toggleAsset(true)}>
 				<div class="asset-card">
-					{#if txState.fromCoin && txState.fromNetwork}
+					{#if txState.from}
 						<BalanceInfo
-							coin={txState.fromCoin.coin}
-							network={txState.fromNetwork}
+							coin={txState.from.coin}
+							network={txState.from.network}
 							size="large"
 							styleType="vertical"
 						/>
-						<!-- <AssetInfo coinOpt={txState.fromCoin} size="medium" /> -->
 					{:else}
 						<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span
 						>
@@ -137,7 +135,7 @@
 					<AmountInput
 						bind:coinAmount
 						coinOpts={coinOptions}
-						expressIn={txState.fromCoin?.coin}
+						expressIn={txState.from?.coin}
 						maxAmount={max}
 						bind:id={inputId}
 					/>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, isValidAmountString } from '$lib/currency/CoinAmount';
 	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { getFee } from '$lib/sendswap/utils/sendUtils';
 	import { useWithdrawState } from '$lib/sendswap/utils/txState.svelte';
@@ -15,10 +15,10 @@
 	let inputId = $state('');
 
 	// Derived primitives from state
-	const _fromCoinValue = $derived(txState.fromCoin?.coin?.value);
-	const _toCoinValue = $derived(txState.toCoin?.coin?.value);
-	const _fromNetwork = $derived(txState.fromNetwork?.value);
-	const _toNetwork = $derived(txState.toNetwork?.value);
+	const _fromCoinValue = $derived(txState.from?.coin.value);
+	const _toCoinValue = $derived(txState.to?.coin.value);
+	const _fromNetwork = $derived(txState.from?.network.value);
+	const _toNetwork = $derived(txState.to?.network.value);
 	const _toAmount = $derived(txState.toAmount);
 
 	// Sync coinAmount → fromAmount, toAmount, fee atomically (following LightningDeposit pattern)
@@ -31,7 +31,7 @@
 		const coinVal = coinAmount.coin.value;
 		const coinAmountSnapshot = coinAmount;
 		untrack(() => {
-			if (!txState.fromCoin) return;
+			if (!txState.from) return;
 
 			// Compute fromAmount
 			if (coinVal === fromCoinVal) {
@@ -40,7 +40,7 @@
 				}
 			} else {
 				coinAmountSnapshot
-					.convertTo(txState.fromCoin.coin, Network.lightning)
+					.convertTo(txState.from.coin, Network.lightning)
 					.then((converted) => {
 						const convertedAmt = converted.toAmountString();
 						if (txState.fromAmount !== convertedAmt) {
@@ -50,7 +50,7 @@
 			}
 
 			// Compute toAmount
-			if (!txState.toCoin || !toCoinVal) return;
+			if (!txState.to || !toCoinVal) return;
 			if (coinVal === toCoinVal) {
 				if (amt !== txState.toAmount) {
 					txState.toAmount = amt;
@@ -66,7 +66,7 @@
 				});
 			} else {
 				coinAmountSnapshot
-					.convertTo(txState.toCoin.coin, Network.lightning)
+					.convertTo(txState.to.coin, Network.lightning)
 					.then((converted) => {
 						const convertedAmt = converted.toAmountString();
 						if (txState.toAmount !== convertedAmt) {
@@ -91,9 +91,9 @@
 	let max = $state(new CoinAmount(0, Coin.sats));
 
 	$effect(() => {
-		if (!open || !txState.fromCoin || !txState.fromNetwork) return;
+		if (!open || !txState.from) return;
 		const isSats = coinAmount.coin.value === Coin.sats.value;
-		const balance = getBalanceAmount($accountBalance, txState.fromCoin.coin, txState.fromNetwork);
+		const balance = getBalanceAmount($accountBalance, txState.from.coin, txState.from.network);
 		max = isSats
 			? new CoinAmount(balance.amount, Coin.sats, true)
 			: new CoinAmount(balance.amount, Coin.btc, true);
@@ -110,7 +110,7 @@
 		// gate the Withdraw button stayed enabled for amounts exceeding the
 		// available balance (matches the BitcoinMainnetWithdraw pattern).
 		const maxAmt = max.amount;
-		const hasToAmount = !!_toAmount && _toAmount !== '0';
+		const hasToAmount = isValidAmountString(_toAmount);
 		untrack(() => {
 			if (
 				hasCoins &&
@@ -132,11 +132,8 @@
 		let result: CoinOnNetwork[] = [];
 		const fCoin = _fromCoinValue;
 		const fNet = _fromNetwork;
-		if (fCoin && fNet && txState.fromCoin && txState.fromNetwork) {
-			result.push({
-				coin: txState.fromCoin.coin,
-				network: txState.fromNetwork
-			});
+		if (fCoin && fNet && txState.from) {
+			result.push(txState.from);
 		}
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {
 			result.push({ coin: Coin.sats, network: Network.magi });

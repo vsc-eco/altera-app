@@ -41,20 +41,19 @@
 				getToOption(Coin.hive.value);
 			const fromNet = findNetwork(stored?.fromNetwork) ?? Network.magi;
 			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
-			txState.toNetwork = toNet;
-			txState.rail = Network.lightning;
-			txState.fromCoin = fromOpt;
-			txState.fromNetwork = fromNet;
-			txState.toCoin = toOpt;
+			// /swap page bridges external assets via Lightning even when
+			// neither from nor to is on the Lightning network — override the
+			// from/to-based derivation. See QuickSwap for the parallel case.
+			txState.railOverride = Network.lightning;
+			txState.from = fromOpt ? { coin: fromOpt.coin, network: fromNet } : undefined;
+			txState.to = toOpt ? { coin: toOpt.coin, network: toNet } : undefined;
 		} else {
 			const balOpt = scanForBalance(
 				[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({ coin: c, network: Network.magi }))
 			);
 			const coinOpt = getFromOption(balOpt?.coin.value);
-			txState.toNetwork = Network.magi;
-			txState.fromNetwork = Network.magi;
-			txState.fromCoin = coinOpt;
-			txState.toCoin = coinOpt;
+			txState.from = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
+			txState.to = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
 		}
 	}
 
@@ -74,10 +73,10 @@
 	// stays independent.
 	$effect(() => {
 		if (txType !== 'swap') return;
-		const fromCoin = txState.fromCoin?.coin.value;
-		const fromNetwork = txState.fromNetwork?.value;
-		const toCoin = txState.toCoin?.coin.value;
-		const toNetwork = txState.toNetwork?.value;
+		const fromCoin = txState.from?.coin.value;
+		const fromNetwork = txState.from?.network.value;
+		const toCoin = txState.to?.coin.value;
+		const toNetwork = txState.to?.network.value;
 		// Only save once both sides are populated; partial state isn't useful.
 		if (fromCoin && toCoin) {
 			saveSwapSelection(SWAP_PAGE_PREF_KEY, { fromCoin, fromNetwork, toCoin, toNetwork });

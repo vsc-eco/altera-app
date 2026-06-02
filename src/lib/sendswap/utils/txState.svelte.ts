@@ -1,28 +1,41 @@
 import { getContext, setContext } from 'svelte';
 import type { CoinAmount } from '$lib/currency/CoinAmount';
-import type { Coin } from './sendOptions';
-import type { AssetOption, CoinOnNetwork, Network } from './sendOptions';
+import type { Coin, CoinOnNetwork, Network } from './sendOptions';
+import { getIntermediaryNetwork } from './getNetwork';
 
 // ─── Base (fields every flow shares) ─────────────────────────────────────────
 
 export class TxStateBase {
-	// ─── #3/#6 migration: new collapsed selection fields ───────────────────────
-	// `from`/`to` carry the user's chosen (coin, network) as a single value —
-	// matching what UI inputs produce (`CoinOnNetwork`). Eventually replaces the
-	// paired `fromCoin`+`fromNetwork` / `toCoin`+`toNetwork` below.
-	// `rail` is the explicit intermediary network — replaces the `method` field
-	// (#6). When set (e.g. Reown-BTC lightning swap), it overrides the
-	// `getIntermediaryNetwork(from, to)` derivation.
+	/**
+	 * Selected source — coin + chosen network as a single value, matching what
+	 * the asset/network picker produces (`CoinOnNetwork`). Use `getFromOption`
+	 * if you need the list of *available* networks for the coin.
+	 */
 	from: CoinOnNetwork | undefined = $state(undefined);
+	/** Selected destination, mirror of `from`. */
 	to: CoinOnNetwork | undefined = $state(undefined);
-	rail: Network | undefined = $state(undefined);
+	/**
+	 * Explicit intermediary override. Set ONLY for flows whose rail can't be
+	 * inferred from the from/to networks (e.g. the QuickSwap / /swap routes
+	 * that bridge external assets via Lightning while neither network is
+	 * Lightning). Read via the derived `rail` getter — never read this field
+	 * directly outside of the writer.
+	 */
+	railOverride: Network | undefined = $state(undefined);
 
-	// ─── legacy fields (still authoritative; will be removed once consumers migrate)
-	fromCoin: AssetOption | undefined = $state(undefined);
-	fromNetwork: Network | undefined = $state(undefined);
+	/**
+	 * The intermediary network this TX rails through. Derived from `from` and
+	 * `to` via `getIntermediaryNetwork` by default; falls back to
+	 * `railOverride` when set (for cases where the from/to networks don't
+	 * indicate the rail — see `railOverride` doc).
+	 */
+	get rail(): Network | undefined {
+		if (this.railOverride) return this.railOverride;
+		if (!this.from || !this.to) return undefined;
+		return getIntermediaryNetwork(this.from, this.to);
+	}
+
 	fromAmount: string = $state('0');
-	toCoin: AssetOption | undefined = $state(undefined);
-	toNetwork: Network | undefined = $state(undefined);
 	toAmount: string = $state('0');
 	toUsername: string = $state('');
 }

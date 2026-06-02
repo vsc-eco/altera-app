@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import DepositOptions from './stages/deposit/DepositOptions.svelte';
-	import { Coin, Network } from './utils/sendOptions';
+	import { Coin } from './utils/sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { DepositTxState, provideTxState } from './utils/txState.svelte';
 	import Complete from './stages/Complete.svelte';
@@ -30,11 +30,12 @@
 	provideTxState(txState);
 
 	function applyDepositDetails() {
-		txState.toNetwork = Network.magi;
+		// `toNetwork = Network.magi` previously lived here but was a no-op when
+		// no `toCoin` was selected yet; DepositOptions sets the full to-side
+		// (coin + network) on user pick, so the hint isn't needed.
 		txState.toUsername = getUsernameFromAuth(auth) ?? '';
-		txState.fromCoin = undefined;
-		txState.fromNetwork = undefined;
-		txState.toCoin = undefined;
+		txState.from = undefined;
+		txState.to = undefined;
 		txState.fromAmount = '0';
 		txState.toAmount = '0';
 		txState.fee = undefined;

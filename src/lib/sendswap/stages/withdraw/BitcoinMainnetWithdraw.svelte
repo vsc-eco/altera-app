@@ -92,12 +92,8 @@
 
 	let max = $state(new CoinAmount(0, Coin.btc));
 	$effect(() => {
-		if (!open || !txState.fromCoin || !txState.fromNetwork) return;
-		max = getBalanceAmount(
-			$accountBalance,
-			txState.fromCoin.coin,
-			txState.fromNetwork
-		);
+		if (!open || !txState.from) return;
+		max = getBalanceAmount($accountBalance, txState.from.coin, txState.from.network);
 	});
 
 	// Sync coinAmount → state
@@ -117,8 +113,7 @@
 		const valid = !!(
 			isBtcAddressValid &&
 			!depositBlock.blocked &&
-			txState.fromCoin &&
-			txState.fromNetwork &&
+			txState.from &&
 			coinAmount.amount > 0 &&
 			coinAmount.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER)
 		);
@@ -126,9 +121,7 @@
 	});
 
 	const coinOptions: CoinOnNetwork[] = $derived(
-		txState.fromCoin && txState.fromNetwork
-			? [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }]
-			: [{ coin: Coin.btc, network: Network.magi }]
+		txState.from ? [txState.from] : [{ coin: Coin.btc, network: Network.magi }]
 	);
 </script>
 
@@ -156,7 +149,7 @@
 				<AmountInput
 					bind:coinAmount
 					coinOpts={coinOptions}
-					expressIn={txState.fromCoin?.coin ?? Coin.btc}
+					expressIn={txState.from?.coin ?? Coin.btc}
 					maxAmount={max}
 					bind:id={inputId}
 				/>

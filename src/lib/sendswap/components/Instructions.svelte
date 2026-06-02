@@ -10,7 +10,7 @@
 	const txState = useTxState();
 
 	let toAccount = $derived(
-		txState.toNetwork?.value === Network.magi.value
+		txState.to?.network.value === Network.magi.value
 			? vscGateway
 			: txState.toUsername
 	);
@@ -20,9 +20,9 @@
 	<div class="blurb">
 		<span><Info /></span>
 		<p>
-			Transfer {txState.toCoin?.coin.label} to the following Hive account with your favorite wallet
+			Transfer {txState.to?.coin.label} to the following Hive account with your favorite wallet
 			or exchange.
-			{#if txState.toNetwork?.value === Network.magi.value}
+			{#if txState.to?.network.value === Network.magi.value}
 				The account {vscGateway} is a dedicated Hive account controlled by the decentralized VSC
 				consensus. Your funds remain within your wallet on VSC at all times. Please make sure to
 				specify the correct memo when sending Hive or HBD.
@@ -44,7 +44,7 @@
 				<td class="sm-caption label">Amount</td>
 				<td class="content"
 					><BasicCopy value={txState.toAmount}>
-						<code>{txState.toAmount}</code> {txState.fromCoin?.coin.label}</BasicCopy
+						<code>{txState.toAmount}</code> {txState.from?.coin.label}</BasicCopy
 					></td
 				>
 			</tr>

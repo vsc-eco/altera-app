@@ -24,10 +24,10 @@
 
 	// Derived primitives from state — only change when the actual values change,
 	// preventing effects from re-running on every unrelated state mutation
-	const _fromCoinValue = $derived(txState.fromCoin?.coin?.value);
-	const _toCoinValue = $derived(txState.toCoin?.coin?.value);
-	const _fromNetwork = $derived(txState.fromNetwork?.value);
-	const _toNetwork = $derived(txState.toNetwork?.value);
+	const _fromCoinValue = $derived(txState.from?.coin.value);
+	const _toCoinValue = $derived(txState.to?.coin.value);
+	const _fromNetwork = $derived(txState.from?.network.value);
+	const _toNetwork = $derived(txState.to?.network.value);
 	// Track toAmount so validation blocks Review until async conversion completes
 	const _toAmount = $derived(txState.toAmount);
 
@@ -42,7 +42,7 @@
 		const coinVal = coinAmount.coin.value;
 		const coinAmountSnapshot = coinAmount;
 		untrack(() => {
-			if (!txState.fromCoin) return;
+			if (!txState.from) return;
 
 			// Compute fromAmount
 			if (coinVal === fromCoinVal) {
@@ -51,7 +51,7 @@
 				}
 			} else {
 				coinAmountSnapshot
-					.convertTo(txState.fromCoin.coin, Network.lightning)
+					.convertTo(txState.from.coin, Network.lightning)
 					.then((converted) => {
 						const convertedAmt = converted.toAmountString();
 						if (txState.fromAmount !== convertedAmt) {
@@ -61,7 +61,7 @@
 			}
 
 			// Compute toAmount
-			if (!txState.toCoin || !toCoinVal) return;
+			if (!txState.to || !toCoinVal) return;
 			if (coinVal === toCoinVal) {
 				if (amt !== txState.toAmount) {
 					txState.toAmount = amt;
@@ -76,7 +76,7 @@
 				});
 			} else {
 				coinAmountSnapshot
-					.convertTo(txState.toCoin.coin, Network.lightning)
+					.convertTo(txState.to.coin, Network.lightning)
 					.then((converted) => {
 						const convertedAmt = converted.toAmountString();
 						if (txState.toAmount !== convertedAmt) {
@@ -119,11 +119,8 @@
 		// Read derived primitives to track only actual value changes
 		const fCoin = _fromCoinValue;
 		const fNet = _fromNetwork;
-		if (fCoin && fNet && txState.fromCoin && txState.fromNetwork) {
-			result.push({
-				coin: txState.fromCoin.coin,
-				network: txState.fromNetwork
-			});
+		if (fCoin && fNet && txState.from) {
+			result.push(txState.from);
 		}
 		if (result.map((coinOpt) => coinOpt.coin.value).includes(Coin.btc.value)) {
 			result.push({ coin: Coin.sats, network: Network.lightning });
@@ -157,8 +154,7 @@
 	<SelectAssetFlattened
 		availableCoins={[Coin.hive, Coin.hbd, Coin.sats]}
 		close={toggleAsset}
-		bind:coin={txState.toCoin}
-		bind:network={txState.toNetwork}
+		bind:selected={txState.to}
 		isTo
 	/>
 {/if}
@@ -167,14 +163,13 @@
 		<label for="asset-card">Deposit To</label>
 		<ClickableCard onclick={() => toggleAsset(true)}>
 			<div class="asset-card">
-				{#if txState.toCoin && txState.toNetwork}
+				{#if txState.to}
 					<BalanceInfo
-						coin={txState.toCoin.coin}
-						network={txState.toNetwork}
+						coin={txState.to.coin}
+						network={txState.to.network}
 						size="large"
 						styleType="vertical"
 					/>
-					<!-- <AssetInfo coinOpt={txState.fromCoin} size="medium" /> -->
 				{:else}
 					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 					Select Destination Account

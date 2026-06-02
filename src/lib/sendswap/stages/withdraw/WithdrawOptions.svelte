@@ -68,21 +68,25 @@
 				hbdCoin && scanForBalance([{ coin: hbdCoin.coin, network: Network.magi }]) !== undefined
 			);
 
-			let fromCoinToUse = hiveHasBalance ? hiveCoin : hbdHasBalance ? hbdCoin : hiveCoin;
+			// Prefer the user's current selection if it's a valid Magi HIVE/HBD;
+			// otherwise default by balance.
+			let coinToUse: Coin | undefined = hiveHasBalance
+				? hiveCoin?.coin
+				: hbdHasBalance
+					? hbdCoin?.coin
+					: hiveCoin?.coin;
 			if (
-				txState.fromCoin &&
-				txState.fromCoin.networks?.some((n) => n.value === Network.magi.value) &&
-				(txState.fromCoin.coin.value === Coin.hive.value ||
-					txState.fromCoin.coin.value === Coin.hbd.value)
+				txState.from &&
+				txState.from.network.value === Network.magi.value &&
+				(txState.from.coin.value === Coin.hive.value ||
+					txState.from.coin.value === Coin.hbd.value)
 			) {
-				fromCoinToUse = txState.fromCoin;
+				coinToUse = txState.from.coin;
 			}
 
-			txState.rail = Network.magi;
-			txState.fromNetwork = Network.magi;
-			txState.fromCoin = fromCoinToUse;
-			txState.toNetwork = Network.hiveMainnet;
-			txState.toCoin = fromCoinToUse;
+			// rail derives to magi from { magi → hiveMainnet }
+			txState.from = coinToUse ? { coin: coinToUse, network: Network.magi } : undefined;
+			txState.to = coinToUse ? { coin: coinToUse, network: Network.hiveMainnet } : undefined;
 		});
 	});
 
@@ -94,11 +98,9 @@
 					coinOpt.coin.value === Coin.btc.value &&
 					coinOpt.networks.some((n) => n.value === Network.magi.value)
 			);
-			txState.rail = Network.magi;
-			txState.fromNetwork = Network.magi;
-			txState.fromCoin = btcCoin;
-			txState.toNetwork = Network.btcMainnet;
-			txState.toCoin = btcCoin;
+			// rail derives to magi from { magi → btcMainnet }
+			txState.from = btcCoin ? { coin: btcCoin.coin, network: Network.magi } : undefined;
+			txState.to = btcCoin ? { coin: btcCoin.coin, network: Network.btcMainnet } : undefined;
 		});
 	});
 
@@ -113,11 +115,9 @@
 			// Find BTC in to-coins without requiring lightning in networks,
 			// since lightning is the toNetwork and is set separately below.
 			const btcCoinTo = getToOption(Coin.btc.value);
-			txState.rail = Network.lightning;
-			txState.fromNetwork = Network.magi;
-			txState.fromCoin = btcCoinFrom;
-			txState.toNetwork = Network.lightning;
-			txState.toCoin = btcCoinTo;
+			// rail derives to lightning from to.network = lightning
+			txState.from = btcCoinFrom ? { coin: btcCoinFrom.coin, network: Network.magi } : undefined;
+			txState.to = btcCoinTo ? { coin: btcCoinTo.coin, network: Network.lightning } : undefined;
 		});
 	});
 

@@ -93,10 +93,8 @@
 	$effect(() => {
 		if (
 			txState.toUsername &&
-			txState.toNetwork &&
-			txState.toCoin &&
-			txState.fromCoin &&
-			txState.fromNetwork &&
+			txState.to &&
+			txState.from &&
 			txState.toAmount &&
 			inputAmt.amount > 0 &&
 			inputAmt.amount <= (max?.amount ?? Number.MAX_SAFE_INTEGER) &&
@@ -115,7 +113,7 @@
 		if (!auth.value) return;
 		Promise.all([
 			getLastPaidContact(toDid),
-			getLastPaidNetwork(txState.toNetwork?.value)
+			getLastPaidNetwork(txState.to?.network.value)
 		]).then(([paid, net]) => {
 			lastPaid = momentToLastPaidString(paid);
 			lastNetwork = momentToLastPaidString(net);
@@ -123,10 +121,10 @@
 	});
 
 	$effect(() => {
-		const newNetwork = txState.toNetwork;
+		const newNetwork = txState.to?.network;
 		const userNetworks = getRecipientNetworks(getDidFromUsername(txState.toUsername));
 		if (userNetworks.find((net) => net.value === newNetwork?.value)?.disabled) {
-			txState.toNetwork = Network.magi;
+			if (txState.to) txState.to = { coin: txState.to.coin, network: Network.magi };
 		}
 	});
 
@@ -148,23 +146,20 @@
 		swapOptions.from.map((opt) => ({
 			...opt.coin,
 			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: txState.toNetwork, size: 'medium' }
+			snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
 		}))
 	);
 
 	let isSwap = $derived(
-		txState.fromCoin &&
-			txState.toCoin &&
-			txState.fromCoin?.coin.value !== txState.toCoin?.coin.value
+		txState.from &&
+			txState.to &&
+			txState.from.coin.value !== txState.to.coin.value
 	);
 
 	// default to USD
 	$effect(() => {
-		if (isSwap && !txState.toCoin) {
-			txState.toCoin = {
-				coin: coins.usd,
-				networks: []
-			};
+		if (isSwap && !txState.to) {
+			txState.to = { coin: coins.usd, network: Network.magi };
 		}
 	});
 
@@ -175,12 +170,12 @@
 	// True when the selected from-asset is BTC on the Magi network so we know
 	// to offer SATS as an alternate denomination and sync max accordingly.
 	const isBtcOnMagi = $derived(
-		txState.fromCoin?.coin.value === Coin.btc.value &&
-			txState.fromNetwork?.value === Network.magi.value
+		txState.from?.coin.value === Coin.btc.value &&
+			txState.from?.network.value === Network.magi.value
 	);
 
 	$effect(() => {
-		const fromCoin = txState.fromCoin?.coin;
+		const fromCoin = txState.from?.coin;
 		let amountStr: string;
 		// SATS and BTC share the same raw integer unit — rewrap in BTC denomination
 		// before storing so the transaction builder always receives a BTC-format string.
@@ -197,13 +192,13 @@
 	// balance display stay visible for both SATS and BTC on Magi.
 	$effect(() => {
 		if (!isBtcOnMagi || inputAmt.coin.value === Coin.unk.value) return;
-		const balance = getBalanceAmount($accountBalance, txState.fromCoin!.coin, txState.fromNetwork!);
+		const balance = getBalanceAmount($accountBalance, txState.from!.coin, txState.from!.network);
 		max = new CoinAmount(balance.amount, inputAmt.coin, true);
 	});
 
 	let toSelf = $derived(
 		txState.toUsername === getUsernameFromAuth(auth) &&
-			txState.fromNetwork?.value === txState.toNetwork?.value
+			txState.from?.network.value === txState.to?.network.value
 	);
 
 	let assetOpen = $state(false);
@@ -220,14 +215,14 @@
 		if (getDidFromUsername(txState.toUsername).startsWith('did:pkh:eip155:1:')) {
 			return 'EVM accounts may only receive funds on Magi.';
 		}
-		if (txState.fromCoin?.coin.value === Coin.shbd.value) {
+		if (txState.from?.coin.value === Coin.shbd.value) {
 			return 'Cannot transfer sHBD to external networks.';
 		}
 		return 'This option is not available given your parameters.';
 	}
 	$effect(() => {
 		// read reactive fields to track changes
-		txState.toUsername; txState.fromCoin; txState.fromNetwork; txState.toCoin;
+		txState.toUsername; txState.from; txState.to?.coin;
 		untrack(() => {
 			const newOptions = solveToNetworks(txState);
 			const oldSet = new Set(toNetworkOptions.map((net) => net.value));
@@ -235,11 +230,10 @@
 			if (
 				newOptions.length === 0 &&
 				txState.toUsername &&
-				txState.fromCoin &&
-				txState.fromNetwork
+				txState.from
 			) {
-				transferError = `Cannot transfer ${txState.fromCoin.coin.label}
-					from ${txState.fromNetwork.label}
+				transferError = `Cannot transfer ${txState.from.coin.label}
+					from ${txState.from.network.label}
 					to ${txState.toDisplayName}.`;
 			} else {
 				transferError = '';
@@ -265,15 +259,28 @@
 				currentType === 'internal'
 					? Network.magi
 					: toNetworkOptions.find((net) => net.value !== Network.magi.value);
-			if (network?.value === txState.toNetwork?.value) return;
-			txState.toNetwork = network;
+			if (network?.value === txState.to?.network.value) return;
+			if (!network) {
+				txState.to = undefined;
+			} else if (txState.to) {
+				txState.to = { coin: txState.to.coin, network };
+			} else if (txState.from) {
+				txState.to = { coin: txState.from.coin, network };
+			}
 		});
 	});
 	$effect(() => {
-		txState.fromCoin;
+		txState.from?.coin;
 		untrack(() => {
-			if (txState.toCoin?.coin.value !== txState.fromCoin?.coin.value) {
-				txState.toCoin = txState.fromCoin;
+			if (txState.to?.coin.value !== txState.from?.coin.value) {
+				if (!txState.from) {
+					txState.to = undefined;
+				} else {
+					txState.to = {
+						coin: txState.from.coin,
+						network: txState.to?.network ?? Network.magi
+					};
+				}
 			}
 		});
 	});
@@ -300,7 +307,7 @@
 						| 'external',
 					label: `${net.value === Network.magi.value ? 'Internal' : 'External'} Transfer`,
 					to: net,
-					from: txState.fromNetwork,
+					from: txState.from?.network,
 					snippet: transferBar
 				}))
 				.sort((a, b) => (a.value === b.value ? 0 : a.value === 'internal' ? -1 : 1));
@@ -319,8 +326,8 @@
 	// BTC network-fee estimate (only relevant when the transfer settles out
 	// to BTC mainnet). Matches the math the VSC contract uses at unmap time.
 	const isToBtcMainnet = $derived(
-		txState.fromCoin?.coin.value === Coin.btc.value &&
-			txState.toNetwork?.value === Network.btcMainnet.value
+		txState.from?.coin.value === Coin.btc.value &&
+			txState.to?.network.value === Network.btcMainnet.value
 	);
 	let btcFeeEstimate = $state<BtcFeeEstimate | null>(null);
 	$effect(() => {
@@ -347,10 +354,10 @@
 	let inputId = $state('');
 
 	const coinOpts: CoinOnNetwork[] = $derived.by(() => {
-		if (!txState.fromCoin || !txState.fromNetwork) {
+		if (!txState.from) {
 			return [{ coin: Coin.unk, network: Network.unknown }];
 		}
-		const base: CoinOnNetwork[] = [{ coin: txState.fromCoin.coin, network: txState.fromNetwork }];
+		const base: CoinOnNetwork[] = [txState.from];
 		// Offer SATS as an alternate denomination alongside BTC on Magi
 		if (isBtcOnMagi) {
 			base.push({ coin: Coin.sats, network: Network.magi });
@@ -383,8 +390,8 @@
 		if (balanceCount === 0) return;
 
 		const currentCoinHasBalance =
-			txState.fromCoin &&
-			coinsWithBalance.some((item) => item.coin.value === txState.fromCoin?.coin.value);
+			txState.from &&
+			coinsWithBalance.some((item) => item.coin.value === txState.from?.coin.value);
 
 		if (currentCoinHasBalance) return;
 
@@ -392,10 +399,8 @@
 		const coinToSelect = hiveCoin || coinsWithBalance[0];
 
 		if (coinToSelect) {
-			txState.fromCoin = coinToSelect.coinOpt;
-			txState.fromNetwork = Network.magi;
-			txState.toCoin = coinToSelect.coinOpt;
-			txState.toNetwork = Network.magi;
+			txState.from = { coin: coinToSelect.coin, network: Network.magi };
+			txState.to = { coin: coinToSelect.coin, network: Network.magi };
 		}
 	});
 </script>
@@ -418,14 +423,13 @@
 				<div class="error">
 					No balance found on your account. Please make a deposit to get started.
 				</div>
-			{:else if txState.fromCoin && txState.fromNetwork}
+			{:else if txState.from}
 				<BalanceInfo
-					coin={txState.fromCoin.coin}
-					network={txState.fromNetwork}
+					coin={txState.from.coin}
+					network={txState.from.network}
 					size="large"
 					styleType="vertical"
 				/>
-				<!-- <AssetInfo coinOpt={txState.fromCoin} size="medium" /> -->
 			{:else}
 				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
 				Select Asset
@@ -439,7 +443,7 @@
 			<AmountInput
 				bind:coinAmount={inputAmt}
 				{coinOpts}
-				expressIn={isBtcOnMagi ? undefined : txState.fromCoin?.coin}
+				expressIn={isBtcOnMagi ? undefined : txState.from?.coin}
 				maxAmount={max}
 				bind:id={inputId}
 			/>
@@ -534,8 +538,7 @@
 		<SelectAssetFlattened
 			availableCoins={fromAssetObjs}
 			close={toggleAsset}
-			bind:coin={txState.fromCoin}
-			bind:network={txState.fromNetwork}
+			bind:selected={txState.from}
 			bind:max
 			externalNetwork={Network.hiveMainnet}
 		/>

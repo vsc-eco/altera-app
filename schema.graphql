@@ -205,13 +205,36 @@ type ContractOutputResult {
 """ISO 8601 (RFC 3339) formatted date-time string."""
 scalar DateTime
 
+"""
+Per-account HBD payout from the pendulum:nodes bucket at settlement time.
+"""
+type DistributionEntry {
+  """Recipient Hive account."""
+  account: String!
+
+  """HBD amount distributed."""
+  hbd_amount: Int64!
+}
+
 """A member of a consensus election committee."""
 type ElectionMember {
   """Hive account of the elected member."""
   account: String!
 
+  """True when per-member version fields were recorded at election time."""
+  has_per_member_version: Boolean!
+
   """Public key of the elected member."""
   key: String!
+
+  """Consensus component at election snapshot for this member."""
+  member_consensus: Uint64!
+
+  """Major component at election snapshot for this member."""
+  member_major: Uint64!
+
+  """Non-consensus component at election snapshot for this member."""
+  member_non_consensus: Uint64!
 }
 
 """Result of a consensus election for a given epoch."""
@@ -237,6 +260,14 @@ type ElectionResult {
   """Protocol version at the time of election."""
   protocol_version: Uint64!
 
+  """
+  Closing committee's settlement record for the epoch that just ended.
+  Null for pre-pendulum elections and for elections that rotate away from
+  the genesis committee (i.e. when the proposer skips composition because
+  there is no prior epoch to settle).
+  """
+  settlement: SettlementRecord
+
   """Total combined weight of all elected members."""
   total_weight: Uint64!
 
@@ -245,6 +276,12 @@ type ElectionResult {
 
   """Election type."""
   type: String!
+
+  """Major component at election time."""
+  version_major: Uint64!
+
+  """Non-consensus component at election time."""
+  version_non_consensus: Uint64!
 
   """Voting weights of each elected member."""
   weights: [Uint64!]!
@@ -442,8 +479,40 @@ input LedgerTxFilter {
 
 """Information about the local Magi node."""
 type LocalNodeInfo {
+  """Active consensus executor implementation identifier at the local head."""
+  active_consensus_executor: String!
+
+  """Active coordinated consensus line (major.consensus) at the local head."""
+  active_consensus_line: String!
+
   """Status of each registered chain oracle."""
   chain_oracles: [ChainOracleStatus!]!
+
+  """
+  Block height where the activation was scheduled (proposal/recovery tx height).
+  """
+  consensus_activation_attested_block: Uint64
+
+  """Transaction id that scheduled the activation."""
+  consensus_activation_attested_txid: String
+
+  """
+  Scheduled activation epoch at/after which the version switch may activate.
+  """
+  consensus_activation_epoch: Uint64
+
+  """
+  Scheduled activation mode for the pending switch-over (normal or recovery).
+  """
+  consensus_activation_mode: String
+
+  """Scheduled activation version display (major.consensus)."""
+  consensus_activation_version: String
+
+  """
+  Consensus triple display (major.consensus.non_consensus), provisional -p during recovery suspension.
+  """
+  consensus_version_display: String!
 
   """Current consensus epoch."""
   epoch: Uint64!
@@ -453,6 +522,11 @@ type LocalNodeInfo {
 
   """Most recent Hive L1 block processed by this node."""
   last_processed_block: Uint64!
+
+  """
+  True while chain processing is suspended until recovery multisig clears the gate.
+  """
+  processing_suspended: Boolean!
 
   """Software version identifier."""
   version_id: String!
@@ -715,6 +789,49 @@ type RcRecord {
 
   """Maximum resource credits for this account (based on staked balance)."""
   max_rcs: Int64!
+}
+
+"""Per-witness consolidated reward reduction applied at settlement time."""
+type RewardReductionEntry {
+  """Hive account whose effective bond was reduced."""
+  account: String!
+
+  """Reduction in basis points applied to the bond."""
+  bps: Int!
+}
+
+"""
+Closing committee's pendulum settlement record for the epoch that just ended.
+Sub-arrays are sorted by account on construction so encoding is byte-stable
+across nodes.
+"""
+type SettlementRecord {
+  """Pendulum:nodes:hbd ledger balance the record was composed against."""
+  bucket_balance_hbd: Int64!
+
+  """Per-account HBD payouts, sorted by account."""
+  distributions: [DistributionEntry!]!
+
+  """Closing epoch — the one whose service the rewards pay for."""
+  epoch: Uint64!
+
+  """Epoch settled in the previous record (chain-continuity check)."""
+  prev_epoch: Uint64!
+
+  """Residual HBD remaining in the bucket after distribution."""
+  residual_hbd: Int64!
+
+  """Per-witness consolidated reductions, sorted by account."""
+  reward_reductions: [RewardReductionEntry!]!
+
+  """Exclusive lower bound of the L2 evidence window (block height)."""
+  snapshot_range_from: Uint64!
+
+  """Inclusive upper bound of the L2 evidence window (block height)."""
+  snapshot_range_to: Uint64!
+
+  """Sum of all per-account distributions."""
+  total_distributed_hbd: Int64!
 }
 
 """Input for a single simulated contract call."""
@@ -1091,6 +1208,14 @@ type Witness {
 
   """Software version identifier of the witness node."""
   version_id: String
+
+  """Major component of major.consensus.non_consensus."""
+  version_major: Uint64!
+
+  """
+  Non-consensus component (optional behavior); may differ without excluding the witness.
+  """
+  version_non_consensus: Uint64!
 }
 
 """A slot in the witness block production schedule."""

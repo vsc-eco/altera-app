@@ -16,6 +16,7 @@ import {
 	WithdrawTxState,
 	TxStateBase
 } from './txState.svelte'
+import { Coin, Network } from './sendOptions'
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -103,10 +104,8 @@ describe('default values — each class starts at zero-state', () => {
 		expect(state.toUsername).toBe('')
 		expect(state.fromAmount).toBe('0')
 		expect(state.toAmount).toBe('0')
-		expect(state.fromCoin).toBeUndefined()
-		expect(state.toCoin).toBeUndefined()
-		expect(state.fromNetwork).toBeUndefined()
-		expect(state.toNetwork).toBeUndefined()
+		expect(state.from).toBeUndefined()
+		expect(state.to).toBeUndefined()
 	})
 
 	it('SwapTxState-specific defaults', () => {
@@ -258,3 +257,96 @@ describe('original bug: QuickSwap writing toUsername must not reach QuickSend', 
 		expect(swapState.toUsername).toBe('')
 	})
 })
+
+// ─── 5. New from/to source-of-truth ──────────────────────────────────────────
+
+describe('from/to source-of-truth fields', () => {
+	it('start undefined', () => {
+		const state = new TransferTxState()
+		expect(state.from).toBeUndefined()
+		expect(state.to).toBeUndefined()
+		expect(state.rail).toBeUndefined()
+		expect(state.railOverride).toBeUndefined()
+	})
+
+	it('writing `from` does not touch `to`', () => {
+		const state = new TransferTxState()
+		state.from = { coin: Coin.hive, network: Network.magi }
+		expect(state.to).toBeUndefined()
+	})
+
+	it('writing `to` does not touch `from`', () => {
+		const state = new TransferTxState()
+		state.to = { coin: Coin.hive, network: Network.hiveMainnet }
+		expect(state.from).toBeUndefined()
+	})
+
+	it('round-trips a CoinOnNetwork literal', () => {
+		const state = new TransferTxState()
+		state.from = { coin: Coin.btc, network: Network.btcMainnet }
+		expect(state.from.coin.value).toBe(Coin.btc.value)
+		expect(state.from.network.value).toBe(Network.btcMainnet.value)
+	})
+})
+
+// ─── 6. rail derivation ──────────────────────────────────────────────────────
+
+describe('rail — derived from from/to via getIntermediaryNetwork', () => {
+	it('undefined when from or to is unset', () => {
+		const state = new TransferTxState()
+		expect(state.rail).toBeUndefined()
+		state.from = { coin: Coin.hive, network: Network.magi }
+		expect(state.rail).toBeUndefined()
+	})
+
+	it('derives to magi for { magi → hiveMainnet }', () => {
+		const state = new TransferTxState()
+		state.from = { coin: Coin.hive, network: Network.magi }
+		state.to = { coin: Coin.hive, network: Network.hiveMainnet }
+		expect(state.rail?.value).toBe(Network.magi.value)
+	})
+
+	it('derives to magi for { magi → btcMainnet }', () => {
+		const state = new TransferTxState()
+		state.from = { coin: Coin.btc, network: Network.magi }
+		state.to = { coin: Coin.btc, network: Network.btcMainnet }
+		expect(state.rail?.value).toBe(Network.magi.value)
+	})
+
+	it('derives to lightning when from.network is lightning', () => {
+		const state = new TransferTxState()
+		state.from = { coin: Coin.btc, network: Network.lightning }
+		state.to = { coin: Coin.hive, network: Network.magi }
+		expect(state.rail?.value).toBe(Network.lightning.value)
+	})
+
+	it('derives to lightning when to.network is lightning', () => {
+		const state = new TransferTxState()
+		state.from = { coin: Coin.btc, network: Network.magi }
+		state.to = { coin: Coin.btc, network: Network.lightning }
+		expect(state.rail?.value).toBe(Network.lightning.value)
+	})
+
+	it('railOverride forces the rail even when from/to would derive differently', () => {
+		// Mirrors the QuickSwap / /swap case: BTC mainnet → HIVE mainnet
+		// rails via Lightning, but neither endpoint network is Lightning.
+		// Without the override `getIntermediaryNetwork` would pick magi.
+		const state = new TransferTxState()
+		state.from = { coin: Coin.btc, network: Network.btcMainnet }
+		state.to = { coin: Coin.hive, network: Network.hiveMainnet }
+		expect(state.rail?.value).toBe(Network.magi.value)
+		state.railOverride = Network.lightning
+		expect(state.rail?.value).toBe(Network.lightning.value)
+	})
+
+	it('clearing railOverride restores the derived value', () => {
+		const state = new TransferTxState()
+		state.from = { coin: Coin.btc, network: Network.magi }
+		state.to = { coin: Coin.hive, network: Network.magi }
+		state.railOverride = Network.lightning
+		expect(state.rail?.value).toBe(Network.lightning.value)
+		state.railOverride = undefined
+		expect(state.rail?.value).toBe(Network.magi.value)
+	})
+})
+

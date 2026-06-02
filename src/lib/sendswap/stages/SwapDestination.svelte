@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, getToOption, Network } from '$lib/sendswap/utils/sendOptions';
 	import { useSwapState } from '$lib/sendswap/utils/txState.svelte';
 	import { checkBtcRecipient, fetchUserBtcDepositAddress } from '$lib/sendswap/utils/btcAddressGuard';
 	import { Send, Wallet, X } from '@lucide/svelte';
@@ -29,7 +29,7 @@
 		abort?: () => void;
 	} = $props();
 
-	let toCoin = $derived(txState.toCoin?.coin ?? Coin.unk);
+	let toCoin = $derived(txState.to?.coin ?? Coin.unk);
 
 	function coinDisplayLabel(coin: (typeof Coin)[keyof typeof Coin]): string {
 		return coin.value === Coin.hive.value
@@ -85,22 +85,22 @@
 		}
 	});
 
-	// Update toNetwork based on destination choice
+	// Update `to.network` based on destination choice. Needs `to.coin` already
+	// chosen by SwapOptions — guard so we don't try to set just a network.
 	$effect(() => {
-		if (destChoice === 'wallet') {
-			if (txState.toNetwork?.value !== Network.magi.value) {
-				txState.toNetwork = Network.magi;
-			}
-		} else {
-			const net =
-				destNetworkChoice === 'magi'
+		const coin = txState.to?.coin;
+		if (!coin) return;
+
+		const net: Network =
+			destChoice === 'wallet'
+				? Network.magi
+				: destNetworkChoice === 'magi'
 					? Network.magi
-					: txState.toCoin?.networks?.find(
-							(n: Network) => n.value !== Network.magi.value
-						) ?? Network.hiveMainnet;
-			if (txState.toNetwork?.value !== net.value) {
-				txState.toNetwork = net;
-			}
+					: (getToOption(coin.value)?.networks?.find((n) => n.value !== Network.magi.value) ??
+						Network.hiveMainnet);
+
+		if (txState.to?.network.value !== net.value) {
+			txState.to = { coin, network: net };
 		}
 	});
 
@@ -115,9 +115,9 @@
 <div class="swap-dest-wrapper">
 	<span class="deliver-label">DELIVER TO</span>
 
-	{#if txState.toCoin}
+	{#if txState.to}
 		<div class="dest-header">
-			<CoinNetworkIcon coin={toCoin} network={txState.toNetwork ?? Network.magi} size={32} />
+			<CoinNetworkIcon coin={toCoin} network={txState.to.network} size={32} />
 			<h3>Where should {coinDisplayLabel(toCoin)} go?</h3>
 		</div>
 	{/if}

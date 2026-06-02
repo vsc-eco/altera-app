@@ -7,7 +7,7 @@
 	import StatusView from './StatusView.svelte';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
-	import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsd, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 	import { untrack, type Snippet } from 'svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { checkOpStatus } from './checkStatus';
@@ -141,10 +141,10 @@
 					? from!
 					: to!
 	);
-	let inUsd = $state('');
+	let inUsd = $state(0);
 	$effect(() => {
 		amount.convertTo(Coin.usd, Network.lightning).then((amount) => {
-			inUsd = amount.toAmountString();
+			inUsd = amount.toNumber();
 		});
 	});
 
@@ -224,7 +224,7 @@
 	<div class="amount">
 		{prettyWithDisplayUnit(amount)}
 		<span class="approx-usd">
-			Approx. ${inUsd} USD
+			Approx. {formatUsd(inUsd)}
 		</span>
 	</div>
 

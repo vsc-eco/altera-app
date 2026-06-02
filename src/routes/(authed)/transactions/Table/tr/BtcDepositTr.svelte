@@ -6,7 +6,7 @@
 	import { ExternalLink } from '@lucide/svelte';
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import Amount from '../tds/Amount.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { satsToBtc } from '$lib/sendswap/utils/units';
 	import ToFrom from '../tds/ToFrom.svelte';
@@ -28,10 +28,10 @@
 		new CoinAmount(satsToBtc(Number(event.amount)).toString(), Coin.btc, true)
 	);
 
-	let inUsd = $state('');
+	let inUsd = $state(0);
 	$effect(() => {
 		displayAmount.convertTo(Coin.usd, Network.lightning).then((amount) => {
-			inUsd = amount.toAmountString();
+			inUsd = amount.toNumber();
 		});
 	});
 
@@ -51,7 +51,7 @@
 	<div class="sections">
 		<div class="amount section">
 			{satsToBtc(Number(event.amount))} BTC
-			<span class="approx-usd"> Approx. ${inUsd} USD </span>
+			<span class="approx-usd"> Approx. {formatUsd(inUsd)} </span>
 		</div>
 		<StatusView
 			anchor_ts={anchorTs}

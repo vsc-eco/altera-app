@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Card from '$lib/cards/Card.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
 	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
@@ -86,14 +86,12 @@
 					: amt.coin.unit;
 		return `${isNegative ? '-' : ''}${formatter.format(n)} ${unit}`;
 	}
-	let inUsd = $state('');
-	let grossInUsdNum = $state(0);
+	let inUsd = $state(0);
 	$effect(() => {
 		new CoinAmount(txState.fromAmount, fromCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
-				inUsd = amount.toMinFigs();
-				grossInUsdNum = amount.toNumber();
+				inUsd = amount.toNumber();
 			});
 	});
 	const alteraFeeApplies = $derived(
@@ -101,7 +99,7 @@
 			txState.to.network.value !== Network.magi.value &&
 			toCoin.value !== Coin.hive.value &&
 			toCoin.value !== Coin.hbd.value &&
-			grossInUsdNum >= ALTERA_FEE_USD_THRESHOLD
+			inUsd >= ALTERA_FEE_USD_THRESHOLD
 	);
 	const alteraFeeAmount = $derived.by(() => {
 		if (!alteraFeeApplies) return undefined;
@@ -158,7 +156,7 @@
 				<span class="sm-caption">Payment to {txState.kind === 'transfer' ? txState.toDisplayName : txState.toUsername}</span>
 				<h4>
 					{prettyWithDisplayUnit(new CoinAmount(txState.fromAmount, fromCoin))}
-					{`(\$US ${inUsd})`}
+					{`(${formatUsd(inUsd)})`}
 				</h4>
 			{:else if txState.to && txState.from}
 				<div class="swap-header">
@@ -168,7 +166,7 @@
 					<span class="from-amt">
 						{prettyWithDisplayUnit(new CoinAmount(txState.fromAmount, fromCoin))}
 						<EqualApproximately size="16" />
-						{`${inUsd} USD`}
+						{formatUsd(inUsd)}
 					</span>
 					<span class="arrow">
 						<ArrowDown />

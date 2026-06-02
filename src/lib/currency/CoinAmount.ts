@@ -20,6 +20,27 @@ export function isValidAmountString(s: string | undefined | null): boolean {
 	return Number.isFinite(n) && n > 0;
 }
 
+/**
+ * Canonical US-dollar formatter. Always renders 2 decimal places (cents) with
+ * the `$` prefix and locale-aware thousands separators — `$1,234.56`.
+ * Returns `$0.00` for null / undefined / non-finite input (rather than
+ * throwing or showing `NaN`). Sub-cent values render as `$0.00` by design —
+ * keep the display consistent rather than expanding to more decimals.
+ *
+ * Replaces a mix of `toMinFigs()`, `toAmountString()`, `toPrettyString()` and
+ * ad-hoc local `formatUsd(n)` helpers across the app, which all formatted
+ * USD amounts differently (e.g. `0.0 US$` for sub-cent values).
+ */
+export function formatUsd(amount: number | undefined | null): string {
+	if (amount == null || !Number.isFinite(amount)) return '$0.00';
+	return new Intl.NumberFormat('en-US', {
+		style: 'currency',
+		currency: 'USD',
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2
+	}).format(amount);
+}
+
 export class CoinAmount<C extends Coin> {
 	coin: C;
 	amount: number;

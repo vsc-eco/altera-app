@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { settlementLabel } from '$lib/sendswap/utils/getNetwork';
 	import moment from 'moment';
@@ -445,7 +445,7 @@
 							<td class="content">
 								{prettyWithDisplayUnit(netSwapFromAmountCa)}
 								<EqualApproximately size={16} />
-								{inUsd?.toPrettyString()}
+								{formatUsd(inUsd?.toNumber())}
 							</td>
 						</tr>
 						<tr>
@@ -467,7 +467,7 @@
 										</span>
 										<span class="fee-amounts-line">
 											{#if swapFeeInUsd}
-												≈ {swapFeeInUsd.toPrettyString()}
+												≈ {formatUsd(swapFeeInUsd.toNumber())}
 											{:else}
 												—
 											{/if}
@@ -480,7 +480,7 @@
 								{:else}
 									{prettyWithDisplayUnit(txState.fee)}
 									<EqualApproximately size={16} />
-									{feeInUsd.toPrettyString()}
+									{formatUsd(feeInUsd.toNumber())}
 								{/if}
 							</td>
 						</tr>
@@ -525,7 +525,7 @@
 											{prettyWithDisplayUnit(alteraFeeAmount)}
 											{#if alteraFeeInUsd}
 												<EqualApproximately size={16} />
-												{alteraFeeInUsd.toPrettyString()}
+												{formatUsd(alteraFeeInUsd.toNumber())}
 											{/if}
 										{:else}
 											Free
@@ -560,7 +560,7 @@
 										{prettyWithDisplayUnit(new CoinAmount(netToAmount, toCoin, true))}
 										{#if outputInUsd}
 											<EqualApproximately size={16} />
-											{outputInUsd.toPrettyString()}
+											{formatUsd(outputInUsd.toNumber())}
 										{/if}
 									{/if}
 								</td>
@@ -592,7 +592,7 @@
 												{prettyWithDisplayUnit(new CoinAmount(minRaw, toCoin, true))}
 												{#if minAmountInUsd}
 													<EqualApproximately size={16} />
-													{minAmountInUsd.toPrettyString()}
+													{formatUsd(minAmountInUsd.toNumber())}
 												{/if}
 											{/if}
 										{:else}

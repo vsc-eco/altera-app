@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import {
 		getAccountNameFromAuth,
 		getAccountNameFromDid,
@@ -40,7 +40,7 @@
 	});
 
 	let toCoin = $derived(txState.to?.coin ?? Coin.unk);
-	let inUsd = $state('');
+	let inUsd = $state(0);
 	let isInstructions = $derived(
 		auth.value?.provider === 'reown' &&
 			txState.from?.network.value === Network.hiveMainnet.value
@@ -49,7 +49,7 @@
 		new CoinAmount(txState.toAmount, toCoin)
 			.convertTo(Coin.usd, Network.lightning)
 			.then((amount) => {
-				inUsd = amount.toMinFigs();
+				inUsd = amount.toNumber();
 			});
 	});
 	let today = moment().format('MMM D, YYYY');
@@ -78,7 +78,7 @@
 		<div class={['amount', { compact }]}>
 			<h4>
 				{new CoinAmount(txState.toAmount, toCoin).toPrettyString()}
-				{`(${inUsd} US$)`}
+				{`(${formatUsd(inUsd)})`}
 			</h4>
 		</div>
 		{#if !compact}

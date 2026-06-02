@@ -13,7 +13,7 @@ export type Auth = {
 		address: string;
 		did: string;
 		logout: () => Promise<void>;
-		provider: 'aioha' | 'reown';
+		provider: 'aioha' | 'reown' | 'dash-instantsend';
 		openSettings: () => void;
 		profilePicUrl?: string | undefined;
 		aioha?: Aioha;

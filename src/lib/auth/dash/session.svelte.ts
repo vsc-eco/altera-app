@@ -78,7 +78,16 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 					phase = 'done';
 				} else {
 					phase = 'failed';
-					error = next.forwardError || readableFailure(next.state);
+					// Round-3 audit R3-CSM-10: the server's forwardError
+					// contains operator-language ('L2 reconcile timed
+					// out — inspect chain state to recover' with a raw
+					// l2TxId) — useless to a non-technical user. Prefer
+					// the localized readableFailure mapping; surface the
+					// raw forwardError only as a console.warn for ops.
+					if (next.forwardError) {
+						console.warn('IS session failed with operator detail:', next.forwardError);
+					}
+					error = readableFailure(next.state);
 				}
 			}
 		} catch (e) {
@@ -159,15 +168,25 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	};
 }
 
+// readableFailure converts a server-side IS session state into a
+// user-facing message. Round-3 audit R3-CSM-10 split the reconcile-
+// related ForwardError variants out of the generic FORWARD_FAILED
+// bucket because the server text is operator language (e.g. "L2
+// reconcile timed out — inspect chain state to recover (l2TxId=...)").
+//
+// New states from D2-DESIGN-06 (L2_SUBMITTED + reconcile result) get
+// mapped here so non-technical users see actionable copy.
 function readableFailure(state: IsSessionState): string {
 	switch (state) {
 		case 'ATTESTATION_TIMEOUT':
-			return 'validator quorum not reached in time';
+			return 'Validator quorum was not reached in time. Please try again — if this persists, contact support.';
 		case 'FORWARD_FAILED':
-			return 'on-chain forward failed';
+			return 'The on-chain step failed. Your Dash deposit will be available via the slow path; contact support to recover.';
 		case 'EXPIRED':
-			return 'session expired before payment was observed';
+			return 'The session expired before your InstantSend payment was observed.';
+		case 'SLOW_PATH_PENDING':
+			return 'Your payment is being processed via the slow path. This may take a few minutes.';
 		default:
-			return `session failed in state ${state}`;
+			return 'Sign-in failed. Please try again — if this persists, contact support.';
 	}
 }

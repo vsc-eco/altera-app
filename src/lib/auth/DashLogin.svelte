@@ -60,7 +60,12 @@
 					username: 'dash:' + senderAddr.slice(0, 8),
 					address: did,
 					did,
-					provider: 'aioha',
+					// Round-3 audit R3-003: distinct provider tag so downstream
+					// (QuickSwap / currentBalance / Portfolio / transactions /
+					// (authed)/+layout) can branch on Dash vs Hive rather than
+					// silently treating Dash users as Hive users (and dispatching
+					// dhive lookups against the synthetic 'dash:XYabc...' username).
+					provider: 'dash-instantsend',
 					logout: async () => {
 						_hiveAuthStore.set({ status: 'none' });
 					},

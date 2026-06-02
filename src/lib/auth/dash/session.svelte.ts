@@ -66,6 +66,17 @@ export type DashSessionState = {
 export type DashSession = DashSessionState & {
 	begin(): Promise<void>;
 	cancel(): Promise<void>;
+	/**
+	 * Synchronous teardown — clears the poll interval and the R6-SEC-01
+	 * trap-deadline timer immediately, marks the session destroyed,
+	 * and (if a sid is known) issues a best-effort fire-and-forget
+	 * server-side cancel so the server's session record is released.
+	 * Safe to call from Svelte's onDestroy hook. Round-8 audit
+	 * R8-CORR-02: the previous onDestroy(() => cancel()) path leaked
+	 * pollTimer + 240s deadline on the 409/error branches because
+	 * cancel() intentionally skipped stopPolling in those cases.
+	 */
+	stop(): void;
 };
 
 export function createDashSession(opts: DashSessionOpts): DashSession {
@@ -84,6 +95,20 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	// trap the user indefinitely.
 	let postCancelDeadlineTimer: ReturnType<typeof setTimeout> | undefined;
 	let postCancelConflict = $state(false);
+	// Round-8 audit R8-CORR-02: destroyed gate. Once stop() runs,
+	// poll() / cancel() / begin() must NOT re-arm any timer or write
+	// to $state cells. Solves the begin()/onDestroy race (start was
+	// in-flight at unmount → resolves after with a fresh
+	// setInterval) and the 409/error-branch leak (cancel returned
+	// early without stopPolling).
+	let destroyed = false
+	// Round-8 audit R8-INFO-02 + R8-DESIGN-02: concurrency guard for
+	// cancel(). The modal has three cancel call-sites (onDestroy,
+	// $effect open=false, retry()). Without this flag, a 409 from
+	// the first cancel can cascade into a second cancel arming a
+	// fresh 240s timer after the first stopPolling has already
+	// cleared it.
+	let cancelling = false
 
 	const terminal = $derived(status ? isTerminal(status.state) : false);
 
@@ -96,11 +121,18 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			clearTimeout(postCancelDeadlineTimer);
 			postCancelDeadlineTimer = undefined;
 		}
+		// Round-8 audit R8-CORR-01: clearing the post-cancel timer
+		// without resetting the banner left postCancelConflict stuck
+		// true whenever the poll loop reached a real terminal state
+		// before the deadline fired.
+		postCancelConflict = false;
 	}
 
 	async function poll(sid: string) {
+		if (destroyed) return;
 		try {
 			const next = await client.getStatus(sid);
+			if (destroyed) return;
 			status = next;
 			if (isTerminal(next.state)) {
 				stopPolling();
@@ -133,13 +165,20 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	}
 
 	async function begin(): Promise<void> {
+		if (destroyed) return;
 		if (phase !== 'idle' && phase !== 'failed') return;
 		phase = 'starting';
 		error = undefined;
 		try {
 			const body: { op: IsOp; args?: CallArgs } = { op: opts.op };
 			if (opts.op === 'call' && opts.args) body.args = opts.args;
-			startResponse = await client.startSession(body);
+			const sr = await client.startSession(body);
+			// Round-8 audit R8-CORR-02: stop() may have run while the
+			// fetch was in flight. If so, bail before arming pollTimer
+			// (which would otherwise write to $state for the full
+			// server TTL on a destroyed component).
+			if (destroyed) return;
+			startResponse = sr;
 			phase = 'waiting';
 			pollTimer = setInterval(() => {
 				if (startResponse) void poll(startResponse.sid);
@@ -149,52 +188,76 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			// possible — pre-cached deposit address).
 			void poll(startResponse.sid);
 		} catch (e) {
+			if (destroyed) return;
 			phase = 'failed';
 			error = e instanceof Error ? e.message : 'failed to start session';
 		}
 	}
 
 	async function cancel(): Promise<void> {
-		const sid = startResponse?.sid;
-		const cancelToken = startResponse?.addressSignature;
-		// Round-7 audit R7-CORR-02: reset the conflict banner on
-		// every call so a later clean cancel clears the previous
-		// 'finishing server-side step' state.
-		postCancelConflict = false;
-		// Round-5 audit R5-002 + round-6 R6-CORR-04 + round-7 R7-DRIFT-02:
-		// the client's CancelResult discriminator now covers all three
-		// outcomes (clean cancel, server 409 in-flight refusal, transient
-		// network/5xx error). 'in-flight-conflict' and 'error' both
-		// keep polling so the user reaches a real terminal state.
-		if (sid && cancelToken) {
-			const outcome: CancelResult = await client.cancel(sid, cancelToken);
-			if (outcome === 'in-flight-conflict' || outcome === 'error') {
-				// Server is mid-attestation OR the cancel request
-				// couldn't be confirmed. Keep polling so the user
-				// reaches a real terminal state instead of seeing a
-				// spurious 'failed' for a session that may still be
-				// progressing. Round-6 R6-SEC-01: arm the
-				// trap-deadline so a misbehaving server can't keep
-				// /status in non-terminal forever.
-				postCancelConflict = true;
-				if (postCancelDeadlineTimer === undefined) {
-					postCancelDeadlineTimer = setTimeout(() => {
-						postCancelConflict = false;
-						stopPolling();
-						if (status && !isTerminal(status.state)) {
-							phase = 'failed';
-							error = 'cancel acknowledged but session did not finish on the server in time';
-						}
-					}, POST_CANCEL_DEADLINE_MS);
+		// Round-8 audit R8-INFO-02 + R8-DESIGN-02: reject re-entry.
+		// DashLogin has 3 cancel call-sites (onDestroy, $effect on
+		// close, retry()); back-to-back invocations used to fire
+		// duplicate POST /cancel + re-arm the trap-deadline.
+		if (destroyed || cancelling) return;
+		cancelling = true;
+		try {
+			const sid = startResponse?.sid;
+			const cancelToken = startResponse?.addressSignature;
+			// Round-7 audit R7-CORR-02: reset the conflict banner on
+			// every call so a later clean cancel clears the previous
+			// 'finishing server-side step' state.
+			postCancelConflict = false;
+			// Round-5 audit R5-002 + round-6 R6-CORR-04 + round-7 R7-DRIFT-02:
+			// the client's CancelResult discriminator now covers all three
+			// outcomes (clean cancel, server 409 in-flight refusal, transient
+			// network/5xx error). 'in-flight-conflict' and 'error' both
+			// keep polling so the user reaches a real terminal state.
+			if (sid && cancelToken) {
+				const outcome: CancelResult = await client.cancel(sid, cancelToken);
+				if (destroyed) return;
+				if (outcome === 'in-flight-conflict' || outcome === 'error') {
+					// Server is mid-attestation OR the cancel request
+					// couldn't be confirmed. Keep polling so the user
+					// reaches a real terminal state instead of seeing a
+					// spurious 'failed' for a session that may still be
+					// progressing. Round-6 R6-SEC-01: arm the
+					// trap-deadline so a misbehaving server can't keep
+					// /status in non-terminal forever.
+					postCancelConflict = true;
+					if (postCancelDeadlineTimer === undefined) {
+						postCancelDeadlineTimer = setTimeout(() => {
+							if (destroyed) return;
+							postCancelConflict = false;
+							stopPolling();
+							if (status && !isTerminal(status.state)) {
+								phase = 'failed';
+								error = 'cancel acknowledged but session did not finish on the server in time';
+							}
+						}, POST_CANCEL_DEADLINE_MS);
+					}
+					return;
 				}
-				return;
 			}
+			stopPolling();
+			if (status && !isTerminal(status.state)) {
+				phase = 'failed';
+				error = 'cancelled';
+			}
+		} finally {
+			cancelling = false;
 		}
+	}
+
+	function stop(): void {
+		// Round-8 audit R8-CORR-02: synchronous teardown for Svelte's
+		// onDestroy. Mark destroyed first so any in-flight begin() /
+		// poll() / cancel() resolves with a no-op tail. Then clear
+		// timers. We do NOT fire a server-side /cancel here — the
+		// component is going away and the server's own TTL bounds the
+		// session.
+		destroyed = true;
 		stopPolling();
-		if (status && !isTerminal(status.state)) {
-			phase = 'failed';
-			error = 'cancelled';
-		}
 	}
 
 	return {
@@ -217,7 +280,8 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			return postCancelConflict;
 		},
 		begin,
-		cancel
+		cancel,
+		stop
 	};
 }
 

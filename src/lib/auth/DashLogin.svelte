@@ -15,13 +15,16 @@
 	// surface (contract-call deep-link from inside the app's swap flow).
 	const session = createDashSession({ baseUrl: isServiceUrl, op: 'auth' });
 
-	// Round-7 audit R7-CORR-01-altera: clean up the poll interval AND
-	// the R6-SEC-01 post-cancel deadline timer if the component
-	// unmounts (e.g. user navigates away while the modal is open).
-	// session.cancel() is idempotent and runs stopPolling() which
-	// clears both timers.
+	// Round-7 audit R7-CORR-01-altera + round-8 audit R8-CORR-02:
+	// use session.stop() (synchronous teardown) on unmount. The
+	// previous onDestroy(() => cancel()) leaked the pollTimer +
+	// R6-SEC-01 trap-deadline on the 409 / network-error branches
+	// because cancel() intentionally returns early in those cases
+	// without calling stopPolling. stop() marks the session
+	// destroyed AND clears both timers unconditionally — no server
+	// round-trip, no race with begin()'s post-await tail.
 	onDestroy(() => {
-		void session.cancel();
+		session.stop();
 	});
 
 	let close = $state(() => {});

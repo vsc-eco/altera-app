@@ -8,7 +8,7 @@
 	import { addressFingerprint, buildDashUri, type IsSessionState } from './dash/isClient';
 	import { verifyAddressSignature, type SignatureVerdict } from './dash/signature';
 	import { buildDashDID } from './dashCaip';
-	import { _hiveAuthStore } from './store';
+	import { _dashAuthStore } from './store';
 
 	// Component-local. We only support op=auth here; op=call is a future
 	// surface (contract-call deep-link from inside the app's swap flow).
@@ -54,7 +54,12 @@
 				return;
 			}
 			const did = buildDashDID(dashNetwork, senderAddr);
-			_hiveAuthStore.set({
+			// Round-4 audit R4-CSM-03: write to _dashAuthStore, not
+			// _hiveAuthStore. Sharing storage with Hive let
+			// account_changed / hiveLogout / init events destroy the
+			// logged-in Dash session and made Hive's profile-pic
+			// subscriber dispatch dhive lookups against the DashDID.
+			_dashAuthStore.set({
 				status: 'authenticated',
 				value: {
 					username: 'dash:' + senderAddr.slice(0, 8),
@@ -67,7 +72,7 @@
 					// dhive lookups against the synthetic 'dash:XYabc...' username).
 					provider: 'dash-instantsend',
 					logout: async () => {
-						_hiveAuthStore.set({ status: 'none' });
+						_dashAuthStore.set({ status: 'none' });
 					},
 					openSettings: () => {},
 					profilePicUrl: undefined
@@ -134,6 +139,12 @@
 				return 'Payment seen, gathering validator signatures…';
 			case 'ATTESTING':
 				return 'Gathering validator signatures…';
+			case 'L2_SUBMITTED':
+				// Round-4 audit R4-CSM-04: the IS service emits this
+				// during reconcileL2 (seconds to minutes); without a
+				// matching switch case the Status line rendered blank
+				// for the entire reconcile window.
+				return 'Submitted on-chain, awaiting confirmation…';
 			case 'ON_CHAIN':
 				return 'Logged in';
 			case 'ATTESTATION_TIMEOUT':

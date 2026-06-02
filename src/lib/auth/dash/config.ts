@@ -27,38 +27,74 @@ export const isServiceSignerPubkey: string = publicEnv.PUBLIC_IS_SERVICE_SIGNER_
  * Which Dash network the IS service binds to. Drives the
  * CAIP-2-genesis-hex prefix used in the DashDID.
  *
- * Round-3 audit OP-009: cross-checks against PUBLIC_IS_SERVICE_URL. A
- * mainnet deploy that forgot to set PUBLIC_DASH_NETWORK previously
- * silently fell back to testnet — every Dash user then authenticated
- * into the wrong-DID namespace against the mainnet contract. This
- * module now throws at module load if env is inconsistent so the
- * misconfig surfaces at deploy time, not on first user login.
+ * Round-3 audit OP-009: cross-checks against PUBLIC_IS_SERVICE_URL.
+ * Round-4 audit R4-CSM-08: replaced the substring 'testnet' heuristic
+ * with an explicit allow-list of known testnet host suffixes. The old
+ * heuristic both false-positived (a mainnet host with 'testnet' in a
+ * path) and false-negatived (a testnet host without the literal
+ * substring, e.g. is.staging-magi.example).
+ *
+ * The single source-of-truth for network resolution is now
+ * PUBLIC_DASH_NETWORK; the URL check is best-effort defense in depth
+ * and runs only when the hostname matches one of the known suffixes.
  */
+const TESTNET_HOST_SUFFIXES = [
+	'is-service-testnet.okinoko.io',
+	'.testnet.okinoko.io',
+	'.dev.okinoko.io'
+];
+
+const MAINNET_HOST_SUFFIXES: string[] = [
+	// Populate post-mainnet-cutover; v1 mainnet host TBD.
+];
+
+function urlHostnameSuffixMatches(url: string, suffixes: string[]): boolean {
+	let hostname: string;
+	try {
+		hostname = new URL(url).hostname.toLowerCase();
+	} catch {
+		return false;
+	}
+	return suffixes.some((s) => {
+		const norm = s.toLowerCase();
+		if (norm.startsWith('.')) return hostname.endsWith(norm) || hostname === norm.slice(1);
+		return hostname === norm;
+	});
+}
+
 function resolveDashNetwork(): 'mainnet' | 'testnet' {
 	const raw = publicEnv.PUBLIC_DASH_NETWORK;
-	const urlLooksTestnet = isServiceUrl.includes('testnet');
 	let network: 'mainnet' | 'testnet';
 	if (raw === 'mainnet') {
 		network = 'mainnet';
-	} else if (raw === 'testnet' || raw === undefined || raw === '') {
+	} else if (raw === 'testnet') {
 		network = 'testnet';
+	} else if (raw === undefined || raw === '') {
+		// Operator must set the network explicitly. The previous
+		// silent-fall-back-to-testnet caused mainnet deploys to issue
+		// wrong-DID-namespace identities.
+		throw new Error(
+			`PUBLIC_DASH_NETWORK must be set explicitly to 'mainnet' or 'testnet'. ` +
+				`No default is safe: mainnet defaults silently fall back to testnet, ` +
+				`which authenticates users into the wrong-DID namespace.`
+		);
 	} else {
 		throw new Error(
 			`PUBLIC_DASH_NETWORK must be 'mainnet' or 'testnet'; got ${JSON.stringify(raw)}`
 		);
 	}
-	if (urlLooksTestnet && network === 'mainnet') {
+	const urlMatchesTestnet = urlHostnameSuffixMatches(isServiceUrl, TESTNET_HOST_SUFFIXES);
+	const urlMatchesMainnet = urlHostnameSuffixMatches(isServiceUrl, MAINNET_HOST_SUFFIXES);
+	if (urlMatchesTestnet && network === 'mainnet') {
 		throw new Error(
-			`PUBLIC_DASH_NETWORK=mainnet but PUBLIC_IS_SERVICE_URL (${isServiceUrl}) looks like a testnet host. ` +
-				`Set PUBLIC_IS_SERVICE_URL to a mainnet IS-service endpoint, or set PUBLIC_DASH_NETWORK=testnet.`
+			`PUBLIC_DASH_NETWORK=mainnet but PUBLIC_IS_SERVICE_URL (${isServiceUrl}) ` +
+				`matches a known testnet host suffix. Fix one of the two.`
 		);
 	}
-	if (!urlLooksTestnet && network === 'testnet' && raw !== 'testnet') {
-		// URL looks mainnet but network defaulted to testnet because
-		// PUBLIC_DASH_NETWORK is unset. Force operator intent.
+	if (urlMatchesMainnet && network === 'testnet') {
 		throw new Error(
-			`PUBLIC_IS_SERVICE_URL (${isServiceUrl}) doesn't look like a testnet host but ` +
-				`PUBLIC_DASH_NETWORK is unset. Set PUBLIC_DASH_NETWORK=mainnet (or testnet) explicitly.`
+			`PUBLIC_DASH_NETWORK=testnet but PUBLIC_IS_SERVICE_URL (${isServiceUrl}) ` +
+				`matches a known mainnet host suffix. Fix one of the two.`
 		);
 	}
 	return network;

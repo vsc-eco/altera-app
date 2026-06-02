@@ -44,6 +44,11 @@ export type IsSessionState =
 	| 'WAITING_FOR_IS'
 	| 'IS_OBSERVED'
 	| 'ATTESTING'
+	// Round-4 audit R4-CSM-04: L2_SUBMITTED is non-terminal and is
+	// emitted by the IS service during the reconcileL2 window (seconds
+	// to minutes). Missing it previously left the humanState switch
+	// rendering blank for the entire reconcile window.
+	| 'L2_SUBMITTED'
 	| 'ON_CHAIN'
 	| 'ATTESTATION_TIMEOUT'
 	| 'SLOW_PATH_PENDING'
@@ -61,6 +66,11 @@ export type SessionStatusResponse = {
 	senderAddress?: string;
 	forwardedAt?: string;
 	sessionToken?: string;
+	/** L2 mapInstantSendV2 transaction CID. Populated from L2_SUBMITTED
+	 * onwards and preserved on terminal failure states so a frontend
+	 * recovery flow can surface the L2-credited-but-session-lost case.
+	 * Round-4 audit R4-006. */
+	l2TxId?: string;
 	forwardError?: string;
 	expiresAt: string;
 };

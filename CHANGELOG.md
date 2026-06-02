@@ -2,6 +2,19 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.13] — 2026-06-02
+
+### Fixes
+
+- **`/pools` volume was ~9× inflated** for pools that see swaps in both directions (most notably HIVE-HBD — shown as ~$51,731 instead of ~$5,934 all-time). The calc treated `dex_pool_swap_events.amount_in` as `sym0` and `amount_out` as `sym1` regardless of direction, mixing HBD smallest units with HIVE smallest units. The new `fetchPoolVolume` splits the indexer aggregate by `asset_in`, returns per-asset `touched[sym]` totals across both directions, and anchors volume to the HBD side × $1 for HBD-paired pools (every Magi pool today, per docs.magi.eco); non-HBD pools (none yet) get the average of both sides as a fallback. Matches the by-direction ground-truth table the team independently computed
+- **USD amounts now render uniformly as `$0.00`** with 2 decimal places, `$` prefix, and locale-aware thousands separators. Replaced a mix of `toMinFigs()`, `toAmountString()`, `toPrettyString()` and ad-hoc local `formatUsd(n)` helpers that all formatted differently (e.g. `0.0 US$` for sub-cent values, `Approx. 0.001 USD` for transactions). One canonical `formatUsd(amount)` in `CoinAmount.ts`; 12 call sites across 7 files migrated. Sub-cent values now render `$0.00` (consistent) rather than leaking varying precision
+- **Transactions table memo column rendered as orphaned text** floating at the far right of the To/From cell with no header label and literal quotes around the value. Replaced with a small message-bubble icon (Lucide, 14px) right after the username — hover or focus reveals a tooltip with `Memo: …`. Mobile tap focuses the icon and shows the tooltip too. `BasicCopy` gained a small backward-compatible `trailing?` snippet prop to host the icon between the value and the copy button. Deleted `tds/Memo.svelte` — standalone `<td>` component that wasn't imported anywhere
+- **Review/Transfer button bar overlapped the form content above it** on `/transfer` and `/swap`, covering the "Custom message to the recipient" helper text on the transfer page. `.bar-fixed` had `position: relative; top: -1rem` which pulled the bar upward into content; replaced with normal flow + top padding so the buttons sit cleanly below the form
+
+### Testing
+
+- Test suite grew from 212 → 220 (+8 in `poolsData.test.ts`). The new tests use a static fixture from the live indexer (HBD-HIVE all-time: 5,934.476 HBD touched / 91,163.927 HIVE touched, $0.06 HIVE price) and explicitly assert that the previous buggy values (`~$51,731` from the mixed-units sum, `~$5,469` from the HIVE-side pricing) cannot reappear
+
 ## [0.3.12] — 2026-06-01
 
 ### Fixes

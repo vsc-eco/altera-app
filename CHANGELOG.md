@@ -4,6 +4,10 @@ All notable changes to Altera are documented here.
 
 ## [0.3.12] — 2026-06-01
 
+### Fixes
+
+- Successful **Lightning broadcasts** (deposits, V4V-routed swaps) no longer fail to register in the local transactions list. The V4V popup's `onsuccess` callback in `StepsMachine` referenced an undeclared `toCoin` identifier (carried over from the pre-migration paired API), so `addLocalTransaction()` threw a ReferenceError every time. The Lightning side of the bridge had completed, but the UI silently lost the row. Replaced with `to.coin` using the existing `{@const to = txState.to}` already in scope
+
 ### Internals
 
 - Completed the `txState` reshape started in 0.3.11. `TxStateBase` now exposes a single `from` / `to: CoinOnNetwork` for each side instead of the paired `fromCoin` / `fromNetwork` / `toCoin` / `toNetwork` it had at the start of the cycle. ~340 active legacy refs migrated across 13 components (display surfaces, deposit/withdraw pickers, ReviewSwap, SendSwap, SwapOptions, QuickSwap, the Quick/Transfer pickers, and SelectAssetFlattened) before the `@deprecated` shim getter/setters were removed. No user-visible behavior change; the picker UI, swap flows, and fee math are all unchanged
@@ -12,14 +16,17 @@ All notable changes to Altera are documented here.
 - Added `isValidAmountString(s)` in `CoinAmount` — replaces the four scattered patterns (`Number(amount) > 0`, `parseFloat(amount)`, `!!amount && amount !== '0'`, etc.) used in tx-completion gates. Equivalent only by accident before — the new helper rejects NaN, negatives, Infinity, and `'0'` consistently. Currently consumed by `KeepsatsWithdraw`'s validation gate (which previously let through amounts exceeding the wallet balance — see 0.3.11)
 - `HiveMainnetDeposit` swapped from the generic `useTxState()` (returns `TxState | undefined`) to `useDepositState()` (throws on wrong context) — matches every other deposit/withdraw picker. Drops ~16 pre-existing `'txState' is possibly undefined'` TS warnings
 - `sendUtils.ts` — `getFee`, `solveToNetworks`, and `send()` migrated to read the new `from` / `to` fields; `send()` resolves the AssetOption catalog entries via `getFromOption` / `getToOption` for the downstream `.networks` lookups it needs
+- Extracted `StepsMachine.initSend()`'s decision tree (default-to logic for deposit/withdraw, error-guards, intermediary computation, v4v-vs-broadcast branch) into a pure `decideBroadcast(txState, txType)` helper in `broadcastDecision.ts`. Same behavior, testable boundary — the component's IO (`setStatus`, `openV4V`, `send()`) still lives in the component. Tests now document that `railOverride` is deliberately NOT read on the broadcast path (it's a UI-filtering hint consumed by `solveNetworkConstraints`); if we ever want overrides to affect broadcast routing, the tests flip in one line
 
 ### Testing
 
-- Test suite grew from 74 → 148 tests across 12 suites. New coverage:
+- Test suite grew from 74 → 212 tests across 21 suites (+ 2 skipped). New coverage:
   - `getIntermediaryNetwork` routing rules (every magi / hiveMainnet / lightning / unknown pair) + `settlementLabel` ETA formatting — pins the function now that `rail` derives from it
   - `swapOptions` catalog lookups including the SATS / USD / UNK / sHBD asymmetry that caused the DepositOptions Lightning fallback during the migration
   - `isValidAmountString` edge cases (NaN, Infinity, `'0'`, negatives, whitespace, scientific notation)
   - `txState` from/to source-of-truth + rail derivation (incl. the override-restores-derivation contract)
+  - **Tier-A flow integration**: one file per transaction flow (BTC mainnet, Lightning deposit/withdraw, Hive mainnet deposit/withdraw, internal transfer, swap) — pins the state shape each parent picker writes, the derived rail, and per-flow defaults
+  - **Tier-C broadcast contract**: 18 `decideBroadcast` cases covering every flow's intermediary, both v4v-popup and direct-broadcast branches, the default-to logic for deposit/withdraw, and the railOverride-is-not-read contract
 - Fixed a SvelteKit `$env/dynamic/public` virtual-module crash in client tests via a `vi.mock` in `vitest-setup-client.ts` — previously `txState.svelte.test.ts` couldn't even load
 
 ## [0.3.11] — 2026-05-28

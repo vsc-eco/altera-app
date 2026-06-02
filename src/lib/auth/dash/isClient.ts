@@ -75,9 +75,17 @@ export type SessionStatusResponse = {
 	expiresAt: string;
 };
 
+// Round-4 audit R4-SEC-03 extended Go session.go IsTerminal() to
+// include AttestationTimeout AND SlowPathPending — both are terminal
+// from the orchestrator's perspective (Drive returns after
+// MutateState'ing into them). Round-5 audit R5-001 / R5-DRIFT-03
+// caught the TS set lagging behind, which would have left the
+// frontend polling forever past TTL for sessions the server already
+// considered done.
 const TERMINAL: ReadonlySet<IsSessionState> = new Set<IsSessionState>([
 	'ON_CHAIN',
 	'ATTESTATION_TIMEOUT',
+	'SLOW_PATH_PENDING',
 	'FORWARD_FAILED',
 	'EXPIRED'
 ]);
@@ -85,6 +93,15 @@ const TERMINAL: ReadonlySet<IsSessionState> = new Set<IsSessionState>([
 export function isTerminal(s: IsSessionState): boolean {
 	return TERMINAL.has(s);
 }
+
+/**
+ * `cancel` resolves to this when the IS service refuses the cancel
+ * because the orchestrator is mid-attestation or mid-L2-submit.
+ * Round-5 audit R5-002 / R5-DRIFT-02: the client must NOT pre-set
+ * phase='failed' on cancel attempts; instead it should resume
+ * polling and let the server reach a terminal state on its own.
+ */
+export type CancelResult = 'cancelled' | 'in-flight-conflict';
 
 export class IsServiceError extends Error {
 	constructor(
@@ -124,16 +141,24 @@ export class IsServiceClient {
 	 * caught the original token-less call returning 401 silently and
 	 * leaking the watcher entry until TTL.
 	 */
-	async cancel(sid: string, cancelToken: string): Promise<void> {
+	async cancel(sid: string, cancelToken: string): Promise<CancelResult> {
 		const resp = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sid)}/cancel`, {
 			method: 'POST',
 			headers: { 'X-Cancel-Token': cancelToken }
 		});
+		// Round-5 audit R5-002 / R5-DRIFT-02: 409 Conflict is the
+		// R4-003 in-flight refusal — the server is mid-attestation
+		// or mid-L2-submit and cannot honour the cancel. Callers
+		// must keep polling /status until terminal; pre-setting
+		// phase='failed' on this branch destroys a legitimate
+		// in-progress login.
+		if (resp.status === 409) return 'in-flight-conflict';
 		// 204 No Content is the happy case; 404/401 are acceptable —
 		// session already self-expired or never existed.
 		if (!resp.ok && resp.status !== 404 && resp.status !== 401) {
 			throw await this.errFromResp(resp);
 		}
+		return 'cancelled';
 	}
 
 	private async errFromResp(resp: Response): Promise<IsServiceError> {

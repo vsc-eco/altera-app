@@ -3,12 +3,12 @@
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import Qr from '$lib/zag/QR.svelte';
 	import { ArrowRight, RefreshCw, ShieldAlert, ShieldCheck, ShieldQuestion } from '@lucide/svelte';
-	import { isServiceUrl, isServiceSignerPubkey, dashNetwork } from './dash/config';
+	import { isServiceUrl, isServiceSignerPubkey, getDashNetwork } from './dash/config';
 	import { createDashSession } from './dash/session.svelte';
 	import { addressFingerprint, buildDashUri, type IsSessionState } from './dash/isClient';
 	import { verifyAddressSignature, type SignatureVerdict } from './dash/signature';
 	import { buildDashDID } from './dashCaip';
-	import { _dashAuthStore } from './store';
+	import { _dashAuthStore, cleanUpLogout } from './store';
 
 	// Component-local. We only support op=auth here; op=call is a future
 	// surface (contract-call deep-link from inside the app's swap flow).
@@ -53,7 +53,7 @@
 				void session.cancel();
 				return;
 			}
-			const did = buildDashDID(dashNetwork, senderAddr);
+			const did = buildDashDID(getDashNetwork(), senderAddr);
 			// Round-4 audit R4-CSM-03: write to _dashAuthStore, not
 			// _hiveAuthStore. Sharing storage with Hive let
 			// account_changed / hiveLogout / init events destroy the
@@ -72,7 +72,14 @@
 					// dhive lookups against the synthetic 'dash:XYabc...' username).
 					provider: 'dash-instantsend',
 					logout: async () => {
+						// Round-5 audit R5-003: mirror hiveLogout — wipe
+						// balances, transaction store, and route back to
+						// /login. Without cleanUpLogout(), stale Hive-
+						// shaped account state lingers in
+						// accountBalance/accountBalanceHistory/txStores
+						// after a Dash logout.
 						_dashAuthStore.set({ status: 'none' });
+						cleanUpLogout();
 					},
 					openSettings: () => {},
 					profilePicUrl: undefined

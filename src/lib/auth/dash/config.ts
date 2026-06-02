@@ -99,5 +99,28 @@ function resolveDashNetwork(): 'mainnet' | 'testnet' {
 	}
 	return network;
 }
-export const dashNetwork: 'mainnet' | 'testnet' = resolveDashNetwork();
+
+/**
+ * Lazy-resolved dashNetwork — round-5 audit R5-OP-01. The previous
+ * module-load throw blew up /login on every existing Altera deploy
+ * the moment R4-CSM-08 landed, before operators could update env. The
+ * resolver still throws on misconfig but only when DashLogin actually
+ * needs the value (first read calls getDashNetwork()), so unrelated
+ * routes keep working and the failure mode is a single broken modal
+ * rather than a global hard-crash.
+ */
+let _dashNetwork: 'mainnet' | 'testnet' | undefined;
+let _dashNetworkError: Error | undefined;
+export function getDashNetwork(): 'mainnet' | 'testnet' {
+	if (_dashNetwork !== undefined) return _dashNetwork;
+	if (_dashNetworkError !== undefined) throw _dashNetworkError;
+	try {
+		_dashNetwork = resolveDashNetwork();
+		return _dashNetwork;
+	} catch (e) {
+		_dashNetworkError = e instanceof Error ? e : new Error(String(e));
+		throw _dashNetworkError;
+	}
+}
+
 

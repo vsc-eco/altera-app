@@ -125,25 +125,34 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	}
 
 	async function cancel(): Promise<void> {
-		stopPolling();
 		const sid = startResponse?.sid;
 		const cancelToken = startResponse?.addressSignature;
-		// Mark UI cancelled immediately so a slow network doesn't leave
-		// the modal stuck on "waiting".
+		// Round-5 audit R5-002: don't pre-set phase='failed' before we
+		// know whether the server can honour the cancel. If it returns
+		// 409 (R4-003 in-flight refusal), the session is still
+		// progressing toward a real terminal state and we keep polling
+		// — destroying that flow here would lose a legitimate login.
+		if (sid && cancelToken) {
+			let outcome: 'cancelled' | 'in-flight-conflict' | 'error' = 'cancelled';
+			try {
+				outcome = await client.cancel(sid, cancelToken);
+			} catch {
+				outcome = 'error';
+			}
+			if (outcome === 'in-flight-conflict') {
+				// Server is mid-attestation or mid-L2-submit; keep
+				// polling so the user reaches a real terminal state.
+				return;
+			}
+			if (outcome === 'error') {
+				// Server may already have GC'd — surface the cancel
+				// in the UI but don't poison the modal with an error.
+			}
+		}
+		stopPolling();
 		if (status && !isTerminal(status.state)) {
 			phase = 'failed';
 			error = 'cancelled';
-		}
-		// Need both sid AND the cancelToken — server rejects 401
-		// without the header (audit TC2-01). If the user clicked Cancel
-		// before /session/start returned, there's nothing to cancel
-		// server-side yet.
-		if (sid && cancelToken) {
-			try {
-				await client.cancel(sid, cancelToken);
-			} catch {
-				/* server may already have GC'd — fine */
-			}
 		}
 	}
 

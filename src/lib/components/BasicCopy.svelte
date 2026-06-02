@@ -6,9 +6,19 @@
 	let {
 		value,
 		children,
+		trailing,
 		show = true,
 		clickAnywhere = false
-	}: { value: string; children?: Snippet; show?: boolean; clickAnywhere?: boolean } = $props();
+	}: {
+		value: string;
+		children?: Snippet;
+		/** Optional content rendered AFTER the main content but BEFORE the copy
+		 *  icon — useful for inline affordances like a memo indicator that
+		 *  should sit next to the value rather than after the copy button. */
+		trailing?: Snippet;
+		show?: boolean;
+		clickAnywhere?: boolean;
+	} = $props();
 
 	let copied = $state(false);
 	let timeoutId: NodeJS.Timeout;
@@ -38,6 +48,8 @@
 			{value}
 		{/if}
 	</span>
+
+	{#if trailing}{@render trailing()}{/if}
 
 	<PillButton onclick={handleClick} styleType="icon-subtle" disabled={copied} hide={!show}>
 		{#if copied}

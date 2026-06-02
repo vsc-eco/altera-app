@@ -110,17 +110,16 @@ function resolveDashNetwork(): 'mainnet' | 'testnet' {
  * rather than a global hard-crash.
  */
 let _dashNetwork: 'mainnet' | 'testnet' | undefined;
-let _dashNetworkError: Error | undefined;
 export function getDashNetwork(): 'mainnet' | 'testnet' {
 	if (_dashNetwork !== undefined) return _dashNetwork;
-	if (_dashNetworkError !== undefined) throw _dashNetworkError;
-	try {
-		_dashNetwork = resolveDashNetwork();
-		return _dashNetwork;
-	} catch (e) {
-		_dashNetworkError = e instanceof Error ? e : new Error(String(e));
-		throw _dashNetworkError;
-	}
+	// Round-6 audit R6-OP-02: don't cache the error. A misconfig +
+	// hot-reload (or operator fix-without-tab-reload) used to leave
+	// every subsequent call throwing the cached error forever. Now
+	// each call re-runs resolveDashNetwork; the success path still
+	// memoizes via _dashNetwork. Throws are cheap (string compares).
+	const v = resolveDashNetwork();
+	_dashNetwork = v;
+	return v;
 }
 
 

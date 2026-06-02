@@ -75,9 +75,11 @@
 	.bar-fixed {
 		display: flex;
 		justify-content: center;
-		padding: 10px 0 1rem;
-		position: relative;
-		top: -1rem;
+		/* Generous top padding so the bar visually separates from the form
+		   content above it. The previous `position: relative; top: -1rem`
+		   pulled the bar UP into content above, causing it to overlap the
+		   last form row on the /transfer + /swap pages. */
+		padding: 1.5rem 0 1rem;
 	}
 	.button-wrapper {
 		display: flex;

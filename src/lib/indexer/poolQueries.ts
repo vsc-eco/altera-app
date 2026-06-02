@@ -10,28 +10,61 @@ export function getTimeGte(range: TimeRange): string | null {
 	return now.toISOString();
 }
 
+/**
+ * Per-asset trading volume for a pool over a time window. We split the swap
+ * events by direction (`asset_in`) so we can attribute each leg's smallest
+ * units to the *right* asset — the old implementation summed amount_in /
+ * amount_out blindly and treated them as fixed (sym0, sym1), which mixed HBD
+ * smallest units with HIVE smallest units for any HIVE→HBD swap and inflated
+ * the USD figure ~9× for the HIVE-HBD pool.
+ *
+ * `symbols` is the pool's two asset symbols in lowercase
+ * (e.g. `['hbd', 'hive']`). Returns the total smallest-units of each asset
+ * that moved through the pool across BOTH directions:
+ *
+ *   touched[sym0] = (amount_in where asset_in=sym0) + (amount_out where asset_in=sym1)
+ *   touched[sym1] = (amount_in where asset_in=sym1) + (amount_out where asset_in=sym0)
+ *
+ * Caller (`poolsData.ts`) values each side at its own asset's USD price and
+ * picks the volume convention (HBD-anchored when present, else avg of sides).
+ */
 export async function fetchPoolVolume(
 	poolId: string,
-	range: TimeRange
-): Promise<{ count: number; amountIn: number; amountOut: number }> {
+	range: TimeRange,
+	symbols: [string, string]
+): Promise<{ count: number; touched: Record<string, number> }> {
+	const [sym0, sym1] = symbols;
 	const gte = getTimeGte(range);
-	const whereClause = gte
-		? `{indexer_contract_id: {_eq: $pool}, indexer_ts: {_gte: "${gte}"}}`
-		: `{indexer_contract_id: {_eq: $pool}}`;
+	const tsClause = gte ? `, indexer_ts: {_gte: "${gte}"}` : '';
 
 	const query = `
 		query PoolVolume($pool: String!) {
-			result: dex_pool_swap_events_aggregate(where: ${whereClause}) {
+			dir0: dex_pool_swap_events_aggregate(where: {indexer_contract_id: {_eq: $pool}${tsClause}, asset_in: {_eq: "${sym0}"}}) {
+				aggregate { count sum { amount_in amount_out } }
+			}
+			dir1: dex_pool_swap_events_aggregate(where: {indexer_contract_id: {_eq: $pool}${tsClause}, asset_in: {_eq: "${sym1}"}}) {
 				aggregate { count sum { amount_in amount_out } }
 			}
 		}
 	`;
 	const data = await hasuraQuery(query, { pool: poolId });
-	const agg = (data?.result as AggregateResult)?.aggregate;
+	const dir0 = (data?.dir0 as AggregateResult)?.aggregate;
+	const dir1 = (data?.dir1 as AggregateResult)?.aggregate;
+
+	// In each "dir<n>" bucket, asset_in === sym<n> so:
+	//   amount_in  belongs to sym<n>
+	//   amount_out belongs to the OTHER asset
+	const dir0In = dir0?.sum?.amount_in ?? 0;
+	const dir0Out = dir0?.sum?.amount_out ?? 0;
+	const dir1In = dir1?.sum?.amount_in ?? 0;
+	const dir1Out = dir1?.sum?.amount_out ?? 0;
+
 	return {
-		count: agg?.count ?? 0,
-		amountIn: agg?.sum?.amount_in ?? 0,
-		amountOut: agg?.sum?.amount_out ?? 0
+		count: (dir0?.count ?? 0) + (dir1?.count ?? 0),
+		touched: {
+			[sym0]: dir0In + dir1Out,
+			[sym1]: dir1In + dir0Out
+		}
 	};
 }
 

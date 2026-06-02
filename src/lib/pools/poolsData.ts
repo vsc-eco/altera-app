@@ -95,11 +95,11 @@ function formatNum(value: number, unit: string, decimals = 3): string {
 	return unit === '$' ? `$${formatted}` : `${formatted} ${unit.toUpperCase()}`;
 }
 
-function mapStateToPoolRow(
+export function mapStateToPoolRow(
 	poolContractId: string,
 	state: PoolState,
 	indexerData: {
-		volume: { count: number; amountIn: number; amountOut: number };
+		volume: { count: number; touched: Record<string, number> };
 		fees: PoolAssetFee[];
 		liquidity: {
 			netAmount0: number;
@@ -219,12 +219,15 @@ function mapStateToPoolRow(
 		magiParts.join(' + ') || formatNum(0, sym0, dec0)
 	];
 
-	// Volume from indexer
-	const volIn = volume.amountIn / 10 ** dec0;
-	const volOut = volume.amountOut / 10 ** dec1;
+	// Volume from indexer — per-asset totals across both swap directions.
+	// `touched[sym]` is in smallest units; divide by the asset's decimal places.
+	const sym0Lower = sym0.toLowerCase();
+	const sym1Lower = sym1.toLowerCase();
+	const touched0 = (volume.touched[sym0Lower] ?? 0) / 10 ** dec0;
+	const touched1 = (volume.touched[sym1Lower] ?? 0) / 10 ** dec1;
 	const volumeAssets: [string, string] = [
-		formatNum(volIn, sym0, dec0),
-		formatNum(volOut, sym1, dec1)
+		formatNum(touched0, sym0, dec0),
+		formatNum(touched1, sym1, dec1)
 	];
 
 	// Compute USD totals
@@ -234,7 +237,20 @@ function mapStateToPoolRow(
 		formatNum(feeLpUsd, '$', 2),
 		formatNum(feeMagiUsd, '$', 2)
 	];
-	const volumeUsdTotal = volIn * usd0 + volOut * usd1;
+
+	// Volume = USD value of one side per swap. For HBD-paired pools (every
+	// Magi pool today, since HBD is the DEX base asset per docs.magi.eco)
+	// the HBD side is the canonical one — present in every swap regardless of
+	// direction, priced at a stable ≈$1. For non-HBD pools (none yet) we fall
+	// back to the average of both sides at their live prices.
+	let volumeUsdTotal: number;
+	if (sym0Lower === 'hbd') {
+		volumeUsdTotal = touched0 * usd0;
+	} else if (sym1Lower === 'hbd') {
+		volumeUsdTotal = touched1 * usd1;
+	} else {
+		volumeUsdTotal = (touched0 * usd0 + touched1 * usd1) / 2;
+	}
 
 	return {
 		id: poolContractId,
@@ -334,7 +350,10 @@ async function fetchSinglePool(
 			variables: { contractId, keys: [...RESERVE_KEYS], encoding: 'hex' },
 			policy: 'NetworkOnly'
 		}),
-		fetchPoolVolume(contractId, range),
+		fetchPoolVolume(contractId, range, [
+			fallbackSymbols[0].toLowerCase(),
+			fallbackSymbols[1].toLowerCase()
+		]),
 		fetchPoolFees(contractId, range),
 		fetchPoolLiquidity(contractId)
 	]);

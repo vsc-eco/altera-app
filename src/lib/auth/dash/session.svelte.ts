@@ -118,15 +118,20 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	async function cancel(): Promise<void> {
 		stopPolling();
 		const sid = startResponse?.sid;
+		const cancelToken = startResponse?.addressSignature;
 		// Mark UI cancelled immediately so a slow network doesn't leave
 		// the modal stuck on "waiting".
 		if (status && !isTerminal(status.state)) {
 			phase = 'failed';
 			error = 'cancelled';
 		}
-		if (sid) {
+		// Need both sid AND the cancelToken — server rejects 401
+		// without the header (audit TC2-01). If the user clicked Cancel
+		// before /session/start returned, there's nothing to cancel
+		// server-side yet.
+		if (sid && cancelToken) {
 			try {
-				await client.cancel(sid);
+				await client.cancel(sid, cancelToken);
 			} catch {
 				/* server may already have GC'd — fine */
 			}

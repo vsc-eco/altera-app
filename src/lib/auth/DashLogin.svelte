@@ -3,10 +3,11 @@
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import Qr from '$lib/zag/QR.svelte';
 	import { ArrowRight, RefreshCw, ShieldAlert, ShieldCheck, ShieldQuestion } from '@lucide/svelte';
-	import { isServiceUrl, isServiceSignerPubkey } from './dash/config';
+	import { isServiceUrl, isServiceSignerPubkey, dashNetwork } from './dash/config';
 	import { createDashSession } from './dash/session.svelte';
 	import { addressFingerprint, buildDashUri, type IsSessionState } from './dash/isClient';
 	import { verifyAddressSignature, type SignatureVerdict } from './dash/signature';
+	import { buildDashDID } from './dashCaip';
 	import { _hiveAuthStore } from './store';
 
 	// Component-local. We only support op=auth here; op=call is a future
@@ -32,23 +33,33 @@
 	// When the session reaches ON_CHAIN, hand the sessionToken to the
 	// auth store as a DashDID identity. The auth store consumer (root
 	// layout + protected routes) treats this as the logged-in subject.
+	//
+	// Audit D2-DESIGN-01: the DID format MUST be
+	//   did:pkh:bip122:<chain-genesis-hex>:<address>
+	// matching go-vsc-node lib/dids/dash.go + the dash-mapping-contract's
+	// dashGenesisCAIP2Hex helper. The earlier literal-"dash" form
+	// produced a different string for the same user, so every Altera
+	// screen reading state by auth.value.did returned empty zero.
+	// If senderAddress is absent (rare — contract would reject the
+	// underlying tx anyway), we fail loudly instead of building a
+	// malformed DID with a txid in the address slot.
 	$effect(() => {
 		if (session.phase === 'done' && session.status?.sessionToken && session.status?.dashTxId) {
-			const txid = session.status.dashTxId;
 			const senderAddr = session.status.senderAddress;
-			// Prefer the L1 Dash address (surfaced from IS_OBSERVED onwards)
-			// as the identity anchor. Fall back to the txid only when the
-			// IS service couldn't resolve the sender (multi-address inputs
-			// or unsupported script type — both already get rejected by
-			// the contract, but the UI shouldn't crash on the fallback path).
-			const idAnchor = senderAddr ?? txid;
-			const username = senderAddr ? 'dash:' + senderAddr.slice(0, 8) : 'dash:' + txid.slice(0, 8);
+			if (!senderAddr) {
+				console.error(
+					'DashLogin: ON_CHAIN reached but senderAddress missing in /status — refusing to issue a malformed DID. Cancelling.'
+				);
+				void session.cancel();
+				return;
+			}
+			const did = buildDashDID(dashNetwork, senderAddr);
 			_hiveAuthStore.set({
 				status: 'authenticated',
 				value: {
-					username,
-					address: 'did:pkh:bip122:dash:' + idAnchor,
-					did: 'did:pkh:bip122:dash:' + idAnchor,
+					username: 'dash:' + senderAddr.slice(0, 8),
+					address: did,
+					did,
 					provider: 'aioha',
 					logout: async () => {
 						_hiveAuthStore.set({ status: 'none' });

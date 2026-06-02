@@ -107,14 +107,23 @@ export class IsServiceClient {
 		return (await resp.json()) as SessionStatusResponse;
 	}
 
-	async cancel(sid: string): Promise<void> {
+	/**
+	 * Cancel the session. cancelToken is the addressSignature returned
+	 * by /session/start — the server requires it via X-Cancel-Token
+	 * (see handlers.go handleSessionCancel). Round-2 audit TC2-01
+	 * caught the original token-less call returning 401 silently and
+	 * leaking the watcher entry until TTL.
+	 */
+	async cancel(sid: string, cancelToken: string): Promise<void> {
 		const resp = await fetch(`${this.baseUrl}/session/${encodeURIComponent(sid)}/cancel`, {
-			method: 'POST'
+			method: 'POST',
+			headers: { 'X-Cancel-Token': cancelToken }
 		});
-		// 204 No Content is the happy case; 404 is acceptable if the
-		// session already self-expired between the user clicking cancel
-		// and us posting.
-		if (!resp.ok && resp.status !== 404) throw await this.errFromResp(resp);
+		// 204 No Content is the happy case; 404/401 are acceptable —
+		// session already self-expired or never existed.
+		if (!resp.ok && resp.status !== 404 && resp.status !== 401) {
+			throw await this.errFromResp(resp);
+		}
 	}
 
 	private async errFromResp(resp: Response): Promise<IsServiceError> {

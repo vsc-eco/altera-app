@@ -22,3 +22,12 @@ export const isServiceUrl: string =
  * before mainnet.
  */
 export const isServiceSignerPubkey: string = publicEnv.PUBLIC_IS_SERVICE_SIGNER_PUBKEY || '';
+
+/**
+ * Which Dash network the IS service binds to. Drives the
+ * CAIP-2-genesis-hex prefix used in the DashDID. Defaults to testnet to
+ * match the default isServiceUrl. Set via PUBLIC_DASH_NETWORK.
+ */
+export const dashNetwork: 'mainnet' | 'testnet' =
+	publicEnv.PUBLIC_DASH_NETWORK === 'mainnet' ? 'mainnet' : 'testnet';
+

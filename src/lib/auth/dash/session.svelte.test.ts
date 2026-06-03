@@ -378,6 +378,56 @@ describe('R12-CORR-POLLERRCOUNT-NOT-RESET-ACROSS-RETRY', () => {
 	});
 });
 
+// ────── pollErrCount reset on 409 cancel branch (R13-CORR-BACKOFF-...) ──────
+
+describe('R13-CORR-BACKOFF-PERSISTS-ACROSS-IN-FLIGHT-CONFLICT-RETRY', () => {
+	it('cancel() 409 in-flight-conflict resets pollErrCount so a retry restarts the staircase', async () => {
+		// Attempt 1 fails several times → pollErrCount reaches the
+		// 30s cap. User cancels; server replies 409. The R13 fix
+		// must reset pollErrCount inside the 409 branch (R12 only
+		// covered the clean-cancel branch via stopPolling).
+		globalThis.__dashTestClient.startSession.mockResolvedValue(makeStartResponse());
+		globalThis.__dashTestClient.getStatus.mockRejectedValue(new Error('network'));
+		globalThis.__dashTestClient.cancel.mockResolvedValue('in-flight-conflict');
+
+		const delays: number[] = [];
+		const realSetTimeout = globalThis.setTimeout;
+		const spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(
+			((fn: () => void, ms?: number) => {
+				if (typeof ms === 'number' && ms > 0) delays.push(ms);
+				return realSetTimeout(fn, 0);
+			}) as typeof globalThis.setTimeout
+		);
+
+		session = createDashSession({ baseUrl: 'https://is.test', op: 'auth' });
+		await session.begin();
+		// Let the staircase climb to the 30s cap.
+		for (let i = 0; i < 6; i++) await new Promise((r) => realSetTimeout(r, 0));
+		expect(delays).toContain(30_000);
+
+		// 409 cancel — pollErrCount must reset HERE (R13-CORR fix).
+		// We can't directly observe the closure variable; instead
+		// we check the next failing tick's delay. If reset works,
+		// it should be 4000 (fresh staircase first failure). If
+		// broken, it would be 30000 (continuation of cap).
+		//
+		// Filter to delays ≤ POLL_BACKOFF_MAX_MS so the trap-
+		// deadline setTimeout(... POST_CANCEL_DEADLINE_MS = 240000)
+		// armed inside cancel() doesn't confuse the assertion.
+		const POLL_BACKOFF_MAX_MS = 30_000;
+		delays.length = 0;
+		await session.cancel();
+		// cancel resolves with in-flight-conflict; postCancelConflict
+		// becomes true and polling continues. Let the next tick fire.
+		for (let i = 0; i < 4; i++) await new Promise((r) => realSetTimeout(r, 0));
+
+		const firstPollDelay = delays.find((d) => d > 0 && d <= POLL_BACKOFF_MAX_MS);
+		expect(firstPollDelay).toBe(4000);
+
+		spy.mockRestore();
+	});
+});
+
 // ──────── (7) gen-guard: late getStatus does NOT overwrite cancel ─────────
 
 describe('R11-CORR-POLL-WRITES-AFTER-STOPPOLLING', () => {

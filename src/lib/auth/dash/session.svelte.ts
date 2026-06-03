@@ -25,15 +25,27 @@
  *                                          // server-side /cancel
  *
  * Polling cadence is 2s on the happy path; on /status errors we
- * exponentially back off (4s → 8s → … → 30s cap, resets on first
- * success) so a fast-failing endpoint doesn't get hammered. Once
- * the state becomes terminal the loop self-stops. cancel() and
+ * exponentially back off (4s → 8s → … → 30s cap) so a fast-failing
+ * endpoint doesn't get hammered. The backoff counter resets on
+ * THREE triggers so the staircase always restarts from the fresh
+ * step after a lifecycle transition:
+ *   - any successful /status that lands while pollErrCount > 0
+ *   - stopPolling() (any teardown — clean cancel, terminal-state
+ *     reach, stop())
+ *   - schedulePoll() entry (any fresh schedule, e.g. retry → begin)
+ *   - cancel()'s 409 in-flight-conflict / error branches that
+ *     return early without stopPolling (R13-CORR-BACKOFF-PERSISTS-
+ *     ACROSS-IN-FLIGHT-CONFLICT-RETRY)
+ * Once the state becomes terminal the loop self-stops. cancel() and
  * begin() are no-ops after stop(); the `destroyed` flag is private.
  *
  * Cross-references: R6-SEC-01 trap-deadline (240s); R8-CORR-02
  * stop/cancel split; R9-SEC-01 AbortController timeouts in isClient;
  * R11-OPS-POLL-NO-BACKOFF-01 exponential backoff; R12-CORR-POLLERRCOUNT-
- * NOT-RESET-ACROSS-RETRY reset on schedulePoll entry.
+ * NOT-RESET-ACROSS-RETRY reset on schedulePoll entry; R13-CORR-BACKOFF-
+ * PERSISTS-ACROSS-IN-FLIGHT-CONFLICT-RETRY reset on cancel-conflict;
+ * R13-OPS-CONSOLE-DEBUG-SUPPRESSED-BY-DEFAULT backoff log promoted to
+ * console.warn so operators see it at default DevTools Console levels.
  */
 import {
 	IsServiceClient,
@@ -294,19 +306,23 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 				return true; // terminal — no backoff needed
 			}
 			pollErrCount++;
-			// Round-12 audit R12-OPS-BACKOFF-NO-VISIBILITY-01: log
+			// Round-12 audit R12-OPS-BACKOFF-NO-VISIBILITY-01 + round-13
+			// audit R13-OPS-CONSOLE-DEBUG-SUPPRESSED-BY-DEFAULT: log
 			// the transition into backoff (first failure) and at the
 			// cap so operators have a devtools-greppable signal when
-			// a session is stuck at the slow cadence.
+			// a session is stuck at the slow cadence. R13 promoted
+			// this from console.debug → console.warn so it surfaces
+			// at default Console levels (Chromium/Firefox hide Debug
+			// by default — defeated R12's visibility intent).
 			const cappedDelay = Math.min(
 				POLL_INTERVAL_MS * Math.pow(2, pollErrCount),
 				POLL_BACKOFF_MAX_MS
 			);
 			if (pollErrCount === 1 || cappedDelay === POLL_BACKOFF_MAX_MS) {
-				console.debug(
-					'Dash session: /status backoff',
-					{ consecutiveFails: pollErrCount, nextDelayMs: cappedDelay }
-				);
+				console.warn('Dash session: /status backoff', {
+					consecutiveFails: pollErrCount,
+					nextDelayMs: cappedDelay
+				});
 			}
 			return false;
 		} finally {
@@ -417,6 +433,15 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 					// progressing. Round-6 R6-SEC-01: arm the
 					// trap-deadline so a misbehaving server can't keep
 					// /status in non-terminal forever.
+					//
+					// Round-13 audit R13-CORR-BACKOFF-PERSISTS-ACROSS-
+					// IN-FLIGHT-CONFLICT-RETRY: reset the pollErrCount
+					// staircase here too. R12 only reset on stopPolling
+					// and on schedulePoll entry; the 409 branch returns
+					// early without either, so a retry that hit 409
+					// inherited the previous attempt's backoff
+					// inflation (cadence stuck at the 30s cap).
+					pollErrCount = 0;
 					postCancelConflict = true;
 					if (postCancelDeadlineTimer === undefined) {
 						postCancelDeadlineTimer = setTimeout(() => {

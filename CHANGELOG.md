@@ -2,6 +2,19 @@
 
 All notable changes to Altera are documented here.
 
+## [0.3.14] — 2026-06-03
+
+### Fixes
+
+- **SATS in the Lightning-deposit destination picker no longer silently clears the selection.** `SelectAssetFlattened.handleAssetClick` resolved the clicked asset via `getFromOption(assetVal)`; SATS isn't in `swapOptions.from` / `.to`, so the lookup returned `undefined` and the click silently cleared `selected`. Now resolved via `Object.values(Coin).find(c => c.value === assetVal)` (the same pattern the rest of the file already uses) — every Coin enum member selects correctly regardless of the swapOptions catalog
+- Inherited from PR #106 (@brianoflondon): `TransferOptions.svelte` was using `getBalanceAmount` without importing it — threw `ReferenceError` at runtime on transfers from non-Hive (Reown) accounts. The migration PR dropped the import while editing the imports block. Import restored, unused `getFee` cleaned up
+
+### Internals
+
+- `decideBroadcast` is now actually pure. Previously documented as such but mutated `txState.to` in the deposit/withdraw default-to branch (caught by Milo). Now returns an optional `defaultedTo: CoinOnNetwork` on the `v4v` / `send` variants; `StepsMachine.initSend()` applies the mutation right after dispatching on the decision. Tests explicitly assert the function does NOT mutate state and that the defaulted value is returned for the caller to apply
+- Added `requireTxState(): TxState` that asserts non-undefined (throws at runtime if no provider, matching the flow-specific hooks). Switched the 4 flow-agnostic consumers — `ReviewSwap`, `Complete`, `Instructions`, `SelectContact` — from the loose `useTxState()` (returns `TxState | undefined`) to it. Drops **85 pre-existing `'txState' is possibly undefined'` TS warnings** that were drowning out real signal; type-check baseline goes from 145 → 60 errors. `StepsMachine` deliberately stays on `useTxState()` because it explicitly checks for the undefined case and early-returns an Error
+- Clarifying comment in `QuickSwap.svelte` for the `solveNetworkConstraints(txState.rail, …)` read. `txState.rail` here picks up `railOverride` (forced to Lightning for QuickSwap's Reown-BTC route), but this only filters the UI's coin/network options — broadcast routing reads `from`/`to` directly via `decideBroadcast`. Test suite pins both halves of the contract; the inline comment saves the next reader from digging
+
 ## [0.3.13] — 2026-06-02
 
 ### Fixes

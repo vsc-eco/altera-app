@@ -104,6 +104,29 @@ export function useTxState(): TxState | undefined {
 	return undefined;
 }
 
+/**
+ * Like `useTxState()` but throws when called outside a TxState provider.
+ *
+ * Use this in flow-agnostic components that are mounted under every flow's
+ * provider in normal use (Complete, ReviewSwap, Instructions, SelectContact,
+ * …) — they don't care which specific subclass they get but they DO need a
+ * non-undefined value, and a runtime throw is a clearer signal than the
+ * silent ~65 `'txState' is possibly 'undefined'` TS warnings that the loose
+ * `useTxState()` produces at every property access.
+ *
+ * Reach for `useTxState()` instead only when undefined is a legitimate
+ * runtime state to handle (e.g. StepsMachine, which early-returns on it).
+ */
+export function requireTxState(): TxState {
+	const state = useTxState();
+	if (!state) {
+		throw new Error(
+			'requireTxState() called without a TxState provider (no `provideTxState(...)` ancestor)'
+		);
+	}
+	return state;
+}
+
 export function useSwapState(): SwapTxState {
 	const state = getContext<unknown>(TX_STATE_KEY);
 	if (!(state instanceof SwapTxState)) {

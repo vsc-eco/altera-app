@@ -12,10 +12,10 @@
 	import CreateContact from './CreateContact.svelte';
 	import { contactCard, type ContactObj } from '../components/info/SendSnippets.svelte';
 	import { untrack } from 'svelte';
-	import { useTxState } from '../utils/txState.svelte';
+	import { requireTxState } from '../utils/txState.svelte';
 	import Confirmation from '$lib/components/Confirmation.svelte';
 
-	const txState = useTxState();
+	const txState = requireTxState();
 
 	let {
 		selectedContact = $bindable(),

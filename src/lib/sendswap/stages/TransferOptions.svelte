@@ -8,7 +8,6 @@
 		getLastPaidContact,
 		getLastPaidNetwork,
 		getRecipientNetworks,
-		getFee,
 		solveToNetworks,
 		type NetworkOptionParam
 	} from '../utils/sendUtils';
@@ -41,7 +40,7 @@
 	import Divider from '$lib/components/Divider.svelte';
 	import BalanceInfo from '../components/info/BalanceInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
+	import { accountBalance, getBalanceAmount, type AccountBalance } from '$lib/stores/currentBalance';
 	import {
 		estimateBtcUnmapFee,
 		type BtcFeeEstimate

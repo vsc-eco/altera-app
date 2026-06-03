@@ -37,21 +37,31 @@ describe('decideBroadcast — error cases', () => {
 
 // ─── Default-to logic for deposit/withdraw ───────────────────────────────────
 
-describe('decideBroadcast — default-to logic', () => {
-	it('deposit with from set but to undefined → defaults to.network = magi', () => {
+describe('decideBroadcast — default-to logic (pure: returns defaultedTo, caller applies)', () => {
+	it('deposit with from set but to undefined → returns defaultedTo with network = magi (does NOT mutate state)', () => {
 		const state = new DepositTxState();
 		state.from = { coin: Coin.hive, network: Network.hiveMainnet };
 		const d = decideBroadcast(state, 'deposit');
-		expect(state.to).toEqual({ coin: Coin.hive, network: Network.magi });
+		// Function is now pure — txState is unchanged after the call.
+		expect(state.to).toBeUndefined();
 		expect(d.action).toBe('send');
+		// The defaulted value is returned for the caller to apply.
+		expect(d.action !== 'error' && d.defaultedTo).toEqual({
+			coin: Coin.hive,
+			network: Network.magi
+		});
 	});
 
-	it('withdraw with from set but to undefined → defaults to.network = hiveMainnet', () => {
+	it('withdraw with from set but to undefined → returns defaultedTo with network = hiveMainnet (no mutation)', () => {
 		const state = new WithdrawTxState();
 		state.from = { coin: Coin.hive, network: Network.magi };
 		const d = decideBroadcast(state, 'withdraw');
-		expect(state.to).toEqual({ coin: Coin.hive, network: Network.hiveMainnet });
+		expect(state.to).toBeUndefined();
 		expect(d.action).toBe('send');
+		expect(d.action !== 'error' && d.defaultedTo).toEqual({
+			coin: Coin.hive,
+			network: Network.hiveMainnet
+		});
 	});
 
 	it('swap with from set but to undefined → error (no auto-default for swap)', () => {

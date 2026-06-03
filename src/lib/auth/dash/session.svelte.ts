@@ -27,8 +27,11 @@
  * Polling cadence is 2s on the happy path; on /status errors we
  * exponentially back off (4s → 8s → … → 30s cap) so a fast-failing
  * endpoint doesn't get hammered. The backoff counter resets on
- * THREE triggers so the staircase always restarts from the fresh
- * step after a lifecycle transition:
+ * multiple triggers so the staircase always restarts from the fresh
+ * step after a lifecycle transition (R14-DRIFT-DOCSTRING-THREE-VS-
+ * FOUR-TRIGGERS: dropped the prose count word — the R13 fix added
+ * a fourth bullet without bumping it, recreating the very drift it
+ * was meant to close; use the list as the authoritative source):
  *   - any successful /status that lands while pollErrCount > 0
  *   - stopPolling() (any teardown — clean cancel, terminal-state
  *     reach, stop())
@@ -41,11 +44,17 @@
  *
  * Cross-references: R6-SEC-01 trap-deadline (240s); R8-CORR-02
  * stop/cancel split; R9-SEC-01 AbortController timeouts in isClient;
- * R11-OPS-POLL-NO-BACKOFF-01 exponential backoff; R12-CORR-POLLERRCOUNT-
- * NOT-RESET-ACROSS-RETRY reset on schedulePoll entry; R13-CORR-BACKOFF-
- * PERSISTS-ACROSS-IN-FLIGHT-CONFLICT-RETRY reset on cancel-conflict;
- * R13-OPS-CONSOLE-DEBUG-SUPPRESSED-BY-DEFAULT backoff log promoted to
- * console.warn so operators see it at default DevTools Console levels.
+ * R10-OPS-POLL-OVERLAP-01 recursive-setTimeout single-in-flight
+ * /status; R10-CORR-ORPHAN-SESSION-01 startSession AbortController
+ * for unmount race; R11-OPS-POLL-NO-BACKOFF-01 exponential backoff;
+ * R12-CORR-POLLERRCOUNT-NOT-RESET-ACROSS-RETRY reset on schedulePoll
+ * entry; R13-CORR-BACKOFF-PERSISTS-ACROSS-IN-FLIGHT-CONFLICT-RETRY
+ * reset on cancel-conflict; R13-OPS-CONSOLE-DEBUG-SUPPRESSED-BY-
+ * DEFAULT backoff log promoted to console.warn so operators see it
+ * at default DevTools Console levels; R14-OPS-BACKOFF-WARN-FLOODS-
+ * AT-CAP cap-reached log is now edge-triggered (entry only) and
+ * recovery log promoted to console.warn so both lifecycle halves
+ * surface at the same level.
  */
 import {
 	IsServiceClient,
@@ -194,6 +203,7 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// instance reused across retry cycles inherits the previous
 		// attempt's backoff inflation.
 		pollErrCount = 0;
+		atBackoffCap = false;
 	}
 
 	// schedulePoll: recursive setTimeout that runs one poll, then
@@ -214,6 +224,15 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	// steady-state. We now track pollErrCount and exponential-back
 	// off the next interval; reset on first success.
 	let pollErrCount = 0;
+	// Round-14 audit R14-OPS-BACKOFF-WARN-FLOODS-AT-CAP: edge-trigger
+	// the cap-reached warn. Without this flag a stuck poll loop fires
+	// console.warn on every failing tick once pollErrCount >= 4 — at
+	// the 30s steady cadence that's ~120 warns/hr/session, training
+	// operators to filter the prefix out and defeating R13's
+	// visibility promotion. We set it on entry into cap (warn once),
+	// keep it set while in cap (silent), and clear it on recovery
+	// (handled in poll() success branch).
+	let atBackoffCap = false;
 	const POLL_BACKOFF_MAX_MS = 30_000;
 	function schedulePoll() {
 		if (destroyed || !startResponse) return;
@@ -222,8 +241,11 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// retry()→begin() cycle inherits the previous attempt's
 		// pollErrCount and the first failure on the new sid jumps
 		// straight to a longer delay instead of the documented
-		// 2s→4s→8s staircase.
+		// 2s→4s→8s staircase. Round-14 R14-OPS-BACKOFF-WARN-FLOODS-
+		// AT-CAP: drop the cap-latch too so the first failing tick
+		// on the new schedule re-fires the entry warn.
 		pollErrCount = 0;
+		atBackoffCap = false;
 		const sid = startResponse.sid;
 		const gen = ++pollGen;
 		const tick = async () => {
@@ -264,13 +286,18 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			// Round-12 audit R12-OPS-BACKOFF-NO-VISIBILITY-01: log
 			// recovery once when we transition out of backoff so an
 			// operator scanning console can confirm a previously-
-			// stuck session resumed.
+			// stuck session resumed. Round-14 R14-OPS-BACKOFF-WARN-
+			// FLOODS-AT-CAP promoted to console.warn so the entry
+			// log (warn) and recovery log surface at the same level
+			// — otherwise default DevTools Console levels hid the
+			// recovery half while the entry half was visible.
 			if (pollErrCount > 0) {
-				console.debug(
+				console.warn(
 					'Dash session: /status backoff recovered after',
 					pollErrCount,
 					'consecutive failures'
 				);
+				atBackoffCap = false;
 			}
 			pollErrCount = 0;
 			if (isTerminal(next.state)) {
@@ -318,12 +345,23 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 				POLL_INTERVAL_MS * Math.pow(2, pollErrCount),
 				POLL_BACKOFF_MAX_MS
 			);
-			if (pollErrCount === 1 || cappedDelay === POLL_BACKOFF_MAX_MS) {
+			// Round-14 audit R14-OPS-BACKOFF-WARN-FLOODS-AT-CAP: fire
+			// at the first failure (transition into backoff) and
+			// exactly once on transition INTO the cap, then go silent
+			// until either recovery or another lifecycle event. The
+			// previous "cappedDelay === POLL_BACKOFF_MAX_MS" guard
+			// fired on every tick once the cap latched, flooding the
+			// console.
+			const atCap = cappedDelay === POLL_BACKOFF_MAX_MS;
+			const enteringCap = atCap && !atBackoffCap;
+			if (pollErrCount === 1 || enteringCap) {
 				console.warn('Dash session: /status backoff', {
 					consecutiveFails: pollErrCount,
-					nextDelayMs: cappedDelay
+					nextDelayMs: cappedDelay,
+					atCap
 				});
 			}
+			if (atCap) atBackoffCap = true;
 			return false;
 		} finally {
 			pollAbort = undefined;
@@ -441,7 +479,11 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 					// early without either, so a retry that hit 409
 					// inherited the previous attempt's backoff
 					// inflation (cadence stuck at the 30s cap).
+					// Round-14 R14-OPS-BACKOFF-WARN-FLOODS-AT-CAP: also
+					// drop the cap-latch so the first post-409 failure
+					// re-fires the entry warn instead of going silent.
 					pollErrCount = 0;
+					atBackoffCap = false;
 					postCancelConflict = true;
 					if (postCancelDeadlineTimer === undefined) {
 						postCancelDeadlineTimer = setTimeout(() => {

@@ -1,27 +1,22 @@
 /**
- * Round-10/11/12/13 audit follow-up — TEST-COV-NO-UNIT-TESTS-FOR-DASH-AUTH:
- * 12 rounds of subtle race-guard fixes accumulated in createDashSession
- * (gen counters, three AbortControllers, two deadline timers, three
- * concurrency-guard flags) had been verified by static reading only.
- * This harness pins the invariants those fixes promise:
+ * Round-10/11/12/13/14 audit follow-up — TEST-COV-NO-UNIT-TESTS-FOR-
+ * DASH-AUTH: 13+ rounds of subtle race-guard fixes accumulated in
+ * createDashSession (gen counters, three AbortControllers, two
+ * deadline timers, three concurrency-guard flags) had been verified
+ * by static reading only. This harness pins the invariants those
+ * fixes promise. R14-DRIFT-TEST-HEADER-NUMBERED-LIST-STALE replaced
+ * the hand-maintained numbered list — the canonical list is the
+ * describe() / it() blocks below, which vitest discovers anyway;
+ * a numbered prose list drifted out of sync at every round-add.
  *
- *   (1) startSession malformed-body shape-check (R12-INFO-BEGIN-ORPHAN-...)
- *   (2) Orphan-microrace cancel fires fire-and-forget /cancel when
- *       destroyed flips during the microtask gap between fetch
- *       resolution and the startResponse assignment (R11-CORR-ORPHAN-
- *       FETCH-MICRORACE).
- *   (3) stop() re-entry is idempotent — second stop() does NOT issue
- *       a duplicate fire-and-forget cancel (R11-DESIGN-STOP-NO-REENTRY-GUARD).
- *   (4) stop() aborts the in-flight startSession AbortController
- *       (R10-CORR-ORPHAN-SESSION-01).
- *   (5) cancel() success branch does NOT abort the pollAbort signal
- *       (R12-DESIGN-CANCEL-DOES-NOT-ABORT-POLLABORT).
- *   (6) cancel() 409 in-flight-conflict → phase stays 'waiting',
- *       postCancelConflict=true (R5-002 / R10-CORR-02).
- *   (7) Late getStatus resolution after stopPolling is gen-guarded —
- *       does NOT overwrite phase=failed (R11-CORR-POLL-WRITES-AFTER-STOPPOLLING).
- *   (8) pollErrCount reset on stopPolling + schedulePoll entry
- *       (R12-CORR-POLLERRCOUNT-NOT-RESET-ACROSS-RETRY).
+ * Property areas covered (see describe() blocks for one-to-one
+ * mapping to specific finding IDs):
+ *   - lifecycle re-entry guards (begin/stop/cancel idempotence)
+ *   - in-flight AbortController plumbing (start, poll, cancel)
+ *   - gen-counter race guards across stopPolling/cancel/teardown
+ *   - 409 in-flight-conflict semantics + post-cancel trap deadline
+ *   - backoff staircase reset + cap edge-trigger (R12/R13/R14)
+ *   - orphan-microrace fire-and-forget cancel (R11)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

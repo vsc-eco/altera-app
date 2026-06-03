@@ -228,6 +228,34 @@
 	{#snippet content()}
 		{#if session.phase === 'starting' || (session.phase === 'waiting' && !session.startResponse)}
 			<p class="muted">Preparing your session…</p>
+		{:else if session.phase === 'waiting' && session.startResponse && sigVerdict?.kind === 'invalid'}
+			<!-- Audit SEC-2 (R15): hard fail-closed when the IS-service
+				 address signature does NOT verify against the pinned
+				 PUBLIC_IS_SERVICE_SIGNER_PUBKEY. Pre-fix the QR + address
+				 still rendered with only an inline red-shield badge — a
+				 user who'd successfully scanned + paid in prior sessions
+				 was nudged toward doing it again. The signer exists
+				 precisely so the client can detect adversary-controlled
+				 IS-service responses; rendering the QR anyway defeats it. -->
+			<div class="sig-fail-panel">
+				<p class="sig-fail-title">
+					<ShieldAlert size={16} /> IS-service signature did not verify
+				</p>
+				<p>
+					The address Altera received from the IS service could
+					not be cryptographically tied to the pinned signer
+					public key. <strong>Do not scan or pay anything.</strong>
+					This can mean a network-level interception, a hostile
+					proxy, or an operator-side key rotation that has not
+					been propagated to this build.
+				</p>
+				<p class="muted">
+					If you maintain this Altera deployment, verify
+					<code>PUBLIC_IS_SERVICE_SIGNER_PUBKEY</code> matches
+					the IS-service operator's current signer fingerprint,
+					then reload.
+				</p>
+			</div>
 		{:else if session.phase === 'waiting' && session.startResponse}
 			<p class="muted">Pay the address below from your DashPay wallet via InstantSend.</p>
 			{#if dashUri}
@@ -240,10 +268,6 @@
 					{#if sigVerdict?.kind === 'valid'}
 						<span class="sig sig-ok" title="address signature verified"
 							><ShieldCheck size={12} /> verified</span
-						>
-					{:else if sigVerdict?.kind === 'invalid'}
-						<span class="sig sig-bad" title="address signature DID NOT verify — do not pay"
-							><ShieldAlert size={12} /> signature mismatch</span
 						>
 					{:else if sigVerdict?.kind === 'unconfigured' || sigVerdict?.kind === 'unsupported'}
 						<span class="sig sig-unknown" title="fall back to fingerprint check"
@@ -396,12 +420,34 @@
 		background: rgba(74, 222, 128, 0.15);
 		color: #4ade80;
 	}
-	.sig-bad {
-		background: rgba(248, 113, 113, 0.15);
-		color: #f87171;
-	}
 	.sig-unknown {
 		background: rgba(251, 191, 36, 0.1);
 		color: #facc15;
+	}
+	.sig-fail-panel {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6em;
+		padding: 1em;
+		border: 1px solid rgba(248, 113, 113, 0.5);
+		background: rgba(248, 113, 113, 0.1);
+		border-radius: 4px;
+		color: #f87171;
+		strong {
+			color: #fca5a5;
+		}
+		code {
+			background: rgba(0, 0, 0, 0.25);
+			padding: 0 0.3em;
+			border-radius: 2px;
+			font-size: 0.9em;
+		}
+	}
+	.sig-fail-title {
+		display: flex;
+		align-items: center;
+		gap: 0.4em;
+		font-weight: 600;
+		margin: 0;
 	}
 </style>

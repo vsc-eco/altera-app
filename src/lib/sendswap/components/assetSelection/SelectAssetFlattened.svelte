@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getFromOption, Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { untrack, type Snippet } from 'svelte';
 	import AssetList from './AssetList.svelte';
 	import { accountBalance, type AccountBalance } from '$lib/stores/currentBalance';
@@ -141,14 +141,21 @@
 		const assetVal = balanceVal.split(':')[0];
 		const networkVal = balanceVal.split(':')[1];
 		const balanceObj = [...magiItems, ...externalItems].find((item) => item.value === balanceVal);
-		const nextAsset = getFromOption(assetVal);
+		// Resolve via the Coin enum directly rather than the swapOptions
+		// catalog: SATS / USD / UNK aren't in `swapOptions.from`/`.to` and the
+		// previous `getFromOption(assetVal)` returned undefined for them,
+		// silently clearing the user's selection (the SATS destination in the
+		// Lightning deposit picker was the most user-visible case). Mirrors
+		// the lookup pattern this file already uses when building
+		// magiItems / externalItems above.
+		const nextCoin = Object.values(Coin).find((c) => c.value === assetVal);
 		const nextNetwork =
 			[Network.magi, externalNetwork].find((net) => net?.value === networkVal) ?? Network.magi;
-		if (!nextAsset) {
+		if (!nextCoin) {
 			selected = undefined;
 			max = undefined;
 		} else {
-			selected = { coin: nextAsset.coin, network: nextNetwork };
+			selected = { coin: nextCoin, network: nextNetwork };
 			if (balanceObj && 'balance' in balanceObj) {
 				const coinObj: Coin = { ...balanceObj, value: assetVal };
 				max = new CoinAmount(balanceObj.balance, coinObj);

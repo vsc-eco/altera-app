@@ -482,9 +482,19 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 					// Round-14 R14-OPS-BACKOFF-WARN-FLOODS-AT-CAP: also
 					// drop the cap-latch so the first post-409 failure
 					// re-fires the entry warn instead of going silent.
+					// Round-14 R14-CANCEL-409-BACKOFF-RESET-WINDOW:
+					// schedule a fresh poll from here so any stale
+					// 30s-armed setTimeout from an in-flight tick's
+					// catch branch is replaced by a fresh 2s tick.
+					// Without the explicit re-schedule, a race
+					// between the in-flight tick's catch + this
+					// reset could leave the first post-409 retry
+					// waiting up to 30s instead of the documented
+					// 4s "restart from fresh step" cadence.
 					pollErrCount = 0;
 					atBackoffCap = false;
 					postCancelConflict = true;
+					schedulePoll();
 					if (postCancelDeadlineTimer === undefined) {
 						postCancelDeadlineTimer = setTimeout(() => {
 							if (destroyed) return;

@@ -44,8 +44,16 @@ const TESTNET_HOST_SUFFIXES = [
 	'.dev.okinoko.io'
 ];
 
+// Mirrors the testnet naming pattern minus the `-testnet` suffix.
+// If the production deployment picks a different hostname (e.g.
+// `is.okinoko.io` or behind a CDN like `is.magi.eco`), update this
+// list at the same time as flipping the production env's
+// PUBLIC_IS_SERVICE_URL — resolveDashNetwork cross-checks
+// PUBLIC_DASH_NETWORK against this suffix list and will throw
+// at first /login render if they disagree.
 const MAINNET_HOST_SUFFIXES: string[] = [
-	// Populate post-mainnet-cutover; v1 mainnet host TBD.
+	'is-service.okinoko.io',
+	'.mainnet.okinoko.io',
 ];
 
 function urlHostnameSuffixMatches(url: string, suffixes: string[]): boolean {

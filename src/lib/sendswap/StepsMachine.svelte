@@ -179,6 +179,9 @@
 		// txType ∈ {swap, transfer, deposit, withdraw}. Cast at the boundary.
 		const decision = decideBroadcast(txState, txType as TxType);
 		if (decision.action === 'error') return new Error(decision.message);
+		// Apply the default-to mutation that decideBroadcast computed but
+		// (deliberately) didn't apply — keeps decideBroadcast pure.
+		if (decision.defaultedTo) txState.to = decision.defaultedTo;
 		if (decision.action === 'v4v') {
 			setStatus('Generating Lightning transfer');
 			openV4V();

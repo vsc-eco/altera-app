@@ -300,6 +300,18 @@ export class IsServiceClient {
 			// the network-thrown case.
 			return 'error';
 		}
+		// Round-11 audit R11-INFO-CANCEL-401-MASKS-TOKEN-MISMATCH:
+		// a 401 here is server-side "session not found OR bad token"
+		// (server uses 401 for both — round-9 R9-INFO-EXISTENCE-
+		// ORACLE-01 confirmed this is by design since /status already
+		// leaks existence). Client-side, 401 may also indicate
+		// X-Cancel-Token corruption (e.g. a token mutated before
+		// it reached this call). Surface to console.debug so a
+		// dev seeing repeated 401s can correlate, without changing
+		// the user-visible behaviour (still treat as 'cancelled').
+		if (resp.status === 401) {
+			console.debug('Dash session cancel: 401 — server says session gone or token mismatch');
+		}
 		return 'cancelled';
 	}
 

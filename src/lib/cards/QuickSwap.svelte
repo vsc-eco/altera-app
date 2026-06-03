@@ -187,6 +187,14 @@
 		networkOptions: []
 	});
 	$effect(() => {
+		// `txState.rail` here picks up `railOverride` (forced to lightning in
+		// `applyStartDetails` for QuickSwap's Reown-BTC-via-Lightning route).
+		// This read is for UI option-filtering ONLY — `solveNetworkConstraints`
+		// uses it to constrain which coin/network options the picker exposes.
+		// Broadcast routing does NOT read this; `decideBroadcast` (which
+		// `StepsMachine.initSend()` calls) computes the intermediary from
+		// `from`/`to` directly. The split is pinned by tests in
+		// broadcastDecision.test.ts ("railOverride is deliberately NOT read").
 		const result = solveNetworkConstraints(
 			txState.rail,
 			getFromOption(txState.from?.coin.value),

@@ -2,6 +2,12 @@
 
 All notable changes to Altera are documented here.
 
+> **Release process**: bump `package.json` version to match the new entry's
+> heading (e.g. `0.3.14`). The version was historically stuck at `0.0.1`
+> because the app is `"private": true` and never published — kept here for
+> CI / build-banner / release-script use, and so a glance at `package.json`
+> matches reality.
+
 ## [0.3.14] — 2026-06-03
 
 ### Fixes

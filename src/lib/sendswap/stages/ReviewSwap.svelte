@@ -5,7 +5,7 @@
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { settlementLabel } from '$lib/sendswap/utils/getNetwork';
 	import moment from 'moment';
-	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
+	import { requireTxState } from '$lib/sendswap/utils/txState.svelte';
 	import { Dot, EqualApproximately, X } from '@lucide/svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -52,7 +52,7 @@
 		popup?: boolean;
 	} = $props();
 
-	const txState = useTxState();
+	const txState = requireTxState();
 	const asSwap = $derived(txState.kind === 'swap' ? txState : null);
 
 	// Mark the review stage as "complete" (user can proceed) as soon as it

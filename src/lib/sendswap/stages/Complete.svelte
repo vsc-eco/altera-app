@@ -3,7 +3,7 @@
 	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import moment from 'moment';
-	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
+	import { requireTxState } from '$lib/sendswap/utils/txState.svelte';
 	import { goto } from '$app/navigation';
 	import PieTimer from '$lib/components/PieTimer.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -19,7 +19,7 @@
 		ALTERA_FEE_USD_THRESHOLD
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 
-	const txState = useTxState();
+	const txState = requireTxState();
 
 	let timer = $state<PieTimer>();
 

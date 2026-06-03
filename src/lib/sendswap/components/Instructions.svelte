@@ -1,13 +1,13 @@
 <script lang="ts">
 	import BasicCopy from '$lib/components/BasicCopy.svelte';
 	import { getAccountNameFromAddress } from '$lib/getAccountName';
-	import { useTxState } from '../utils/txState.svelte';
+	import { requireTxState } from '../utils/txState.svelte';
 	import { Network } from '../utils/sendOptions';
 	import Card from '$lib/cards/Card.svelte';
 	import { Info } from '@lucide/svelte';
 	import { vscGateway } from '$lib/constants';
 
-	const txState = useTxState();
+	const txState = requireTxState();
 
 	let toAccount = $derived(
 		txState.to?.network.value === Network.magi.value

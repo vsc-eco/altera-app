@@ -313,7 +313,7 @@
 					<p>
 						Altera cannot verify the deposit address shown below.
 						{sigVerdict?.kind === 'unsupported'
-							? "Your browser doesn't support the cryptographic check Altera normally uses."
+							? 'Cryptographic verification is unavailable for this session.'
 							: "This Altera build doesn't have its IS-service signer pubkey pinned."}
 					</p>
 					<p>

@@ -302,17 +302,17 @@
 							: 'IS-service signer pubkey not pinned'}
 					</p>
 					<p>
-						<strong>Match the 6-character fingerprint shown below
-						against the value your IS-service operator publishes
-						before paying.</strong> The canonical source is the
-						same place the operator declares which IS-service
-						Altera should talk to (status page, docs, or
-						out-of-band announcement).
+						Altera could not cryptographically verify the
+						deposit address against the IS-service's signer.
+						The deposit address shown below cannot be
+						automatically authenticated.
 					</p>
 					<p>
-						<strong>If the fingerprint does not match, or you
-						don't have a canonical source for it, do not pay</strong>
-						— close this dialog and report it.
+						<strong>Only proceed if you trust this Altera
+						deployment and the IS-service URL it talks to.</strong>
+						If the URL in your address bar isn't the one you
+						expect, or anything else about this dialog looks
+						wrong, do not pay — close this dialog and report it.
 					</p>
 				</div>
 			{/if}
@@ -356,8 +356,12 @@
 				</p>
 			{/if}
 			<p class="footnote">
-				The fingerprint should match the value Altera shows in its docs. If it doesn't, do
-				not pay — close this dialog and report the discrepancy.
+				The fingerprint is a short visual identifier for this
+				session's deposit address — useful for spotting an obvious
+				mid-flight swap when comparing the dialog and your wallet
+				side-by-side. The cryptographic check that actually
+				authenticates the response is the signed-address
+				verification (signaled by the verified/mismatch badge above).
 			</p>
 		{:else if session.phase === 'done'}
 			<p>Signed in. Redirecting…</p>

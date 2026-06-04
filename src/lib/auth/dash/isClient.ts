@@ -345,29 +345,43 @@ export function buildDashUri(address: string, amountDuffs: number): string {
  * signature, NOT hex), lowercased so the user-visible value is
  * stable regardless of case.
  *
+ * Purpose: a session-internal visual identifier for the deposit
+ * address — useful for a side-by-side check between this dialog
+ * and the user's wallet after the QR is scanned, to catch an
+ * obvious mid-flight QR swap.
+ *
+ * NOT a cryptographic credential: the value derives from
+ * `addressSignature`, which is computed per /session/start over
+ * a per-session sid. Every session produces a fresh signature →
+ * a fresh fingerprint. There is no static value an operator
+ * could publish out-of-band that the user could compare against.
+ * The authentic-IS-service check is the SIGNATURE VERIFICATION
+ * (verifyAddressSignature in signature.ts, SEC-2 hard-fails QR
+ * render on `kind === 'invalid'`), NOT this fingerprint.
+ *
  * Collision-space arithmetic (audit R18-SEC-altera-fingerprint-
  * collision-space-overstated + R18-CONS-fingerprint-collision-math-
- * 64-base-after-lowercase): standard base64 has a 64-symbol
- * alphabet (A-Z + a-z + 0-9 + + + /). But after `.toLowerCase()`
- * the uppercase + lowercase letters of base64 collapse to the same
- * 26 letters, so the effective alphabet shrinks to 26 letters + 10
- * digits + 2 symbols ≈ 38 distinct characters. The 6-char prefix
- * therefore picks from ~38^6 ≈ 3.0e9 (3 billion) distinct values,
- * not 64^6 ≈ 68 billion. A pure-random adversary's birthday-attack
- * chance against the visible prefix is roughly 1 in 3B per attempt
- * — still well outside what a hostile IS-service could exploit
- * via random retries inside a session-start latency budget, but
- * the prior 68B claim was overstated by ~22×.
+ * 64-base-after-lowercase + R19-SEC-addressfingerprint-collision-
+ * claim-misleads-on-attack-model): standard base64 has a 64-symbol
+ * alphabet (A-Z + a-z + 0-9 + + + /). After `.toLowerCase()` the
+ * uppercase + lowercase letters collapse to the same 26 letters,
+ * shrinking the effective alphabet to ~38 distinct characters.
+ * The 6-char prefix picks from ~38^6 ≈ 3.0e9 distinct values,
+ * not 64^6 ≈ 68B.
  *
- * Displayed alongside the QR so the user can spot a swapped
- * address even if the request was tampered with. Closes the visual
- * substitution vector, NOT the network-level one — for that the
- * frontend cryptographically verifies `addressSignature` against
- * the pinned `PUBLIC_IS_SERVICE_SIGNER_PUBKEY` (verifyAddressSignature
- * in signature.ts; SEC-2 hard-fails the QR render on `kind === 'invalid'`).
+ * Attack model (R19): the relevant threat is PREIMAGE — an
+ * attacker controlling a hostile IS-service who wants to match a
+ * specific target fingerprint. With control of their own signing
+ * key the attacker can grind sids offline at ~50ns/Ed25519-sign on
+ * commodity hardware. 3B signs ≈ 150s wall-clock on one core,
+ * trivially feasible. The fingerprint therefore provides ZERO
+ * defense against an active adversary at the network level — its
+ * sole purpose is the user-visible mid-flight QR-swap detection
+ * described above. The 38^6 number is a property of the
+ * representation, not a security guarantee.
  *
  * Audit R17-CONS-altera-addressfingerprint-not-actually-hex-or-hash:
- * the prior "first 6 hex chars" wording was internally
+ * the original "first 6 hex chars" wording was internally
  * contradictory — the signature is never hex on the wire.
  */
 export function addressFingerprint(addressSignature: string): string {

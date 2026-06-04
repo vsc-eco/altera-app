@@ -287,17 +287,22 @@
 			<p class="muted">Pay the address below from your DashPay wallet via InstantSend.</p>
 			{#if sigVerdict?.kind === 'unsupported' || sigVerdict?.kind === 'unconfigured'}
 				<!-- Audit R16-SEC-altera-sigverdict-unsupported-renders-qr
-					 (MED): when the browser can't run Ed25519 WebCrypto
-					 (older Chrome/Firefox/Safari) OR the operator hasn't
-					 pinned PUBLIC_IS_SERVICE_SIGNER_PUBKEY, the QR still
-					 renders. We don't fail-closed in this branch (it
-					 would brick legitimate older-browser users), but we
-					 elevate the fingerprint check from an inline badge
-					 to a prominent banner so the user can't miss it.
-					 The fingerprint below the QR is the SAME 6-char hash
-					 the operator publishes out-of-band; matching it is
-					 the manual fallback when crypto-verify isn't
-					 available. -->
+					 (MED) + R19-SEC-fingerprint-warn-panel-no-canonical-
+					 source-exists + R21 cluster (R20 claimed to rewrite
+					 this comment but the diff missed it): when the browser
+					 can't run Ed25519 WebCrypto (older Chrome/Firefox/
+					 Safari) OR the operator hasn't pinned PUBLIC_IS_
+					 SERVICE_SIGNER_PUBKEY, the QR still renders. We don't
+					 fail-closed in this branch (it would brick legitimate
+					 older-browser users), but we surface the missing-
+					 verification state as a prominent yellow warn-panel so
+					 the user can't miss it. The panel does NOT instruct
+					 comparing the on-screen fingerprint against any
+					 operator-published value — per R19 the fingerprint is
+					 per-session-internal (regenerated every session) and
+					 no canonical source exists to compare against. The
+					 user's defense is to judge the website name + the
+					 operator they trust, NOT a hash comparison. -->
 				<div class="sig-warn-panel">
 					<p class="sig-warn-title">
 						<ShieldQuestion size={16} />

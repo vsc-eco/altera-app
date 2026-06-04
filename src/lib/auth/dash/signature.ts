@@ -8,8 +8,13 @@
  * v1 ships with no pubkey by default — the IS service uses an HMAC-SHA256
  * stub which the frontend can't verify without sharing the symmetric
  * secret (spec §5.7 explicitly calls this out as dev-only). When no
- * pubkey is configured, the verifier returns 'unconfigured' so the UI
- * can fall back to the address-fingerprint visual check.
+ * pubkey is configured, the verifier returns 'unconfigured' and DashLogin
+ * surfaces a yellow "Verification not configured" warn-panel telling the
+ * user crypto-verification was unavailable for this session. There is NO
+ * fingerprint to fall back to — the on-screen address fingerprint is per-
+ * session-internal (regenerated every session) and no canonical operator-
+ * published value exists to compare it against (audit R19-SEC-fingerprint-
+ * warn-panel-no-canonical-source-exists).
  *
  * Production wiring (TODO):
  *   1. Move the IS service to an HSM/KMS asymmetric signer (Ed25519 or
@@ -26,7 +31,7 @@
 export type SignatureVerdict =
 	| { kind: 'valid' }
 	| { kind: 'invalid' }
-	| { kind: 'unconfigured' } // no pubkey set — frontend should fall back to fingerprint check
+	| { kind: 'unconfigured' } // no pubkey pinned — DashLogin renders the yellow "Verification not configured" warn-panel; NO fingerprint comparison is possible (audit R19-SEC-fingerprint-warn-panel-no-canonical-source-exists)
 	| { kind: 'unsupported'; reason: string };
 
 /**
@@ -47,8 +52,10 @@ export async function verifyAddressSignature(opts: {
 	if (!pinnedPubkey) return { kind: 'unconfigured' };
 
 	// The Ed25519/BLS pubkey format detection — pick by length once we
-	// publish a real key. Until then, refuse to verify and ask the UI
-	// to fall back to fingerprint check.
+	// publish a real key. Until then, refuse to verify and surface the
+	// 'unsupported' verdict so DashLogin renders its yellow warn-panel
+	// (no fingerprint comparison; audit R19-SEC-fingerprint-warn-panel-
+	// no-canonical-source-exists).
 	if (pinnedPubkey.startsWith('hmac:')) {
 		return {
 			kind: 'unsupported',

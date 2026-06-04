@@ -343,11 +343,21 @@ export function buildDashUri(address: string, amountDuffs: number): string {
  * Address fingerprint — first 6 characters of the IS-service's
  * `addressSignature` (which is a base64-encoded Ed25519 / HMAC
  * signature, NOT hex), lowercased so the user-visible value is
- * stable regardless of case. Despite the prior docstring claiming
- * "first 6 hex chars", the input is base64 and the slice preserves
- * those base64 characters — the choice is fine for a coarse-grained
- * visual check (1 chance in ~64^6 ≈ 1 in 68B of collision for the
- * 6-char prefix).
+ * stable regardless of case.
+ *
+ * Collision-space arithmetic (audit R18-SEC-altera-fingerprint-
+ * collision-space-overstated + R18-CONS-fingerprint-collision-math-
+ * 64-base-after-lowercase): standard base64 has a 64-symbol
+ * alphabet (A-Z + a-z + 0-9 + + + /). But after `.toLowerCase()`
+ * the uppercase + lowercase letters of base64 collapse to the same
+ * 26 letters, so the effective alphabet shrinks to 26 letters + 10
+ * digits + 2 symbols ≈ 38 distinct characters. The 6-char prefix
+ * therefore picks from ~38^6 ≈ 3.0e9 (3 billion) distinct values,
+ * not 64^6 ≈ 68 billion. A pure-random adversary's birthday-attack
+ * chance against the visible prefix is roughly 1 in 3B per attempt
+ * — still well outside what a hostile IS-service could exploit
+ * via random retries inside a session-start latency budget, but
+ * the prior 68B claim was overstated by ~22×.
  *
  * Displayed alongside the QR so the user can spot a swapped
  * address even if the request was tampered with. Closes the visual

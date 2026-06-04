@@ -304,15 +304,15 @@
 					<p>
 						<strong>Match the 6-character fingerprint shown below
 						against the value your IS-service operator publishes
-						before paying.</strong>
+						before paying.</strong> The canonical source is the
+						same place the operator declares which IS-service
+						Altera should talk to (status page, docs, or
+						out-of-band announcement).
 					</p>
 					<p>
-						The canonical fingerprint should be published on the
-						operator's status page, documentation, or out-of-band
-						announcement channel — the same place the operator
-						declares which IS-service URL Altera should talk to.
-						If you don't have an out-of-band source for it, do not
-						pay — close this dialog and report it.
+						<strong>If the fingerprint does not match, or you
+						don't have a canonical source for it, do not pay</strong>
+						— close this dialog and report it.
 					</p>
 				</div>
 			{/if}

@@ -176,7 +176,16 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	// pattern for in-flight /status fetches. stop() aborts any
 	// pending getStatus so the per-host socket frees immediately
 	// instead of holding for up to 30s.
-	let pollAbort: AbortController | undefined
+	//
+	// Audit R15-CORR-poll-late-finally-clobbers-new-controller (LOW):
+	// pollAbort is GEN-tagged so an old tick whose finally runs AFTER
+	// a new tick already grabbed pollAbort can't blindly null it.
+	// The old finally checks `pollAbort.gen === gen` before clearing.
+	// Without this, a cancel-409's schedulePoll() re-arm could leave
+	// stop() unable to abort the new in-flight fetch — the per-host
+	// socket then stays held until the browser's ~30s default,
+	// defeating the R11 fix.
+	let pollAbort: { gen: number; ctrl: AbortController } | undefined
 
 	const terminal = $derived(status ? isTerminal(status.state) : false);
 
@@ -278,9 +287,10 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 	// in-flight fetch invalidates this tick's writes too.
 	async function poll(sid: string, gen: number): Promise<boolean> {
 		if (destroyed || gen !== pollGen) return true;
-		pollAbort = new AbortController();
+		const ctrl = new AbortController();
+		pollAbort = { gen, ctrl };
 		try {
-			const next = await client.getStatus(sid, pollAbort.signal);
+			const next = await client.getStatus(sid, ctrl.signal);
 			if (destroyed || gen !== pollGen) return true;
 			status = next;
 			// Round-12 audit R12-OPS-BACKOFF-NO-VISIBILITY-01: log
@@ -364,7 +374,15 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 			if (atCap) atBackoffCap = true;
 			return false;
 		} finally {
-			pollAbort = undefined;
+			// Audit R15-CORR-poll-late-finally-clobbers-new-controller:
+			// only clear pollAbort if it still references OUR tick. A
+			// stale tick whose await resolved AFTER a newer tick already
+			// installed a new controller must NOT clobber that newer
+			// reference — otherwise stop() can't abort the in-flight
+			// fetch and the socket stays held.
+			if (pollAbort?.gen === gen) {
+				pollAbort = undefined;
+			}
 		}
 	}
 
@@ -570,8 +588,11 @@ export function createDashSession(opts: DashSessionOpts): DashSession {
 		// Round-11 audit R11-INFO-GETSTATUS-NO-EXTERNAL-SIGNAL: also
 		// abort any in-flight /status fetch so the socket frees
 		// immediately rather than holding for up to 30s after stop().
+		// Audit R15-CORR-poll-late-finally-clobbers-new-controller:
+		// pollAbort is now { gen, ctrl } so the .abort() goes through
+		// the wrapper.
 		if (pollAbort !== undefined) {
-			pollAbort.abort();
+			pollAbort.ctrl.abort();
 		}
 		if (sid && token) {
 			// Round-10 audit R10-INFO-01: client.cancel never throws,

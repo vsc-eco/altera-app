@@ -304,8 +304,15 @@
 					<p>
 						<strong>Match the 6-character fingerprint shown below
 						against the value your IS-service operator publishes
-						before paying.</strong> If the fingerprint doesn't
-						match, do not pay — close this dialog and report it.
+						before paying.</strong>
+					</p>
+					<p>
+						The canonical fingerprint should be published on the
+						operator's status page, documentation, or out-of-band
+						announcement channel — the same place the operator
+						declares which IS-service URL Altera should talk to.
+						If you don't have an out-of-band source for it, do not
+						pay — close this dialog and report it.
 					</p>
 				</div>
 			{/if}

@@ -340,12 +340,25 @@ export function buildDashUri(address: string, amountDuffs: number): string {
 }
 
 /**
- * Address fingerprint — first 6 hex chars of the IS-service's address
- * signature. Displayed alongside the QR so the user can spot a swapped
+ * Address fingerprint — first 6 characters of the IS-service's
+ * `addressSignature` (which is a base64-encoded Ed25519 / HMAC
+ * signature, NOT hex), lowercased so the user-visible value is
+ * stable regardless of case. Despite the prior docstring claiming
+ * "first 6 hex chars", the input is base64 and the slice preserves
+ * those base64 characters — the choice is fine for a coarse-grained
+ * visual check (1 chance in ~64^6 ≈ 1 in 68B of collision for the
+ * 6-char prefix).
+ *
+ * Displayed alongside the QR so the user can spot a swapped
  * address even if the request was tampered with. Closes the visual
- * substitution vector, NOT the network-level one — for that the frontend
- * must verify `addressSignature` against a pinned IS-service pubkey
- * (todo: spec §5.7 HSM/KMS hand-off).
+ * substitution vector, NOT the network-level one — for that the
+ * frontend cryptographically verifies `addressSignature` against
+ * the pinned `PUBLIC_IS_SERVICE_SIGNER_PUBKEY` (verifyAddressSignature
+ * in signature.ts; SEC-2 hard-fails the QR render on `kind === 'invalid'`).
+ *
+ * Audit R17-CONS-altera-addressfingerprint-not-actually-hex-or-hash:
+ * the prior "first 6 hex chars" wording was internally
+ * contradictory — the signature is never hex on the wire.
  */
 export function addressFingerprint(addressSignature: string): string {
 	return (addressSignature || '').slice(0, 6).toLowerCase();

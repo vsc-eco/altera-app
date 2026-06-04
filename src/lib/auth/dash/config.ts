@@ -17,9 +17,14 @@ export const isServiceUrl: string =
  * `addressSignature` field returned by /session/start.
  *
  * v1 ships with a placeholder — when unset OR equal to the placeholder
- * sentinel, the frontend falls back to the address-fingerprint visual
- * check (see addressFingerprint in isClient.ts). Both should be wired
- * before mainnet.
+ * sentinel, verifyAddressSignature returns `kind = 'unconfigured'`,
+ * which triggers DashLogin's yellow warn-panel: the panel surfaces
+ * that cryptographic verification was unavailable for this session,
+ * NOT a comparison directive (the address-fingerprint is per-session
+ * and has no static published value to compare against — audit
+ * R19-SEC-fingerprint-warn-panel-no-canonical-source-exists). Pinning
+ * this pubkey before mainnet is the only way to get the green
+ * 'verified' badge + the fail-closed 'invalid' branch active.
  */
 export const isServiceSignerPubkey: string = publicEnv.PUBLIC_IS_SERVICE_SIGNER_PUBKEY || '';
 

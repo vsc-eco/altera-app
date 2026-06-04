@@ -123,8 +123,12 @@
 
 	// Verify the address signature against the pinned IS-service pubkey.
 	// Runs once when the start response arrives; result drives the badge
-	// shown next to the address. When `unconfigured` (no pubkey set),
-	// users still get the 6-char fingerprint check.
+	// shown next to the address. When `unconfigured` (no pubkey set) or
+	// `unsupported` (browser lacks Ed25519 WebCrypto), the panel falls
+	// back to a yellow warn-panel that tells the user crypto-verification
+	// was unavailable — NOT to "match against an operator-published
+	// fingerprint", since the fingerprint is per-session (audit R19-SEC-
+	// fingerprint-warn-panel-no-canonical-source-exists).
 	let sigVerdict = $state<SignatureVerdict | undefined>(undefined);
 	$effect(() => {
 		const r = session.startResponse;
@@ -298,21 +302,21 @@
 					<p class="sig-warn-title">
 						<ShieldQuestion size={16} />
 						{sigVerdict?.kind === 'unsupported'
-							? 'Cryptographic verification unavailable in this browser'
-							: 'IS-service signer pubkey not pinned'}
+							? 'Verification unavailable in this browser'
+							: 'Verification not configured'}
 					</p>
 					<p>
-						Altera could not cryptographically verify the
-						deposit address against the IS-service's signer.
-						The deposit address shown below cannot be
-						automatically authenticated.
+						Altera cannot verify the deposit address shown below.
+						{sigVerdict?.kind === 'unsupported'
+							? "Your browser doesn't support the cryptographic check Altera normally uses."
+							: "This Altera build doesn't have its IS-service signer pubkey pinned."}
 					</p>
 					<p>
-						<strong>Only proceed if you trust this Altera
-						deployment and the IS-service URL it talks to.</strong>
-						If the URL in your address bar isn't the one you
-						expect, or anything else about this dialog looks
-						wrong, do not pay — close this dialog and report it.
+						<strong>Only proceed if you trust this website and
+						its operator.</strong> Check the website name (in
+						the URL bar on desktop, or your in-app browser
+						title) — if anything looks unfamiliar, do not pay.
+						Close this dialog and report it.
 					</p>
 				</div>
 			{/if}
@@ -328,8 +332,18 @@
 							><ShieldCheck size={12} /> verified</span
 						>
 					{:else if sigVerdict?.kind === 'unconfigured' || sigVerdict?.kind === 'unsupported'}
-						<span class="sig sig-unknown" title="fall back to fingerprint check"
-							><ShieldQuestion size={12} /> check fingerprint</span
+						<!-- Audit R20-CORR-altera-check-fingerprint-badge-
+							 implies-security-check + R20-OPS-dashlogin-badge-
+							 tooltip-and-text-still-say-fall-back-to-
+							 fingerprint: the badge used to read "fall back to
+							 fingerprint check", implying the fingerprint
+							 provides a meaningful security gate. Per R19 the
+							 fingerprint is session-internal only — no static
+							 operator-published value to compare against. Badge
+							 now reads "not verified" with a tooltip that
+							 names the actual situation. -->
+						<span class="sig sig-unknown" title="cryptographic verification unavailable — see warning above"
+							><ShieldQuestion size={12} /> not verified</span
 						>
 					{/if}
 				</dd>

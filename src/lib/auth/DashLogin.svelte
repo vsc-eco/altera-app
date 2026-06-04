@@ -139,6 +139,16 @@
 			pinnedPubkey: isServiceSignerPubkey
 		}).then((v) => {
 			sigVerdict = v;
+			// Audit R16-OPS-altera-invalid-sig-no-session-cancel (HIGH):
+			// when the verdict is 'invalid' the QR is hidden (see the
+			// {:else if} branch on render), but pre-R16 the underlying
+			// session kept polling /status forever — consuming RC, the
+			// IS service's session-store slot, and dashd-watcher map
+			// space. Cancel the session at the moment the verdict
+			// arrives so the orchestrator releases all of those.
+			if (v?.kind === 'invalid') {
+				void session.cancel();
+			}
 		});
 	});
 
@@ -228,15 +238,28 @@
 	{#snippet content()}
 		{#if session.phase === 'starting' || (session.phase === 'waiting' && !session.startResponse)}
 			<p class="muted">Preparing your session…</p>
+		{:else if session.phase === 'waiting' && session.startResponse && sigVerdict === undefined}
+			<!-- Audit R16-CORR-altera-qr-renders-before-sigverdict-resolved
+				 (MED) + R16-SEC-altera-sig-toctou-pre-verdict-render (LOW):
+				 verifyAddressSignature is async; between session.startResponse
+				 arriving and the promise resolving, sigVerdict is undefined.
+				 Pre-fix the {:else if} for `invalid` evaluated false on
+				 undefined and control fell into the QR-rendering branch
+				 below — so a user on a slow CPU / older browser could scan
+				 + pay BEFORE the verdict arrived, defeating the SEC-2 gate.
+				 Show a verify-pending spinner-equivalent placeholder until
+				 the verdict resolves. -->
+			<p class="muted">Verifying IS-service response…</p>
 		{:else if session.phase === 'waiting' && session.startResponse && sigVerdict?.kind === 'invalid'}
-			<!-- Audit SEC-2 (R15): hard fail-closed when the IS-service
-				 address signature does NOT verify against the pinned
-				 PUBLIC_IS_SERVICE_SIGNER_PUBKEY. Pre-fix the QR + address
-				 still rendered with only an inline red-shield badge — a
-				 user who'd successfully scanned + paid in prior sessions
-				 was nudged toward doing it again. The signer exists
-				 precisely so the client can detect adversary-controlled
-				 IS-service responses; rendering the QR anyway defeats it. -->
+			<!-- Audit SEC-2 (R15) + R16-OPS-altera-invalid-sig-no-session-cancel:
+				 hard fail-closed when the IS-service address signature does
+				 NOT verify against the pinned PUBLIC_IS_SERVICE_SIGNER_PUBKEY.
+				 Pre-fix the QR + address still rendered with only an inline
+				 red-shield badge — a user who'd successfully scanned + paid
+				 in prior sessions was nudged toward doing it again. The
+				 underlying session.cancel() is fired at verdict-resolution
+				 time (see the $effect above) so the orchestrator releases
+				 RC + session-store + watcher state. -->
 			<div class="sig-fail-panel">
 				<p class="sig-fail-title">
 					<ShieldAlert size={16} /> IS-service signature did not verify
@@ -258,6 +281,34 @@
 			</div>
 		{:else if session.phase === 'waiting' && session.startResponse}
 			<p class="muted">Pay the address below from your DashPay wallet via InstantSend.</p>
+			{#if sigVerdict?.kind === 'unsupported' || sigVerdict?.kind === 'unconfigured'}
+				<!-- Audit R16-SEC-altera-sigverdict-unsupported-renders-qr
+					 (MED): when the browser can't run Ed25519 WebCrypto
+					 (older Chrome/Firefox/Safari) OR the operator hasn't
+					 pinned PUBLIC_IS_SERVICE_SIGNER_PUBKEY, the QR still
+					 renders. We don't fail-closed in this branch (it
+					 would brick legitimate older-browser users), but we
+					 elevate the fingerprint check from an inline badge
+					 to a prominent banner so the user can't miss it.
+					 The fingerprint below the QR is the SAME 6-char hash
+					 the operator publishes out-of-band; matching it is
+					 the manual fallback when crypto-verify isn't
+					 available. -->
+				<div class="sig-warn-panel">
+					<p class="sig-warn-title">
+						<ShieldQuestion size={16} />
+						{sigVerdict?.kind === 'unsupported'
+							? 'Cryptographic verification unavailable in this browser'
+							: 'IS-service signer pubkey not pinned'}
+					</p>
+					<p>
+						<strong>Match the 6-character fingerprint shown below
+						against the value your IS-service operator publishes
+						before paying.</strong> If the fingerprint doesn't
+						match, do not pay — close this dialog and report it.
+					</p>
+				</div>
+			{/if}
 			{#if dashUri}
 				<Qr data={dashUri} />
 			{/if}
@@ -444,6 +495,27 @@
 		}
 	}
 	.sig-fail-title {
+		display: flex;
+		align-items: center;
+		gap: 0.4em;
+		font-weight: 600;
+		margin: 0;
+	}
+	.sig-warn-panel {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6em;
+		padding: 0.8em 1em;
+		border: 1px solid rgba(251, 191, 36, 0.5);
+		background: rgba(251, 191, 36, 0.1);
+		border-radius: 4px;
+		color: #facc15;
+		margin-bottom: 0.8em;
+		strong {
+			color: #fde68a;
+		}
+	}
+	.sig-warn-title {
 		display: flex;
 		align-items: center;
 		gap: 0.4em;

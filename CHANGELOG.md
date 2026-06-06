@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.16] — 2026-06-06
+
+### Fixes
+
+- **Receive field went blank with no explanation when the swap input was too large for the pool** (e.g. 1 BTC into the ~0.023 BTC pool, or 10,000 HBD into a 1,426 HBD pool). The calc correctly clamps `expectedOutput` to `0n` in these cases and the submit button is correctly disabled, but the existing "Amount exceeds pool depth" hint was a small inline span on the FROM side sitting next to the USD line, so users staring at the blank RECEIVE field read it as "the page froze". The post-0.3.15 worst-case stabilizer slightly widens the range where the m=2 fee overflows `grossOut` → clamps to 0, which made this UX flaw more obvious. Two small changes on `/swap` (`SwapOptions.svelte`): mirror the pool-depth hint on the RECEIVE side ("Pool can't absorb this amount") so the blank field has a reason right next to it; reword the FROM-side message from the jargony "Amount exceeds pool depth" to "Insufficient pool liquidity — try a smaller amount". QuickSwap already renders this as a prominent banner and was left untouched
+
 ## [0.3.15] — 2026-06-06
 
 ### Fixes

@@ -1029,7 +1029,7 @@ let expectedOutputUsd = $derived.by(() => {
 							>Insufficient {coinDisplayLabel(txState.from.coin)} balance</span
 						>
 					{:else if exceedsPoolDepth}
-						<span class="section-error-inline">Amount exceeds pool depth</span>
+						<span class="section-error-inline">Insufficient pool liquidity — try a smaller amount</span>
 					{/if}
 				</div>
 			</div>
@@ -1096,6 +1096,16 @@ let expectedOutputUsd = $derived.by(() => {
 							<span class="price-unavailable">Price unavailable</span>
 						{/if}
 					</span>
+					<!-- Mirror the "exceeds pool depth" hint on the receive side too:
+					     when the input overflows the pool the calc clamps expectedOutput
+					     to 0 and AmountInput renders empty, which reads as "nothing
+					     happened". This makes the cause obvious right next to the
+					     blank field. Other section-error-inline cases (sameCoin,
+					     insufficientBalance) already render on the FROM side, so we
+					     only echo the pool-depth one here. -->
+					{#if exceedsPoolDepth}
+						<span class="section-error-inline">Pool can't absorb this amount</span>
+					{/if}
 				</div>
 			</div>
 

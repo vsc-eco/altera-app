@@ -8,6 +8,25 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.15] — 2026-06-06
+
+### Fixes
+
+- **BTC swaps were silently reverting with `slippage tolerance exceeded` on mainnet — fixed by changing the quote, not the slippage.** The on-chain consensus pendulum multiplies both fee legs by a stabilizer multiplier `m ∈ [1, 2]` (`incentive-pendulum/wasm/applier.go:200-221`, cap from `fees_int.go:DefaultStabilizerParamsBps`). `swapCalc.ts` was modeling `m = 1`, so on shallow pools (the 0.023-BTC BTC/HBD pool especially) the quote overstated the user's output and the contract reverted the swap. The right fix isn't to widen slippage — that's still optimistic and a swap at the cap still fails — it's to make the quote itself a **guaranteed floor**. We now compute fees with the worst-case `m = 2.0` cap baked in:
+  ```
+  expectedOutput = grossOut − 2 × (baseProtocolFee + baseClpFee)
+  ```
+  Properties this gives us:
+    - For any real on-chain `m ∈ [1, 2]`, `actualOutput ≥ expectedOutput` — users never receive less than quoted, sometimes more
+    - The on-chain slippage gate (`actualOutput ≥ min_amount_out`) always passes for the stabilizer portion; slippage is now back to its original job of absorbing reserve drift between sign and execute. Default stays at 1%
+    - No fetch of pendulum V/E geometry needed (which would re-implement consensus math — exactly the drift class this bug was an instance of). The bound is a constant, no drift possible
+    - Fixes the issue for **every** route touching the shallow pool (BTC↔HBD, BTC↔HIVE, HIVE↔BTC, HBD↔BTC) and the HBD↔HIVE edge-case failures the incident report also flagged
+  - **Trade-off (intentional):** the quote line is now pessimistic. On HIVE↔HBD the difference is ~0.06% (invisible). On BTC routes it's ~6.6% lower than a naive m=1 quote — but it matches the on-chain worst-case execution exactly. Users get **at least** what they see, never less. Truth over favorable comparison
+  - **Maintenance tripwire:** the fix encodes `STABILIZER_CAP_BPS = 20000n` (m = 2.0) at the top of `swapCalc.ts`. If `fees_int.go:DefaultStabilizerParamsBps.Cap` is ever raised in a protocol upgrade, this constant must move in the same PR — otherwise we silently regress. Tracked by two new tests in `swapCalc.test.ts` that pin the worst-case behavior against the worked figures from the incident report (76,132 mHBD floor for the 150,000-sat BTC→HBD case)
+  - UI is unchanged: original 4 slippage presets (`0.5 / 1 / 2 / 3%`), default 1%, custom cap back to ~100%. No banners, no info icons, no auto-raise. The math is just correct now
+- The long-term fix remains a backend `simulateSwap` that runs the actual `ApplySwapFees` and returns `userOutput` — that would let the quote be the EXACT delivery (m=1 to 2 as appropriate) instead of the worst-case floor. Until then this floor is the safe answer. Tracking via the incident report "Altera Swap Quote ↔ On-Chain Pendulum Divergence (Stabilizer Omission)" dated 2026-06-06
+- Both `/swap` (`SwapOptions.svelte`) and the dashboard QuickSwap card consume the same `swapCalc.ts`, so this fix flows into both UIs with no separate change
+
 ## [0.3.14] — 2026-06-03
 
 ### Fixes

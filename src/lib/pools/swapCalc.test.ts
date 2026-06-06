@@ -81,8 +81,12 @@ describe('calculateSwap', () => {
 		// 10 HIVE (10,000 units) into a 2,221 HIVE pool → ~0.45% of reserve
 		const r = calculateSwap(10_000n, 2_221_000n, 2_221_000n, 100);
 		expect(r.expectedOutput).toBeGreaterThan(0n);
-		// grossOut ≈ 9,955 mHBD; after fees should be >9,900 mHBD
-		expect(r.expectedOutput).toBeGreaterThan(9_900n);
+		// grossOut ≈ 9,955 mHBD. After the worst-case stabilizer (m=2.0)
+		// applied to both fee legs, expectedOutput is the FLOOR users will
+		// receive — ≈ 9,854 mHBD here (~1.5% below grossOut), still very
+		// close. Actual on-chain delivery is ≥ this floor for any real m.
+		expect(r.expectedOutput).toBeGreaterThan(9_800n);
+		expect(r.expectedOutput).toBeLessThan(9_955n); // strictly below grossOut
 	});
 
 	it('large trade near 50% cap has very high CLP fee', () => {
@@ -106,6 +110,47 @@ describe('calculateSwap', () => {
 	it('minAmountOut ≤ expectedOutput always', () => {
 		const r = calculateSwap(10_000n, 2_221_000n, 2_221_000n, 200);
 		expect(r.minAmountOut).toBeLessThanOrEqual(r.expectedOutput);
+	});
+
+	// ─── Stabilizer worst-case guarantees ─────────────────────────────────
+	// These pin the contract our quote makes with users: "you will receive
+	// AT LEAST `expectedOutput`". If anyone ever weakens the stabilizer
+	// floor (e.g. drops the ×2 multiplier without a matching backend
+	// guarantee), these tests turn red — and BTC swaps start reverting in
+	// production the same way they did before this fix.
+
+	it('expectedOutput equals the on-chain floor at the m=2.0 stabilizer cap', () => {
+		// Worked figures from the 2026-06-06 incident report (§5):
+		//   hop-1 BTC→HBD, 150,000 sats into 2,313,898 : 1,426,458
+		//   grossOut    ≈ 86,842
+		//   baseCLP     ≈ 5,286
+		//   baseProtocol ≈ 69
+		//   userOutput at m=2.0  ≈ 76,132
+		// Our worst-case quote MUST equal that floor (within BigInt floor
+		// rounding) — otherwise the 110%-reliable property is broken.
+		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100);
+		// Allow ±5 units for floor-rounding differences across the
+		// independent base-fee calculations.
+		const ON_CHAIN_FLOOR = 76_132n;
+		const diff = r.expectedOutput - ON_CHAIN_FLOOR;
+		const absDiff = diff < 0n ? -diff : diff;
+		expect(absDiff).toBeLessThanOrEqual(5n);
+	});
+
+	it('expectedOutput is strictly less than grossOut (stabilizer is applied)', () => {
+		// If someone accidentally drops the ×2 multiplier this becomes
+		// equal to the m=1 quote which on-chain reality exceeds — and
+		// BTC swaps start reverting again.
+		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100);
+		const newX = 2_313_898n + 150_000n;
+		const grossOut = 1_426_458n - (2_313_898n * 1_426_458n) / newX;
+		const m1Quote = grossOut - (grossOut * 8n) / 10000n - (150_000n * 150_000n * 1_426_458n) / (newX * newX);
+		// Worst-case must be strictly LESS than the m=1 quote — by roughly
+		// the size of one fee leg (the surplus). Sanity-check the gap is at
+		// least 5% of the m=1 quote on this very shallow pool.
+		expect(r.expectedOutput).toBeLessThan(m1Quote);
+		const gap = m1Quote - r.expectedOutput;
+		expect(Number(gap) / Number(m1Quote)).toBeGreaterThan(0.05);
 	});
 });
 

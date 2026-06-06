@@ -8,14 +8,59 @@
  * pool, the constant-product invariant produces a gross output, and
  * fees are carved off that.
  *
- * Formulas (mirror the on-chain Go contract):
- *   grossOut  = Y - (X * Y) / (X + x)
- *   base fee  = grossOut * feeBps / 10000        (output units, floor 1)
- *   CLP fee   = (x^2 * Y) / (x + X)^2            (output units, floor 1)
- *   total fee = base fee + CLP fee
- *   amountOut = grossOut - base fee - CLP fee
- *   min_amount_out = amountOut * (10000 - slippageBps) / 10000
+ * Formulas:
+ *   grossOut          = Y - (X * Y) / (X + x)
+ *   base protocol fee = grossOut * feeBps / 10000        (output units, floor 1)
+ *   base CLP fee      = (x^2 * Y) / (x + X)^2            (output units, floor 1)
+ *
+ *   ─── STABILIZER WORST-CASE (m = 2.0 cap) ───
+ *
+ *   The on-chain consensus code applies a pendulum stabilizer
+ *   multiplier `m` to BOTH fee legs at execution
+ *   (`incentive-pendulum/wasm/applier.go:200-221`,
+ *   `incentive-pendulum/fees_int.go:68-124`). `m` is bounded:
+ *   `m ∈ [1.0, 2.0]` where 2.0 is the hard cap set by
+ *   `DefaultStabilizerParamsBps.Cap` (`fees_int.go:59-66`).
+ *
+ *   We don't know the live `m` from the frontend — fetching pendulum
+ *   V/E geometry would re-implement consensus math, exactly the drift
+ *   class this codebase was bitten by. Instead we use the bound:
+ *   compute `expectedOutput` as if `m = 2.0` (the worst case).
+ *
+ *     expectedOutput = grossOut - 2 × (baseProtocol + baseCLP)
+ *     min_amount_out = expectedOutput * (10000 - slippageBps) / 10000
+ *
+ *   Guarantees this gives us:
+ *     • For any real on-chain m ∈ [1, 2], actualOutput ≥ expectedOutput
+ *     • The slippage gate on-chain (`actualOutput ≥ min_amount_out`)
+ *       always passes for the stabilizer portion — slippage only
+ *       needs to absorb normal reserve drift between sign and execute
+ *     • User receives at least what they were quoted; sometimes more
+ *
+ *   Trade-off: the quote is pessimistic. On deep HIVE/HBD pools the
+ *   surplus is ~0.06% so the difference is invisible. On the shallow
+ *   BTC/HBD pool it can be 6.6% — users see a lower number than a
+ *   naive `m = 1` quote, but they will never be under-delivered.
+ *
+ *   ⚠️ MAINTENANCE TRIPWIRE: this depends on the on-chain cap staying
+ *   at 2.0. If `fees_int.go:DefaultStabilizerParamsBps.Cap` is ever
+ *   raised, update `STABILIZER_CAP_BPS` below in lockstep — otherwise
+ *   we silently regress to the same class of bug.
+ *
+ *   The proper long-term fix is still a backend `simulateSwap` that
+ *   returns the actual `userOutput` from the live `ApplySwapFees`.
+ *   Tracking: incident report "Altera Swap Quote ↔ On-Chain Pendulum
+ *   Divergence (Stabilizer Omission)" dated 2026-06-06.
  */
+
+/**
+ * Hard cap on the pendulum stabilizer multiplier `m` in basis points.
+ * 20000 bps = m = 2.0. Mirrors `DefaultStabilizerParamsBps.Cap` in
+ * `go-vsc-node/modules/incentive-pendulum/fees_int.go:59-66`. If that
+ * file's `Cap` ever changes, change this constant in the same PR.
+ */
+const STABILIZER_CAP_BPS = 20000n;
+const BPS_SCALE = 10000n;
 
 import { GetStateByKeysStore } from '$houdini';
 import { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from './poolsData';
@@ -133,12 +178,19 @@ export async function findPoolByPair(
 }
 
 /**
- * Calculate swap fees and expected output using pure integer arithmetic.
+ * Calculate swap fees and worst-case expected output.
+ *
+ * The returned `baseFee` / `clpFee` / `totalFee` are the **charged**
+ * fees at the stabilizer cap (i.e. base × 2). UI components that want
+ * the unmultiplied base fees can recover them as `totalFee / 2`.
  *
  * @param x         Input amount (smallest units)
  * @param X         Reserve of input asset (smallest units)
  * @param Y         Reserve of output asset (smallest units)
- * @param slippageBps  Slippage tolerance in basis points (e.g. 100 = 1%)
+ * @param slippageBps  Slippage tolerance in basis points (e.g. 100 = 1%).
+ *                     Now only needs to absorb normal AMM reserve drift
+ *                     between sign and execute — the stabilizer surplus
+ *                     is already baked into `expectedOutput`.
  */
 export function calculateSwap(
 	x: bigint,
@@ -161,18 +213,30 @@ export function calculateSwap(
 	const newX = X + x;
 	const grossOut = Y - (X * Y) / newX;
 
-	// base fee = grossOut * 8 / 10000  (output units, floor 1 to match contract)
-	let baseFee = (grossOut * 8n) / 10000n;
-	if (baseFee === 0n) baseFee = 1n;
+	// Base fees, before stabilizer multiplier (mirror on-chain at m=1):
+	//   protocol fee = grossOut * 8 / 10000   (output units, floor 1)
+	//   CLP fee      = (x^2 * Y) / (x + X)^2  (output units, floor 1)
+	let baseProtocolFee = (grossOut * 8n) / 10000n;
+	if (baseProtocolFee === 0n) baseProtocolFee = 1n;
 
-	// CLP fee = (x^2 * Y) / (x + X)^2  (output units, floor 1)
-	let clpFee = (x * x * Y) / (newX * newX);
-	if (clpFee === 0n) clpFee = 1n;
+	let baseClpFee = (x * x * Y) / (newX * newX);
+	if (baseClpFee === 0n) baseClpFee = 1n;
 
-	const totalFee = baseFee + clpFee;
+	// Apply the worst-case stabilizer multiplier (m = 2.0 at the cap).
+	// On-chain the multiplier is `charged = floor(base * m_bps / BpsScale)`
+	// — matches `incentive-pendulum/fees_int.go:128-133 ApplyMultiplierBps`.
+	// We use m_bps = STABILIZER_CAP_BPS so the resulting `expectedOutput`
+	// is a guaranteed FLOOR over any real on-chain m ∈ [1, 2].
+	const chargedProtocolFee = (baseProtocolFee * STABILIZER_CAP_BPS) / BPS_SCALE;
+	const chargedClpFee = (baseClpFee * STABILIZER_CAP_BPS) / BPS_SCALE;
+	const totalFee = chargedProtocolFee + chargedClpFee;
 
-	// amountOut = grossOut - baseFee - clpFee
-	let expectedOutput = grossOut - baseFee - clpFee;
+	// expectedOutput is the worst-case net delivery (m = 2.0).
+	// Actual on-chain delivery for any real m ∈ [1, 2] is ≥ this number,
+	// so the contract's `actualOutput ≥ min_amount_out` gate always passes
+	// for the stabilizer portion when slippage ≥ 0 (slippage just covers
+	// normal reserve drift now).
+	let expectedOutput = grossOut - totalFee;
 	if (expectedOutput < 0n) {
 		expectedOutput = 0n;
 	}
@@ -182,8 +246,8 @@ export function calculateSwap(
 	const minAmountOut = (expectedOutput * (10000n - slipBps)) / 10000n;
 
 	return {
-		baseFee,
-		clpFee,
+		baseFee: chargedProtocolFee,
+		clpFee: chargedClpFee,
 		totalFee,
 		expectedOutput,
 		minAmountOut,

@@ -38,16 +38,7 @@
 	// navigation, no duplicated content.
 	import Tr from '../../../routes/(authed)/transactions/Table/tr/Tr.svelte';
 	import { getTimestamp, type TransactionInter } from '$lib/stores/txStores';
-	import {
-		Bitcoin,
-		Check,
-		ChevronDown,
-		Clock,
-		Coins,
-		DollarSign,
-		Search,
-		Zap
-	} from '@lucide/svelte';
+	import { Check, ChevronDown, Clock, Search } from '@lucide/svelte';
 
 	// ─── Step machine (Zag) — drives the timeline indicators ─────────────────
 	// Mental model for the wording:
@@ -133,10 +124,18 @@
 	// intermediate swap needed). Sources not in the list are still
 	// reachable via a swap-and-deposit flow, but that's a separate UX
 	// decision we don't bake into this filter yet.
+	//
+	// Icons mirror what the real DepositOptions.svelte uses:
+	//   - Lightning      → /btc/lightning.svg     (Network.lightning.icon)
+	//   - Hive Mainnet   → /hive/hive.svg         (Network.hiveMainnet.icon)
+	//   - Bitcoin Mainnet→ /btc/btc.svg           (Network.btcMainnet.icon)
+	//   - Coinbase       → /btc/CoinBase_logo.svg (hardcoded there too)
+	// Keeps the mock visually consistent with the production flow so the
+	// switch later requires no design change.
 	type SourceDef = {
 		value: string;
 		label: string;
-		icon: typeof Coins;
+		icon: string;
 		eta: string;
 		fee: string;
 		blurb: string;
@@ -146,7 +145,7 @@
 		{
 			value: 'hive_mainnet',
 			label: 'Hive Mainnet',
-			icon: Coins,
+			icon: '/hive/hive.svg',
 			eta: 'instant',
 			fee: 'no fee',
 			blurb: 'Send from your connected Hive wallet (Keychain, PeakVault, …).',
@@ -155,7 +154,7 @@
 		{
 			value: 'lightning',
 			label: 'Lightning',
-			icon: Zap,
+			icon: '/btc/lightning.svg',
 			eta: '≈ 1 min',
 			fee: '~10 sats',
 			blurb: 'Scan an invoice with any Lightning wallet (Phoenix, Alby, …).',
@@ -164,7 +163,7 @@
 		{
 			value: 'btc_mainnet',
 			label: 'Bitcoin Mainnet',
-			icon: Bitcoin,
+			icon: '/btc/btc.svg',
 			eta: '≈ 10 min',
 			fee: 'network fee varies',
 			blurb: 'Send BTC to a bridge-managed deposit address. Settles after 1 confirmation.',
@@ -173,7 +172,7 @@
 		{
 			value: 'coinbase',
 			label: 'Coinbase',
-			icon: DollarSign,
+			icon: '/btc/CoinBase_logo.svg',
 			eta: '≈ 15 min',
 			fee: 'Coinbase rates apply',
 			blurb: 'Buy with card and have it deposited to Magi in one step.',
@@ -538,7 +537,6 @@
 {#snippet coinbaseCard()}{@render sourceCardLayout(SOURCES[3])}{/snippet}
 
 {#snippet sourceCardLayout(def: (typeof SOURCES)[number])}
-	{@const Icon = def.icon}
 	{@const viaSwap = isViaSwap(def, selectedAsset as AssetValue | null)}
 	<div class="source-card" class:via-swap={viaSwap}>
 		<!--
@@ -556,8 +554,14 @@
 				</Tooltip>
 			</span>
 		{/if}
+		<!--
+			Real SVG icons from /static, matching the production DepositOptions
+			flow. Production uses size=40 inside a 40px renderer; here we drop
+			the visible size to 28px to fit the compact source-card layout
+			while keeping the asset visually identifiable.
+		-->
 		<div class="source-icon">
-			<Icon size={20} />
+			<img src={def.icon} alt={def.label} width="28" height="28" />
 		</div>
 		<div class="source-body">
 			<!--
@@ -1199,15 +1203,20 @@
 		align-items: start;
 		width: 100%;
 	}
+	/* Icon-only tile — no background pill behind the SVG. Real production
+	   icons (e.g. Coinbase logo, lightning bolt) carry their own visual
+	   weight; the previous accent-purple plate competed with them. */
 	:global(.source-icon) {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 2.25rem;
-		height: 2.25rem;
-		border-radius: 10px;
-		background: rgba(111, 106, 248, 0.16);
-		color: #b0acff;
+		width: 2.5rem;
+		height: 2.5rem;
+		flex-shrink: 0;
+	}
+	:global(.source-icon img) {
+		display: block;
+		object-fit: contain;
 	}
 	:global(.source-head) {
 		display: flex;
@@ -1245,9 +1254,11 @@
 	   cross-asset ones reachable but visually de-emphasized. Subtle enough
 	   that someone scanning the list for a direct option still spots it
 	   first; visible enough that the swap path is still discoverable. */
-	:global(.source-card.via-swap) :global(.source-icon) {
-		background: rgba(255, 255, 255, 0.06);
-		color: var(--dash-text-secondary);
+	/* Via-swap icon: no background, just slight desaturation + opacity so
+	   direct sources still visually win without needing a contrast tile. */
+	:global(.source-card.via-swap) :global(.source-icon img) {
+		filter: saturate(0.55);
+		opacity: 0.75;
 	}
 	/* Top-center pinned badge. Sits INSIDE the card top edge (not straddling
 	   it), so it reads clearly as a property of this card and doesn't

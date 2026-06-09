@@ -301,15 +301,18 @@
 
 	// Try to fetch the authed user's real recent deposits. The rail goes
 	// through a small state machine:
-	//   - 'unauth':  no logged-in user. Show mock fixtures so the rail
-	//                still demonstrates the layout during anonymous review.
-	//   - 'loading': fetch in flight. Show the WaveLoading spinner — never
-	//                flash mock data on top, which previously looked like
-	//                real wrong-data appearing briefly.
+	//   - 'loading': initial state AND fetch in flight. We start here so
+	//                the very first paint shows the WaveLoading spinner
+	//                instead of an empty state or a mock flash; we stay
+	//                here until we know whether the user is authed.
+	//   - 'unauth':  auth resolved with no did. Show mock fixtures so the
+	//                rail still demonstrates the layout during anonymous
+	//                review.
 	//   - 'loaded':  fetch done. Show real deposits, or an empty state if
 	//                there were zero.
-	const auth = getAuth();
-	let depositsState = $state<'unauth' | 'loading' | 'loaded'>('unauth');
+	const authValue = $derived(getAuth()());
+	let depositsState = $state<'unauth' | 'loading' | 'loaded'>('loading');
+	let didFetch = $state(false);
 	let realDeposits = $state<DisplayDeposit[]>([]);
 	// Raw tx records kept around so we can mount real <Tr> instances
 	// hidden and reuse their modal-content snippets via DOM click.
@@ -438,12 +441,24 @@
 	}
 
 	$effect(() => {
-		const did = auth().value?.did;
+		if (didFetch) return; // one-shot: don't re-fire on auth churn
+
+		// Wait while the auth store is still resolving — keeps the
+		// initial 'loading' state on screen instead of flashing.
+		if (authValue.status === 'pending') return;
+
+		didFetch = true;
+		const did = authValue.value?.did;
+
 		if (!did) {
-			// Not authenticated → mock fixtures stay (`depositsState = 'unauth'`).
+			// Auth confirmed unauthenticated. Switch to the mock fallback so
+			// reviewers without a Hive login still see the rail layout.
+			depositsState = 'unauth';
 			return;
 		}
-		depositsState = 'loading';
+
+		// Authed — already in 'loading' from the initial state; stay there
+		// until the fetch resolves.
 		new GetTransactionsStore()
 			.fetch({
 				variables: { did, limit: RAW_TX_FETCH_LIMIT, offset: 0 },

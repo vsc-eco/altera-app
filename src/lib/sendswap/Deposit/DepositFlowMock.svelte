@@ -20,7 +20,7 @@
 -->
 <script lang="ts">
 	import RadioGroup from '$lib/zag/RadioGroup.svelte';
-	import Collapsible from '$lib/zag/Collapsible.svelte';
+	import Card from '$lib/cards/Card.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
@@ -520,6 +520,15 @@
 		}
 	}
 
+	// ─── FAQ accordion ──────────────────────────────────────────────────
+	// Dead-simple custom accordion: one state variable (the open index,
+	// or null). Click handler toggles. No library, no bindings, no Zag.
+	// Same one you'd write in five minutes.
+	let openFaqIdx = $state<number | null>(null);
+	function toggleFaq(idx: number) {
+		openFaqIdx = openFaqIdx === idx ? null : idx;
+	}
+
 	function reset() {
 		selectedAsset = null;
 		selectedSource = null;
@@ -877,9 +886,20 @@
 
 		<section>
 			<h5>FAQ</h5>
-			<Collapsible>
-				{#snippet children()}<span>How long does a deposit take?</span>{/snippet}
-				{#snippet content()}
+			<!--
+				Plain custom accordion. Each FAQ is a Card with a trigger
+				button and conditionally-rendered content; clicking the
+				trigger sets openFaqIdx, which makes the others' content
+				not render. Same Card visual as Collapsible used to give
+				us, without the Zag state confusion.
+			-->
+			<Card>
+				<button class="faq-trigger" class:open={openFaqIdx === 0} type="button" onclick={() => toggleFaq(0)} aria-expanded={openFaqIdx === 0}>
+					<span>How long does a deposit take?</span>
+					<ChevronDown class="faq-chevron" size={16} />
+				</button>
+				{#if openFaqIdx === 0}
+					<div class="faq-divider"><hr /></div>
 					<div class="faq-body">
 						<p>Depends on the source you pick:</p>
 						<ul>
@@ -890,11 +910,15 @@
 						</ul>
 						<p>Each option shows its ETA in step 2.</p>
 					</div>
-				{/snippet}
-			</Collapsible>
-			<Collapsible>
-				{#snippet children()}<span>Are there fees?</span>{/snippet}
-				{#snippet content()}
+				{/if}
+			</Card>
+			<Card>
+				<button class="faq-trigger" class:open={openFaqIdx === 1} type="button" onclick={() => toggleFaq(1)} aria-expanded={openFaqIdx === 1}>
+					<span>Are there fees?</span>
+					<ChevronDown class="faq-chevron" size={16} />
+				</button>
+				{#if openFaqIdx === 1}
+					<div class="faq-divider"><hr /></div>
 					<div class="faq-body">
 						<ul>
 							<li><strong>Hive Mainnet</strong> — free</li>
@@ -907,11 +931,15 @@
 							applies on top.
 						</p>
 					</div>
-				{/snippet}
-			</Collapsible>
-			<Collapsible>
-				{#snippet children()}<span>Deposit hasn&rsquo;t arrived?</span>{/snippet}
-				{#snippet content()}
+				{/if}
+			</Card>
+			<Card>
+				<button class="faq-trigger" class:open={openFaqIdx === 2} type="button" onclick={() => toggleFaq(2)} aria-expanded={openFaqIdx === 2}>
+					<span>Deposit hasn&rsquo;t arrived?</span>
+					<ChevronDown class="faq-chevron" size={16} />
+				</button>
+				{#if openFaqIdx === 2}
+					<div class="faq-divider"><hr /></div>
 					<div class="faq-body">
 						<p>Most deposits show as <em>pending</em> in the
 							<a href="/transactions">Transactions</a> page before confirming. If you don&rsquo;t see one:
@@ -923,11 +951,15 @@
 							<li>Still missing? Share the source tx id with support.</li>
 						</ol>
 					</div>
-				{/snippet}
-			</Collapsible>
-			<Collapsible>
-				{#snippet children()}<span>What does &ldquo;via swap&rdquo; mean?</span>{/snippet}
-				{#snippet content()}
+				{/if}
+			</Card>
+			<Card>
+				<button class="faq-trigger" class:open={openFaqIdx === 3} type="button" onclick={() => toggleFaq(3)} aria-expanded={openFaqIdx === 3}>
+					<span>What does &ldquo;via swap&rdquo; mean?</span>
+					<ChevronDown class="faq-chevron" size={16} />
+				</button>
+				{#if openFaqIdx === 3}
+					<div class="faq-divider"><hr /></div>
 					<div class="faq-body">
 						<p>
 							The source you picked delivers a different asset than the one you
@@ -940,8 +972,8 @@
 							thing happens in one flow.
 						</p>
 					</div>
-				{/snippet}
-			</Collapsible>
+				{/if}
+			</Card>
 		</section>
 	</aside>
 </div>
@@ -1516,6 +1548,50 @@
 	   inheritance from the Card / button context was rendering things
 	   slightly heavier than they should. Strong tags inside list items
 	   stay 600 so the lead phrase still reads as a label. */
+	/* ── Custom FAQ accordion (replaces Collapsible to avoid Zag binding
+	   loops). Each FAQ is a Card with this trigger + conditional body.
+	   Negative margins make the trigger fill the Card's full padding
+	   area so clicking anywhere on the Card toggles the FAQ. When the
+	   FAQ is open, the bottom margin reverts to 0 so the trigger
+	   doesn't overlap the divider + body below — clicks on the body
+	   are NOT treated as toggle clicks. */
+	:global(.faq-trigger) {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin: -1.25rem;
+		padding: 1.25rem;
+		background: transparent;
+		border: none;
+		color: var(--dash-text-primary);
+		font: inherit;
+		font-weight: 500;
+		text-align: left;
+		cursor: pointer;
+		border-radius: 27px; /* match Card so hover/focus ring stays rounded */
+	}
+	:global(.faq-trigger.open) {
+		margin-bottom: 0;
+	}
+	:global(.faq-trigger) :global(.faq-chevron) {
+		flex-shrink: 0;
+		transition: transform 200ms ease;
+		color: var(--dash-text-secondary);
+	}
+	:global(.faq-trigger[aria-expanded='true']) :global(.faq-chevron) {
+		transform: rotate(180deg);
+	}
+	:global(.faq-divider) {
+		padding: 0.5rem 0;
+	}
+	:global(.faq-divider hr) {
+		margin: 0;
+		border: none;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
 	:global(.faq-body) {
 		font-size: 0.83rem;
 		line-height: 1.5;

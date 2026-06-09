@@ -38,7 +38,7 @@
 	// navigation, no duplicated content.
 	import Tr from '../../../routes/(authed)/transactions/Table/tr/Tr.svelte';
 	import { getTimestamp, type TransactionInter } from '$lib/stores/txStores';
-	import { Check, ChevronDown, Clock, Search } from '@lucide/svelte';
+	import { Check, ChevronDown, Clock, Info, Receipt, Search } from '@lucide/svelte';
 
 	// ─── Step machine (Zag) — drives the timeline indicators ─────────────────
 	// Mental model for the wording:
@@ -589,14 +589,26 @@
 			<div class="source-head">
 				<span class="source-label">{def.label}</span>
 				<!--
-					Two metadata segments: ETA + fee. Kept as text only (no
-					icons) for a quieter, less crowded card head. Visual
-					treatment is intentionally subtle — these are reference
-					info, not actions.
+					ETA + fee moved into the tooltip on this Info icon. Frees
+					the card head to be label-only — much quieter at a glance,
+					and the details are still one hover away. Same purple
+					Tooltip component used by the "via swap" badge for
+					visual consistency.
 				-->
-				<span class="source-meta">
-					<span class="meta-segment">{def.eta}</span>
-					<span class="meta-segment">{def.fee}</span>
+				<span class="source-info" tabindex="0" role="button" aria-label="Show {def.label} details">
+					<Info size={14} />
+					<Tooltip>
+						<span class="info-tooltip">
+							<span class="info-row">
+								<Clock size={12} strokeWidth={2.25} />
+								<span>{def.eta}</span>
+							</span>
+							<span class="info-row">
+								<Receipt size={12} strokeWidth={2.25} />
+								<span>{def.fee}</span>
+							</span>
+						</span>
+					</Tooltip>
 				</span>
 			</div>
 			<p class="source-blurb">{def.blurb}</p>
@@ -1245,18 +1257,49 @@
 		font-weight: 600;
 		font-size: 0.95rem;
 	}
-	:global(.source-meta) {
+	/* Info icon in the source-card head. Hover/focus reveals a styled
+	   purple Tooltip with the eta + fee. Position is relative so the
+	   Tooltip child can position itself above. */
+	:global(.source-info) {
+		position: relative;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.65rem; /* between the two segments */
-		flex-wrap: wrap;
-		font-size: 0.72rem;
-		font-weight: 300;
+		justify-content: center;
+		color: var(--dash-text-secondary);
+		cursor: default;
+		flex-shrink: 0;
+		outline: none;
+	}
+	:global(.source-info:hover),
+	:global(.source-info:focus-visible) {
 		color: var(--dash-text-primary);
 	}
-	:global(.meta-segment) {
+	:global(.source-info:hover) :global(.tooltip),
+	:global(.source-info:focus-visible) :global(.tooltip) {
+		opacity: 1;
+		visibility: visible;
+	}
+	/* Tooltip body needs to overflow the parent's default `white-space:
+	   nowrap` so we can stack two rows. Flex column does that and keeps
+	   each row's icon + value tight. */
+	:global(.info-tooltip) {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		align-items: flex-start;
+		white-space: normal;
+	}
+	:global(.info-row) {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-size: 0.7rem;
+		font-weight: 500;
 		white-space: nowrap;
-		font-variant-numeric: tabular-nums;
+	}
+	:global(.info-row svg) {
+		opacity: 0.85;
+		flex-shrink: 0;
 	}
 	:global(.source-blurb) {
 		margin: 0.3rem 0 0;

@@ -19,9 +19,14 @@
 		EMPTY_FILTERS,
 		applyClientFilters,
 		isFiltering,
+		sortTxItems,
 		toServerFilterVars,
-		type TxFilters
+		type TxFilters,
+		type TxSortColumn,
+		type TxSortDirection
 	} from '../filters';
+	import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
+	import { ChevronDown, ChevronUp } from '@lucide/svelte';
 
 	let {
 		did,
@@ -51,9 +56,42 @@
 	// fetchTxs call so paginated pages stay relevant under filtering.
 	const serverVars = $derived(toServerFilterVars(filters));
 
+	// ── Sorting (full page only — the dashboard embed keeps feed order) ──
+	// Client-side over the loaded rows, mirroring the pools table's
+	// header-click pattern. Date desc is the feed's natural order, so that
+	// default applies zero re-ordering.
+	let sortCol = $state<TxSortColumn>('date');
+	let sortDir = $state<TxSortDirection>('desc');
+	let usdPrices = $state({ hive: 0, hbd: 0, btc: 0 });
+	$effect(() => {
+		// One-shot price fetch for amount sorting (same source the rows use).
+		getCryptoPrices()
+			.then((p) => {
+				usdPrices = {
+					hive: p.hive?.usd ?? 0,
+					hbd: p.hive_dollar?.usd ?? 0,
+					btc: p.bitcoin?.usd ?? 0
+				};
+			})
+			.catch(() => {/* amount sort degrades to 0s; date sort unaffected */});
+	});
+	function toggleSort(col: TxSortColumn) {
+		if (sortCol === col) {
+			sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+		} else {
+			sortCol = col;
+			sortDir = 'desc';
+		}
+	}
+
 	const displayTxs = $derived.by(() => {
 		const filtered = applyClientFilters($allTransactionsStore ?? [], filters);
-		return (limitProp != null ? filtered.slice(0, limitProp) : filtered) as TxListItem[];
+		// Skip the sort pass entirely in the default feed order.
+		const sorted =
+			sortCol === 'date' && sortDir === 'desc'
+				? filtered
+				: sortTxItems(filtered, sortCol, sortDir, usdPrices);
+		return (limitProp != null ? sorted.slice(0, limitProp) : sorted) as TxListItem[];
 	});
 
 	// When the server-side filter subset changes, the loaded store contains
@@ -223,10 +261,20 @@
 <div class={['card', { small: size === 'small' }]}>
 	<div class="table-scroll">
 	<div class="header-row">
-		<div class="h h-date">Date</div>
+		<button class="h h-date sortable" class:sorted={sortCol === 'date'} onclick={() => toggleSort('date')}>
+			Date
+			{#if sortCol === 'date'}
+				{#if sortDir === 'desc'}<ChevronDown size={13} />{:else}<ChevronUp size={13} />{/if}
+			{/if}
+		</button>
 		<div class="h h-to-from">To/From</div>
 		<div class="h h-status">Status</div>
-		<div class="h h-amount">Amount</div>
+		<button class="h h-amount sortable" class:sorted={sortCol === 'amount'} onclick={() => toggleSort('amount')}>
+			Amount
+			{#if sortCol === 'amount'}
+				{#if sortDir === 'desc'}<ChevronDown size={13} />{:else}<ChevronUp size={13} />{/if}
+			{/if}
+		</button>
 		<div class="h h-type">Type</div>
 	</div>
 	<div
@@ -393,6 +441,35 @@
 		font-size: 0.8rem;
 		text-align: left;
 		border-bottom: 1px solid var(--dash-divider);
+	}
+	/* Sortable headers are <button>s — reset native styles so they render
+	   identically to the plain div headers, plus a light hover + the
+	   chevron when active. */
+	button.h.sortable {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		background: none;
+		border: none;
+		border-bottom: 1px solid var(--dash-divider);
+		font-family: inherit;
+		cursor: pointer;
+		transition: color 130ms ease;
+	}
+	button.h.sortable:hover {
+		color: var(--dash-text-primary);
+	}
+	/* The plain .h-amount header was text-align: center; the button is
+	   inline-flex so text-align no longer applies — center via
+	   justify-content instead. Date stays left-aligned like before. */
+	button.h-amount.sortable {
+		justify-content: center;
+	}
+	button.h.sortable.sorted {
+		color: var(--dash-text-primary);
+	}
+	button.h.sortable :global(svg) {
+		flex-shrink: 0;
 	}
 	.h-to-from {
 		text-align: left;

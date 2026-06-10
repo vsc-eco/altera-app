@@ -14,6 +14,8 @@ import {
 	activeFilterCount,
 	applyClientFilters,
 	isFiltering,
+	itemAmountUsd,
+	sortTxItems,
 	toServerFilterVars,
 	type TxFilters
 } from './filters';
@@ -314,5 +316,84 @@ describe('toServerFilterVars', () => {
 
 	it('does NOT pass partial text to byLedgerToFrom (exact-match would starve results)', () => {
 		expect(toServerFilterVars(f({ address: 'alice' })).byLedgerToFrom).toBeUndefined();
+	});
+});
+
+// ─── sorting ─────────────────────────────────────────────────────────────────
+
+const PRICES = { hive: 0.25, hbd: 1, btc: 100_000 };
+
+describe('itemAmountUsd', () => {
+	it('uses the LARGEST entry, not the sum (swap ledgers repeat value across hops)', () => {
+		// Swap-shaped tx: in-leg 5 HBD, fee 0.02 HBD, out-leg 20 HIVE ($5).
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const tx: any = {
+			id: 'swap',
+			anchr_ts: iso(0),
+			first_seen: iso(0),
+			status: 'CONFIRMED',
+			isPending: false,
+			ledger: [
+				{ asset: 'hbd', amount: 5000, from: 'hive:a', to: 'contract:pool', type: 'transfer' },
+				{ asset: 'hbd', amount: 20, from: 'contract:pool', to: 'pendulum:nodes', type: 'transfer' },
+				{ asset: 'hive', amount: 20_000, from: 'contract:pool', to: 'hive:a', type: 'transfer' }
+			],
+			ops: []
+		};
+		// max(5*1, 0.02*1, 20*0.25) = 5 — NOT 10.02
+		expect(itemAmountUsd({ kind: 'vsc', tx }, PRICES)).toBeCloseTo(5);
+	});
+
+	it('prices btc-deposit events in BTC', () => {
+		// 150,000 sats = 0.0015 BTC × $100k = $150
+		expect(itemAmountUsd(btcDeposit({ id: 'b', sats: '150000' }), PRICES)).toBeCloseTo(150);
+	});
+});
+
+describe('sortTxItems', () => {
+	const items = [
+		vscTx({ id: 'old-small', msAgo: 3 * DAY, asset: 'hive', amount: 4_000 }), // $1
+		vscTx({ id: 'new-big', msAgo: 1 * HOUR, asset: 'hbd', amount: 50_000 }), // $50
+		btcDeposit({ id: 'mid-btc', msAgo: 1 * DAY, sats: '10000' }) // $10
+	];
+	const ids = (out: ReturnType<typeof sortTxItems>) =>
+		out.map((i) => (i.kind === 'vsc' ? i.tx.id : i.event.indexer_tx_hash));
+
+	it('date desc = newest first', () => {
+		expect(ids(sortTxItems(items, 'date', 'desc', PRICES))).toEqual([
+			'new-big',
+			'mid-btc',
+			'old-small'
+		]);
+	});
+
+	it('date asc = oldest first', () => {
+		expect(ids(sortTxItems(items, 'date', 'asc', PRICES))).toEqual([
+			'old-small',
+			'mid-btc',
+			'new-big'
+		]);
+	});
+
+	it('amount desc = biggest USD first, across assets', () => {
+		expect(ids(sortTxItems(items, 'amount', 'desc', PRICES))).toEqual([
+			'new-big',
+			'mid-btc',
+			'old-small'
+		]);
+	});
+
+	it('amount asc = smallest USD first', () => {
+		expect(ids(sortTxItems(items, 'amount', 'asc', PRICES))).toEqual([
+			'old-small',
+			'mid-btc',
+			'new-big'
+		]);
+	});
+
+	it('does not mutate the input array', () => {
+		const before = [...items];
+		sortTxItems(items, 'amount', 'asc', PRICES);
+		expect(items).toEqual(before);
 	});
 });

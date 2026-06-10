@@ -183,7 +183,7 @@ function entriesOf(item: TxListItem): TxEntry[] {
 	return out;
 }
 
-function itemTimestampMs(item: TxListItem): number {
+export function itemTimestampMs(item: TxListItem): number {
 	if (item.kind === 'btc-deposit') {
 		const ts = item.event.indexer_ts;
 		return new Date(ts.endsWith('Z') ? ts : ts + 'Z').getTime();
@@ -283,4 +283,49 @@ export function toServerFilterVars(filters: TxFilters): {
 		out.byLedgerToFrom = addr;
 	}
 	return out;
+}
+
+// ─── Sorting ─────────────────────────────────────────────────────────────────
+
+export type TxSortColumn = 'date' | 'amount';
+export type TxSortDirection = 'asc' | 'desc';
+
+/**
+ * Representative USD value of a tx item for amount sorting: the LARGEST
+ * entry (ledger or op leg) valued at current prices. Max — not sum —
+ * because a swap's ledger repeats the same value across hops (in→pool,
+ * pool→out, fee) and summing would double-count. Entries in assets we
+ * can't price contribute 0.
+ */
+export function itemAmountUsd(
+	item: TxListItem,
+	usdPrices: { hive: number; hbd: number; btc: number }
+): number {
+	let max = 0;
+	for (const e of entriesOf(item)) {
+		if (e.amountHuman == null) continue;
+		const price = usdPrices[e.asset as keyof typeof usdPrices] ?? 0;
+		const usd = Math.abs(e.amountHuman) * price;
+		if (usd > max) max = usd;
+	}
+	return max;
+}
+
+/**
+ * Sort the (already filtered) tx list client-side. Date desc is the feed's
+ * natural order — sorting is stable (Array.prototype.sort is stable per
+ * spec) so equal keys keep their incoming order.
+ */
+export function sortTxItems(
+	items: TxListItem[],
+	col: TxSortColumn,
+	dir: TxSortDirection,
+	usdPrices: { hive: number; hbd: number; btc: number }
+): TxListItem[] {
+	const sign = dir === 'asc' ? 1 : -1;
+	const key =
+		col === 'date'
+			? (i: TxListItem) => itemTimestampMs(i)
+			: (i: TxListItem) => itemAmountUsd(i, usdPrices);
+	return [...items].sort((a, b) => sign * (key(a) - key(b)));
 }

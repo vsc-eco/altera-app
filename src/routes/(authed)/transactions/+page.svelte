@@ -2,10 +2,13 @@
 	import { getAccountNameFromDid } from '$lib/getAccountName';
 	import { page } from '$app/state';
 	import Table from './Table/Table.svelte';
+	import FilterBar from './FilterBar.svelte';
+	import { EMPTY_FILTERS, type TxFilters } from './filters';
 	import { getAuth } from '$lib/auth/store';
 	import { goto } from '$app/navigation';
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);
+	let filters = $state<TxFilters>({ ...EMPTY_FILTERS });
 	const autoOpenOp: [string, number] | undefined = $derived.by(() => {
 		const autoOpenTxId = page.url.searchParams.get('tx');
 		const autoOpenIndex = Number(page.url.searchParams.get('index'));
@@ -28,7 +31,10 @@
 <div class="flex">
 	<h1>Transactions involving {did ? getAccountNameFromDid(did) : '0xd072...AdAA'}</h1>
 	{#if did}
-		<Table {did} initialOpen={autoOpenOp}></Table>
+		<!-- Chips row with the Filters trigger at its right end, below the
+		     title and directly above the table. -->
+		<FilterBar bind:filters />
+		<Table {did} initialOpen={autoOpenOp} {filters}></Table>
 	{/if}
 </div>
 
@@ -39,7 +45,7 @@
 		font-family: 'Nunito Sans', sans-serif;
 		font-size: 1.25rem;
 		font-weight: 600;
-		margin: 0 0 1rem 0;
+		margin: 0 0 0.75rem 0;
 	}
 	.flex {
 		display: flex;

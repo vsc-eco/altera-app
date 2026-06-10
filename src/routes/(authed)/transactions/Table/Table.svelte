@@ -15,30 +15,81 @@
 	import ContractTr from './tr/ContractTr.svelte';
 	import BtcMappingTr from './tr/BtcMappingTr.svelte';
 	import BtcDepositTr from './tr/BtcDepositTr.svelte';
+	import {
+		EMPTY_FILTERS,
+		applyClientFilters,
+		isFiltering,
+		toServerFilterVars,
+		type TxFilters
+	} from '../filters';
 
 	let {
 		did,
 		allowPopup = true,
 		initialOpen,
 		limit: limitProp,
-		size = 'full'
+		size = 'full',
+		filters = EMPTY_FILTERS
 	}: {
 		did: string;
 		allowPopup?: boolean;
 		initialOpen?: [string, number];
 		limit?: number;
 		size?: 'small' | 'full';
+		/** Optional filter state from the transactions page's FilterBar.
+		 *  Client-side filters apply to the displayed list; the byType /
+		 *  byLedgerToFrom subset also goes into the GraphQL fetches so
+		 *  pagination returns mostly-matching rows. */
+		filters?: TxFilters;
 	} = $props();
 	let loading = $state(true);
 	let lastLength = $state(0);
 	let currStoreLen = $derived($allTransactionsStore.length);
 	let hitBottom = $derived(lastLength === currStoreLen);
 
-	const displayTxs = $derived(
-		limitProp != null
-			? ($allTransactionsStore ?? []).slice(0, limitProp)
-			: ($allTransactionsStore ?? [])
-	) as TxListItem[];
+	// Server-expressible subset of the active filters, threaded into every
+	// fetchTxs call so paginated pages stay relevant under filtering.
+	const serverVars = $derived(toServerFilterVars(filters));
+
+	const displayTxs = $derived.by(() => {
+		const filtered = applyClientFilters($allTransactionsStore ?? [], filters);
+		return (limitProp != null ? filtered.slice(0, limitProp) : filtered) as TxListItem[];
+	});
+
+	// When the server-side filter subset changes, the loaded store contains
+	// rows fetched under DIFFERENT query filters — reset and refetch so
+	// offset-based pagination math stays coherent. Client-only filter
+	// changes (token/amount/time) don't need this; they just re-filter the
+	// already-loaded rows. Initialized lazily on the first effect run (no
+	// fetch) so mount-time loading stays owned by onMount.
+	let lastServerVarsKey: string | null = null;
+	$effect(() => {
+		const key = JSON.stringify(serverVars);
+		if (lastServerVarsKey === null) {
+			lastServerVarsKey = key;
+			return;
+		}
+		if (key === lastServerVarsKey) return;
+		lastServerVarsKey = key;
+		lastLength = 0;
+		fetchTxs(did, 'set', (val) => (loading = val), limitProp ?? 20, serverVars);
+	});
+
+	// Thin-results top-up: when client-side filters hide most of the loaded
+	// rows, auto-extend until the visible list has enough to fill the
+	// screen or the server runs out (hitBottom). The `loading` guard keeps
+	// fetches sequential; hitBottom stops the loop when a fetch adds
+	// nothing new.
+	const FILTER_TOPUP_TARGET = 8;
+	$effect(() => {
+		if (limitProp != null) return; // only the full page auto-extends
+		if (!isFiltering(filters)) return;
+		if (loading || hitBottom) return;
+		if (displayTxs.length >= FILTER_TOPUP_TARGET) return;
+		if (($allTransactionsStore ?? []).length === 0) return; // initial load owns this
+		lastLength = currStoreLen;
+		fetchTxs(did, 'extend', (val) => (loading = val), 12, serverVars);
+	});
 
 	// Routing: determine which TR component to render for a VSC op.
 	type OpTrType = 'regular' | 'btc-vsc' | 'contract';
@@ -59,7 +110,7 @@
 	}
 
 	function updateAll() {
-		fetchTxs(did, 'update', (val) => (loading = val));
+		fetchTxs(did, 'update', (val) => (loading = val), 12, serverVars);
 		fetchBtcDeposits(did, 'update');
 	}
 
@@ -67,7 +118,7 @@
 	onMount(() => {
 		const fetchLimit = limitProp ?? 20;
 		if (!initialOpen && $allTransactionsStore.length < fetchLimit) {
-			fetchTxs(did, 'set', (val) => (loading = val), fetchLimit);
+			fetchTxs(did, 'set', (val) => (loading = val), fetchLimit, serverVars);
 			fetchBtcDeposits(did, 'set', fetchLimit);
 		}
 		const rootStyle = getComputedStyle(document.documentElement);
@@ -180,12 +231,13 @@
 	</div>
 	<div
 		class="body-scroll"
+		class:no-scroll={!displayTxs?.length && !loading}
 		onscroll={(e) => {
 			if (limitProp != null) return;
 			const me = e.currentTarget;
 			if (me.scrollHeight - me.scrollTop - me.clientHeight <= 1 && !hitBottom && !loading) {
 				lastLength = currStoreLen;
-				fetchTxs(did, 'extend', (val) => (loading = val), 12);
+				fetchTxs(did, 'extend', (val) => (loading = val), 12, serverVars);
 				fetchBtcDeposits(did, 'extend', 12);
 			}
 		}}
@@ -299,6 +351,12 @@
 		width: 100%;
 		flex-grow: 1;
 		min-height: 0;
+		/* Never grow past the viewport: with zero (or few) transactions the
+		   blurred skeleton rows used to stretch the card well beyond the
+		   screen. 12rem ≈ topbar + page title + filter chips row; rows
+		   beyond the cap scroll inside .body-scroll as before. The small
+		   dashboard variant opts out below. */
+		max-height: calc(100vh - 12rem);
 		position: relative;
 		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);
@@ -395,6 +453,14 @@
 		position: relative;
 	}
 
+	/* Empty state: the blurred skeleton rows are decoration, not content —
+	   scrolling them makes no sense (you'd be scrolling "no transactions").
+	   The class is toggled off again as soon as real rows or the loading
+	   skeleton render. */
+	.body-scroll.no-scroll {
+		overflow: hidden;
+	}
+
 	.no-transactions-overlay {
 		position: absolute;
 		top: 0;
@@ -423,6 +489,7 @@
 	/* Small variant for dashboard embed */
 	.card.small {
 		padding: 0;
+		max-height: none; /* embeds size to their container, not the viewport */
 		border: none;
 		border-radius: 0;
 		box-shadow: none;

@@ -148,6 +148,27 @@
 		});
 	});
 
+	/**
+	 * Protocol (magi) fee legs of this transaction: ledger transfers whose
+	 * destination is `pendulum:nodes` — the pool sends the protocol fee
+	 * there on every swap. Summed per asset (a two-hop swap can pay fees
+	 * in two assets). The LP fee never appears in the ledger — it stays in
+	 * the pool and is implicit in the exchange rate — so the popup labels
+	 * that explicitly rather than under-reporting the total cost.
+	 */
+	const protocolFees: UnkCoinAmount[] = $derived.by(() => {
+		const sums = new Map<string, number>();
+		for (const entry of tx.ledger ?? []) {
+			if (!entry || entry.to !== 'pendulum:nodes') continue;
+			const assetKey = String(entry.asset ?? '').split('_')[0];
+			sums.set(assetKey, (sums.get(assetKey) ?? 0) + Number(entry.amount ?? 0));
+		}
+		return [...sums.entries()].map(
+			([assetKey, total]) =>
+				new CoinAmount(total, Coin[assetKey as keyof typeof Coin] || Coin.unk, true)
+		);
+	});
+
 	function handleTrigger() {
 		onRowClick([tx.id, op.index], thisRowContent);
 	}
@@ -243,6 +264,20 @@
 				<p>{memo.get('msg')}</p>
 			</div>
 		{/if}
+		{#if protocolFees.length > 0}
+			<div class="fees section">
+				<h3>Fees</h3>
+				<div class="fee-rows">
+					{#each protocolFees as fee (fee.coin.value)}
+						<div class="fee-row">
+							<span class="fee-row-label">Protocol fee</span>
+							<span>{prettyWithDisplayUnit(fee)}</span>
+						</div>
+					{/each}
+					<p class="fee-note">LP fee is included in the exchange rate.</p>
+				</div>
+			</div>
+		{/if}
 		<div class="tx-id section">
 			<h3>Transaction Id</h3>
 			<Clipboard value={tx.id} label="" disabled={tx.isPending && tx.id == 'UNK'} />
@@ -320,6 +355,27 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 1rem;
+	}
+	.fee-rows {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		padding-top: 0.25rem;
+	}
+	.fee-row {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		font-size: var(--text-sm);
+	}
+	.fee-row-label {
+		color: var(--dash-text-secondary);
+	}
+	.fee-note {
+		margin: 0.15rem 0 0;
+		font-size: var(--text-sm);
+		color: var(--dash-text-muted);
+		font-style: italic;
 	}
 	.section {
 		padding: 0.5rem;

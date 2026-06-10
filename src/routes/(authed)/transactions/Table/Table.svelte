@@ -73,7 +73,9 @@
 					btc: p.bitcoin?.usd ?? 0
 				};
 			})
-			.catch(() => {/* amount sort degrades to 0s; date sort unaffected */});
+			.catch(() => {
+				/* amount sort degrades to 0s; date sort unaffected */
+			});
 	});
 	function toggleSort(col: TxSortColumn) {
 		if (sortCol === col) {
@@ -260,43 +262,51 @@
 
 <div class={['card', { small: size === 'small' }]}>
 	<div class="table-scroll">
-	<div class="header-row">
-		<button class="h h-date sortable" class:sorted={sortCol === 'date'} onclick={() => toggleSort('date')}>
-			Date
-			{#if sortCol === 'date'}
-				{#if sortDir === 'desc'}<ChevronDown size={13} />{:else}<ChevronUp size={13} />{/if}
-			{/if}
-		</button>
-		<div class="h h-to-from">To/From</div>
-		<div class="h h-status">Status</div>
-		<button class="h h-amount sortable" class:sorted={sortCol === 'amount'} onclick={() => toggleSort('amount')}>
-			Amount
-			{#if sortCol === 'amount'}
-				{#if sortDir === 'desc'}<ChevronDown size={13} />{:else}<ChevronUp size={13} />{/if}
-			{/if}
-		</button>
-		<div class="h h-type">Type</div>
-	</div>
-	<div
-		class="body-scroll"
-		class:no-scroll={!displayTxs?.length && !loading}
-		onscroll={(e) => {
-			if (limitProp != null) return;
-			const me = e.currentTarget;
-			if (me.scrollHeight - me.scrollTop - me.clientHeight <= 1 && !hitBottom && !loading) {
-				lastLength = currStoreLen;
-				fetchTxs(did, 'extend', (val) => (loading = val), 12, serverVars);
-				fetchBtcDeposits(did, 'extend', 12);
-			}
-		}}
-	>
-		<table>
-			<tbody
-				id="transactions-tbody"
-				class={!displayTxs?.length && !loading ? 'no-transactions-container' : ''}
+		<div class="header-row">
+			<button
+				class="h h-date sortable"
+				class:sorted={sortCol === 'date'}
+				onclick={() => toggleSort('date')}
 			>
-				{#if displayTxs && displayTxs.length > 0}
-					<!-- {#each $allTransactionsStore as tx (tx.id)}
+				Date
+				{#if sortCol === 'date'}
+					{#if sortDir === 'desc'}<ChevronDown size={13} />{:else}<ChevronUp size={13} />{/if}
+				{/if}
+			</button>
+			<div class="h h-to-from">To/From</div>
+			<div class="h h-status">Status</div>
+			<button
+				class="h h-amount sortable"
+				class:sorted={sortCol === 'amount'}
+				onclick={() => toggleSort('amount')}
+			>
+				Amount
+				{#if sortCol === 'amount'}
+					{#if sortDir === 'desc'}<ChevronDown size={13} />{:else}<ChevronUp size={13} />{/if}
+				{/if}
+			</button>
+			<div class="h h-type">Type</div>
+		</div>
+		<div
+			class="body-scroll"
+			class:no-scroll={!displayTxs?.length && !loading}
+			onscroll={(e) => {
+				if (limitProp != null) return;
+				const me = e.currentTarget;
+				if (me.scrollHeight - me.scrollTop - me.clientHeight <= 1 && !hitBottom && !loading) {
+					lastLength = currStoreLen;
+					fetchTxs(did, 'extend', (val) => (loading = val), 12, serverVars);
+					fetchBtcDeposits(did, 'extend', 12);
+				}
+			}}
+		>
+			<table>
+				<tbody
+					id="transactions-tbody"
+					class={!displayTxs?.length && !loading ? 'no-transactions-container' : ''}
+				>
+					{#if displayTxs && displayTxs.length > 0}
+						<!-- {#each $allTransactionsStore as tx (tx.id)}
 					{@const { ops, id } = tx}
 					{#each ops!.sort((a, b) => {
 						// put deposits below other ops in their transaction
@@ -310,13 +320,13 @@
 						{/if}
 					{/each}
 				{/each} -->
-					{#each displayTxs as item (item.kind === 'vsc' ? item.tx.id : item.event.indexer_tx_hash)}
-						{#if item.kind === 'btc-deposit'}
-							<BtcDepositTr event={item.event} onRowClick={toggleDetails} />
-						{:else}
-							{@const tx = item.tx}
-							{@const { ops } = tx}
-							<!--
+						{#each displayTxs as item (item.kind === 'vsc' ? item.tx.id : item.event.indexer_tx_hash)}
+							{#if item.kind === 'btc-deposit'}
+								<BtcDepositTr event={item.event} onRowClick={toggleDetails} />
+							{:else}
+								{@const tx = item.tx}
+								{@const { ops } = tx}
+								<!--
 								Always iterate the full `ops` array so every
 								operation in a transaction renders as its own
 								row. Previously contract transactions collapsed
@@ -329,54 +339,54 @@
 								with a deposit-last override retained inside
 								each op-index group.
 							-->
-							{#each [...(ops ?? [])].sort((a, b) => {
-								const depDiff = (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
-								if (depDiff !== 0) return depDiff;
-								return (b?.index ?? 0) - (a?.index ?? 0);
-							}) as op, i (`${tx.id}-${op?.index ?? i}`)}
-								{#if op}
-									{@const trType = getOpTrType(op)}
-									{#if trType === 'regular'}
-										<Tr {tx} {op} onRowClick={toggleDetails} />
-									{:else if trType === 'btc-vsc'}
-										<BtcMappingTr {tx} {op} onRowClick={toggleDetails} />
-									{:else if trType === 'contract'}
-										<ContractTr {tx} {op} onRowClick={toggleDetails} />
+								{#each [...(ops ?? [])].sort((a, b) => {
+									const depDiff = (a?.type === 'deposit' ? 1 : 0) - (b?.type === 'deposit' ? 1 : 0);
+									if (depDiff !== 0) return depDiff;
+									return (b?.index ?? 0) - (a?.index ?? 0);
+								}) as op, i (`${tx.id}-${op?.index ?? i}`)}
+									{#if op}
+										{@const trType = getOpTrType(op)}
+										{#if trType === 'regular'}
+											<Tr {tx} {op} onRowClick={toggleDetails} />
+										{:else if trType === 'btc-vsc'}
+											<BtcMappingTr {tx} {op} onRowClick={toggleDetails} />
+										{:else if trType === 'contract'}
+											<ContractTr {tx} {op} onRowClick={toggleDetails} />
+										{/if}
 									{/if}
-								{/if}
-							{/each}
-						{/if}
-					{/each}
-				{:else if !loading}
-					{#each Array(skeletonRowCount - 1) as _, i}
-						<tr class="skeleton-row blurred-skeleton">
-							<td><div class="skeleton-cell date"></div></td>
-							<td><div class="skeleton-cell to-from"></div></td>
-							<td><div class="skeleton-cell status"></div></td>
-							<td><div class="skeleton-cell amount"></div></td>
-							<td><div class="skeleton-cell type"></div></td>
-						</tr>
-					{/each}
-				{/if}
-				{#if loading}
-					{#each Array(skeletonRowCount) as _, i}
-						<tr class="skeleton-row">
-							<td><div class="skeleton-cell date"></div></td>
-							<td><div class="skeleton-cell to-from"></div></td>
-							<td><div class="skeleton-cell status"></div></td>
-							<td><div class="skeleton-cell amount"></div></td>
-							<td><div class="skeleton-cell type"></div></td>
-						</tr>
-					{/each}
-				{/if}
-			</tbody>
-		</table>
-		{#if !displayTxs?.length && !loading}
-			<div class={['no-transactions-overlay', { short: skeletonRowCount <= 5 }]}>
-				<div class="no-transactions-message">No transactions found</div>
-			</div>
-		{/if}
-	</div>
+								{/each}
+							{/if}
+						{/each}
+					{:else if !loading}
+						{#each Array(skeletonRowCount - 1) as _, i}
+							<tr class="skeleton-row blurred-skeleton">
+								<td><div class="skeleton-cell date"></div></td>
+								<td><div class="skeleton-cell to-from"></div></td>
+								<td><div class="skeleton-cell status"></div></td>
+								<td><div class="skeleton-cell amount"></div></td>
+								<td><div class="skeleton-cell type"></div></td>
+							</tr>
+						{/each}
+					{/if}
+					{#if loading}
+						{#each Array(skeletonRowCount) as _, i}
+							<tr class="skeleton-row">
+								<td><div class="skeleton-cell date"></div></td>
+								<td><div class="skeleton-cell to-from"></div></td>
+								<td><div class="skeleton-cell status"></div></td>
+								<td><div class="skeleton-cell amount"></div></td>
+								<td><div class="skeleton-cell type"></div></td>
+							</tr>
+						{/each}
+					{/if}
+				</tbody>
+			</table>
+			{#if !displayTxs?.length && !loading}
+				<div class={['no-transactions-overlay', { short: skeletonRowCount <= 5 }]}>
+					<div class="no-transactions-message">No transactions found</div>
+				</div>
+			{/if}
+		</div>
 	</div>
 </div>
 
@@ -612,5 +622,4 @@
 			display: none;
 		}
 	}
-
 </style>

@@ -51,6 +51,9 @@
 		clearTimeout(debounceHandle);
 		debounceHandle = setTimeout(commitTexts, 300);
 	}
+	// Unmount cleanup — a pending debounce would otherwise fire commitTexts
+	// against destroyed state if the user navigates away mid-typing.
+	$effect(() => () => clearTimeout(debounceHandle));
 
 	function commitTexts() {
 		clearTimeout(debounceHandle);
@@ -155,9 +158,7 @@
 	{#each filters.types as t (t)}
 		<span class="summary-chip">
 			{TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t}
-			<button aria-label="Remove {t} filter" onclick={() => toggleType(t)}
-				><X size={12} /></button
-			>
+			<button aria-label="Remove {t} filter" onclick={() => toggleType(t)}><X size={12} /></button>
 		</span>
 	{/each}
 	{#if filters.address.trim() !== '' && (amountChipLabel !== '' || filters.types.length > 0)}
@@ -310,9 +311,7 @@
 		</section>
 
 		<div class="panel-footer">
-			<button class="clear-all" onclick={clearAll} disabled={activeCount === 0}>
-				Clear all
-			</button>
+			<button class="clear-all" onclick={clearAll} disabled={activeCount === 0}> Clear all </button>
 			<button class="apply" onclick={togglePanel}>Done</button>
 		</div>
 	</div>
@@ -484,7 +483,9 @@
 		border-radius: 8px;
 		color: var(--dash-text-secondary);
 		cursor: pointer;
-		transition: background-color 130ms ease, color 130ms ease;
+		transition:
+			background-color 130ms ease,
+			color 130ms ease;
 	}
 	.drawer-close:hover {
 		background: rgba(255, 255, 255, 0.08);

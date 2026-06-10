@@ -225,6 +225,17 @@ export function clearAllStores() {
 	btcDepositStore.set([]);
 }
 
+/**
+ * Optional server-side filter variables threaded into GetTransactions.
+ * Used by the transactions page's filter bar so paginated fetches return
+ * mostly-matching rows; display filtering is still client-side (see
+ * routes/(authed)/transactions/filters.ts for the rationale).
+ */
+export type TxServerFilters = {
+	byType?: string[];
+	byLedgerToFrom?: string;
+};
+
 // load txs from store
 // set: sets the store to the txs loaded
 // update: loads new txs, adds any that aren't in local store to the front
@@ -233,7 +244,8 @@ export async function fetchTxs(
 	did: string,
 	type: 'set' | 'update' | 'extend',
 	setLoading?: (val: boolean) => void,
-	limit = 12
+	limit = 12,
+	serverFilters?: TxServerFilters
 ) {
 	if (type !== 'update') {
 		if (setLoading) setLoading(true);
@@ -243,7 +255,9 @@ export async function fetchTxs(
 			variables: {
 				limit: limit,
 				did,
-				offset: type === 'extend' ? get(magiTxsStore).length : undefined
+				offset: type === 'extend' ? get(magiTxsStore).length : undefined,
+				byType: serverFilters?.byType,
+				byLedgerToFrom: serverFilters?.byLedgerToFrom
 			},
 			policy: 'NetworkOnly'
 		})
@@ -298,7 +312,11 @@ export async function fetchTxs(
 	return success;
 }
 
-export async function waitForExtend(did: string, limit = 12): Promise<boolean> {
-	await fetchTxs(did, 'extend', undefined, limit);
+export async function waitForExtend(
+	did: string,
+	limit = 12,
+	serverFilters?: TxServerFilters
+): Promise<boolean> {
+	await fetchTxs(did, 'extend', undefined, limit, serverFilters);
 	return true;
 }

@@ -1,5 +1,19 @@
-query GetTransactions($did: String, $limit: Int, $offset: Int) {
-	findTransaction(filterOptions: { limit: $limit, offset: $offset, byAccount: $did }) @paginate {
+query GetTransactions(
+	$did: String
+	$limit: Int
+	$offset: Int
+	$byType: [String!]
+	$byLedgerToFrom: String
+) {
+	findTransaction(
+		filterOptions: {
+			limit: $limit
+			offset: $offset
+			byAccount: $did
+			byType: $byType
+			byLedgerToFrom: $byLedgerToFrom
+		}
+	) @paginate {
 		anchr_height
 		anchr_ts
 		first_seen

@@ -8,6 +8,22 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.17] — 2026-06-10
+
+### Features
+
+- **Transactions page: filters.** Quick chips for tokens (HIVE/HBD/BTC) and time range (all/24h/7d/30d) inline above the table, plus a right-edge drawer (portaled to `document.body`, slides in/out, backdrop/ESC/Done all close it) holding all five filter groups: tokens, time range, amount min–max, operation type, and address/user. Hybrid design: client-side filtering over the merged list is the display source of truth (the merged list contains localStorage pending txs and BTC-deposit indexer events the server never filtered); the server-expressible subset (`byType`, `byLedgerToFrom`) is threaded into the GraphQL fetches so paginated pages stay relevant. Active panel filters surface as per-value summary chips with individual clear buttons, grouped by category with pipe separators. Text inputs apply live with a 300ms debounce; every close path commits pending text. Auto-top-up keeps extending fetches while client filters leave fewer than 8 visible rows
+- **Transactions page: sorting.** Date and Amount column headers are click-to-sort (desc → asc toggle with a chevron on the active column), mirroring the pools-table pattern. Amount sorts on USD value across assets; the per-item value is the largest ledger/op entry — not the sum — because a swap's ledger repeats the same value across hops and summing would double-count. Default stays Date desc (the feed's natural order, sort pass skipped entirely). Status/Type/To-From deliberately not sortable: they're categories, and the filter drawer serves those better
+- **Transaction detail popup: protocol-fee section.** Swaps pay the protocol (magi) fee as an explicit ledger transfer to `pendulum:nodes` — those legs now show in the popup, summed per asset. Deliberately not a table column: the LP fee and stabilizer surcharge stay in the pool (implicit in the exchange rate), so a per-row fee column would under-report the real cost; the popup carries the honest note "LP fee is included in the exchange rate"
+
+### Fixes
+
+- Transactions card capped at `calc(100vh - 12rem)` — the empty-state's blurred skeleton rows no longer stretch the card past the screen, and the empty state is no longer scrollable (it only contained decorative rows). The small dashboard embed opts out and keeps sizing to its container
+
+### Testing
+
+- 36 tests in `filters.test.ts` pin the filter matrix (per-group matching, asset normalization, amount-unit handling for both smallest-unit ints and Hive L1 decimal strings, combined AND semantics, identity fast-path, server-vars mapping) and the sort semantics (date asc/desc, USD-normalized cross-asset ordering, max-not-sum for swap ledgers, input immutability)
+
 ## [0.3.16] — 2026-06-06
 
 ### Fixes

@@ -31,7 +31,6 @@ function iso(msAgo: number): string {
 }
 
 /** Minimal vsc TxListItem with one ledger entry. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function vscTx(opts: {
 	id: string;
 	msAgo?: number;
@@ -63,9 +62,7 @@ function vscTx(opts: {
 						type: opts.type ?? 'transfer'
 					}
 				],
-		ops: opts.opType
-			? [{ type: opts.opType, index: 0, data: opts.opData ?? {} }]
-			: []
+		ops: opts.opType ? [{ type: opts.opType, index: 0, data: opts.opData ?? {} }] : []
 	};
 	return { kind: 'vsc', tx };
 }

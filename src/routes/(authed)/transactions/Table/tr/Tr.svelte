@@ -157,13 +157,15 @@
 	 * that explicitly rather than under-reporting the total cost.
 	 */
 	const protocolFees: UnkCoinAmount[] = $derived.by(() => {
-		const sums = new Map<string, number>();
+		// Plain object, not Map — this is ephemeral local accumulation inside
+		// a $derived, not reactive state (svelte/prefer-svelte-reactivity).
+		const sums: Record<string, number> = {};
 		for (const entry of tx.ledger ?? []) {
 			if (!entry || entry.to !== 'pendulum:nodes') continue;
 			const assetKey = String(entry.asset ?? '').split('_')[0];
-			sums.set(assetKey, (sums.get(assetKey) ?? 0) + Number(entry.amount ?? 0));
+			sums[assetKey] = (sums[assetKey] ?? 0) + Number(entry.amount ?? 0);
 		}
-		return [...sums.entries()].map(
+		return Object.entries(sums).map(
 			([assetKey, total]) =>
 				new CoinAmount(total, Coin[assetKey as keyof typeof Coin] || Coin.unk, true)
 		);
@@ -289,11 +291,7 @@
 					VSC Block Explorer<ExternalLink /></a
 				>
 				{#if to.slice(0, 5) === 'hive:' && from.slice(0, 5) === 'hive:'}
-					<a
-						href={'https://hivehub.dev/tx/' + tx.id}
-						target="_blank"
-						rel="noreferrer"
-					>
+					<a href={'https://hivehub.dev/tx/' + tx.id} target="_blank" rel="noreferrer">
 						Hive Block Explorer<ExternalLink /></a
 					>
 				{/if}

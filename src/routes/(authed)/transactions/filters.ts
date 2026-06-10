@@ -208,8 +208,7 @@ export function applyClientFilters(
 	if (!isFiltering(filters)) return items;
 
 	const address = filters.address.trim().toLowerCase();
-	const cutoffMs =
-		filters.timeRange === 'all' ? null : nowMs - TIME_RANGE_MS[filters.timeRange];
+	const cutoffMs = filters.timeRange === 'all' ? null : nowMs - TIME_RANGE_MS[filters.timeRange];
 
 	return items.filter((item) => {
 		if (cutoffMs != null && itemTimestampMs(item) < cutoffMs) return false;
@@ -248,8 +247,7 @@ export function applyClientFilters(
 		}
 		if (address !== '') {
 			const matchesAddress = entries.some(
-				(e) =>
-					e.from.toLowerCase().includes(address) || e.to.toLowerCase().includes(address)
+				(e) => e.from.toLowerCase().includes(address) || e.to.toLowerCase().includes(address)
 			);
 			if (!matchesAddress) return false;
 		}

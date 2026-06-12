@@ -3,6 +3,7 @@
 	import ConsensusUnstakeModal from './ConsensusUnstakeModal.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import StakeUnstakeTabsModal from './StakeUnstakeTabsModal.svelte';
+	import ContractUpdatesSection from '$lib/witness/contractUpdates/ContractUpdatesSection.svelte';
 	let auth = $derived(getAuth()());
 </script>
 
@@ -13,6 +14,10 @@
 <h1>Witness Assistant</h1>
 
 <div>
+	<!-- Contract updates — visible regardless of auth provider, since
+	     auditing pending changes doesn't require a Hive account. -->
+	<ContractUpdatesSection />
+
 	{#if auth.value == undefined || auth.value.username != undefined}
 		<StakeUnstakeTabsModal />
 	{:else}

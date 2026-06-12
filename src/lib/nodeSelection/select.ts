@@ -39,7 +39,11 @@ const NODES: Record<Category, string[]> = {
 
 function ls(): Storage | null {
 	try {
+		// Some environments (jsdom Vitest client project) expose a
+		// `localStorage` global that isn't a full Storage implementation —
+		// validate getItem is callable, not just that the global exists.
 		if (!browser || typeof localStorage === 'undefined') return null;
+		if (typeof localStorage.getItem !== 'function') return null;
 		return localStorage;
 	} catch {
 		return null;

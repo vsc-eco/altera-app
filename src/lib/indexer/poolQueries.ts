@@ -71,50 +71,58 @@ export async function fetchPoolVolume(
 export type PoolAssetFee = { asset: string; magiFee: number; lpFee: number };
 
 /**
+ * Pre-aggregated per-(pool, asset) fee views, one per time window. The
+ * suffix-less view is all-time ("max"). Using these instead of summing raw
+ * `dex_pool_fee_events` client-side fixes two bugs at once:
+ *   1. The raw query was capped at Hasura's default 100-row limit, so busy
+ *      pools (e.g. 7d on the HIVE pool) under-counted fees.
+ *   2. The pendulum fee rewrite (2026-06-02 contract redeploy) leaves
+ *      `magi_fee` NULL and splits the protocol fee across new columns, so
+ *      summing `magi_fee` counted the bulk of the fee as 0 (~$0.02/7d).
+ * The views expose the canonical split (`protocol_fees` + `lp_fees`),
+ * aggregated server-side with no row cap, consistent across all three
+ * indexers (per tibfox, 2026-06-12).
+ */
+const FEE_VIEW_BY_RANGE: Record<TimeRange, string> = {
+	'1d': 'dex_pool_fees_by_asset_24h',
+	'7d': 'dex_pool_fees_by_asset_7d',
+	'30d': 'dex_pool_fees_by_asset_30d',
+	max: 'dex_pool_fees_by_asset'
+};
+
+/**
  * Per-asset fee breakdown for a pool, over the selected time window.
  *
- * A pool collects fees in BOTH of its assets — one per swap direction — so the
- * old approach (summing into a single number and pricing it as one asset)
- * inflated the figure several-fold (HIVE fees counted as HBD). We aggregate the
- * raw `dex_pool_fee_events` (which carry `asset` + `indexer_ts`) per asset for
- * the chosen range, so fees stay correct AND track the timeframe like volume;
- * the caller values each asset at its own price.
- *
- * PERF: for wide windows (30d/max) across the whole pool list this pulls a few
- * hundred rows per pool. When the indexer exposes a per-asset rollup that takes
- * a `$since` timestamp (e.g. `fees_by_asset_since(pool, since)`), swap the query
- * below for a single aggregated call — the return shape stays the same.
+ * A pool collects fees in BOTH of its assets (one per swap direction); the
+ * caller values each asset at its own price. Reads the pre-aggregated
+ * `dex_pool_fees_by_asset_*` view for the range and maps its columns to our
+ * `PoolAssetFee` shape: `protocol_fees → magiFee`, `lp_fees → lpFee`.
  */
 export async function fetchPoolFees(poolId: string, range: TimeRange): Promise<PoolAssetFee[]> {
-	const gte = getTimeGte(range);
-	// Exclude rows with no `asset` tag. A 3-day indexer window (2026-04-16..18)
-	// emitted fee events with a null asset; they only surface in the `max`
-	// range (older than 30d), where they were aggregating under the key
-	// "null" and rendering as a bogus "… NULL" currency in the breakdown.
-	const whereClause = gte
-		? `{indexer_contract_id: {_eq: $pool}, indexer_ts: {_gte: "${gte}"}, asset: {_is_null: false}}`
-		: `{indexer_contract_id: {_eq: $pool}, asset: {_is_null: false}}`;
-
+	// View name comes from a fixed internal map (never user input) so
+	// interpolating it is safe; the pool id is passed as a variable.
+	const view = FEE_VIEW_BY_RANGE[range];
 	const query = `
-		query PoolFeeEvents($pool: String!) {
-			dex_pool_fee_events(where: ${whereClause}) {
-				asset lp_fee magi_fee
+		query PoolFeesByAsset($pool: String!) {
+			${view}(where: { pool_contract: { _eq: $pool } }) {
+				asset
+				protocol_fees
+				lp_fees
 			}
 		}
 	`;
 	const data = await hasuraQuery(query, { pool: poolId });
-	const rows =
-		(data?.dex_pool_fee_events as Array<Record<string, number | string>> | undefined) ?? [];
+	const rows = (data?.[view] as Array<Record<string, number | string>> | undefined) ?? [];
 
+	// Views are already one row per asset; the Map keeps it idempotent if
+	// that ever changes and drops any null-asset row defensively.
 	const byAsset = new Map<string, PoolAssetFee>();
 	for (const r of rows) {
-		// Defensive: skip any untagged row that slips past the query filter so
-		// it can't create a "null"/"NULL" asset bucket.
 		if (r.asset == null) continue;
 		const asset = String(r.asset);
 		const entry = byAsset.get(asset) ?? { asset, lpFee: 0, magiFee: 0 };
-		entry.lpFee += Number(r.lp_fee) || 0;
-		entry.magiFee += Number(r.magi_fee) || 0;
+		entry.lpFee += Number(r.lp_fees) || 0;
+		entry.magiFee += Number(r.protocol_fees) || 0;
 		byAsset.set(asset, entry);
 	}
 	return [...byAsset.values()];

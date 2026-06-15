@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.19] — 2026-06-12
+
+### Fixes
+
+- **Pool "Fee Earned" read ~$0.02 for recent windows** (e.g. 7d on the busy HIVE pool) — far too low. Two compounding read-side causes: (1) the 2026-06-02 contract redeploy rewrote the on-chain fee event to the pendulum layout, moving the protocol fee out of `magi_fee` (now NULL on new rows) into a new split, so `fetchPoolFees` summing `magi_fee` counted the bulk of the fee as 0; (2) the raw `dex_pool_fee_events` query hit Hasura's default 100-row cap, under-counting busy pools regardless. `fetchPoolFees` now reads the indexer's pre-aggregated per-(pool, asset) views (`dex_pool_fees_by_asset_24h` / `_7d` / `_30d` / the suffix-less all-time view), selected by range, mapping `protocol_fees` → `magiFee` and `lp_fees` → `lpFee`. Server-aggregated, no row cap, consistent across all three indexers (per tibfox). The `PoolAssetFee` output shape is unchanged, so the USD pricing in `mapStateToPoolRow` and its tests are untouched. 10 new tests pin the range→view selection and the column mapping (including the NULL-`magi_fee` regression and string-numeric coercion)
+
 ## [0.3.18] — 2026-06-12
 
 ### Features

@@ -12,6 +12,20 @@ export const keyTbd = 'prefs-tbd';
 
 const DEFAULT_VSC_NET_ID = 'vsc-mainnet';
 
+/**
+ * localStorage access that never throws at module-evaluation time.
+ * client.ts runs `localStorage.getItem` at module scope; in the jsdom
+ * Vitest environment (and any context where Storage isn't fully
+ * implemented) that crashed every test importing this module's graph.
+ */
+function lsGet(key: string): string | null {
+	try {
+		return globalThis.localStorage?.getItem?.(key) ?? null;
+	} catch {
+		return null;
+	}
+}
+
 /** Default Magi indexer (Hasura) base URL — same as okinoko/prod.
  *  The `/v1/graphql` path is appended by the GraphQL proxy route. */
 export const DEFAULT_MAGI_INDEXER_URL = 'https://indexer.magi.milohpr.com';
@@ -19,7 +33,7 @@ export const DEFAULT_MAGI_INDEXER_URL = 'https://indexer.magi.milohpr.com';
 /** DEX Router contract — routes swaps and BTC/HBD liquidity deposits.
  *  Network-switched between mainnet and testnet. */
 export const DEX_ROUTER_CONTRACT_ID = (() => {
-	const isTestnet = (browser && localStorage.getItem(keyVscNetworkId)) === 'vsc-testnet';
+	const isTestnet = (browser && lsGet(keyVscNetworkId)) === 'vsc-testnet';
 	return isTestnet
 		? 'vsc1Bens5nrhnbbHEUftCWaLPYegDx9LGLXEUP'
 		: 'vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45';
@@ -37,7 +51,7 @@ const TESTNET_DEPRECATED_POOL_IDS = [
 ];
 
 const deprecatedPoolIds: ReadonlySet<string> = new Set(
-	(browser && localStorage.getItem(keyVscNetworkId)) === 'vsc-testnet'
+	(browser && lsGet(keyVscNetworkId)) === 'vsc-testnet'
 		? TESTNET_DEPRECATED_POOL_IDS
 		: []
 );
@@ -50,7 +64,7 @@ export function isDeprecatedPool(contractId: string): boolean {
 export const currentGqlUrl = browser ? resolveNodeUrl('vsc') : DEFAULT_GQL_URL;
 
 export const vscNetworkId =
-	(browser && localStorage.getItem(keyVscNetworkId)) || DEFAULT_VSC_NET_ID;
+	(browser && lsGet(keyVscNetworkId)) || DEFAULT_VSC_NET_ID;
 
 /** True when the configured VSC network is the testnet. */
 export const isVscTestnet = (): boolean => vscNetworkId === 'vsc-testnet';
@@ -61,9 +75,9 @@ export const getMagiIndexerBaseUrl = (): string =>
 	browser ? resolveNodeUrl('indexer') : DEFAULT_MAGI_INDEXER_URL;
 
 /** Display unit for Hive (e.g. TESTS on testnet). Use for UI only. */
-export const getHiveAssetName = (): string => (browser && localStorage.getItem(keyTests)) || 'HIVE';
+export const getHiveAssetName = (): string => (browser && lsGet(keyTests)) || 'HIVE';
 /** Display unit for HBD (e.g. TBD on testnet). Use for UI only. */
-export const getHbdAssetName = (): string => (browser && localStorage.getItem(keyTbd)) || 'HBD';
+export const getHbdAssetName = (): string => (browser && lsGet(keyTbd)) || 'HBD';
 
 /**
  * Same-origin GraphQL proxy endpoint. The browser POSTs here instead of

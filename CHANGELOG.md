@@ -8,6 +8,22 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.18] — 2026-06-12
+
+### Features
+
+- **Witness page: contract updates.** New section surfacing pending, time-locked system-contract upgrades from go-vsc-node PR #210's `findPendingContractUpdates`: which contract, the new WASM CID, who proposed it, owner, queued/activation block heights, and a live countdown to activation. Each pending row links to the proposer account, the new code on IPFS, and the contract on the VSC explorer; a detail page per update lives at `/witness-assistant/contract-update/[id]`. Every pending update is shown (not just known contracts) — curated pools/router/bridge get a friendly name + category badge, unknown contracts resolve their on-chain name via `findContract` (e.g. "DEX Router") or fall back to a short id, so nothing is hidden from a witness. Data fetches through the same-origin `/api/gql` proxy following the app's configured node; 30s polling
+- **Witness page: dormant "awaiting backend" state.** Ships safely to mainnet before the backend is deployed there (PR #210 is testnet-only as of this release; verified absent on `api.vsc.eco` + `vsc.techcoderx.com`). When the configured node doesn't serve the field, the section renders a grayed, desaturated card with an "AWAITING BACKEND" badge instead of fake data or an error. The poll auto-activates it the instant the field goes live — the gray fades out and real data renders with zero redeploy. Dev builds get labeled mock fixtures (`?mock=1`) for visual review, compiled out of production
+
+### Fixes
+
+- **`activation_ts` parsed as UTC.** Live testnet verification (2026-06-12) surfaced that the node emits the timestamp without a timezone designator (`2026-06-12T14:08:45`), which naive `Date.parse` treats as local time — shifting activation by the user's UTC offset and making the countdown read "unlocked" for a still-pending update. `tsToUnixSec` now appends `Z` when no designator is present (same as `txStores.getTimestamp`); the detail page's local-time display routes through the same path. Pinned by a timezone-independent test
+- **Hardened module-scope localStorage access** in `client.ts`, `nodeSelection/select.ts`, and `magiTransactions/dhive.ts`. These read localStorage at module-evaluation time; the jsdom Vitest client project exposes a `localStorage` global without a callable `getItem`, so every client test importing this module graph crashed at collection (2 suites, 33 tests). Safe accessors (optional chaining + try/catch, plus a callable-`getItem` check in `select.ts`) keep behavior identical in real browsers and make the modules import-safe everywhere
+
+### Testing
+
+- 28 tests pin the witness contract-updates feature: wire-shape contract against PR #210, render states (loading / live / mock / empty / dormant), fallback paths (GraphQL error, HTTP 4xx/5xx, non-JSON), on-chain name resolution, and UTC timestamp parsing. The localStorage hardening un-broke 33 pre-existing client tests (full suite 296 → 297 passing)
+
 ## [0.3.17] — 2026-06-10
 
 ### Features

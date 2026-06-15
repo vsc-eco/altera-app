@@ -57,6 +57,11 @@
 	const pending = $derived<ContractUpdateView[]>(state.source === 'loading' ? [] : state.updates);
 	const isMock = $derived(state.source === 'mock');
 	const mockReason = $derived(state.source === 'mock' ? state.reason : '');
+	// Dormant: the configured node doesn't serve findPendingContractUpdates
+	// yet (PR #210 not deployed to mainnet). The section renders a grayed,
+	// "awaiting backend" state and auto-activates on the next poll the
+	// instant the field goes live — no redeploy needed.
+	const isDormant = $derived(state.source === 'unavailable');
 
 	function shortId(id: string): string {
 		return `${id.slice(0, 8)}…${id.slice(-4)}`;
@@ -75,6 +80,7 @@
 </script>
 
 <Card>
+	<div class="card-inner" class:dormant={isDormant}>
 	<header class="head">
 		<div>
 			<h3>
@@ -93,6 +99,10 @@
 			>
 				MOCK DATA · PR #210
 			</div>
+		{:else if isDormant}
+			<div class="dormant-badge" title="This node doesn't serve contract updates yet. The section activates automatically when the backend (go-vsc-node PR #210) deploys.">
+				AWAITING BACKEND
+			</div>
 		{/if}
 	</header>
 
@@ -110,6 +120,11 @@
 			<p class="empty loading">
 				<Loader2 size={14} class="spin" />
 				Loading pending updates…
+			</p>
+		{:else if isDormant}
+			<p class="empty dormant-note">
+				Contract-update tracking isn&rsquo;t available on this node yet. It will turn on automatically
+				once the backend is wired up — no action needed.
 			</p>
 		{:else if pending.length === 0}
 			<p class="empty">No pending contract updates.</p>
@@ -169,9 +184,37 @@
 			</ul>
 		{/if}
 	</section>
+	</div>
 </Card>
 
 <style lang="scss">
+	/* Dormant state: backend not wired (PR #210 not on this node). Grayed
+	   + slightly desaturated so it reads as "present but not yet live",
+	   without hiding the feature. Auto-clears when the field goes live. */
+	.card-inner.dormant {
+		opacity: 0.62;
+		filter: grayscale(0.65);
+		transition: opacity 250ms ease, filter 250ms ease;
+	}
+	.dormant-badge {
+		flex-shrink: 0;
+		align-self: flex-start;
+		padding: 0.25rem 0.55rem;
+		border: 1px solid var(--dash-card-border);
+		border-radius: 999px;
+		font-size: 0.62rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		color: var(--dash-text-secondary);
+		background: rgba(255, 255, 255, 0.04);
+		white-space: nowrap;
+		cursor: help;
+	}
+	.dormant-note {
+		max-width: 38rem;
+		line-height: 1.45;
+	}
+
 	.head {
 		display: flex;
 		justify-content: space-between;

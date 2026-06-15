@@ -96,6 +96,23 @@ describe('ContractUpdatesSection — render contract', () => {
 		expect(screen.queryByText(/mock data/i)).not.toBeInTheDocument();
 	});
 
+	it('shows the dormant "awaiting backend" state when the node lacks the field', async () => {
+		loadPendingUpdatesMock.mockResolvedValue({
+			source: 'unavailable',
+			updates: [],
+			reason: 'Cannot query field "findPendingContractUpdates" on type "Query".'
+		});
+		render(ContractUpdatesSection);
+		await waitFor(() => {
+			expect(screen.getByText(/awaiting backend/i)).toBeInTheDocument();
+		});
+		// Dormant note explains auto-activation; NOT the plain empty state,
+		// NOT the mock badge.
+		expect(screen.getByText(/turn on automatically/i)).toBeInTheDocument();
+		expect(screen.queryByText(/^no pending contract updates\.$/i)).not.toBeInTheDocument();
+		expect(screen.queryByText(/mock data/i)).not.toBeInTheDocument();
+	});
+
 	it('renders a row with title, proposer, owner, and block height for a known contract', async () => {
 		loadPendingUpdatesMock.mockResolvedValue({
 			source: 'live',

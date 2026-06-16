@@ -1,6 +1,17 @@
+<!--
+	Deposit flow as a dedicated page (route: /deposit).
+
+	Page-layout sibling of Deposit.svelte (the legacy modal). Same flow,
+	same txState/broadcast wiring — the only differences are:
+	  • renders StepsMachine with size="page" (no Dialog, no shrinking)
+	  • "close" navigates home instead of toggling a dialog
+	The BTC receipt popup stays a small dialog: it's a transient
+	confirmation, not the deposit surface, so it's fine as an overlay.
+-->
 <script lang="ts">
-	import Dialog from '$lib/zag/Dialog.svelte';
-	import DepositOptions from './stages/deposit/DepositOptions.svelte';
+	import { goto } from '$app/navigation';
+	import DepositTimeline from './stages/deposit/DepositTimeline.svelte';
+	import DepositSidebar from './stages/deposit/DepositSidebar.svelte';
 	import { Coin } from './utils/sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { DepositTxState, provideTxState } from './utils/txState.svelte';
@@ -13,16 +24,7 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import PieTimer from '$lib/components/PieTimer.svelte';
-
-	let {
-		dialogOpen = $bindable(),
-		toggle = $bindable(),
-		sessionId
-	}: {
-		dialogOpen: boolean;
-		toggle: (open?: boolean) => void;
-		sessionId: number;
-	} = $props();
+	import Dialog from '$lib/zag/Dialog.svelte';
 
 	const auth = $derived(getAuth()());
 
@@ -30,9 +32,6 @@
 	provideTxState(txState);
 
 	function applyDepositDetails() {
-		// `toNetwork = Network.magi` previously lived here but was a no-op when
-		// no `toCoin` was selected yet; DepositOptions sets the full to-side
-		// (coin + network) on user pick, so the hint isn't needed.
 		txState.toUsername = getUsernameFromAuth(auth) ?? '';
 		txState.from = undefined;
 		txState.to = undefined;
@@ -41,30 +40,33 @@
 		txState.fee = undefined;
 	}
 
+	// Page is always "open": initialise once at mount (parallel to SendSwap).
+	applyDepositDetails();
+
 	$effect(() => {
-		if (!dialogOpen) return;
-		sessionId;
-		applyDepositDetails();
-	});
-	$effect(() => {
-		if (!auth || !dialogOpen) return;
+		if (!auth) return;
 		const username = getUsernameFromAuth(auth);
 		if (username && username !== txState.toUsername) {
 			txState.toUsername = username;
 		}
 	});
 
-	// STEPS
+	function leave() {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static root navigation; resolve() not exported in this kit version
+		goto('/');
+	}
+
 	const stepsData: MixedStepsArray = [
-		{ value: 'options', component: DepositOptions },
-		{ value: 'review', component: ReviewSwap },
-		{ value: 'complete', component: Complete }
+		{ value: 'options', component: DepositTimeline },
+		// review + complete render as modal dialogs over the page (the
+		// `popup` flag makes these stages wrap themselves in a Dialog —
+		// same mechanism the /swap flow uses), so the deposit page (flow +
+		// recent-deposits rail) stays visible behind them.
+		{ value: 'review', component: ReviewSwap, popup: true },
+		{ value: 'complete', component: Complete, popup: true }
 	];
 
-	// Receipt popup state — shown after a successful BTC wallet
-	// broadcast. Lives here in Deposit.svelte (not inside the
-	// BitcoinMainnetDeposit stage) so closing the parent deposit
-	// dialog doesn't unmount it mid-render.
+	// Receipt popup — shown after a successful BTC wallet broadcast.
 	let receiptOpen = $state(false);
 	let receiptToggle = $state<(open?: boolean) => void>(() => {});
 	let receiptTxHash = $state<string | null>(null);
@@ -105,27 +107,29 @@
 	}
 
 	let extraProps = $derived({
-		close: toggle,
-		onClose: toggle,
+		close: leave,
+		onClose: leave,
 		onBroadcast: onBtcBroadcast,
-		compact: true
+		compact: false
 	});
 </script>
 
-<Dialog bind:toggle bind:open={dialogOpen}>
-	{#snippet content()}
-		{#if dialogOpen}
+<div class="deposit-page-wrapper">
+	<div class="deposit-layout">
+		<div class="deposit-flow-col">
 			<StepsMachine
-				size="dialog"
+				size="page"
 				txType="deposit"
 				resetState={applyDepositDetails}
 				{stepsData}
 				{extraProps}
-				minHeight={512}
 			/>
-		{/if}
-	{/snippet}
-</Dialog>
+		</div>
+		<aside class="deposit-rail-col">
+			<DepositSidebar />
+		</aside>
+	</div>
+</div>
 
 <Dialog bind:open={receiptOpen} bind:toggle={receiptToggle}>
 	{#snippet title()}Broadcast Submitted{/snippet}
@@ -166,6 +170,45 @@
 </Dialog>
 
 <style lang="scss">
+	.deposit-page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		min-height: 0;
+	}
+	/* Two columns at the page level: the deposit flow (with its NavButtons
+	   rendered directly beneath it) and the recent-deposits + FAQ rail. */
+	.deposit-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 18rem;
+		/* Generous horizontal gap on wide layouts so the flow column and the
+		   FAQ rail clearly read as separate concerns. When the layout
+		   collapses to a single column (≤1440px), the same value works as the
+		   VERTICAL gap between flow and rail stacked below. */
+		gap: 4rem;
+		max-width: 66rem;
+		margin: 0 auto;
+		padding: 2rem 1.5rem 4rem;
+		width: 100%;
+	}
+	.deposit-flow-col {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.deposit-rail-col {
+		min-width: 0;
+	}
+	@media (max-width: 1440px) {
+		.deposit-layout {
+			grid-template-columns: 1fr;
+		}
+	}
+	@media (max-width: 720px) {
+		.deposit-layout {
+			padding: 1.25rem 1rem 3rem;
+		}
+	}
 	.receipt-body {
 		display: flex;
 		flex-direction: column;

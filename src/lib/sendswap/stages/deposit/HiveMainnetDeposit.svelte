@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
+	import Card from '$lib/cards/Card.svelte';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -23,8 +24,19 @@
 	let {
 		editStage,
 		open,
-		secondaryMenu = $bindable()
-	}: { editStage: (complete: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
+		secondaryMenu = $bindable(),
+		lockAsset = false
+	}: {
+		editStage: (complete: boolean) => void;
+		open: boolean;
+		secondaryMenu: boolean;
+		// Asset-first deposit flow: the asset is already chosen upstream (step 1
+		// "I want to receive X"), and Hive Mainnet is a 1:1 bridge, so the send
+		// asset must equal the receive asset. Lock it — no in-step switcher that
+		// could silently change what the user receives. Defaults false so the
+		// legacy source-first modal keeps its picker.
+		lockAsset?: boolean;
+	} = $props();
 
 	const txState = useDepositState();
 	const auth = $derived(getAuth()());
@@ -71,9 +83,7 @@
 	});
 
 	const unkOpt = { coin: Coin.unk, network: Network.unknown };
-	const coinOptions: CoinOnNetwork[] = $derived(
-		txState.from ? [txState.from] : [unkOpt]
-	);
+	const coinOptions: CoinOnNetwork[] = $derived(txState.from ? [txState.from] : [unkOpt]);
 
 	let assetOpen = $state(false);
 	function toggleAsset(open = false) {
@@ -109,24 +119,42 @@
 {:else if auth.value?.provider === 'aioha'}
 	<div class="sections">
 		<div class="section">
-			<label for="asset-card">Deposit From</label>
-			<ClickableCard onclick={() => toggleAsset(true)}>
-				<div class="asset-card">
-					{#if txState.from}
-						<BalanceInfo
-							coin={txState.from.coin}
-							network={txState.from.network}
-							size="large"
-							styleType="vertical"
-						/>
-					{:else}
-						<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span
-						>
-						Select Asset
-					{/if}
-					<span class="edit"> Edit </span>
-				</div>
-			</ClickableCard>
+			{#if !lockAsset}
+				<label for="asset-card">Deposit From</label>
+			{/if}
+			{#if lockAsset}
+				<Card>
+					<div class="asset-card">
+						{#if txState.from}
+							<BalanceInfo
+								coin={txState.from.coin}
+								network={txState.from.network}
+								size="large"
+								styleType="vertical"
+							/>
+						{/if}
+					</div>
+				</Card>
+			{:else}
+				<ClickableCard onclick={() => toggleAsset(true)}>
+					<div class="asset-card">
+						{#if txState.from}
+							<BalanceInfo
+								coin={txState.from.coin}
+								network={txState.from.network}
+								size="large"
+								styleType="vertical"
+							/>
+						{:else}
+							<span class="user-icon-placeholder"
+								><Coins size="40" absoluteStrokeWidth={true} /></span
+							>
+							Select Asset
+						{/if}
+						<span class="edit"> Edit </span>
+					</div>
+				</ClickableCard>
+			{/if}
 		</div>
 		<div class="section">
 			<label for={inputId}>Amount</label>

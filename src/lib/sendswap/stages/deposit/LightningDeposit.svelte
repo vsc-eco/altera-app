@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Card from '$lib/cards/Card.svelte';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -14,8 +15,18 @@
 	let {
 		editStage,
 		open,
-		secondaryMenu = $bindable()
-	}: { editStage: (add: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
+		secondaryMenu = $bindable(),
+		lockAsset = false
+	}: {
+		editStage: (add: boolean) => void;
+		open: boolean;
+		secondaryMenu: boolean;
+		// Asset-first deposit flow: the receive asset is chosen upstream (step 1),
+		// so lock the "Deposit To" picker here — no in-step switch that could
+		// diverge from what the user said they wanted. Defaults false so the
+		// legacy source-first modal keeps its picker.
+		lockAsset?: boolean;
+	} = $props();
 
 	const txState = useDepositState();
 
@@ -50,14 +61,12 @@
 					txState.fromAmount = amt;
 				}
 			} else {
-				coinAmountSnapshot
-					.convertTo(txState.from.coin, Network.lightning)
-					.then((converted) => {
-						const convertedAmt = converted.toAmountString();
-						if (txState.fromAmount !== convertedAmt) {
-							txState.fromAmount = convertedAmt;
-						}
-					});
+				coinAmountSnapshot.convertTo(txState.from.coin, Network.lightning).then((converted) => {
+					const convertedAmt = converted.toAmountString();
+					if (txState.fromAmount !== convertedAmt) {
+						txState.fromAmount = convertedAmt;
+					}
+				});
 			}
 
 			// Compute toAmount
@@ -67,31 +76,26 @@
 					txState.toAmount = amt;
 				}
 				getFee(amt, txState).then((fee) => {
-					if (
-						fee?.amount !== txState.fee?.amount ||
-						fee?.coin.value !== txState.fee?.coin.value
-					) {
+					if (fee?.amount !== txState.fee?.amount || fee?.coin.value !== txState.fee?.coin.value) {
 						txState.fee = fee;
 					}
 				});
 			} else {
-				coinAmountSnapshot
-					.convertTo(txState.to.coin, Network.lightning)
-					.then((converted) => {
-						const convertedAmt = converted.toAmountString();
-						if (txState.toAmount !== convertedAmt) {
-							txState.toAmount = convertedAmt;
+				coinAmountSnapshot.convertTo(txState.to.coin, Network.lightning).then((converted) => {
+					const convertedAmt = converted.toAmountString();
+					if (txState.toAmount !== convertedAmt) {
+						txState.toAmount = convertedAmt;
+					}
+					// Compute fee based on converted toAmount
+					getFee(convertedAmt, txState).then((fee) => {
+						if (
+							fee?.amount !== txState.fee?.amount ||
+							fee?.coin.value !== txState.fee?.coin.value
+						) {
+							txState.fee = fee;
 						}
-						// Compute fee based on converted toAmount
-						getFee(convertedAmt, txState).then((fee) => {
-							if (
-								fee?.amount !== txState.fee?.amount ||
-								fee?.coin.value !== txState.fee?.coin.value
-							) {
-								txState.fee = fee;
-							}
-						});
 					});
+				});
 			}
 		});
 	});
@@ -160,23 +164,41 @@
 {/if}
 <div class={['sections', { hide: assetOpen }]}>
 	<div class="deposit section">
-		<label for="asset-card">Deposit To</label>
-		<ClickableCard onclick={() => toggleAsset(true)}>
-			<div class="asset-card">
-				{#if txState.to}
-					<BalanceInfo
-						coin={txState.to.coin}
-						network={txState.to.network}
-						size="large"
-						styleType="vertical"
-					/>
-				{:else}
-					<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-					Select Destination Account
-				{/if}
-				<span class="edit"> Edit </span>
-			</div>
-		</ClickableCard>
+		{#if !lockAsset}
+			<label for="asset-card">Deposit To</label>
+		{/if}
+		{#if lockAsset}
+			<Card>
+				<div class="asset-card">
+					{#if txState.to}
+						<BalanceInfo
+							coin={txState.to.coin}
+							network={txState.to.network}
+							size="large"
+							styleType="vertical"
+						/>
+					{/if}
+				</div>
+			</Card>
+		{:else}
+			<ClickableCard onclick={() => toggleAsset(true)}>
+				<div class="asset-card">
+					{#if txState.to}
+						<BalanceInfo
+							coin={txState.to.coin}
+							network={txState.to.network}
+							size="large"
+							styleType="vertical"
+						/>
+					{:else}
+						<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span
+						>
+						Select Destination Account
+					{/if}
+					<span class="edit"> Edit </span>
+				</div>
+			</ClickableCard>
+		{/if}
 	</div>
 	<div class="section">
 		<label for={inputId}>Amount</label>

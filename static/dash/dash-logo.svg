@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <!-- Dash logomark, simplified two-bar mark. Trademark of Dash Core Group;
+       used here under brand-asset terms for app-integration UIs. -->
+  <path d="M165 64H86l-10 36h79c20 0 32 8 32 24 0 12-7 36-26 36H82l-10 36h79c41 0 70-23 70-72 0-37-26-60-56-60z"
+        fill="#008CE7" />
+  <path d="M60 100H8l-6 24h52z" fill="#008CE7" />
+  <path d="M52 136H0l-6 24h52z" fill="#008CE7" transform="translate(8 0)" />
+</svg>

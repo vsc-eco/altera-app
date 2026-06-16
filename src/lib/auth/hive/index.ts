@@ -33,7 +33,11 @@ let aioha: Aioha;
 
 if (browser) {
 	_hiveAuthStore.subscribe((value) => {
-		if (value.value) {
+		// Round-4 audit R4-CSM-03: gate on provider so a Dash session
+		// written into the (now-separate) _dashAuthStore can never
+		// drive a dhive lookup here even if subscribers ever get
+		// re-routed.
+		if (value.value && value.value.provider === 'aioha') {
 			getProfilePicUrl(value.value.address).then((pp) => {
 				if (value.value != undefined && pp && value.value.profilePicUrl == undefined) {
 					value.value.profilePicUrl = pp;

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AppKitLogin from '$lib/auth/AppKitLogin.svelte';
 	import HiveLogin from '$lib/auth/HiveLogin.svelte';
+	import DashLogin from '$lib/auth/DashLogin.svelte';
 	import { goto } from '$app/navigation';
 	import { getAuth } from '$lib/auth/store';
 	import { browser } from '$app/environment';
@@ -241,6 +242,9 @@
 					<div class="option-button" onclick={() => setTimeout(() => loginOpen = false, 100)}>
 						<AppKitLogin namespace="bip122" />
 					</div>
+				</div>
+				<div class="dash-login-wrap">
+					<DashLogin />
 				</div>
 				<div class="login-divider">
 					<span>or</span>

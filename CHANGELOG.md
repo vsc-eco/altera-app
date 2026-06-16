@@ -8,6 +8,22 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.20] — 2026-06-16
+
+### Features
+
+- **Deposit is now a dedicated `/deposit` page instead of a modal.** The dashboard "Deposit" button navigates to a full route rather than opening a dialog, so the flow has room and no longer resizes/shrinks as you move through it. The page is an **asset-first 3-step timeline** — (1) "I want to receive" (HIVE / HBD / BTC), (2) "From" (the source rail), (3) "Send" (the per-source details) — replacing the old source-first drill-in menu. Step 2 only offers sources that can actually deliver the chosen asset, using the real support matrix: HIVE/HBD → Hive Mainnet or Lightning; BTC → Lightning, Bitcoin Mainnet, or Coinbase. All three steps stay expanded (no collapse), and the review + completion stages render as modal dialogs over the page, which keeps a persistent recent-deposits + FAQ side rail visible throughout
+- **The deposit asset can no longer silently diverge from what you asked to receive.** Hive Mainnet and Lightning are 1:1 bridges (send HIVE → receive HIVE; pay a sats invoice → receive the picked asset), but the per-source step previously let you switch the asset mid-flow, so "receive HIVE" could quietly become an HBD→HBD deposit. A new `lockAsset` mode pins step 3 to the step-1 choice and hides the in-step switcher; to deposit a different asset you change step 1. Receiving HIVE on Magi from HBD on mainnet isn't possible via the Hive bridge (it's 1:1), which the locked UI now makes explicit
+
+### Internal
+
+- **Shared per-source init.** The txState initialization for each deposit source was extracted into `depositInit.ts` so the flow routes through one code path; broadcast payloads are identical to the previous flow by construction (`from`/`to` → `decideBroadcast` → `send` unchanged)
+- Removed the superseded deposit code now that the page is the entry point: the old `Deposit.svelte` modal, the source-first `DepositOptions.svelte` menu, the throwaway `DepositFlowMock.svelte` design prototype, and the `/dev/deposit-mock` dev route
+
+### Testing
+
+- 15 tests in `depositInit.test.ts` pin payload-equivalence between the new and old flows — expectations are hand-derived from the original `DepositOptions` effect bodies, so each (asset, source) combination provably yields the same `from`/`to`. The existing deposit flow tests (`lightningDeposit.flow`, `hiveMainnetDeposit.flow`) and `broadcastDecision` tests confirm the broadcast paths are unchanged
+
 ## [0.3.19] — 2026-06-12
 
 ### Fixes
@@ -61,10 +77,10 @@ All notable changes to Altera are documented here.
   expectedOutput = grossOut − 2 × (baseProtocolFee + baseClpFee)
   ```
   Properties this gives us:
-    - For any real on-chain `m ∈ [1, 2]`, `actualOutput ≥ expectedOutput` — users never receive less than quoted, sometimes more
-    - The on-chain slippage gate (`actualOutput ≥ min_amount_out`) always passes for the stabilizer portion; slippage is now back to its original job of absorbing reserve drift between sign and execute. Default stays at 1%
-    - No fetch of pendulum V/E geometry needed (which would re-implement consensus math — exactly the drift class this bug was an instance of). The bound is a constant, no drift possible
-    - Fixes the issue for **every** route touching the shallow pool (BTC↔HBD, BTC↔HIVE, HIVE↔BTC, HBD↔BTC) and the HBD↔HIVE edge-case failures the incident report also flagged
+  - For any real on-chain `m ∈ [1, 2]`, `actualOutput ≥ expectedOutput` — users never receive less than quoted, sometimes more
+  - The on-chain slippage gate (`actualOutput ≥ min_amount_out`) always passes for the stabilizer portion; slippage is now back to its original job of absorbing reserve drift between sign and execute. Default stays at 1%
+  - No fetch of pendulum V/E geometry needed (which would re-implement consensus math — exactly the drift class this bug was an instance of). The bound is a constant, no drift possible
+  - Fixes the issue for **every** route touching the shallow pool (BTC↔HBD, BTC↔HIVE, HIVE↔BTC, HBD↔BTC) and the HBD↔HIVE edge-case failures the incident report also flagged
   - **Trade-off (intentional):** the quote line is now pessimistic. On HIVE↔HBD the difference is ~0.06% (invisible). On BTC routes it's ~6.6% lower than a naive m=1 quote — but it matches the on-chain worst-case execution exactly. Users get **at least** what they see, never less. Truth over favorable comparison
   - **Maintenance tripwire:** the fix encodes `STABILIZER_CAP_BPS = 20000n` (m = 2.0) at the top of `swapCalc.ts`. If `fees_int.go:DefaultStabilizerParamsBps.Cap` is ever raised in a protocol upgrade, this constant must move in the same PR — otherwise we silently regress. Tracked by two new tests in `swapCalc.test.ts` that pin the worst-case behavior against the worked figures from the incident report (76,132 mHBD floor for the 150,000-sat BTC→HBD case)
   - UI is unchanged: original 4 slippage presets (`0.5 / 1 / 2 / 3%`), default 1%, custom cap back to ~100%. No banners, no info icons, no auto-raise. The math is just correct now

@@ -5,7 +5,7 @@
 	import { accountBalanceHistory } from '$lib/stores/balanceHistory';
 	import AccBalance from '$lib/AccBalance.svelte';
 	import { Send } from '@lucide/svelte';
-	import Deposit from '$lib/sendswap/Deposit.svelte';
+	import { goto } from '$app/navigation';
 	import Withdraw from '$lib/sendswap/Withdraw.svelte';
 	import QuickSend from '$lib/sendswap/QuickSend.svelte';
 	import { getTxSessionId } from '$lib/sendswap/utils/sendUtils';
@@ -34,12 +34,14 @@
 	let quickSendOpen = $state(false);
 	let sendSessionId = $state(getTxSessionId());
 	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
-	let depositOpen = $state(false);
-	let depositSessionId = $state(getTxSessionId());
-	let toggleDeposit = $state<(open?: boolean) => void>(() => {});
 	let withdrawOpen = $state(false);
 	let withdrawSessionId = $state(getTxSessionId());
 	let toggleWithdraw = $state<(open?: boolean) => void>(() => {});
+
+	function openDeposit() {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
+		goto('/deposit');
+	}
 </script>
 
 <Card>
@@ -63,15 +65,7 @@
 		</div>
 
 		<div class="action-buttons">
-			<button
-				class="action-btn action-btn-filled"
-				onclick={() => {
-					depositSessionId = getTxSessionId();
-					toggleDeposit(true);
-				}}
-			>
-				Deposit
-			</button>
+			<button class="action-btn action-btn-filled" onclick={openDeposit}> Deposit </button>
 			<button
 				class="action-btn action-btn-outline"
 				onclick={() => {
@@ -97,7 +91,6 @@
 	bind:toggle={toggleQuickSend}
 	sessionId={sendSessionId}
 />
-<Deposit bind:dialogOpen={depositOpen} bind:toggle={toggleDeposit} sessionId={depositSessionId} />
 <Withdraw
 	bind:dialogOpen={withdrawOpen}
 	bind:toggle={toggleWithdraw}

@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.21] — 2026-06-16
+
+### Fixes
+
+- **A confirmed swap could show two different output amounts minutes apart.** The transaction-detail popup reads the settled `amount_out` from the indexer, which ingests a swap a few seconds _after_ it confirms; in that gap it fell back to the swap payload's `min_amount_out` (the slippage floor) and showed it as the received amount — so the same confirmed tx displayed the floor, then the real fill once the indexer caught up. `ContractTr` now polls the indexer (~15s, backing off) for the settled amount instead of giving up after one read, and never shows the floor on a confirmed swap: while the real figure loads it shows a small loading indicator plus the guaranteed minimum ("you'll receive at least X"), then snaps to the settled amount. It also matches both indexer key formats — the bare `<hash>` and the chain-native `<hash>-<opIndex>` bundle suffix — so bundled swaps (deposit+swap, BTC-allowance+swap) resolve too. The confirmed _status_ is unchanged (the tx really is final on-chain); only the amount display was corrected. Swap-payload parsing and the settle-state decision are extracted to `swapDisplay.ts` with 12 unit tests
+
 ## [0.3.20] — 2026-06-16
 
 ### Features

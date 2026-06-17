@@ -2,15 +2,32 @@
 	import type { UnkCoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { getHiveAssetName, getHbdAssetName } from '../../../../../client';
+	import WaveLoading from '$lib/components/WaveLoading.svelte';
 
 	type Props = {
 		amount: UnkCoinAmount;
-		direction?: 'incoming' | 'outgoing' | 'swap' | 'contract' | 'add-liquidity' | 'remove-liquidity';
+		direction?:
+			| 'incoming'
+			| 'outgoing'
+			| 'swap'
+			| 'contract'
+			| 'add-liquidity'
+			| 'remove-liquidity';
 		fromAmount?: UnkCoinAmount | null;
 		secondAmount?: UnkCoinAmount | null;
 		lpInfo?: string | null;
+		// Confirmed swap whose settled output isn't known yet — show a placeholder
+		// instead of the slippage floor (which would mis-state what was received).
+		pendingAmount?: boolean;
 	};
-	let { amount, direction = 'incoming', fromAmount = null, secondAmount = null, lpInfo = null }: Props = $props();
+	let {
+		amount,
+		direction = 'incoming',
+		fromAmount = null,
+		secondAmount = null,
+		lpInfo = null,
+		pendingAmount = false
+	}: Props = $props();
 
 	function unitFor(coin: UnkCoinAmount['coin']): string {
 		if (coin.value === Coin.hive.value) return getHiveAssetName();
@@ -26,8 +43,12 @@
 		<span class="amount outgoing">{fromAmount.toPrettyAmountString()}</span>
 		<span class="token outgoing">{unitFor(fromAmount.coin)}</span>
 		<span class="swap-arrow">→</span>
-		<span class="amount green">{amount.toPrettyAmountString()}</span>
-		<span class="token green">{displayUnit}</span>
+		{#if pendingAmount}
+			<span class="amount settling"><WaveLoading size={18} /></span>
+		{:else}
+			<span class="amount green">{amount.toPrettyAmountString()}</span>
+			<span class="token green">{displayUnit}</span>
+		{/if}
 	{:else if direction === 'add-liquidity' && secondAmount}
 		<span class="amount">{amount.toPrettyAmountString()}</span>
 		<span class="token">{displayUnit}</span>
@@ -91,5 +112,11 @@
 	}
 	.outgoing {
 		color: var(--dash-text-secondary);
+	}
+	.amount.settling {
+		display: inline-flex;
+		align-items: center;
+		vertical-align: middle;
+		color: var(--dash-text-muted);
 	}
 </style>

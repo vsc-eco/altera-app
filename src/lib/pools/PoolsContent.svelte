@@ -1,7 +1,19 @@
 <script lang="ts">
-	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown, Plus, Minus } from '@lucide/svelte';
+	import {
+		Layers,
+		ArrowUpDown,
+		BarChart2,
+		ChevronUp,
+		ChevronDown,
+		Plus,
+		Minus,
+		Info
+	} from '@lucide/svelte';
+	import { portal } from '@zag-js/svelte';
 	import { fetchPools, fetchMyPoolPositions, type TimeRange } from './poolsData';
 	import type { PoolRow, MyPoolRow } from './poolsData';
+	import { fetchSystemHealth, type SystemHealth } from './systemHealth';
+	import PoolSystemHealth from './PoolSystemHealth.svelte';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
@@ -46,6 +58,40 @@
 	let pools = $state<PoolRow[]>([]);
 	let loading = $state(false);
 	let selectedPool = $state<PoolRow | null>(null);
+
+	// The "where to invest now" snapshot is fixed to a recent window (7d),
+	// independent of the table's time-range selector: the current situation
+	// shouldn't change when you toggle the table between 1d / 30d / max. (LP fees
+	// are lumpy — 30d still includes the pre-tilt period and overstates today.)
+	let health = $state<SystemHealth | null>(null);
+	$effect(() => {
+		fetchSystemHealth('7d').then((h) => (health = h));
+	});
+	// Per-pool LP yield (same 7d window), keyed by pool id, for the row situation.
+	let lpAprById = $derived(new Map((health?.pools ?? []).map((p) => [p.id, p.lpAprPct])));
+
+	// Fee breakdown "peek" — a single portaled popover positioned at the hovered
+	// (or focused) ℹ️ button. Portaled so it escapes the table's overflow (no
+	// clipping); hover + focus + tap so it works on desktop, keyboard and touch
+	// without fighting the clickable row's navigation.
+	let feePeek = $state<{
+		rows: PoolRow['feeBreakdown'];
+		total: string;
+		x: number;
+		y: number;
+	} | null>(null);
+	function openFeePeek(e: { currentTarget: HTMLElement }, pool: PoolRow) {
+		const r = e.currentTarget.getBoundingClientRect();
+		feePeek = {
+			rows: pool.feeBreakdown,
+			total: pool.feeEarnedUsd,
+			x: r.left + r.width / 2,
+			y: r.bottom + 6
+		};
+	}
+	function closeFeePeek() {
+		feePeek = null;
+	}
 
 	const auth = $derived(getAuth()());
 	const did = $derived(auth.value?.did);
@@ -149,7 +195,6 @@
 			return sortDirection === 'desc' ? -cmp : cmp;
 		})
 	);
-
 </script>
 
 {#if selectedPool}
@@ -157,261 +202,333 @@
 		<PoolDetail pool={selectedPool} {pools} {myPools} onback={() => (selectedPool = null)} />
 	</div>
 {:else}
-<div class="pools-content">
-	<div class="toolbar">
-		<input
-			type="search"
-			class="search-input"
-			placeholder="Search..."
-			bind:value={searchQuery}
-			aria-label="Search pools"
-		/>
-		<div class="time-filters" role="group" aria-label="Time range">
-			{#each timeRangeLabels as tr}
-				<button
-					type="button"
-					class="time-btn"
-					class:active={timeRange === tr.value}
-					disabled={loading}
-					onclick={() => (timeRange = tr.value)}
-				>
-					{tr.label}
-				</button>
+	<div class="pools-content">
+		<div class="toolbar">
+			<input
+				type="search"
+				class="search-input"
+				placeholder="Search..."
+				bind:value={searchQuery}
+				aria-label="Search pools"
+			/>
+			<div class="time-filters" role="group" aria-label="Time range">
+				{#each timeRangeLabels as tr (tr.value)}
+					<button
+						type="button"
+						class="time-btn"
+						class:active={timeRange === tr.value}
+						disabled={loading}
+						onclick={() => (timeRange = tr.value)}
+					>
+						{tr.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		{@render poolsTable(sortedPools)}
+
+		{#if health}
+			<PoolSystemHealth {health} />
+		{/if}
+
+		<!-- Only render once we actually have positions. Gating on `myPoolsLoading`
+	     too caused the section to flash in and out on every filter change (the
+	     position fetch re-runs when `pools` is reassigned, finds none, hides). -->
+		{#if did && myPools.length > 0}
+			<div class="my-pools-section">
+				<h3 class="section-title">My liquidity</h3>
+				{@render myPoolsTable(myPools)}
+			</div>
+		{/if}
+	</div>
+
+	{#snippet poolsTable(rows: PoolRow[])}
+		<div class="table-wrapper">
+			<table class="pools-table">
+				<thead>
+					<tr>
+						<th class="col-pair">Pair</th>
+						<th class="col-price">Price</th>
+						<th class="col-liquidity sortable" class:active={sortColumn === 'liquidity'}>
+							<button
+								type="button"
+								class="col-heading-btn"
+								onclick={(e) => toggleSort('liquidity', e)}
+							>
+								<Layers size={16} aria-hidden="true" />
+								Total Liquidity
+								{#if sortColumn === 'liquidity'}
+									{#if sortDirection === 'desc'}
+										<ChevronDown size={16} aria-label="descending" />
+									{:else}
+										<ChevronUp size={16} aria-label="ascending" />
+									{/if}
+								{/if}
+							</button>
+						</th>
+						<th class="col-fee sortable" class:active={sortColumn === 'fee'}>
+							<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('fee', e)}>
+								<ArrowUpDown size={16} aria-hidden="true" />
+								Fee Earned
+								{#if sortColumn === 'fee'}
+									{#if sortDirection === 'desc'}
+										<ChevronDown size={16} aria-label="descending" />
+									{:else}
+										<ChevronUp size={16} aria-label="ascending" />
+									{/if}
+								{/if}
+							</button>
+						</th>
+						<th class="col-volume sortable" class:active={sortColumn === 'volume'}>
+							<button
+								type="button"
+								class="col-heading-btn"
+								onclick={(e) => toggleSort('volume', e)}
+							>
+								<BarChart2 size={16} aria-hidden="true" />
+								Volume
+								{#if sortColumn === 'volume'}
+									{#if sortDirection === 'desc'}
+										<ChevronDown size={16} aria-label="descending" />
+									{:else}
+										<ChevronUp size={16} aria-label="ascending" />
+									{/if}
+								{/if}
+							</button>
+						</th>
+						<th class="col-actions" aria-label="Actions"></th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each rows as pool (pool.id)}
+						{@const deprecated = isDeprecatedPool(pool.contractId)}
+						<tr class="clickable" onclick={() => (selectedPool = pool)}>
+							<td class="col-pair">
+								<div class="pair-cell">
+									<span class="pair-icons" aria-hidden="true">
+										{#if getCoinIcon(pool.pairSymbols[0])}
+											<img
+												class="coin-icon icon-a"
+												src={getCoinIcon(pool.pairSymbols[0])}
+												alt={pool.pairSymbols[0]}
+											/>
+										{:else}
+											<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
+										{/if}
+										{#if getCoinIcon(pool.pairSymbols[1])}
+											<img
+												class="coin-icon icon-b"
+												src={getCoinIcon(pool.pairSymbols[1])}
+												alt={pool.pairSymbols[1]}
+											/>
+										{:else}
+											<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
+										{/if}
+									</span>
+									<span
+										class="pair-label"
+										class:deprecated
+										title={deprecated ? 'Deprecated pool — withdraw only' : undefined}
+										>{pool.pair}</span
+									>
+									{#if deprecated}
+										<span class="deprecated-tag">deprecated</span>
+									{/if}
+								</div>
+							</td>
+							<td class="col-price">
+								<div class="price-cell">
+									<span class="price-rate">{pool.rateLabel}</span>
+									<span class="price-rate">{pool.rateLabelInverse}</span>
+									<span class="price-usd-line">
+										<span class="price-sym">{pool.pairSymbols[0]}</span>
+										{pool.priceUsd[0]}
+										<span class="price-dot">·</span>
+										<span class="price-sym">{pool.pairSymbols[1]}</span>
+										{pool.priceUsd[1]}
+									</span>
+								</div>
+							</td>
+							<td class="col-liquidity">
+								<div class="amount-cell">
+									<span class="total">{pool.totalLiquidityUsd}</span>
+									<span class="breakdown">{pool.totalLiquidityAssets[0]}</span>
+									<span class="breakdown">{pool.totalLiquidityAssets[1]}</span>
+								</div>
+							</td>
+							<td class="col-fee">
+								<div class="amount-cell fee-cell">
+									<span class="total">{pool.feeEarnedUsd}</span>
+									<button
+										type="button"
+										class="fee-info-btn"
+										aria-label="Show fee breakdown"
+										onmouseenter={(e) => openFeePeek(e, pool)}
+										onmouseleave={closeFeePeek}
+										onfocus={(e) => openFeePeek(e, pool)}
+										onblur={closeFeePeek}
+										onclick={(e) => e.stopPropagation()}
+									>
+										<Info size={14} />
+									</button>
+									{#if lpAprById.get(pool.id) != null}
+										<span
+											class="lp-apr-tag"
+											title="Estimated LP yield from the last 7 days of fees"
+										>
+											LP APR ≈ {lpAprById.get(pool.id)!.toFixed(2)}% / yr
+										</span>
+									{/if}
+								</div>
+							</td>
+							<td class="col-volume">
+								<div class="amount-cell">
+									<span class="total">{pool.volumeUsd}</span>
+									<span class="breakdown">{pool.volumeAssets[0]}</span>
+									<span class="breakdown">{pool.volumeAssets[1]}</span>
+								</div>
+							</td>
+							<td class="col-actions">
+								<div class="row-actions">
+									<button
+										type="button"
+										class="row-action row-action-primary"
+										aria-label="Add liquidity to {pool.pair}"
+										disabled={deprecated}
+										title={deprecated
+											? 'Deprecated pool — adding liquidity is disabled'
+											: undefined}
+										onclick={(e) => {
+											e.stopPropagation();
+											if (deprecated) return;
+											openAddForPool(pool);
+										}}
+									>
+										<Plus size={14} />
+										Add
+									</button>
+									{#if myPools.some((mp) => mp.contractId === pool.contractId)}
+										<button
+											type="button"
+											class="row-action row-action-outline"
+											aria-label="Remove liquidity from {pool.pair}"
+											onclick={(e) => {
+												e.stopPropagation();
+												openRemoveForPool(pool);
+											}}
+										>
+											<Minus size={14} />
+											Remove
+										</button>
+									{/if}
+								</div>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/snippet}
+
+	{#snippet myPoolsTable(rows: MyPoolRow[])}
+		<div class="table-wrapper">
+			<table class="pools-table">
+				<thead>
+					<tr>
+						<th class="col-pair">Pair</th>
+						<th class="col-share">My Share</th>
+						<th class="col-liquidity">My Liquidity</th>
+						<th class="col-lp">LP Tokens</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each rows as row (row.id)}
+						{@const fullPool = pools.find((p) => p.contractId === row.contractId)}
+						<tr
+							class="clickable"
+							onclick={() => {
+								if (fullPool) selectedPool = fullPool;
+							}}
+						>
+							<td class="col-pair">
+								<div class="pair-cell">
+									<span class="pair-icons" aria-hidden="true">
+										{#if getCoinIcon(row.pairSymbols[0])}
+											<img
+												class="coin-icon icon-a"
+												src={getCoinIcon(row.pairSymbols[0])}
+												alt={row.pairSymbols[0]}
+											/>
+										{:else}
+											<span class="icon icon-a">{row.pairSymbols[0].slice(0, 3)}</span>
+										{/if}
+										{#if getCoinIcon(row.pairSymbols[1])}
+											<img
+												class="coin-icon icon-b"
+												src={getCoinIcon(row.pairSymbols[1])}
+												alt={row.pairSymbols[1]}
+											/>
+										{:else}
+											<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
+										{/if}
+									</span>
+									<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}
+										>{row.pair}</span
+									>
+								</div>
+							</td>
+							<td class="col-share">
+								<span class="share-pct">{row.sharePct.toFixed(4)}%</span>
+							</td>
+							<td class="col-liquidity">
+								<div class="amount-cell">
+									<span class="total">{row.myLiquidityUsd}</span>
+									<span class="breakdown">{row.myAmounts[0]}</span>
+									<span class="breakdown">{row.myAmounts[1]}</span>
+								</div>
+							</td>
+							<td class="col-lp">
+								<span class="lp-amount">{row.lpBalance.toLocaleString()}</span>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/snippet}
+
+	<AddLiquidityPopup
+		bind:open={addLiquidityOpen}
+		pools={pools.filter((p) => !isDeprecatedPool(p.contractId))}
+		preselectedPool={addPrefillPool}
+	/>
+	<RemoveLiquidityPopup
+		bind:open={removeLiquidityOpen}
+		pools={myPoolsAsRows}
+		{myPools}
+		preselectedPool={removePrefillPool}
+	/>
+{/if}
+
+{#if feePeek}
+	<div class="fee-peek-pop" use:portal style="left: {feePeek.x}px; top: {feePeek.y}px">
+		<div class="fee-pop-head">
+			<span class="fee-pop-title">Fee earned</span>
+			<span class="fee-pop-total">{feePeek.total}</span>
+		</div>
+		<div class="fee-pop-split">
+			{#each feePeek.rows as row (row.label)}
+				<div class="fee-pop-row">
+					<span class="fee-pop-label">{row.label}</span>
+					<span class="fee-pop-vals">
+						<span class="fee-pop-usd">{row.usd}</span>
+						<span class="fee-pop-asset">{row.asset}</span>
+					</span>
+				</div>
 			{/each}
 		</div>
 	</div>
-
-	{@render poolsTable(sortedPools)}
-
-	<!-- Only render once we actually have positions. Gating on `myPoolsLoading`
-	     too caused the section to flash in and out on every filter change (the
-	     position fetch re-runs when `pools` is reassigned, finds none, hides). -->
-	{#if did && myPools.length > 0}
-		<div class="my-pools-section">
-			<h3 class="section-title">My liquidity</h3>
-			{@render myPoolsTable(myPools)}
-		</div>
-	{/if}
-</div>
-
-{#snippet poolsTable(rows: PoolRow[])}
-	<div class="table-wrapper">
-		<table class="pools-table">
-			<thead>
-				<tr>
-					<th class="col-pair">Pair</th>
-					<th class="col-price">Price</th>
-					<th class="col-liquidity sortable" class:active={sortColumn === 'liquidity'}>
-						<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('liquidity', e)}>
-							<Layers size={16} aria-hidden="true" />
-							Total Liquidity
-							{#if sortColumn === 'liquidity'}
-								{#if sortDirection === 'desc'}
-									<ChevronDown size={16} aria-label="descending" />
-								{:else}
-									<ChevronUp size={16} aria-label="ascending" />
-								{/if}
-							{/if}
-						</button>
-					</th>
-					<th class="col-fee sortable" class:active={sortColumn === 'fee'}>
-						<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('fee', e)}>
-							<ArrowUpDown size={16} aria-hidden="true" />
-							Fee Earned
-							{#if sortColumn === 'fee'}
-								{#if sortDirection === 'desc'}
-									<ChevronDown size={16} aria-label="descending" />
-								{:else}
-									<ChevronUp size={16} aria-label="ascending" />
-								{/if}
-							{/if}
-						</button>
-					</th>
-					<th class="col-volume sortable" class:active={sortColumn === 'volume'}>
-						<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('volume', e)}>
-							<BarChart2 size={16} aria-hidden="true" />
-							Volume
-							{#if sortColumn === 'volume'}
-								{#if sortDirection === 'desc'}
-									<ChevronDown size={16} aria-label="descending" />
-								{:else}
-									<ChevronUp size={16} aria-label="ascending" />
-								{/if}
-							{/if}
-						</button>
-					</th>
-					<th class="col-actions" aria-label="Actions"></th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each rows as pool (pool.id)}
-					{@const deprecated = isDeprecatedPool(pool.contractId)}
-					<tr class="clickable" onclick={() => (selectedPool = pool)}>
-						<td class="col-pair">
-							<div class="pair-cell">
-								<span class="pair-icons" aria-hidden="true">
-									{#if getCoinIcon(pool.pairSymbols[0])}
-										<img class="coin-icon icon-a" src={getCoinIcon(pool.pairSymbols[0])} alt={pool.pairSymbols[0]} />
-									{:else}
-										<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
-									{/if}
-									{#if getCoinIcon(pool.pairSymbols[1])}
-										<img class="coin-icon icon-b" src={getCoinIcon(pool.pairSymbols[1])} alt={pool.pairSymbols[1]} />
-									{:else}
-										<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
-									{/if}
-								</span>
-								<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
-								{#if deprecated}
-									<span class="deprecated-tag">deprecated</span>
-								{/if}
-							</div>
-						</td>
-						<td class="col-price">
-							<div class="price-cell">
-								<span>{pool.priceRatio}</span>
-								<span>{pool.priceInverse}</span>
-								<span class="price-usd">
-									{pool.priceUsd[0]}, {pool.priceUsd[1]}
-								</span>
-							</div>
-						</td>
-						<td class="col-liquidity">
-							<div class="amount-cell">
-								<span class="total">{pool.totalLiquidityUsd}</span>
-								<span class="breakdown">{pool.totalLiquidityAssets[0]}</span>
-								<span class="breakdown">{pool.totalLiquidityAssets[1]}</span>
-							</div>
-						</td>
-						<td class="col-fee">
-							<div class="amount-cell">
-								<span class="total">{pool.feeEarnedUsd}</span>
-								<span class="breakdown fee-row">
-									<span class="fee-label">LP</span>{pool.feeEarnedAssets[0]}
-									<span class="fee-sub">{pool.feeEarnedUsdBreakdown[0]}</span>
-								</span>
-								<span class="breakdown fee-row">
-									<span class="fee-label">Protocol</span>{pool.feeEarnedAssets[1]}
-									<span class="fee-sub">{pool.feeEarnedUsdBreakdown[1]}</span>
-								</span>
-							</div>
-						</td>
-						<td class="col-volume">
-							<div class="amount-cell">
-								<span class="total">{pool.volumeUsd}</span>
-								<span class="breakdown">{pool.volumeAssets[0]}</span>
-								<span class="breakdown">{pool.volumeAssets[1]}</span>
-							</div>
-						</td>
-						<td class="col-actions">
-							<div class="row-actions">
-								<button
-									type="button"
-									class="row-action row-action-primary"
-									aria-label="Add liquidity to {pool.pair}"
-									disabled={deprecated}
-									title={deprecated ? 'Deprecated pool — adding liquidity is disabled' : undefined}
-									onclick={(e) => {
-										e.stopPropagation();
-										if (deprecated) return;
-										openAddForPool(pool);
-									}}
-								>
-									<Plus size={14} />
-									Add
-								</button>
-								{#if myPools.some((mp) => mp.contractId === pool.contractId)}
-									<button
-										type="button"
-										class="row-action row-action-outline"
-										aria-label="Remove liquidity from {pool.pair}"
-										onclick={(e) => {
-											e.stopPropagation();
-											openRemoveForPool(pool);
-										}}
-									>
-										<Minus size={14} />
-										Remove
-									</button>
-								{/if}
-							</div>
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{/snippet}
-
-{#snippet myPoolsTable(rows: MyPoolRow[])}
-	<div class="table-wrapper">
-		<table class="pools-table">
-			<thead>
-				<tr>
-					<th class="col-pair">Pair</th>
-					<th class="col-share">My Share</th>
-					<th class="col-liquidity">My Liquidity</th>
-					<th class="col-lp">LP Tokens</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each rows as row (row.id)}
-					{@const fullPool = pools.find((p) => p.contractId === row.contractId)}
-					<tr
-						class="clickable"
-						onclick={() => {
-							if (fullPool) selectedPool = fullPool;
-						}}
-					>
-						<td class="col-pair">
-							<div class="pair-cell">
-								<span class="pair-icons" aria-hidden="true">
-									{#if getCoinIcon(row.pairSymbols[0])}
-										<img class="coin-icon icon-a" src={getCoinIcon(row.pairSymbols[0])} alt={row.pairSymbols[0]} />
-									{:else}
-										<span class="icon icon-a">{row.pairSymbols[0].slice(0, 3)}</span>
-									{/if}
-									{#if getCoinIcon(row.pairSymbols[1])}
-										<img class="coin-icon icon-b" src={getCoinIcon(row.pairSymbols[1])} alt={row.pairSymbols[1]} />
-									{:else}
-										<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
-									{/if}
-								</span>
-								<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}>{row.pair}</span>
-							</div>
-						</td>
-						<td class="col-share">
-							<span class="share-pct">{row.sharePct.toFixed(4)}%</span>
-						</td>
-						<td class="col-liquidity">
-							<div class="amount-cell">
-								<span class="total">{row.myLiquidityUsd}</span>
-								<span class="breakdown">{row.myAmounts[0]}</span>
-								<span class="breakdown">{row.myAmounts[1]}</span>
-							</div>
-						</td>
-						<td class="col-lp">
-							<span class="lp-amount">{row.lpBalance.toLocaleString()}</span>
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{/snippet}
-
-<AddLiquidityPopup
-	bind:open={addLiquidityOpen}
-	pools={pools.filter((p) => !isDeprecatedPool(p.contractId))}
-	preselectedPool={addPrefillPool}
-/>
-<RemoveLiquidityPopup
-	bind:open={removeLiquidityOpen}
-	pools={myPoolsAsRows}
-	{myPools}
-	preselectedPool={removePrefillPool}
-/>
-
 {/if}
 
 <style lang="scss">
@@ -445,7 +562,7 @@
 			color: var(--dash-text-muted);
 		}
 		&:focus {
-			outline: 2px solid #6F6AF8;
+			outline: 2px solid #6f6af8;
 			outline-offset: 2px;
 		}
 	}
@@ -464,14 +581,16 @@
 		border-radius: 1.5rem;
 		padding: 0.5rem 0.75rem;
 		cursor: pointer;
-		transition: background-color 0.1s, color 0.1s;
+		transition:
+			background-color 0.1s,
+			color 0.1s;
 		&:not(:disabled):hover {
 			background-color: var(--dash-surface-alt);
 			color: var(--dash-text-primary);
 		}
 		&.active {
-			background-color: #6F6AF8;
-			color: #FFFFFF;
+			background-color: #6f6af8;
+			color: #ffffff;
 		}
 		&:disabled {
 			cursor: progress;
@@ -601,7 +720,25 @@
 	.price-cell {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.3rem;
+	}
+	.price-rate {
+		color: var(--dash-text-primary);
+		font-size: var(--text-sm);
+		white-space: nowrap;
+	}
+	.price-usd-line {
+		color: var(--dash-text-muted);
+		font-size: var(--text-xs);
+		white-space: nowrap;
+	}
+	.price-sym {
+		font-weight: 600;
+		opacity: 0.85;
+	}
+	.price-dot {
+		opacity: 0.5;
+		margin: 0 0.1rem;
 	}
 
 	.amount-cell {
@@ -610,16 +747,9 @@
 		gap: 0.35rem;
 	}
 
-	.price-cell span,
 	.amount-cell .breakdown {
 		color: var(--dash-text-muted);
 		font-size: var(--text-xs);
-	}
-
-	.price-usd {
-		font-size: var(--text-xs);
-		color: var(--dash-text-muted);
-		margin-top: 0.35rem;
 	}
 
 	.amount-cell .total {
@@ -627,25 +757,113 @@
 		font-weight: 500;
 	}
 
-	.fee-row {
-		display: flex;
-		align-items: baseline;
-		gap: 0.25rem;
+	/* Fee cell shows the total + a clear info button; the LP / Nodes / Network
+	   split opens in a popover (portaled out of the table's overflow, so it
+	   never clips). Full breakdown also lives in the pool detail view. */
+	.fee-cell {
+		flex-direction: row;
+		align-items: center;
 		flex-wrap: wrap;
+		gap: 0.35rem;
+		width: fit-content;
 	}
-	.fee-label {
-		font-size: 0.6rem;
+	.lp-apr-tag {
+		flex-basis: 100%;
+		color: var(--dash-text-muted);
+		font-size: var(--text-xs);
+		white-space: nowrap;
+	}
+	.fee-info-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.15rem;
+		border: none;
+		border-radius: 50%;
+		background: rgba(111, 106, 248, 0.14);
+		color: var(--dash-accent-purple, #6f6af8);
+		cursor: pointer;
+		line-height: 0;
+		transition: background 0.12s ease;
+	}
+	.fee-info-btn:hover,
+	.fee-info-btn:focus-visible {
+		background: rgba(111, 106, 248, 0.28);
+	}
+	.fee-peek-pop {
+		position: fixed;
+		transform: translateX(-50%);
+		z-index: 100;
+		display: flex;
+		flex-direction: column;
+		gap: 0.55rem;
+		min-width: 13rem;
+		padding: 0.6rem 0.7rem;
+		background: linear-gradient(
+			135deg,
+			rgba(255, 255, 255, 0.1) 0%,
+			rgba(255, 255, 255, 0.05) 100%
+		);
+		backdrop-filter: blur(10px);
+		border: 1px solid var(--dash-card-border);
+		border-radius: 12px;
+		box-shadow: var(--dash-card-shadow);
+		color: var(--dash-text-primary);
+		/* Pure informational peek — never intercept clicks. */
+		pointer-events: none;
+	}
+	/* Header: "Fee earned" + the total $ on one line, with a divider. */
+	.fee-pop-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 1rem;
+		padding-bottom: 0.5rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+	.fee-pop-title {
+		font-size: 0.62rem;
 		font-weight: 700;
-		letter-spacing: 0.04em;
 		text-transform: uppercase;
+		letter-spacing: 0.06em;
 		color: var(--dash-text-muted);
-		opacity: 0.7;
-		flex-shrink: 0;
 	}
-	.fee-sub {
-		color: var(--dash-text-muted);
-		font-size: 0.6rem;
-		opacity: 0.6;
+	.fee-pop-total {
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--dash-text-primary);
+	}
+	.fee-pop-split {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.fee-pop-row {
+		display: flex;
+		justify-content: space-between;
+		/* label sits on the first line (the $), token amount drops below it */
+		align-items: flex-start;
+		gap: 1.25rem;
+	}
+	.fee-pop-label {
+		font-weight: 700;
+		font-size: 0.85rem;
+		color: var(--dash-text-primary);
+	}
+	.fee-pop-vals {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		line-height: 1.25;
+	}
+	.fee-pop-asset {
+		font-size: 0.72rem;
+		color: var(--dash-text-secondary);
+	}
+	.fee-pop-usd {
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--dash-text-primary);
 	}
 
 	.my-pools-section {
@@ -693,7 +911,11 @@
 		font-weight: 600;
 		cursor: pointer;
 		white-space: nowrap;
-		transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+		transition:
+			background-color 0.15s,
+			border-color 0.15s,
+			color 0.15s,
+			box-shadow 0.15s;
 	}
 	.row-action-primary {
 		border: none;

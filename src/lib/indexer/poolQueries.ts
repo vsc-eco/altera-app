@@ -1,4 +1,4 @@
-import { type AggregateResult, hasuraQuery } from './query';
+import { type AggregateResult, hasuraQuery, hasuraQueryRaw } from './query';
 
 export type TimeRange = '1d' | '7d' | '30d' | 'max';
 
@@ -68,7 +68,19 @@ export async function fetchPoolVolume(
 	};
 }
 
-export type PoolAssetFee = { asset: string; magiFee: number; lpFee: number };
+export type PoolAssetFee = {
+	asset: string;
+	/** lp_fees — what liquidity providers earn (their yield). */
+	lpFee: number;
+	/** protocol_fees — the full non-LP cut (= node + network). Kept as the
+	 *  canonical "protocol" total; equals nodeFee + networkFee on pendulum rows. */
+	magiFee: number;
+	/** node_fees — node operators' share. 0 when the indexer hasn't deployed the
+	 *  split columns yet, or on legacy rows where the cut sits in protocol_fees. */
+	nodeFee: number;
+	/** network_fees — the network's share. Same 0-fallback caveat as nodeFee. */
+	networkFee: number;
+};
 
 /**
  * Pre-aggregated per-(pool, asset) fee views, one per time window. The
@@ -102,17 +114,34 @@ export async function fetchPoolFees(poolId: string, range: TimeRange): Promise<P
 	// View name comes from a fixed internal map (never user input) so
 	// interpolating it is safe; the pool id is passed as a variable.
 	const view = FEE_VIEW_BY_RANGE[range];
-	const query = `
+	const fields = (extra: string) => `
 		query PoolFeesByAsset($pool: String!) {
 			${view}(where: { pool_contract: { _eq: $pool } }) {
 				asset
 				protocol_fees
-				lp_fees
+				lp_fees${extra}
 			}
 		}
 	`;
-	const data = await hasuraQuery(query, { pool: poolId });
-	const rows = (data?.[view] as Array<Record<string, number | string>> | undefined) ?? [];
+
+	// tibfox added node_fees/network_fees to the by-asset views to expose the
+	// Node-vs-Network split (node_fees + network_fees = protocol_fees on
+	// pendulum rows; both 0 on legacy rows). The columns are rolling out across
+	// indexers, so try the richer query first and fall back to the legacy shape
+	// when the configured indexer hasn't deployed them — GraphQL hard-errors on
+	// an unknown field, so we detect that and retry rather than silently
+	// returning empty fees.
+	let { data, errors } = await hasuraQueryRaw(fields('\n\t\t\t\tnode_fees\n\t\t\t\tnetwork_fees'), {
+		pool: poolId
+	});
+	if (errors?.some((e) => /node_fees|network_fees/.test(e.message))) {
+		({ data, errors } = await hasuraQueryRaw(fields(''), { pool: poolId }));
+	}
+	if (errors) console.error('Hasura fee query error:', errors);
+	const rows =
+		((data as Record<string, unknown> | null)?.[view] as
+			| Array<Record<string, number | string>>
+			| undefined) ?? [];
 
 	// Views are already one row per asset; the Map keeps it idempotent if
 	// that ever changes and drops any null-asset row defensively.
@@ -120,9 +149,12 @@ export async function fetchPoolFees(poolId: string, range: TimeRange): Promise<P
 	for (const r of rows) {
 		if (r.asset == null) continue;
 		const asset = String(r.asset);
-		const entry = byAsset.get(asset) ?? { asset, lpFee: 0, magiFee: 0 };
+		const entry = byAsset.get(asset) ?? { asset, lpFee: 0, magiFee: 0, nodeFee: 0, networkFee: 0 };
 		entry.lpFee += Number(r.lp_fees) || 0;
 		entry.magiFee += Number(r.protocol_fees) || 0;
+		// 0 when the column is absent (legacy indexer) or the row is legacy.
+		entry.nodeFee += Number(r.node_fees) || 0;
+		entry.networkFee += Number(r.network_fees) || 0;
 		byAsset.set(asset, entry);
 	}
 	return [...byAsset.values()];
@@ -149,9 +181,11 @@ export async function fetchPoolLiquiditySnapshot(
 	`;
 	try {
 		const data = await hasuraQuery(query, { pool: poolId });
-		const snap = (data?.dex_pool_liquidity as
-			| Array<{ reserve0: number | string; reserve1: number | string; total_lp: number | string }>
-			| undefined)?.[0];
+		const snap = (
+			data?.dex_pool_liquidity as
+				| Array<{ reserve0: number | string; reserve1: number | string; total_lp: number | string }>
+				| undefined
+		)?.[0];
 		if (!snap) return null;
 		return {
 			reserve0: Number(snap.reserve0) || 0,
@@ -188,9 +222,11 @@ export async function fetchPoolLiquidity(poolId: string): Promise<{
 	const data = await hasuraQuery(query, { pool: poolId });
 	const adds = (data?.adds as AggregateResult)?.aggregate?.sum;
 	const removes = (data?.removes as AggregateResult)?.aggregate?.sum;
-	const snap = (data?.dex_pool_liquidity as
-		| Array<{ reserve0: number | string; reserve1: number | string; total_lp: number | string }>
-		| undefined)?.[0];
+	const snap = (
+		data?.dex_pool_liquidity as
+			| Array<{ reserve0: number | string; reserve1: number | string; total_lp: number | string }>
+			| undefined
+	)?.[0];
 	return {
 		netAmount0: (adds?.amount0 ?? 0) - (removes?.amount0 ?? 0),
 		netAmount1: (adds?.amount1 ?? 0) - (removes?.amount1 ?? 0),
@@ -253,11 +289,50 @@ export async function fetchPoolRegistry(): Promise<PoolRegistryEntry[]> {
 	}>;
 	return rows.map((row) => ({
 		contractId: row.pool_contract,
-		symbols: [
-			parseRegistryAssetSymbol(row.asset0, '?'),
-			parseRegistryAssetSymbol(row.asset1, '?')
-		],
+		symbols: [parseRegistryAssetSymbol(row.asset0, '?'), parseRegistryAssetSymbol(row.asset1, '?')],
 		feeBps: row.fee_bps ?? null
+	}));
+}
+
+export type PendulumStat = {
+	contractId: string;
+	/** s = V/E (liquidity vs node collateral), in basis points. s_bps/10000. */
+	sBps: number;
+	/** fee-size multiplier in bps (neutral 10000, cap 20000); does NOT move the split. */
+	multiplierBps: number;
+};
+
+/**
+ * Per-pool pendulum geometry from `dex_pool_pendulum_stats`. `last_s_bps` is the
+ * global s = V/E that drives the fee split (≈ same on every pool); `s > 10000`
+ * (i.e. s > 1.0) means liquidity outweighs node collateral, so the split is
+ * pinned toward nodes. Returns [] if the view isn't deployed on the configured
+ * indexer (graceful: the health strip just hides the tilt direction).
+ */
+export async function fetchPendulumStats(): Promise<PendulumStat[]> {
+	const query = `
+		query PoolPendulumStats {
+			dex_pool_pendulum_stats {
+				pool_contract
+				last_s_bps
+				last_multiplier_bps
+			}
+		}
+	`;
+	const { data, errors } = await hasuraQueryRaw(query, {});
+	if (errors) {
+		console.error('Hasura pendulum query error:', errors);
+		return [];
+	}
+	const rows = (data?.dex_pool_pendulum_stats ?? []) as Array<{
+		pool_contract: string;
+		last_s_bps: number | string;
+		last_multiplier_bps: number | string;
+	}>;
+	return rows.map((r) => ({
+		contractId: r.pool_contract,
+		sBps: Number(r.last_s_bps) || 0,
+		multiplierBps: Number(r.last_multiplier_bps) || 0
 	}));
 }
 

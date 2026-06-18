@@ -23,12 +23,18 @@ export interface PoolRow {
 	pairSymbols: [string, string];
 	priceRatio: string;
 	priceInverse: string;
+	/** Pool rate, both directions, rounded (magnitude-aware). */
+	rateLabel: string;
+	rateLabelInverse: string;
 	priceUsd: [string, string];
 	totalLiquidityUsd: string;
 	totalLiquidityAssets: [string, string];
 	feeEarnedUsd: string;
-	feeEarnedAssets: [string, string];
-	feeEarnedUsdBreakdown: [string, string]; // [LP fee USD, Protocol fee USD]
+	// Per-bucket fee breakdown. Either 3 rows (LP / Nodes / Network) when the
+	// indexer exposes the node/network split and it reconciles to the protocol
+	// total, or 2 rows (LP / Nodes & Network) as a fallback. Each row carries a
+	// plain label, the per-asset amount string, and the USD value.
+	feeBreakdown: { label: string; asset: string; usd: string }[];
 	volumeUsd: string;
 	volumeAssets: [string, string];
 	// Raw chain-state values used by per-user computations (My Pools).
@@ -39,6 +45,13 @@ export interface PoolRow {
 	decimals1: number;
 	usdPrice0: number;
 	usdPrice1: number;
+	// Numeric USD values (the feeBreakdown/totalLiquidityUsd strings above are
+	// display-formatted). Used by the system-health compute so it doesn't have to
+	// re-parse formatted strings. Same window as the row's `range`.
+	feeLpUsdNum: number;
+	feeNodeUsdNum: number;
+	feeNetworkUsdNum: number;
+	totalLiquidityUsdNum: number;
 }
 
 // Pool contract IDs are discovered dynamically via fetchPoolRegistry()
@@ -115,8 +128,10 @@ export function mapStateToPoolRow(
 	const asset1Json = state['asset1'];
 	const asset0 = asset0Json ? JSON.parse(asset0Json) : null;
 	const asset1 = asset1Json ? JSON.parse(asset1Json) : null;
-	const sym0 = (asset0?.asset as string | undefined)?.toUpperCase?.() ?? fallbackSymbols?.[0] ?? 'HBD';
-	const sym1 = (asset1?.asset as string | undefined)?.toUpperCase?.() ?? fallbackSymbols?.[1] ?? 'BTC';
+	const sym0 =
+		(asset0?.asset as string | undefined)?.toUpperCase?.() ?? fallbackSymbols?.[0] ?? 'HBD';
+	const sym1 =
+		(asset1?.asset as string | undefined)?.toUpperCase?.() ?? fallbackSymbols?.[1] ?? 'BTC';
 	const pairSym0 = `${sym0}`;
 	const pairSym1 = `${sym1}`;
 
@@ -133,11 +148,9 @@ export function mapStateToPoolRow(
 	// per-user share math working.
 	const snapshot = indexerData.liquidity.snapshot;
 	const reserve0 =
-		parseScaled(state['reserve0'], dec0) ??
-		(snapshot ? snapshot.reserve0 / 10 ** dec0 : null);
+		parseScaled(state['reserve0'], dec0) ?? (snapshot ? snapshot.reserve0 / 10 ** dec0 : null);
 	const reserve1 =
-		parseScaled(state['reserve1'], dec1) ??
-		(snapshot ? snapshot.reserve1 / 10 ** dec1 : null);
+		parseScaled(state['reserve1'], dec1) ?? (snapshot ? snapshot.reserve1 / 10 ** dec1 : null);
 
 	// USD prices per unit — look up by symbol
 	function getUsdPrice(sym: string): number {
@@ -161,10 +174,23 @@ export function mapStateToPoolRow(
 		inverse = usd1 / usd0;
 	}
 
-	const priceRatio =
-		ratio != null ? `${ratio.toFixed(8)} ${pairSym1}/${pairSym0}` : '-';
-	const priceInverse =
-		inverse != null ? `${inverse.toFixed(8)} ${pairSym0}/${pairSym1}` : '-';
+	const priceRatio = ratio != null ? `${ratio.toFixed(8)} ${pairSym1}/${pairSym0}` : '-';
+	const priceInverse = inverse != null ? `${inverse.toFixed(8)} ${pairSym0}/${pairSym1}` : '-';
+
+	// Both pool rate directions for the table, rounded to a magnitude-aware
+	// precision so they stay legible (77,593 HBD/BTC and 0.0000129 BTC/HBD alike)
+	// without the 8-decimal noise. Both are shown because users read rates in
+	// either direction; they're the same number inverted.
+	function fmtRate(n: number): string {
+		const abs = Math.abs(n);
+		const decimals = abs >= 1000 ? 0 : abs >= 1 ? 2 : abs >= 0.01 ? 4 : 8;
+		return n.toLocaleString(undefined, {
+			minimumFractionDigits: 0,
+			maximumFractionDigits: decimals
+		});
+	}
+	const rateLabel = ratio != null ? `${fmtRate(ratio)} ${pairSym1}/${pairSym0}` : '-';
+	const rateLabelInverse = inverse != null ? `${fmtRate(inverse)} ${pairSym0}/${pairSym1}` : '-';
 
 	// Liquidity: prefer authoritative on-chain reserves (parsed above) over
 	// the indexer's adds-removes sum, which can drift if events are missing
@@ -184,18 +210,23 @@ export function mapStateToPoolRow(
 	const reserve0Raw = (reserve0 ?? idxAmt0) * 10 ** dec0;
 	const reserve1Raw = (reserve1 ?? idxAmt1) * 10 ** dec1;
 	const totalLpRawParsed = Number(state['total_lp']);
-	const totalLpRaw = Number.isFinite(totalLpRawParsed) && totalLpRawParsed > 0
-		? totalLpRawParsed
-		: snapshot?.totalLp ?? 0;
+	const totalLpRaw =
+		Number.isFinite(totalLpRawParsed) && totalLpRawParsed > 0
+			? totalLpRawParsed
+			: (snapshot?.totalLp ?? 0);
 
 	// Fees are collected PER ASSET (a pool takes a fee in both assets, one per
 	// swap direction). Value each asset's fees at ITS OWN price/decimals — the
 	// old code summed everything and priced it as sym0, which inflated the
 	// figure several-fold (HIVE fees counted as HBD).
 	let feeLpUsd = 0;
-	let feeMagiUsd = 0;
+	let feeMagiUsd = 0; // protocol total (= node + network)
+	let feeNodeUsd = 0;
+	let feeNetworkUsd = 0;
 	const lpParts: string[] = [];
 	const magiParts: string[] = [];
+	const nodeParts: string[] = [];
+	const networkParts: string[] = [];
 	// Order the per-asset rows to match the pair (sym0 first, then sym1) so the
 	// breakdown reads consistently with the pair label; unknown assets last.
 	const feeRank = (s: string) => {
@@ -209,15 +240,26 @@ export function mapStateToPoolRow(
 		const fUsd = getUsdPrice(fSym);
 		const lpAmt = f.lpFee / 10 ** fDec;
 		const magiAmt = f.magiFee / 10 ** fDec;
+		const nodeAmt = f.nodeFee / 10 ** fDec;
+		const networkAmt = f.networkFee / 10 ** fDec;
 		feeLpUsd += lpAmt * fUsd;
 		feeMagiUsd += magiAmt * fUsd;
+		feeNodeUsd += nodeAmt * fUsd;
+		feeNetworkUsd += networkAmt * fUsd;
 		if (lpAmt > 0) lpParts.push(formatNum(lpAmt, fSym, fDec));
 		if (magiAmt > 0) magiParts.push(formatNum(magiAmt, fSym, fDec));
+		if (nodeAmt > 0) nodeParts.push(formatNum(nodeAmt, fSym, fDec));
+		if (networkAmt > 0) networkParts.push(formatNum(networkAmt, fSym, fDec));
 	}
-	const feeEarnedAssets: [string, string] = [
-		lpParts.join(' + ') || formatNum(0, sym0, dec0),
-		magiParts.join(' + ') || formatNum(0, sym0, dec0)
-	];
+	// Show the itemized Nodes / Network split only when it RECONCILES to the
+	// protocol total — i.e. every swap in the window is post-pendulum (node +
+	// network = protocol). When the window reaches back before the 2026-06-02
+	// redeploy, the older protocol cut isn't itemized, so node + network <
+	// protocol; in that case (and on a legacy indexer with no split columns) we
+	// show one combined "Nodes & Network" row so the breakdown always sums to the
+	// total without an unexplained leftover bucket.
+	const splitReconciles = feeMagiUsd > 0 && feeNodeUsd + feeNetworkUsd >= feeMagiUsd * 0.999;
+	const zero0 = formatNum(0, sym0, dec0);
 
 	// Volume from indexer — per-asset totals across both swap directions.
 	// `touched[sym]` is in smallest units; divide by the asset's decimal places.
@@ -233,10 +275,33 @@ export function mapStateToPoolRow(
 	// Compute USD totals
 	const totalLiquidityUsd = liqAmt0 * usd0 + liqAmt1 * usd1;
 	const feeEarnedUsdTotal = feeLpUsd + feeMagiUsd;
-	const feeEarnedUsdBreakdown: [string, string] = [
-		formatNum(feeLpUsd, '$', 2),
-		formatNum(feeMagiUsd, '$', 2)
-	];
+	const lpRow = {
+		label: 'LP',
+		asset: lpParts.join(' + ') || zero0,
+		usd: formatNum(feeLpUsd, '$', 2)
+	};
+	const feeBreakdown: PoolRow['feeBreakdown'] = splitReconciles
+		? [
+				lpRow,
+				{
+					label: 'Nodes',
+					asset: nodeParts.join(' + ') || zero0,
+					usd: formatNum(feeNodeUsd, '$', 2)
+				},
+				{
+					label: 'Network',
+					asset: networkParts.join(' + ') || zero0,
+					usd: formatNum(feeNetworkUsd, '$', 2)
+				}
+			]
+		: [
+				lpRow,
+				{
+					label: 'Nodes & Network',
+					asset: magiParts.join(' + ') || zero0,
+					usd: formatNum(feeMagiUsd, '$', 2)
+				}
+			];
 
 	// Volume = USD value of one side per swap. For HBD-paired pools (every
 	// Magi pool today, since HBD is the DEX base asset per docs.magi.eco)
@@ -259,12 +324,13 @@ export function mapStateToPoolRow(
 		pairSymbols: [pairSym0, pairSym1],
 		priceRatio,
 		priceInverse,
+		rateLabel,
+		rateLabelInverse,
 		priceUsd: [formatNum(usd0, '$', 2), formatNum(usd1, '$', 2)],
 		totalLiquidityUsd: formatNum(totalLiquidityUsd, '$', 2),
 		totalLiquidityAssets,
 		feeEarnedUsd: formatNum(feeEarnedUsdTotal, '$', 2),
-		feeEarnedAssets,
-		feeEarnedUsdBreakdown,
+		feeBreakdown,
 		volumeUsd: formatNum(volumeUsdTotal, '$', 2),
 		volumeAssets,
 		reserve0Raw,
@@ -273,7 +339,11 @@ export function mapStateToPoolRow(
 		decimals0: dec0,
 		decimals1: dec1,
 		usdPrice0: usd0,
-		usdPrice1: usd1
+		usdPrice1: usd1,
+		feeLpUsdNum: feeLpUsd,
+		feeNodeUsdNum: feeNodeUsd,
+		feeNetworkUsdNum: feeNetworkUsd,
+		totalLiquidityUsdNum: totalLiquidityUsd
 	};
 }
 
@@ -298,10 +368,7 @@ export interface MyPoolRow {
  * already-fetched `pools` array — same source of truth as the global Pools
  * table — and only queries the indexer for the user's lp_balance.
  */
-export async function fetchMyPoolPositions(
-	did: string,
-	pools: PoolRow[]
-): Promise<MyPoolRow[]> {
+export async function fetchMyPoolPositions(did: string, pools: PoolRow[]): Promise<MyPoolRow[]> {
 	if (!did || pools.length === 0) return [];
 	const positions = await fetchUserLpPositions(did);
 	if (positions.length === 0) return [];
@@ -365,7 +432,13 @@ async function fetchSinglePool(
 	const reservesState = (reservesRes.data?.getStateByKeys ?? {}) as PoolState;
 	state['reserve0'] = hexBytesToDecimalString(reservesState['r0']);
 	state['reserve1'] = hexBytesToDecimalString(reservesState['r1']);
-	return mapStateToPoolRow(contractId, state, { volume, fees, liquidity }, usdPrices, fallbackSymbols);
+	return mapStateToPoolRow(
+		contractId,
+		state,
+		{ volume, fees, liquidity },
+		usdPrices,
+		fallbackSymbols
+	);
 }
 
 export async function fetchPools(range: TimeRange = '30d'): Promise<PoolRow[]> {

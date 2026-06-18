@@ -1,10 +1,16 @@
 <script lang="ts">
 	import Tabs from '$lib/zag/Tabs.svelte';
-	import { ArrowLeft, Plus, Minus } from '@lucide/svelte';
+	import { ArrowLeft, Plus, Minus, Info } from '@lucide/svelte';
+	import Tooltip from '$lib/components/Tooltip.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import type { PoolRow, MyPoolRow } from './poolsData';
-	import { getMagiIndexerBaseUrl, GQL_PROXY_INDEXER, gqlUpstreamHeaders, isDeprecatedPool } from '../../client';
+	import {
+		getMagiIndexerBaseUrl,
+		GQL_PROXY_INDEXER,
+		gqlUpstreamHeaders,
+		isDeprecatedPool
+	} from '../../client';
 	import moment from 'moment';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
@@ -267,11 +273,7 @@
 				Add Liquidity
 			</button>
 			{#if hasUserPosition}
-				<button
-					type="button"
-					class="header-action"
-					onclick={() => (removeLiquidityOpen = true)}
-				>
+				<button type="button" class="header-action" onclick={() => (removeLiquidityOpen = true)}>
 					<Minus size={14} />
 					Remove Liquidity
 				</button>
@@ -293,19 +295,29 @@
 			<span class="stat-value">{pool.volumeUsd}</span>
 		</div>
 		<div class="stat">
-			<span class="stat-label">Fees</span>
+			<span class="stat-label">
+				Fees
+				<button type="button" class="fee-help" aria-label="How swap fees are split">
+					<Info size={13} />
+					<Tooltip>
+						<span class="fee-tip">
+							Each swap fee is split between:<br />
+							<b>LP</b> — liquidity providers (your share if you've added liquidity)<br />
+							<b>Nodes</b> — the operators running the network<br />
+							<b>Network</b> — the VSC network itself
+						</span>
+					</Tooltip>
+				</button>
+			</span>
 			<span class="stat-value">{pool.feeEarnedUsd}</span>
 			<div class="stat-fee-breakdown">
-				<span class="stat-fee-row">
-					<span class="stat-fee-label">LP</span>
-					<span>{pool.feeEarnedAssets[0]}</span>
-					<span class="stat-fee-usd">{pool.feeEarnedUsdBreakdown[0]}</span>
-				</span>
-				<span class="stat-fee-row">
-					<span class="stat-fee-label">Protocol</span>
-					<span>{pool.feeEarnedAssets[1]}</span>
-					<span class="stat-fee-usd">{pool.feeEarnedUsdBreakdown[1]}</span>
-				</span>
+				{#each pool.feeBreakdown as row (row.label)}
+					<span class="stat-fee-row">
+						<span class="stat-fee-label">{row.label}</span>
+						<span>{row.asset}</span>
+						<span class="stat-fee-usd">{row.usd}</span>
+					</span>
+				{/each}
 			</div>
 		</div>
 	</div>
@@ -339,7 +351,9 @@
 />
 <RemoveLiquidityPopup
 	bind:open={removeLiquidityOpen}
-	pools={pools.length ? pools.filter((p) => myPools.some((m) => m.contractId === p.contractId)) : [pool]}
+	pools={pools.length
+		? pools.filter((p) => myPools.some((m) => m.contractId === p.contractId))
+		: [pool]}
 	{myPools}
 	preselectedPool={pool}
 />
@@ -378,14 +392,20 @@
 				<tbody>
 					{#if swaps.length > 0}
 						{#each swaps as s}
-							<tr class="data-row clickable-row" onclick={() => openEvent({ kind: 'swap', data: s })}>
+							<tr
+								class="data-row clickable-row"
+								onclick={() => openEvent({ kind: 'swap', data: s })}
+							>
 								<td class="date-cell">{fmtDate(s.indexer_ts)}</td>
 								<td class="addr-cell">
 									<span class="addr" title={s.recipient}>{shortAddr(s.recipient)}</span>
 								</td>
-								<td class="amount-cell mono">{fmtAmt(s.amount_in, decimalsForAsset(s.asset_in))}</td>
+								<td class="amount-cell mono">{fmtAmt(s.amount_in, decimalsForAsset(s.asset_in))}</td
+								>
 								<td class="token-cell">{s.asset_in?.toUpperCase() ?? '-'}</td>
-								<td class="amount-cell mono">{fmtAmt(s.amount_out, decimalsForAsset(s.asset_out))}</td>
+								<td class="amount-cell mono"
+									>{fmtAmt(s.amount_out, decimalsForAsset(s.asset_out))}</td
+								>
 								<td class="token-cell">{s.asset_out?.toUpperCase() ?? '-'}</td>
 								<td class="tx-cell" onclick={(e) => e.stopPropagation()}>
 									<Clipboard value={s.indexer_tx_hash} label="" disabled={false} />
@@ -422,7 +442,10 @@
 				<tbody>
 					{#if adds.length > 0}
 						{#each adds as a}
-							<tr class="data-row clickable-row" onclick={() => openEvent({ kind: 'add', data: a })}>
+							<tr
+								class="data-row clickable-row"
+								onclick={() => openEvent({ kind: 'add', data: a })}
+							>
 								<td class="date-cell">{fmtDate(a.indexer_ts)}</td>
 								<td class="addr-cell">
 									<span class="addr" title={a.provider}>{shortAddr(a.provider)}</span>
@@ -465,7 +488,10 @@
 				<tbody>
 					{#if removes.length > 0}
 						{#each removes as r}
-							<tr class="data-row clickable-row" onclick={() => openEvent({ kind: 'remove', data: r })}>
+							<tr
+								class="data-row clickable-row"
+								onclick={() => openEvent({ kind: 'remove', data: r })}
+							>
 								<td class="date-cell">{fmtDate(r.indexer_ts)}</td>
 								<td class="addr-cell">
 									<span class="addr" title={r.provider}>{shortAddr(r.provider)}</span>
@@ -501,11 +527,17 @@
 			<div class="popup-amounts">
 				<div class="popup-amount-row">
 					<span class="popup-label">Amount In</span>
-					<span class="mono">{fmtAmt(e.data.amount_in, decimalsForAsset(e.data.asset_in))} {e.data.asset_in?.toUpperCase() ?? ''}</span>
+					<span class="mono"
+						>{fmtAmt(e.data.amount_in, decimalsForAsset(e.data.asset_in))}
+						{e.data.asset_in?.toUpperCase() ?? ''}</span
+					>
 				</div>
 				<div class="popup-amount-row">
 					<span class="popup-label">Amount Out</span>
-					<span class="mono">{fmtAmt(e.data.amount_out, decimalsForAsset(e.data.asset_out))} {e.data.asset_out?.toUpperCase() ?? ''}</span>
+					<span class="mono"
+						>{fmtAmt(e.data.amount_out, decimalsForAsset(e.data.asset_out))}
+						{e.data.asset_out?.toUpperCase() ?? ''}</span
+					>
 				</div>
 				<div class="popup-amount-row">
 					<span class="popup-label">Recipient</span>
@@ -567,15 +599,15 @@
 
 {#snippet poolEventTitle()}
 	{#if selectedEvent}
-		{selectedEvent.kind === 'swap' ? 'Swap' : selectedEvent.kind === 'add' ? 'Add Liquidity' : 'Remove Liquidity'}
+		{selectedEvent.kind === 'swap'
+			? 'Swap'
+			: selectedEvent.kind === 'add'
+				? 'Add Liquidity'
+				: 'Remove Liquidity'}
 	{/if}
 {/snippet}
 
-<SidePopup
-	toggle={closeEvent}
-	content={popupOpen ? poolEventContent : undefined}
-	open={popupOpen}
->
+<SidePopup toggle={closeEvent} content={popupOpen ? poolEventContent : undefined} open={popupOpen}>
 	{#snippet title()}{@render poolEventTitle()}{/snippet}
 </SidePopup>
 
@@ -633,7 +665,9 @@
 		font-size: var(--text-sm);
 		font-weight: 500;
 		cursor: pointer;
-		transition: background-color 0.15s, border-color 0.15s;
+		transition:
+			background-color 0.15s,
+			border-color 0.15s;
 	}
 	.header-action:hover:not(:disabled) {
 		background: rgba(111, 106, 248, 0.12);
@@ -674,6 +708,31 @@
 				font-size: var(--text-xs);
 				color: var(--dash-text-muted);
 				margin-bottom: 0.25rem;
+			}
+			.fee-help {
+				position: relative;
+				display: inline-flex;
+				align-items: center;
+				margin-left: 0.25rem;
+				padding: 0;
+				border: none;
+				background: none;
+				color: var(--dash-text-muted);
+				cursor: help;
+				vertical-align: middle;
+			}
+			.fee-help:hover :global(.tooltip),
+			.fee-help:focus-within :global(.tooltip) {
+				opacity: 1;
+				visibility: visible;
+			}
+			.fee-tip {
+				display: block;
+				white-space: normal;
+				width: 230px;
+				line-height: 1.5;
+				text-align: left;
+				font-weight: 500;
 			}
 
 			.stat-value {

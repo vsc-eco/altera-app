@@ -13,6 +13,7 @@
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import TxStatus from '../components/shared/TxStatus.svelte';
 	import { getHiveAssetName, getHbdAssetName } from '../../../client';
+	import { swapFeeExceedsGuard } from '$lib/pools/swapCalc';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import {
@@ -387,6 +388,10 @@
 
 	// Whether this is a two-hop swap (determines fee label %).
 	const isTwoHopSwap = $derived(!!asSwap?.swapHop1Fee);
+	// Overcharge safety guard: warn + block the swap when the modelled fee is
+	// abnormally high (contract pendulum CLP fee can spike — fixed upstream).
+	// Mirrors the hard stop in sendUtils.send().
+	const feeGuardTripped = $derived(swapFeeExceedsGuard(asSwap?.swapFeeBps));
 
 	let today = moment().format('MMM D, YYYY');
 
@@ -627,6 +632,14 @@
 		showHiveWarning={auth.value?.provider === 'aioha'}
 	/>
 
+	{#if feeGuardTripped}
+		<p class="fee-guard-warning">
+			This swap is temporarily blocked: the network would charge an abnormally high fee
+			(~{((asSwap?.swapFeeBps ?? 0) / 100).toFixed(1)}%) on it right now. Try a smaller amount, or
+			wait until it's resolved.
+		</p>
+	{/if}
+
 	{#if popup}
 		<div class="popup-buttons">
 			<PillButton
@@ -637,7 +650,12 @@
 			>
 				Back
 			</PillButton>
-			<PillButton onclick={() => next?.()} theme="accent" styleType="invert" disabled={waiting}>
+			<PillButton
+				onclick={() => next?.()}
+				theme="accent"
+				styleType="invert"
+				disabled={waiting || feeGuardTripped}
+			>
 				{waiting ? 'Waiting…' : 'Swap'}
 			</PillButton>
 		</div>
@@ -658,6 +676,15 @@
 {/if}
 
 <style lang="scss">
+	.fee-guard-warning {
+		margin: 0.75rem 0 0;
+		padding: 0.65rem 0.85rem;
+		border: 1px solid var(--dash-accent-red, #dc2626);
+		border-radius: 12px;
+		color: var(--dash-accent-red, #dc2626);
+		font-size: 0.85rem;
+		line-height: 1.45;
+	}
 	.stacked-cards {
 		display: flex;
 		flex-direction: column;

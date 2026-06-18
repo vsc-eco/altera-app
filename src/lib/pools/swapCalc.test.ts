@@ -16,6 +16,8 @@ import {
 	getOrderedDepthsFor,
 	checkExceedsPoolDepth,
 	calculatePriceImpact,
+	swapFeeExceedsGuard,
+	SWAP_FEE_GUARD_BPS,
 	type TypedPoolDepths
 } from './swapCalc';
 
@@ -393,5 +395,42 @@ describe('calculatePriceImpact', () => {
 		const twoHop   = calculatePriceImpact(100_000n, 'hive', 'btc', hiveHbdPool, btcHbdPool);
 		const singleH  = calculatePriceImpact(100_000n, 'hive', 'hbd', hiveHbdPool, btcHbdPool);
 		expect(twoHop).toBeGreaterThan(singleH);
+	});
+});
+
+// ─── Overcharge safety guard (2026-06-18) ─────────────────────────────────────
+
+describe('swap fee guard', () => {
+	it('reports a small feeBps for a tiny swap (well under the guard)', () => {
+		const r = calculateSwap(1_000n, hiveHbdPool.reserve0, hiveHbdPool.reserve1, 100);
+		expect(r.feeBps).toBeLessThan(SWAP_FEE_GUARD_BPS);
+		expect(swapFeeExceedsGuard(r.feeBps)).toBe(false);
+	});
+
+	it('flags a large, high-impact swap (CLP fee × stabilizer) as over the guard', () => {
+		// ~9% of the reserve → CLP fee ≈ price impact, ×2 stabilizer → multi-percent.
+		const r = calculateSwap(200_000n, hiveHbdPool.reserve0, hiveHbdPool.reserve1, 100);
+		expect(r.feeBps).toBeGreaterThan(SWAP_FEE_GUARD_BPS);
+		expect(swapFeeExceedsGuard(r.feeBps)).toBe(true);
+	});
+
+	it('feeBps grows monotonically with swap size', () => {
+		const small = calculateSwap(10_000n, hiveHbdPool.reserve0, hiveHbdPool.reserve1, 100);
+		const big = calculateSwap(150_000n, hiveHbdPool.reserve0, hiveHbdPool.reserve1, 100);
+		expect(big.feeBps).toBeGreaterThan(small.feeBps);
+	});
+
+	it('two-hop feeBps is at least a comparable single hop (both hops taxed)', () => {
+		const r = calculateTwoHopSwap(120_000n, hiveHbdPool, btcHbdPool, 'hive', 'hbd', 'btc', 100);
+		const single = calculateSwap(120_000n, hiveHbdPool.reserve0, hiveHbdPool.reserve1, 100);
+		expect(r.feeBps).toBeGreaterThanOrEqual(single.feeBps);
+	});
+
+	it('swapFeeExceedsGuard handles null/boundary inputs', () => {
+		expect(swapFeeExceedsGuard(undefined)).toBe(false);
+		expect(swapFeeExceedsGuard(null)).toBe(false);
+		expect(swapFeeExceedsGuard(0)).toBe(false);
+		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS)).toBe(false); // boundary: not strictly greater
+		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS + 1)).toBe(true);
 	});
 });

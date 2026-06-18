@@ -110,6 +110,9 @@ export interface SwapCalcResult {
 	expectedOutput: bigint;
 	minAmountOut: bigint;
 	slippageBps: number; // basis points (e.g. 100 = 1%)
+	/** Modelled effective fee as a fraction of gross output, in bps. Drives the
+	 *  overcharge safety guard below. For two-hop swaps this sums both hops. */
+	feeBps: number;
 	/** Set on two-hop swaps. Hop1 takes its fees in the intermediate
 	 *  asset (e.g. HBD), separately from the top-level fee fields which
 	 *  always represent the final hop in the output asset. */
@@ -119,6 +122,46 @@ export interface SwapCalcResult {
 		clpFee: bigint;
 		totalFee: bigint;
 	};
+}
+
+/**
+ * Swap-fee safety guard (2026-06-18). The on-chain pendulum CLP fee can charge a
+ * swap far above the 8 bps tier — it scales ~2× with the trade's price impact,
+ * so large swaps get hit with multi-percent fees (root cause: the CLP leg ×
+ * stabilizer in the contract; being fixed by Milo/tibfox). Until that lands, we
+ * block any swap whose MODELLED effective fee exceeds this threshold so users
+ * can't be silently overcharged. Client-side only — does not stop direct
+ * contract callers. Lower/remove once the contract fee is fixed.
+ *
+ * The contract overcharges ~2× a swap's price impact, so a LOW threshold blocks
+ * much normal activity (at 1% it blocks ~$20 HBD→HIVE / ~$15 BTC swaps on
+ * current mainnet depth) while a HIGH one only catches the clearly-broken
+ * cases. Users already see the post-fee output in the quote, so 300 bps (3%)
+ * blocks the egregious overcharges while letting small/moderate swaps through.
+ * Tune with lordbutterfly as the contract situation evolves.
+ */
+export const SWAP_FEE_GUARD_BPS = 300; // 3%
+
+/** True when a modelled swap fee is above the safety threshold. */
+export function swapFeeExceedsGuard(feeBps: number | undefined | null): boolean {
+	return feeBps != null && feeBps > SWAP_FEE_GUARD_BPS;
+}
+
+/** Single source of truth for the user-facing guard message. */
+export function swapFeeGuardMessage(feeBps: number | undefined | null): string {
+	const pct = feeBps != null ? (feeBps / 100).toFixed(1) : '?';
+	return (
+		`Swap cancelled to protect you: the network would currently charge an abnormally high fee ` +
+		`(~${pct}%, well above the usual ~0.1%) on this trade. Try a smaller amount, or wait until ` +
+		`this is resolved.`
+	);
+}
+
+/** Effective fee in bps = totalFee / grossOut, where grossOut = out + fee. */
+function feeBpsOf(totalFee: bigint, expectedOutput: bigint): number {
+	const grossOut = expectedOutput + totalFee;
+	if (grossOut <= 0n) return 0;
+	return Number((totalFee * 10000n) / grossOut);
 }
 
 /**
@@ -205,7 +248,8 @@ export function calculateSwap(
 			totalFee: 0n,
 			expectedOutput: 0n,
 			minAmountOut: 0n,
-			slippageBps
+			slippageBps,
+			feeBps: 0
 		};
 	}
 
@@ -251,7 +295,8 @@ export function calculateSwap(
 		totalFee,
 		expectedOutput,
 		minAmountOut,
-		slippageBps
+		slippageBps,
+		feeBps: feeBpsOf(totalFee, expectedOutput)
 	};
 }
 
@@ -509,7 +554,8 @@ export function calculateTwoHopSwap(
 			totalFee: 0n,
 			expectedOutput: 0n,
 			minAmountOut: 0n,
-			slippageBps
+			slippageBps,
+			feeBps: 0
 		};
 	}
 	// First hop runs at its own pool and produces an intermediate amount.
@@ -533,6 +579,7 @@ export function calculateTwoHopSwap(
 			expectedOutput: 0n,
 			minAmountOut: 0n,
 			slippageBps,
+			feeBps: hop1.feeBps,
 			hop1Fee
 		};
 	}
@@ -549,6 +596,8 @@ export function calculateTwoHopSwap(
 		expectedOutput: hop2.expectedOutput,
 		minAmountOut: hop2.minAmountOut,
 		slippageBps,
+		// Both hops are taxed by the CLP fee, so the effective cost compounds.
+		feeBps: hop1.feeBps + hop2.feeBps,
 		hop1Fee
 	};
 }

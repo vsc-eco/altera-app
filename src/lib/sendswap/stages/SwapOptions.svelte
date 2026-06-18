@@ -165,6 +165,12 @@
 		const fromCoin = txState.from;
 		const toCoin = txState.to;
 		const fromAmount = txState.fromAmount;
+		// Clear the prior fee-guard reading before recomputing; the success path
+		// re-sets it. Without this a stale high feeBps from a previous quote could
+		// wrongly block a now-different (or now-invalid) swap.
+		untrack(() => {
+			if (txState.swapFeeBps !== undefined) txState.swapFeeBps = undefined;
+		});
 		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') {
 			swapResult = null;
 			txState.swapCalcPending = false;
@@ -274,6 +280,9 @@
 			}
 			if (txState.swapTotalFee !== swapTotalFee) {
 				txState.swapTotalFee = swapTotalFee;
+			}
+			if (txState.swapFeeBps !== result.feeBps) {
+				txState.swapFeeBps = result.feeBps;
 			}
 			const hop1 = result.hop1Fee
 				? { asset: result.hop1Fee.asset, totalFee: result.hop1Fee.totalFee.toString() }

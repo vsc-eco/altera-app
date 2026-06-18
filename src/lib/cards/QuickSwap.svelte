@@ -38,6 +38,8 @@
 		getOrderedDepthsFor,
 		checkExceedsPoolDepth,
 		calculatePriceImpact,
+		swapFeeExceedsGuard,
+		swapFeeGuardMessage,
 		type TypedPoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
@@ -395,6 +397,7 @@
 			if (txState.swapBaseFee !== undefined) txState.swapBaseFee = undefined;
 			if (txState.swapClpFee !== undefined) txState.swapClpFee = undefined;
 			if (txState.swapTotalFee !== undefined) txState.swapTotalFee = undefined;
+			if (txState.swapFeeBps !== undefined) txState.swapFeeBps = undefined;
 			if (txState.swapHop1Fee !== undefined) txState.swapHop1Fee = undefined;
 		});
 	}
@@ -488,6 +491,7 @@
 			if (txState.swapBaseFee !== swapBaseFee) txState.swapBaseFee = swapBaseFee;
 			if (txState.swapClpFee !== swapClpFee) txState.swapClpFee = swapClpFee;
 			if (txState.swapTotalFee !== swapTotalFee) txState.swapTotalFee = swapTotalFee;
+			if (txState.swapFeeBps !== result.feeBps) txState.swapFeeBps = result.feeBps;
 			const hop1 = result.hop1Fee
 				? { asset: result.hop1Fee.asset, totalFee: result.hop1Fee.totalFee.toString() }
 				: undefined;
@@ -651,6 +655,11 @@
 		if (!toValue || !txState.from) return false;
 		return fromAllowedValues.has(toValue);
 	});
+
+	// Overcharge safety guard: block the swap when the modelled fee is abnormally
+	// high (contract pendulum CLP fee spike — fixed upstream). Mirrors the hard
+	// stop in sendUtils.send() and the warning in ReviewSwap.
+	const feeGuardTripped = $derived(swapFeeExceedsGuard(txState.swapFeeBps));
 
 	/** Human-readable reason when the swap button is disabled. */
 	const swapBlockedReason = $derived.by(() => {
@@ -908,6 +917,15 @@
 	async function requestSwap() {
 		if (!validateSwap()) return;
 
+		// Overcharge safety guard (hard stop — QuickSwap broadcasts directly,
+		// not through sendUtils.send(), so it needs its own backstop in addition
+		// to the disabled button). Covers both this card's broadcast paths.
+		if (swapFeeExceedsGuard(txState.swapFeeBps)) {
+			setError(swapFeeGuardMessage(txState.swapFeeBps));
+			swapLoading = false;
+			return;
+		}
+
 		// Reown Bitcoin wallet + BTC source → take the deposit-address
 		// flow instead of the normal review popup. The user sends BTC
 		// from their own wallet (same pattern as BitcoinMainnetDeposit),
@@ -1007,6 +1025,13 @@
 
 	async function confirmSwap() {
 		if (!auth.value || !txState.from || !txState.to) return;
+
+		// Backstop the overcharge guard at the actual broadcast point too.
+		if (swapFeeExceedsGuard(txState.swapFeeBps)) {
+			setError(swapFeeGuardMessage(txState.swapFeeBps));
+			swapLoading = false;
+			return;
+		}
 
 		const fromCoinDef = txState.from.coin;
 		const toCoinDef = txState.to.coin;
@@ -1458,6 +1483,14 @@
 	{/if}
 	</div><!-- end .swap-middle -->
 
+	{#if feeGuardTripped}
+		<p class="fee-guard-warning">
+			Swap blocked: the network would charge an abnormally high fee
+			(~{((txState.swapFeeBps ?? 0) / 100).toFixed(1)}%) on this trade right now. Try a smaller
+			amount, or wait until it's resolved.
+		</p>
+	{/if}
+
 	<!-- Exchange -->
 	<PillButton
 		onclick={requestSwap}
@@ -1466,7 +1499,8 @@
 			sameCoinSelected ||
 			missingReceiver ||
 			exceedsBalance ||
-			exceedsPoolDepth}
+			exceedsPoolDepth ||
+			feeGuardTripped}
 		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
@@ -1583,6 +1617,15 @@
 </Dialog>
 
 <style lang="scss">
+	.fee-guard-warning {
+		margin: 0 0 0.75rem;
+		padding: 0.6rem 0.8rem;
+		border: 1px solid var(--dash-accent-red, #dc2626);
+		border-radius: 12px;
+		color: var(--dash-accent-red, #dc2626);
+		font-size: 0.82rem;
+		line-height: 1.4;
+	}
 	.swap-card {
 		background: var(--dash-card-bg);
 		border: 1px solid var(--dash-card-border);

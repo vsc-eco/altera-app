@@ -53,6 +53,8 @@ export class SwapTxState extends TxStateBase {
 	swapClpFee: string | undefined = $state(undefined);
 	swapTotalFee: string | undefined = $state(undefined);
 	swapHop1Fee: { asset: string; totalFee: string } | undefined = $state(undefined);
+	/** Modelled effective fee in bps — drives the overcharge safety guard. */
+	swapFeeBps: number | undefined = $state(undefined);
 	swapCalcPending: boolean = $state(false);
 }
 

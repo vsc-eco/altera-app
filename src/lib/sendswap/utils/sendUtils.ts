@@ -43,6 +43,7 @@ import swapOptions, {
 } from './sendOptions'
 import type { TxStateBase } from './txState.svelte'
 import { SwapTxState, TransferTxState, WithdrawTxState, type TxState } from './txState.svelte'
+import { swapFeeExceedsGuard, swapFeeGuardMessage } from '$lib/pools/swapCalc'
 
 export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
 	const accBal = get(accountBalance);
@@ -715,6 +716,18 @@ export async function send(
 		let opType: string | undefined;
 
 		if (isSwap) {
+			// Safety guard (2026-06-18): block swaps the contract would overcharge
+			// via the pendulum CLP fee (scales ~2× with price impact). Hard stop
+			// before broadcast for the send()-based flow (QuickSwap has its own
+			// guard in confirmSwap() — it broadcasts directly, not through here).
+			// Return an Error (the established pattern) rather than throwing, so
+			// the caller's `.then` runs and the message surfaces. Remove once the
+			// contract fee is fixed.
+			if (details instanceof SwapTxState && swapFeeExceedsGuard(details.swapFeeBps)) {
+				const msg = swapFeeGuardMessage(details.swapFeeBps);
+				setStatus(msg, true);
+				return new Error(msg);
+			}
 			setStatus('Waiting for Hive wallet approval…');
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
 			const fromAmountStr = details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : amount;

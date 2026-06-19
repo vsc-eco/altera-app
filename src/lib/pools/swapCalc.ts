@@ -13,44 +13,33 @@
  *   base protocol fee = grossOut * feeBps / 10000        (output units, floor 1)
  *   base CLP fee      = (x^2 * Y) / (x + X)^2            (output units, floor 1)
  *
- *   ─── STABILIZER WORST-CASE (m = 2.0 cap) ───
+ *   ─── FEE COMPOSITION (post-2026-06-19 contract fix) ───
  *
- *   The on-chain consensus code applies a pendulum stabilizer
- *   multiplier `m` to BOTH fee legs at execution
- *   (`incentive-pendulum/wasm/applier.go:200-221`,
- *   `incentive-pendulum/fees_int.go:68-124`). `m` is bounded:
- *   `m ∈ [1.0, 2.0]` where 2.0 is the hard cap set by
- *   `DefaultStabilizerParamsBps.Cap` (`fees_int.go:59-66`).
+ *   The on-chain code (`incentive-pendulum/wasm/applier.go`) charges the two
+ *   legs differently:
+ *     • protocol (8 bps) leg × pendulum stabilizer `m` (m ∈ [1, 2], cap 2.0)
+ *     • CLP leg × a CONSTANT scale `CLPScaleBps` (default 625 = 1/16), NO `m`
  *
- *   We don't know the live `m` from the frontend — fetching pendulum
- *   V/E geometry would re-implement consensus math, exactly the drift
- *   class this codebase was bitten by. Instead we use the bound:
- *   compute `expectedOutput` as if `m = 2.0` (the worst case).
+ *   We don't know the live `m` from the frontend, so we quote the protocol
+ *   leg at the worst case (m = 2.0) and the CLP leg at the exact constant:
  *
- *     expectedOutput = grossOut - 2 × (baseProtocol + baseCLP)
+ *     expectedOutput = grossOut - 2 × baseProtocol - (1/16) × baseCLP
  *     min_amount_out = expectedOutput * (10000 - slippageBps) / 10000
  *
- *   Guarantees this gives us:
- *     • For any real on-chain m ∈ [1, 2], actualOutput ≥ expectedOutput
- *     • The slippage gate on-chain (`actualOutput ≥ min_amount_out`)
- *       always passes for the stabilizer portion — slippage only
- *       needs to absorb normal reserve drift between sign and execute
- *     • User receives at least what they were quoted; sometimes more
+ *   Guarantees: for any real on-chain m ∈ [1, 2], actualOutput ≥ expectedOutput
+ *   (the protocol leg is the only `m`-dependent part and we took its worst
+ *   case), so the on-chain `actualOutput ≥ min_amount_out` gate passes and the
+ *   user is never under-delivered.
  *
- *   Trade-off: the quote is pessimistic. On deep HIVE/HBD pools the
- *   surplus is ~0.06% so the difference is invisible. On the shallow
- *   BTC/HBD pool it can be 6.6% — users see a lower number than a
- *   naive `m = 1` quote, but they will never be under-delivered.
+ *   HISTORY: before milo's 2026-06-19 fix the stabilizer was ALSO applied to
+ *   the CLP leg, so a swap was charged ≈2× its own price impact — large swaps
+ *   paid multi-percent fees (the overcharge incident). The fix moved `m` off
+ *   the CLP leg and scaled it by the constant instead.
  *
- *   ⚠️ MAINTENANCE TRIPWIRE: this depends on the on-chain cap staying
- *   at 2.0. If `fees_int.go:DefaultStabilizerParamsBps.Cap` is ever
- *   raised, update `STABILIZER_CAP_BPS` below in lockstep — otherwise
- *   we silently regress to the same class of bug.
- *
- *   The proper long-term fix is still a backend `simulateSwap` that
- *   returns the actual `userOutput` from the live `ApplySwapFees`.
- *   Tracking: incident report "Altera Swap Quote ↔ On-Chain Pendulum
- *   Divergence (Stabilizer Omission)" dated 2026-06-06.
+ *   ⚠️ MAINTENANCE TRIPWIRE: `STABILIZER_CAP_BPS` must track the on-chain cap
+ *   and `CLP_SCALE_BPS` must track `Config.CLPScaleBps`. If either on-chain
+ *   value changes, update the constant below in lockstep. The proper long-term
+ *   fix is still a backend `simulateSwap` returning the actual `userOutput`.
  */
 
 /**
@@ -61,6 +50,16 @@
  */
 const STABILIZER_CAP_BPS = 20000n;
 const BPS_SCALE = 10000n;
+
+/**
+ * Constant scale applied to the CLP fee leg (no stabilizer), in basis points.
+ * 625 bps = 1/16. Mirrors `Config.CLPScaleBps` (default 625) in
+ * `go-vsc-node/modules/incentive-pendulum/wasm/applier.go`. Added by milo's
+ * 2026-06-19 fee fix: the pendulum multiplier was taken OFF the CLP leg and a
+ * constant scale put on it instead, so large swaps are no longer charged ≈2×
+ * their price impact. If the on-chain default changes, update this in lockstep.
+ */
+const CLP_SCALE_BPS = 625n;
 
 import { GetStateByKeysStore } from '$houdini';
 import { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from './poolsData';
@@ -266,13 +265,14 @@ export function calculateSwap(
 	let baseClpFee = (x * x * Y) / (newX * newX);
 	if (baseClpFee === 0n) baseClpFee = 1n;
 
-	// Apply the worst-case stabilizer multiplier (m = 2.0 at the cap).
-	// On-chain the multiplier is `charged = floor(base * m_bps / BpsScale)`
-	// — matches `incentive-pendulum/fees_int.go:128-133 ApplyMultiplierBps`.
-	// We use m_bps = STABILIZER_CAP_BPS so the resulting `expectedOutput`
-	// is a guaranteed FLOOR over any real on-chain m ∈ [1, 2].
+	// Post-2026-06-19 contract fix (`incentive-pendulum/wasm/applier.go`):
+	//   • protocol leg × stabilizer `m` — we use the worst case (m = 2.0 at the
+	//     cap) so `expectedOutput` is a guaranteed FLOOR over any real m ∈ [1,2].
+	//   • CLP leg × the CONSTANT `CLP_SCALE_BPS` (625 = 1/16), NO stabilizer.
+	//     (Pre-fix this also got `m`, charging ≈2× price impact — the bug milo
+	//     fixed.) `charged = floor(base * bps / BpsScale)`.
 	const chargedProtocolFee = (baseProtocolFee * STABILIZER_CAP_BPS) / BPS_SCALE;
-	const chargedClpFee = (baseClpFee * STABILIZER_CAP_BPS) / BPS_SCALE;
+	const chargedClpFee = (baseClpFee * CLP_SCALE_BPS) / BPS_SCALE;
 	const totalFee = chargedProtocolFee + chargedClpFee;
 
 	// expectedOutput is the worst-case net delivery (m = 2.0).

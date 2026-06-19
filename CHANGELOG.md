@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.22] — 2026-06-19
+
+### Fixes
+
+- **Legitimate swaps were being rejected with "abnormally high fee".** A client-side guard (added after the swap-overcharge incident) blocks swaps whose _modelled_ fee exceeds 3%. After milo's 2026-06-19 contract fix re-tuned the on-chain fee — it took the pendulum stabilizer **off** the CLP fee leg and scaled that leg by a constant `CLPScaleBps` (625 = 1/16) instead, so a swap is no longer charged ≈2× its own price impact — the client model in `swapCalc.ts` still computed the _pre-fix_ formula (CLP leg × the 2× stabilizer cap). It therefore over-estimated the fee ~10×, so a ~$28 BTC→HBD swap modelled at ~4% and was rejected (reported by Bradley / lordbutterfly). The CLP leg now scales by the constant `CLP_SCALE_BPS = 625` instead of `STABILIZER_CAP_BPS` (20000), matching `go-vsc-node/modules/incentive-pendulum/wasm/applier.go`. This corrects both the guard and the (previously over-pessimistic) quote. Verified against live indexer data: the model fee is a strict **floor** of the real on-chain fee for every pendulum `m ∈ [1, 2]` (so users are never under-delivered and `min_amount_out` never reverts a swap), the guard cannot trip for any pool-allowed swap (49% of reserve ≈ 221 bps, under the 300 bps threshold), and real fees are now ~0.2% vs the pre-fix ~12.6% overcharge. The fee-model unit tests were updated to pin the new composition
+
 ## [0.3.21] — 2026-06-16
 
 ### Fixes

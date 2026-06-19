@@ -110,6 +110,25 @@ function resolveDashNetwork(): 'mainnet' | 'testnet' {
 				`matches a known mainnet host suffix. Fix one of the two.`
 		);
 	}
+	// Audit M3 (5.9) + M4 (6.0): mainnet deploys must NOT be allowed to
+	// run with the verifier in 'unconfigured' fail-open mode. If the
+	// IS-service is on a mainnet host AND the frontend has no pinned
+	// signer pubkey, the modal shows the yellow "Verification not
+	// configured" warn-panel and accepts the deposit-address binding
+	// on faith. On mainnet that means real Dash deposits trust the
+	// network identity. Refuse to render until the operator wires a
+	// real Ed25519 pubkey via PUBLIC_IS_SERVICE_SIGNER_PUBKEY (which
+	// also disables the HMAC dev-stub path in signature.ts).
+	if (network === 'mainnet' && (!isServiceSignerPubkey || isServiceSignerPubkey.startsWith('hmac:'))) {
+		throw new Error(
+			`PUBLIC_DASH_NETWORK=mainnet but PUBLIC_IS_SERVICE_SIGNER_PUBKEY is ` +
+				`${isServiceSignerPubkey ? 'an HMAC dev-stub' : 'unset'}. ` +
+				`Production mainnet deploys MUST publish the IS-service's asymmetric ` +
+				`signer pubkey (ed25519:<hex>) so the client can verify the address ` +
+				`signature — without it, the yellow 'Verification not configured' ` +
+				`warn-panel accepts the deposit-address binding on faith.`
+		);
+	}
 	return network;
 }
 

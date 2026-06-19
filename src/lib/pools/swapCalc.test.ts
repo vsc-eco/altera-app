@@ -91,13 +91,14 @@ describe('calculateSwap', () => {
 		expect(r.expectedOutput).toBeLessThan(9_955n); // strictly below grossOut
 	});
 
-	it('large trade near 50% cap has very high CLP fee', () => {
+	it('large trade near 50% cap has a much worse rate (AMM slippage)', () => {
 		// 1,110 HIVE (1,110,000 units) = exactly 50% of reserve
 		const r50pct = calculateSwap(1_110_000n, 2_221_000n, 2_221_000n, 100);
 		// 10 HIVE trade for reference
 		const rSmall = calculateSwap(10_000n, 2_221_000n, 2_221_000n, 100);
 
-		// At 50%, CLP fee should dominate — effective rate much worse
+		// At 50%, the constant-product slippage dominates the effective rate
+		// (independent of the now-small CLP fee).
 		const rate50 = Number(r50pct.expectedOutput) / 1_110_000;
 		const rateSmall = Number(rSmall.expectedOutput) / 10_000;
 		expect(rate50).toBeLessThan(rateSmall * 0.7); // at least 30% worse rate
@@ -114,45 +115,33 @@ describe('calculateSwap', () => {
 		expect(r.minAmountOut).toBeLessThanOrEqual(r.expectedOutput);
 	});
 
-	// ─── Stabilizer worst-case guarantees ─────────────────────────────────
-	// These pin the contract our quote makes with users: "you will receive
-	// AT LEAST `expectedOutput`". If anyone ever weakens the stabilizer
-	// floor (e.g. drops the ×2 multiplier without a matching backend
-	// guarantee), these tests turn red — and BTC swaps start reverting in
-	// production the same way they did before this fix.
+	// ─── Fee-model floor (post-2026-06-19 fix) ─────────────────────────────
+	// Pin the quote contract ("you receive AT LEAST expectedOutput") AND the
+	// post-fix composition: protocol leg × worst-case 2.0, CLP leg × the 1/16
+	// constant (no stabilizer). If anyone re-applies the stabilizer to the CLP
+	// leg, these turn red — that's the overcharge bug.
 
-	it('expectedOutput equals the on-chain floor at the m=2.0 stabilizer cap', () => {
-		// Worked figures from the 2026-06-06 incident report (§5):
-		//   hop-1 BTC→HBD, 150,000 sats into 2,313,898 : 1,426,458
-		//   grossOut    ≈ 86,842
-		//   baseCLP     ≈ 5,286
-		//   baseProtocol ≈ 69
-		//   userOutput at m=2.0  ≈ 76,132
-		// Our worst-case quote MUST equal that floor (within BigInt floor
-		// rounding) — otherwise the 110%-reliable property is broken.
-		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100);
-		// Allow ±5 units for floor-rounding differences across the
-		// independent base-fee calculations.
-		const ON_CHAIN_FLOOR = 76_132n;
-		const diff = r.expectedOutput - ON_CHAIN_FLOOR;
-		const absDiff = diff < 0n ? -diff : diff;
-		expect(absDiff).toBeLessThanOrEqual(5n);
-	});
-
-	it('expectedOutput is strictly less than grossOut (stabilizer is applied)', () => {
-		// If someone accidentally drops the ×2 multiplier this becomes
-		// equal to the m=1 quote which on-chain reality exceeds — and
-		// BTC swaps start reverting again.
+	it('expectedOutput = grossOut − 2×protocol − (1/16)×CLP (exact)', () => {
 		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100);
 		const newX = 2_313_898n + 150_000n;
 		const grossOut = 1_426_458n - (2_313_898n * 1_426_458n) / newX;
-		const m1Quote = grossOut - (grossOut * 8n) / 10000n - (150_000n * 150_000n * 1_426_458n) / (newX * newX);
-		// Worst-case must be strictly LESS than the m=1 quote — by roughly
-		// the size of one fee leg (the surplus). Sanity-check the gap is at
-		// least 5% of the m=1 quote on this very shallow pool.
-		expect(r.expectedOutput).toBeLessThan(m1Quote);
-		const gap = m1Quote - r.expectedOutput;
-		expect(Number(gap) / Number(m1Quote)).toBeGreaterThan(0.05);
+		let baseProtocol = (grossOut * 8n) / 10000n;
+		if (baseProtocol === 0n) baseProtocol = 1n;
+		let baseCLP = (150_000n * 150_000n * 1_426_458n) / (newX * newX);
+		if (baseCLP === 0n) baseCLP = 1n;
+		const totalFee = (baseProtocol * 20000n) / 10000n + (baseCLP * 625n) / 10000n;
+		expect(r.expectedOutput).toBe(grossOut - totalFee);
+		expect(r.expectedOutput).toBeLessThan(grossOut); // fees are still applied
+	});
+
+	it('CLP leg is scaled to 1/16 with no stabilizer (the overcharge fix)', () => {
+		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100);
+		const newX = 2_313_898n + 150_000n;
+		let baseCLP = (150_000n * 150_000n * 1_426_458n) / (newX * newX);
+		if (baseCLP === 0n) baseCLP = 1n;
+		// charged CLP is exactly baseCLP × 625/10000 — NOT baseCLP × 2 (pre-fix).
+		expect(r.clpFee).toBe((baseCLP * 625n) / 10000n);
+		expect(r.clpFee).toBeLessThan(baseCLP); // strictly reduced, never amplified
 	});
 });
 
@@ -407,11 +396,13 @@ describe('swap fee guard', () => {
 		expect(swapFeeExceedsGuard(r.feeBps)).toBe(false);
 	});
 
-	it('flags a large, high-impact swap (CLP fee × stabilizer) as over the guard', () => {
-		// ~9% of the reserve → CLP fee ≈ price impact, ×2 stabilizer → multi-percent.
+	it('a large swap that pre-fix exceeded the guard now stays under it (fee fix)', () => {
+		// 200,000 units ≈ 9% of reserve. Pre-2026-06-19 (CLP × 2× stabilizer) this
+		// modelled at ~4% and was wrongly blocked; post-fix (CLP × 1/16) it's well
+		// under the 3% guard, so it goes through.
 		const r = calculateSwap(200_000n, hiveHbdPool.reserve0, hiveHbdPool.reserve1, 100);
-		expect(r.feeBps).toBeGreaterThan(SWAP_FEE_GUARD_BPS);
-		expect(swapFeeExceedsGuard(r.feeBps)).toBe(true);
+		expect(r.feeBps).toBeLessThan(SWAP_FEE_GUARD_BPS);
+		expect(swapFeeExceedsGuard(r.feeBps)).toBe(false);
 	});
 
 	it('feeBps grows monotonically with swap size', () => {

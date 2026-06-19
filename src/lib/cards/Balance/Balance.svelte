@@ -42,6 +42,10 @@
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
 		goto('/deposit');
 	}
+	function openWithdraw() {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
+		goto('/withdraw');
+	}
 </script>
 
 <Card>
@@ -66,15 +70,7 @@
 
 		<div class="action-buttons">
 			<button class="action-btn action-btn-filled" onclick={openDeposit}> Deposit </button>
-			<button
-				class="action-btn action-btn-outline"
-				onclick={() => {
-					withdrawSessionId = getTxSessionId();
-					toggleWithdraw(true);
-				}}
-			>
-				Withdraw
-			</button>
+			<button class="action-btn action-btn-outline" onclick={openWithdraw}> Withdraw </button>
 		</div>
 
 		{#if did}

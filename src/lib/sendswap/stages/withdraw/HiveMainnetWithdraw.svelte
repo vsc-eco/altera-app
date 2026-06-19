@@ -2,6 +2,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
+	import Card from '$lib/cards/Card.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import PillButton from '$lib/PillButton.svelte';
@@ -19,8 +20,16 @@
 	let {
 		editStage,
 		open,
-		secondaryMenu = $bindable(false)
-	}: { editStage: (complete: boolean) => void; open: boolean; secondaryMenu: boolean } = $props();
+		secondaryMenu = $bindable(false),
+		lockAsset = false
+	}: {
+		editStage: (complete: boolean) => void;
+		open: boolean;
+		secondaryMenu: boolean;
+		/** When true the asset is fixed by the parent (the timeline picked it in
+		 *  step 1), so we render a read-only asset card instead of the picker. */
+		lockAsset?: boolean;
+	} = $props();
 
 	const txState = useWithdrawState();
 	const auth = $derived(getAuth()());
@@ -256,25 +265,42 @@
 		{/if}
 		<div class="sections">
 			<div class="section">
-				<label for="asset-card">Withdraw From</label>
-				<ClickableCard onclick={() => toggleAsset(true)}>
-					<div class="asset-card">
-						{#if txState.from}
-							<BalanceInfo
-								coin={txState.from.coin}
-								network={txState.from.network}
-								size="large"
-								styleType="vertical"
-							/>
-						{:else}
-							<span class="user-icon-placeholder"
-								><Coins size="40" absoluteStrokeWidth={true} /></span
-							>
-							Select Withdrawal Asset
-						{/if}
-						<span class="edit"> Edit </span>
-					</div>
-				</ClickableCard>
+				{#if !lockAsset}
+					<label for="asset-card">Withdraw From</label>
+				{/if}
+				{#if lockAsset}
+					<Card>
+						<div class="asset-card">
+							{#if txState.from}
+								<BalanceInfo
+									coin={txState.from.coin}
+									network={txState.from.network}
+									size="large"
+									styleType="vertical"
+								/>
+							{/if}
+						</div>
+					</Card>
+				{:else}
+					<ClickableCard onclick={() => toggleAsset(true)}>
+						<div class="asset-card">
+							{#if txState.from}
+								<BalanceInfo
+									coin={txState.from.coin}
+									network={txState.from.network}
+									size="large"
+									styleType="vertical"
+								/>
+							{:else}
+								<span class="user-icon-placeholder"
+									><Coins size="40" absoluteStrokeWidth={true} /></span
+								>
+								Select Withdrawal Asset
+							{/if}
+							<span class="edit"> Edit </span>
+						</div>
+					</ClickableCard>
+				{/if}
 			</div>
 			<div class="section">
 				<label for={inputId}>Amount</label>

@@ -6,7 +6,6 @@
 	import AccBalance from '$lib/AccBalance.svelte';
 	import { Send } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
-	import Withdraw from '$lib/sendswap/Withdraw.svelte';
 	import QuickSend from '$lib/sendswap/QuickSend.svelte';
 	import { getTxSessionId } from '$lib/sendswap/utils/sendUtils';
 
@@ -34,9 +33,6 @@
 	let quickSendOpen = $state(false);
 	let sendSessionId = $state(getTxSessionId());
 	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
-	let withdrawOpen = $state(false);
-	let withdrawSessionId = $state(getTxSessionId());
-	let toggleWithdraw = $state<(open?: boolean) => void>(() => {});
 
 	function openDeposit() {
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
@@ -86,11 +82,6 @@
 	bind:dialogOpen={quickSendOpen}
 	bind:toggle={toggleQuickSend}
 	sessionId={sendSessionId}
-/>
-<Withdraw
-	bind:dialogOpen={withdrawOpen}
-	bind:toggle={toggleWithdraw}
-	sessionId={withdrawSessionId}
 />
 
 <style lang="scss">

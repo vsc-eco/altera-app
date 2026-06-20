@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
-	import Username from '$lib/auth/Username.svelte';
+	import { Lock } from '@lucide/svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import Amount from '$lib/currency/OldAmountInput.svelte';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
@@ -11,13 +11,14 @@
 	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
-	let nodeRunnerAccount: string | undefined = $state();
+	// Locked to the signed-in account: the on-chain op's `to` must equal `from`.
+	// There is no delegation feature yet, so you can only unstake HIVE staked on
+	// the account you're signed in as. Derive (not just UI-lock) so the value can
+	// never be anything but the logged-in user.
+	let nodeRunnerAccount = $derived(username);
 	let amount: string | undefined = $state('');
 	let status = $state('');
 	let error = $state('');
-	$effect(() => {
-		nodeRunnerAccount = username;
-	});
 	const sendTransaction = async (amount: string, nodeRunnerAccount: string) => {
 		if (!username || !auth.value?.aioha)
 			return {
@@ -88,7 +89,16 @@
 			(about a day).
 		</p>
 		{#if error}<p class="error">{error}</p>{/if}
-		<Username label="Witness Account" id="node-runner" bind:value={nodeRunnerAccount} required />
+		<div class="account-lock">
+			<span class="account-label">Witness Account</span>
+			<div class="account-value">
+				<Lock size={14} />
+				<span>@{username ?? '—'}</span>
+			</div>
+			<span class="account-hint">
+				Locked to the account you're signed in with — you can only unstake your own account.
+			</span>
+		</div>
 		<div class="amount-flex">
 			<Amount
 				selectItems={[Coin.hive]}
@@ -129,6 +139,30 @@
 	}
 	.amount-flex {
 		display: flex;
+	}
+	.account-lock {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+	.account-label {
+		font-size: 0.9rem;
+	}
+	.account-value {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		max-width: 16rem;
+		box-sizing: border-box;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--border-color, #444);
+		border-radius: 8px;
+		font-family: 'Noto Sans Mono Variable', monospace;
+		opacity: 0.85;
+	}
+	.account-hint {
+		font-size: 0.8rem;
+		opacity: 0.6;
 	}
 	.status {
 		color: var(--dash-accent-purple);

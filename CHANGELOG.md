@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.23] — 2026-06-20
+
+### Fixes
+
+- **Consensus staking could silently send your HIVE to another account.** The witness "Consensus Staking" / "Consensus Unstaking" modals had an _editable_ "Witness Account" field. It defaulted to your logged-in account, but you could type any account — and that value becomes the `to` of the on-chain op (`vsc.consensus_stake`: `from: hive:<you>`, `to: hive:<typed>`). Because there is **no delegation feature**, staking to an account that isn't yours doesn't delegate — it _transfers_ the HIVE to that account and stakes it there, recoverable only with that account's keys (reported by lordbutterfly, who staked to `magi-team-node` from the witness page without realising it was also a transfer). Both modals now **lock the account to the signed-in user**: the field is a read-only display and the value is `$derived(username)`, so `to` always equals `from` and no input can change it — locked at the data layer, not just hidden in the UI. The consensus stake/unstake ops have no other callers, so this fully closes the path. The stake modal also picked up the same EVM-wallet guard the unstake modal already had. Delegation remains a planned, separate feature (PR 219), intentionally held until after the 0.2.0 rollout
+
 ## [0.3.22] — 2026-06-19
 
 ### Fixes

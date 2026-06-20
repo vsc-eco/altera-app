@@ -56,6 +56,18 @@
 	const txState = requireTxState();
 	const asSwap = $derived(txState.kind === 'swap' ? txState : null);
 
+	// This review stage is shared across all flows, so the title follows the
+	// txState kind — otherwise a deposit/withdraw/send reads "Review Swap".
+	const reviewTitle = $derived(
+		txState.kind === 'deposit'
+			? 'Review Deposit'
+			: txState.kind === 'withdraw'
+				? 'Review Withdrawal'
+				: txState.kind === 'transfer'
+					? 'Review Send'
+					: 'Review Swap'
+	);
+
 	// Mark the review stage as "complete" (user can proceed) as soon as it
 	// becomes the active stage. The user clicking the forward button is then
 	// what triggers the actual broadcast.
@@ -665,7 +677,7 @@
 {#if popup}
 	<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
 		{#snippet title()}
-			Review Swap
+			{reviewTitle}
 		{/snippet}
 		{#snippet content()}
 			{@render reviewContent()}

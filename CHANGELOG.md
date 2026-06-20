@@ -8,6 +8,11 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.24] — 2026-06-20
+
+### Fixes
+
+- **The review step always read "Review Swap", even for a deposit, withdrawal, or send.** The review stage is shared across every flow, but its dialog title was hardcoded — so a Hive-mainnet deposit (and likewise a withdrawal or a send) showed "Review Swap" over the confirmation (spotted by Jux). The title now follows the flow's `txState.kind`: **Review Deposit** / **Review Withdrawal** / **Review Send** / **Review Swap**
 ## [0.3.23] — 2026-06-20
 
 ### Fixes

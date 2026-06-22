@@ -112,6 +112,21 @@ type ChainOracleStatus {
 
 """A smart contract deployed on the Magi network."""
 type Contract {
+  """
+  Hive block height at/after which this version's code becomes active. For a
+  pending (timelocked) update this is in the future; until the chain head
+  reaches it, the previously-active code keeps running. Equals creation_height
+  for immediate versions (deploys, networks without a timelock).
+  """
+  activation_height: Uint64!
+
+  """
+  Estimated timestamp at which this version becomes active (creation timestamp
+  plus the remaining timelock at ~3s/block). Null when the creation timestamp
+  is unavailable.
+  """
+  activation_ts: String
+
   """CID of the contract's WASM bytecode."""
   code: String
 
@@ -135,6 +150,11 @@ type Contract {
 
   """Current owner of the contract."""
   owner: String
+
+  """
+  Account that submitted this version (creator on deploy, signer on update).
+  """
+  proposer: String
 
   """WASM runtime version used by this contract."""
   runtime: String!
@@ -591,7 +611,12 @@ type Query {
     blockHeight: Uint64
   ): ElectionResult!
 
-  """Search for smart contracts matching the given filter criteria."""
+  """
+  Search for smart contracts matching the given filter criteria. By default
+  returns the version currently ACTIVE at the chain head for each contract;
+  queued (timelocked) updates are excluded — use findPendingContractUpdates for
+  those. Pass historical: true to return every stored version.
+  """
   findContract(
     """Filter criteria for the contract search."""
     filterOptions: FindContractFilter
@@ -624,6 +649,17 @@ type Query {
     """Filter criteria for the ledger transfer search."""
     filterOptions: LedgerTxFilter
   ): [LedgerRecord!]
+
+  """
+  List contract updates that are queued but not yet active (still inside their
+  timelock window). Each result shows which contract (id), the new code (code),
+  who submitted it (proposer/owner), and when it goes live (activation_height /
+  activation_ts). Filter by contract id via filterOptions.byId.
+  """
+  findPendingContractUpdates(
+    """Filter criteria; byId restricts to a single contract."""
+    filterOptions: FindContractFilter
+  ): [Contract!]
 
   """Search for transactions matching the given filter criteria."""
   findTransaction(

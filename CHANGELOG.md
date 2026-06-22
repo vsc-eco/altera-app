@@ -8,6 +8,20 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.25] — 2026-06-22
+
+### Features
+
+- **Withdraw is now a dedicated `/withdraw` page instead of a modal**, mirroring the `/deposit` page (0.3.20). The dashboard "Withdraw" button navigates to a full route. It's an **asset-first 3-step timeline** — (1) "I want to withdraw" (only assets you hold on Magi, each with its live balance — you can't withdraw what you don't have), (2) "To" (destinations filtered to what the asset supports: HIVE/HBD → Hive mainnet; BTC → Bitcoin mainnet, Lightning, Coinbase-soon), (3) "Send" (the per-destination form). A persistent recent-withdrawals + FAQ side rail stays visible throughout, and the review + completion stages render as dialogs over the page
+
+### Internal
+
+- **Shared per-destination init.** The txState initialization for each destination was extracted into `withdrawInit.ts` so the new picker and the legacy menu route through one code path; broadcast payloads are identical by construction. `HiveMainnetWithdraw` gained a `lockAsset` mode that pins step 3 to the step-1 asset (so a withdraw can never silently become a different-asset swap; the BTC/Lightning rails are single-asset and lock implicitly). The legacy `Withdraw.svelte` modal stays (still used by `StakeUnstakeTabsModal`); only the dashboard entry point moved to the page
+
+### Testing
+
+- 5 `withdrawInit` tests pin that each (asset, destination) yields the same `from`/`to` as the legacy menu, and the per-chain withdraw flow tests (hive / btc / lightning) confirm the broadcast paths are unchanged
+
 ## [0.3.24] — 2026-06-20
 
 ### Fixes

@@ -19,6 +19,8 @@
 		// Confirmed swap whose settled output isn't known yet — show a placeholder
 		// instead of the slippage floor (which would mis-state what was received).
 		pendingAmount?: boolean;
+		// Failed tx — nothing was received, so don't show an output amount at all.
+		failed?: boolean;
 	};
 	let {
 		amount,
@@ -26,7 +28,8 @@
 		fromAmount = null,
 		secondAmount = null,
 		lpInfo = null,
-		pendingAmount = false
+		pendingAmount = false,
+		failed = false
 	}: Props = $props();
 
 	function unitFor(coin: UnkCoinAmount['coin']): string {
@@ -43,7 +46,9 @@
 		<span class="amount outgoing">{fromAmount.toPrettyAmountString()}</span>
 		<span class="token outgoing">{unitFor(fromAmount.coin)}</span>
 		<span class="swap-arrow">→</span>
-		{#if pendingAmount}
+		{#if failed}
+			<span class="amount none" title="Swap failed — nothing received">—</span>
+		{:else if pendingAmount}
 			<span class="amount settling"><WaveLoading size={18} /></span>
 		{:else}
 			<span class="amount green">{amount.toPrettyAmountString()}</span>
@@ -90,6 +95,9 @@
 	}
 	.amount.green {
 		color: var(--dash-accent-green-light);
+	}
+	.amount.none {
+		color: var(--dash-text-muted);
 	}
 	.token {
 		color: var(--dash-text-secondary);

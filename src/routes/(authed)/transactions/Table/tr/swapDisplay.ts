@@ -110,14 +110,19 @@ export function swapEventHashCandidates(txId: string, opIndex: number): string[]
 /**
  * True while a confirmed new-router swap's settled output is still unknown — the
  * window in which the UI must show a loading placeholder instead of the
- * min_amount_out floor. Old-pool swaps (settled amount in-payload) and pending
- * swaps are never "awaiting".
+ * min_amount_out floor. Old-pool swaps (settled amount in-payload), pending
+ * swaps, and FAILED swaps are never "awaiting" — a failed swap will never
+ * settle an amount, so it should show its failed status, not the loading dots.
  */
 export function isAwaitingSettledAmount(args: {
 	isSwap: boolean;
 	isNewRouter: boolean;
 	isPending: boolean;
 	hasIndexerAmount: boolean;
+	/** A failed swap never settles — it's done, not "awaiting". */
+	isFailed: boolean;
 }): boolean {
-	return args.isSwap && args.isNewRouter && !args.isPending && !args.hasIndexerAmount;
+	return (
+		args.isSwap && args.isNewRouter && !args.isPending && !args.hasIndexerAmount && !args.isFailed
+	);
 }

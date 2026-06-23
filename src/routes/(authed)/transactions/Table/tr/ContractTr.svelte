@@ -79,7 +79,8 @@
 	// self-heals on the next open.
 	let startedFetchTxId = '';
 	$effect(() => {
-		if (!isSwap || !swapPayload?.isNewRouter || tx.isPending) return;
+		// A failed swap produces no settlement event — don't poll the indexer for it.
+		if (!isSwap || !swapPayload?.isNewRouter || tx.isPending || tx.status === 'FAILED') return;
 		const thisTxId = tx.id;
 		if (thisTxId === startedFetchTxId) return;
 		startedFetchTxId = thisTxId;
@@ -116,12 +117,14 @@
 
 	// True while a confirmed new-router swap's real output is still unknown — the
 	// window in which we must NOT show min_amount_out. Drives the loading copy.
+	const isFailedTx = $derived(tx.status === 'FAILED');
 	const awaitingSettledAmount = $derived(
 		isAwaitingSettledAmount({
 			isSwap,
 			isNewRouter: !!swapPayload?.isNewRouter,
 			isPending: tx.isPending,
-			hasIndexerAmount: !!indexerAmountOut
+			hasIndexerAmount: !!indexerAmountOut,
+			isFailed: isFailedTx
 		})
 	);
 
@@ -254,6 +257,7 @@
 		{fromAmount}
 		{direction}
 		pendingAmount={awaitingSettledAmount}
+		failed={isFailedTx}
 		secondAmount={opKind === 'add-liquidity' ? liqAmount1 : removeLiqAmount1}
 		lpInfo={lpAmount}
 	/>
@@ -271,7 +275,9 @@
 		<div class="amount">
 			{#if isSwap && fromAmount}
 				{fromAmount.toPrettyString()} →
-				{#if awaitingSettledAmount}
+				{#if isFailedTx}
+					<span class="none">—</span>
+				{:else if awaitingSettledAmount}
 					<span class="settling"><WaveLoading size={28} /></span>
 				{:else}
 					{amount.toPrettyString()}
@@ -289,7 +295,9 @@
 				{amount.toPrettyString()}
 			{/if}
 			<span class="approx-usd">
-				{#if awaitingSettledAmount}
+				{#if isFailedTx}
+					Failed — nothing was received.
+				{:else if awaitingSettledAmount}
 					Waiting for the network to report the settled amount…
 					{#if minReceived}
 						<span class="settle-floor">You'll receive at least {minReceived.toPrettyString()}.</span
@@ -342,6 +350,9 @@
 		display: inline-flex;
 		align-items: center;
 		vertical-align: middle;
+		color: var(--dash-text-muted);
+	}
+	.none {
 		color: var(--dash-text-muted);
 	}
 	.settle-floor {

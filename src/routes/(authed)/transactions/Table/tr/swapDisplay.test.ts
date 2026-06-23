@@ -101,10 +101,20 @@ describe('swapEventHashCandidates — bare hash + op-index-suffixed key', () => 
 });
 
 describe('isAwaitingSettledAmount — when the floor must be hidden', () => {
-	const base = { isSwap: true, isNewRouter: true, isPending: false, hasIndexerAmount: false };
+	const base = {
+		isSwap: true,
+		isNewRouter: true,
+		isPending: false,
+		hasIndexerAmount: false,
+		isFailed: false
+	};
 
 	it('confirmed new-router swap with no indexer value yet → awaiting (hide floor)', () => {
 		expect(isAwaitingSettledAmount(base)).toBe(true);
+	});
+
+	it('failed swap → not awaiting (it will never settle; show the failed status, not dots)', () => {
+		expect(isAwaitingSettledAmount({ ...base, isFailed: true })).toBe(false);
 	});
 
 	it('once the settled amount arrives → not awaiting', () => {

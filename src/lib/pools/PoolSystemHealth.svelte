@@ -77,15 +77,17 @@
 					<div class="opt">
 						<div class="opt-head"><Droplet size={18} /> Provide liquidity</div>
 						<div class="opt-apr">{fmtPct(lpApr)} <span>/ yr</span></div>
-						<div class="opt-sub">Low right now — LPs earn little until fees rebalance.</div>
+						<div class="opt-sub">
+							Low right now — LPs earn little until the 1.5:1 collateral/liquidity ratio is
+							re-established.
+						</div>
 					</div>
 					<div class="opt best">
 						<span class="badge">Best move now</span>
-						<div class="opt-head"><ShieldCheck size={18} /> Stake collateral</div>
+						<div class="opt-head"><ShieldCheck size={18} /> Stake Hive in nodes</div>
 						<div class="opt-apr accent">{fmtPct(nodeApr)} <span>/ yr</span></div>
 						<div class="opt-sub">
 							Earns the most <em>and</em> pushes fees back toward LPs.
-							<span class="muted">(Staking temporarily paused.)</span>
 						</div>
 					</div>
 				</div>

@@ -65,7 +65,20 @@
 	// are lumpy — 30d still includes the pre-tilt period and overstates today.)
 	let health = $state<SystemHealth | null>(null);
 	$effect(() => {
-		fetchSystemHealth('7d').then((h) => (health = h));
+		// Poll so the fee split / APR figures track pool balance + fee changes
+		// instead of freezing on the mount-time snapshot. 30s — pool-wide fees
+		// move slowly; no need to hammer the indexer.
+		let cancelled = false;
+		const load = () =>
+			fetchSystemHealth('7d').then((h) => {
+				if (!cancelled) health = h;
+			});
+		load();
+		const handle = setInterval(load, 30_000);
+		return () => {
+			cancelled = true;
+			clearInterval(handle);
+		};
 	});
 	// Per-pool LP yield (same 7d window), keyed by pool id, for the row situation.
 	let lpAprById = $derived(new Map((health?.pools ?? []).map((p) => [p.id, p.lpAprPct])));

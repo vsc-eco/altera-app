@@ -1,7 +1,7 @@
 {
 	"name": "altera",
 	"private": true,
-	"version": "0.3.26",
+	"version": "0.3.27",
 	"type": "module",
 	"types": "./src/has/hive-auth-wrapper.d.ts",
 	"scripts": {

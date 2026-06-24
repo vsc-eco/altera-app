@@ -208,6 +208,11 @@
 			}
 			return 'incoming';
 		}
+		// A consensus unstake has from=you, to=node — but the HIVE comes back to
+		// YOU, so it's incoming (+), not outgoing (−) like a send.
+		if (t.includes('unstake')) {
+			return 'incoming';
+		}
 		if (to == did) {
 			return 'incoming';
 		}

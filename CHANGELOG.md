@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.27] — 2026-06-24
+
+### Fixes
+
+- **A consensus unstake showed in the transactions table as money leaving your wallet.** A `consensus_unstake` op carries `from = you, to = node`, so the table derived its direction from those fields and rendered it as **outgoing (−)** — like a send — even though unstaking returns the HIVE *to* you. It now renders as **incoming (+)**. (Surfaced while walking the transactions-type map; the rest of the tx types were verified to render correctly.)
+
 ## [0.3.26] — 2026-06-24
 
 ### Fixes

@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.26] — 2026-06-24
+
+### Fixes
+
+- **A failed swap showed an output amount it never delivered.** On the transactions page a confirmed-but-FAILED new-router swap produces no settlement event, so the row fell back to the `min_amount_out` floor and rendered it as a green "received" amount — and the settling indicator (the three loading dots) never resolved, since the indexer would never report a settled amount for a swap that failed. A failed swap delivers nothing, so the output now renders a dimmed "—" in both the table row and the detail popup (with a "Failed — nothing was received" note), and the futile settlement-polling is skipped for failed txs. `isAwaitingSettledAmount` gained an `isFailed` guard, pinned by a unit test
+
 ## [0.3.25] — 2026-06-22
 
 ### Features

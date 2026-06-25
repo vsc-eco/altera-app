@@ -8,6 +8,13 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.28] — 2026-06-24
+
+### Fixes
+
+- **Notifications named the wrong account on incoming txs, and leaked across accounts.** (1) A received-transaction notification read `op.data.to` (the recipient — you) instead of `op.data.from`, so it showed "from @yourself" instead of the real sender. (2) Notifications and pending transactions live under single global localStorage keys and were never cleared on logout, so signing in with a *different* account inherited the previous user's data. Both are now wiped on logout via `clearNotifications()` / `clearLocalTransactions()` in `cleanUpLogout()`. Contacts are intentionally left device-level (not cleared, not DID-scoped) so they follow you across your own wallets (Hive ↔ EVM) rather than fragmenting — the chosen model is single-session login/logout with no cross-wallet account switcher, matching standard DeFi-dapp practice (react to the connected wallet, clear account-activity data on disconnect)
+- **Notifications popup polish.** Roomier padding, smaller text, the close (✕) is centered with the title instead of jammed in the corner, and each row was restructured — inline unread dot, the message on one line, a muted timestamp beneath it, delete on the right — replacing the cramped absolute-positioned layout
+
 ## [0.3.27] — 2026-06-24
 
 ### Fixes

@@ -115,7 +115,7 @@
 									status: tx.status
 								}
 							: {
-									from: op.data.to,
+									from: op.data.from,
 									type: op.type ?? tx.type,
 									timestamp: getTimestamp(tx),
 									read: false,

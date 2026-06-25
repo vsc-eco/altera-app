@@ -3,6 +3,8 @@ import type { Aioha } from '@aioha/aioha';
 import { getContext } from 'svelte';
 import { derived, writable } from 'svelte/store';
 import { clearAllStores } from '$lib/stores/txStores';
+import { clearLocalTransactions } from '$lib/stores/localStorageTxs';
+import { clearNotifications } from '$lib/Topbar/notifications';
 import { accountBalance, getDefaultBalance } from '$lib/stores/currentBalance';
 import { accountBalanceHistory } from '$lib/stores/balanceHistory';
 
@@ -22,6 +24,8 @@ export type Auth = {
 
 export function cleanUpLogout() {
 	clearAllStores();
+	clearNotifications();
+	clearLocalTransactions();
 	accountBalance.set({
 		loading: true,
 		bal: getDefaultBalance(),

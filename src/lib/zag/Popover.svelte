@@ -70,16 +70,16 @@
 	.top-flex {
 		display: flex;
 		gap: 1rem;
-		align-items: baseline;
-		padding-bottom: 0.5rem;
-		margin-bottom: 0.5rem;
+		align-items: center;
+		padding-bottom: 0.6rem;
+		margin-bottom: 0.6rem;
 		width: 100%;
 		justify-content: space-between;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 	}
 	.top-flex :global([data-part='close-trigger']) {
 		margin-bottom: 0;
-		transform: translate(0.5rem, 0);
+		flex-shrink: 0;
 	}
 	[data-part='content'][data-variant='full'] {
 		max-width: calc(100vw - 2rem);
@@ -87,8 +87,7 @@
 		background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
 		backdrop-filter: blur(10px);
 		border: 1px solid var(--dash-card-border);
-		padding: 0.5rem;
-		padding-top: 0;
+		padding: 0.85rem 1rem 1rem;
 		z-index: 2;
 		border-radius: 16px;
 		box-shadow: var(--dash-card-shadow);

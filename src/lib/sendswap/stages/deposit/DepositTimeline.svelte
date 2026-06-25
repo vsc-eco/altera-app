@@ -193,6 +193,13 @@
 		untrack(() => {
 			const coin = Object.values(Coin).find((c) => c.value === value);
 			if (coin) txState.to = { coin, network: Network.magi };
+			// In this asset-first flow the chosen asset (txState.to) is the source
+			// of truth. Drop any previously-derived `from` so the source init
+			// re-derives it from the NEW asset. Otherwise switching between two
+			// assets a source supports (HIVE↔HBD on Hive Mainnet) makes
+			// initHiveMainnetDeposit preserve the stale `from` — and even revert
+			// `to` back to it — so the Send step keeps the old asset until refresh.
+			txState.from = undefined;
 		});
 		// Invalidate an incompatible previously-picked source.
 		if (

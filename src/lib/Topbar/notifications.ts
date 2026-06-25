@@ -55,3 +55,16 @@ export function removeNotification(id: string) {
 	get(notifications).delete(id);
 	setLocalNotifications(get(notifications));
 }
+
+/**
+ * Wipe all notifications (store + localStorage). Called on logout so a
+ * different account signing in afterwards doesn't inherit the previous
+ * user's notifications. Notifications are global (not DID-scoped), so the
+ * single `notifications` key must be cleared with the rest of the account
+ * state — see cleanUpLogout.
+ */
+export function clearNotifications() {
+	notifications.set(new Map());
+	localStorage.removeItem('notifications');
+	notificationUpdateIndicator.set('');
+}

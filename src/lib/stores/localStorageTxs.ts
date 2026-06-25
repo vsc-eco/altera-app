@@ -77,3 +77,14 @@ export function removeLocalTransaction(id: string) {
 	const newTxList = txList.filter((element, _) => element.id !== id);
 	localStorage.setItem('transactions', JSON.stringify(newTxList));
 }
+
+/**
+ * Wipe persisted pending transactions on logout, so a different account
+ * signing in afterwards doesn't inherit the previous user's pending txs.
+ * The in-memory store is reset separately by clearAllStores(); this clears
+ * the global `transactions` key (account-activity data, same ownership class
+ * as notifications — see cleanUpLogout).
+ */
+export function clearLocalTransactions() {
+	localStorage.removeItem('transactions');
+}

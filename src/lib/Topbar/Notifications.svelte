@@ -75,17 +75,17 @@
 {#snippet notificationSnippet(ntf: Notification, id: string)}
 	{@const fromYou = 'to' in ntf}
 	<div class="notif">
-		{formatOpType(ntf.type)}
-		{fromYou ? 'to' : 'from'}
-		{`@${getAccountNameFromDid(fromYou ? ntf.to : ntf.from)}`}
-		{`${ntf.status.toLowerCase()}.`}
-		<span class="at">
-			{moment(ntf.timestamp).format('MMM DD H:mm')}
-		</span>
-		{#if !ntf.read}
-			<span class="unread"></span>
-		{/if}
-		<span class="delete">
+		<span class="notif-dot" class:filled={!ntf.read}></span>
+		<div class="notif-body">
+			<span class="notif-text">
+				{formatOpType(ntf.type)}
+				{fromYou ? 'to' : 'from'}
+				<strong>@{getAccountNameFromDid(fromYou ? ntf.to : ntf.from)}</strong>
+				· {ntf.status.toLowerCase()}
+			</span>
+			<span class="notif-time">{moment(ntf.timestamp).format('MMM DD · H:mm')}</span>
+		</div>
+		<span class="notif-delete">
 			<PillButton
 				onclick={() => {
 					removeNotification(id);
@@ -93,7 +93,7 @@
 				}}
 				styleType="icon-subtle"
 			>
-				<Trash2 />
+				<Trash2 size={14} />
 			</PillButton>
 		</span>
 	</div>
@@ -142,36 +142,55 @@
 
 <style lang="scss">
 	.notif {
-		position: relative;
-		padding-top: 1.5rem;
 		display: flex;
-		align-items: center;
-		.at {
-			position: absolute;
-			top: 0;
-			right: 0;
-			font-size: var(--text-sm);
+		align-items: flex-start;
+		gap: 0.55rem;
+		padding: 0.1rem 0.15rem;
+		.notif-dot {
+			flex-shrink: 0;
+			width: 0.4rem;
+			height: 0.4rem;
+			border-radius: 50%;
+			margin-top: 0.4rem;
+			background: transparent;
+			&.filled {
+				background: var(--dash-accent-red);
+			}
+		}
+		.notif-body {
+			flex: 1;
+			min-width: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 0.1rem;
+		}
+		.notif-text {
+			font-size: 0.82rem;
+			line-height: 1.35;
+			color: var(--dash-text-primary);
+			:global(strong) {
+				font-weight: 600;
+			}
+		}
+		.notif-time {
+			font-size: 0.7rem;
 			color: var(--dash-text-muted);
 		}
-		.delete {
-			margin-left: auto;
-			padding-left: 0.5rem;
+		.notif-delete {
+			flex-shrink: 0;
 			:global(svg) {
 				color: var(--dash-accent-red);
 			}
 		}
-		.unread {
-			position: absolute;
-			top: 0;
-			left: 0;
-		}
 	}
 	tr {
-		height: 2.5rem;
 		border-bottom: 1px solid var(--dash-divider);
 	}
+	tr:last-child {
+		border-bottom: none;
+	}
 	td {
-		padding: 0.25rem 0;
+		padding: 0.55rem 0;
 	}
 	.more-button {
 		padding-top: 0.5rem;

@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.29] — 2026-06-25
+
+### Fixes
+
+- **Deposit page: changing the receive asset after picking a source kept the old asset until refresh.** In the asset-first deposit flow, switching "I want to receive" between two assets the chosen source supports (HIVE↔HBD on Hive Mainnet) left the Send step and amount on the previous asset. Root cause: `initHiveMainnetDeposit` prioritizes a previously-derived `from` coin over the newly-chosen asset (`to`) — and even reverts `to` back to it. Fixed in the asset-first picker (`DepositTimeline.pickAsset`) by clearing the stale `from` before re-init so the chosen asset re-derives both sides. Other paths were unaffected: Lightning already derives `to` from the asset first, and the BTC-only sources (Bitcoin Mainnet, Coinbase) don't read `from`. The withdraw flow was audited and is immune — its init takes the asset coin as an explicit parameter and overwrites both sides unconditionally. Added regression tests pinning the Hive-Mainnet conflict and the Lightning contrast
+
 ## [0.3.28] — 2026-06-24
 
 ### Fixes

@@ -87,6 +87,23 @@ describe('initLightningDeposit (legacy lightningOpen effect parity)', () => {
 		initLightningDeposit(s);
 		expect(s.to?.coin.value).toBe(Coin.sats.value);
 	});
+
+	it('asset switch: a stale `from` does NOT override a newly-chosen `to` (lightning is to-first)', () => {
+		// Contrast with the hiveMainnet CONFLICT case: lightning derives `to`
+		// from txState.to FIRST, so an asset switch always follows the new asset
+		// even with a stale `from` present. This is why the asset-switch bug was
+		// Hive-Mainnet-specific — lightning (the only other multi-asset source)
+		// was never affected, and pickAsset's `from` clear is a no-op for it
+		// (the rail re-defaults to BTC/Lightning either way).
+		const s = state(
+			{ coin: Coin.btc, network: Network.lightning },
+			{ coin: Coin.hbd, network: Network.magi }
+		);
+		initLightningDeposit(s);
+		expect(s.to?.coin.value).toBe(Coin.hbd.value);
+		expect(s.from?.coin.value).toBe(Coin.btc.value);
+		expect(s.from?.network.value).toBe(Network.lightning.value);
+	});
 });
 
 // ─── Hive Mainnet ─────────────────────────────────────────────────────────────
@@ -124,6 +141,23 @@ describe('initHiveMainnetDeposit (legacy hiveMainnetOpen effect parity)', () => 
 		initHiveMainnetDeposit(s);
 		expect(s.from?.coin.value).toBe(Coin.hbd.value);
 		expect(s.to?.coin.value).toBe(Coin.hbd.value);
+	});
+
+	it('CONFLICT: a stale hiveMainnet `from` wins over a newly-chosen `to` — why pickAsset clears `from`', () => {
+		// Reproduces the asset-switch bug: the user picks HIVE (from=HIVE),
+		// then switches the asset to HBD (to=HBD) while Hive Mainnet stays
+		// selected. Because HIVE is hiveMainnet-capable, init PRESERVES the
+		// stale from AND reverts `to` back to it — so the Send step keeps HIVE.
+		// This is exactly why DepositTimeline.pickAsset clears `from` before
+		// re-init in the asset-first flow; the post-clear expectation is the
+		// `existing to=HBD → both sides become HBD` test above.
+		const s = state(
+			{ coin: Coin.hive, network: Network.hiveMainnet },
+			{ coin: Coin.hbd, network: Network.magi }
+		);
+		initHiveMainnetDeposit(s);
+		expect(s.from?.coin.value).toBe(Coin.hive.value);
+		expect(s.to?.coin.value).toBe(Coin.hive.value);
 	});
 
 	it('non-hiveMainnet from (BTC) with no to → falls to the HIVE default', () => {

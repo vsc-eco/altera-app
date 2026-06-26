@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.30] — 2026-06-26
+
+### Fixes
+
+- **Swap guard no longer blocks dust trades on a rounding artifact.** A tiny swap (e.g. 0.001 HBD → HIVE) was wrongly blocked with "abnormally high fee (~9.5%)". The on-chain `floor 1` minimum fee × the 2× stabilizer is ~2 smallest units, which as a fraction of a ~20-unit gross output reads as ~10% — even though the absolute fee is ~$0.0005. The guard's `feeBps` is now computed from the STRUCTURAL (un-floored) fee, so dust trades read ~0% and pass while a genuine percentage-scaling overcharge still trips it; `totalFee`/`expectedOutput` keep the floored values so the quote stays honest about what's charged. The gap the guard now ignores is capped at ~2 smallest units (the unavoidable on-chain minimum) regardless of trade size, so it can never hide a real overcharge. Also: when the guard does fire, the QuickSwap card shows the block message in place of the rate/fee/route details instead of overlapping it. (The contract overcharge this guard was built for is fixed on-chain in go-vsc-node #220, making the guard effectively a dormant net.)
+
 ## [0.3.29] — 2026-06-25
 
 ### Fixes

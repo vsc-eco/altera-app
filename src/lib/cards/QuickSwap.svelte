@@ -1390,8 +1390,17 @@
 
 	<!-- Variable content: grows to fill space, content anchored to bottom so button never moves -->
 	<div class="swap-middle">
-	<!-- Swap Details -->
-	{#if txState.from && txState.to}
+	<!-- Swap Details — replaced by the guard notice when the fee guard trips, so the
+	     block reason occupies the quote area instead of crowding it from below. -->
+	{#if feeGuardTripped}
+		<div class="swap-blocked">
+			<p class="fee-guard-warning">
+				Swap blocked: the network would charge an abnormally high fee
+				(~{((txState.swapFeeBps ?? 0) / 100).toFixed(1)}%) on this trade right now. Try a
+				smaller amount, or wait until it's resolved.
+			</p>
+		</div>
+	{:else if txState.from && txState.to}
 		<div class="swap-details">
 			<div class="detail-row">
 				<span class="detail-label">Rate</span>
@@ -1464,7 +1473,7 @@
 		</div>
 	{/if}
 
-	{#if priceImpactPct >= 10}
+	{#if priceImpactPct >= 10 && !feeGuardTripped}
 		<p class="swap-status error" class:severe={priceImpactPct >= 15}>
 			{#if priceImpactPct >= 15}
 				⚠ Very high price impact. Pool liquidity is low. Try a smaller amount.
@@ -1482,14 +1491,6 @@
 		<p class="swap-status error">Amount exceeds 50% of pool depth — reduce the amount.</p>
 	{/if}
 	</div><!-- end .swap-middle -->
-
-	{#if feeGuardTripped}
-		<p class="fee-guard-warning">
-			Swap blocked: the network would charge an abnormally high fee
-			(~{((txState.swapFeeBps ?? 0) / 100).toFixed(1)}%) on this trade right now. Try a smaller
-			amount, or wait until it's resolved.
-		</p>
-	{/if}
 
 	<!-- Exchange -->
 	<PillButton
@@ -1617,8 +1618,18 @@
 </Dialog>
 
 <style lang="scss">
+	/* Occupies the same flex area the .swap-details quote would, so the guard
+	   notice replaces the rate/fee/route block cleanly and the Swap button
+	   below it doesn't shift. */
+	.swap-blocked {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.75rem 0 0.25rem;
+	}
 	.fee-guard-warning {
-		margin: 0 0 0.75rem;
+		margin: 0;
 		padding: 0.6rem 0.8rem;
 		border: 1px solid var(--dash-accent-red, #dc2626);
 		border-radius: 12px;

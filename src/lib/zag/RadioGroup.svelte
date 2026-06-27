@@ -1,17 +1,19 @@
 <script
 	lang="ts"
 	generics="Item extends {
-			label?: string, 
-			snippet?: (item?: Item) => ReturnType<Snippet<[Item]>>; 
-			value: string, 
-			disabled?: boolean 
+			label?: string,
+			snippet?: (item?: Item) => ReturnType<Snippet<[Item]>>;
+			component?: Component<any>;
+			props?: Record<string, any>;
+			value: string,
+			disabled?: boolean
 		}"
 >
 	import * as radio from '@zag-js/radio-group';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
 	import { Check } from '@lucide/svelte';
-	import { untrack, type Snippet } from 'svelte';
+	import { untrack, type Component, type Snippet } from 'svelte';
 	type Props = {
 		required?: boolean;
 		id?: string;
@@ -75,7 +77,10 @@
 						disabled: opt.disabled === undefined ? false : opt.disabled
 					})}
 				>
-					{#if opt.snippet}
+					{#if opt.component}
+						{@const Item = opt.component}
+						<Item {...opt.props} />
+					{:else if opt.snippet}
 						{@render opt.snippet(opt)}
 					{:else}
 						{opt.label}

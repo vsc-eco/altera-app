@@ -33,6 +33,7 @@
 	import { Coin, Network } from '../../utils/sendOptions';
 	import { useDepositState } from '../../utils/txState.svelte';
 	import { initDepositStateForSource, type DepositSource } from './depositInit';
+	import AssetChip from './AssetChip.svelte';
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
 	import LightningDeposit from './LightningDeposit.svelte';
 	import BtcMainnetDeposit from './BitcoinMainnetDeposit.svelte';
@@ -264,20 +265,6 @@
 	let secondaryMenu = $state(false);
 </script>
 
-<!-- Asset chip snippets — one per asset (per HiveLogin pattern; RadioGroup's
-     Item generic is self-referential and rejects a shared snippet). -->
-{#snippet hiveChip()}{@render assetChipLayout(ASSETS[0])}{/snippet}
-{#snippet hbdChip()}{@render assetChipLayout(ASSETS[1])}{/snippet}
-{#snippet btcChip()}{@render assetChipLayout(ASSETS[2])}{/snippet}
-{#snippet ethChip()}{@render assetChipLayout(ASSETS[3])}{/snippet}
-
-{#snippet assetChipLayout(a: (typeof ASSETS)[number])}
-	<span class="asset-chip">
-		<img src={a.icon} alt="" width="18" height="18" />
-		<span>{a.label}</span>
-	</span>
-{/snippet}
-
 <!-- Source card snippets — one per source (same reason). -->
 {#snippet hiveMainnetCard()}{@render sourceCardLayout(SOURCES[0])}{/snippet}
 {#snippet lightningCard()}{@render sourceCardLayout(SOURCES[1])}{/snippet}
@@ -361,12 +348,12 @@
 						<div class="step-body">
 							<div class="chip-row">
 								<RadioGroup
-									items={[
-										{ value: ASSETS[0].value, snippet: hiveChip },
-										{ value: ASSETS[1].value, snippet: hbdChip },
-										{ value: ASSETS[2].value, snippet: btcChip },
-										{ value: ASSETS[3].value, snippet: ethChip, disabled: true }
-									]}
+									items={ASSETS.map((a) => ({
+										value: a.value,
+										component: AssetChip,
+										props: { icon: a.icon, label: a.label },
+										disabled: a.disabled
+									}))}
 									bind:value={assetRadio}
 								/>
 								<button
@@ -555,18 +542,6 @@
 		align-items: center;
 		gap: 0.75rem;
 		flex-wrap: wrap;
-	}
-	/* RadioGroup styles its own items; we override the inner content with .asset-chip */
-	:global(.asset-chip) {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-weight: 600;
-		font-size: 0.95rem;
-		line-height: 1;
-	}
-	:global(.asset-chip img) {
-		display: block;
 	}
 	.other-asset-btn {
 		display: inline-flex;

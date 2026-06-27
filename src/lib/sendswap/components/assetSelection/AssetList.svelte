@@ -140,7 +140,10 @@
 						if (itemVal === value) clickAsset(itemVal);
 					}}
 				>
-					{#if item.snippet}
+					{#if item.component}
+						{@const Item = item.component}
+						<Item {...item.props} />
+					{:else if item.snippet}
 						{@render item.snippet(item.snippetData ?? item)}
 					{:else}
 						{item.label}

@@ -10,7 +10,8 @@
 		type CoinOnNetwork,
 		type AssetOption
 	} from '../utils/sendOptions';
-	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
+	import { type AssetObject } from '../components/info/SendSnippets.svelte';
+	import AssetInfo from '../components/info/AssetInfo.svelte';
 	import { untrack } from 'svelte';
 	import RecipientCard from '../components/RecipientCard.svelte';
 	import ContactSearchBox from '../contacts/ContactSearchBox.svelte';
@@ -65,8 +66,8 @@
 	const fromAssetObjs: AssetObject[] = $derived(
 		swapOptions.from.map((opt) => ({
 			...opt.coin,
-			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
+			component: AssetInfo,
+			props: { coinOpt: opt, network: txState.to?.network, size: 'medium' }
 		}))
 	);
 

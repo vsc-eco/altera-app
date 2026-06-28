@@ -15,6 +15,8 @@
 	import { reserveVoteTx } from '$lib/magiTransactions/hive';
 	import { Landmark, Loader2, Check } from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { Coin } from '$lib/sendswap/utils/sendOptions';
+	import WaveLoading from '$lib/components/WaveLoading.svelte';
 
 	type Proposal = FindGovernanceProposals$result['findGovernanceProposals'][number];
 
@@ -34,25 +36,26 @@
 	const uiFor = (id: string): VoteUi => voteState[id] ?? { busy: false, status: '', error: '' };
 
 	async function fetchProposals() {
-		// Keep the existing list visible while refetching after a vote; only
-		// show the full loading state on the very first load.
-		load = proposals.length ? 'loaded' : 'loading';
-		try {
-			const res = await new FindGovernanceProposalsStore().fetch({
-				variables: { filterOptions: { byStatus: 'open' } },
+		await new FindGovernanceProposalsStore()
+			.fetch({
+				variables: { filterOptions: { byStatus: 'open', limit: 10 } },
 				policy: 'NetworkOnly'
+			})
+			.then((res) => {
+				console.log('received response', res);
+				if (res.errors?.length) throw new Error(res.errors[0].message);
+				proposals = [...(res.data?.findGovernanceProposals ?? [])];
+				load = 'loaded';
+			})
+			.catch((e) => {
+				loadError = e instanceof Error ? e.message : String(e);
+				load = 'error';
 			});
-			if (res.errors?.length) throw new Error(res.errors[0].message);
-			proposals = [...(res.data?.findGovernanceProposals ?? [])];
-			load = 'loaded';
-		} catch (e) {
-			loadError = e instanceof Error ? e.message : String(e);
-			load = 'error';
-		}
 	}
 
 	$effect(() => {
-		fetchProposals();
+		const intervalId = setInterval(fetchProposals, 2000);
+		return () => clearInterval(intervalId);
 	});
 
 	function hasVoted(p: Proposal): boolean {
@@ -114,8 +117,7 @@
 
 	{#if load === 'loading'}
 		<p class="empty loading">
-			<Loader2 size={14} class="spin" />
-			Loading open proposals…
+			<WaveLoading />Loading open proposals…
 		</p>
 	{:else if load === 'error'}
 		<p class="empty error">Couldn't load governance proposals: {loadError}</p>
@@ -131,7 +133,7 @@
 						<div class="row-head">
 							<span class="kind kind-{p.type}">{typeLabel(p.type)}</span>
 							<strong class="amount"
-								>{new CoinAmount(p.amount, coins.hive, true).toPrettyString()}</strong
+								>{new CoinAmount(p.amount, Coin.hive, true).toPrettyString()}</strong
 							>
 							<span class="votes">{p.votes.length} vote{p.votes.length === 1 ? '' : 's'}</span>
 						</div>

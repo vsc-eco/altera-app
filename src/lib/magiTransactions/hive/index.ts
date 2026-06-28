@@ -1,8 +1,6 @@
 import { Aioha } from '@aioha/aioha';
 import { KeyTypes } from '@aioha/aioha';
-import {
-	type Operation,
-} from '@hiveio/dhive';
+import { type Operation } from '@hiveio/dhive';
 import { getHiveConsensusStakeOp, getHiveConsensusUnstakeOp } from './vscOperations/consensus';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
@@ -14,6 +12,7 @@ import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp } from './vscOperations/bitcoin';
 import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
 import { getBtcApproveOp } from './vscOperations/swap';
+import { getReserveVoteOp } from './vscOperations/governance';
 import type { PoolRow } from '$lib/pools/poolsData';
 
 export const consensusTx = async (
@@ -164,6 +163,25 @@ export const removeLiquidityTx = async (
 export const executeTx = async (aioha: Aioha, ops: Operation[]) => {
 	const res = await aioha.signAndBroadcastTx(ops, KeyTypes.Active);
 	return res;
+};
+
+/**
+ * Cast a witness approval vote on an open governance proposal by signing and
+ * broadcasting a single `vsc.reserve_vote` custom_json op (Active key).
+ */
+export const reserveVoteTx = async (
+	voter: string,
+	proposalId: string,
+	aioha: Aioha
+): Promise<OperationResult> => {
+	if (!proposalId)
+		return {
+			success: false,
+			error: 'Error: missing proposal id.',
+			errorCode: 0
+		};
+	const op = getReserveVoteOp(voter, proposalId);
+	return executeTx(aioha, [op]);
 };
 
 export function getSendOpType(fromNetwork: Network, toNetwork: Network) {

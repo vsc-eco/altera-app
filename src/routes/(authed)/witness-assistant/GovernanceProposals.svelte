@@ -7,7 +7,11 @@
 	Hive op). Only Hive accounts can vote; EVM logins see a notice.
 -->
 <script lang="ts">
-	import { FindGovernanceProposalsStore, type FindGovernanceProposals$result } from '$houdini';
+	import {
+		FindGovernanceProposalsStore,
+		CurrentElectionStore,
+		type FindGovernanceProposals$result
+	} from '$houdini';
 	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -22,9 +26,30 @@
 
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
-	// A reserve_vote is a Hive Active-key custom_json — only a Hive account
-	// (with an Aioha provider) can sign it. EVM wallets cannot.
-	let canVote = $derived(!!username && !!auth.value?.aioha);
+
+	// Elected witness set for the current consensus election. Only its members
+	// may cast a governance vote — the on-chain reserve_vote op rejects everyone
+	// else, so we gate the UI to match (and explain why). `null` = not yet
+	// loaded; we fail CLOSED (no vote until membership is confirmed).
+	let witnessAccounts = $state<Set<string> | null>(null);
+	let witnessLoadError = $state(false);
+	async function fetchWitnesses() {
+		try {
+			const res = await new CurrentElectionStore().fetch({ policy: 'NetworkOnly' });
+			if (res.errors?.length) throw new Error(res.errors[0].message);
+			const members = res.data?.electionByBlockHeight?.members ?? [];
+			witnessAccounts = new Set(members.map((m) => m.account));
+			witnessLoadError = false;
+		} catch (e) {
+			witnessLoadError = true;
+			console.error('Failed to load current election members', e);
+		}
+	}
+
+	let isWitness = $derived(!!username && witnessAccounts?.has(username) === true);
+	// A reserve_vote is a Hive Active-key custom_json — needs a Hive account
+	// (Aioha provider, not EVM) AND membership in the elected witness set.
+	let canVote = $derived(!!username && !!auth.value?.aioha && isWitness);
 
 	let load = $state<'loading' | 'loaded' | 'error'>('loading');
 	let loadError = $state('');
@@ -42,7 +67,6 @@
 				policy: 'NetworkOnly'
 			})
 			.then((res) => {
-				console.log('received response', res);
 				if (res.errors?.length) throw new Error(res.errors[0].message);
 				proposals = [...(res.data?.findGovernanceProposals ?? [])];
 				load = 'loaded';
@@ -53,9 +77,36 @@
 			});
 	}
 
+	// One poll tick: refresh proposals, and keep retrying the election fetch
+	// until the committee loads (so a transient failure self-heals).
+	function tick() {
+		fetchProposals();
+		if (witnessAccounts === null) fetchWitnesses();
+	}
+
 	$effect(() => {
-		const intervalId = setInterval(fetchProposals, 2000);
-		return () => clearInterval(intervalId);
+		tick();
+		let intervalId: ReturnType<typeof setInterval> | undefined;
+		const start = () => (intervalId ??= setInterval(tick, 2000));
+		const stop = () => {
+			clearInterval(intervalId);
+			intervalId = undefined;
+		};
+		// Pause polling while the tab is hidden; resume (with an immediate
+		// refresh) when it returns, so we don't churn the API in the background.
+		const onVisibility = () => {
+			if (document.hidden) stop();
+			else {
+				tick();
+				start();
+			}
+		};
+		start();
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => {
+			stop();
+			document.removeEventListener('visibilitychange', onVisibility);
+		};
 	});
 
 	function hasVoted(p: Proposal): boolean {
@@ -106,11 +157,21 @@
 
 	{#if !canVote}
 		<p class="notice">
-			{#if username}
-				Connecting…
-			{:else}
+			{#if !username}
 				Governance voting requires a Hive witness account. Please <a href="/logout">logout</a> and sign
 				in with a Hive account to vote.
+			{:else if !auth.value?.aioha}
+				Governance voting needs your Hive Active key — connect with a Hive wallet (Keychain,
+				PeakVault, …) to vote.
+			{:else if witnessLoadError}
+				Couldn't verify your witness status — retrying. Voting stays disabled until the current
+				election loads.
+			{:else if witnessAccounts === null}
+				Verifying witness status…
+			{:else}
+				Only elected witnesses can vote on governance proposals. Your account (<code
+					>@{username}</code
+				>) isn't in the current consensus committee.
 			{/if}
 		</p>
 	{/if}

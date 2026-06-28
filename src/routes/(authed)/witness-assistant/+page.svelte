@@ -4,6 +4,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import StakeUnstakeTabsModal from './StakeUnstakeTabsModal.svelte';
 	import ContractUpdatesSection from '$lib/witness/contractUpdates/ContractUpdatesSection.svelte';
+	import GovernanceProposals from './GovernanceProposals.svelte';
 	let auth = $derived(getAuth()());
 </script>
 
@@ -20,6 +21,10 @@
 
 	{#if auth.value == undefined || auth.value.username != undefined}
 		<StakeUnstakeTabsModal />
+
+		<!-- Governance proposals — open reserve/slash votes. Visible to all,
+	     but the vote action requires a Hive account (it signs a custom_json). -->
+		<GovernanceProposals />
 	{:else}
 		<p class="error">
 			Consensus staking with an EVM wallet is unsupported. Please <a href="/logout">logout</a> and login

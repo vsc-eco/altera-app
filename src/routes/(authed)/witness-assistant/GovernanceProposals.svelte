@@ -16,7 +16,7 @@
 	import Card from '$lib/cards/Card.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
-	import { reserveVoteTx } from '$lib/magiTransactions/hive';
+	import { reserveVoteTx, slashRestoreVoteTx } from '$lib/magiTransactions/hive';
 	import { Landmark, Loader2, Check } from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
@@ -116,7 +116,13 @@
 	async function vote(p: Proposal) {
 		if (!username || !auth.value?.aioha) return;
 		voteState[p.proposalId] = { busy: true, status: 'Awaiting signature…', error: '' };
-		const res = await reserveVoteTx(username, p.proposalId, auth.value.aioha);
+		// Reserve payouts and slash restorations use DIFFERENT custom_json ops:
+		// reserve_vote is keyed by proposalId; slash_restore is keyed by the
+		// slash's tx id + slashed account (same op proposes and votes).
+		const res =
+			p.type === 'slash_restore'
+				? await slashRestoreVoteTx(username, p.slashTxId, p.slashedAccount, auth.value.aioha)
+				: await reserveVoteTx(username, p.proposalId, auth.value.aioha);
 		if (!res.success) {
 			voteState[p.proposalId] = { busy: false, status: '', error: res.error };
 			return;

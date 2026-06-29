@@ -289,6 +289,20 @@ export function calculateSwap(
 	const slipBps = BigInt(Math.max(0, Math.min(slippageBps, 10000)));
 	const minAmountOut = (expectedOutput * (10000n - slipBps)) / 10000n;
 
+	// `feeBps` drives the overcharge guard, and is computed from the STRUCTURAL
+	// (un-floored) fee — NOT `totalFee`. The `floor 1` minimums above are a fixed
+	// sub-unit cost (mirroring the on-chain minimum), not the percentage-scaling
+	// overcharge the guard exists to catch. On dust trades they dominate: a 1-unit
+	// protocol floor × the 2× stabilizer is 2 units, which on a ~20-unit gross
+	// output reads as ~10% and would wrongly BLOCK an economically negligible
+	// (~$0.0005) swap. The structural fee is ≈0 for dust (so the guard ignores it)
+	// while still rising with a genuine large-fee regression. `totalFee` /
+	// `expectedOutput` keep the floored values so the quote stays honest about
+	// what's actually charged.
+	const structuralFee =
+		((grossOut * 8n) / 10000n) * (STABILIZER_CAP_BPS / BPS_SCALE) +
+		(((x * x * Y) / (newX * newX)) * CLP_SCALE_BPS) / BPS_SCALE;
+
 	return {
 		baseFee: chargedProtocolFee,
 		clpFee: chargedClpFee,
@@ -296,7 +310,7 @@ export function calculateSwap(
 		expectedOutput,
 		minAmountOut,
 		slippageBps,
-		feeBps: feeBpsOf(totalFee, expectedOutput)
+		feeBps: feeBpsOf(structuralFee, grossOut - structuralFee)
 	};
 }
 

@@ -396,6 +396,27 @@ describe('swap fee guard', () => {
 		expect(swapFeeExceedsGuard(r.feeBps)).toBe(false);
 	});
 
+	it('dust trade does NOT trip the guard despite the floored fee looking high', () => {
+		// Repro of the reported false-positive: 0.001 HBD (x = 1) into a skewed pool
+		// (rate ≈ 20). The on-chain floor-1 minimum fee × the 2× stabilizer ≈ 2
+		// smallest units; as a fraction of the ~20-unit gross output that's ~10%, so
+		// the OLD floored feeBps wrongly tripped the 3% guard — even though the
+		// absolute fee is ~$0.0005. `feeBps` is now computed from the structural
+		// (un-floored) fee, which is ~0 for dust, so the guard lets it through while
+		// `totalFee` still honestly reflects the few units actually charged.
+		const r = calculateSwap(1n, 100_000n, 2_000_000n, 100);
+
+		// The naive floored ratio (what the guard used to see) DOES look abnormal…
+		const grossOut = r.expectedOutput + r.totalFee;
+		const flooredFeeBps = Number((r.totalFee * 10000n) / grossOut);
+		expect(r.totalFee).toBeGreaterThan(0n); // a real (tiny) fee is still charged
+		expect(flooredFeeBps).toBeGreaterThan(SWAP_FEE_GUARD_BPS);
+
+		// …but the structural feeBps that drives the guard does not trip.
+		expect(r.feeBps).toBeLessThan(SWAP_FEE_GUARD_BPS);
+		expect(swapFeeExceedsGuard(r.feeBps)).toBe(false);
+	});
+
 	it('a large swap that pre-fix exceeded the guard now stays under it (fee fix)', () => {
 		// 200,000 units ≈ 9% of reserve. Pre-2026-06-19 (CLP × 2× stabilizer) this
 		// modelled at ~4% and was wrongly blocked; post-fix (CLP × 1/16) it's well

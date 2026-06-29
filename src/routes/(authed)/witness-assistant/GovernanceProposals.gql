@@ -1,0 +1,22 @@
+query FindGovernanceProposals($filterOptions: GovernanceProposalFilter) {
+	findGovernanceProposals(filterOptions: $filterOptions) {
+		proposalId
+		type
+		status
+		creationBlock
+		beneficiary
+		amount
+		appliedBlock
+		appliedTxId
+		slashTxId
+		evidenceKind
+		slashedAccount
+		recipient
+		reason
+		votes {
+			voter
+			blockHeight
+			txId
+		}
+	}
+}

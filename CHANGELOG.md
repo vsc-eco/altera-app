@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.30] — 2026-06-29
+
+### Added
+
+- **Witness governance voting — production-ready.** The Witness Assistant's governance panel now lets elected witnesses vote on both kinds of on-chain proposals from the UI instead of hand-crafting custom_json: **reserve payouts** (`vsc.reserve_vote`, keyed by `proposalId`) and **slash restorations** (`vsc.slash_restore`, keyed by the slash tx id + slashed account — the same op proposes and votes). Voting is **gated to the elected witness committee** — the panel queries the current election and only enables the vote action for members, failing closed with a clear notice for non-witnesses, EVM logins, and Active-key-less sessions. Account matching is normalized (lowercase + `hive:`-strip) to mirror the node so the gate can't silently misfire; unknown proposal types are refused rather than mis-routed to the wrong op; and the proposal poll pauses while the tab is hidden. The Witness Assistant sections were reordered to lead with Stake/Unstake (the primary action), then contract updates, then governance. NOTE: safety slashing isn't active on any network yet, so this panel is dormant (no proposals) until it is.
+
 ## [0.3.29] — 2026-06-25
 
 ### Fixes

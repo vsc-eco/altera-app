@@ -12,7 +12,7 @@ import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp } from './vscOperations/bitcoin';
 import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
 import { getBtcApproveOp } from './vscOperations/swap';
-import { getReserveVoteOp } from './vscOperations/governance';
+import { getReserveVoteOp, getSlashRestoreVoteOp } from './vscOperations/governance';
 import type { PoolRow } from '$lib/pools/poolsData';
 
 export const consensusTx = async (
@@ -181,6 +181,22 @@ export const reserveVoteTx = async (
 			errorCode: 0
 		};
 	const op = getReserveVoteOp(voter, proposalId);
+	return executeTx(aioha, [op]);
+};
+
+export const slashRestoreVoteTx = async (
+	voter: string,
+	slashTxId: string,
+	slashedAccount: string,
+	aioha: Aioha
+): Promise<OperationResult> => {
+	if (!slashTxId || !slashedAccount)
+		return {
+			success: false,
+			error: 'Error: missing slash tx id or account.',
+			errorCode: 0
+		};
+	const op = getSlashRestoreVoteOp(voter, slashTxId, slashedAccount);
 	return executeTx(aioha, [op]);
 };
 

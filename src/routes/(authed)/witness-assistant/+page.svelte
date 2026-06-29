@@ -6,6 +6,9 @@
 	import ContractUpdatesSection from '$lib/witness/contractUpdates/ContractUpdatesSection.svelte';
 	import GovernanceProposals from './GovernanceProposals.svelte';
 	let auth = $derived(getAuth()());
+	// True for Hive logins (and the not-yet-signed-in state); false only for EVM
+	// wallets, which can't stake consensus or sign governance votes.
+	let canStake = $derived(auth.value == undefined || auth.value.username != undefined);
 </script>
 
 <document:head>
@@ -15,21 +18,25 @@
 <h1>Witness Assistant</h1>
 
 <div>
-	<!-- Contract updates — visible regardless of auth provider, since
-	     auditing pending changes doesn't require a Hive account. -->
-	<ContractUpdatesSection />
-
-	{#if auth.value == undefined || auth.value.username != undefined}
+	<!-- 1. Stake / Unstake — the primary witness action (and the prerequisite to
+	     voting), so it leads. EVM wallets can't stake → show the redirect notice. -->
+	{#if canStake}
 		<StakeUnstakeTabsModal />
-
-		<!-- Governance proposals — open reserve/slash votes. Visible to all,
-	     but the vote action requires a Hive account (it signs a custom_json). -->
-		<GovernanceProposals />
 	{:else}
 		<p class="error">
 			Consensus staking with an EVM wallet is unsupported. Please <a href="/logout">logout</a> and login
 			with a hive account instead.
 		</p>
+	{/if}
+
+	<!-- 2. Contract updates — auditing pending changes; visible regardless of auth
+	     provider, so it sits outside the Hive gate. -->
+	<ContractUpdatesSection />
+
+	<!-- 3. Governance proposals — open reserve/slash votes (Hive witnesses only).
+	     Last because it's dormant until safety slashing activates (usually empty). -->
+	{#if canStake}
+		<GovernanceProposals />
 	{/if}
 </div>
 

@@ -32,7 +32,8 @@
 	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { assetCard, type AssetObject } from '../components/info/SendSnippets.svelte';
+	import { type AssetObject } from '../components/info/SendSnippets.svelte';
+	import AssetInfo from '../components/info/AssetInfo.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
@@ -144,8 +145,8 @@
 	const fromAssetObjs: AssetObject[] = $derived(
 		swapOptions.from.map((opt) => ({
 			...opt.coin,
-			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
+			component: AssetInfo,
+			props: { coinOpt: opt, network: txState.to?.network, size: 'medium' }
 		}))
 	);
 

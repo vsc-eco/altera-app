@@ -11,10 +11,17 @@
 	import ContactInfo from './ContactInfo.svelte';
 	import { getDidFromUsername, getUsernameFromDid } from '$lib/getAccountName';
 	import moment from 'moment';
+	import { type Component } from 'svelte';
 
 	export interface AssetObject extends Coin {
-		snippetData: { fromOpt: CoinOptionParam | undefined; net?: Network };
-		snippet: typeof assetCardSnippet;
+		// Item content is supplied EITHER as a Component (preferred — `component`
+		// + `props`, rendered dynamically) OR the legacy `snippet` + `snippetData`
+		// pair. Both optional so call sites can use whichever; list components
+		// (AssetList/RadioGroup/…) render `component` first, then `snippet`.
+		component?: Component<any>;
+		props?: Record<string, any>;
+		snippetData?: { fromOpt: CoinOptionParam | undefined; net?: Network };
+		snippet?: typeof assetCardSnippet;
 		disabled?: boolean;
 		disabledMemo?: string;
 	}

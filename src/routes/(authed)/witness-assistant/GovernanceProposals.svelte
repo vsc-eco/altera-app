@@ -2,9 +2,11 @@
 	Governance Proposals panel — lists the currently OPEN witness-vote
 	governance proposals (reserve payouts + slash restorations) from the
 	`FindGovernanceProposals` Houdini query and lets a signed-in witness
-	approve each one with a single Active-key `vsc.reserve_vote` custom_json
-	(built in $lib/magiTransactions/hive — same signing path as every other
-	Hive op). Only Hive accounts can vote; EVM logins see a notice.
+	approve each one with a single Active-key custom_json — `vsc.reserve_vote`
+	for reserve payouts, `vsc.slash_restore` for restorations (built in
+	$lib/magiTransactions/hive, same signing path as every other Hive op). Only
+	elected witnesses can vote (gated against the current election); other Hive
+	accounts and EVM logins see a notice.
 -->
 <script lang="ts">
 	import {
@@ -27,6 +29,17 @@
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 
+	// Match accounts the way the node does (governance.NormalizeAccount): lowercase
+	// + strip any `hive:` prefix. Used for BOTH the witness gate and the "voted"
+	// check so neither silently fails if the API or wallet returns a different
+	// casing/prefix than the bare account name.
+	const normalizeAccount = (a: string) =>
+		a
+			.trim()
+			.toLowerCase()
+			.replace(/^hive:/, '');
+	const isKnownType = (t: string) => t === 'reserve_payout' || t === 'slash_restore';
+
 	// Elected witness set for the current consensus election. Only its members
 	// may cast a governance vote — the on-chain reserve_vote op rejects everyone
 	// else, so we gate the UI to match (and explain why). `null` = not yet
@@ -38,7 +51,7 @@
 			const res = await new CurrentElectionStore().fetch({ policy: 'NetworkOnly' });
 			if (res.errors?.length) throw new Error(res.errors[0].message);
 			const members = res.data?.electionByBlockHeight?.members ?? [];
-			witnessAccounts = new Set(members.map((m) => m.account));
+			witnessAccounts = new Set(members.map((m) => normalizeAccount(m.account)));
 			witnessLoadError = false;
 		} catch (e) {
 			witnessLoadError = true;
@@ -46,7 +59,7 @@
 		}
 	}
 
-	let isWitness = $derived(!!username && witnessAccounts?.has(username) === true);
+	let isWitness = $derived(!!username && witnessAccounts?.has(normalizeAccount(username)) === true);
 	// A reserve_vote is a Hive Active-key custom_json — needs a Hive account
 	// (Aioha provider, not EVM) AND membership in the elected witness set.
 	let canVote = $derived(!!username && !!auth.value?.aioha && isWitness);
@@ -110,11 +123,23 @@
 	});
 
 	function hasVoted(p: Proposal): boolean {
-		return !!username && p.votes.some((v) => v.voter === username);
+		if (!username) return false;
+		const me = normalizeAccount(username);
+		return p.votes.some((v) => normalizeAccount(v.voter) === me);
 	}
 
 	async function vote(p: Proposal) {
 		if (!username || !auth.value?.aioha) return;
+		// Defensive: only the two known types map to a vote op. A future/unknown
+		// type must NOT silently fall through to reserve_vote (wrong op).
+		if (!isKnownType(p.type)) {
+			voteState[p.proposalId] = {
+				busy: false,
+				status: '',
+				error: `Unsupported proposal type: ${p.type}`
+			};
+			return;
+		}
 		voteState[p.proposalId] = { busy: true, status: 'Awaiting signature…', error: '' };
 		// Reserve payouts and slash restorations use DIFFERENT custom_json ops:
 		// reserve_vote is keyed by proposalId; slash_restore is keyed by the
@@ -151,8 +176,8 @@
 				Governance proposals
 				<InfoTooltip>
 					Open witness-vote proposals — reserve disbursements and wrongful-slash restorations.
-					Voting signs a <code>vsc.reserve_vote</code> custom_json with your witness account's
-					Active key. <a href="https://docs.vsc.eco" target="_blank" rel="noopener">Learn more →</a>
+					Voting signs a custom_json with your witness account's Active key. Only elected witnesses
+					can vote. <a href="https://docs.vsc.eco" target="_blank" rel="noopener">Learn more →</a>
 				</InfoTooltip>
 			</h3>
 			<p class="lead">
@@ -225,7 +250,7 @@
 							<PillButton
 								styleType="invert"
 								theme="primary"
-								disabled={!canVote || ui.busy}
+								disabled={!canVote || ui.busy || !isKnownType(p.type)}
 								onclick={() => vote(p)}
 							>
 								{#if ui.busy}

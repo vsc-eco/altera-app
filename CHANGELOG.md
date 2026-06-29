@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.32] — 2026-06-29
+
+### Changed
+
+- **List components can render a Component per item, not just a snippet.** `RadioGroup` and `AssetList` now accept a `component` + `props` per item (rendered dynamically), alongside the existing `snippet` path — additive, so nothing else changes. Converts the two repetitive, trivial-wrapper cases: the deposit "I want to receive" asset chips (5 near-identical snippets → one `AssetChip`) and the QuickSend/Transfer "from" asset pickers (the `assetCard` snippet wrapper → `AssetInfo` directly). No user-facing behavior change. Snippets that encapsulate non-trivial mapping or vary per item (contacts, login-method labels, etc.) were intentionally left as snippets.
+
 ## [0.3.31] — 2026-06-29
 
 ### Fixes

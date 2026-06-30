@@ -15,6 +15,12 @@ export function getVscExplorerTxUrl(txId: string): string {
 	return `${base}/tx/${txId}`;
 }
 
+/** Hive L1 transaction on hivehub (e.g. governance vote/apply custom_json txs,
+ *  which are Hive txs, not VSC ones). Hive has a single mainnet — no testnet switch. */
+export function getHiveExplorerTxUrl(txId: string): string {
+	return `https://hivehub.dev/tx/${txId}`;
+}
+
 export function getMemPoolTxUrl(btcTxId: string): string {
 	const network = isVscTestnet() ? '/testnet' : '';
 	return `https://mempool.space${network}/tx/${btcTxId}`;

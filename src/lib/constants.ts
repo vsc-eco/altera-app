@@ -10,15 +10,29 @@ export const BTC_MAPPING_CONTRACT_ID = isVscTestnet()
 	? 'vsc1BkWohDf5fPcwn7V9B9ar6TyiWc3A2ZGJ4t'
 	: 'vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d';
 
+function vscExplorerBase(): string {
+	return isVscTestnet() ? 'https://magi-test.techcoderx.com' : 'https://vsc.techcoderx.com';
+}
+
 export function getVscExplorerTxUrl(txId: string): string {
-	const base = isVscTestnet() ? 'https://magi-test.techcoderx.com' : 'https://vsc.techcoderx.com';
-	return `${base}/tx/${txId}`;
+	return `${vscExplorerBase()}/tx/${txId}`;
+}
+
+/** VSC explorer home (shows the live block feed). Testnet-aware. */
+export function getVscExplorerUrl(): string {
+	return vscExplorerBase();
 }
 
 /** Hive L1 transaction on hivehub (e.g. governance vote/apply custom_json txs,
  *  which are Hive txs, not VSC ones). Hive has a single mainnet — no testnet switch. */
 export function getHiveExplorerTxUrl(txId: string): string {
 	return `https://hivehub.dev/tx/${txId}`;
+}
+
+/** A Hive account profile on hivehub (e.g. a validator/witness account). */
+export function getHiveAccountUrl(account: string): string {
+	const name = account.startsWith('hive:') ? account.slice(5) : account;
+	return `https://hivehub.dev/@${encodeURIComponent(name)}`;
 }
 
 export function getMemPoolTxUrl(btcTxId: string): string {

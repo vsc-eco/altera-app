@@ -5,6 +5,7 @@
 	import StakeUnstakeTabsModal from './StakeUnstakeTabsModal.svelte';
 	import ContractUpdatesSection from '$lib/witness/contractUpdates/ContractUpdatesSection.svelte';
 	import GovernanceProposals from './GovernanceProposals.svelte';
+	import CurrentValidators from './CurrentValidators.svelte';
 	let auth = $derived(getAuth()());
 	// True for Hive logins (and the not-yet-signed-in state); false only for EVM
 	// wallets, which can't stake consensus or sign governance votes.
@@ -18,6 +19,10 @@
 <h1>Witness Assistant</h1>
 
 <div>
+	<!-- 0. Current validators — a small live-ish box of the committee securing the
+	     network this epoch. Read-only, visible to everyone, so it leads the page. -->
+	<CurrentValidators />
+
 	<!-- 1. Stake / Unstake — the primary witness action (and the prerequisite to
 	     voting), so it leads. EVM wallets can't stake → show the redirect notice. -->
 	{#if canStake}

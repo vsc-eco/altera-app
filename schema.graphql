@@ -333,7 +333,7 @@ disburse from the keyless insurance reserve to a recipient). Kind-specific
 fields are populated according to `type`; the shared fields apply to both.
 """
 type GovernanceProposal {
-  """Amount in satoshis (restored bond / disbursed reserve value)."""
+  """Amount in base units (restored bond / disbursed reserve value)."""
   amount: Int64!
 
   """Block height at which the proposal was applied (0 if not yet applied)."""

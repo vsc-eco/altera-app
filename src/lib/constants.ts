@@ -35,6 +35,14 @@ export function getHiveAccountUrl(account: string): string {
 	return `https://hivehub.dev/@${encodeURIComponent(name)}`;
 }
 
+/** Direct Hive avatar CDN URL (no API call — serves a default if unset). Use for
+ *  lightweight inline avatars; the async getProfilePicUrl resolves nicer images
+ *  but costs a lookup per account. */
+export function getHiveAvatarUrl(account: string, size: 'small' | 'icon' = 'small'): string {
+	const name = account.startsWith('hive:') ? account.slice(5) : account;
+	return `https://images.hive.blog/u/${encodeURIComponent(name)}/avatar/${size}`;
+}
+
 export function getMemPoolTxUrl(btcTxId: string): string {
 	const network = isVscTestnet() ? '/testnet' : '';
 	return `https://mempool.space${network}/tx/${btcTxId}`;

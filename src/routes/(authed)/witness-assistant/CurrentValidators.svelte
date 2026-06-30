@@ -1,53 +1,105 @@
 <!--
-	Current validators — a compact box showing the elected committee securing the
-	network this epoch (`electionByBlockHeight.members`).
+	Block production — a live "who's producing now / up next" feed for the witness
+	committee, plus the full epoch committee tucked into an expandable.
 
-	NOTE: the per-block producer *schedule* is computed inside the node
-	(state-engine `GetSchedule`) and isn't exposed via GraphQL, so we can't show
-	"who is producing block N right now" from the frontend yet. This shows the
-	committee (per-epoch) instead — each validator links to their hivehub account,
-	with a link out to the VSC explorer for the live block feed. Refreshes every
-	30s (and on tab focus). Upgrade to true per-block once the node exposes a
-	current-producer query.
+	Real-time path (all first-party on vsc.eco):
+	  • `localNodeInfo.last_processed_block` → current head height
+	  • `witnessSchedule(height)` → [{ account, bn }] — the producer per slot
+	  current producer = the slot with the latest `bn` ≤ head; the rest are "up next".
+	  Polls only the cheap head every 10s (the schedule is cached — slots advance
+	  ~every 30s), pausing while the tab is hidden. Avatars are direct Hive CDN
+	  images (no API call) so they add no load.
+
+	The committee + epoch (`electionByBlockHeight`) is secondary info in the
+	expandable, fetched once on mount.
 -->
 <script lang="ts">
-	import { CurrentElectionStore } from '$houdini';
+	import { NodeHeadStore, WitnessScheduleStore, CurrentElectionStore } from '$houdini';
 	import Card from '$lib/cards/Card.svelte';
-	import { getHiveAccountUrl, getVscExplorerUrl } from '$lib/constants';
-	import { Users } from '@lucide/svelte';
+	import { getHiveAccountUrl, getHiveAvatarUrl, getVscExplorerUrl } from '$lib/constants';
+	import { Boxes, ChevronRight } from '@lucide/svelte';
+
+	type Slot = { account: string; bn: number };
+
+	let head = $state<number | null>(null);
+	let schedule = $state<Slot[]>([]);
+	let prodLoad = $state<'loading' | 'loaded' | 'error'>('loading');
+	let prodError = $state('');
 
 	let epoch = $state<number | null>(null);
-	let validators = $state<string[]>([]);
-	let load = $state<'loading' | 'loaded' | 'error'>('loading');
-	let loadError = $state('');
+	let committee = $state<string[]>([]);
+	let committeeOpen = $state(false);
 
-	async function fetchValidators() {
+	const currentProducer = $derived.by<Slot | null>(() => {
+		if (head == null || schedule.length === 0) return null;
+		const past = schedule.filter((s) => s.bn <= head!);
+		return past.length ? past[past.length - 1] : null;
+	});
+	const upcoming = $derived(head == null ? [] : schedule.filter((s) => s.bn > head!).slice(0, 5));
+
+	// The schedule covers ~120 slots forward (~an hour), so it's stable — fetch it
+	// only when we have none or we've advanced past its end, NOT every tick.
+	async function fetchSchedule(height: number) {
+		const s = await new WitnessScheduleStore().fetch({
+			variables: { height },
+			policy: 'NetworkOnly'
+		});
+		if (s.errors?.length) throw new Error(s.errors[0].message);
+		schedule = (s.data?.witnessSchedule ?? [])
+			.filter((x): x is { account: string; bn: number } => x.account != null)
+			.map((x) => ({ account: x.account, bn: x.bn }))
+			.sort((a, b) => a.bn - b.bn);
+	}
+
+	// One poll: refresh the (cheap) head; only (re)fetch the schedule when needed.
+	// `busy` guards against overlapping requests piling up if a query is slow.
+	let busy = false;
+	async function tick() {
+		if (busy) return;
+		busy = true;
+		try {
+			const h = await new NodeHeadStore().fetch({ policy: 'NetworkOnly' });
+			if (h.errors?.length) throw new Error(h.errors[0].message);
+			const bh = h.data?.localNodeInfo?.last_processed_block;
+			if (bh == null) throw new Error('no head height');
+			head = bh;
+			const maxBn = schedule.length ? schedule[schedule.length - 1].bn : 0;
+			if (schedule.length === 0 || bh >= maxBn) await fetchSchedule(bh);
+			prodLoad = 'loaded';
+		} catch (e) {
+			prodError = e instanceof Error ? e.message : String(e);
+			prodLoad = 'error';
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function fetchCommittee() {
 		try {
 			const res = await new CurrentElectionStore().fetch({ policy: 'NetworkOnly' });
-			if (res.errors?.length) throw new Error(res.errors[0].message);
 			const el = res.data?.electionByBlockHeight;
 			epoch = el?.epoch ?? null;
-			validators = (el?.members ?? []).map((m) => m.account);
-			load = 'loaded';
-		} catch (e) {
-			loadError = e instanceof Error ? e.message : String(e);
-			load = 'error';
+			committee = (el?.members ?? []).map((m) => m.account);
+		} catch {
+			/* committee is secondary info — ignore failures, the live feed still shows */
 		}
 	}
 
 	$effect(() => {
-		fetchValidators();
+		tick();
+		fetchCommittee();
 		let id: ReturnType<typeof setInterval> | undefined;
-		const start = () => (id ??= setInterval(fetchValidators, 30000));
+		// Head only — a slot changes ~every 30s, so 10s polling is plenty live and
+		// cheap (the heavy schedule query is cached, not re-fetched each tick).
+		const start = () => (id ??= setInterval(tick, 10000));
 		const stop = () => {
 			clearInterval(id);
 			id = undefined;
 		};
-		// Pause while the tab is hidden; refresh on return.
 		const onVisibility = () => {
 			if (document.hidden) stop();
 			else {
-				fetchValidators();
+				tick();
 				start();
 			}
 		};
@@ -62,27 +114,80 @@
 
 <Card>
 	<div class="head">
-		<h3>
-			<Users size={18} />
-			Current validators
-			{#if epoch !== null}<span class="epoch">epoch {epoch}</span>{/if}
-		</h3>
+		<h3><Boxes size={18} /> Block production</h3>
 		<a class="live-link" href={getVscExplorerUrl()} target="_blank" rel="noopener">Live blocks ↗</a>
 	</div>
 
-	{#if load === 'loading'}
-		<p class="empty">Loading validators…</p>
-	{:else if load === 'error'}
-		<p class="empty error">Couldn't load validators: {loadError}</p>
-	{:else if validators.length === 0}
-		<p class="empty">No active committee right now.</p>
-	{:else}
-		<div class="validators">
-			{#each validators as v (v)}
-				<a class="validator" href={getHiveAccountUrl(v)} target="_blank" rel="noopener">@{v}</a>
-			{/each}
+	{#if prodLoad === 'error'}
+		<p class="empty error">Couldn't load the schedule: {prodError}</p>
+	{:else if currentProducer}
+		<div class="now">
+			<span class="now-dot" title="live"></span>
+			<span class="now-label">Now producing</span>
+			<a
+				class="now-account"
+				href={getHiveAccountUrl(currentProducer.account)}
+				target="_blank"
+				rel="noopener"
+			>
+				<img
+					class="avatar avatar-lg"
+					src={getHiveAvatarUrl(currentProducer.account)}
+					alt=""
+					loading="lazy"
+				/>@{currentProducer.account}</a
+			>
+			<span class="now-bn">block {currentProducer.bn}</span>
 		</div>
-		<p class="count">{validators.length} witnesses securing the network this epoch.</p>
+		{#if upcoming.length}
+			<div class="upnext">
+				<span class="upnext-label">Up next</span>
+				<span class="upnext-chain">
+					{#each upcoming as s, i (s.bn)}
+						{#if i > 0}<span class="arrow">→</span>{/if}
+						<a
+							href={getHiveAccountUrl(s.account)}
+							target="_blank"
+							rel="noopener"
+							title="block {s.bn}"
+						>
+							<img
+								class="avatar"
+								src={getHiveAvatarUrl(s.account)}
+								alt=""
+								loading="lazy"
+							/>@{s.account}</a
+						>
+					{/each}
+				</span>
+			</div>
+		{/if}
+	{:else}
+		<p class="empty">Loading block schedule…</p>
+	{/if}
+
+	<button
+		class="committee-toggle"
+		class:open={committeeOpen}
+		onclick={() => (committeeOpen = !committeeOpen)}
+	>
+		<ChevronRight size={14} />
+		Validators this epoch{#if committee.length}&nbsp;({committee.length}){/if}{#if epoch !== null}&nbsp;·
+			epoch
+			{epoch}{/if}
+	</button>
+	{#if committeeOpen}
+		{#if committee.length}
+			<div class="validators">
+				{#each committee as v (v)}
+					<a class="validator" href={getHiveAccountUrl(v)} target="_blank" rel="noopener">
+						<img class="avatar" src={getHiveAvatarUrl(v)} alt="" loading="lazy" />@{v}</a
+					>
+				{/each}
+			</div>
+		{:else}
+			<p class="empty">Loading committee…</p>
+		{/if}
 	{/if}
 </Card>
 
@@ -102,16 +207,6 @@
 		font-size: 1.05rem;
 		font-family: 'Nunito Sans', sans-serif;
 	}
-	.epoch {
-		font-size: 0.7rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--dash-text-secondary);
-		background: rgba(255, 255, 255, 0.06);
-		padding: 0.12rem 0.45rem;
-		border-radius: 6px;
-	}
 	.live-link {
 		font-size: 0.8rem;
 		color: var(--dash-accent-purple, #b0acff);
@@ -122,12 +217,138 @@
 	.live-link:hover {
 		text-decoration: underline;
 	}
+
+	/* ── Now producing ── */
+	.now {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+	.now-dot {
+		width: 0.55rem;
+		height: 0.55rem;
+		border-radius: 50%;
+		background: var(--dash-accent-green, #8fdc9b);
+		box-shadow: 0 0 0 0 rgba(143, 220, 155, 0.6);
+		animation: pulse 1.8s ease-out infinite;
+		flex-shrink: 0;
+	}
+	@keyframes pulse {
+		0% {
+			box-shadow: 0 0 0 0 rgba(143, 220, 155, 0.5);
+		}
+		70% {
+			box-shadow: 0 0 0 6px rgba(143, 220, 155, 0);
+		}
+		100% {
+			box-shadow: 0 0 0 0 rgba(143, 220, 155, 0);
+		}
+	}
+	.now-label {
+		font-size: 0.72rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--dash-text-secondary);
+	}
+	.now-account {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 1.05rem;
+		font-weight: 600;
+		font-family: 'Noto Sans Mono', monospace;
+		color: var(--dash-text-primary);
+		text-decoration: none;
+	}
+	/* Lightweight inline avatars (direct Hive CDN — no API call). */
+	.avatar {
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		object-fit: cover;
+		flex-shrink: 0;
+		background: rgba(255, 255, 255, 0.08);
+	}
+	.avatar-lg {
+		width: 22px;
+		height: 22px;
+	}
+	.now-account:hover {
+		color: #b0acff;
+	}
+	.now-bn {
+		font-size: 0.72rem;
+		color: var(--dash-text-muted);
+	}
+	.upnext {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		margin-top: 0.55rem;
+		font-size: 0.82rem;
+	}
+	.upnext-label {
+		font-size: 0.72rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--dash-text-secondary);
+	}
+	.upnext-chain {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		flex-wrap: wrap;
+		font-family: 'Noto Sans Mono', monospace;
+		a {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.3rem;
+			color: var(--dash-text-primary);
+			text-decoration: none;
+		}
+		a:hover {
+			color: #b0acff;
+		}
+		.arrow {
+			color: var(--dash-text-muted);
+		}
+	}
+
+	/* ── Expandable committee ── */
+	.committee-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		margin-top: 1rem;
+		padding: 0.35rem 0;
+		background: none;
+		border: none;
+		color: var(--dash-text-secondary);
+		font: inherit;
+		font-size: 0.82rem;
+		cursor: pointer;
+		:global(svg) {
+			transition: transform 150ms ease;
+		}
+	}
+	.committee-toggle:hover {
+		color: var(--dash-text-primary);
+	}
+	.committee-toggle.open :global(svg) {
+		transform: rotate(90deg);
+	}
 	.validators {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.4rem;
+		margin-top: 0.4rem;
 	}
 	.validator {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
 		font-size: 0.8rem;
 		font-family: 'Noto Sans Mono', monospace;
 		color: var(--dash-text-primary);
@@ -140,11 +361,6 @@
 	.validator:hover {
 		border-color: var(--dash-accent-purple, #6f6af8);
 		color: #b0acff;
-	}
-	.count {
-		margin: 0.65rem 0 0;
-		font-size: 0.78rem;
-		color: var(--dash-text-secondary);
 	}
 	.empty {
 		margin: 0;

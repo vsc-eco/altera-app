@@ -1,0 +1,5 @@
+query NodeHead {
+	localNodeInfo {
+		last_processed_block
+	}
+}

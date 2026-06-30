@@ -1,0 +1,6 @@
+query WitnessSchedule($height: Uint64!) {
+	witnessSchedule(height: $height) {
+		account
+		bn
+	}
+}

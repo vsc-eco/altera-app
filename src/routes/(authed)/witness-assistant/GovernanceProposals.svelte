@@ -22,6 +22,7 @@
 	import { Landmark, Loader2, Check } from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
+	import { getHiveExplorerTxUrl } from '$lib/constants';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 
 	type Proposal = FindGovernanceProposals$result['findGovernanceProposals'][number];
@@ -90,6 +91,43 @@
 			});
 	}
 
+	// ── Past proposals (read-only history) ──
+	// Same query, no `byStatus` filter → returns ALL proposals newest-first; we
+	// keep the settled/expired ones and paginate via limit/offset (there's no
+	// height param — load in blocks, per milo). Visible to everyone, no voting.
+	const HISTORY_PAGE = 10;
+	let pastProposals = $state<Proposal[]>([]);
+	let historyOffset = $state(0);
+	let historyLoad = $state<'loading' | 'loaded' | 'error'>('loading');
+	let historyError = $state('');
+	let historyHasMore = $state(false);
+	let historyLoading = $state(false);
+
+	async function fetchHistory(reset = false) {
+		if (historyLoading) return;
+		historyLoading = true;
+		const offset = reset ? 0 : historyOffset;
+		try {
+			const res = await new FindGovernanceProposalsStore().fetch({
+				variables: { filterOptions: { limit: HISTORY_PAGE, offset } },
+				policy: 'NetworkOnly'
+			});
+			if (res.errors?.length) throw new Error(res.errors[0].message);
+			const page = res.data?.findGovernanceProposals ?? [];
+			// Open proposals live in the votable section above — keep only closed.
+			const closed = page.filter((p) => p.status !== 'open');
+			pastProposals = reset ? closed : [...pastProposals, ...closed];
+			historyOffset = offset + page.length;
+			historyHasMore = page.length === HISTORY_PAGE; // full page → maybe more
+			historyLoad = 'loaded';
+		} catch (e) {
+			historyError = e instanceof Error ? e.message : String(e);
+			historyLoad = 'error';
+		} finally {
+			historyLoading = false;
+		}
+	}
+
 	// One poll tick: refresh proposals, and keep retrying the election fetch
 	// until the committee loads (so a transient failure self-heals).
 	function tick() {
@@ -99,6 +137,7 @@
 
 	$effect(() => {
 		tick();
+		fetchHistory(true); // history is fetched once (not polled); paginated on demand
 		let intervalId: ReturnType<typeof setInterval> | undefined;
 		const start = () => (intervalId ??= setInterval(tick, 2000));
 		const stop = () => {
@@ -153,8 +192,10 @@
 			return;
 		}
 		voteState[p.proposalId] = { busy: false, status: 'Vote broadcasted!', error: '' };
-		// Refetch so the new vote (and any resulting status change) is reflected.
+		// Refetch so the new vote (and any resulting status change) is reflected —
+		// including history, since this vote may have just settled the proposal.
 		fetchProposals();
+		fetchHistory(true);
 	}
 
 	function shortId(id: string): string {
@@ -265,6 +306,68 @@
 			{/each}
 		</ul>
 	{/if}
+
+	<!-- Past proposals — read-only history (settled / expired), visible to all,
+	     paginated on demand. No vote action. -->
+	<div class="history">
+		<h4 class="history-title">Past proposals</h4>
+		{#if historyLoad === 'loading' && pastProposals.length === 0}
+			<p class="empty loading"><WaveLoading />Loading history…</p>
+		{:else if historyLoad === 'error' && pastProposals.length === 0}
+			<p class="empty error">Couldn't load past proposals: {historyError}</p>
+		{:else if pastProposals.length === 0}
+			<p class="empty">No past proposals yet.</p>
+		{:else}
+			<ul class="list">
+				{#each pastProposals as p (p.proposalId)}
+					<li class="row">
+						<div class="row-main">
+							<div class="row-head">
+								<span class="kind kind-{p.type}">{typeLabel(p.type)}</span>
+								<strong class="amount"
+									>{new CoinAmount(p.amount, Coin.hive, true).toPrettyString()}</strong
+								>
+								<span class="outcome outcome-{p.status}"
+									>{p.status === 'applied' ? 'Approved' : 'Expired'}</span
+								>
+							</div>
+							<div class="row-meta">
+								{#if p.type === 'reserve_payout'}
+									<span>to <code>@{p.recipient}</code></span>
+								{:else if p.type === 'slash_restore'}
+									<span>restore <code>@{p.slashedAccount}</code></span>
+								{/if}
+								<span class="dot">·</span>
+								<span>{p.votes.length} vote{p.votes.length === 1 ? '' : 's'}</span>
+								{#if p.appliedBlock}<span class="dot">·</span><span>block {p.appliedBlock}</span
+									>{/if}
+								{#if p.appliedTxId}
+									<span class="dot">·</span>
+									<a
+										class="explorer-link"
+										href={getHiveExplorerTxUrl(p.appliedTxId)}
+										target="_blank"
+										rel="noopener">view tx ↗</a
+									>
+								{/if}
+							</div>
+						</div>
+					</li>
+				{/each}
+			</ul>
+			{#if historyHasMore}
+				<div class="more-button">
+					<PillButton
+						styleType="text-subtle"
+						disabled={historyLoading}
+						onclick={() => fetchHistory()}
+					>
+						<span class="sm-caption">{historyLoading ? 'Loading…' : 'Load more'}</span>
+					</PillButton>
+				</div>
+			{/if}
+		{/if}
+	</div>
 </Card>
 
 <style lang="scss">
@@ -347,6 +450,44 @@
 	.kind.kind-slash_restore {
 		background: rgba(230, 150, 60, 0.22);
 		color: #ffc48a;
+	}
+	/* ── Past proposals (history) ── */
+	.history {
+		margin-top: 1.5rem;
+		padding-top: 1.25rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+	}
+	.history-title {
+		margin: 0 0 0.75rem;
+		font-size: 0.95rem;
+		font-weight: 600;
+		font-family: 'Nunito Sans', sans-serif;
+		color: var(--dash-text-primary);
+	}
+	.outcome {
+		font-size: 0.66rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		padding: 0.18rem 0.5rem;
+		border-radius: 4px;
+		margin-left: auto;
+	}
+	.outcome-applied {
+		background: rgba(143, 220, 155, 0.18);
+		color: #8fdc9b;
+	}
+	.outcome-expired {
+		background: rgba(255, 255, 255, 0.08);
+		color: var(--dash-text-muted);
+	}
+	.explorer-link {
+		color: var(--dash-accent-purple, #b0acff);
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.explorer-link:hover {
+		text-decoration: underline;
 	}
 	.row-meta {
 		display: flex;

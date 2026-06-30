@@ -121,9 +121,11 @@
 	{#if prodLoad === 'error'}
 		<p class="empty error">Couldn't load the schedule: {prodError}</p>
 	{:else if currentProducer}
-		<div class="now">
-			<span class="now-dot" title="live"></span>
-			<span class="now-label">Now producing</span>
+		<div class="now-panel">
+			<div class="now-head">
+				<span class="now-dot" title="live"></span>
+				<span class="now-label">Now producing</span>
+			</div>
 			<a
 				class="now-account"
 				href={getHiveAccountUrl(currentProducer.account)}
@@ -131,13 +133,16 @@
 				rel="noopener"
 			>
 				<img
-					class="avatar avatar-lg"
+					class="avatar avatar-hero"
 					src={getHiveAvatarUrl(currentProducer.account)}
 					alt=""
 					loading="lazy"
-				/>@{currentProducer.account}</a
-			>
-			<span class="now-bn">block {currentProducer.bn}</span>
+				/>
+				<span class="now-id">
+					<span class="now-name">@{currentProducer.account}</span>
+					<span class="now-bn">block {currentProducer.bn.toLocaleString()}</span>
+				</span>
+			</a>
 		</div>
 		{#if upcoming.length}
 			<div class="upnext">
@@ -149,7 +154,7 @@
 							href={getHiveAccountUrl(s.account)}
 							target="_blank"
 							rel="noopener"
-							title="block {s.bn}"
+							title="block {s.bn.toLocaleString()}"
 						>
 							<img
 								class="avatar"
@@ -163,7 +168,16 @@
 			</div>
 		{/if}
 	{:else}
-		<p class="empty">Loading block schedule…</p>
+		<div class="now-panel skeleton-panel" aria-hidden="true">
+			<div class="now-head">
+				<span class="now-dot"></span>
+				<span class="skeleton skeleton-label"></span>
+			</div>
+			<div class="now-account">
+				<span class="skeleton skeleton-avatar"></span>
+				<span class="skeleton skeleton-name"></span>
+			</div>
+		</div>
 	{/if}
 
 	<button
@@ -218,12 +232,21 @@
 		text-decoration: underline;
 	}
 
-	/* ── Now producing ── */
-	.now {
+	/* ── Now producing (live hero) ── */
+	.now-panel {
+		display: flex;
+		flex-direction: column;
+		gap: 0.55rem;
+		padding: 0.7rem 0.85rem;
+		border-radius: 12px;
+		background: rgba(143, 220, 155, 0.06);
+		border: 1px solid rgba(143, 220, 155, 0.18);
+		border-left: 3px solid var(--dash-accent-green, #8fdc9b);
+	}
+	.now-head {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
-		flex-wrap: wrap;
+		gap: 0.5rem;
 	}
 	.now-dot {
 		width: 0.55rem;
@@ -254,12 +277,29 @@
 	.now-account {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4rem;
-		font-size: 1.05rem;
-		font-weight: 600;
+		gap: 0.65rem;
+		width: fit-content;
+		text-decoration: none;
+	}
+	.now-id {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.2;
+		gap: 0.1rem;
+	}
+	.now-name {
+		font-size: 1.15rem;
+		font-weight: 700;
 		font-family: 'Noto Sans Mono', monospace;
 		color: var(--dash-text-primary);
-		text-decoration: none;
+	}
+	.now-account:hover .now-name {
+		color: #b0acff;
+	}
+	.now-bn {
+		font-size: 0.72rem;
+		color: var(--dash-text-muted);
+		font-family: 'Noto Sans Mono', monospace;
 	}
 	/* Lightweight inline avatars (direct Hive CDN — no API call). */
 	.avatar {
@@ -270,16 +310,54 @@
 		flex-shrink: 0;
 		background: rgba(255, 255, 255, 0.08);
 	}
-	.avatar-lg {
-		width: 22px;
-		height: 22px;
+	.avatar-hero {
+		width: 38px;
+		height: 38px;
 	}
-	.now-account:hover {
-		color: #b0acff;
+	/* Loading skeleton (mirrors the hero so the layout doesn't jump) */
+	.skeleton-panel {
+		background: rgba(255, 255, 255, 0.02);
+		border-color: rgba(255, 255, 255, 0.06);
+		border-left-color: rgba(255, 255, 255, 0.12);
 	}
-	.now-bn {
-		font-size: 0.72rem;
-		color: var(--dash-text-muted);
+	.skeleton {
+		display: inline-block;
+		border-radius: 6px;
+		background: linear-gradient(
+			90deg,
+			rgba(255, 255, 255, 0.04),
+			rgba(255, 255, 255, 0.1),
+			rgba(255, 255, 255, 0.04)
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.4s ease-in-out infinite;
+	}
+	@keyframes shimmer {
+		0% {
+			background-position: 200% 0;
+		}
+		100% {
+			background-position: -200% 0;
+		}
+	}
+	.skeleton-label {
+		width: 96px;
+		height: 0.7rem;
+	}
+	.skeleton-avatar {
+		width: 38px;
+		height: 38px;
+		border-radius: 50%;
+	}
+	.skeleton-name {
+		width: 150px;
+		height: 1.15rem;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.now-dot,
+		.skeleton {
+			animation: none;
+		}
 	}
 	.upnext {
 		display: flex;

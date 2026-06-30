@@ -8,6 +8,13 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.33] — 2026-06-30
+
+### Added
+
+- **Witness Assistant — live block-production feed.** A new "Block production" card leads the page and shows, in real time, **who is producing blocks now and who's up next**, with validator avatars for quick identification. It's built entirely first-party on `api.vsc.eco`: the current head (`localNodeInfo.last_processed_block`) is polled every 10s and matched against the per-slot producer schedule (`witnessSchedule(height)`), so the "Now producing @account · block N" hero advances as blocks are signed. The full elected committee for the current epoch (`electionByBlockHeight`) sits in an expandable below it. Performance was a design constraint so the page can sit open all day: only the tiny head field is polled (the ~120-slot schedule is cached and re-fetched only when exhausted, ~hourly), an in-flight guard prevents request pile-up, polling pauses while the tab is hidden, and avatars are direct Hive-CDN images (no API calls). Read-only and visible to everyone. (Required a schema re-pull to pick up the `witnessSchedule` / `localNodeInfo` types.)
+- **Witness Assistant — governance proposal history.** The governance panel now has a read-only "Past proposals" section listing settled reserve-payout and slash-restoration proposals (paginated "Load more"), each showing type / amount / recipient, an Approved or Expired outcome badge, the vote count, the applied block, and a "view tx ↗" link to hivehub (proposals settle as Hive txs). Complements the existing open-proposal voting; visible to Hive witnesses.
+
 ## [0.3.32] — 2026-06-29
 
 ### Changed

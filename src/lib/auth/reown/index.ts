@@ -16,8 +16,7 @@ import { getAddress } from 'viem';
 // 1. Get a project ID at https://cloud.reown.com
 // APP-16: read from PUBLIC_REOWN_PROJECT_ID when set; fall back to the
 // previous literal so the app still works without the env var configured.
-export const projectId =
-	publicEnv.PUBLIC_REOWN_PROJECT_ID || '55a54e098e74ddb214919fe0da4ac384';
+export const projectId = publicEnv.PUBLIC_REOWN_PROJECT_ID || '55a54e098e74ddb214919fe0da4ac384';
 
 // Mainnet-first for BTC so Xverse (which defaults to Mainnet) doesn't
 // get handed a testnet network it isn't configured for when the
@@ -84,9 +83,7 @@ export function initModal() {
 						provider: 'reown',
 						did: value.caipAddress?.startsWith('bip122:')
 							? `did:pkh:bip122:${
-									isBtcTestnetAddress(value.address!)
-										? BTC_TESTNET_CAIP
-										: BTC_MAINNET_CAIP
+									isBtcTestnetAddress(value.address!) ? BTC_TESTNET_CAIP : BTC_MAINNET_CAIP
 								}:${value.address!}`
 							: `did:pkh:eip155:1:${getAddress(value.address!)}`,
 						openSettings: () => modal!.open()
@@ -95,7 +92,7 @@ export function initModal() {
 				if (get(loginRetry) !== 'logout') {
 					loginRetry.set('retry');
 				}
-			} else if (value.status == 'connecting') {
+			} else if (value.status == 'connecting' || value.status == 'reconnecting') {
 				_reownAuthStore.set({
 					status: 'pending'
 				});
@@ -104,7 +101,9 @@ export function initModal() {
 					status: 'none'
 				});
 			}
-		} catch {}
+		} catch {
+			/* transient AppKit account-callback errors are non-fatal */
+		}
 	});
 }
 

@@ -11,6 +11,7 @@ import { isBtcTestnetAddress } from '$lib/stores/currentBalance';
 import { BTC_MAINNET_CAIP, BTC_TESTNET_CAIP } from '../btcCaip';
 
 import { env as publicEnv } from '$env/dynamic/public';
+import { getAddress } from 'viem';
 
 // 1. Get a project ID at https://cloud.reown.com
 // APP-16: read from PUBLIC_REOWN_PROJECT_ID when set; fall back to the
@@ -87,7 +88,7 @@ export function initModal() {
 										? BTC_TESTNET_CAIP
 										: BTC_MAINNET_CAIP
 								}:${value.address!}`
-							: `did:pkh:eip155:1:${value.address!.toLowerCase()}`,
+							: `did:pkh:eip155:1:${getAddress(value.address!)}`,
 						openSettings: () => modal!.open()
 					}
 				});

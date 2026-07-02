@@ -1,6 +1,7 @@
 import type { Auth } from './auth/store';
 import { validate, Network as BtcNetwork } from 'bitcoin-address-validation';
 import { BTC_MAINNET_CAIP, BTC_TESTNET_CAIP } from './auth/btcCaip';
+import { getAddress } from 'viem';
 
 export const getAccountNameFromAuth = (auth: Auth) => {
 	if (auth.value == undefined) {
@@ -54,7 +55,13 @@ export const getDidFromUsername = (username: string) => {
 		return `hive:${username}`;
 	}
 	if (username.startsWith('0x')) {
-		return `did:pkh:eip155:1:${username.toLowerCase()}`;
+		// The VSC indexer stores EVM addresses in EIP-55 checksummed form and
+		// matches DIDs exactly, so normalize whatever casing the caller gives us.
+		try {
+			return `did:pkh:eip155:1:${getAddress(username)}`;
+		} catch {
+			return `did:pkh:eip155:1:${username}`;
+		}
 	}
 	// Strip chain hash prefix if present (e.g. "000...e93:bc1q...")
 	const rawAddr = username.includes(':') ? username.split(':').at(-1)! : username;

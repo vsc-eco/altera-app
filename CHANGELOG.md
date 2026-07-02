@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.34] — 2026-07-02
+
+### Fixes
+
+- **Refreshing an authed page no longer logs out wallet (BTC/EVM) users.** On a hard reload the in-memory reown (WalletConnect/AppKit) session is gone and `initModal()` is only created on demand, so the `(authed)` route guard saw reown `none` and redirected to `/login` before AppKit could reconnect — bouncing anyone signed in with a Bitcoin or EVM wallet to login on every refresh. AppKit _can_ silently reconnect a cached session (confirmed from a live state-machine trace: `initModal()` → `subscribeAccount` fires `connecting → connected`, no wallet prompt), but it's async, and the guard resolved on the initial `none`. The guard now detects a prior reown session (`last_connection === 'reown'` and reown currently `none`), marks auth `pending`, and starts the reconnect _before_ the auth check — so it waits for the reconnect to settle (`authenticated`, or a real `none`) instead of bouncing, with a 10s timeout so it can't hang. Also: removed the localhost auth-guard bypass (a dev shortcut that had hidden this bug by skipping the guard entirely on `localhost`), treated AppKit's `reconnecting` status as `pending`, and extracted the auth-wait logic into a testable `waitForAuth` helper — fixing a subscription leak in it (a synchronous first emission called `unsubscribe()` on the no-op placeholder, leaking the real `authStore` subscription) with regression tests proven to fail without the fix.
+
 ## [0.3.33] — 2026-06-30
 
 ### Added

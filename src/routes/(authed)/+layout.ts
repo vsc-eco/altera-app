@@ -4,38 +4,11 @@ import { authStore, type Auth, _reownAuthStore } from '$lib/auth/store';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 import { initModal } from '$lib/auth/reown';
+import { waitForAuth } from '$lib/auth/waitForAuth';
 import '$lib/auth/hive';
 
 export const ssr = false;
 export const prerender = false;
-
-// Wait for auth to settle: resolve on the first 'authenticated' (→ the value)
-// or 'none' (→ false). 'pending' keeps waiting — that's what lets the guard sit
-// through an in-flight reown reconnect instead of bouncing on the initial none.
-// The timeout guards against a reconnect that never settles so we can't hang.
-function isAuthenticated(timeoutMs = 10000): Promise<Auth | false> {
-	return new Promise<Auth | false>((resolve) => {
-		let unsubscribe: () => void = () => {};
-		let settled = false;
-		const finish = (v: Auth | false) => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timer);
-			resolve(v);
-			unsubscribe();
-		};
-		const timer = setTimeout(() => finish(false), timeoutMs);
-		const handle = (v: Auth) => {
-			if (v.status === 'authenticated' || !browser) {
-				finish(v);
-			} else if (v.status === 'none') {
-				finish(false);
-			}
-			// 'pending' → keep waiting
-		};
-		unsubscribe = authStore.subscribe(handle);
-	});
-}
 
 export const load: LayoutLoad = async ({ url }) => {
 	if (!browser) {
@@ -62,7 +35,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		initModal();
 	}
 
-	const authed = await isAuthenticated();
+	const authed = await waitForAuth(authStore);
 	if (!authed && url.pathname !== '/login') {
 		localStorage.setItem('redirect_url', url.toString());
 		throw redirect(307, '/login');

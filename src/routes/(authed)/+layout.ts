@@ -2,6 +2,7 @@ import { browser } from '$app/environment';
 import { get } from 'svelte/store';
 import { authStore, type Auth, _reownAuthStore } from '$lib/auth/store';
 import { redirect } from '@sveltejs/kit';
+import type { LayoutLoad } from './$types';
 import { initModal } from '$lib/auth/reown';
 import '$lib/auth/hive';
 
@@ -36,15 +37,9 @@ function isAuthenticated(timeoutMs = 10000): Promise<Auth | false> {
 	});
 }
 
-export async function load({ url }) {
+export const load: LayoutLoad = async ({ url }) => {
 	if (!browser) {
 		return { auth: { status: 'pending' } as Auth };
-	}
-	// Skip auth check on localhost for development
-	const isLocalhost =
-		window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-	if (isLocalhost) {
-		return { auth: { status: 'none' } as Auth };
 	}
 
 	// A hard reload wipes the in-memory reown (BTC/EVM) session, and initModal()
@@ -68,9 +63,9 @@ export async function load({ url }) {
 	}
 
 	const authed = await isAuthenticated();
-	if (!authed && url.pathname != '/login') {
+	if (!authed && url.pathname !== '/login') {
 		localStorage.setItem('redirect_url', url.toString());
-		redirect(307, '/login');
+		throw redirect(307, '/login');
 	}
 	return { auth: authed };
-}
+};

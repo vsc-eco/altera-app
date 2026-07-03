@@ -2,6 +2,7 @@ import type { TimeRange, PendulumStat } from '$lib/indexer/poolQueries';
 import { fetchPendulumStats } from '$lib/indexer/poolQueries';
 import type { PoolRow } from './poolsData';
 import { fetchPools } from './poolsData';
+import { classifyZone, splitFromSBps, type CollateralZone } from './pendulum';
 
 /**
  * Protocol consensus constants (NOT indexer data — baked into the fee model):
@@ -36,6 +37,14 @@ export type SystemHealth = {
 	/** Realized fee split, system-wide, from node_fees vs lp_fees (USD). */
 	nodeSharePct: number | null;
 	lpSharePct: number | null;
+	/** MODEL split from the live `s` via the ported pendulum math (node = 3s/(2s+3)).
+	 *  This is the *current* split the contract would apply — vs the realized
+	 *  (historical) split above. null when `s` is unavailable. */
+	modelNodeSharePct: number | null;
+	modelLpSharePct: number | null;
+	/** Collateral zone from the ported band edges (ideal/safe/warn/extreme/…) —
+	 *  the real thresholds, replacing the placeholder [0.9, 1.2] band. */
+	zone: CollateralZone | null;
 	/** Total liquidity V (USD) = 2 × HBD-side reserves. */
 	vUsd: number;
 	/** Node collateral T (USD) = 1.5 × V / s — the node-APR denominator. */
@@ -88,6 +97,14 @@ export function computeSystemHealth(
 	const sVals = pendulum.map((p) => p.sBps / 10000).filter((s) => s > 0);
 	const s = sVals.length ? sVals.reduce((a, b) => a + b, 0) / sVals.length : null;
 
+	// The live s (bps) drives both the collateral zone and the model fee split,
+	// via the ported pendulum math — no R/T/V/P from the node needed.
+	const sBpsAvg = s != null ? BigInt(Math.round(s * 10000)) : null;
+	const zone = sBpsAvg != null ? classifyZone(sBpsAvg) : null;
+	const modelSplit = sBpsAvg != null ? splitFromSBps(sBpsAvg) : null;
+	const modelNodeSharePct = modelSplit ? Number(modelSplit.nodeShareBps) / 100 : null;
+	const modelLpSharePct = modelSplit ? Number(modelSplit.lpShareBps) / 100 : null;
+
 	const nodeRev = rows.reduce((a, r) => a + r.feeNodeUsdNum, 0);
 	const lpRev = rows.reduce((a, r) => a + r.feeLpUsdNum, 0);
 	const splitTotal = nodeRev + lpRev;
@@ -121,6 +138,9 @@ export function computeSystemHealth(
 		tilt,
 		nodeSharePct,
 		lpSharePct,
+		modelNodeSharePct,
+		modelLpSharePct,
+		zone,
 		vUsd,
 		collateralUsd,
 		nodeAprPct,

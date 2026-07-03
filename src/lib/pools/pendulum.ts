@@ -194,6 +194,30 @@ export function calculateSplitPreviewFixed(
 	};
 }
 
+/**
+ * Node/LP split as a closed form of `s` alone — no R/T/V/P needed. Under the
+ * deployed geometry (V = 2P, E = ⅔T, c = 3), `SplitInt`'s pool fraction reduces
+ * exactly to:
+ *
+ *   LP share   = (3 − s) / (2s + 3)      node share = 3s / (2s + 3)      (s < c)
+ *   LP share   = 0                        node share = 1                  (s ≥ c)
+ *
+ * This lets us render the live split straight from the indexer's published
+ * `s` (`dex_pool_pendulum_stats.last_s_bps`) without the raw aggregates. It is
+ * equivalent to `SplitInt` under that geometry (proven in the test); it only
+ * diverges if the vault deviates from V=2P / E=⅔T (e.g. active bond reductions),
+ * for which the exact path is `calculateSplitPreviewFixed` with real R/T/V/P.
+ */
+export function splitFromSBps(sBps: bigint): { nodeShareBps: bigint; lpShareBps: bigint } {
+	if (sBps <= 0n || sBps >= CLIFF_S_BPS) {
+		return { nodeShareBps: BPS_SCALE, lpShareBps: 0n }; // pinned 100% to nodes
+	}
+	// s = sBps/B, c = 3 → 3B in bps. node = 3s/(2s+3) → 3·sBps·B / (2·sBps + 3B).
+	const denom = 2n * sBps + 3n * BPS_SCALE;
+	const nodeShareBps = (3n * sBps * BPS_SCALE) / denom;
+	return { nodeShareBps, lpShareBps: BPS_SCALE - nodeShareBps };
+}
+
 // ── Collateral zone (V/E) ─────────────────────────────────────────────────────
 
 /** floor integer square root of a non-negative BigInt (Newton's method). */

@@ -7,9 +7,25 @@
 	let open = $state(false);
 	let amount = $state(1000);
 
-	let nodeShare = $derived(health.nodeSharePct);
-	let lpShare = $derived(health.lpSharePct);
+	// Prefer the live MODEL split (from the current s via the ported pendulum
+	// math) over the realized 7-day average — it's the split the contract applies
+	// right now. Fall back to the realized split when s is unavailable.
+	let nodeShare = $derived(health.modelNodeSharePct ?? health.nodeSharePct);
+	let lpShare = $derived(health.modelLpSharePct ?? health.lpSharePct);
 	let nodeApr = $derived(health.nodeAprPct);
+
+	// Real collateral zone from the ported pendulum band edges.
+	let zone = $derived(health.zone);
+	const zoneLabel: Record<string, string> = {
+		ideal: 'Ideal',
+		safe: 'Safe',
+		warn: 'Warning',
+		extreme: 'Extreme',
+		critical: 'Critical',
+		'under-secured': 'Under-secured'
+	};
+	const zoneTone = (z: string): 'good' | 'warn' | 'bad' =>
+		z === 'ideal' || z === 'safe' ? 'good' : z === 'warn' ? 'warn' : 'bad';
 
 	// Representative LP yield for the panel: average across pools (they're close).
 	let lpAprs = $derived(health.pools.map((p) => p.lpAprPct).filter((x): x is number => x != null));
@@ -33,6 +49,11 @@
 	<button class="head" aria-expanded={open} onclick={() => (open = !open)}>
 		<Lightbulb size={18} class="bulb" />
 		<span class="title">Where should I put my money?</span>
+		{#if zone}
+			<span class="zone-chip tone-{zoneTone(zone)}" title="Collateral zone (V/E)"
+				>{zoneLabel[zone] ?? zone}</span
+			>
+		{/if}
 		<span class="head-sub">current · last 7 days</span>
 		<ChevronDown size={18} class="chev {open ? 'up' : ''}" />
 	</button>
@@ -158,6 +179,26 @@
 		font-size: 0.72rem;
 		color: var(--dash-text-muted);
 		margin-left: 0.5rem;
+	}
+	.zone-chip {
+		font-size: 0.68rem;
+		font-weight: 600;
+		padding: 0.12rem 0.5rem;
+		border-radius: 999px;
+		letter-spacing: 0.02em;
+		margin-left: 0.5rem;
+	}
+	.zone-chip.tone-good {
+		background: rgba(143, 220, 155, 0.18);
+		color: var(--dash-accent-green);
+	}
+	.zone-chip.tone-warn {
+		background: rgba(230, 180, 60, 0.18);
+		color: #e6b43c;
+	}
+	.zone-chip.tone-bad {
+		background: rgba(255, 90, 90, 0.16);
+		color: #ff6b6b;
 	}
 	.head :global(.chev) {
 		margin-left: auto;

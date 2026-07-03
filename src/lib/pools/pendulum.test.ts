@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	splitInt,
 	calculateSplitPreviewFixed,
+	splitFromSBps,
 	cliffTimesE,
 	mulDivFloor,
 	CLIFF_S_BPS,
@@ -128,5 +129,46 @@ describe('collateral zone', () => {
 		expect(e.idealHi < e.safeHi).toBe(true);
 		expect(e.safeHi < e.warnHi).toBe(true);
 		expect(e.warnHi < e.extremeHi).toBe(true);
+	});
+});
+
+describe('splitFromSBps — closed form of s (drives the live UI split)', () => {
+	it('equilibrium s=1.0 → 60/40 node/LP', () => {
+		expect(splitFromSBps(10000n)).toEqual({ nodeShareBps: 6000n, lpShareBps: 4000n });
+	});
+
+	it('s=0.5 (liquidity-starved) tilts to LPs → 37.5/62.5', () => {
+		expect(splitFromSBps(5000n)).toEqual({ nodeShareBps: 3750n, lpShareBps: 6250n });
+	});
+
+	it('at/above the cliff s=3.0 → 100% nodes', () => {
+		expect(splitFromSBps(CLIFF_S_BPS)).toEqual({ nodeShareBps: 10000n, lpShareBps: 0n });
+		expect(splitFromSBps(40000n)).toEqual({ nodeShareBps: 10000n, lpShareBps: 0n });
+	});
+
+	// The whole point: the closed form must equal SplitInt under the deployed
+	// geometry (V = 2P, E = ⅔T i.e. T = 3E/2, c = 3). Construct exact vectors and
+	// compare the LP fraction (in bps) both ways.
+	it('matches SplitInt exactly under the V=2P, E=⅔T geometry', () => {
+		const R = 1_000_000n;
+		for (const [E, expectedS] of [
+			[1000n, 10000n], // s = V/E = 1.0  (V = 1000)
+			[2000n, 5000n], // s = 0.5        (V = 1000)
+			[800n, 12500n], // s = 1.25       (V = 1000)
+			[500n, 20000n] // s = 2.0         (V = 1000)
+		] as const) {
+			const V = 1000n;
+			const P = V / 2n; // V = 2P
+			const T = (3n * E) / 2n; // E = ⅔T  →  T = 3E/2
+			const out = splitInt({ R, E, T, V, P });
+			expect(out.ok).toBe(true);
+			// SplitInt's realized LP fraction in bps
+			const lpBpsFromSplit = (out.finalPoolShare * 10000n) / R;
+			const { lpShareBps } = splitFromSBps(expectedS);
+			// within 1 bps of each other (integer-floor rounding)
+			const diff =
+				lpBpsFromSplit > lpShareBps ? lpBpsFromSplit - lpShareBps : lpShareBps - lpBpsFromSplit;
+			expect(diff <= 1n).toBe(true);
+		}
 	});
 });

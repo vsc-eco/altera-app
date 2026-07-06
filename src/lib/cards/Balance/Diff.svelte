@@ -11,6 +11,7 @@
 			style: 'currency',
 			currency: 'USD',
 			notation: props.compact ? 'compact' : undefined,
+			minimumFractionDigits: 2,
 			maximumFractionDigits: 2
 		})
 	);

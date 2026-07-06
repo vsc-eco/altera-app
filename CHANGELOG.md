@@ -8,6 +8,16 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.35] — 2026-07-06
+
+### Added
+
+- **Dashboard Balance card — Magi / Wallet toggle.** The Balance card now carries a "Magi Balance | Wallet" toggle so you can see your connected wallet's on-chain balances in place, without adding another card to the dashboard. The **Magi** tab shows your Magi token balances as before; the **Wallet** tab shows the connected wallet's native on-chain balances, dispatched by auth provider / DID: Hive (Keychain) → L1 HIVE/HBD + savings, EVM (MetaMask) → native ETH on the `eip155:1` mainnet chain (CoinGecko-priced), BTC → on-chain balance via mempool.space. The headline `$` amount **recomputes to the wallet's USD total** on the Wallet tab (HIVE/HBD/BTC via `CoinAmount`, ETH via CoinGecko), and wallet rows reuse the Magi list's row format for a consistent look. Deposit / Withdraw / Send stay visible in both tabs — only the token list swaps. The EVM balance is **pinned to the DID's chain (mainnet L1)** so it always matches the `eip155:1` identity regardless of the wallet's current network; funds on L2s (Arbitrum, etc.) are intentionally out of scope, and only the native coin is shown.
+
+### Changed
+
+- **Dashboard "Portfolio value" card is now "Balance trend", and its chart is interactive.** The card never actually showed a value — its header rendered the _net change_ over the selected range (a `Diff`), and the balance itself is already the Magi Balance card's headline, so a second value was redundant. Renamed to **"Balance trend"** to match what it shows. The trend now always shows **2 decimals** (it was compact-formatted, so small day-to-day changes collapsed to "$0"). And **hovering the chart now shows the balance value at that point plus its date** — the hover state (`hoveredPoint` / `hoveredIndex`) was declared but never bound to `LineChart`, so moving over the chart did nothing before; it's now wired via `bind:`.
+
 ## [0.3.34] — 2026-07-02
 
 ### Fixes

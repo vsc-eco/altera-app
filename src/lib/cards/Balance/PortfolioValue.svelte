@@ -111,8 +111,12 @@
 		if (!did || !selectedDateRange) return;
 		loadingBalances = true;
 		fetchAndStoreAccountBalances(did, selectedDateRange.start, selectedDateRange.end, interval)
-			.then(() => { loadingBalances = false; })
-			.catch(() => { loadingBalances = false; });
+			.then(() => {
+				loadingBalances = false;
+			})
+			.catch(() => {
+				loadingBalances = false;
+			});
 	});
 </script>
 
@@ -120,10 +124,20 @@
 	<div class={['root', { hovered: hoveredIndex }]}>
 		<div class="header-row">
 			<div class="title-area">
-				<h5>Portfolio value</h5>
-				{#if !loadingBalances}
+				<h5>Balance trend</h5>
+				{#if hoveredPoint}
+					<span class="hover-value"
+						>${balance.toLocaleString(undefined, {
+							minimumFractionDigits: 2,
+							maximumFractionDigits: 2
+						})}</span
+					>
+					{#if date}
+						<span class="hover-date">{moment(date).format('MMM D · HH:mm')}</span>
+					{/if}
+				{:else if !loadingBalances}
 					<div class="change-pill">
-						<Diff up={priceDiff[0]} down={priceDiff[1]} compact={true} />
+						<Diff up={priceDiff[0]} down={priceDiff[1]} compact={false} />
 					</div>
 				{/if}
 			</div>
@@ -143,6 +157,8 @@
 				height={280}
 				isLoading={loadingBalances}
 				showYAxis={false}
+				bind:hoveredPoint
+				bind:hoveredIndex
 			/>
 		</div>
 	</div>
@@ -179,6 +195,15 @@
 	}
 	.change-pill :global(.diff) {
 		font-size: 0.75rem;
+	}
+	.hover-value {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--dash-text-primary);
+	}
+	.hover-date {
+		font-size: 0.7rem;
+		color: var(--dash-text-muted);
 	}
 	.lc-wrapper {
 		margin: 0 -1.25rem -1.25rem;

@@ -1,5 +1,5 @@
 import type { TimeRange, PendulumStat } from '$lib/indexer/poolQueries';
-import { fetchPendulumStats } from '$lib/indexer/poolQueries';
+import { fetchPendulumStats, fetchMaxWindowDays } from '$lib/indexer/poolQueries';
 import type { PoolRow } from './poolsData';
 import { fetchPools } from './poolsData';
 import { classifyZone, splitFromSBps, type CollateralZone } from './pendulum';
@@ -52,12 +52,19 @@ export type SystemHealth = {
 	/** One system-wide node APR (%), node collateral backs the whole vault. */
 	nodeAprPct: number | null;
 	pools: PoolApr[];
-	/** false for the 'max' window (can't annualize an open-ended range). */
+	/** false only when a window can't be annualized (e.g. 'max' with no swaps yet). */
 	annualized: boolean;
+	/** Length of the fee window in days — 1 / 7 / 30, or the elapsed "since launch"
+	 *  span for 'max'. null when unknown (empty 'max'). Drives the panel's label. */
+	windowDays: number | null;
 };
 
-/** Annualization multiplier for a window, or null when it can't be annualized. */
-function annualizationFactor(range: TimeRange): number | null {
+/**
+ * Annualization multiplier for a window, or null when it can't be annualized.
+ * 'max' is annualized over its actual elapsed span (`maxDays`) — the true
+ * duration of the all-time fee total — rather than treated as un-annualizable.
+ */
+function annualizationFactor(range: TimeRange, maxDays?: number | null): number | null {
 	switch (range) {
 		case '1d':
 			return 365;
@@ -66,7 +73,7 @@ function annualizationFactor(range: TimeRange): number | null {
 		case '30d':
 			return 365 / 30;
 		case 'max':
-			return null;
+			return maxDays && maxDays > 0 ? 365 / maxDays : null;
 	}
 }
 
@@ -90,9 +97,12 @@ function hbdSideUsd(pool: PoolRow): number {
 export function computeSystemHealth(
 	rows: PoolRow[],
 	pendulum: PendulumStat[],
-	range: TimeRange
+	range: TimeRange,
+	maxDays?: number | null
 ): SystemHealth {
-	const factor = annualizationFactor(range);
+	const factor = annualizationFactor(range, maxDays);
+	const windowDays =
+		range === '1d' ? 1 : range === '7d' ? 7 : range === '30d' ? 30 : (maxDays ?? null);
 
 	const sVals = pendulum.map((p) => p.sBps / 10000).filter((s) => s > 0);
 	const s = sVals.length ? sVals.reduce((a, b) => a + b, 0) / sVals.length : null;
@@ -145,12 +155,18 @@ export function computeSystemHealth(
 		collateralUsd,
 		nodeAprPct,
 		pools,
-		annualized: factor != null
+		annualized: factor != null,
+		windowDays
 	};
 }
 
-/** Fetch pools + pendulum stats and compute the system-health snapshot. */
+/** Fetch pools + pendulum stats and compute the system-health snapshot. For the
+ *  'max' window we also fetch the elapsed span so lifetime fees can be annualized. */
 export async function fetchSystemHealth(range: TimeRange = '7d'): Promise<SystemHealth> {
-	const [rows, pendulum] = await Promise.all([fetchPools(range), fetchPendulumStats()]);
-	return computeSystemHealth(rows, pendulum, range);
+	const [rows, pendulum, maxDays] = await Promise.all([
+		fetchPools(range),
+		fetchPendulumStats(),
+		range === 'max' ? fetchMaxWindowDays() : Promise.resolve(null)
+	]);
+	return computeSystemHealth(rows, pendulum, range, maxDays);
 }

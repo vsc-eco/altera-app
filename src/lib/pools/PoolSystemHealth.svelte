@@ -1,14 +1,29 @@
 <script lang="ts">
 	import { Lightbulb, ChevronDown, Droplet, ShieldCheck } from '@lucide/svelte';
 	import type { SystemHealth } from './systemHealth';
+	import type { TimeRange } from './poolsData';
 
-	let { health }: { health: SystemHealth } = $props();
+	let { health, range }: { health: SystemHealth; range: TimeRange } = $props();
 
-	let open = $state(false);
+	let open = $state(true);
 	let amount = $state(1000);
 
+	// Human label for the active fee window — drives the header + note copy so the
+	// APR figures are never ambiguous about which window they annualize.
+	let windowLabel = $derived(
+		range === '1d'
+			? 'last 24 hours'
+			: range === '7d'
+				? 'last 7 days'
+				: range === '30d'
+					? 'last 30 days'
+					: health.windowDays
+						? `since launch · ~${Math.round(health.windowDays)} days`
+						: 'all time'
+	);
+
 	// Prefer the live MODEL split (from the current s via the ported pendulum
-	// math) over the realized 7-day average — it's the split the contract applies
+	// math) over the realized window average — it's the split the contract applies
 	// right now. Fall back to the realized split when s is unavailable.
 	let nodeShare = $derived(health.modelNodeSharePct ?? health.nodeSharePct);
 	let lpShare = $derived(health.modelLpSharePct ?? health.lpSharePct);
@@ -54,7 +69,7 @@
 				>{zoneLabel[zone] ?? zone}</span
 			>
 		{/if}
-		<span class="head-sub">current · last 7 days</span>
+		<span class="head-sub">{windowLabel}</span>
 		<ChevronDown size={18} class="chev {open ? 'up' : ''}" />
 	</button>
 
@@ -63,7 +78,7 @@
 			<p class="lede">
 				Pools are short on node collateral right now, so most swap fees
 				{#if nodeShare != null}(about {fmtPct(nodeShare, 0)}){/if} are going to node operators. Here's
-				how the two ways to earn compare today:
+				how the two ways to earn compare:
 			</p>
 
 			<div class="cols">
@@ -140,8 +155,13 @@
 			</div>
 
 			<p class="note">
-				Estimates from the last 7 days of fees. Actual returns vary; safe-band and APR figures are
-				provisional.
+				{#if range === 'max'}
+					Annualized from <em>all</em> fees since launch (~{Math.round(health.windowDays ?? 0)} days)
+					— reflects the high-volume launch period, not just current conditions.
+				{:else}
+					Annualized from the {windowLabel} of fees.
+				{/if}
+				Actual returns vary; safe-band and APR figures are provisional.
 			</p>
 		</div>
 	{/if}

@@ -11,6 +11,30 @@ export function getTimeGte(range: TimeRange): string | null {
 }
 
 /**
+ * Days elapsed since the earliest recorded swap across all pools — the true
+ * duration of the 'max' (all-time) fee window, so lifetime fees can be
+ * annualized (365 / elapsedDays) instead of being left un-annualizable.
+ * Approximates "since launch" with a single system-wide inception; per-pool
+ * ages differ, but the earliest swap anchors the vault's history. Returns null
+ * when there are no swaps yet (nothing to annualize).
+ */
+export async function fetchMaxWindowDays(): Promise<number | null> {
+	const query = `{
+		dex_pool_swap_events(order_by: { indexer_ts: asc }, limit: 1) {
+			indexer_ts
+		}
+	}`;
+	const data = await hasuraQuery<{ dex_pool_swap_events?: { indexer_ts: string }[] }>(query, {});
+	const ts = data?.dex_pool_swap_events?.[0]?.indexer_ts;
+	if (!ts) return null;
+	// indexer_ts is a naive UTC timestamp ("2026-04-16T18:06:42") — pin to UTC.
+	const firstMs = new Date(`${ts}Z`).getTime();
+	if (!Number.isFinite(firstMs)) return null;
+	const days = (Date.now() - firstMs) / 86_400_000;
+	return days > 0 ? days : null;
+}
+
+/**
  * Per-asset trading volume for a pool over a time window. We split the swap
  * events by direction (`asset_in`) so we can attribute each leg's smallest
  * units to the *right* asset — the old implementation summed amount_in /

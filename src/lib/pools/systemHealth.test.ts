@@ -88,13 +88,25 @@ describe('computeSystemHealth', () => {
 		expect(h.s).toBeCloseTo((1.8341 + 1.8121) / 2, 6);
 	});
 
-	it('still reports s/split/V but no APR for the max (open-ended) window', () => {
+	it('still reports s/split/V but no APR for the max window with no elapsed span', () => {
 		const h = computeSystemHealth([poolA, poolB], [stat(18000)], 'max');
 		expect(h.annualized).toBe(false);
+		expect(h.windowDays).toBeNull();
 		expect(h.nodeAprPct).toBeNull();
 		expect(h.pools.every((p) => p.lpAprPct === null)).toBe(true);
 		expect(h.nodeSharePct).toBeCloseTo(99, 6); // split still works
 		expect(h.vUsd).toBe(3000);
+	});
+
+	it('annualizes the max window over its elapsed span when given maxDays', () => {
+		const maxDays = 73; // ~2.5 months of history
+		const h = computeSystemHealth([poolA, poolB], [stat(18000)], 'max', maxDays);
+		const factor = 365 / maxDays;
+		expect(h.annualized).toBe(true);
+		expect(h.windowDays).toBe(maxDays);
+		// same APR formulas as a fixed window, but annualized over maxDays
+		expect(h.nodeAprPct).toBeCloseTo(((99 * factor) / 2500) * 100, 4);
+		expect(h.pools.find((p) => p.id === 'a')?.lpAprPct).toBeCloseTo(((1 * factor) / 2000) * 100, 4);
 	});
 
 	it('degrades gracefully when the pendulum view is absent', () => {

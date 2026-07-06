@@ -56,21 +56,26 @@
 	});
 
 	let pools = $state<PoolRow[]>([]);
-	let loading = $state(false);
+	// Starts true: we always fetch pools on mount, so the table should show the
+	// loading skeleton first rather than flashing an empty "No pools found".
+	let loading = $state(true);
 	let selectedPool = $state<PoolRow | null>(null);
 
-	// The "where to invest now" snapshot is fixed to a recent window (7d),
-	// independent of the table's time-range selector: the current situation
-	// shouldn't change when you toggle the table between 1d / 30d / max. (LP fees
-	// are lumpy — 30d still includes the pre-tilt period and overstates today.)
+	// The "where to invest now" snapshot follows the table's time-range selector,
+	// so LPs can compare windows themselves: 1d/7d/30d reflect current conditions,
+	// while Max shows the annualized since-launch figure (labelled as such). LP
+	// fees are lumpy, so each window tells a different story — letting the user
+	// pick is the honest way to surface that, and it keeps the row APR and the
+	// Fee Earned column on the same window.
 	let health = $state<SystemHealth | null>(null);
 	$effect(() => {
+		const range = timeRange; // re-run whenever the selector changes
 		// Poll so the fee split / APR figures track pool balance + fee changes
 		// instead of freezing on the mount-time snapshot. 30s — pool-wide fees
 		// move slowly; no need to hammer the indexer.
 		let cancelled = false;
 		const load = () =>
-			fetchSystemHealth('7d').then((h) => {
+			fetchSystemHealth(range).then((h) => {
 				if (!cancelled) health = h;
 			});
 		load();
@@ -80,7 +85,7 @@
 			clearInterval(handle);
 		};
 	});
-	// Per-pool LP yield (same 7d window), keyed by pool id, for the row situation.
+	// Per-pool LP yield (same window as the table), keyed by pool id, for the rows.
 	let lpAprById = $derived(new Map((health?.pools ?? []).map((p) => [p.id, p.lpAprPct])));
 
 	// Fee breakdown "peek" — a single portaled popover positioned at the hovered
@@ -242,7 +247,7 @@
 		{@render poolsTable(sortedPools)}
 
 		{#if health}
-			<PoolSystemHealth {health} />
+			<PoolSystemHealth {health} range={timeRange} />
 		{/if}
 
 		<!-- Only render once we actually have positions. Gating on `myPoolsLoading`
@@ -314,131 +319,156 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each rows as pool (pool.id)}
-						{@const deprecated = isDeprecatedPool(pool.contractId)}
-						<tr class="clickable" onclick={() => (selectedPool = pool)}>
-							<td class="col-pair">
-								<div class="pair-cell">
-									<span class="pair-icons" aria-hidden="true">
-										{#if getCoinIcon(pool.pairSymbols[0])}
-											<img
-												class="coin-icon icon-a"
-												src={getCoinIcon(pool.pairSymbols[0])}
-												alt={pool.pairSymbols[0]}
-											/>
-										{:else}
-											<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
-										{/if}
-										{#if getCoinIcon(pool.pairSymbols[1])}
-											<img
-												class="coin-icon icon-b"
-												src={getCoinIcon(pool.pairSymbols[1])}
-												alt={pool.pairSymbols[1]}
-											/>
-										{:else}
-											<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
-										{/if}
-									</span>
-									<span
-										class="pair-label"
-										class:deprecated
-										title={deprecated ? 'Deprecated pool — withdraw only' : undefined}
-										>{pool.pair}</span
-									>
-									{#if deprecated}
-										<span class="deprecated-tag">deprecated</span>
-									{/if}
-								</div>
-							</td>
-							<td class="col-price">
-								<div class="price-cell">
-									<span class="price-rate">{pool.rateLabel}</span>
-									<span class="price-rate">{pool.rateLabelInverse}</span>
-									<span class="price-usd-line">
-										<span class="price-sym">{pool.pairSymbols[0]}</span>
-										{pool.priceUsd[0]}
-										<span class="price-dot">·</span>
-										<span class="price-sym">{pool.pairSymbols[1]}</span>
-										{pool.priceUsd[1]}
-									</span>
-								</div>
-							</td>
-							<td class="col-liquidity">
-								<div class="amount-cell">
-									<span class="total">{pool.totalLiquidityUsd}</span>
-									<span class="breakdown">{pool.totalLiquidityAssets[0]}</span>
-									<span class="breakdown">{pool.totalLiquidityAssets[1]}</span>
-								</div>
-							</td>
-							<td class="col-fee">
-								<div class="amount-cell fee-cell">
-									<span class="total">{pool.feeEarnedUsd}</span>
-									<button
-										type="button"
-										class="fee-info-btn"
-										aria-label="Show fee breakdown"
-										onmouseenter={(e) => openFeePeek(e, pool)}
-										onmouseleave={closeFeePeek}
-										onfocus={(e) => openFeePeek(e, pool)}
-										onblur={closeFeePeek}
-										onclick={(e) => e.stopPropagation()}
-									>
-										<Info size={14} />
-									</button>
-									{#if lpAprById.get(pool.id) != null}
-										<span
-											class="lp-apr-tag"
-											title="Estimated LP yield from the last 7 days of fees"
-										>
-											LP APR ≈ {lpAprById.get(pool.id)!.toFixed(2)}% / yr
+					{#if loading && rows.length === 0}
+						{#each [0, 1, 2] as i (i)}
+							<tr class="skeleton-row" aria-hidden="true">
+								<td class="col-pair">
+									<div class="pair-cell">
+										<span class="sk sk-avatars"></span>
+										<span class="sk sk-line sk-w-55"></span>
+									</div>
+								</td>
+								<td class="col-price">
+									<span class="sk sk-line sk-w-80"></span>
+									<span class="sk sk-line sk-w-55"></span>
+								</td>
+								<td class="col-liquidity"><span class="sk sk-line sk-w-70"></span></td>
+								<td class="col-fee"><span class="sk sk-line sk-w-60"></span></td>
+								<td class="col-volume"><span class="sk sk-line sk-w-70"></span></td>
+								<td class="col-actions"><span class="sk sk-pill"></span></td>
+							</tr>
+						{/each}
+					{:else if rows.length === 0}
+						<tr class="empty-row">
+							<td colspan="6">No pools found.</td>
+						</tr>
+					{:else}
+						{#each rows as pool (pool.id)}
+							{@const deprecated = isDeprecatedPool(pool.contractId)}
+							<tr class="clickable" onclick={() => (selectedPool = pool)}>
+								<td class="col-pair">
+									<div class="pair-cell">
+										<span class="pair-icons" aria-hidden="true">
+											{#if getCoinIcon(pool.pairSymbols[0])}
+												<img
+													class="coin-icon icon-a"
+													src={getCoinIcon(pool.pairSymbols[0])}
+													alt={pool.pairSymbols[0]}
+												/>
+											{:else}
+												<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
+											{/if}
+											{#if getCoinIcon(pool.pairSymbols[1])}
+												<img
+													class="coin-icon icon-b"
+													src={getCoinIcon(pool.pairSymbols[1])}
+													alt={pool.pairSymbols[1]}
+												/>
+											{:else}
+												<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
+											{/if}
 										</span>
-									{/if}
-								</div>
-							</td>
-							<td class="col-volume">
-								<div class="amount-cell">
-									<span class="total">{pool.volumeUsd}</span>
-									<span class="breakdown">{pool.volumeAssets[0]}</span>
-									<span class="breakdown">{pool.volumeAssets[1]}</span>
-								</div>
-							</td>
-							<td class="col-actions">
-								<div class="row-actions">
-									<button
-										type="button"
-										class="row-action row-action-primary"
-										aria-label="Add liquidity to {pool.pair}"
-										disabled={deprecated}
-										title={deprecated
-											? 'Deprecated pool — adding liquidity is disabled'
-											: undefined}
-										onclick={(e) => {
-											e.stopPropagation();
-											if (deprecated) return;
-											openAddForPool(pool);
-										}}
-									>
-										<Plus size={14} />
-										Add
-									</button>
-									{#if myPools.some((mp) => mp.contractId === pool.contractId)}
+										<span
+											class="pair-label"
+											class:deprecated
+											title={deprecated ? 'Deprecated pool — withdraw only' : undefined}
+											>{pool.pair}</span
+										>
+										{#if deprecated}
+											<span class="deprecated-tag">deprecated</span>
+										{/if}
+									</div>
+								</td>
+								<td class="col-price">
+									<div class="price-cell">
+										<span class="price-rate">{pool.rateLabel}</span>
+										<span class="price-rate">{pool.rateLabelInverse}</span>
+										<span class="price-usd-line">
+											<span class="price-sym">{pool.pairSymbols[0]}</span>
+											{pool.priceUsd[0]}
+											<span class="price-dot">·</span>
+											<span class="price-sym">{pool.pairSymbols[1]}</span>
+											{pool.priceUsd[1]}
+										</span>
+									</div>
+								</td>
+								<td class="col-liquidity">
+									<div class="amount-cell">
+										<span class="total">{pool.totalLiquidityUsd}</span>
+										<span class="breakdown">{pool.totalLiquidityAssets[0]}</span>
+										<span class="breakdown">{pool.totalLiquidityAssets[1]}</span>
+									</div>
+								</td>
+								<td class="col-fee">
+									<div class="amount-cell fee-cell">
+										<span class="total">{pool.feeEarnedUsd}</span>
 										<button
 											type="button"
-											class="row-action row-action-outline"
-											aria-label="Remove liquidity from {pool.pair}"
+											class="fee-info-btn"
+											aria-label="Show fee breakdown"
+											onmouseenter={(e) => openFeePeek(e, pool)}
+											onmouseleave={closeFeePeek}
+											onfocus={(e) => openFeePeek(e, pool)}
+											onblur={closeFeePeek}
+											onclick={(e) => e.stopPropagation()}
+										>
+											<Info size={14} />
+										</button>
+										{#if lpAprById.get(pool.id) != null}
+											<span
+												class="lp-apr-tag"
+												title="Estimated LP yield from the last 7 days of fees"
+											>
+												LP APR ≈ {lpAprById.get(pool.id)!.toFixed(2)}% / yr
+											</span>
+										{/if}
+									</div>
+								</td>
+								<td class="col-volume">
+									<div class="amount-cell">
+										<span class="total">{pool.volumeUsd}</span>
+										<span class="breakdown">{pool.volumeAssets[0]}</span>
+										<span class="breakdown">{pool.volumeAssets[1]}</span>
+									</div>
+								</td>
+								<td class="col-actions">
+									<div class="row-actions">
+										<button
+											type="button"
+											class="row-action row-action-primary"
+											aria-label="Add liquidity to {pool.pair}"
+											disabled={deprecated}
+											title={deprecated
+												? 'Deprecated pool — adding liquidity is disabled'
+												: undefined}
 											onclick={(e) => {
 												e.stopPropagation();
-												openRemoveForPool(pool);
+												if (deprecated) return;
+												openAddForPool(pool);
 											}}
 										>
-											<Minus size={14} />
-											Remove
+											<Plus size={14} />
+											Add
 										</button>
-									{/if}
-								</div>
-							</td>
-						</tr>
-					{/each}
+										{#if myPools.some((mp) => mp.contractId === pool.contractId)}
+											<button
+												type="button"
+												class="row-action row-action-outline"
+												aria-label="Remove liquidity from {pool.pair}"
+												onclick={(e) => {
+													e.stopPropagation();
+													openRemoveForPool(pool);
+												}}
+											>
+												<Minus size={14} />
+												Remove
+											</button>
+										{/if}
+									</div>
+								</td>
+							</tr>
+						{/each}
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -626,6 +656,68 @@
 		border-collapse: collapse;
 		font-size: var(--text-sm);
 		font-family: 'Nunito Sans', sans-serif;
+	}
+
+	/* Loading skeleton + empty state for the pools table */
+	.empty-row td {
+		text-align: center;
+		color: var(--dash-text-muted);
+		padding: 2rem 1.25rem;
+	}
+	.skeleton-row td {
+		vertical-align: middle;
+	}
+	.sk {
+		display: block;
+		border-radius: 6px;
+		background: linear-gradient(
+			90deg,
+			rgba(255, 255, 255, 0.04) 25%,
+			rgba(255, 255, 255, 0.09) 37%,
+			rgba(255, 255, 255, 0.04) 63%
+		);
+		background-size: 400% 100%;
+		animation: sk-shimmer 1.4s ease infinite;
+	}
+	.sk-line {
+		height: 0.7rem;
+		margin: 0.2rem 0;
+	}
+	.sk-avatars {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+	.sk-pill {
+		width: 62px;
+		height: 30px;
+		border-radius: 999px;
+	}
+	.sk-w-55 {
+		width: 55%;
+	}
+	.sk-w-60 {
+		width: 60%;
+	}
+	.sk-w-70 {
+		width: 70%;
+	}
+	.sk-w-80 {
+		width: 80%;
+	}
+	@keyframes sk-shimmer {
+		0% {
+			background-position: 100% 50%;
+		}
+		100% {
+			background-position: 0 50%;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.sk {
+			animation: none;
+		}
 	}
 
 	.pools-table th,

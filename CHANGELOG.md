@@ -8,6 +8,16 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.36] — 2026-07-13
+
+### Changed
+
+- **sHBD staking is now a full page (`/stake`) instead of a dashboard popup.** The stake/unstake HBD dialog behind the Staking Earnings widget's button was the last money flow still living in a modal — inconsistent with deposit and withdrawal, which are staged pages (raised by milo). It's rebuilt on the same architecture and design language as `/deposit` and `/withdraw`: a numbered timeline (**I want to → From → Amount**) with full-row choice cards, then a **review step before signing** (which the popup never had) and a completion receipt. The old "First deposit HBD into VSC" checkbox became a proper **From** step — *Magi balance* vs *Hive Mainnet (deposit first)* — mirroring the deposit flow's source concept; unstaking force-selects its only source (*Staked sHBD*) so there's no dead click, and EVM wallets (which can't deposit L1 HBD) are auto-locked to *Magi balance*. The review lists action / amount / recipient / current APR, warns loudly when staking **to a different account** (the sHBD lands in *their* savings), and repeats the ~3-day unstake unbonding note. Dispatch is unchanged under the hood (aioha multi-op for Hive wallets, reown signer for EVM/BTC), now behind the shared StepsMachine; pinned by a new `hbdStake.flow.test.ts`. Deep-linkable: `/stake?mode=unstake`. The dashboard button navigates to the page; `StakePopup`/`StakeHBDModal` are deleted (removing a latent unchecked-null `wagmiConfig` type error with them). Witness/consensus staking is intentionally untouched — parked until delegation lands (per milo).
+
+### Fixes
+
+- **Command palette (⌘K) route list reviewed.** Removed the duplicate "Pools" entry (it was hardcoded on top of the sidebar-derived one), and added the flow pages that were missing entirely: **Deposit** (`/deposit`), **Withdraw** (`/withdraw`) and **Stake / Unstake HBD** (`/stake`) — typing "unstake" finds it via the label substring match.
+
 ## [0.3.35] — 2026-07-06
 
 ### Added

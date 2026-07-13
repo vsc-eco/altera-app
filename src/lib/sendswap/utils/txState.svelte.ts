@@ -90,8 +90,27 @@ export class WithdrawTxState extends TxStateBase {
 	maxFee: number | undefined = $state(undefined);
 }
 
+// ─── sHBD stake / unstake (dashboard staking widget) ─────────────────────────
+
+export class HbdStakeTxState extends TxStateBase {
+	readonly kind = 'hbdStake' as const;
+	/** stake = move HBD into sHBD savings (earns APR); unstake = back to liquid. */
+	mode: 'stake' | 'unstake' = $state('stake');
+	/** Stake only, Hive wallets only: first deposit HBD from Hive L1 into VSC. */
+	shouldDeposit: boolean = $state(false);
+	// Recipient lives in the base `toUsername` — sHBD staking legitimately
+	// supports staking to another account (it lands in THEIR savings), unlike
+	// consensus staking where `to` must equal `from`.
+}
+
 // ─── Union & context ─────────────────────────────────────────────────────────
 
+// NB: HbdStakeTxState is deliberately NOT in this union. The sHBD flow
+// dispatches through StepsMachine's `onSubmit` override (aioha multi-op or the
+// reown signer), never through `send()`/`decideBroadcast`, so keeping it out
+// of the union means broadcastDecision's exhaustive `kind` switch doesn't need
+// a dead passthrough case. It still shares TX_STATE_KEY below so StepsMachine's
+// `useTxState()` (which only reads base fields) resolves it fine.
 export type TxState = SwapTxState | TransferTxState | DepositTxState | WithdrawTxState;
 
 const TX_STATE_KEY = Symbol('txState');
@@ -164,6 +183,22 @@ export function useWithdrawState(): WithdrawTxState {
 	if (!(state instanceof WithdrawTxState)) {
 		throw new Error(
 			`useWithdrawState() called with unexpected context value (got ${state?.constructor?.name ?? typeof state})`
+		);
+	}
+	return state;
+}
+
+/** Provide an HbdStakeTxState under the shared TX_STATE_KEY (so StepsMachine
+ *  resolves it via useTxState too). */
+export function provideHbdStakeState(state: HbdStakeTxState) {
+	setContext(TX_STATE_KEY, state);
+}
+
+export function useHbdStakeState(): HbdStakeTxState {
+	const state = getContext<unknown>(TX_STATE_KEY);
+	if (!(state instanceof HbdStakeTxState)) {
+		throw new Error(
+			`useHbdStakeState() called with unexpected context value (got ${state?.constructor?.name ?? typeof state})`
 		);
 	}
 	return state;

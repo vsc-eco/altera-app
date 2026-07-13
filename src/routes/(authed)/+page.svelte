@@ -7,14 +7,11 @@
 	import QuickSwap from '$lib/cards/QuickSwap.svelte';
 	import MarketPrices from '$lib/cards/MarketPrices.svelte';
 	import ResourceCredits from '$lib/cards/ResourceCredits/ResourceCredits.svelte';
-	import StakePopup from '$lib/magiTransactions/hive/vscOperations/StakePopup.svelte';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import { goto } from '$app/navigation';
 
 	let auth = $derived(getAuth()());
 	let username: string | undefined = $derived(getAccountNameFromAuth(auth));
-	let stakeOpen = $state(false);
-	let toggleStake = $state<(open?: boolean) => void>(() => {});
 	let portfolioHeight = $state(0);
 </script>
 
@@ -33,7 +30,8 @@
 
 	<div class="area-portfolio" bind:clientHeight={portfolioHeight}>
 		<PortfolioValue />
-		<StakingEarnings onStake={() => toggleStake(true)} />
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version -->
+		<StakingEarnings onStake={() => goto('/stake')} />
 	</div>
 
 	<div class="area-rc-market">
@@ -63,10 +61,6 @@
 		</div>
 	</div>
 </div>
-
-{#if auth.value}
-	<StakePopup {auth} bind:dialogOpen={stakeOpen} bind:toggle={toggleStake} />
-{/if}
 
 <style lang="scss">
 	/* ── Shared card chrome (scoped to dashboard wrapper only) ──────────── */

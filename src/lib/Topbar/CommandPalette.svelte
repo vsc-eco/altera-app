@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { paths } from '$lib/paths';
-	import { Search, Settings, User, ArrowRight, Droplets } from '@lucide/svelte';
+	import {
+		Search,
+		Settings,
+		User,
+		ArrowRight,
+		ArrowDownToLine,
+		ArrowUpFromLine,
+		PiggyBank
+	} from '@lucide/svelte';
 	import { getAuth } from '$lib/auth/store';
 
 	let { open = $bindable(false) }: { open: boolean } = $props();
@@ -19,6 +27,7 @@
 		action: () => void;
 	};
 
+	/* eslint-disable svelte/no-navigation-without-resolve -- static routes; resolve() not exported in this kit version */
 	const allItems: CommandItem[] = $derived.by(() => {
 		const items: CommandItem[] = [];
 
@@ -33,13 +42,30 @@
 			});
 		}
 
-		// Swap sub-pages
+		// Flow pages launched from dashboard buttons (not in the sidebar).
+		// NB: no duplicate Pools entry here — `paths` already includes it.
 		items.push({
-			id: 'page-pools',
-			label: 'Pools',
-			hint: '/swap → Pools',
-			icon: Droplets,
-			action: () => goto('/swap?tab=pools')
+			id: 'page-deposit',
+			label: 'Deposit',
+			hint: '/deposit',
+			icon: ArrowDownToLine,
+			action: () => goto('/deposit')
+		});
+		items.push({
+			id: 'page-withdraw',
+			label: 'Withdraw',
+			hint: '/withdraw',
+			icon: ArrowUpFromLine,
+			action: () => goto('/withdraw')
+		});
+		// Label includes "Unstake" so typing either word finds it (the filter is
+		// a substring match on the label).
+		items.push({
+			id: 'page-stake',
+			label: 'Stake / Unstake HBD',
+			hint: '/stake',
+			icon: PiggyBank,
+			action: () => goto('/stake')
 		});
 
 		// Preferences
@@ -60,14 +86,14 @@
 
 		return items;
 	});
+	/* eslint-enable svelte/no-navigation-without-resolve */
 
 	const filtered = $derived.by(() => {
 		if (!query.trim()) return allItems;
 		const q = query.trim().toLowerCase();
 		return allItems.filter(
 			(item) =>
-				item.label.toLowerCase().includes(q) ||
-				(item.hint?.toLowerCase().includes(q) ?? false)
+				item.label.toLowerCase().includes(q) || (item.hint?.toLowerCase().includes(q) ?? false)
 		);
 	});
 

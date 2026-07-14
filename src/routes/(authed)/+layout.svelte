@@ -13,6 +13,7 @@
 	import { page } from '$app/state';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import UpdateToast from '$lib/components/UpdateToast.svelte';
+	import SwitchUserPanel from '$lib/auth/SwitchUserPanel.svelte';
 
 	let { children } = $props();
 	let showSidebar = $state(false);
@@ -42,11 +43,7 @@
 			goto('/login');
 			return;
 		}
-		if (
-			!browser ||
-			auth.value ||
-			localStorage.getItem('last_connection') !== 'reown'
-		) {
+		if (!browser || auth.value || localStorage.getItem('last_connection') !== 'reown') {
 			return;
 		}
 		(async () => {
@@ -85,6 +82,7 @@
 </div>
 
 <UpdateToast />
+<SwitchUserPanel />
 
 <style lang="scss">
 	.app-shell {

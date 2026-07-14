@@ -5,6 +5,7 @@
 	import { fly } from 'svelte/transition';
 	import { paths } from './paths';
 	import { getAuth } from '$lib/auth/store';
+	import { switchUserPanelOpen } from '$lib/auth/switchUserStore';
 	import { browser } from '$app/environment';
 
 	const COLLAPSE_KEY = 'sidebar-collapsed';
@@ -23,9 +24,7 @@
 	let isHiveUser = $derived(auth.value?.username != null);
 	let visiblePaths = $derived(paths.filter((p) => !p.requiresHive || isHiveUser));
 
-	let collapsed = $state(
-		browser ? localStorage.getItem(COLLAPSE_KEY) === 'true' : false
-	);
+	let collapsed = $state(browser ? localStorage.getItem(COLLAPSE_KEY) === 'true' : false);
 
 	function toggleCollapse() {
 		collapsed = !collapsed;
@@ -38,7 +37,18 @@
 		}, 1000);
 	});
 
+	// For Hive (aioha) logins the button becomes "Switch user" and opens the
+	// account-switcher panel (add/switch/remove Hive accounts, with full
+	// logout inside it). EVM wallets keep "Log out" (a plain disconnect).
+	// Requested by jux.
+	const isHiveSession = $derived(auth.value?.provider === 'aioha');
+	const logoutLabel = $derived(isHiveSession ? 'Switch user' : 'Log out');
+
 	async function handleLogout() {
+		if (isHiveSession) {
+			switchUserPanelOpen.set(true);
+			return;
+		}
 		if (auth.value?.logout) {
 			await auth.value.logout();
 		}
@@ -106,7 +116,11 @@
 		</div>
 
 		<div class="sidebar-footer">
-			<button class="footer-btn collapse-btn desktop-only" onclick={toggleCollapse} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+			<button
+				class="footer-btn collapse-btn desktop-only"
+				onclick={toggleCollapse}
+				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+			>
 				<span class="nav-icon">
 					{#if collapsed}
 						<PanelLeftOpenIcon size={20} />
@@ -118,10 +132,10 @@
 					<span class="nav-label">Collapse</span>
 				{/if}
 			</button>
-			<button class="footer-btn" onclick={handleLogout} title={collapsed ? 'Log out' : undefined}>
+			<button class="footer-btn" onclick={handleLogout} title={collapsed ? logoutLabel : undefined}>
 				<span class="nav-icon"><LogOut size={20} /></span>
 				{#if !collapsed}
-					<span class="nav-label">Log out</span>
+					<span class="nav-label">{logoutLabel}</span>
 				{/if}
 			</button>
 		</div>
@@ -144,7 +158,11 @@
 		left: 0;
 		display: flex;
 		flex-direction: column;
-		background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+		background: linear-gradient(
+			180deg,
+			rgba(255, 255, 255, 0.06) 0%,
+			rgba(255, 255, 255, 0.03) 100%
+		);
 		-webkit-backdrop-filter: blur(10px);
 		backdrop-filter: blur(10px);
 		will-change: transform;
@@ -154,7 +172,9 @@
 		box-sizing: border-box;
 		padding: calc(1.75rem + 1.5vh) 1rem 1.25rem 1rem;
 		z-index: 10;
-		transition: width 0.2s ease, padding 0.2s ease;
+		transition:
+			width 0.2s ease,
+			padding 0.2s ease;
 		font-weight: 500;
 	}
 	nav.collapsed {
@@ -231,7 +251,9 @@
 		text-decoration: none;
 		font-size: 0.9rem;
 		font-weight: 500;
-		transition: background-color 0.15s, color 0.15s;
+		transition:
+			background-color 0.15s,
+			color 0.15s;
 		white-space: nowrap;
 		overflow: hidden;
 	}
@@ -245,8 +267,8 @@
 	}
 	.nav-button.current,
 	.nav-button.current:hover {
-		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 50%, #5B54E0 100%);
-		color: #FFFFFF;
+		background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 50%, #5b54e0 100%);
+		color: #ffffff;
 		font-weight: 600;
 		border-radius: 1.25rem;
 		box-shadow: 0 2px 12px rgba(111, 106, 248, 0.3);
@@ -288,7 +310,9 @@
 		width: 100%;
 		text-align: left;
 		font-family: inherit;
-		transition: background-color 0.15s, color 0.15s;
+		transition:
+			background-color 0.15s,
+			color 0.15s;
 		white-space: nowrap;
 		overflow: hidden;
 	}

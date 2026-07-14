@@ -6,6 +6,7 @@
 	import CommandPalette from './CommandPalette.svelte';
 	import { Component, MenuIcon, Search, Bell } from '@lucide/svelte';
 	import { getAuth } from '../auth/store';
+	import { switchUserPanelOpen } from '$lib/auth/switchUserStore';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { onMount } from 'svelte';
 	let { onMenuToggle } = $props();
@@ -96,12 +97,28 @@
 					snippet: option,
 					snippetData: { label: 'App Preferences', icon: Component }
 				},
-				{ label: 'logout', snippet: option, snippetData: { label: 'Logout', icon: Component } }
+				{
+					label: 'logout',
+					snippet: option,
+					// For Hive (aioha) logins "logging out" is really account switching:
+					// Keychain re-login is just picking another username. EVM wallets
+					// keep "Logout" (disconnect). Requested by jux.
+					snippetData: {
+						label: auth.value?.provider === 'aioha' ? 'Switch User' : 'Logout',
+						icon: Component
+					}
+				}
 			]}
 			onSelect={async (e) => {
 				switch (e.value) {
 					case 'logout':
-						await logout();
+						// Hive sessions get the account-switcher panel (switch/add/
+						// remove accounts, with full logout inside); EVM disconnects.
+						if (auth.value?.provider === 'aioha') {
+							switchUserPanelOpen.set(true);
+						} else {
+							await logout();
+						}
 						break;
 					case 'acc-prefs':
 						openSettings();

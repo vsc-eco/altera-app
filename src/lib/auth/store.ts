@@ -22,7 +22,14 @@ export type Auth = {
 	};
 };
 
-export function cleanUpLogout() {
+/**
+ * Clear everything scoped to the signed-in ACCOUNT (notifications, pending
+ * txs, balances). Called on logout AND on account switching — notifications
+ * and pending transactions live under global localStorage keys, so without
+ * this the next account inherits the previous account's data (the
+ * cross-account leak fixed in 0.3.x would come back via switching).
+ */
+export function cleanUpAccountData() {
 	clearAllStores();
 	clearNotifications();
 	clearLocalTransactions();
@@ -32,6 +39,10 @@ export function cleanUpLogout() {
 		connectedBal: undefined
 	});
 	accountBalanceHistory.set([]);
+}
+
+export function cleanUpLogout() {
+	cleanUpAccountData();
 	goto('/login');
 }
 

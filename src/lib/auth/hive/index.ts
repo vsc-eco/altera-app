@@ -1,7 +1,7 @@
 import { Aioha, KeyTypes, Providers } from '@aioha/aioha';
 import { DOMAIN } from '../url';
 import { browser } from '$app/environment';
-import { _hiveAuthStore, cleanUpLogout, loginRetry } from '../store';
+import { _hiveAuthStore, cleanUpAccountData, cleanUpLogout, loginRetry } from '../store';
 import { goto } from '$app/navigation';
 import { getAccounts } from '@aioha/aioha/build/rpc';
 import { postingMetadataFromString, type Account } from './accountTypes';
@@ -11,10 +11,8 @@ import { resolveNodeUrl } from '$lib/nodeSelection/select';
 // Hive L1 chain IDs. Mainnet has the well-known default; testnet uses a
 // different chain ID and MetaMask Snap refuses to sign anything unless the
 // right one is set via `aioha.setChainId()`.
-const HIVE_MAINNET_CHAIN_ID =
-	'beeab0de00000000000000000000000000000000000000000000000000000000';
-const HIVE_TESTNET_CHAIN_ID =
-	'18dcf0a285365fc58b71f18b3d3fec954aa0c141c44e4e5cb4cf777b9eab274e';
+const HIVE_MAINNET_CHAIN_ID = 'beeab0de00000000000000000000000000000000000000000000000000000000';
+const HIVE_TESTNET_CHAIN_ID = '18dcf0a285365fc58b71f18b3d3fec954aa0c141c44e4e5cb4cf777b9eab274e';
 
 // Hive L1 RPC endpoints. Testnet must NOT fall through to api.hive.blog or
 // broadcasts get rejected ("missing active authority") because the mainnet
@@ -68,9 +66,7 @@ if (browser) {
 		});
 		// Tell Aioha which VSC network we're on so ops go to the right net.
 		try {
-			(aioha as unknown as { vscSetNetId?: (id: string) => void }).vscSetNetId?.(
-				vscNetworkId
-			);
+			(aioha as unknown as { vscSetNetId?: (id: string) => void }).vscSetNetId?.(vscNetworkId);
 		} catch (err) {
 			console.warn('aioha.vscSetNetId failed', err);
 		}
@@ -99,8 +95,16 @@ if (browser) {
 		} else {
 			_hiveAuthStore.set({ status: 'none' });
 		}
+		let lastUser = aioha.isLoggedIn() ? aioha.getCurrentUser() : undefined;
 		aioha.on('account_changed', () => {
 			const user = aioha.getCurrentUser();
+			// Switching to a DIFFERENT account (switchUser / adding a login) must
+			// clear account-scoped data (notifications, pending txs, balances) —
+			// they live under global keys and would otherwise leak across accounts.
+			if (user && lastUser && user !== lastUser) {
+				cleanUpAccountData();
+			}
+			lastUser = user;
 			let authStore;
 			if (user != undefined) {
 				authStore = {

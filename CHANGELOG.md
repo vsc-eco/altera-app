@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.37] — 2026-07-14
+
+### Added
+
+- **Hive account switcher.** For Hive (aioha) sessions the sidebar's "Log out" button and the account-menu item become **"Switch user"** and open a switcher panel instead of ending the session: it lists the active account plus every other connected Hive login, switches with one click, connects additional accounts (the full Hive login form — Keychain, HiveAuth, Ledger, PeakVault, MetaMask Snap — embedded), forgets remembered accounts, and keeps a real **Log out** at the bottom. Multi-account persistence is Aioha's own (`getOtherLogins` / `switchUser` / `removeOtherLogin`) — no custom storage. Crucially, switching now **clears account-scoped data** (notifications, pending transactions, balances) exactly like logout does — those live under global localStorage keys, so without this the next account would inherit the previous account's data (the cross-account leak fixed in 0.3.28 would have come back via switching). EVM/BTC wallets keep plain "Log out" (a wallet disconnect). Requested by jux.
+
 ## [0.3.36] — 2026-07-13
 
 ### Changed

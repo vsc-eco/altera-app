@@ -6,15 +6,11 @@
 	import { useTxState } from '$lib/sendswap/utils/txState.svelte';
 	import V4VPopup from '$lib/sendswap/V4VPopup.svelte';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
-	import * as steps from '@zag-js/steps';
-	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { sleep } from 'aninest';
 	import NavButtons from '$lib/sendswap/components/NavButtons.svelte';
 	import { goto } from '$app/navigation';
 	import { decideBroadcast, type TxType } from '$lib/sendswap/utils/broadcastDecision';
 	import { untrack, type Component, type ComponentProps } from 'svelte';
-	import { getDidFromUsername } from '$lib/getAccountName';
-	import { getSendOpType } from '$lib/magiTransactions/hive';
 
 	type TransferComponentTypes =
 		| { editStage: (complete: boolean) => void }
@@ -69,19 +65,16 @@
 	}
 
 	// stages and navigation
+	//
+	// Historically a Zag steps machine drove a visible stepper UI; after the
+	// review/complete stages became popups the machine was only ever used as
+	// an integer step counter (no triggers, no indicator list), so it IS one
+	// now. The `data-part` / `data-state` attributes it used to stamp are kept
+	// as plain attributes — this component's CSS and the flow pages' :global
+	// overrides target them.
 
-	const id = $props.id();
-
-	const service = $derived(
-		useMachine(steps.machine, {
-			id,
-			orientation: 'vertical',
-			// linear: true,
-			count: stepsData.length - 1
-		})
-	);
-
-	const api = $derived(steps.connect(service, normalizeProps));
+	let step = $state(0);
+	const lastStep = $derived(stepsData.length - 1);
 
 	let onHomePage = $state(true);
 	let stepComplete = $state(false);
@@ -89,13 +82,13 @@
 		stepComplete = complete;
 	}
 	function next() {
-		if (api.value === api.count) {
+		if (step === lastStep) {
 			if (extraProps && 'close' in extraProps) {
 				extraProps.close();
 			} else {
 				goto('/transactions');
 			}
-		} else if (stepsData[api.value].value === 'review') {
+		} else if (stepsData[step].value === 'review') {
 			setStatus('');
 			if (onSubmit) {
 				waiting = true;
@@ -111,29 +104,29 @@
 				initSend();
 			}
 		} else {
-			api.goToNextStep();
+			step = Math.min(step + 1, lastStep);
 		}
 	}
 	function previous() {
 		if (txId) {
 			txId = '';
 		}
-		if (api.value === 0) {
+		if (step === 0) {
 			goto('/');
-		} else if (api.value === api.count) {
-			api.setStep(0);
+		} else if (step === lastStep) {
+			step = 0;
 			sessionId = getTxSessionId();
 			resetState?.();
 		} else {
-			api.goToPrevStep();
+			step = Math.max(step - 1, 0);
 			setStatus('');
 		}
 	}
 
 	const nextLabel = $derived(
-		stepsData[api.value].value === 'review'
+		stepsData[step].value === 'review'
 			? `${txType.at(0)?.toUpperCase() + txType.slice(1)}`
-			: api.value === stepsData.length - 1
+			: step === lastStep
 				? 'Done'
 				: `Review ${txType.at(0)?.toUpperCase() + txType.slice(1)}`
 	);
@@ -147,7 +140,7 @@
 				disabled: !stepComplete
 			},
 			back:
-				api.value !== 0
+				step !== 0
 					? {
 							label: 'Back',
 							action: previous
@@ -165,7 +158,7 @@
 	$effect(() => {
 		if (txId && txId !== untrack(() => oldId)) {
 			setStatus('');
-			api.setStep(stepsData.length - 1);
+			step = lastStep;
 			oldId = txId;
 		}
 	});
@@ -216,43 +209,44 @@
 
 {#key sessionId}
 	<div
-		{...api.getRootProps()}
+		data-part="root"
 		data-variant={size}
 		class={{ home: onHomePage, 'dialog-content': size === 'dialog' }}
 		style="min-height: {minHeight}px;"
 	>
-		{#each stepsData as step, index}
-			{@const Component = step.component}
-			{@const activeIsPopup = !!stepsData[api.value]?.popup}
+		{#each stepsData as stage, index (stage.value)}
+			{@const Component = stage.component}
+			{@const activeIsPopup = !!stepsData[step]?.popup}
 			{@const keepPrevVisible = (() => {
 				if (!activeIsPopup) return false;
-				if (index >= api.value) return false;
+				if (index >= step) return false;
 				// Visible if every stage strictly between this and the active one
 				// is itself popup — i.e. there's an unbroken popup chain back.
-				for (let i = index + 1; i <= api.value; i++) {
+				for (let i = index + 1; i <= step; i++) {
 					if (!stepsData[i]?.popup) return false;
 				}
 				return true;
 			})()}
-			{@const isVisible = api.value === index || keepPrevVisible}
+			{@const isVisible = step === index || keepPrevVisible}
 			<div
-				{...api.getContentProps({ index })}
+				data-part="content"
+				data-state={step === index ? 'open' : 'closed'}
 				hidden={!isVisible}
 				tabindex="-1"
 			>
 				<Component
 					{editStage}
-					isActive={api.value === index}
+					isActive={step === index}
 					{status}
 					{waiting}
 					abort={cancelTransaction}
 					{txId}
-					popup={!!step.popup}
-					next={api.value === index ? next : undefined}
-					previous={api.value === index ? previous : undefined}
+					popup={!!stage.popup}
+					next={step === index ? next : undefined}
+					previous={step === index ? previous : undefined}
 					goHome={() => {
 						setStatus('');
-						api.setStep(0);
+						step = 0;
 					}}
 					{...extraProps}
 					{close}
@@ -261,7 +255,7 @@
 				/>
 			</div>
 		{/each}
-		{#if onHomePage && !stepsData[api.value]?.popup}
+		{#if onHomePage && !stepsData[step]?.popup}
 			<NavButtons {buttons} fixed={size === 'page'} />
 		{/if}
 	</div>
@@ -326,13 +320,8 @@
 			padding: 0;
 			overflow-y: auto;
 		}
-		[data-part='list'] {
-			position: absolute;
-			left: 6.75rem;
-			display: flex;
-			flex-direction: column;
-			font: inherit;
-		}
+		/* NB: a [data-part='list'] block used to live here, styling the old
+		   visible stepper indicators — removed; no element renders that part. */
 	}
 	[data-part='root'][data-variant='dialog'] {
 		display: flex;
@@ -362,8 +351,7 @@
 	 * Override that for closed-but-still-rendered panels: let the
 	 * content drive its natural height and drop the nested overflow.
 	 */
-	[data-part='root'][data-variant='page']
-		[data-part='content'][data-state='closed']:not([hidden]) {
+	[data-part='root'][data-variant='page'] [data-part='content'][data-state='closed']:not([hidden]) {
 		display: block;
 		height: auto;
 		min-height: auto;
@@ -372,9 +360,9 @@
 		margin: 0;
 	}
 	@media screen and (max-width: 36rem) {
-		[data-part='root'][data-vauriant='dialog'].home {
-			padding-bottom: 3rem;
-		}
+		/* NB: a `[data-vauriant='dialog'].home { padding-bottom: 3rem }` rule
+		   lived here — the selector was typo'd ("vauriant") so it NEVER matched;
+		   removed rather than fixed to preserve the actual shipped behavior. */
 		.dialog-content {
 			height: unset;
 		}

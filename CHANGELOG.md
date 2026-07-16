@@ -8,6 +8,12 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.38] — 2026-07-14
+
+### Changed
+
+- **StepsMachine internals simplified (no user-facing change).** The multi-step flow driver behind swap, transfer, deposit, withdraw, staking and the pool dialogs still carried its pre-popup-era stepper machinery: a Zag steps machine used purely as an integer counter (the visible stepper UI it drove was removed when review/complete became popups), whose `data-state` stamping fought the popup-chain visibility logic. It's now a plain step counter with explicit visibility; all `data-part`/`data-state` attributes are preserved so every flow's styling is untouched, and the component contract is unchanged (no consumer modified). Dead code deleted along the way: the legacy pre-page `Withdraw.svelte` (zero importers), the never-rendered stepper-indicator CSS, and a typo'd rule that never matched. Full test suite green; all seven flows smoke-tested.
+
 ## [0.3.37] — 2026-07-14
 
 ### Added

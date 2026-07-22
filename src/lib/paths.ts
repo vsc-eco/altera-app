@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Coins, Droplets, Eye, LayoutDashboard, ScrollText, Send } from '@lucide/svelte';
+import { ArrowRightLeft, Coins, Droplets, Eye, LayoutDashboard, ScrollText, Send, Store } from '@lucide/svelte';
 
 export type SidebarPath = {
 	name: string;
@@ -38,6 +38,12 @@ export const paths: SidebarPath[] = [
 		name: 'Magi Tokens / NFTs',
 		icon: Coins,
 		href: '/custom-tokens',
+		requiresHive: true
+	},
+	{
+		name: 'NFT Market',
+		icon: Store,
+		href: '/market',
 		requiresHive: true
 	}
 ];

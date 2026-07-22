@@ -81,6 +81,9 @@ importers:
       '@vsc.eco/client':
         specifier: ^0.0.7
         version: 0.0.7(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+      '@vsc.eco/market-widget':
+        specifier: ^0.0.2
+        version: 0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@vsc.eco/token-widget':
         specifier: ^0.0.2
         version: 0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1299,7 +1302,7 @@ packages:
 
   '@paulmillr/qr@0.2.1':
     resolution: {integrity: sha512-IHnV6A+zxU7XwmKFinmYjUcwlyK9+xkG3/s9KcQhI9BjQKycrJ1JRO+FbNYPwZiPKW3je/DR0k7w8/gLa5eaxQ==}
-    deprecated: 'The package is now available as "qr": npm install qr'
+    deprecated: 'Switch to "qr" (new package name) for security updates: npm install qr'
 
   '@phosphor-icons/webcomponents@2.1.5':
     resolution: {integrity: sha512-JcvQkZxvcX2jK+QCclm8+e8HXqtdFW9xV4/kk2aL9Y3dJA2oQVt+pzbv1orkumz3rfx4K9mn9fDoMr1He1yr7Q==}
@@ -2567,6 +2570,22 @@ packages:
 
   '@vsc.eco/client@0.0.7':
     resolution: {integrity: sha512-ZubSSl8TMljkdUyHApJGfB7xVrXfqsTh1pHsYImvHcmznh1DV/gswe8EnhaVG6eDkAOJEIFsSfaKele1aFt0/Q==}
+
+  '@vsc.eco/market-core@0.0.1':
+    resolution: {integrity: sha512-FJ83GXjYRmSdXA5KRd6DCrZu9v6EPzLf32r5gkPRvcD9/Ua0ig/gxDOvMa6EqrLFOonqkR5pk/Xhw3mrxleVdQ==}
+
+  '@vsc.eco/market-sdk@0.0.1':
+    resolution: {integrity: sha512-bhc9kpB98el1i2NReOF+MqgH+zKGEioFGl5JvK8OT1sKNEBEb8SaVAbFXDf36hLsIQfP6MU0TYFBLXhjG6geog==}
+
+  '@vsc.eco/market-widget@0.0.2':
+    resolution: {integrity: sha512-E/RE6Q1ypc0dMo+DgcrBzNJUGEUgFawROH2lKT/bQ+kmfCnLB8VNa0aotKyfXe7eVCDd3EOKhEFxevwsZ4XMZw==}
+    peerDependencies:
+      '@aioha/aioha': ^1.8.0
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+    peerDependenciesMeta:
+      '@aioha/aioha':
+        optional: true
 
   '@vsc.eco/token-core@0.0.2':
     resolution: {integrity: sha512-5JBi2aLyfrsNcK/8ff/Fi8E8cLP+oAfJIn4FBwIjderVqlFb53a3m9R5lDZaxBVmGrq1sTuaMrwgcfX3CEvBag==}
@@ -9437,6 +9456,24 @@ snapshots:
       - typescript
       - utf-8-validate
       - zod
+
+  '@vsc.eco/market-core@0.0.1': {}
+
+  '@vsc.eco/market-sdk@0.0.1':
+    dependencies:
+      '@vsc.eco/market-core': 0.0.1
+
+  '@vsc.eco/market-widget@0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@r2wc/react-to-web-component': 2.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@vsc.eco/market-core': 0.0.1
+      '@vsc.eco/market-sdk': 0.0.1
+      '@vsc.eco/token-core': 0.0.2
+      '@vsc.eco/token-sdk': 0.0.2
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    optionalDependencies:
+      '@aioha/aioha': 1.8.2(webextension-polyfill@0.10.0)
 
   '@vsc.eco/token-core@0.0.2': {}
 

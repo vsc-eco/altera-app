@@ -67,6 +67,17 @@
 					? 'Review Send'
 					: 'Review Swap'
 	);
+	// Same reasoning for the confirm button: a deposit/withdraw/send must not
+	// ask the user to press "Swap".
+	const confirmLabel = $derived(
+		txState.kind === 'deposit'
+			? 'Deposit'
+			: txState.kind === 'withdraw'
+				? 'Withdraw'
+				: txState.kind === 'transfer'
+					? 'Send'
+					: 'Swap'
+	);
 
 	// Mark the review stage as "complete" (user can proceed) as soon as it
 	// becomes the active stage. The user clicking the forward button is then
@@ -668,7 +679,7 @@
 				styleType="invert"
 				disabled={waiting || feeGuardTripped}
 			>
-				{waiting ? 'Waiting…' : 'Swap'}
+				{waiting ? 'Waiting…' : confirmLabel}
 			</PillButton>
 		</div>
 	{/if}

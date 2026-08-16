@@ -8,6 +8,16 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.39] — 2026-08-16
+
+### Added
+
+- **NFT Market page.** A new **Magi NFT Market** page (`/market`) brings the Magi marketplace into Altera — browse listings, auctions and mint spots, and buy or sell without leaving the app. Reachable from the sidebar; requires a Hive account, since every market action signs with your Active key.
+
+### Fixes
+
+- **The confirm button always read "Swap", even for a deposit, withdrawal, or send.** The companion to the title fix in 0.3.24: the review step is shared across every flow, but its confirm button was hardcoded too — so a deposit asked you to press **Swap** to finish. The button now follows the flow's `txState.kind`: **Deposit** / **Withdraw** / **Send** / **Swap**
+
 ## [0.3.38] — 2026-07-14
 
 ### Changed

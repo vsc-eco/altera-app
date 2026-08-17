@@ -82,8 +82,8 @@ importers:
         specifier: ^0.0.7
         version: 0.0.7(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
       '@vsc.eco/market-widget':
-        specifier: ^0.0.2
-        version: 0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz
+        version: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@vsc.eco/token-widget':
         specifier: ^0.0.2
         version: 0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2571,14 +2571,17 @@ packages:
   '@vsc.eco/client@0.0.7':
     resolution: {integrity: sha512-ZubSSl8TMljkdUyHApJGfB7xVrXfqsTh1pHsYImvHcmznh1DV/gswe8EnhaVG6eDkAOJEIFsSfaKele1aFt0/Q==}
 
-  '@vsc.eco/market-core@0.0.1':
-    resolution: {integrity: sha512-FJ83GXjYRmSdXA5KRd6DCrZu9v6EPzLf32r5gkPRvcD9/Ua0ig/gxDOvMa6EqrLFOonqkR5pk/Xhw3mrxleVdQ==}
+  '@vsc.eco/market-core@https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz':
+    resolution: {integrity: sha512-xNDj6uXUuu8uC9GCZ9MVIjD4mfaMNC89bRrrc21L9ZQgVagmvpvPQEF4uRW/DZlS5e/7/84BP4oDppEibT+waA==, tarball: https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz}
+    version: 0.0.1-local.88a26f767d
 
-  '@vsc.eco/market-sdk@0.0.1':
-    resolution: {integrity: sha512-bhc9kpB98el1i2NReOF+MqgH+zKGEioFGl5JvK8OT1sKNEBEb8SaVAbFXDf36hLsIQfP6MU0TYFBLXhjG6geog==}
+  '@vsc.eco/market-sdk@https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.88a26f767d.tgz':
+    resolution: {integrity: sha512-njwVqXDRdAr5gayD+QHmnzNTp4/Q90zEhgmMZJhR28G+YSLGZ7pvqQ8Eh4T6BTJeTbBG2vD6GQkCCHqCFHwvlQ==, tarball: https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.88a26f767d.tgz}
+    version: 0.0.1-local.88a26f767d
 
-  '@vsc.eco/market-widget@0.0.2':
-    resolution: {integrity: sha512-E/RE6Q1ypc0dMo+DgcrBzNJUGEUgFawROH2lKT/bQ+kmfCnLB8VNa0aotKyfXe7eVCDd3EOKhEFxevwsZ4XMZw==}
+  '@vsc.eco/market-widget@https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz':
+    resolution: {integrity: sha512-HcWx4s+X0Xyn2xXc8t6suCqcP5ocX4sFWG2xikWflAmprWYSbqwNDhRPXAnGTi4ncvRu70+yfX7lazBSamghNQ==, tarball: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz}
+    version: 0.0.2-local.88a26f767d
     peerDependencies:
       '@aioha/aioha': ^1.8.0
       react: '>=18.0.0'
@@ -9457,17 +9460,17 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@vsc.eco/market-core@0.0.1': {}
+  '@vsc.eco/market-core@https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz': {}
 
-  '@vsc.eco/market-sdk@0.0.1':
+  '@vsc.eco/market-sdk@https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.88a26f767d.tgz':
     dependencies:
-      '@vsc.eco/market-core': 0.0.1
+      '@vsc.eco/market-core': https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz
 
-  '@vsc.eco/market-widget@0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@vsc.eco/market-widget@https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@r2wc/react-to-web-component': 2.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@vsc.eco/market-core': 0.0.1
-      '@vsc.eco/market-sdk': 0.0.1
+      '@vsc.eco/market-core': https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz
+      '@vsc.eco/market-sdk': https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.88a26f767d.tgz
       '@vsc.eco/token-core': 0.0.2
       '@vsc.eco/token-sdk': 0.0.2
       react: 18.3.1

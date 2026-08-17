@@ -4,6 +4,7 @@
 	"version": "0.3.40",
 	"type": "module",
 	"types": "./src/has/hive-auth-wrapper.d.ts",
+	"//TEMPORARY-market-widget": "dependencies['@vsc.eco/market-widget'] is pinned to a self-hosted tarball (market-sdk.okinoko.io/pkg) because npm publishing for @vsc.eco/market-* is blocked. REAL VALUE TO RESTORE once published: \"^0.0.2\". Bump the pinned URL from https://market-sdk.okinoko.io/pkg/latest.json. package.json takes no comments, hence this key — npm/pnpm ignore unknown top-level keys.",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
@@ -100,7 +101,7 @@
 		"@types/qrcode": "^1.5.6",
 		"@vercel/analytics": "^1.6.1",
 		"@vsc.eco/client": "^0.0.7",
-		"@vsc.eco/market-widget": "^0.0.2",
+		"@vsc.eco/market-widget": "https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz",
 		"@vsc.eco/token-widget": "^0.0.2",
 		"@wagmi/core": "^3.3.1",
 		"@zag-js/avatar": "^1.33.1",

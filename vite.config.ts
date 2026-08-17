@@ -24,6 +24,20 @@ export default defineConfig({
 		__APP_BUILD_TIME__: JSON.stringify(buildTime)
 	},
 	plugins: [houdini(), sveltekit(), ...(isReverseProxyDev ? [] : [mkcert()])],
+	// TEMPORARY (npm publishing for @vsc.eco/market-* is blocked):
+	// `@vsc.eco/market-widget` installs from a self-hosted tarball, which is
+	// a normal package — its react/react-dom peers resolve from OUR tree, so
+	// no deduping is needed and this stays commented out.
+	//
+	// Re-enable it if the dep is ever switched back to a `link:` local
+	// market-sdk checkout: a linked package resolves bare imports from ITS
+	// own node_modules, which carries react/react-dom as devDeps, so the
+	// market panel would run on a second React instance and every hook call
+	// would throw "Invalid hook call".
+	//
+	// resolve: {
+	// 	dedupe: ['react', 'react-dom']
+	// },
 	server: isReverseProxyDev
 		? {
 				host: '127.0.0.1',

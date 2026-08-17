@@ -10,6 +10,10 @@ All notable changes to Altera are documented here.
 
 ## [0.3.40] — 2026-08-17
 
+### Changed
+
+- **The NFT Market widget now installs from our own package host, not npm.** Publishing `@vsc.eco/market-*` to npm is blocked, so `@vsc.eco/market-widget` is pinned to an immutable tarball URL on <https://market-sdk.okinoko.io/pkg/> (`latest.json` lists the current build). This is temporary — see the `//TEMPORARY-market-widget` key in `package.json` for the semver range to restore once npm publishing works again. Brings the reworked marketplace panel: an Explore section covering every NFT on the network, offer-accept that approves the marketplace in the same batch, and a mobile layout.
+
 ### Fixes
 
 - **The app got slower the longer a tab stayed open, and eventually froze (~1h).** Every fire-and-forget GraphQL call built a fresh Houdini query store, and each one permanently registered itself as a subscriber of the Houdini cache — the subscription is only released when a store's last *Svelte* subscriber goes away, and polling code never subscribes. Every later cache write then re-read the whole selection once per leaked subscriber, so the cost of each poll grew without bound: the dashboard's 2s transaction poll leaked ~250 subscribers per tick (≈450 000/hour) and the 5s balance poll another 11 (≈8 000/hour). Fetches that throw their store away now go through a `queryOnce` helper that releases the subscription afterwards — measured flat at zero leaked subscribers across every poller (balances, transactions, tx statuses, pools, swap quotes, BTC fee estimate, EVM nonce, witness block-production and governance panels).

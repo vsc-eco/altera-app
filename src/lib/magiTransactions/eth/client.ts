@@ -3,6 +3,7 @@ import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
 import { GetAccountNonceStore, SubmitTransactionV1Store } from '$houdini';
+import { queryOnce } from '$lib/queryOnce';
 import { currentGqlUrl, vscNetworkId } from '../../../client';
 
 export type Client = {
@@ -278,8 +279,9 @@ export async function signAndBrodcastTransaction<
 	// console.log('wallet connected', walletConnected);
 
 	if (client.nonce === null) {
-		const nonceStore = new GetAccountNonceStore();
-		const res = await nonceStore.fetch({ variables: { account: client.userId } });
+		const res = await queryOnce(new GetAccountNonceStore(), {
+			variables: { account: client.userId }
+		});
 		client.nonce = res.data?.getAccountNonce?.nonce ?? null;
 	}
 

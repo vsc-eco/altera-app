@@ -6,6 +6,7 @@ import moment from 'moment';
 import { authStore } from '$lib/auth/store';
 import { clearLastPaidCache } from '$lib/sendswap/utils/sendUtils';
 import { type BtcDepositEvent, fetchBtcDepositsByRecipient } from '$lib/indexer/btcMappingQueries';
+import { queryOnce } from '$lib/queryOnce';
 
 type MagiTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
 
@@ -250,17 +251,16 @@ export async function fetchTxs(
 	if (type !== 'update') {
 		if (setLoading) setLoading(true);
 	}
-	const success = await new GetTransactionsStore()
-		.fetch({
-			variables: {
-				limit: limit,
-				did,
-				offset: type === 'extend' ? get(magiTxsStore).length : undefined,
-				byType: serverFilters?.byType,
-				byLedgerToFrom: serverFilters?.byLedgerToFrom
-			},
-			policy: 'NetworkOnly'
-		})
+	const success = await queryOnce(new GetTransactionsStore(), {
+		variables: {
+			limit: limit,
+			did,
+			offset: type === 'extend' ? get(magiTxsStore).length : undefined,
+			byType: serverFilters?.byType,
+			byLedgerToFrom: serverFilters?.byLedgerToFrom
+		},
+		policy: 'NetworkOnly'
+	})
 		.then((post) => {
 			if (!post.data?.findTransaction) {
 				if (type === 'set') {

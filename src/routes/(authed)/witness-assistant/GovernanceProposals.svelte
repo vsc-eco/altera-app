@@ -15,6 +15,7 @@
 		type FindGovernanceProposals$result
 	} from '$houdini';
 	import { getAuth } from '$lib/auth/store';
+	import { queryOnce } from '$lib/queryOnce';
 	import Card from '$lib/cards/Card.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
@@ -49,7 +50,7 @@
 	let witnessLoadError = $state(false);
 	async function fetchWitnesses() {
 		try {
-			const res = await new CurrentElectionStore().fetch({ policy: 'NetworkOnly' });
+			const res = await queryOnce(new CurrentElectionStore(), { policy: 'NetworkOnly' });
 			if (res.errors?.length) throw new Error(res.errors[0].message);
 			const members = res.data?.electionByBlockHeight?.members ?? [];
 			witnessAccounts = new Set(members.map((m) => normalizeAccount(m.account)));
@@ -75,11 +76,10 @@
 	const uiFor = (id: string): VoteUi => voteState[id] ?? { busy: false, status: '', error: '' };
 
 	async function fetchProposals() {
-		await new FindGovernanceProposalsStore()
-			.fetch({
-				variables: { filterOptions: { byStatus: 'open', limit: 10 } },
-				policy: 'NetworkOnly'
-			})
+		await queryOnce(new FindGovernanceProposalsStore(), {
+			variables: { filterOptions: { byStatus: 'open', limit: 10 } },
+			policy: 'NetworkOnly'
+		})
 			.then((res) => {
 				if (res.errors?.length) throw new Error(res.errors[0].message);
 				proposals = [...(res.data?.findGovernanceProposals ?? [])];
@@ -108,7 +108,7 @@
 		historyLoading = true;
 		const offset = reset ? 0 : historyOffset;
 		try {
-			const res = await new FindGovernanceProposalsStore().fetch({
+			const res = await queryOnce(new FindGovernanceProposalsStore(), {
 				variables: { filterOptions: { limit: HISTORY_PAGE, offset } },
 				policy: 'NetworkOnly'
 			});

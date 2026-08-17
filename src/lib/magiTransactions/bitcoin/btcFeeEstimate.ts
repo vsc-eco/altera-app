@@ -1,5 +1,6 @@
 import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 import { GetStateByKeysStore } from '$houdini';
+import { queryOnce } from '$lib/queryOnce';
 
 // Mirror of the VSC BTC-mapping contract's own fee math (constants.go / utils.go).
 // The contract stores a 32-byte "supply" blob at state key "s" holding four
@@ -56,7 +57,7 @@ export type BtcFeeEstimate = {
 
 export async function fetchBtcBaseFeeRate(): Promise<number | null> {
 	try {
-		const result = await new GetStateByKeysStore().fetch({
+		const result = await queryOnce(new GetStateByKeysStore(), {
 			variables: {
 				contractId: BTC_MAPPING_CONTRACT_ID,
 				keys: [SUPPLY_STATE_KEY],

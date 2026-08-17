@@ -12,6 +12,7 @@
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { GetTransactionsStore } from '$houdini';
+	import { queryOnce } from '$lib/queryOnce';
 	import moment from 'moment';
 	import { type Snippet } from 'svelte';
 	// Tr.svelte and SidePopup ARE the transactions table's modal pieces —
@@ -180,11 +181,10 @@
 			return;
 		}
 
-		new GetTransactionsStore()
-			.fetch({
-				variables: { did, limit: RAW_TX_FETCH_LIMIT, offset: 0 },
-				policy: 'NetworkOnly'
-			})
+		queryOnce(new GetTransactionsStore(), {
+			variables: { did, limit: RAW_TX_FETCH_LIMIT, offset: 0 },
+			policy: 'NetworkOnly'
+		})
 			.then((result) => {
 				const rawTxs = (result.data?.findTransaction ?? []) as TransactionInter[];
 				const allDeposits = rawTxs.flatMap((tx) => extractDeposits(tx));

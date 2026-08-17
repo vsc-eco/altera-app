@@ -7,6 +7,7 @@ import { getUsernameFromAuth } from '$lib/getAccountName';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+import { queryOnce } from '$lib/queryOnce';
 
 type AccountBalanceSnapshot = {
 	bal: AccountBalance;
@@ -55,7 +56,7 @@ export function getBalanceAmount<C extends (typeof Coin)[keyof typeof Coin]>(
 
 async function fetchBtcBalance(did: string): Promise<number> {
 	try {
-		const result = await new GetStateByKeysStore().fetch({
+		const result = await queryOnce(new GetStateByKeysStore(), {
 			variables: {
 				contractId: BTC_MAPPING_CONTRACT_ID,
 				keys: [`a-${did}`],
@@ -170,14 +171,28 @@ export function getDefaultBalance(): AccountBalance {
 	};
 }
 
-let isPolling = false;
 let intervalId: NodeJS.Timeout | null = null;
+/**
+ * DID the running interval polls for, or null when idle. The interval captures
+ * its `auth` in a closure, so it must be torn down and restarted when the user
+ * switches account — otherwise it keeps writing the PREVIOUS account's
+ * balances into the store every 5s and the dashboard never updates.
+ */
+let pollingDid: string | null = null;
 
 export function startAccountPolling(auth: Auth) {
-	const did = auth.value!.did;
-	if (!browser || isPolling) return; // Prevent multiple intervals
+	if (!browser || !auth.value) return;
 
-	isPolling = true;
+	const did = auth.value.did;
+	// Already polling this account: leave the running interval alone (the
+	// layout effect re-runs on unrelated auth changes, e.g. the profile
+	// picture being filled in).
+	if (pollingDid === did) return;
+
+	// Different account (or first start): drop the old loop, including any
+	// in-flight request, before starting the new one.
+	stopAccountPolling();
+	pollingDid = did;
 
 	// Initial fetch
 	fetchAccountData(auth);
@@ -191,6 +206,7 @@ export function startAccountPolling(auth: Auth) {
 async function fetchAccountData(auth: Auth) {
 	try {
 		if (!auth.value) throw 'Not authenticated';
+		const requestedDid = auth.value.did;
 		const accBalancesStore = new GetAccountBalanceStore();
 
 		const username = getUsernameFromAuth(auth);
@@ -205,7 +221,7 @@ async function fetchAccountData(auth: Auth) {
 		const btcWalletAddress = isReownBtc ? auth.value!.address : undefined;
 
 		const [magiBal, btcBalance, connectedBal, onChainBtcBalance] = await Promise.all([
-			accBalancesStore.fetch({
+			queryOnce(accBalancesStore, {
 				variables: { account: auth.value!.did },
 				policy: 'NetworkOnly'
 			}),
@@ -268,6 +284,11 @@ async function fetchAccountData(auth: Auth) {
 			connectedBalanceObj.btc = onChainBtcBalance;
 		}
 
+		// The user may have switched account while these requests were in
+		// flight. Dropping the response keeps the previous account's balances
+		// from landing in the store after the switch cleared it.
+		if (pollingDid !== requestedDid) return;
+
 		if (magiBalanceObj && connectedBalanceObj) {
 			accountBalance.set({
 				bal: magiBalanceObj,
@@ -296,6 +317,7 @@ export function stopAccountPolling() {
 	if (intervalId) {
 		clearInterval(intervalId);
 		intervalId = null;
-		isPolling = false;
 	}
+	// Also invalidates any in-flight fetchAccountData response.
+	pollingDid = null;
 }

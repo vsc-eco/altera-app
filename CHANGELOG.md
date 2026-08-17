@@ -8,6 +8,14 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.40] — 2026-08-17
+
+### Fixes
+
+- **The app got slower the longer a tab stayed open, and eventually froze (~1h).** Every fire-and-forget GraphQL call built a fresh Houdini query store, and each one permanently registered itself as a subscriber of the Houdini cache — the subscription is only released when a store's last *Svelte* subscriber goes away, and polling code never subscribes. Every later cache write then re-read the whole selection once per leaked subscriber, so the cost of each poll grew without bound: the dashboard's 2s transaction poll leaked ~250 subscribers per tick (≈450 000/hour) and the 5s balance poll another 11 (≈8 000/hour). Fetches that throw their store away now go through a `queryOnce` helper that releases the subscription afterwards — measured flat at zero leaked subscribers across every poller (balances, transactions, tx statuses, pools, swap quotes, BTC fee estimate, EVM nonce, witness block-production and governance panels).
+
+- **Switching account kept showing the previous account's balances.** The balance poller captured its `auth` in the interval closure and refused to start again while a poll loop was already running, so after a switch the *old* loop kept writing the *previous* account's balances into the store every 5 seconds. It now keys on the polled DID: a different account tears the old loop down and starts a new one, and a response that arrives after a switch is discarded instead of overwriting the new account's data.
+
 ## [0.3.39] — 2026-08-16
 
 ### Added

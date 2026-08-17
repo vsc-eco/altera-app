@@ -1,4 +1,5 @@
 import { GetStateByKeysStore } from '$houdini';
+import { queryOnce } from '$lib/queryOnce';
 import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 import {
 	type TimeRange,
@@ -342,11 +343,11 @@ async function fetchSinglePool(
 	usdPrices: { hive: number; hbd: number; btc: number }
 ): Promise<PoolRow> {
 	const [stateRes, reservesRes, volume, fees, liquidity] = await Promise.all([
-		new GetStateByKeysStore().fetch({
+		queryOnce(new GetStateByKeysStore(), {
 			variables: { contractId, keys: [...HBD_BTC_POOL_KEYS] },
 			policy: 'NetworkOnly'
 		}),
-		new GetStateByKeysStore().fetch({
+		queryOnce(new GetStateByKeysStore(), {
 			variables: { contractId, keys: [...RESERVE_KEYS], encoding: 'hex' },
 			policy: 'NetworkOnly'
 		}),

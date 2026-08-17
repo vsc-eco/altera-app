@@ -62,6 +62,7 @@ const BPS_SCALE = 10000n;
 const CLP_SCALE_BPS = 625n;
 
 import { GetStateByKeysStore } from '$houdini';
+import { queryOnce } from '$lib/queryOnce';
 import { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from './poolsData';
 
 /**
@@ -173,7 +174,7 @@ export async function fetchPoolDepths(
 ): Promise<PoolDepths | null> {
 	if (!poolContractId) return null;
 	try {
-		const result = await new GetStateByKeysStore().fetch({
+		const result = await queryOnce(new GetStateByKeysStore(), {
 			variables: {
 				contractId: poolContractId,
 				keys: [KEY_RESERVE_0, KEY_RESERVE_1],
@@ -384,7 +385,7 @@ export async function fetchTypedPoolDepths(
 	// GraphQL layer doesn't mangle high bytes through UTF-8.
 	for (let attempt = 0; attempt < 2; attempt++) {
 		try {
-			const result = await new GetStateByKeysStore().fetch({
+			const result = await queryOnce(new GetStateByKeysStore(), {
 				variables: {
 					contractId: entry.contractId,
 					keys: [KEY_RESERVE_0, KEY_RESERVE_1],

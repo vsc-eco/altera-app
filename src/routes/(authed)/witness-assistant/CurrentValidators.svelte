@@ -15,6 +15,7 @@
 -->
 <script lang="ts">
 	import { NodeHeadStore, WitnessScheduleStore, CurrentElectionStore } from '$houdini';
+	import { queryOnce } from '$lib/queryOnce';
 	import Card from '$lib/cards/Card.svelte';
 	import { getHiveAccountUrl, getHiveAvatarUrl, getVscExplorerUrl } from '$lib/constants';
 	import { Boxes, ChevronRight } from '@lucide/svelte';
@@ -40,7 +41,7 @@
 	// The schedule covers ~120 slots forward (~an hour), so it's stable — fetch it
 	// only when we have none or we've advanced past its end, NOT every tick.
 	async function fetchSchedule(height: number) {
-		const s = await new WitnessScheduleStore().fetch({
+		const s = await queryOnce(new WitnessScheduleStore(), {
 			variables: { height },
 			policy: 'NetworkOnly'
 		});
@@ -58,7 +59,7 @@
 		if (busy) return;
 		busy = true;
 		try {
-			const h = await new NodeHeadStore().fetch({ policy: 'NetworkOnly' });
+			const h = await queryOnce(new NodeHeadStore(), { policy: 'NetworkOnly' });
 			if (h.errors?.length) throw new Error(h.errors[0].message);
 			const bh = h.data?.localNodeInfo?.last_processed_block;
 			if (bh == null) throw new Error('no head height');
@@ -76,7 +77,7 @@
 
 	async function fetchCommittee() {
 		try {
-			const res = await new CurrentElectionStore().fetch({ policy: 'NetworkOnly' });
+			const res = await queryOnce(new CurrentElectionStore(), { policy: 'NetworkOnly' });
 			const el = res.data?.electionByBlockHeight;
 			epoch = el?.epoch ?? null;
 			committee = (el?.members ?? []).map((m) => m.account);

@@ -1,4 +1,5 @@
 import { GetStatusesStore, TransactionStatus, type ValueOf } from '$houdini';
+import { queryOnce } from '$lib/queryOnce';
 import { readonly, writable, type Readable, type Writable } from 'svelte/store';
 
 export type TxStatus = ValueOf<typeof TransactionStatus>
@@ -8,13 +9,12 @@ const checkingStores: { [tx_id: string]: Writable<TxStatus> } = {};
 function updateStatuses() {
 	const idsToFetch = Object.keys(checkingStores);
 	// console.log('fetching statuses for', idsToFetch);
-	new GetStatusesStore()
-		.fetch({
-			variables: {
-				txIds: idsToFetch
-			},
-			policy: 'NetworkOnly'
-		})
+	queryOnce(new GetStatusesStore(), {
+		variables: {
+			txIds: idsToFetch
+		},
+		policy: 'NetworkOnly'
+	})
 		.then((res) => {
 			// console.log('FETCHED');
 			const statuses = res.data?.findTransaction;

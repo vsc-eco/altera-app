@@ -41,7 +41,7 @@ export const paths: SidebarPath[] = [
 		requiresHive: true
 	},
 	{
-		name: 'Magi NFT Market',
+		name: 'Magi Market',
 		icon: Store,
 		href: '/market',
 		requiresHive: true

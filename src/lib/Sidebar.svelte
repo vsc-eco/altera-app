@@ -284,6 +284,13 @@
 	.nav-label {
 		overflow: hidden;
 		text-overflow: ellipsis;
+		/* reset.css sets `body { line-height: 1 }`, which inherits here. As a
+		 * flex item this span is blockified, so its content box is exactly that
+		 * one-em line box — and `overflow: hidden` (needed for the ellipsis)
+		 * then clips whatever pokes out of it, cutting ~0.8px off the descender
+		 * of every g/p/y ("Magi Market", "Cross-chain Swaps"). Give the line box
+		 * room for the descender instead of loosening the global reset. */
+		line-height: 1.5;
 	}
 
 	/* Footer */

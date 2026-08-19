@@ -2,11 +2,38 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { KeyTypes } from '@aioha/aioha';
 	import { getAuth } from '$lib/auth/store';
+	import { getMagiIndexerBaseUrl, vscNetworkId } from '../../../client';
 	import '@vsc.eco/token-widget/styles.css';
 
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	let aioha = $derived(auth.value?.aioha);
+
+	// The widget defaults to MAINNET_CONFIG when no `config` is passed, so
+	// without this the token page queried the MAINNET indexer and nodes even on
+	// a testnet build — it looked "not connected to the testnet indexer"
+	// because it genuinely was not talking to it.
+	//
+	// Ordering matters and is the same trap the market page documents: failover
+	// fires on ERROR, never on an empty result. An indexer that does not track
+	// these contracts answers "no tokens" perfectly successfully, so the one
+	// that DOES track them has to come first or the fallback never runs.
+	const isTestnet = vscNetworkId === 'vsc-testnet';
+	const okinokoHasura = isTestnet
+		? 'https://api-testnet.okinoko.io/hasura/v1/graphql'
+		: 'https://api.okinoko.io/hasura/v1/graphql';
+	const tokenConfig = {
+		network: (isTestnet ? 'vsc-testnet' : 'vsc-mainnet') as 'vsc-testnet' | 'vsc-mainnet',
+		indexerHasuraUrls: [okinokoHasura, `${getMagiIndexerBaseUrl()}/v1/graphql`],
+		gqlUrls: isTestnet
+			? ['https://magi-test.techcoderx.com/api/v1/graphql']
+			: [
+					'https://api.vsc.eco/api/v1/graphql',
+					'https://vsc.techcoderx.com/api/v1/graphql',
+					'https://api.okinoko.io/api/v1/graphql'
+				],
+		deployerUrl: isTestnet ? 'https://deploy-testnet.okinoko.io' : 'https://deploy.okinoko.io'
+	};
 
 	let host: HTMLDivElement | undefined = $state();
 	let ready = $state(false);
@@ -42,6 +69,7 @@
 				aioha,
 				keyType: KeyTypes.Active,
 				username,
+				config: tokenConfig,
 				enableDeploy: true,
 				enableRefresh: true,
 				enableUserSearch: true

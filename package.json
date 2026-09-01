@@ -4,6 +4,9 @@
 	"version": "0.3.40",
 	"type": "module",
 	"types": "./src/has/hive-auth-wrapper.d.ts",
+	"//CHANNEL": "All @vsc.eco/*-widget pins point at the PRODUCTION package endpoints (/pkg). Feature builds live at /pkg-dev on the same hosts and must never be pinned here — see publish-{market,token}-sdk-tarballs.sh --dev.",
+	"//TEMPORARY-token-sdk-override": "pnpm.overrides forces @vsc.eco/token-core and token-sdk onto the self-hosted build: market-widget also depends on them at ^0.0.2, and npm's 0.0.2 does not page the indexer's 100-row cap. Without the override the app ships TWO token-sdk copies and the market's NFT pickers keep the bug the NFT page just lost. Drop it once npm has a paged release.",
+	"//TEMPORARY-token-widget": "dependencies['@vsc.eco/token-widget'] is pinned to a self-hosted tarball (token-sdk.okinoko.io/pkg) because npm publishing for @vsc.eco/token-* is blocked AND npm's 0.0.2 does not page the indexer's 100-row cap, so a wallet with >100 NFTs showed only the first 100. REAL VALUE TO RESTORE once published: \"^0.0.2\". Bump from https://token-sdk.okinoko.io/pkg/latest.json.",
 	"//TEMPORARY-market-widget": "dependencies['@vsc.eco/market-widget'] is pinned to a self-hosted tarball (market-sdk.okinoko.io/pkg) because npm publishing for @vsc.eco/market-* is blocked. REAL VALUE TO RESTORE once published: \"^0.0.2\". Bump the pinned URL from https://market-sdk.okinoko.io/pkg/latest.json. package.json takes no comments, hence this key — npm/pnpm ignore unknown top-level keys.",
 	"scripts": {
 		"dev": "vite dev",
@@ -55,6 +58,8 @@
 	},
 	"pnpm": {
 		"overrides": {
+			"@vsc.eco/token-core": "https://token-sdk.okinoko.io/pkg/v/token-core-0.0.2-local.db1966e7e8.tgz",
+			"@vsc.eco/token-sdk": "https://token-sdk.okinoko.io/pkg/v/token-sdk-0.0.2-local.db1966e7e8.tgz",
 			"elliptic": ">=6.6.1",
 			"ws": ">=8.17.1",
 			"bs58": ">=5.0.0",
@@ -101,8 +106,8 @@
 		"@types/qrcode": "^1.5.6",
 		"@vercel/analytics": "^1.6.1",
 		"@vsc.eco/client": "^0.0.7",
-		"@vsc.eco/market-widget": "https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz",
-		"@vsc.eco/token-widget": "^0.0.2",
+		"@vsc.eco/market-widget": "https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.6dd86f27c9.tgz",
+		"@vsc.eco/token-widget": "https://token-sdk.okinoko.io/pkg/v/token-widget-0.0.2-local.db1966e7e8.tgz",
 		"@wagmi/core": "^3.3.1",
 		"@zag-js/avatar": "^1.33.1",
 		"@zag-js/clipboard": "^1.33.1",

@@ -5,6 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@vsc.eco/token-core': https://token-sdk.okinoko.io/pkg/v/token-core-0.0.2-local.db1966e7e8.tgz
+  '@vsc.eco/token-sdk': https://token-sdk.okinoko.io/pkg/v/token-sdk-0.0.2-local.db1966e7e8.tgz
   elliptic: '>=6.6.1'
   ws: '>=8.17.1'
   bs58: '>=5.0.0'
@@ -82,11 +84,11 @@ importers:
         specifier: ^0.0.7
         version: 0.0.7(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
       '@vsc.eco/market-widget':
-        specifier: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz
-        version: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.6dd86f27c9.tgz
+        version: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.6dd86f27c9.tgz(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@vsc.eco/token-widget':
-        specifier: ^0.0.2
-        version: 0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: https://token-sdk.okinoko.io/pkg/v/token-widget-0.0.2-local.db1966e7e8.tgz
+        version: https://token-sdk.okinoko.io/pkg/v/token-widget-0.0.2-local.db1966e7e8.tgz(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@wagmi/core':
         specifier: ^3.3.1
         version: 3.3.1(@tanstack/query-core@5.85.5)(@types/react@18.3.28)(ox@0.14.15(typescript@5.9.3)(zod@3.25.76))(react@18.3.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@18.3.1))(viem@2.45.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76))
@@ -2571,17 +2573,17 @@ packages:
   '@vsc.eco/client@0.0.7':
     resolution: {integrity: sha512-ZubSSl8TMljkdUyHApJGfB7xVrXfqsTh1pHsYImvHcmznh1DV/gswe8EnhaVG6eDkAOJEIFsSfaKele1aFt0/Q==}
 
-  '@vsc.eco/market-core@https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz':
-    resolution: {integrity: sha512-xNDj6uXUuu8uC9GCZ9MVIjD4mfaMNC89bRrrc21L9ZQgVagmvpvPQEF4uRW/DZlS5e/7/84BP4oDppEibT+waA==, tarball: https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz}
-    version: 0.0.1-local.88a26f767d
+  '@vsc.eco/market-core@https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.6dd86f27c9.tgz':
+    resolution: {integrity: sha512-m6htKSDPaAzHUvG45MVGoQwvVLY6FYsHxD7a7JVTUZnH+B+jdAmsyz+1RE4xggsyn0m65bjqzSE3GN6LlmyF9g==, tarball: https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.6dd86f27c9.tgz}
+    version: 0.0.1-local.6dd86f27c9
 
-  '@vsc.eco/market-sdk@https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.88a26f767d.tgz':
-    resolution: {integrity: sha512-njwVqXDRdAr5gayD+QHmnzNTp4/Q90zEhgmMZJhR28G+YSLGZ7pvqQ8Eh4T6BTJeTbBG2vD6GQkCCHqCFHwvlQ==, tarball: https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.88a26f767d.tgz}
-    version: 0.0.1-local.88a26f767d
+  '@vsc.eco/market-sdk@https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.6dd86f27c9.tgz':
+    resolution: {integrity: sha512-El4+/iA5fdbmklGj+ONHoF9e7qnG/luclt9q8NPq4TTnH2bs4ASSkPPgujjzdhVqxHUU84VPdu7COBQmK0Quxg==, tarball: https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.6dd86f27c9.tgz}
+    version: 0.0.1-local.6dd86f27c9
 
-  '@vsc.eco/market-widget@https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz':
-    resolution: {integrity: sha512-HcWx4s+X0Xyn2xXc8t6suCqcP5ocX4sFWG2xikWflAmprWYSbqwNDhRPXAnGTi4ncvRu70+yfX7lazBSamghNQ==, tarball: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz}
-    version: 0.0.2-local.88a26f767d
+  '@vsc.eco/market-widget@https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.6dd86f27c9.tgz':
+    resolution: {integrity: sha512-Smigb7QUmdNPUnRP3OTuDsomx4WLcItlqEHH9+yWMwCWW2kRd4ifSVMCFwOdFQTcfs4SvFvTgdc3/MzHBjGvSQ==, tarball: https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.6dd86f27c9.tgz}
+    version: 0.0.2-local.6dd86f27c9
     peerDependencies:
       '@aioha/aioha': ^1.8.0
       react: '>=18.0.0'
@@ -2590,14 +2592,17 @@ packages:
       '@aioha/aioha':
         optional: true
 
-  '@vsc.eco/token-core@0.0.2':
-    resolution: {integrity: sha512-5JBi2aLyfrsNcK/8ff/Fi8E8cLP+oAfJIn4FBwIjderVqlFb53a3m9R5lDZaxBVmGrq1sTuaMrwgcfX3CEvBag==}
+  '@vsc.eco/token-core@https://token-sdk.okinoko.io/pkg/v/token-core-0.0.2-local.db1966e7e8.tgz':
+    resolution: {integrity: sha512-KO512u2+CKMbhQtQVQcgskb0i7dabdx6k31KzkliOpVUjvltT2QAWExwT5vgbKz7p5z/FiKdlsTpHaO97iHcfA==, tarball: https://token-sdk.okinoko.io/pkg/v/token-core-0.0.2-local.db1966e7e8.tgz}
+    version: 0.0.2-local.db1966e7e8
 
-  '@vsc.eco/token-sdk@0.0.2':
-    resolution: {integrity: sha512-hNfTvhyORcFLJb5qkhVbjjrWFsWBGYWyS37HSDYBls2IMQK0lh/qRjsukfykF+A7N4XjHEiaNu7CVWwrNQ+CCg==}
+  '@vsc.eco/token-sdk@https://token-sdk.okinoko.io/pkg/v/token-sdk-0.0.2-local.db1966e7e8.tgz':
+    resolution: {integrity: sha512-d3pcdcEiHqPmqUyryvhqfyhPP5vm3B6NokPmdCwfC9jzWVMa6fIsM1Amd/L37LMzhbHCPwqaaiMQUCbo8yYFEQ==, tarball: https://token-sdk.okinoko.io/pkg/v/token-sdk-0.0.2-local.db1966e7e8.tgz}
+    version: 0.0.2-local.db1966e7e8
 
-  '@vsc.eco/token-widget@0.0.2':
-    resolution: {integrity: sha512-dpH2rsxuMcsl28GN2xpDGed8PZhsLJPv1iW8xg0VVEl8Cib82S4UpmQnIHGmEBjz086wu0y0M2JQd8yXzTEUeA==}
+  '@vsc.eco/token-widget@https://token-sdk.okinoko.io/pkg/v/token-widget-0.0.2-local.db1966e7e8.tgz':
+    resolution: {integrity: sha512-EOh644L+s6Id3wz77O14X9KCQMrMY+ly/FmQ1lj6lGgBo2Ty+zy9nBT6trbo+t8crbGV1Xr+ZvnUKzsI1ziHtA==, tarball: https://token-sdk.okinoko.io/pkg/v/token-widget-0.0.2-local.db1966e7e8.tgz}
+    version: 0.0.2-local.db1966e7e8
     peerDependencies:
       '@aioha/aioha': ^1.8.0
       react: '>=18.0.0'
@@ -9460,35 +9465,35 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@vsc.eco/market-core@https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz': {}
+  '@vsc.eco/market-core@https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.6dd86f27c9.tgz': {}
 
-  '@vsc.eco/market-sdk@https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.88a26f767d.tgz':
+  '@vsc.eco/market-sdk@https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.6dd86f27c9.tgz':
     dependencies:
-      '@vsc.eco/market-core': https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz
+      '@vsc.eco/market-core': https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.6dd86f27c9.tgz
 
-  '@vsc.eco/market-widget@https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.88a26f767d.tgz(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@vsc.eco/market-widget@https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.6dd86f27c9.tgz(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@r2wc/react-to-web-component': 2.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@vsc.eco/market-core': https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.88a26f767d.tgz
-      '@vsc.eco/market-sdk': https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.88a26f767d.tgz
-      '@vsc.eco/token-core': 0.0.2
-      '@vsc.eco/token-sdk': 0.0.2
+      '@vsc.eco/market-core': https://market-sdk.okinoko.io/pkg/v/market-core-0.0.1-local.6dd86f27c9.tgz
+      '@vsc.eco/market-sdk': https://market-sdk.okinoko.io/pkg/v/market-sdk-0.0.1-local.6dd86f27c9.tgz
+      '@vsc.eco/token-core': https://token-sdk.okinoko.io/pkg/v/token-core-0.0.2-local.db1966e7e8.tgz
+      '@vsc.eco/token-sdk': https://token-sdk.okinoko.io/pkg/v/token-sdk-0.0.2-local.db1966e7e8.tgz
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     optionalDependencies:
       '@aioha/aioha': 1.8.2(webextension-polyfill@0.10.0)
 
-  '@vsc.eco/token-core@0.0.2': {}
+  '@vsc.eco/token-core@https://token-sdk.okinoko.io/pkg/v/token-core-0.0.2-local.db1966e7e8.tgz': {}
 
-  '@vsc.eco/token-sdk@0.0.2':
+  '@vsc.eco/token-sdk@https://token-sdk.okinoko.io/pkg/v/token-sdk-0.0.2-local.db1966e7e8.tgz':
     dependencies:
-      '@vsc.eco/token-core': 0.0.2
+      '@vsc.eco/token-core': https://token-sdk.okinoko.io/pkg/v/token-core-0.0.2-local.db1966e7e8.tgz
 
-  '@vsc.eco/token-widget@0.0.2(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@vsc.eco/token-widget@https://token-sdk.okinoko.io/pkg/v/token-widget-0.0.2-local.db1966e7e8.tgz(@aioha/aioha@1.8.2(webextension-polyfill@0.10.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@r2wc/react-to-web-component': 2.1.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@vsc.eco/token-core': 0.0.2
-      '@vsc.eco/token-sdk': 0.0.2
+      '@vsc.eco/token-core': https://token-sdk.okinoko.io/pkg/v/token-core-0.0.2-local.db1966e7e8.tgz
+      '@vsc.eco/token-sdk': https://token-sdk.okinoko.io/pkg/v/token-sdk-0.0.2-local.db1966e7e8.tgz
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     optionalDependencies:

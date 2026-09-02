@@ -181,13 +181,29 @@
 		return () => window.removeEventListener('resize', calculateRows);
 	});
 
-	// this assumes that did doesn't change, and is not reactive to did
-	// just runs once when the page loads and again if too many new transactions
-	// are added (called explicitly below)
+	// Deep-link auto-open (?tx=&index=), used by the notification bell and by
+	// openTxsPage below. Assumes `did` doesn't change, and is not reactive to it.
+	//
+	// `hasFoundAutoOpenTx` terminates the paging loop; it is reset per request
+	// rather than latched for the component's lifetime. Navigating from one
+	// deep link to another does NOT remount this component, so a one-shot flag
+	// left every link after the first doing nothing at all.
 	let hasFoundAutoOpenTx = false;
+	/** True while a request is paging, so a second one can't stack a second
+	 *  loop on top of it. */
+	let autoOpenInFlight = false;
 	async function loadUntilTxFound(targetTxId: string) {
-		if (!targetTxId || hasFoundAutoOpenTx) return;
+		if (!targetTxId || autoOpenInFlight) return;
+		autoOpenInFlight = true;
+		hasFoundAutoOpenTx = false;
+		try {
+			await pageUntilTxFound(targetTxId);
+		} finally {
+			autoOpenInFlight = false;
+		}
+	}
 
+	async function pageUntilTxFound(targetTxId: string) {
 		while (!hasFoundAutoOpenTx) {
 			// Check if the transaction is already in the current store
 			const currentTxs = $magiTxsStore;
@@ -202,7 +218,9 @@
 					const txElement = document.querySelector(`[data-tx-id="${targetTxId}"]`);
 					if (txElement) {
 						txElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-						if (txElement instanceof HTMLElement) {
+						// The row handler toggles, so clicking a row whose detail is
+						// already showing would close it. Only click to open.
+						if (txElement instanceof HTMLElement && openOp?.[0] !== targetTxId) {
 							txElement.click();
 						}
 					}
@@ -226,7 +244,7 @@
 		}
 	}
 	$effect(() => {
-		if (initialOpen && !hasFoundAutoOpenTx) {
+		if (initialOpen) {
 			loadUntilTxFound(initialOpen[0]);
 		}
 	});

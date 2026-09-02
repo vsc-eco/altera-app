@@ -10,7 +10,10 @@
 		title?: string;
 		description?: string;
 		trigger: (attributes: HTMLButtonAttributes) => ReturnType<Snippet>;
-		children?: Snippet;
+		/** Receives a `close` callback so content can dismiss the popover —
+		 *  e.g. a link inside it that navigates away. Snippets that don't
+		 *  declare the parameter simply ignore it. */
+		children?: Snippet<[() => void]>;
 		open?: boolean;
 	};
 	let { title, description, trigger, children, open = $bindable() }: Props = $props();
@@ -55,7 +58,7 @@
 			<div {...api.getDescriptionProps()}>{description}</div>
 		{/if}
 		{#if children}
-			{@render children()}
+			{@render children(() => api.setOpen(false))}
 		{/if}
 	</div>
 </div>

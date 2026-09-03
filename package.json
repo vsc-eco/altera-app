@@ -128,7 +128,7 @@
 		"@zag-js/svelte": "^1.33.1",
 		"@zag-js/tabs": "1.30.0",
 		"aninest": "5.0.4",
-		"axios": "^1.13.4",
+		"axios": "^1.20.0",
 		"bitcoin-address-validation": "^3.0.0",
 		"bitcoinjs-lib": "^7.0.1",
 		"cborg": "^4.5.8",

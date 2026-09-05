@@ -106,7 +106,7 @@
 		"@types/qrcode": "^1.5.6",
 		"@vercel/analytics": "^1.6.1",
 		"@vsc.eco/client": "^0.0.7",
-		"@vsc.eco/market-widget": "https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.2-local.6dd86f27c9.tgz",
+		"@vsc.eco/market-widget": "https://market-sdk.okinoko.io/pkg/v/market-widget-0.0.3-local.4e03cb1423.tgz",
 		"@vsc.eco/token-widget": "https://token-sdk.okinoko.io/pkg/v/token-widget-0.0.2-local.db1966e7e8.tgz",
 		"@wagmi/core": "^3.3.1",
 		"@zag-js/avatar": "^1.33.1",

@@ -2,7 +2,7 @@
  * Discovery of Magi custom tokens (`magi_token-contract` instances) that are
  * actually tradeable — i.e. that have a registered DEX pool.
  *
- * Two traps this module exists to handle:
+ * Three traps this module exists to handle:
  *
  * 1. **Symbols are not unique.** Mainnet has two contracts both claiming
  *    `LASSECASH`; only one is bound to the live pool. The DEX router names
@@ -10,12 +10,21 @@
  *    the token CONTRACT — so we need both, and we have to resolve the contract
  *    from the pool rather than from the token registry.
  * 2. **The registry lists tokens with no pool** (DIY, FERNLET today). Those
- *    can't be swapped: there's nothing to route through. We only surface
- *    tokens whose pool exists, so nothing in the picker is a dead end.
+ *    can't be swapped: there's nothing to route through.
+ * 3. **A pool existing is NOT the same as the router knowing about it.**
+ *    `dex_pool_registry` is the INDEXER's view. Swaps execute on the DEX
+ *    router, which resolves assets and pools from its OWN state
+ *    (`asset-<symbol>` and `pool-<a>-<b>`; note the `-` path delimiter).
+ *    Those keys are written by `register_token` / `register_pool`, both signed
+ *    by the router owner and easily forgotten after a pool is deployed and
+ *    seeded. Mainnet's HBD:LASSECASH pool is live and funded yet unregistered
+ *    as of 2026-09-09 — trusting the indexer alone would offer a token whose
+ *    every swap aborts.
  *
- * The pool's own state is the source of truth for the binding: `a0n`/`a1n`
- * hold the pair's asset names and `a0m`/`a1m` the mapping contract for that
- * side (empty for native assets).
+ * So a token is only surfaced when the whole chain holds: the pool binds it
+ * (`a0n`/`a1n` name the pair, `a0m`/`a1m` give the mapping contract, empty for
+ * a native side), the pool points back at OUR router (`rtr`), and that router
+ * has both the asset and the pool registered.
  */
 
 import { GetStateByKeysStore } from '$houdini';
@@ -23,6 +32,7 @@ import { queryOnce } from '$lib/queryOnce';
 import { hasuraQuery } from '$lib/indexer/query';
 import { fetchPoolRegistry } from '$lib/indexer/poolQueries';
 import { isNativeAsset } from '$lib/pools/poolsData';
+import { DEX_ROUTER_CONTRACT_ID } from '../../client';
 import type { Coin } from '$lib/sendswap/utils/sendOptions';
 
 /** A custom token that can actually be swapped, with everything the swap
@@ -60,8 +70,17 @@ export function customTokenCoin(token: CustomToken): Coin {
 	};
 }
 
-/** Pool state keys holding the pair's asset names and mapping contracts. */
-const POOL_BINDING_KEYS = ['a0n', 'a1n', 'a0m', 'a1m'] as const;
+/** Pool state: pair asset names, their mapping contracts, and the router the
+ *  pool is bound to. A pool wired to a superseded router rejects our router's
+ *  pre-deposited transfers, so its swaps fail however healthy the reserves look. */
+const POOL_BINDING_KEYS = ['a0n', 'a1n', 'a0m', 'a1m', 'rtr'] as const;
+
+/** Router state keys use `-` as the path delimiter, not `/`. */
+const routerAssetKey = (symbol: string) => `asset-${symbol.toLowerCase()}`;
+/** Pools normalise their pair alphabetically, so use the pool's own a0n/a1n
+ *  ordering rather than re-deriving it here. */
+const routerPoolKey = (asset0: string, asset1: string) =>
+	`pool-${asset0.toLowerCase()}-${asset1.toLowerCase()}`;
 
 type TokenOverviewRow = {
 	contract_id: string;
@@ -94,15 +113,29 @@ async function fetchTokenOverview(): Promise<Map<string, TokenOverviewRow>> {
  * side of the pair — its symbol and the token contract behind it — or null
  * when the pool has no custom side or its state is unreadable.
  */
-async function fetchPoolTokenBinding(
-	poolContractId: string
-): Promise<{ symbol: string; contractId: string } | null> {
+type PoolBinding = {
+	symbol: string;
+	contractId: string;
+	/** The pair in the pool's own normalised order, for the router's pool key. */
+	pair: [string, string];
+};
+
+async function fetchPoolTokenBinding(poolContractId: string): Promise<PoolBinding | null> {
 	try {
 		const res = await queryOnce(new GetStateByKeysStore(), {
 			variables: { contractId: poolContractId, keys: [...POOL_BINDING_KEYS] },
 			policy: 'NetworkOnly'
 		});
 		const state = (res.data?.getStateByKeys ?? {}) as Record<string, string | null | undefined>;
+
+		// A pool bound to a different (usually superseded) router can't serve
+		// swaps issued against ours.
+		if (state['rtr']?.trim() !== DEX_ROUTER_CONTRACT_ID) return null;
+
+		const asset0 = state['a0n']?.trim();
+		const asset1 = state['a1n']?.trim();
+		if (!asset0 || !asset1) return null;
+
 		for (const [nameKey, mapKey] of [
 			['a0n', 'a0m'],
 			['a1n', 'a1m']
@@ -113,13 +146,72 @@ async function fetchPoolTokenBinding(
 			// carries one. Require both so a half-written pool is skipped rather
 			// than surfaced as an unswappable entry.
 			if (symbol && contractId && !isNativeAsset(symbol)) {
-				return { symbol: symbol.toLowerCase(), contractId };
+				return {
+					symbol: symbol.toLowerCase(),
+					contractId,
+					pair: [asset0.toLowerCase(), asset1.toLowerCase()]
+				};
 			}
 		}
 		return null;
 	} catch (err) {
 		console.error('Failed to read pool token binding', poolContractId, err);
 		return null;
+	}
+}
+
+/**
+ * Ask the DEX router which of these candidates it actually knows about.
+ *
+ * A single batched read: the router must hold BOTH `asset-<symbol>` (written by
+ * `register_token`) and `pool-<a>-<b>` (written by `register_pool`, and whose
+ * value must be the very pool we found). Missing either means the router can't
+ * resolve the swap, so the token is not offered.
+ */
+async function filterToRouterRegistered(
+	candidates: Array<{ poolContractId: string; binding: PoolBinding }>
+): Promise<Array<{ poolContractId: string; binding: PoolBinding }>> {
+	if (candidates.length === 0) return [];
+	const keys = [
+		...new Set(
+			candidates.flatMap((c) => [
+				routerAssetKey(c.binding.symbol),
+				routerPoolKey(c.binding.pair[0], c.binding.pair[1])
+			])
+		)
+	];
+	try {
+		const res = await queryOnce(new GetStateByKeysStore(), {
+			variables: { contractId: DEX_ROUTER_CONTRACT_ID, keys },
+			policy: 'NetworkOnly'
+		});
+		const state = (res.data?.getStateByKeys ?? {}) as Record<string, string | null | undefined>;
+		return candidates.filter((c) => {
+			const asset = state[routerAssetKey(c.binding.symbol)]?.trim();
+			const pool = state[routerPoolKey(c.binding.pair[0], c.binding.pair[1])]?.trim();
+			if (!asset || !pool) {
+				console.warn(
+					`Custom token ${c.binding.symbol.toUpperCase()} skipped: not registered on the DEX ` +
+						`router (${!asset ? 'register_token' : 'register_pool'} missing). Its pool exists ` +
+						`but swaps would abort.`
+				);
+				return false;
+			}
+			// The router must point at THIS pool, not some other one for the pair.
+			if (pool !== c.poolContractId) {
+				console.warn(
+					`Custom token ${c.binding.symbol.toUpperCase()} skipped: the router routes this pair to ` +
+						`${pool}, not ${c.poolContractId}.`
+				);
+				return false;
+			}
+			return true;
+		});
+	} catch (err) {
+		// Registration is unverifiable — offer nothing rather than offer a swap
+		// that aborts on chain.
+		console.error('Failed to read DEX router registration', err);
+		return [];
 	}
 }
 
@@ -137,10 +229,14 @@ async function fetchCustomTokensUncoalesced(): Promise<CustomToken[]> {
 			}))
 		);
 
+		const bound = bindings.filter(
+			(b): b is { poolContractId: string; binding: PoolBinding } => b.binding !== null
+		);
+		const registered = await filterToRouterRegistered(bound);
+
 		const out: CustomToken[] = [];
 		const seen = new Set<string>();
-		for (const { poolContractId, binding } of bindings) {
-			if (!binding) continue;
+		for (const { poolContractId, binding } of registered) {
 			const meta = overview.get(binding.contractId);
 			// A token the indexer doesn't know, or one its owner has paused,
 			// must not be offered: transfers on a paused contract abort.

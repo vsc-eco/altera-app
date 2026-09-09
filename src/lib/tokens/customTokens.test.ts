@@ -32,6 +32,9 @@ vi.mock('$lib/queryOnce', () => ({
 vi.mock('$houdini', () => ({
 	GetStateByKeysStore: class {}
 }));
+vi.mock('../../client', () => ({
+	DEX_ROUTER_CONTRACT_ID: 'vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45'
+}));
 
 const { fetchCustomTokens, customTokenCoin } = await import('./customTokens');
 
@@ -42,6 +45,7 @@ const LASSE_BOUND = 'vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h';
 /** A second contract with the SAME symbol — the decoy. */
 const LASSE_DECOY = 'vsc1Bq7L9VhLbN6eJdCD8My9jmjAdpxADJLEGR';
 const DIY_CONTRACT = 'vsc1BZ2MxAyWQH6ookn11xzVzbugBGjbkTUYgT';
+const ROUTER = 'vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45';
 
 const NATIVE_POOLS = [
 	{ contractId: 'vsc1Boani', symbols: ['HBD', 'HIVE'] as [string, string], feeBps: 8 },
@@ -72,17 +76,41 @@ const OVERVIEW = [
 	}
 ];
 
-function mockPoolState(state: Record<string, string>) {
-	queryOnceMock.mockResolvedValue({ data: { getStateByKeys: state } });
-}
+/** The real pool's binding: HBD on side 0 (no mapping), the token on side 1,
+ *  pointing back at the router the app uses. */
+const LASSE_BINDING = {
+	a0n: 'hbd',
+	a0m: '',
+	a1n: 'lassecash',
+	a1m: LASSE_BOUND,
+	rtr: ROUTER
+};
 
-/** The real pool's binding: HBD on side 0 (no mapping), the token on side 1. */
-const LASSE_BINDING = { a0n: 'hbd', a0m: '', a1n: 'lassecash', a1m: LASSE_BOUND };
+/** A router that has both `register_token` and `register_pool` done. */
+const ROUTER_REGISTERED = {
+	'asset-lassecash': '{"mapping_contract":"' + LASSE_BOUND + '","chain":"MAGI","decimals":8}',
+	'pool-hbd-lassecash': LASSE_POOL
+};
+
+/**
+ * Route state reads by contract id: pool reads get the binding, the single
+ * batched router read gets the registration map.
+ */
+function mockState(poolState: Record<string, string>, routerState: Record<string, string>) {
+	queryOnceMock.mockImplementation((_store: unknown, opts: any) =>
+		Promise.resolve({
+			data: {
+				getStateByKeys:
+					opts?.variables?.contractId === ROUTER ? routerState : poolState
+			}
+		})
+	);
+}
 
 beforeEach(() => {
 	hasuraQueryMock.mockResolvedValue({ magi_token_overview: OVERVIEW });
 	fetchPoolRegistryMock.mockResolvedValue([...NATIVE_POOLS, CUSTOM_POOL]);
-	mockPoolState(LASSE_BINDING);
+	mockState(LASSE_BINDING, ROUTER_REGISTERED);
 });
 afterEach(() => {
 	hasuraQueryMock.mockReset();
@@ -115,10 +143,11 @@ describe('fetchCustomTokens', () => {
 
 	it('only reads state for pools that have a custom side', async () => {
 		await fetchCustomTokens();
-		// One custom pool in the registry → exactly one chain-state read; the
-		// two native pools are skipped.
-		expect(queryOnceMock).toHaveBeenCalledTimes(1);
+		// One custom pool → one pool read (the two native pools are skipped),
+		// plus ONE batched router read for every candidate.
+		expect(queryOnceMock).toHaveBeenCalledTimes(2);
 		expect(queryOnceMock.mock.calls[0][1].variables.contractId).toBe(LASSE_POOL);
+		expect(queryOnceMock.mock.calls[1][1].variables.contractId).toBe(ROUTER);
 	});
 
 	it('skips a paused token — transfers on it would abort', async () => {
@@ -138,7 +167,7 @@ describe('fetchCustomTokens', () => {
 	});
 
 	it('skips a pool whose binding is unreadable', async () => {
-		mockPoolState({});
+		mockState({}, ROUTER_REGISTERED);
 		expect(await fetchCustomTokens()).toEqual([]);
 	});
 
@@ -146,6 +175,42 @@ describe('fetchCustomTokens', () => {
 		fetchPoolRegistryMock.mockResolvedValue(NATIVE_POOLS);
 		expect(await fetchCustomTokens()).toEqual([]);
 		expect(queryOnceMock).not.toHaveBeenCalled();
+	});
+
+	it('skips a token the router has no asset registration for', async () => {
+		// register_pool done, register_token forgotten.
+		mockState(LASSE_BINDING, { 'pool-hbd-lassecash': LASSE_POOL });
+		expect(await fetchCustomTokens()).toEqual([]);
+	});
+
+	it('skips a token whose pool the router does not know', async () => {
+		// This is mainnet's real state as of 2026-09-09: the HBD:LASSECASH pool
+		// is deployed and seeded, but neither register_token nor register_pool
+		// was ever run, so every swap through it would abort.
+		mockState(LASSE_BINDING, {});
+		expect(await fetchCustomTokens()).toEqual([]);
+	});
+
+	it('skips a pool the router routes elsewhere for the same pair', async () => {
+		mockState(LASSE_BINDING, {
+			...ROUTER_REGISTERED,
+			'pool-hbd-lassecash': 'vsc1BsomeOtherPoolContractIdEntirely'
+		});
+		expect(await fetchCustomTokens()).toEqual([]);
+	});
+
+	it('skips a pool bound to a different router', async () => {
+		mockState({ ...LASSE_BINDING, rtr: 'vsc1BsupersededRouterXXXXXXXXXXXXXXXXX' }, ROUTER_REGISTERED);
+		expect(await fetchCustomTokens()).toEqual([]);
+	});
+
+	it('offers nothing when router registration cannot be read', async () => {
+		queryOnceMock.mockImplementation((_store: unknown, opts: any) =>
+			opts?.variables?.contractId === ROUTER
+				? Promise.reject(new Error('node down'))
+				: Promise.resolve({ data: { getStateByKeys: LASSE_BINDING } })
+		);
+		expect(await fetchCustomTokens()).toEqual([]);
 	});
 
 	it('returns [] rather than throwing when the registry query fails', async () => {

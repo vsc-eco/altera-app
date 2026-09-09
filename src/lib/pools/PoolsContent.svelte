@@ -1,13 +1,19 @@
 <script lang="ts">
 	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown, Plus, Minus } from '@lucide/svelte';
-	import { fetchPools, fetchMyPoolPositions, type TimeRange } from './poolsData';
-	import type { PoolRow, MyPoolRow } from './poolsData';
+	import { fetchPools, fetchMyPoolPositions, poolKind, type TimeRange } from './poolsData';
+	import type { PoolRow, MyPoolRow, PoolKind } from './poolsData';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import PoolDetail from './PoolDetail.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { isDeprecatedPool } from '../../client';
+
+	/** Which slice of the registry this instance shows. The Pools and Custom
+	 *  pools tabs render the same component; only this prop differs, so every
+	 *  downstream consumer (table, My liquidity, the Add/Remove pool pickers,
+	 *  the detail view) stays scoped to the tab the user is on. */
+	let { kind = 'standard' }: { kind?: PoolKind } = $props();
 
 	function getCoinIcon(symbol: string): string | undefined {
 		const s = symbol.toUpperCase();
@@ -44,7 +50,7 @@
 	});
 
 	let pools = $state<PoolRow[]>([]);
-	let loading = $state(false);
+	let loading = $state(true);
 	let selectedPool = $state<PoolRow | null>(null);
 
 	const auth = $derived(getAuth()());
@@ -59,6 +65,9 @@
 
 	$effect(() => {
 		const range = timeRange;
+		// Read synchronously so the effect tracks it; reading `kind` inside the
+		// `.then` callback would leave this effect subscribed to `timeRange` only.
+		const wanted = kind;
 		let cancelled = false;
 		loading = true;
 		fetchPools(range).then((result) => {
@@ -66,7 +75,7 @@
 			// this fetch was in flight, drop the stale result so it can't
 			// overwrite the newer range's numbers.
 			if (cancelled) return;
-			pools = result;
+			pools = result.filter((p) => poolKind(p) === wanted);
 			loading = false;
 		});
 		return () => {
@@ -335,6 +344,20 @@
 									</button>
 								{/if}
 							</div>
+						</td>
+					</tr>
+				{:else}
+					<tr>
+						<td class="empty-cell" colspan="6">
+							{#if loading}
+								Loading pools…
+							{:else if searchQuery.trim()}
+								No pools match “{searchQuery.trim()}”.
+							{:else if kind === 'custom'}
+								No custom token pools yet.
+							{:else}
+								No pools yet.
+							{/if}
 						</td>
 					</tr>
 				{/each}
@@ -646,6 +669,13 @@
 		color: var(--dash-text-muted);
 		font-size: 0.6rem;
 		opacity: 0.6;
+	}
+
+	.empty-cell {
+		color: var(--dash-text-muted);
+		text-align: center !important;
+		padding: 2rem 1.25rem !important;
+		border-bottom: none !important;
 	}
 
 	.my-pools-section {

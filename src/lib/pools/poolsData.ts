@@ -42,6 +42,27 @@ export interface PoolRow {
 	usdPrice1: number;
 }
 
+/** Assets the DEX treats as first-class: the Hive L1 coins plus the mapped
+ *  chain assets. Anything else in a pair is a token registered through the
+ *  Magi token contract — i.e. a user-created custom token. Add new mapped
+ *  assets here as they land, or their pools will surface under "Custom
+ *  pools" instead of the main Pools tab. */
+const NATIVE_POOL_ASSETS: ReadonlySet<string> = new Set(['HIVE', 'HBD', 'BTC']);
+
+/** True for the DEX's built-in assets; false for Magi custom tokens. */
+export function isNativeAsset(symbol: string): boolean {
+	return NATIVE_POOL_ASSETS.has(symbol.toUpperCase());
+}
+
+/** Which pools tab a pair belongs to. */
+export type PoolKind = 'standard' | 'custom';
+
+/** A pool is "custom" as soon as ONE side is a custom token — the other side
+ *  is HBD for every Magi pool today, since HBD is the DEX base asset. */
+export function poolKind(pool: Pick<PoolRow, 'pairSymbols'>): PoolKind {
+	return pool.pairSymbols.some((sym) => !isNativeAsset(sym)) ? 'custom' : 'standard';
+}
+
 // Pool contract IDs are discovered dynamically via fetchPoolRegistry()
 // against the Magi indexer — no more hardcoded mainnet-only constants.
 // BTC Mapping contract lives in `$lib/stores/currentBalance` and is
@@ -369,7 +390,23 @@ async function fetchSinglePool(
 	return mapStateToPoolRow(contractId, state, { volume, fees, liquidity }, usdPrices, fallbackSymbols);
 }
 
-export async function fetchPools(range: TimeRange = '30d'): Promise<PoolRow[]> {
+// Zag renders EVERY tab's content (inactive ones are just hidden), so the
+// Pools and Custom pools tabs each mount their own PoolsContent and both
+// fetch on mount. Without coalescing that doubles the whole pool load — five
+// queries per pool, twice. Calls for the same range share one round-trip and
+// the entry is dropped as soon as it settles, so nothing is ever served from
+// a stale cache; this only de-duplicates work that is genuinely in flight.
+const inFlightPools = new Map<TimeRange, Promise<PoolRow[]>>();
+
+export function fetchPools(range: TimeRange = '30d'): Promise<PoolRow[]> {
+	const pending = inFlightPools.get(range);
+	if (pending) return pending;
+	const request = fetchPoolsUncoalesced(range).finally(() => inFlightPools.delete(range));
+	inFlightPools.set(range, request);
+	return request;
+}
+
+async function fetchPoolsUncoalesced(range: TimeRange): Promise<PoolRow[]> {
 	try {
 		const [prices, registry] = await Promise.all([getCryptoPrices(), fetchPoolRegistry()]);
 		const usdPrices = {

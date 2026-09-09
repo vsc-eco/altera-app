@@ -23,7 +23,8 @@
 			defaultValue={defaultTab}
 			items={[
 				{ value: 'swap', label: 'Swap', content: swapContent },
-				{ value: 'pools', label: 'Pools', content: poolsContent }
+				{ value: 'pools', label: 'Pools', content: poolsContent },
+				{ value: 'custom-pools', label: 'Custom Pools', content: customPoolsContent }
 			]}
 		/>
 	{/key}
@@ -37,7 +38,15 @@
 
 {#snippet poolsContent()}
 	<div class="tab-panel pools-tab-panel">
-		<PoolsContent />
+		<PoolsContent kind="standard" />
+	</div>
+{/snippet}
+
+<!-- Pools with a Magi custom token on one side. Same table, same actions —
+     they're only split out so they don't crowd the core HIVE/HBD/BTC pools. -->
+{#snippet customPoolsContent()}
+	<div class="tab-panel pools-tab-panel">
+		<PoolsContent kind="custom" />
 	</div>
 {/snippet}
 

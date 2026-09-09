@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { mapStateToPoolRow } from './poolsData';
+import { mapStateToPoolRow, poolKind } from './poolsData';
 
 function parseUsd(s: string): number {
 	return Number.parseFloat(s.replace(/[$,]/g, ''));
@@ -195,5 +195,37 @@ describe('mapStateToPoolRow — volume calculation', () => {
 			);
 			expect(parseUsd(row.volumeUsd)).toBe(0);
 		});
+	});
+});
+
+/**
+ * Pool classification drives the Pools / Custom Pools tab split. Anything
+ * whose pair contains an asset the DEX doesn't map natively (HIVE, HBD, BTC)
+ * came from the Magi token contract, so it belongs on the Custom Pools tab.
+ */
+describe('poolKind', () => {
+	const pair = (a: string, b: string) => ({ pairSymbols: [a, b] as [string, string] });
+
+	it('treats the native pairs as standard pools', () => {
+		expect(poolKind(pair('HBD', 'HIVE'))).toBe('standard');
+		expect(poolKind(pair('BTC', 'HBD'))).toBe('standard');
+	});
+
+	it('flags a pool as custom when either side is a custom token', () => {
+		expect(poolKind(pair('HBD', 'LASSECASH'))).toBe('custom');
+		expect(poolKind(pair('LASSECASH', 'HBD'))).toBe('custom');
+		expect(poolKind(pair('FOO', 'BAR'))).toBe('custom');
+	});
+
+	it('is case-insensitive, since the registry returns lowercase symbols', () => {
+		expect(poolKind(pair('hbd', 'hive'))).toBe('standard');
+		expect(poolKind(pair('hbd', 'lassecash'))).toBe('custom');
+	});
+
+	it('classifies the real registry rows into the two tabs', () => {
+		// Live mainnet dex_pool_registry, 2026-09-09.
+		const registry = [pair('HBD', 'HIVE'), pair('BTC', 'HBD'), pair('HBD', 'LASSECASH')];
+		expect(registry.filter((p) => poolKind(p) === 'standard')).toHaveLength(2);
+		expect(registry.filter((p) => poolKind(p) === 'custom')).toHaveLength(1);
 	});
 });

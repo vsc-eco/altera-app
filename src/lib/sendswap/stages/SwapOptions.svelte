@@ -21,6 +21,7 @@
 		ArrowDown,
 		ArrowUpDown,
 		ChevronDown,
+		ChevronRight,
 		Search,
 		Send,
 		TriangleAlert,
@@ -35,14 +36,25 @@
 	import { getHiveAssetName, getHbdAssetName, vscNetworkId } from '$lib/../client';
 	import {
 		fetchTypedPoolDepths,
-		getOrderedDepthsFor,
-		calculateTwoHopSwap,
-		checkExceedsPoolDepth,
-		calculatePriceImpact,
+		buildSwapRoute,
+		calculateRouteSwap,
+		exceedsPoolDepthForRoute,
+		priceImpactForRoute,
+		DEX_BASE_ASSET,
 		type TypedPoolDepths,
-		calculateSwap,
+		type SwapHop,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
+	import {
+		fetchCustomTokens,
+		customTokenCoin,
+		CUSTOM_TOKEN_ICON,
+		type CustomToken
+	} from '$lib/tokens/customTokens';
+	import {
+		customTokenBalances,
+		refreshCustomTokenBalances
+	} from '$lib/tokens/customTokenBalances';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { browser } from '$app/environment';
@@ -69,6 +81,15 @@
 	// Pool depths and swap calculation state
 	let hiveHbdPool = $state.raw<TypedPoolDepths | null>(null);
 	let btcHbdPool = $state.raw<TypedPoolDepths | null>(null);
+	/** Pool-backed custom tokens, and the pools that back them. Each is paired
+	 *  against HBD, so they slot straight into the same routing as the natives. */
+	let customTokens = $state.raw<CustomToken[]>([]);
+	let customPools = $state.raw<TypedPoolDepths[]>([]);
+	/** True until the first full pool load settles. Lets the swap-calc effect
+	 *  tell "pools still arriving" (show a spinner) apart from "this pair has
+	 *  no route" (show nothing) — previously inferred from the two native
+	 *  pools being null, which no longer covers custom pools. */
+	let poolsLoading = $state(true);
 	/** True when all pool-fetch retries have been exhausted without success. */
 	let poolLoadFailed = $state(false);
 	/** True while a retry round is in progress (disables the retry button). */
@@ -85,14 +106,34 @@
 		poolLoadFailed = false;
 		poolLoadingRetry = true;
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			const [hiveHbd, btcHbd] = await Promise.all([
+			const [hiveHbd, btcHbd, tokens] = await Promise.all([
 				hiveHbdPool ? null : fetchTypedPoolDepths('HIVE', 'HBD'),
-				btcHbdPool ? null : fetchTypedPoolDepths('BTC', 'HBD')
+				btcHbdPool ? null : fetchTypedPoolDepths('BTC', 'HBD'),
+				customTokens.length ? customTokens : fetchCustomTokens()
 			]);
 			if (hiveHbd) hiveHbdPool = hiveHbd;
 			if (btcHbd) btcHbdPool = btcHbd;
+			customTokens = tokens;
+
+			// Each custom token pairs against HBD. Load them alongside the
+			// natives so routing has every pool it might need in hand; a token
+			// whose pool won't load is dropped rather than offered as a dead
+			// entry in the picker.
+			if (tokens.length > 0) {
+				const depths = await Promise.all(
+					tokens.map((t) => fetchTypedPoolDepths(t.symbol, DEX_BASE_ASSET))
+				);
+				const loaded = depths.filter((d): d is TypedPoolDepths => d != null);
+				customPools = loaded;
+				const routable = new Set(
+					loaded.flatMap((d) => [d.asset0, d.asset1])
+				);
+				customTokens = tokens.filter((t) => routable.has(t.symbol));
+			}
+
 			if (hiveHbdPool && btcHbdPool) {
 				poolLoadingRetry = false;
+				poolsLoading = false;
 				return;
 			}
 			// Wait before retrying (1s, 2s, 4s)
@@ -102,6 +143,7 @@
 		}
 		poolLoadFailed = true;
 		poolLoadingRetry = false;
+		poolsLoading = false;
 	}
 
 	onMount(() => {
@@ -160,6 +202,58 @@
 		}
 	});
 
+	/** Custom tokens exist only on Magi — there's no Hive-L1 or BTC-chain form
+	 *  of one — so they carry a Magi-only network list. */
+	const customAssetOptions = $derived<AssetOption[]>(
+		customTokens.map((t) => ({ coin: customTokenCoin(t), networks: [Network.magi] }))
+	);
+	/** The static swap catalog extended with whatever tokens are live. Every
+	 *  lookup in the picker goes through these, not `swapOptions` directly:
+	 *  a custom token isn't in the static catalog, so a bare
+	 *  `swapOptions.from.find(...)` returns undefined and the click does
+	 *  nothing at all. */
+	const fromOptions = $derived<AssetOption[]>([...swapOptions.from, ...customAssetOptions]);
+	const toOptions = $derived<AssetOption[]>([...swapOptions.to, ...customAssetOptions]);
+	const findFromOption = (value: string | undefined) =>
+		fromOptions.find((o) => o.coin.value === value);
+	const findToOption = (value: string | undefined) =>
+		toOptions.find((o) => o.coin.value === value);
+
+	/** Every pool the picker can route through, native and custom alike. */
+	const allPools = $derived(
+		[hiveHbdPool, btcHbdPool, ...customPools].filter((p): p is TypedPoolDepths => p != null)
+	);
+
+	/** Symbols this control can swap: the natives plus any pool-backed token. */
+	const swapAssets = $derived(
+		new Set([
+			Coin.hive.value,
+			Coin.hbd.value,
+			Coin.btc.value,
+			...customTokens.map((t) => t.symbol)
+		])
+	);
+
+	/**
+	 * The pools this pair routes through — one hop when they share a pool, two
+	 * via HBD otherwise. Replaces the hand-written HIVE/HBD/BTC branch tree,
+	 * which had no shape for a custom token's pool.
+	 */
+	const swapRoute = $derived.by<SwapHop[] | null>(() => {
+		const from = txState.from?.coin.value;
+		const to = txState.to?.coin.value;
+		if (!from || !to) return null;
+		const pools = allPools;
+		return buildSwapRoute(
+			from,
+			to,
+			(a, b) =>
+				pools.find(
+					(p) => (p.asset0 === a && p.asset1 === b) || (p.asset0 === b && p.asset1 === a)
+				) ?? null
+		);
+	});
+
 	// Recalculate swap whenever input amount, coins, or slippage changes.
 	$effect(() => {
 		const fromCoin = txState.from;
@@ -177,7 +271,6 @@
 			return;
 		}
 
-		const swapAssets = new Set([Coin.hive.value, Coin.hbd.value, Coin.btc.value]);
 		const isSwap =
 			swapAssets.has(fromCoin.coin.value) &&
 			swapAssets.has(toCoin.coin.value) &&
@@ -196,64 +289,20 @@
 		}
 
 		const x = BigInt(fromAmountInt);
-		const assetIn = fromCoin.coin.value;
-		const assetOut = toCoin.coin.value;
-		const involvesBtc = assetIn === Coin.btc.value || assetOut === Coin.btc.value;
-
-		// Pick the right pool(s) for this pair:
-		//   HIVE ↔ HBD → hiveHbdPool single hop
-		//   BTC  ↔ HBD → btcHbdPool single hop
-		//   BTC  ↔ HIVE → btcHbdPool → hiveHbdPool two-hop via HBD
-		let result: SwapCalcResult | null = null;
-
-		if (!involvesBtc) {
-			if (!hiveHbdPool) {
-				swapResult = null;
-				txState.swapCalcPending = true;
-				return;
-			}
-			const depths = getOrderedDepthsFor(hiveHbdPool, assetIn);
-			if (!depths) {
-				swapResult = null;
-				txState.swapCalcPending = false;
-				return;
-			}
-			result = calculateSwap(x, depths.X, depths.Y, slippageBps);
-		} else if (
-			(assetIn === Coin.btc.value && assetOut === Coin.hbd.value) ||
-			(assetIn === Coin.hbd.value && assetOut === Coin.btc.value)
-		) {
-			if (!btcHbdPool) {
-				swapResult = null;
-				txState.swapCalcPending = true;
-				return;
-			}
-			const depths = getOrderedDepthsFor(btcHbdPool, assetIn);
-			if (!depths) {
-				swapResult = null;
-				txState.swapCalcPending = false;
-				return;
-			}
-			result = calculateSwap(x, depths.X, depths.Y, slippageBps);
-		} else {
-			// BTC ↔ HIVE: two-hop via HBD. First pool is the one that
-			// contains the input asset, second is the one that contains
-			// the output asset.
-			if (!btcHbdPool || !hiveHbdPool) {
-				swapResult = null;
-				txState.swapCalcPending = true;
-				return;
-			}
-			const pool1 = assetIn === Coin.btc.value ? btcHbdPool : hiveHbdPool;
-			const pool2 = assetIn === Coin.btc.value ? hiveHbdPool : btcHbdPool;
-			result = calculateTwoHopSwap(x, pool1, pool2, assetIn, Coin.hbd.value, assetOut, slippageBps);
-		}
-
-		if (!result) {
+		const route = swapRoute;
+		if (!route) {
+			// No route yet. While pools are still arriving that's "not yet"
+			// (keep the pending spinner); once loading has settled it means the
+			// pair genuinely has no path through the DEX.
 			swapResult = null;
-			txState.swapCalcPending = false;
+			txState.swapCalcPending = poolsLoading;
 			return;
 		}
+
+		// A resolved route always contains both of its hop assets, so this
+		// always yields a quote — the old "no depths" early-return is
+		// unreachable now that routing, not the caller, picks the pools.
+		const result = calculateRouteSwap(x, route, slippageBps);
 		swapResult = result;
 
 		untrack(() => {
@@ -360,12 +409,37 @@ let expectedOutputUsd = $derived.by(() => {
 
 	const auth = $derived(getAuth()());
 
+	// Custom-token balances live outside the native balance poller, so refresh
+	// them here — and on every account switch, or the picker would keep showing
+	// the previous account's holdings.
+	$effect(() => {
+		const did = auth.value?.did;
+		if (!did) return;
+		refreshCustomTokenBalances(did);
+	});
+
 	// ── Destination state (from SwapDestination) ──
 	const DEST_NETWORK_KEY = 'swap-dest-network';
 	const isMainnet = vscNetworkId === 'vsc-mainnet';
 	const chainLabel = isMainnet ? 'Mainnet' : 'Testnet';
 
 	let destChoice: 'wallet' | 'address' = $state('wallet');
+
+	/** True when the selected TO asset exists only on Magi — i.e. a custom
+	 *  token. There is no mainnet form of it to settle to, so the address
+	 *  destination is disabled for these. */
+	const toIsMagiOnly = $derived.by(() => {
+		const opt = findToOption(txState.to?.coin.value);
+		if (!opt) return false;
+		return !opt.networks.some((n) => n.value !== Network.magi.value);
+	});
+
+	// Switching the target to a Magi-only asset while "Send to address" is
+	// selected would strand the user on a now-disabled option, so fall back to
+	// the wallet destination.
+	$effect(() => {
+		if (toIsMagiOnly && destChoice === 'address') destChoice = 'wallet';
+	});
 	let destAddress = $state('');
 
 	function getStoredNetwork(): string {
@@ -387,12 +461,15 @@ let expectedOutputUsd = $derived.by(() => {
 				txState.to = { coin: txState.to.coin, network: Network.magi };
 			}
 		} else {
+			// A custom token has no mainnet form, so "settle to an address" has
+			// nowhere to go — fall back to Magi rather than the old blanket
+			// hiveMainnet default, which would have tried to settle a Magi-only
+			// token on Hive L1.
+			const externalNet = findToOption(txState.to?.coin.value)?.networks?.find(
+				(n: Network) => n.value !== Network.magi.value
+			);
 			const net =
-				destNetworkChoice === 'magi'
-					? Network.magi
-					: (getToOption(txState.to?.coin.value)?.networks?.find(
-							(n: Network) => n.value !== Network.magi.value
-						) ?? Network.hiveMainnet);
+				destNetworkChoice === 'magi' ? Network.magi : (externalNet ?? Network.magi);
 			if (txState.to && txState.to.network.value !== net.value) {
 				txState.to = { coin: txState.to.coin, network: net };
 			}
@@ -464,13 +541,7 @@ let expectedOutputUsd = $derived.by(() => {
 		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
 		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return false;
 
-		return checkExceedsPoolDepth(
-			BigInt(fromAmountInt),
-			fromCoin.coin.value,
-			toCoin.coin.value,
-			hiveHbdPool,
-			btcHbdPool
-		);
+		return exceedsPoolDepthForRoute(BigInt(fromAmountInt), swapRoute);
 	});
 
 	// Combined: enable button when swap fields valid, destination valid, not same coin, has balance,
@@ -622,6 +693,26 @@ let expectedOutputUsd = $derived.by(() => {
 		}))
 	);
 
+	/** Custom tokens as picker entries. These are NOT shown in the top-level
+	 *  chip row — a single "Custom" chip stands in for the whole category and
+	 *  drills into this list, so the row stays short as tokens are added. */
+	const customAssetObjs: AssetObject[] = $derived(
+		customAssetOptions.map((opt) => ({
+			...opt.coin,
+			snippet: assetCard,
+			snippetData: { fromOpt: opt, net: Network.magi, size: 'medium' }
+		}))
+	);
+
+	/** The custom token currently sitting in the from/to slot, if any. The
+	 *  category chip renders as that token so the row still reflects the real
+	 *  selection instead of a generic "Custom" while LASSECASH is picked. */
+	const activeCustomObj = $derived(
+		customAssetObjs.find(
+			(o) => o.value === txState.from?.coin.value || o.value === txState.to?.coin.value
+		)
+	);
+
 	// Only the from coin for the amount input – no dropdown; from is changed only via the left card.
 	let amountInputCoinOpts: CoinOnNetwork[] = $derived(
 		txState.from ? [txState.from] : []
@@ -741,14 +832,24 @@ let expectedOutputUsd = $derived.by(() => {
 	let currentlyOpen: 'from' | 'to' = $state('from');
 
 	// ── Multi-step dialog state ──
-	let dialogStep = $state<'tokens' | 'source'>('tokens');
+	// 'custom' is a drill-in from the Custom chip: custom tokens are NOT listed
+	// alongside the native ones, they live one level down behind that chip.
+	let dialogStep = $state<'tokens' | 'custom' | 'source'>('tokens');
+	/** Which list the 'source' step was reached from, so Back returns there
+	 *  rather than always dumping the user back on the top-level chips. */
+	let sourceReturnStep = $state<'tokens' | 'custom'>('tokens');
 	const dialogBack = $derived(
 		dialogStep === 'source'
 			? () => {
-					dialogStep = 'tokens';
+					dialogStep = sourceReturnStep;
 					tempCoinOpt = undefined;
 				}
-			: undefined
+			: dialogStep === 'custom'
+				? () => {
+						dialogStep = 'tokens';
+						tokenSearch = '';
+					}
+				: undefined
 	);
 	let tempCoinOpt: AssetOption | undefined = $state();
 	let tokenSearch = $state('');
@@ -756,14 +857,24 @@ let expectedOutputUsd = $derived.by(() => {
 	function openDialog(state: 'from' | 'to') {
 		currentlyOpen = state;
 		dialogStep = 'tokens';
+		sourceReturnStep = 'tokens';
 		tokenSearch = '';
 		tempCoinOpt = undefined;
 		toggle(true);
 	}
 
+	/** Open the custom-token list. The search box is shared across steps, so
+	 *  clear it — a query typed against the native chips shouldn't silently
+	 *  filter the list the user just drilled into. */
+	function openCustomStep() {
+		tokenSearch = '';
+		dialogStep = 'custom';
+	}
+
 	function closeDialog() {
 		toggle(false);
 		dialogStep = 'tokens';
+		sourceReturnStep = 'tokens';
 		tokenSearch = '';
 		tempCoinOpt = undefined;
 	}
@@ -777,6 +888,17 @@ let expectedOutputUsd = $derived.by(() => {
 	}
 
 	function getNetworkBalance(coinValue: string, networkValue: string): string {
+		// Custom tokens aren't in the `Coin` catalog and their balances aren't in
+		// `accountBalance` (which is a fixed struct of native assets) — they come
+		// from the indexer's per-contract rows instead.
+		const customToken = customTokens.find((t) => t.symbol === coinValue);
+		if (customToken) {
+			if (networkValue !== Network.magi.value) return '0';
+			const raw = $customTokenBalances.bal[coinValue] ?? 0;
+			if (raw <= 0) return '0';
+			return new CoinAmount(raw, customTokenCoin(customToken), true).toPrettyAmountString();
+		}
+
 		const coinDef = Object.values(Coin).find((c) => c.value === coinValue);
 		if (networkValue === Network.magi.value) {
 			const bal = $accountBalance.bal?.[coinValue as keyof AccountBalance];
@@ -819,7 +941,35 @@ let expectedOutputUsd = $derived.by(() => {
 
 	const canSwapPositions = $derived(!!(txState.from && txState.to));
 
+	/** The networks the source step would actually offer — it hides Lightning,
+	 *  so the count has to be computed the same way to stay in step with it. */
+	function selectableNetworks(opt: AssetOption): Network[] {
+		return opt.networks.filter((n) => n.value !== Network.lightning.value);
+	}
+
+	/**
+	 * Move to the network step, or skip it when there's nothing to choose.
+	 * A custom token only exists on Magi, so that step would render a single
+	 * card the user has to click to proceed — pure friction. Keyed on the
+	 * network count rather than "is this custom", so a token that ever gains a
+	 * second network gets the picker back automatically.
+	 */
+	function pickSourceNetwork(coinOpt: AssetOption, cameFrom: 'tokens' | 'custom') {
+		const nets = selectableNetworks(coinOpt);
+		if (nets.length === 1) {
+			confirmFromSelection(coinOpt, nets[0]);
+			return;
+		}
+		tempCoinOpt = coinOpt;
+		sourceReturnStep = cameFrom;
+		dialogStep = 'source';
+	}
+
 	function selectToken(token: AssetObject) {
+		// Remember the list this pick came from, so Back out of the network step
+		// returns to the custom list rather than the top-level chips.
+		const cameFrom: 'tokens' | 'custom' = dialogStep === 'custom' ? 'custom' : 'tokens';
+
 		// If the user picks the token already in the OTHER slot, swap tokens.
 		const otherValue =
 			currentlyOpen === 'from'
@@ -833,10 +983,9 @@ let expectedOutputUsd = $derived.by(() => {
 				if (txState.from && txState.to) {
 					txState.to = { coin: txState.from.coin, network: txState.to.network };
 				}
-				const coinOpt = getFromOption(token.value);
+				const coinOpt = findFromOption(token.value);
 				if (!coinOpt) return;
-				tempCoinOpt = coinOpt;
-				dialogStep = 'source';
+				pickSourceNetwork(coinOpt, cameFrom);
 			} else {
 				// User is picking TO and clicked the current FROM token.
 				// Swap tokens: old FROM ↔ old TO (each keeps its own network).
@@ -851,14 +1000,15 @@ let expectedOutputUsd = $derived.by(() => {
 			return;
 		}
 
-		const source = currentlyOpen === 'from' ? swapOptions.from : swapOptions.to;
+		const source = currentlyOpen === 'from' ? fromOptions : toOptions;
 		const coinOpt = source.find((opt) => opt.coin.value === token.value);
 		if (!coinOpt) return;
 		tempCoinOpt = coinOpt;
 
 		if (currentlyOpen === 'from') {
-			// Show balance sources for the selected token
-			dialogStep = 'source';
+			// Show balance sources for the selected token — unless there's only
+			// one, in which case take it and close.
+			pickSourceNetwork(coinOpt, cameFrom);
 		} else {
 			// To selection: always use Magi network
 			confirmToSelection(coinOpt, Network.magi);
@@ -893,66 +1043,119 @@ let expectedOutputUsd = $derived.by(() => {
 		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
 		const fromAmountInt = new CoinAmount(fromAmount, fromCoinDef.coin).amount;
 		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return 0;
-		return calculatePriceImpact(
-			BigInt(fromAmountInt),
-			fromCoinDef.coin.value,
-			toCoinDef.coin.value,
-			hiveHbdPool,
-			btcHbdPool
-		);
+		return priceImpactForRoute(BigInt(fromAmountInt), swapRoute);
 	});
 </script>
+
+{#snippet tokenChips(tokens: AssetObject[], activeValue?: string)}
+	<div class="token-chip-grid">
+		{#each tokens as token (token.value)}
+			{@const isFrom = token.value === txState.from?.coin.value}
+			{@const isTo = token.value === txState.to?.coin.value}
+			{@const isSelected = isFrom || isTo}
+			{@const isActive = activeValue !== undefined && token.value === activeValue}
+			<button
+				class={['token-chip', { active: isActive, muted: isSelected && !isActive }]}
+				onclick={() => selectToken(token)}
+			>
+				<img src={token.icon} alt={token.label} class="chip-icon" />
+				<span>{coinDisplayLabel(token)}</span>
+				{#if isSelected && !isActive}
+					<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
+				{/if}
+			</button>
+		{/each}
+		{#if customAssetObjs.length > 0}
+			{@const customIsFrom = !!activeCustomObj && activeCustomObj.value === txState.from?.coin.value}
+			{@const customIsTo = !!activeCustomObj && activeCustomObj.value === txState.to?.coin.value}
+			{@const customIsSelected = customIsFrom || customIsTo}
+			{@const customIsActive =
+				activeValue !== undefined && customAssetObjs.some((o) => o.value === activeValue)}
+			<button
+				class={[
+					'token-chip',
+					'token-chip-category',
+					{ active: customIsActive, muted: customIsSelected && !customIsActive }
+				]}
+				onclick={openCustomStep}
+			>
+				<img
+					src={activeCustomObj?.icon ?? CUSTOM_TOKEN_ICON}
+					alt=""
+					class="chip-icon"
+				/>
+				<span>{activeCustomObj ? coinDisplayLabel(activeCustomObj) : 'Custom'}</span>
+				{#if customIsSelected && !customIsActive}
+					<span class="chip-role-badge">{customIsFrom ? 'FROM' : 'TO'}</span>
+				{:else}
+					<span class="chip-chevron" aria-hidden="true"><ChevronRight size={14} /></span>
+				{/if}
+			</button>
+		{/if}
+	</div>
+{/snippet}
 
 <Dialog bind:open={dialogOpen} bind:toggle back={dialogBack}>
 	{#snippet title()}Select a token{/snippet}
 	{#snippet content()}
 		{#if dialogStep === 'tokens'}
 			<!-- Step 1: Select a token -->
+			{@const generalChips = getFilteredTokens(
+				currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs
+			)}
 			<div class="dialog-content">
 				<div class="token-search-wrapper">
 					<Search size={16} />
 					<input bind:value={tokenSearch} placeholder="Search tokens..." />
 				</div>
-				<div class="token-chip-grid">
-					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						{@const isFrom = token.value === txState.from?.coin.value}
-						{@const isTo = token.value === txState.to?.coin.value}
-						{@const isSelected = isFrom || isTo}
-						<button
-							class={['token-chip', { muted: isSelected }]}
-							onclick={() => selectToken(token)}
-						>
-							<img src={token.icon} alt={token.label} class="chip-icon" />
-							<span>{coinDisplayLabel(token)}</span>
-							{#if isSelected}
-								<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
-							{/if}
-						</button>
-					{/each}
-				</div>
+				{@render tokenChips(generalChips)}
 				<span class="dialog-section-label">ALL ASSETS</span>
 				<p class="dialog-hint">select a token to see your available balances</p>
 			</div>
+		{:else if dialogStep === 'custom'}
+			<!-- Drill-in from the Custom chip. Listed as cards rather than chips:
+			     custom tokens are far less familiar than HIVE/HBD/BTC, so the
+			     full name and the user's balance earn their space here. -->
+			{@const customChips = getFilteredTokens(customAssetObjs)}
+			<div class="dialog-content">
+				<div class="token-search-wrapper">
+					<Search size={16} />
+					<input bind:value={tokenSearch} placeholder="Search custom tokens..." />
+				</div>
+				{#if customChips.length > 0}
+					<div class="network-cards">
+						{#each customChips as token (token.value)}
+							{@const meta = customTokens.find((t) => t.symbol === token.value)}
+							<button class="network-card" onclick={() => selectToken(token)}>
+								<img src={token.icon} alt="" class="network-card-icon" />
+								<div class="network-card-info">
+									<span class="network-card-name">{token.label}</span>
+									{#if meta && meta.name !== token.label}
+										<span class="network-card-sub sm-caption">{meta.name}</span>
+									{/if}
+								</div>
+								<div class="network-card-balance">
+									<span class="balance-amount"
+										>{getNetworkBalance(token.value, Network.magi.value)}</span
+									>
+									<span class="balance-label sm-caption">available</span>
+								</div>
+							</button>
+						{/each}
+					</div>
+				{:else}
+					<p class="dialog-hint">
+						{tokenSearch.trim() ? 'No custom tokens match your search.' : 'No custom tokens yet.'}
+					</p>
+				{/if}
+			</div>
 		{:else if dialogStep === 'source' && tempCoinOpt}
 			<!-- Step 2: Show balances for selected token -->
+			{@const generalChips = getFilteredTokens(
+				currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs
+			)}
 			<div class="dialog-content">
-				<div class="token-chip-grid">
-					{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-						{@const isFrom = token.value === txState.from?.coin.value}
-						{@const isTo = token.value === txState.to?.coin.value}
-						{@const isSelected = isFrom || isTo}
-						<button
-							class={['token-chip', { active: token.value === tempCoinOpt.coin.value, muted: isSelected && token.value !== tempCoinOpt.coin.value }]}
-							onclick={() => selectToken(token)}
-						>
-							<img src={token.icon} alt={token.label} class="chip-icon" />
-							<span>{coinDisplayLabel(token)}</span>
-							{#if isSelected && token.value !== tempCoinOpt.coin.value}
-								<span class="chip-role-badge">{isFrom ? 'FROM' : 'TO'}</span>
-							{/if}
-						</button>
-					{/each}
-				</div>
+				{@render tokenChips(generalChips, tempCoinOpt.coin.value)}
 				<span class="dialog-section-label">ALL ASSETS</span>
 				<div class="network-cards">
 					{#each tempCoinOpt.networks.filter((n) => n.value !== Network.lightning.value) as net (net.value)}
@@ -1185,6 +1388,10 @@ let expectedOutputUsd = $derived.by(() => {
 				<button
 					class="dest-card"
 					class:selected={destChoice === 'address'}
+					disabled={toIsMagiOnly}
+					title={toIsMagiOnly
+						? `${coinDisplayLabel(toCoin)} only exists on the Magi network`
+						: undefined}
 					onclick={() => {
 						destChoice = 'address';
 					}}
@@ -1192,9 +1399,13 @@ let expectedOutputUsd = $derived.by(() => {
 					<div class="dest-card-icon"><Send size={18} /></div>
 					<div class="dest-card-info">
 						<span class="dest-card-name">Send to address</span>
-						<span class="dest-card-desc sm-caption"
-							>Enter a recipient address &middot; Choose Magi or mainnet settlement</span
-						>
+						<span class="dest-card-desc sm-caption">
+							{#if toIsMagiOnly}
+								Unavailable &middot; {coinDisplayLabel(toCoin)} only exists on Magi
+							{:else}
+								Enter a recipient address &middot; Choose Magi or mainnet settlement
+							{/if}
+						</span>
 					</div>
 					<div class="dest-radio" class:checked={destChoice === 'address'}></div>
 				</button>
@@ -1970,9 +2181,14 @@ let expectedOutputUsd = $derived.by(() => {
 			border-color: var(--dash-accent-purple);
 			background: var(--dash-card-bg);
 		}
-		&:hover:not(.selected) {
+		&:hover:not(.selected):not(:disabled) {
 			border-color: var(--dash-card-border);
 			background-color: var(--dash-surface);
+		}
+		/* Magi-only target asset: mainnet settlement doesn't exist for it. */
+		&:disabled {
+			cursor: not-allowed;
+			opacity: 0.45;
 		}
 		.dest-card-icon {
 			width: 2rem;
@@ -2179,6 +2395,21 @@ let expectedOutputUsd = $derived.by(() => {
 		}
 	}
 
+	/* The Custom chip stands for a category, not a token — a dashed edge and
+	   the chevron distinguish it from the concrete assets beside it. */
+	.token-chip-category {
+		border-style: dashed;
+		.chip-chevron {
+			display: inline-flex;
+			align-items: center;
+			margin-left: -0.15rem;
+			color: var(--dash-text-muted);
+		}
+		&:hover .chip-chevron {
+			color: var(--dash-text-primary);
+		}
+	}
+
 	.dialog-section-label {
 		display: block;
 		margin-top: 1.25rem;
@@ -2261,6 +2492,12 @@ let expectedOutputUsd = $derived.by(() => {
 		}
 		.network-card-name {
 			font-weight: 500;
+		}
+		.network-card-sub {
+			color: var(--dash-text-muted);
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 		.network-card-balance {
 			display: flex;

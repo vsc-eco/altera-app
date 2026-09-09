@@ -18,6 +18,11 @@ import {
 	calculatePriceImpact,
 	swapFeeExceedsGuard,
 	SWAP_FEE_GUARD_BPS,
+	buildSwapRoute,
+	calculateRouteSwap,
+	priceImpactForRoute,
+	exceedsPoolDepthForRoute,
+	DEX_BASE_ASSET,
 	type TypedPoolDepths
 } from './swapCalc';
 
@@ -444,5 +449,141 @@ describe('swap fee guard', () => {
 		expect(swapFeeExceedsGuard(0)).toBe(false);
 		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS)).toBe(false); // boundary: not strictly greater
 		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS + 1)).toBe(true);
+	});
+});
+
+// ─── Routing (native + custom tokens) ────────────────────────────────────────
+
+/** A custom-token pool, shaped like mainnet's HBD:LASSECASH. Note the custom
+ *  side is asset1 — pools normalise their pair alphabetically, so a token's
+ *  side depends on its symbol and routing must not assume a position. */
+const lassecashHbdPool: TypedPoolDepths = {
+	contractId: 'vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr',
+	asset0: 'hbd',
+	asset1: 'lassecash',
+	reserve0: 1_000_000n, //  1,000.000 HBD (3 dp)
+	reserve1: 2_700_000_000_000n // 27,000 LASSECASH (8 dp)
+};
+
+const ALL_POOLS = [hiveHbdPool, btcHbdPool, lassecashHbdPool];
+const findPool = (a: string, b: string) =>
+	ALL_POOLS.find(
+		(p) => (p.asset0 === a && p.asset1 === b) || (p.asset0 === b && p.asset1 === a)
+	) ?? null;
+
+describe('buildSwapRoute', () => {
+	it('routes a direct pair in one hop, either way round', () => {
+		const fwd = buildSwapRoute('hive', 'hbd', findPool);
+		expect(fwd).toHaveLength(1);
+		expect(fwd?.[0].pool.contractId).toBe(hiveHbdPool.contractId);
+		expect(fwd?.[0].assetIn).toBe('hive');
+
+		const rev = buildSwapRoute('hbd', 'hive', findPool);
+		expect(rev).toHaveLength(1);
+		expect(rev?.[0].assetIn).toBe('hbd');
+	});
+
+	it('routes a custom token against the base asset in one hop', () => {
+		const route = buildSwapRoute('hbd', 'lassecash', findPool);
+		expect(route).toHaveLength(1);
+		expect(route?.[0].pool.contractId).toBe(lassecashHbdPool.contractId);
+		expect(route?.[0].assetIn).toBe('hbd');
+		expect(route?.[0].assetOut).toBe('lassecash');
+	});
+
+	it('routes a custom token to a non-base native asset in two hops via HBD', () => {
+		const route = buildSwapRoute('lassecash', 'hive', findPool);
+		expect(route).toHaveLength(2);
+		expect(route?.[0].pool.contractId).toBe(lassecashHbdPool.contractId);
+		expect(route?.[0].assetOut).toBe(DEX_BASE_ASSET);
+		expect(route?.[1].pool.contractId).toBe(hiveHbdPool.contractId);
+		expect(route?.[1].assetIn).toBe(DEX_BASE_ASSET);
+		expect(route?.[1].assetOut).toBe('hive');
+	});
+
+	it('still routes the native two-hop pair (BTC ↔ HIVE) via HBD', () => {
+		const route = buildSwapRoute('btc', 'hive', findPool);
+		expect(route).toHaveLength(2);
+		expect(route?.[0].pool.contractId).toBe(btcHbdPool.contractId);
+		expect(route?.[1].pool.contractId).toBe(hiveHbdPool.contractId);
+	});
+
+	it('is case-insensitive on asset names', () => {
+		expect(buildSwapRoute('HIVE', 'HBD', findPool)).toHaveLength(1);
+		expect(buildSwapRoute('LASSECASH', 'HBD', findPool)).toHaveLength(1);
+	});
+
+	it('returns null for a same-asset or unknown pair', () => {
+		expect(buildSwapRoute('hive', 'hive', findPool)).toBeNull();
+		expect(buildSwapRoute('hive', 'nosuchtoken', findPool)).toBeNull();
+		// Base asset with no pool for the other side: nowhere left to hop.
+		expect(buildSwapRoute('hbd', 'nosuchtoken', findPool)).toBeNull();
+	});
+
+	it('returns null when a needed pool is missing', () => {
+		const onlyHive = (a: string, b: string) =>
+			[hiveHbdPool].find(
+				(p) => (p.asset0 === a && p.asset1 === b) || (p.asset0 === b && p.asset1 === a)
+			) ?? null;
+		expect(buildSwapRoute('lassecash', 'hive', onlyHive)).toBeNull();
+	});
+});
+
+describe('calculateRouteSwap', () => {
+	it('quotes a single-hop custom-token buy', () => {
+		const route = buildSwapRoute('hbd', 'lassecash', findPool);
+		// 1.000 HBD in (3 dp) → expect some LASSECASH out (8 dp).
+		const result = calculateRouteSwap(1_000n, route, 100);
+		expect(result.expectedOutput).toBeGreaterThan(0n);
+		expect(result.minAmountOut).toBeLessThanOrEqual(result.expectedOutput);
+	});
+
+	it('quotes a two-hop custom-token sell and reports the intermediate fee', () => {
+		const route = buildSwapRoute('lassecash', 'hive', findPool);
+		const result = calculateRouteSwap(100_000_000n, route, 100); // 1 LASSECASH
+		expect(result.expectedOutput).toBeGreaterThan(0n);
+		// Two-hop quotes carry the first hop's fee separately, denominated in
+		// the intermediate asset.
+		expect(result.hop1Fee?.asset).toBe(DEX_BASE_ASSET);
+	});
+
+	it('returns an empty quote for a null route rather than throwing', () => {
+		const result = calculateRouteSwap(1_000n, null, 100);
+		expect(result.expectedOutput).toBe(0n);
+		expect(result.totalFee).toBe(0n);
+	});
+});
+
+describe('priceImpactForRoute / exceedsPoolDepthForRoute', () => {
+	it('reports impact for a single-hop custom-token trade', () => {
+		const route = buildSwapRoute('hbd', 'lassecash', findPool);
+		// impact = 1,000 / (1,000,000 + 1,000) ≈ 0.0999%
+		expect(priceImpactForRoute(1_000n, route)).toBeCloseTo(0.0999, 3);
+	});
+
+	it('stays within [0, 100] across native and custom routes', () => {
+		const cases: Array<[bigint, string, string]> = [
+			[1_000n, 'hbd', 'lassecash'],
+			[100_000_000n, 'lassecash', 'hive'],
+			[1_000n, 'hive', 'hbd'],
+			[100n, 'btc', 'hive']
+		];
+		for (const [x, aIn, aOut] of cases) {
+			const pct = priceImpactForRoute(x, buildSwapRoute(aIn, aOut, findPool));
+			expect(pct, `${x} ${aIn}→${aOut}`).toBeGreaterThanOrEqual(0);
+			expect(pct, `${x} ${aIn}→${aOut}`).toBeLessThanOrEqual(100);
+		}
+	});
+
+	it('flags a custom-token trade over half the pool reserve', () => {
+		const route = buildSwapRoute('hbd', 'lassecash', findPool);
+		// HBD reserve = 1,000,000; just over half.
+		expect(exceedsPoolDepthForRoute(500_001n, route)).toBe(true);
+		expect(exceedsPoolDepthForRoute(400_000n, route)).toBe(false);
+	});
+
+	it('returns neutral values for a null route', () => {
+		expect(priceImpactForRoute(1_000n, null)).toBe(0);
+		expect(exceedsPoolDepthForRoute(1_000n, null)).toBe(false);
 	});
 });

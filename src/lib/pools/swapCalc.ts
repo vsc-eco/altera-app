@@ -449,6 +449,36 @@ export async function fetchTypedPoolDepths(
  *
  * Returns 0 when any required pool data is missing.
  */
+/**
+ * Build a route from the two native pools. Kept so the native-only callers
+ * (the dashboard QuickSwap card) can stay on the two-pool signature while the
+ * routing logic itself lives in one place.
+ */
+function nativeRoute(
+	assetIn: string,
+	assetOut: string,
+	hiveHbdPool: TypedPoolDepths | null,
+	btcHbdPool: TypedPoolDepths | null
+): SwapHop[] | null {
+	const pools = [hiveHbdPool, btcHbdPool].filter((p): p is TypedPoolDepths => p != null);
+	return buildSwapRoute(
+		assetIn,
+		assetOut,
+		(a, b) =>
+			pools.find(
+				(p) =>
+					(p.asset0 === a && p.asset1 === b) || (p.asset0 === b && p.asset1 === a)
+			) ?? null
+	);
+}
+
+/**
+ * AMM-based price impact in percent (0–100) for a native pair, using the
+ * constant-product formula. Two-hop routes (BTC ↔ HIVE via HBD) compound.
+ * Returns 0 when any required pool data is missing.
+ *
+ * Prefer `priceImpactForRoute` for anything that can involve a custom token.
+ */
 export function calculatePriceImpact(
 	x: bigint,
 	assetIn: string,
@@ -456,52 +486,14 @@ export function calculatePriceImpact(
 	hiveHbdPool: TypedPoolDepths | null,
 	btcHbdPool: TypedPoolDepths | null
 ): number {
-	if (x <= 0n) return 0;
-	const aIn = assetIn.toLowerCase();
-	const aOut = assetOut.toLowerCase();
-	const involvesBtc = aIn === 'btc' || aOut === 'btc';
-
-	if (!involvesBtc) {
-		// Single-hop: HIVE ↔ HBD
-		if (!hiveHbdPool) return 0;
-		const d = getOrderedDepthsFor(hiveHbdPool, aIn);
-		if (!d || d.X <= 0n) return 0;
-		// Use floating-point division — reserves are far below Number.MAX_SAFE_INTEGER
-		return (Number(x) / Number(d.X + x)) * 100;
-	}
-
-	if ((aIn === 'btc' && aOut === 'hbd') || (aIn === 'hbd' && aOut === 'btc')) {
-		// Single-hop: BTC ↔ HBD
-		if (!btcHbdPool) return 0;
-		const d = getOrderedDepthsFor(btcHbdPool, aIn);
-		if (!d || d.X <= 0n) return 0;
-		return (Number(x) / Number(d.X + x)) * 100;
-	}
-
-	// Two-hop: BTC ↔ HIVE via HBD
-	if (!btcHbdPool || !hiveHbdPool) return 0;
-	const pool1 = aIn === 'btc' ? btcHbdPool : hiveHbdPool;
-	const pool2 = aIn === 'btc' ? hiveHbdPool : btcHbdPool;
-	const d1 = getOrderedDepthsFor(pool1, aIn);
-	const d2 = getOrderedDepthsFor(pool2, 'hbd');
-	if (!d1 || !d2 || d1.X <= 0n || d2.X <= 0n) return 0;
-	const impact1 = Number(x) / Number(d1.X + x);
-	// Estimate intermediate grossOut (pre-fee) for sizing the second hop
-	const hop1Out = (x * d1.Y) / (d1.X + x);
-	if (hop1Out <= 0n) return 0;
-	const impact2 = Number(hop1Out) / Number(d2.X + hop1Out);
-	return (1 - (1 - impact1) * (1 - impact2)) * 100;
+	return priceImpactForRoute(x, nativeRoute(assetIn, assetOut, hiveHbdPool, btcHbdPool));
 }
 
 /**
  * Returns true when the input amount `x` would be rejected on-chain because
  * it exceeds 50 % of the input-side reserve in one or both hops.
  *
- * The contract hard-rejects any swap where the input is greater than half the
- * pool's input reserve (i.e. `x * 2 > X`). For two-hop routes we also check
- * the intermediate output against the second pool's input reserve.
- *
- * All amounts are in smallest units. Asset names are lowercase strings.
+ * Prefer `exceedsPoolDepthForRoute` for anything that can involve a custom token.
  */
 export function checkExceedsPoolDepth(
 	x: bigint,
@@ -510,39 +502,7 @@ export function checkExceedsPoolDepth(
 	hiveHbdPool: TypedPoolDepths | null,
 	btcHbdPool: TypedPoolDepths | null
 ): boolean {
-	if (x <= 0n) return false;
-
-	const aIn = assetIn.toLowerCase();
-	const aOut = assetOut.toLowerCase();
-	const involvesBtc = aIn === 'btc' || aOut === 'btc';
-
-	if (!involvesBtc) {
-		// Single-hop: HIVE ↔ HBD
-		if (!hiveHbdPool) return false;
-		const d = getOrderedDepthsFor(hiveHbdPool, aIn);
-		return !!d && x * 2n > d.X;
-	}
-
-	if ((aIn === 'btc' && aOut === 'hbd') || (aIn === 'hbd' && aOut === 'btc')) {
-		// Single-hop: BTC ↔ HBD
-		if (!btcHbdPool) return false;
-		const d = getOrderedDepthsFor(btcHbdPool, aIn);
-		return !!d && x * 2n > d.X;
-	}
-
-	// Two-hop: BTC ↔ HIVE via HBD
-	if (!btcHbdPool || !hiveHbdPool) return false;
-	const pool1 = aIn === 'btc' ? btcHbdPool : hiveHbdPool;
-	const pool2 = aIn === 'btc' ? hiveHbdPool : btcHbdPool;
-	const d1 = getOrderedDepthsFor(pool1, aIn);
-	if (!d1) return false;
-	// Check hop1 input against pool1 input reserve
-	if (x * 2n > d1.X) return true;
-	// Estimate intermediate output (net of fees) and check against pool2 input reserve
-	const d2 = getOrderedDepthsFor(pool2, 'hbd');
-	if (!d2) return false;
-	const hop1Out = calculateSwap(x, d1.X, d1.Y, 0).expectedOutput;
-	return hop1Out * 2n > d2.X;
+	return exceedsPoolDepthForRoute(x, nativeRoute(assetIn, assetOut, hiveHbdPool, btcHbdPool));
 }
 
 /**
@@ -615,4 +575,174 @@ export function calculateTwoHopSwap(
 		feeBps: hop1.feeBps + hop2.feeBps,
 		hop1Fee
 	};
+}
+
+// ─── Generic routing ─────────────────────────────────────────────────────────
+//
+// `calculatePriceImpact` / `checkExceedsPoolDepth` above were written when the
+// DEX had exactly two pools, so they take `hiveHbdPool` and `btcHbdPool` as
+// named arguments and branch on the literal asset names. Custom-token pools
+// don't fit that shape — there is one per token — so the logic is expressed
+// here against a resolved ROUTE instead, and those two functions are kept as
+// thin wrappers over it for callers that only ever deal with the native pair.
+
+/** One leg of a swap: an amount of `assetIn` entering `pool`, leaving as
+ *  `assetOut`. Both names are lowercase. */
+export type SwapHop = {
+	pool: TypedPoolDepths;
+	assetIn: string;
+	assetOut: string;
+};
+
+/** HBD is the DEX's base asset — every pool pairs against it (see
+ *  docs.magi.eco), so any two assets either share a pool directly or route
+ *  through HBD in two hops. */
+export const DEX_BASE_ASSET = 'hbd';
+
+/**
+ * Build a route from pools that are already in hand. `findPool(a, b)` must
+ * return the pool for that (unordered) pair, or null. Returns null when no
+ * route exists — same-asset, or a missing pool on either leg.
+ */
+export function buildSwapRoute(
+	assetIn: string,
+	assetOut: string,
+	findPool: (a: string, b: string) => TypedPoolDepths | null
+): SwapHop[] | null {
+	const aIn = assetIn?.toLowerCase();
+	const aOut = assetOut?.toLowerCase();
+	if (!aIn || !aOut || aIn === aOut) return null;
+
+	const direct = findPool(aIn, aOut);
+	if (direct) return [{ pool: direct, assetIn: aIn, assetOut: aOut }];
+
+	// No direct pool. A pair already involving the base asset has nowhere left
+	// to hop, so it's simply untradeable rather than a two-hop route.
+	if (aIn === DEX_BASE_ASSET || aOut === DEX_BASE_ASSET) return null;
+
+	const first = findPool(aIn, DEX_BASE_ASSET);
+	const second = findPool(DEX_BASE_ASSET, aOut);
+	if (!first || !second) return null;
+	return [
+		{ pool: first, assetIn: aIn, assetOut: DEX_BASE_ASSET },
+		{ pool: second, assetIn: DEX_BASE_ASSET, assetOut: aOut }
+	];
+}
+
+/**
+ * Resolve the route for a pair, fetching pool reserves as needed. Handles
+ * every pair the DEX can serve, including custom tokens, without the caller
+ * knowing which pools exist. Returns null when the pair isn't tradeable.
+ */
+export async function resolveSwapRoute(
+	assetIn: string,
+	assetOut: string
+): Promise<SwapHop[] | null> {
+	const aIn = assetIn?.toLowerCase();
+	const aOut = assetOut?.toLowerCase();
+	if (!aIn || !aOut || aIn === aOut) return null;
+
+	const direct = await fetchTypedPoolDepths(aIn, aOut);
+	if (direct) return [{ pool: direct, assetIn: aIn, assetOut: aOut }];
+
+	if (aIn === DEX_BASE_ASSET || aOut === DEX_BASE_ASSET) return null;
+
+	const [first, second] = await Promise.all([
+		fetchTypedPoolDepths(aIn, DEX_BASE_ASSET),
+		fetchTypedPoolDepths(DEX_BASE_ASSET, aOut)
+	]);
+	if (!first || !second) return null;
+	return [
+		{ pool: first, assetIn: aIn, assetOut: DEX_BASE_ASSET },
+		{ pool: second, assetIn: DEX_BASE_ASSET, assetOut: aOut }
+	];
+}
+
+/**
+ * AMM price impact in percent (0–100) across a whole route. Impacts compound:
+ * `combined = 1 - Π(1 - impact_hop)`. Each hop is sized from the previous
+ * hop's GROSS constant-product output (pre-fee), matching the impact figure
+ * the two-pool version reported.
+ */
+export function priceImpactForRoute(x: bigint, route: SwapHop[] | null): number {
+	if (x <= 0n || !route || route.length === 0) return 0;
+	let amount = x;
+	let survival = 1;
+	for (let i = 0; i < route.length; i++) {
+		const hop = route[i];
+		const d = getOrderedDepthsFor(hop.pool, hop.assetIn);
+		if (!d || d.X <= 0n) return 0;
+		survival *= 1 - Number(amount) / Number(d.X + amount);
+		// Only size the NEXT hop. Carrying this past the last hop would run a
+		// BigInt division whose result floors to 0 for small trades against a
+		// low-decimal reserve (1 HBD into the BTC pool), which then read as
+		// "no impact" instead of the impact just measured.
+		if (i === route.length - 1) break;
+		amount = (amount * d.Y) / (d.X + amount);
+		if (amount <= 0n) return 0;
+	}
+	return (1 - survival) * 100;
+}
+
+/**
+ * True when the trade would be rejected on-chain for exceeding 50 % of an
+ * input-side reserve on any hop. Later hops are sized from the previous hop's
+ * NET output (fees taken), since that is what actually arrives at the pool.
+ */
+export function exceedsPoolDepthForRoute(x: bigint, route: SwapHop[] | null): boolean {
+	if (x <= 0n || !route || route.length === 0) return false;
+	let amount = x;
+	for (let i = 0; i < route.length; i++) {
+		const hop = route[i];
+		const d = getOrderedDepthsFor(hop.pool, hop.assetIn);
+		if (!d) return false;
+		if (amount * 2n > d.X) return true;
+		if (i === route.length - 1) break;
+		amount = calculateSwap(amount, d.X, d.Y, 0).expectedOutput;
+		if (amount <= 0n) return false;
+	}
+	return false;
+}
+
+/** Empty quote, for routes that can't be priced. */
+function emptySwapResult(slippageBps: number): SwapCalcResult {
+	return {
+		baseFee: 0n,
+		clpFee: 0n,
+		totalFee: 0n,
+		expectedOutput: 0n,
+		minAmountOut: 0n,
+		slippageBps,
+		feeBps: 0
+	};
+}
+
+/**
+ * Quote a swap over a resolved route — the routing-aware entry point that
+ * replaces picking between `calculateSwap` and `calculateTwoHopSwap` by hand.
+ */
+export function calculateRouteSwap(
+	x: bigint,
+	route: SwapHop[] | null,
+	slippageBps: number
+): SwapCalcResult {
+	if (!route || route.length === 0) return emptySwapResult(slippageBps);
+
+	if (route.length === 1) {
+		const [hop] = route;
+		const d = getOrderedDepthsFor(hop.pool, hop.assetIn);
+		if (!d) return emptySwapResult(slippageBps);
+		return calculateSwap(x, d.X, d.Y, slippageBps);
+	}
+
+	const [hop1, hop2] = route;
+	return calculateTwoHopSwap(
+		x,
+		hop1.pool,
+		hop2.pool,
+		hop1.assetIn,
+		hop1.assetOut,
+		hop2.assetOut,
+		slippageBps
+	);
 }

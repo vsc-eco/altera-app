@@ -10,7 +10,8 @@ import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
-import { getBtcApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
+import { getBtcApproveOp, getTokenApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
+import { fetchCustomTokens } from '$lib/tokens/customTokens'
 import { assertBtcRecipientAllowed } from './btcAddressGuard'
 import {
 	accountBalance,
@@ -679,7 +680,17 @@ export async function send(
 		if (!auth.value?.aioha) {
 			return new Error("VSC Transactions via an EVM wallet aren't supported yet.");
 		}
-		const swapCoins = [Coin.hive.value, Coin.hbd.value, Coin.btc.value];
+		// Custom tokens are swappable wherever they have a pool, so the set is
+		// resolved at broadcast time rather than hardcoded. Discovery is cached
+		// and falls back to [] on failure, which just leaves the native three.
+		const customTokens = await fetchCustomTokens();
+		const customToken = customTokens.find((t) => t.symbol === fromCoin.coin.value);
+		const swapCoins = [
+			Coin.hive.value,
+			Coin.hbd.value,
+			Coin.btc.value,
+			...customTokens.map((t) => t.symbol)
+		];
 		const fromIsNativeHive =
 			fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value;
 		const fromOnMagi = fromNetwork.value === Network.magi.value;
@@ -737,6 +748,13 @@ export async function send(
 				extraOps.push(
 					getBtcApproveOp(auth.value.username!, fromCa as CoinAmount<typeof Coin.btc>)
 				);
+			} else if (customToken) {
+				// Same shape as BTC: the router pulls the funds with
+				// `transferFrom`, so it needs an allowance on the token's own
+				// contract. Without this the swap aborts on the pull.
+				extraOps.push(
+					getTokenApproveOp(auth.value.username!, customToken.contractId, fromCa.amount)
+				);
 			} else if (needsDeposit) {
 				// Prepend the L1→Magi deposit so the router's HiveDraw
 				// has Magi-ledger funds to pull from. Deposit amount
@@ -766,8 +784,8 @@ export async function send(
 			sendOp = await getHiveSwapOp(
 				auth.value.username!,
 				fromCa,
-				fromCoin.coin as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
-				toCoin.coin as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+				fromCoin.coin,
+				toCoin.coin,
 				minOut,
 				destinationChain,
 				destinationRecipient

@@ -10,8 +10,14 @@
  * This test asserts the known consumers (today: the /swap page and
  * the dashboard QuickSwap card) still:
  *   1. import from `$lib/pools/swapCalc`
- *   2. actually call `calculateSwap` (or `calculateTwoHopSwap`) at least once
- *   3. do NOT redefine `calculateSwap` locally
+ *   2. actually call one of the entry points at least once
+ *   3. do NOT redefine any of them locally
+ *
+ * `calculateRouteSwap` counts as an entry point: it's the routing-aware
+ * wrapper in the same file that picks between `calculateSwap` and
+ * `calculateTwoHopSwap` for a resolved route (added with custom-token swap
+ * support, where the caller can no longer know the hop count up front). It
+ * delegates to exactly that math, so the floor guarantee is unchanged.
  *
  * If a new file starts computing swap fees, add it to KNOWN_CONSUMERS
  * — the act of editing this list is itself the review prompt.
@@ -35,14 +41,19 @@ describe('swap math drift guard — consumers must route through swapCalc.ts', (
 				expect(src).toMatch(/from\s+['"]\$lib\/pools\/swapCalc['"]/);
 			});
 
-			it('imports calculateSwap or calculateTwoHopSwap by name', () => {
-				// Loose: either symbol satisfies. SwapOptions uses both; QuickSwap uses both.
-				expect(src).toMatch(/\bcalculateSwap\b|\bcalculateTwoHopSwap\b/);
+			it('imports one of the swap-math entry points by name', () => {
+				// Loose: any of the three satisfies. QuickSwap uses the two direct
+				// ones; SwapOptions routes through calculateRouteSwap.
+				expect(src).toMatch(
+					/\bcalculateSwap\b|\bcalculateTwoHopSwap\b|\bcalculateRouteSwap\b/
+				);
 			});
 
 			it('actually calls one of the math functions (not just imports it)', () => {
 				// A call-site, distinguished from a bare reference / import line.
-				expect(src).toMatch(/\b(calculateSwap|calculateTwoHopSwap)\s*\(/);
+				expect(src).toMatch(
+					/\b(calculateSwap|calculateTwoHopSwap|calculateRouteSwap)\s*\(/
+				);
 			});
 
 			it('does NOT redefine calculateSwap locally', () => {
@@ -55,6 +66,13 @@ describe('swap math drift guard — consumers must route through swapCalc.ts', (
 			it('does NOT redefine calculateTwoHopSwap locally', () => {
 				expect(src).not.toMatch(/function\s+calculateTwoHopSwap\s*\(/);
 				expect(src).not.toMatch(/const\s+calculateTwoHopSwap\s*=\s*\(/);
+			});
+
+			it('does NOT redefine calculateRouteSwap locally', () => {
+				// Same copy-paste regression, one level up: reimplementing the
+				// route dispatch here would let a two-hop quote skip a hop's fees.
+				expect(src).not.toMatch(/function\s+calculateRouteSwap\s*\(/);
+				expect(src).not.toMatch(/const\s+calculateRouteSwap\s*=\s*\(/);
 			});
 		});
 	}

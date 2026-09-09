@@ -41,8 +41,8 @@ export function getAlteraFeePct(assetIn: string, assetOut: string): number | nul
  * $100 USD. Prices come from the same v4v feed the UI already uses.
  */
 export async function qualifiesForAlteraFee(
-	amountIn: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
-	assetOut: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+	amountIn: CoinAmount<Coin>,
+	assetOut: Coin,
 	destinationChain?: string
 ): Promise<boolean> {
 	if (!destinationChain || destinationChain === 'MAGI') return false;
@@ -75,8 +75,6 @@ export async function qualifiesForAlteraFee(
  */
 export const SWAP_CONTRACT_ID = DEX_ROUTER_CONTRACT_ID;
 
-type SwapCoin = typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc;
-
 /**
  * Grants the DEX router allowance to spend exactly `amount` BTC (in SATS)
  * on the mapping contract. Uses `increaseAllowance` so the allowance is
@@ -90,15 +88,38 @@ export function getBtcApproveOp(
 	username: string,
 	amount: CoinAmount<typeof Coin.btc>
 ): CustomJsonOperation {
+	return getTokenApproveOp(username, BTC_MAPPING_CONTRACT_ID, amount.amount);
+}
+
+/**
+ * Grants the DEX router allowance to spend `rawAmount` (smallest units) of a
+ * mapped asset held on `mappingContractId`.
+ *
+ * Every non-native swap input needs this: the router moves the funds with
+ * `transferFrom` on the mapping contract, so without an allowance the swap
+ * aborts. Native HIVE/HBD skip it — they use a `transfer.allow` intent on the
+ * swap op instead.
+ *
+ * The spender is `contract:<router-id>`, NOT the router's owner account: the
+ * caller the mapping contract sees when the router calls `transferFrom` is the
+ * router contract itself. `increaseAllowance` keeps the grant additive and
+ * sized to the exact amount being spent rather than approving an open-ended
+ * number.
+ */
+export function getTokenApproveOp(
+	username: string,
+	mappingContractId: string,
+	rawAmount: number | string
+): CustomJsonOperation {
 	const caller = `hive:${username}`;
 	const op = {
 		net_id: vscNetworkId,
 		caller,
-		contract_id: BTC_MAPPING_CONTRACT_ID,
+		contract_id: mappingContractId,
 		action: 'increaseAllowance',
 		payload: JSON.stringify({
 			spender: `contract:${SWAP_CONTRACT_ID}`,
-			amount: String(amount.amount)
+			amount: String(rawAmount)
 		}),
 		rc_limit: 1000,
 		intents: [] as Array<{ type: string; args: Record<string, string> }>
@@ -116,9 +137,9 @@ export function getBtcApproveOp(
 
 export async function getHiveSwapOp(
 	username: string,
-	amount: CoinAmount<SwapCoin>,
-	assetIn: SwapCoin,
-	assetOut: SwapCoin,
+	amount: CoinAmount<Coin>,
+	assetIn: Coin,
+	assetOut: Coin,
 	minAmountOut?: number,
 	destinationChain?: string,
 	destinationRecipient?: string

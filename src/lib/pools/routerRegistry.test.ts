@@ -111,4 +111,12 @@ describe('registrationHint', () => {
 		const hint = registrationHint({ registered: false, missing: 'pool_mismatch' }, 'HBD:LASSECASH');
 		expect(hint).toContain('not the pool the DEX routes');
 	});
+
+	it('closes every hint by saying who resolves it', () => {
+		for (const missing of ['register_token', 'register_pool', 'pool_mismatch'] as const) {
+			expect(registrationHint({ registered: false, missing }, 'HBD:LASSECASH')).toMatch(
+				/The Magi team will take care for that\.$/
+			);
+		}
+	});
 });

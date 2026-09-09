@@ -93,11 +93,21 @@ export async function fetchRouterRegistrations(
 	return out;
 }
 
+/** Closing reassurance: this is an operator step, not something the user can
+ *  act on, so the hint says who resolves it. */
+const HINT_SUFFIX = 'The Magi team will take care for that.';
+
 /** Human-readable reason a pool can't be used, for tooltips. */
 export function registrationHint(reg: RouterRegistration | undefined, pair: string): string {
 	if (!reg || reg.registered) return '';
 	if (reg.missing === 'pool_mismatch') {
-		return `${pair} is not the pool the DEX routes for this pair — liquidity here is unreachable.`;
+		return (
+			`${pair} is not the pool the DEX routes for this pair — liquidity here is ` +
+			`unreachable. ${HINT_SUFFIX}`
+		);
 	}
-	return `${pair} is not registered on the DEX yet, so deposits would fail. It needs register_token and register_pool on the router.`;
+	return (
+		`${pair} is not registered on the DEX yet, so deposits would fail. It needs ` +
+		`register_token and register_pool on the router. ${HINT_SUFFIX}`
+	);
 }

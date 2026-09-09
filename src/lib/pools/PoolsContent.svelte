@@ -8,6 +8,7 @@
 	import PoolDetail from './PoolDetail.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { isDeprecatedPool } from '../../client';
+	import { registrationHint } from './routerRegistry';
 
 	/** Which slice of the registry this instance shows. The Pools and Custom
 	 *  pools tabs render the same component; only this prop differs, so every
@@ -255,6 +256,16 @@
 			<tbody>
 				{#each rows as pool (pool.id)}
 					{@const deprecated = isDeprecatedPool(pool.contractId)}
+					{@const unregistered = !pool.routerRegistered}
+					{@const addBlocked = deprecated || unregistered}
+					{@const addHint = deprecated
+						? 'Deprecated pool — adding liquidity is disabled'
+						: unregistered
+							? registrationHint(
+									{ registered: false, missing: pool.registrationMissing },
+									pool.pair
+								)
+							: undefined}
 					<tr class="clickable" onclick={() => (selectedPool = pool)}>
 						<td class="col-pair">
 							<div class="pair-cell">
@@ -273,6 +284,10 @@
 								<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
 								{#if deprecated}
 									<span class="deprecated-tag">deprecated</span>
+								{:else if unregistered}
+									<!-- Visible as well as hoverable: touch devices have no
+									     hover, so a tooltip alone would hide this entirely. -->
+									<span class="deprecated-tag unregistered-tag" title={addHint}>not on dex</span>
 								{/if}
 							</div>
 						</td>
@@ -318,11 +333,11 @@
 									type="button"
 									class="row-action row-action-primary"
 									aria-label="Add liquidity to {pool.pair}"
-									disabled={deprecated}
-									title={deprecated ? 'Deprecated pool — adding liquidity is disabled' : undefined}
+									disabled={addBlocked}
+									title={addHint}
 									onclick={(e) => {
 										e.stopPropagation();
-										if (deprecated) return;
+										if (addBlocked) return;
 										openAddForPool(pool);
 									}}
 								>
@@ -425,7 +440,7 @@
 
 <AddLiquidityPopup
 	bind:open={addLiquidityOpen}
-	pools={pools.filter((p) => !isDeprecatedPool(p.contractId))}
+	pools={pools.filter((p) => !isDeprecatedPool(p.contractId) && p.routerRegistered)}
 	preselectedPool={addPrefillPool}
 />
 <RemoveLiquidityPopup
@@ -609,6 +624,14 @@
 		text-decoration: line-through;
 		color: var(--dash-text-muted);
 	}
+	/* Distinct from `deprecated`: that pool worked once and is being retired;
+	   this one has never been reachable through the router. */
+	.unregistered-tag {
+		color: var(--dash-accent-amber, #e0a94a);
+		border-color: currentColor;
+		cursor: help;
+	}
+
 	.deprecated-tag {
 		font-size: 0.55rem;
 		font-weight: 700;

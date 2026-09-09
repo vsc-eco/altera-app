@@ -86,8 +86,11 @@ const LASSE_BINDING = {
 	rtr: ROUTER
 };
 
-/** A router that has both `register_token` and `register_pool` done. */
+/** A router with `register_token` done for BOTH sides of the pair and
+ *  `register_pool` done. `asset-hbd` is included because the registration
+ *  check verifies every asset in the pair, not just the custom one. */
 const ROUTER_REGISTERED = {
+	'asset-hbd': '{"chain":"HIVE","decimals":3}',
 	'asset-lassecash': '{"mapping_contract":"' + LASSE_BOUND + '","chain":"MAGI","decimals":8}',
 	'pool-hbd-lassecash': LASSE_POOL
 };

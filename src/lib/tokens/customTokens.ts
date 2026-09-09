@@ -33,6 +33,7 @@ import { hasuraQuery } from '$lib/indexer/query';
 import { fetchPoolRegistry } from '$lib/indexer/poolQueries';
 import { isNativeAsset } from '$lib/pools/assets';
 import { DEX_ROUTER_CONTRACT_ID } from '../../client';
+import { fetchRouterRegistrations } from '$lib/pools/routerRegistry';
 import type { Coin } from '$lib/sendswap/utils/sendOptions';
 
 /** A custom token that can actually be swapped, with everything the swap
@@ -79,13 +80,6 @@ export function customTokenCoin(token: CustomToken): Coin {
  *  pool is bound to. A pool wired to a superseded router rejects our router's
  *  pre-deposited transfers, so its swaps fail however healthy the reserves look. */
 const POOL_BINDING_KEYS = ['a0n', 'a1n', 'a0m', 'a1m', 'rtr'] as const;
-
-/** Router state keys use `-` as the path delimiter, not `/`. */
-const routerAssetKey = (symbol: string) => `asset-${symbol.toLowerCase()}`;
-/** Pools normalise their pair alphabetically, so use the pool's own a0n/a1n
- *  ordering rather than re-deriving it here. */
-const routerPoolKey = (asset0: string, asset1: string) =>
-	`pool-${asset0.toLowerCase()}-${asset1.toLowerCase()}`;
 
 type TokenOverviewRow = {
 	contract_id: string;
@@ -166,12 +160,11 @@ async function fetchPoolTokenBinding(poolContractId: string): Promise<PoolBindin
 }
 
 /**
- * Ask the DEX router which of these candidates it actually knows about.
+ * Flag each candidate with whether the DEX router can actually route its pool.
  *
- * A single batched read: the router must hold BOTH `asset-<symbol>` (written by
- * `register_token`) and `pool-<a>-<b>` (written by `register_pool`, and whose
- * value must be the very pool we found). Missing either means the router can't
- * resolve the swap, so the token is not offered.
+ * Shares `fetchRouterRegistrations` with the pools table, so "can the router
+ * reach this pool" has exactly one implementation — swaps and liquidity are
+ * blocked by the same missing registration, and must not be able to disagree.
  */
 type Candidate = { poolContractId: string; binding: PoolBinding };
 
@@ -179,49 +172,20 @@ async function markRouterRegistered(
 	candidates: Candidate[]
 ): Promise<Array<Candidate & { routerRegistered: boolean }>> {
 	if (candidates.length === 0) return [];
-	const keys = [
-		...new Set(
-			candidates.flatMap((c) => [
-				routerAssetKey(c.binding.symbol),
-				routerPoolKey(c.binding.pair[0], c.binding.pair[1])
-			])
-		)
-	];
-	try {
-		const res = await queryOnce(new GetStateByKeysStore(), {
-			variables: { contractId: DEX_ROUTER_CONTRACT_ID, keys },
-			policy: 'NetworkOnly'
-		});
-		const state = (res.data?.getStateByKeys ?? {}) as Record<string, string | null | undefined>;
-		return candidates.map((c) => {
-			const asset = state[routerAssetKey(c.binding.symbol)]?.trim();
-			const pool = state[routerPoolKey(c.binding.pair[0], c.binding.pair[1])]?.trim();
-			const sym = c.binding.symbol.toUpperCase();
-			if (!asset || !pool) {
-				console.warn(
-					`Custom token ${sym} is not registered on the DEX router ` +
-						`(${!asset ? 'register_token' : 'register_pool'} missing). Its pool exists, but ` +
-						`swaps and liquidity ops through the router would abort.`
-				);
-				return { ...c, routerRegistered: false };
-			}
-			// The router must point at THIS pool, not some other one for the pair.
-			if (pool !== c.poolContractId) {
-				console.warn(
-					`Custom token ${sym}: the router routes this pair to ${pool}, not ` +
-						`${c.poolContractId}.`
-				);
-				return { ...c, routerRegistered: false };
-			}
-			return { ...c, routerRegistered: true };
-		});
-	} catch (err) {
-		// Registration is unverifiable. Keep the tokens so display stays correct,
-		// but treat them as unroutable rather than risk offering a swap that
-		// aborts on chain.
-		console.error('Failed to read DEX router registration', err);
-		return candidates.map((c) => ({ ...c, routerRegistered: false }));
-	}
+	const regs = await fetchRouterRegistrations(
+		candidates.map((c) => ({ contractId: c.poolContractId, symbols: c.binding.pair }))
+	);
+	return candidates.map((c) => {
+		const reg = regs.get(c.poolContractId);
+		if (!reg?.registered) {
+			console.warn(
+				`Custom token ${c.binding.symbol.toUpperCase()} is not routable on the DEX router ` +
+					`(${reg?.missing ?? 'unknown'}). Its pool exists, but swaps and liquidity ops ` +
+					`through the router would abort.`
+			);
+		}
+		return { ...c, routerRegistered: reg?.registered === true };
+	});
 }
 
 async function fetchPoolTokensUncoalesced(): Promise<CustomToken[]> {

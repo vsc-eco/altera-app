@@ -5,6 +5,7 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import type { PoolRow, MyPoolRow } from './poolsData';
 	import { getMagiIndexerBaseUrl, GQL_PROXY_INDEXER, gqlUpstreamHeaders, isDeprecatedPool } from '../../client';
+	import { registrationHint } from './routerRegistry';
 	import moment from 'moment';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
@@ -29,6 +30,20 @@
 	let removeLiquidityOpen = $state(false);
 	const hasUserPosition = $derived(myPools.some((p) => p.contractId === pool.contractId));
 	const deprecated = $derived(isDeprecatedPool(pool.contractId));
+	/** The router has no registration for this pool, so a deposit would abort
+	 *  even though the pool contract itself is healthy. */
+	const unregistered = $derived(!pool.routerRegistered);
+	const addBlocked = $derived(deprecated || unregistered);
+	const addHint = $derived(
+		deprecated
+			? 'Deprecated pool — adding liquidity is disabled'
+			: unregistered
+				? registrationHint(
+						{ registered: false, missing: pool.registrationMissing },
+						pool.pair
+					)
+				: undefined
+	);
 
 	const poolId = pool.contractId;
 	const sym0 = pool.pairSymbols[0];
@@ -257,10 +272,10 @@
 			<button
 				type="button"
 				class="header-action header-action-primary"
-				disabled={deprecated}
-				title={deprecated ? 'Deprecated pool — adding liquidity is disabled' : undefined}
+				disabled={addBlocked}
+				title={addHint}
 				onclick={() => {
-					if (!deprecated) addLiquidityOpen = true;
+					if (!addBlocked) addLiquidityOpen = true;
 				}}
 			>
 				<Plus size={14} />
@@ -334,7 +349,9 @@
 
 <AddLiquidityPopup
 	bind:open={addLiquidityOpen}
-	pools={(pools.length ? pools : [pool]).filter((p) => !isDeprecatedPool(p.contractId))}
+	pools={(pools.length ? pools : [pool]).filter(
+		(p) => !isDeprecatedPool(p.contractId) && p.routerRegistered
+	)}
 	preselectedPool={pool}
 />
 <RemoveLiquidityPopup

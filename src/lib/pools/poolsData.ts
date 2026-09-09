@@ -3,6 +3,7 @@ import { queryOnce } from '$lib/queryOnce';
 import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 import { fetchTokenDecimals } from '$lib/tokens/customTokens';
 import { isNativeAsset } from './assets';
+import { fetchRouterRegistrations } from './routerRegistry';
 
 export { isNativeAsset } from './assets';
 import {
@@ -44,6 +45,13 @@ export interface PoolRow {
 	decimals1: number;
 	usdPrice0: number;
 	usdPrice1: number;
+	/** False when the DEX router has no registration for this pool. The pool
+	 *  contract still works when called directly — that's how an unregistered
+	 *  pool can hold funds — but everything Altera does goes through the
+	 *  router, so swaps and both liquidity directions would abort. */
+	routerRegistered: boolean;
+	/** Which registration step is missing, for the UI hint. */
+	registrationMissing?: 'register_token' | 'register_pool' | 'pool_mismatch';
 }
 
 /** Which pools tab a pair belongs to. */
@@ -294,7 +302,10 @@ export function mapStateToPoolRow(
 		decimals0: dec0,
 		decimals1: dec1,
 		usdPrice0: usd0,
-		usdPrice1: usd1
+		usdPrice1: usd1,
+		// Assume routable unless a registration lookup says otherwise; the
+		// caller overwrites this. Keeps `mapStateToPoolRow` pure.
+		routerRegistered: true
 	};
 }
 
@@ -442,13 +453,30 @@ async function fetchPoolsUncoalesced(range: TimeRange): Promise<PoolRow[]> {
 			return true;
 		});
 
-		const poolRows = await Promise.all(
-			uniqueRegistry.map((entry) =>
-				fetchSinglePool(entry.contractId, entry.symbols, range, usdPrices, tokenDecimals)
+		const [poolRows, registrations] = await Promise.all([
+			Promise.all(
+				uniqueRegistry.map((entry) =>
+					fetchSinglePool(entry.contractId, entry.symbols, range, usdPrices, tokenDecimals)
+				)
+			),
+			// One batched router read for every pool. A pool the router can't
+			// reach must not offer Add liquidity — the deposit would abort.
+			fetchRouterRegistrations(
+				uniqueRegistry.map((entry) => ({
+					contractId: entry.contractId,
+					symbols: [entry.symbols[0], entry.symbols[1]] as [string, string]
+				}))
 			)
-		);
+		]);
 
-		return poolRows;
+		return poolRows.map((row) => {
+			const reg = registrations.get(row.contractId);
+			return {
+				...row,
+				routerRegistered: reg?.registered !== false,
+				registrationMissing: reg?.missing
+			};
+		});
 	} catch (err) {
 		console.error('Failed to fetch pool state', err);
 		return [];

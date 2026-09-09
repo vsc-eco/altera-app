@@ -8,6 +8,26 @@ All notable changes to Altera are documented here.
 > CI / build-banner / release-script use, and so a glance at `package.json`
 > matches reality.
 
+## [0.3.41] — 2026-09-09
+
+### Added
+
+- **Custom pools now have their own tab.** Pools pairing a Magi custom token against HBD (today: LASSECASH) were mixed in with the core HIVE/HBD/BTC pools. They now sit under a **Custom Pools** tab next to Swap and Pools, deep-linkable as `/swap?tab=custom-pools`. Everything else about the tab is the pools table verbatim — same columns, sorting, time ranges, search, row actions, My liquidity section and detail view — it's the same component, scoped to one half of the registry. Both tables also gained an empty state, since splitting one list into two guarantees one of them is often empty.
+
+- **Custom tokens can be swapped, and are grouped in the asset picker.** The cross-chain swap control previously offered only HIVE, HBD and BTC — the whole path was hardcoded to those three, so a custom token could not be selected at all. Any token with a registered DEX pool is now swappable and appears under a **CUSTOM TOKENS** heading in the token dialog, next to the general assets. Tokens without a pool (DIY, FERNLET) are deliberately not listed: there is nothing to route through, so offering them would be a dead end.
+
+### Changed
+
+- **Swap routing is now general rather than a three-asset branch tree.** `calculatePriceImpact` / `checkExceedsPoolDepth` took `hiveHbdPool` and `btcHbdPool` as named arguments and branched on literal asset names, which has no shape for a per-token pool. Routing is now expressed against a resolved route (`buildSwapRoute` / `calculateRouteSwap` / `priceImpactForRoute` / `exceedsPoolDepthForRoute`): HBD is the DEX base asset, so any pair either shares a pool or hops through HBD. The two original functions are kept as thin wrappers over the same logic, so the dashboard QuickSwap card is untouched.
+
+- **A non-native swap input now emits its allowance op.** The router moves funds with `transferFrom` on the mapping contract, so a custom token as swap input needs an `increaseAllowance` to `contract:<router-id>` first, exactly as BTC already did. `getBtcApproveOp` is now a wrapper over a general `getTokenApproveOp`.
+
+### Fixes
+
+- **A Magi-only asset could be aimed at Hive L1.** Resolving the destination network fell back to `hiveMainnet` whenever the selected asset wasn't in the static swap catalog. Custom tokens have no mainnet form, so the fallback is now Magi.
+
+- **Pool data was fetched twice per page load.** Zag renders every tab's content (inactive ones hidden), so the Pools and Custom Pools tabs each mount their own table and both fetch on mount — five queries per pool, twice. Concurrent calls for the same time range now share one round-trip; the entry is dropped as soon as it settles, so nothing is served from a stale cache.
+
 ## [0.3.40] — 2026-08-17
 
 ### Changed

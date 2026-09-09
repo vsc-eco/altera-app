@@ -1,7 +1,7 @@
 {
 	"name": "altera",
 	"private": true,
-	"version": "0.3.40",
+	"version": "0.3.41",
 	"type": "module",
 	"types": "./src/has/hive-auth-wrapper.d.ts",
 	"//CHANNEL": "All @vsc.eco/*-widget pins point at the PRODUCTION package endpoints (/pkg). Feature builds live at /pkg-dev on the same hosts and must never be pinned here — see publish-{market,token}-sdk-tarballs.sh --dev.",

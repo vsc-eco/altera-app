@@ -12,9 +12,11 @@ All notable changes to Altera are documented here.
 
 ### Added
 
-- **Custom pools now have their own tab.** Pools pairing a Magi custom token against HBD (today: LASSECASH) were mixed in with the core HIVE/HBD/BTC pools. They now sit under a **Custom Pools** tab next to Swap and Pools, deep-linkable as `/swap?tab=custom-pools`. Everything else about the tab is the pools table verbatim — same columns, sorting, time ranges, search, row actions, My liquidity section and detail view — it's the same component, scoped to one half of the registry. Both tables also gained an empty state, since splitting one list into two guarantees one of them is often empty.
+- **Custom pools now have their own tab.** Pools pairing a Magi custom token against HBD (today: HBD:LASSECASH) were mixed in with the core HIVE/HBD/BTC pools. They now sit under a **Custom Pools** tab next to Swap and Pools, deep-linkable as `/swap?tab=custom-pools`. Everything else about the tab is the pools table verbatim — same columns, sorting, time ranges, search, row actions, My liquidity section and detail view — it's the same component, scoped to one half of the registry. Both tables also gained an empty state, since splitting one list into two guarantees one of them is often empty.
 
-- **Custom tokens can be swapped, and are grouped in the asset picker.** The cross-chain swap control previously offered only HIVE, HBD and BTC — the whole path was hardcoded to those three, so a custom token could not be selected at all. Any token with a registered DEX pool is now swappable and appears under a **CUSTOM TOKENS** heading in the token dialog, next to the general assets. Tokens without a pool (DIY, FERNLET) are deliberately not listed: there is nothing to route through, so offering them would be a dead end.
+- **Custom tokens can be swapped.** The cross-chain swap control previously offered only HIVE, HBD and BTC: the whole path was hardcoded to those three, so a custom token could not be selected at all. Tokens are discovered from the pool registry, balances come from the indexer's per-contract rows, and the quote and broadcast paths handle them like any other asset.
+
+- **A Custom chip in the asset picker.** Custom tokens are not listed beside HIVE/HBD/BTC. A single **Custom** chip stands for the category and drills into a list showing each token's full name and your balance, so the top row stays short as tokens are added. The chip renders as the selected token once one is picked.
 
 ### Changed
 
@@ -22,11 +24,30 @@ All notable changes to Altera are documented here.
 
 - **A non-native swap input now emits its allowance op.** The router moves funds with `transferFrom` on the mapping contract, so a custom token as swap input needs an `increaseAllowance` to `contract:<router-id>` first, exactly as BTC already did. `getBtcApproveOp` is now a wrapper over a general `getTokenApproveOp`.
 
+- **Picking an asset that exists on one network skips the network step.** It used to render a single card you had to click to continue. Custom tokens only exist on Magi, so this was pure friction; keyed on the network count rather than on the asset being custom, so anything that later gains a second network gets the picker back automatically.
+
+- **"Send to address" is disabled when the target asset only exists on Magi**, since there is no mainnet form of it to settle to. Selecting such an asset while that destination is active falls back to the wallet destination rather than stranding you on a disabled option.
+
 ### Fixes
+
+- **Only tokens the DEX router has registered are offered.** A pool appearing in the indexer's `dex_pool_registry` is no evidence the router can route it: the router resolves assets and pools from its own state, written by `register_token` and `register_pool`. Mainnet's HBD:LASSECASH pool is deployed, funded and correctly bound to the live router, yet neither of those steps was ever run — so the token would have been offered and every swap would have aborted on chain. A token is now surfaced only when the pool binds it, the pool points back at our router, and the router holds both registrations naming that exact pool. **Net effect: no custom tokens are swappable on mainnet until those steps are run.**
+
+- **Add liquidity is disabled on pools the router cannot reach**, in the table row and the pool detail header, with a hint naming the pair and the missing step. A pool contract is self-contained — its deposit entrypoint works when called directly, which is how the LASSECASH pool came to hold funds — but everything Altera does goes through the router, so a deposit from here would have aborted. Such pools also carry a visible "not on dex" tag, since touch devices have no hover and a tooltip alone would hide the state entirely.
+
+- **Custom token amounts were wrong by orders of magnitude.** Pool amounts assumed 3 decimal places for everything but BTC. LASSECASH is 8 dp, so the Pools tab reported its reserve as 2,700,000,000 instead of 27,000 and a price ratio of 272,589,601 rather than ~2,725.9. Decimals now come from the token registry.
+
+- **Add liquidity showed the HIVE icon, unit and balance on a custom token's side.** The pool's asset symbol was matched by substring against BTC and HBD and fell through to HIVE for everything else — so every custom token rendered as HIVE (and a token named "BTCX" would have matched BTC). Natives are now matched exactly and anything else resolves against the discovered token list.
+
+- **A held custom token showed a zero balance.** The balance lookup sourced its token list from the swap-gated set, so any token awaiting router registration reported 0 while the token panel showed the real holding. Balances are display data and no longer depend on routability.
 
 - **A Magi-only asset could be aimed at Hive L1.** Resolving the destination network fell back to `hiveMainnet` whenever the selected asset wasn't in the static swap catalog. Custom tokens have no mainnet form, so the fallback is now Magi.
 
 - **Pool data was fetched twice per page load.** Zag renders every tab's content (inactive ones hidden), so the Pools and Custom Pools tabs each mount their own table and both fetch on mount — five queries per pool, twice. Concurrent calls for the same time range now share one round-trip; the entry is dropped as soon as it settles, so nothing is served from a stale cache.
+
+### Known gaps
+
+- Custom tokens have no USD price feed, so their side of a pool and the swap's USD estimates read `$0`. Derivable from the pool's ratio against HBD; not yet wired.
+- Remove liquidity is still enabled on unregistered pools, where it would abort like a deposit. It mirrors the deliberate `deprecated` treatment (add disabled, exit kept open), but the exit does not currently work either.
 
 ## [0.3.40] — 2026-08-17
 

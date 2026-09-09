@@ -13,7 +13,7 @@
 
 import { writable } from 'svelte/store';
 import { hasuraQuery } from '$lib/indexer/query';
-import { fetchCustomTokens } from './customTokens';
+import { fetchPoolTokens } from './customTokens';
 
 export type CustomTokenBalances = {
 	/** Raw smallest units, keyed by lowercase symbol. */
@@ -50,7 +50,11 @@ export async function refreshCustomTokenBalances(did: string): Promise<void> {
 	}
 	customTokenBalances.update((s) => ({ ...s, loading: true }));
 	try {
-		const tokens = await fetchCustomTokens();
+		// Deliberately the UNGATED list. A balance is display data: the user
+		// holds the token whether or not the DEX router can route its pool, and
+		// reading the swap-gated list here reported 0 for every token awaiting
+		// register_token / register_pool.
+		const tokens = await fetchPoolTokens();
 		if (tokens.length === 0) {
 			if (latestDid !== did) return;
 			customTokenBalances.set({ bal: {}, loading: false, did });

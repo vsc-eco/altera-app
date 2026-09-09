@@ -31,7 +31,7 @@ import { GetStateByKeysStore } from '$houdini';
 import { queryOnce } from '$lib/queryOnce';
 import { hasuraQuery } from '$lib/indexer/query';
 import { fetchPoolRegistry } from '$lib/indexer/poolQueries';
-import { isNativeAsset } from '$lib/pools/poolsData';
+import { isNativeAsset } from '$lib/pools/assets';
 import { DEX_ROUTER_CONTRACT_ID } from '../../client';
 import type { Coin } from '$lib/sendswap/utils/sendOptions';
 
@@ -51,6 +51,11 @@ export type CustomToken = {
 	contractId: string;
 	/** The DEX pool pairing this token with HBD. */
 	poolContractId: string;
+	/** True when the DEX router holds both `asset-<symbol>` and `pool-<a>-<b>`
+	 *  for this token — i.e. swaps and liquidity ops can actually execute.
+	 *  False means the pool exists and holds funds but the router can't route
+	 *  it (register_token / register_pool never run). */
+	routerRegistered: boolean;
 };
 
 /** Custom tokens ship no artwork of their own, so they carry the Magi mark:
@@ -168,9 +173,11 @@ async function fetchPoolTokenBinding(poolContractId: string): Promise<PoolBindin
  * value must be the very pool we found). Missing either means the router can't
  * resolve the swap, so the token is not offered.
  */
-async function filterToRouterRegistered(
-	candidates: Array<{ poolContractId: string; binding: PoolBinding }>
-): Promise<Array<{ poolContractId: string; binding: PoolBinding }>> {
+type Candidate = { poolContractId: string; binding: PoolBinding };
+
+async function markRouterRegistered(
+	candidates: Candidate[]
+): Promise<Array<Candidate & { routerRegistered: boolean }>> {
 	if (candidates.length === 0) return [];
 	const keys = [
 		...new Set(
@@ -186,36 +193,38 @@ async function filterToRouterRegistered(
 			policy: 'NetworkOnly'
 		});
 		const state = (res.data?.getStateByKeys ?? {}) as Record<string, string | null | undefined>;
-		return candidates.filter((c) => {
+		return candidates.map((c) => {
 			const asset = state[routerAssetKey(c.binding.symbol)]?.trim();
 			const pool = state[routerPoolKey(c.binding.pair[0], c.binding.pair[1])]?.trim();
+			const sym = c.binding.symbol.toUpperCase();
 			if (!asset || !pool) {
 				console.warn(
-					`Custom token ${c.binding.symbol.toUpperCase()} skipped: not registered on the DEX ` +
-						`router (${!asset ? 'register_token' : 'register_pool'} missing). Its pool exists ` +
-						`but swaps would abort.`
+					`Custom token ${sym} is not registered on the DEX router ` +
+						`(${!asset ? 'register_token' : 'register_pool'} missing). Its pool exists, but ` +
+						`swaps and liquidity ops through the router would abort.`
 				);
-				return false;
+				return { ...c, routerRegistered: false };
 			}
 			// The router must point at THIS pool, not some other one for the pair.
 			if (pool !== c.poolContractId) {
 				console.warn(
-					`Custom token ${c.binding.symbol.toUpperCase()} skipped: the router routes this pair to ` +
-						`${pool}, not ${c.poolContractId}.`
+					`Custom token ${sym}: the router routes this pair to ${pool}, not ` +
+						`${c.poolContractId}.`
 				);
-				return false;
+				return { ...c, routerRegistered: false };
 			}
-			return true;
+			return { ...c, routerRegistered: true };
 		});
 	} catch (err) {
-		// Registration is unverifiable — offer nothing rather than offer a swap
-		// that aborts on chain.
+		// Registration is unverifiable. Keep the tokens so display stays correct,
+		// but treat them as unroutable rather than risk offering a swap that
+		// aborts on chain.
 		console.error('Failed to read DEX router registration', err);
-		return [];
+		return candidates.map((c) => ({ ...c, routerRegistered: false }));
 	}
 }
 
-async function fetchCustomTokensUncoalesced(): Promise<CustomToken[]> {
+async function fetchPoolTokensUncoalesced(): Promise<CustomToken[]> {
 	try {
 		const [registry, overview] = await Promise.all([fetchPoolRegistry(), fetchTokenOverview()]);
 
@@ -229,14 +238,12 @@ async function fetchCustomTokensUncoalesced(): Promise<CustomToken[]> {
 			}))
 		);
 
-		const bound = bindings.filter(
-			(b): b is { poolContractId: string; binding: PoolBinding } => b.binding !== null
-		);
-		const registered = await filterToRouterRegistered(bound);
+		const bound = bindings.filter((b): b is Candidate => b.binding !== null);
+		const marked = await markRouterRegistered(bound);
 
 		const out: CustomToken[] = [];
 		const seen = new Set<string>();
-		for (const { poolContractId, binding } of registered) {
+		for (const { poolContractId, binding, routerRegistered } of marked) {
 			const meta = overview.get(binding.contractId);
 			// A token the indexer doesn't know, or one its owner has paused,
 			// must not be offered: transfers on a paused contract abort.
@@ -253,7 +260,8 @@ async function fetchCustomTokensUncoalesced(): Promise<CustomToken[]> {
 				name: meta.name || meta.symbol || binding.symbol,
 				decimals: Number.isFinite(decimals) && decimals >= 0 ? decimals : 0,
 				contractId: binding.contractId,
-				poolContractId
+				poolContractId,
+				routerRegistered
 			});
 		}
 		out.sort((a, b) => a.label.localeCompare(b.label));
@@ -269,11 +277,32 @@ async function fetchCustomTokensUncoalesced(): Promise<CustomToken[]> {
 // in-flight request; drop it as soon as it settles so nothing goes stale.
 let inFlight: Promise<CustomToken[]> | null = null;
 
-/** Pool-backed custom tokens, sorted by symbol. Never throws. */
-export function fetchCustomTokens(): Promise<CustomToken[]> {
+/**
+ * EVERY pool-backed custom token, whether or not the router can route it.
+ *
+ * Use this for DISPLAY — decimals, icons, labels. A pool's numbers must render
+ * correctly even while its router registration is missing, otherwise an
+ * unregistered token silently falls back to HIVE's icon and 3 decimal places.
+ * Never throws.
+ */
+export function fetchPoolTokens(): Promise<CustomToken[]> {
 	if (inFlight) return inFlight;
-	inFlight = fetchCustomTokensUncoalesced().finally(() => {
+	inFlight = fetchPoolTokensUncoalesced().finally(() => {
 		inFlight = null;
 	});
 	return inFlight;
+}
+
+/** Only the tokens the DEX router can actually route — for SWAPS and any other
+ *  operation that goes through the router. */
+export async function fetchCustomTokens(): Promise<CustomToken[]> {
+	return (await fetchPoolTokens()).filter((t) => t.routerRegistered);
+}
+
+/** Decimals by lowercase symbol, for formatting pool amounts. Custom tokens
+ *  are not all 3 dp — LASSECASH is 8 — and getting this wrong misreports
+ *  reserves and price ratios by orders of magnitude. */
+export async function fetchTokenDecimals(): Promise<Record<string, number>> {
+	const tokens = await fetchPoolTokens();
+	return Object.fromEntries(tokens.map((t) => [t.symbol, t.decimals]));
 }

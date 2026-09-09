@@ -8,7 +8,13 @@
 	import { getHiveAssetName, getHbdAssetName } from '$lib/../client';
 	import { liquidityDraftStore } from '$lib/pools/liquidityStore';
 	import { get } from 'svelte/store';
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { fetchPoolTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens';
+	import {
+		customTokenBalances,
+		refreshCustomTokenBalances
+	} from '$lib/tokens/customTokenBalances';
+	import { getAuth } from '$lib/auth/store';
 
 	let { editStage, pools = [] }: { editStage: (complete: boolean) => void; pools: PoolRow[] } =
 		$props();
@@ -21,6 +27,20 @@
 	let selectedPool = $state<PoolRow | null>(preseeded);
 	let amount0Ca = $state(new CoinAmount(0, Coin.hbd));
 	let amount1Ca = $state(new CoinAmount(0, Coin.btc));
+
+	// Pool-backed custom tokens, so a custom side resolves to its own coin
+	// instead of falling through to HIVE. Uses the ungated list: an
+	// unregistered pool must still render its own icon, unit and decimals.
+	let customTokens = $state.raw<CustomToken[]>([]);
+	onMount(async () => {
+		customTokens = await fetchPoolTokens();
+	});
+
+	const auth = $derived(getAuth()());
+	$effect(() => {
+		const did = auth.value?.did;
+		if (did) refreshCustomTokenBalances(did);
+	});
 
 	const poolOptions = $derived(pools.map((p) => ({ value: p.id, label: p.pair })));
 	const initialPoolId = preseeded?.id;
@@ -60,16 +80,29 @@
 
 	const hiveAssetName = $derived(getHiveAssetName());
 	const hbdAssetName = $derived(getHbdAssetName());
-	function displayUnitForCoin(c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc): string {
+	function displayUnitForCoin(c: Coin): string {
 		if (c.value === Coin.btc.value) return 'BTC';
-		return c.value === Coin.hive.value ? hiveAssetName : hbdAssetName;
+		if (c.value === Coin.hive.value) return hiveAssetName;
+		if (c.value === Coin.hbd.value) return hbdAssetName;
+		// Custom token: its own symbol, never a network-renamed native unit.
+		return c.label;
 	}
 
-	function detectCoin(symbol: string): typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc {
+	/**
+	 * Resolve a pool's asset symbol to a Coin.
+	 *
+	 * Was a substring match falling through to HIVE, so every custom token
+	 * rendered with HIVE's icon, unit and balance (and a token named e.g.
+	 * "BTCX" would have matched BTC). Now an exact match on the natives, then
+	 * the discovered custom tokens.
+	 */
+	function detectCoin(symbol: string): Coin {
 		const upper = symbol.toUpperCase();
-		if (upper.includes('BTC')) return Coin.btc;
-		if (upper.includes('HBD')) return Coin.hbd;
-		return Coin.hive;
+		if (upper === 'BTC') return Coin.btc;
+		if (upper === 'HBD') return Coin.hbd;
+		if (upper === 'HIVE') return Coin.hive;
+		const custom = customTokens.find((t) => t.symbol === symbol.toLowerCase());
+		return custom ? customTokenCoin(custom) : Coin.hive;
 	}
 
 	const coin0 = $derived(selectedPool ? detectCoin(selectedPool.pairSymbols[0]) : Coin.hbd);
@@ -81,12 +114,13 @@
 			[coin0.value, coin1.value].includes(Coin.hbd.value)
 	);
 
-	function getMaxForCoin(
-		c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
-	): CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc> | undefined {
+	function getMaxForCoin(c: Coin): CoinAmount<Coin> | undefined {
 		if (c.value === Coin.btc.value) return new CoinAmount($accountBalance.bal.btc, Coin.btc, true);
 		if (c.value === Coin.hbd.value) return new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true);
-		return new CoinAmount($accountBalance.bal.hive, Coin.hive, true);
+		if (c.value === Coin.hive.value)
+			return new CoinAmount($accountBalance.bal.hive, Coin.hive, true);
+		// Custom token balances are indexer rows, not part of `accountBalance`.
+		return new CoinAmount($customTokenBalances.bal[c.value] ?? 0, c, true);
 	}
 
 	// For BTC/HBD pools amount0Ca is forced to HBD and amount1Ca to BTC
@@ -110,7 +144,7 @@
 	// use CoinAmount.mulTo to get the mirror value in the output coin.
 	function reserveForCoin(
 		pool: PoolRow,
-		c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+		c: Coin
 	): { raw: number; decimals: number } {
 		const c0 = detectCoin(pool.pairSymbols[0]);
 		if (c.value === c0.value) {
@@ -120,14 +154,14 @@
 	}
 	function usdPriceForCoin(
 		pool: PoolRow,
-		c: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc
+		c: Coin
 	): number {
 		const c0 = detectCoin(pool.pairSymbols[0]);
 		return c.value === c0.value ? pool.usdPrice0 : pool.usdPrice1;
 	}
-	function computeMirror<Out extends typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>(
+	function computeMirror<Out extends Coin>(
 		pool: PoolRow,
-		input: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+		input: CoinAmount<Coin>,
 		outCoin: Out
 	): CoinAmount<Out> {
 		if (input.amount === 0) return new CoinAmount(0, outCoin);
@@ -151,7 +185,7 @@
 	let isSyncing = $state(false);
 	let lastKey0 = $state('');
 	let lastKey1 = $state('');
-	function keyOf(ca: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>): string {
+	function keyOf(ca: CoinAmount<Coin>): string {
 		return `${ca.coin.value}:${ca.amount}`;
 	}
 	function syncFromSource(source: '0' | '1') {

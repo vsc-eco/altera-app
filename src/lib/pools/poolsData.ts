@@ -1,6 +1,10 @@
 import { GetStateByKeysStore } from '$houdini';
 import { queryOnce } from '$lib/queryOnce';
 import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
+import { fetchTokenDecimals } from '$lib/tokens/customTokens';
+import { isNativeAsset } from './assets';
+
+export { isNativeAsset } from './assets';
 import {
 	type TimeRange,
 	fetchPoolVolume,
@@ -40,18 +44,6 @@ export interface PoolRow {
 	decimals1: number;
 	usdPrice0: number;
 	usdPrice1: number;
-}
-
-/** Assets the DEX treats as first-class: the Hive L1 coins plus the mapped
- *  chain assets. Anything else in a pair is a token registered through the
- *  Magi token contract — i.e. a user-created custom token. Add new mapped
- *  assets here as they land, or their pools will surface under "Custom
- *  pools" instead of the main Pools tab. */
-const NATIVE_POOL_ASSETS: ReadonlySet<string> = new Set(['HIVE', 'HBD', 'BTC']);
-
-/** True for the DEX's built-in assets; false for Magi custom tokens. */
-export function isNativeAsset(symbol: string): boolean {
-	return NATIVE_POOL_ASSETS.has(symbol.toUpperCase());
 }
 
 /** Which pools tab a pair belongs to. */
@@ -131,7 +123,11 @@ export function mapStateToPoolRow(
 		};
 	},
 	usdPrices: { hive: number; hbd: number; btc: number },
-	fallbackSymbols?: [string, string]
+	fallbackSymbols?: [string, string],
+	/** Decimals by lowercase symbol for non-native assets. Custom tokens are
+	 *  not all 3 dp (LASSECASH is 8), and defaulting them would misreport
+	 *  reserves and price ratios by orders of magnitude. */
+	tokenDecimals?: Record<string, number>
 ): PoolRow {
 	const asset0Json = state['asset0'];
 	const asset1Json = state['asset1'];
@@ -143,7 +139,10 @@ export function mapStateToPoolRow(
 	const pairSym1 = `${sym1}`;
 
 	function decimalPlaces(sym: string): number {
-		return sym.toUpperCase() === 'BTC' ? 8 : 3;
+		if (sym.toUpperCase() === 'BTC') return 8;
+		const custom = tokenDecimals?.[sym.toLowerCase()];
+		if (custom != null && Number.isFinite(custom)) return custom;
+		return 3;
 	}
 	const dec0 = decimalPlaces(sym0);
 	const dec1 = decimalPlaces(sym1);
@@ -361,7 +360,8 @@ async function fetchSinglePool(
 	contractId: string,
 	fallbackSymbols: [string, string],
 	range: TimeRange,
-	usdPrices: { hive: number; hbd: number; btc: number }
+	usdPrices: { hive: number; hbd: number; btc: number },
+	tokenDecimals: Record<string, number>
 ): Promise<PoolRow> {
 	const [stateRes, reservesRes, volume, fees, liquidity] = await Promise.all([
 		queryOnce(new GetStateByKeysStore(), {
@@ -387,7 +387,14 @@ async function fetchSinglePool(
 	const reservesState = (reservesRes.data?.getStateByKeys ?? {}) as PoolState;
 	state['reserve0'] = hexBytesToDecimalString(reservesState['r0']);
 	state['reserve1'] = hexBytesToDecimalString(reservesState['r1']);
-	return mapStateToPoolRow(contractId, state, { volume, fees, liquidity }, usdPrices, fallbackSymbols);
+	return mapStateToPoolRow(
+		contractId,
+		state,
+		{ volume, fees, liquidity },
+		usdPrices,
+		fallbackSymbols,
+		tokenDecimals
+	);
 }
 
 // Zag renders EVERY tab's content (inactive ones are just hidden), so the
@@ -408,7 +415,14 @@ export function fetchPools(range: TimeRange = '30d'): Promise<PoolRow[]> {
 
 async function fetchPoolsUncoalesced(range: TimeRange): Promise<PoolRow[]> {
 	try {
-		const [prices, registry] = await Promise.all([getCryptoPrices(), fetchPoolRegistry()]);
+		// Token decimals are needed before any row is formatted. Resolved for
+		// every pool-backed token regardless of router registration: an
+		// unregistered pool still has to display its reserves correctly.
+		const [prices, registry, tokenDecimals] = await Promise.all([
+			getCryptoPrices(),
+			fetchPoolRegistry(),
+			fetchTokenDecimals().catch(() => ({}) as Record<string, number>)
+		]);
 		const usdPrices = {
 			hive: prices.hive?.usd ?? 0,
 			hbd: prices.hive_dollar?.usd ?? 0,
@@ -430,7 +444,7 @@ async function fetchPoolsUncoalesced(range: TimeRange): Promise<PoolRow[]> {
 
 		const poolRows = await Promise.all(
 			uniqueRegistry.map((entry) =>
-				fetchSinglePool(entry.contractId, entry.symbols, range, usdPrices)
+				fetchSinglePool(entry.contractId, entry.symbols, range, usdPrices, tokenDecimals)
 			)
 		);
 

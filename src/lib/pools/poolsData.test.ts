@@ -229,3 +229,72 @@ describe('poolKind', () => {
 		expect(registry.filter((p) => poolKind(p) === 'custom')).toHaveLength(1);
 	});
 });
+
+// ─── Custom token decimals ───────────────────────────────────────────────────
+
+/**
+ * Custom tokens are not all 3 dp. `decimalPlaces` used to return 8 only for
+ * BTC and 3 for everything else, so mainnet's 8-dp LASSECASH was scaled by
+ * 10^3: the Pools tab reported 2,700,000,000 LASSECASH instead of 27,000 and a
+ * price ratio of ~272,589,601 instead of ~2.73. Decimals now come from the
+ * token registry, passed in per pool.
+ *
+ * Fixture is the live HBD:LASSECASH pool's on-chain reserves (2026-09-09):
+ * r0 = 9905, r1 = 2700000000000 — i.e. 9.905 HBD against 27,000 LASSECASH.
+ */
+const LASSECASH_STATE = {
+	asset0: JSON.stringify({ asset: 'hbd' }),
+	asset1: JSON.stringify({ asset: 'lassecash' }),
+	total_lp: '0',
+	reserve0: '9905', // 9.905 HBD (3 dp)
+	reserve1: '2700000000000' // 27,000.00000000 LASSECASH (8 dp)
+};
+
+const EMPTY_INDEXER = {
+	volume: { count: 0, touched: {} },
+	fees: [],
+	liquidity: { netAmount0: 0, netAmount1: 0, netLp: 0, snapshot: null }
+};
+
+describe('mapStateToPoolRow — custom token decimals', () => {
+	it('scales a custom token by its own decimals when they are supplied', () => {
+		const row = mapStateToPoolRow(
+			'vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr',
+			LASSECASH_STATE,
+			EMPTY_INDEXER,
+			STD_PRICES,
+			['HBD', 'LASSECASH'],
+			{ lassecash: 8 }
+		);
+		expect(row.decimals1).toBe(8);
+		// 2,700,000,000,000 / 10^8 = 27,000 — not 2,700,000,000.
+		expect(row.totalLiquidityAssets[1]).toContain('27,000');
+		expect(row.reserve1Raw).toBeCloseTo(2_700_000_000_000, 0);
+		// 27,000 LASSECASH per 9.905 HBD ≈ 2,725.9, not ~272 million.
+		expect(Number.parseFloat(row.priceRatio.replace(/,/g, ''))).toBeCloseTo(2725.896, 2);
+	});
+
+	it('regression: without decimals the pool misreports by 10^5', () => {
+		const row = mapStateToPoolRow(
+			'vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr',
+			LASSECASH_STATE,
+			EMPTY_INDEXER,
+			STD_PRICES,
+			['HBD', 'LASSECASH']
+		);
+		// Documents the old behaviour so the fix can't silently regress: the
+		// 3 dp default is exactly 10^5 off for an 8 dp token. This is the
+		// figure the Pools tab actually rendered before the fix.
+		expect(row.decimals1).toBe(3);
+		expect(Number.parseFloat(row.priceRatio.replace(/,/g, ''))).toBeCloseTo(272_589_601, -3);
+	});
+
+	it('leaves native pairs on their existing decimals', () => {
+		const row = mapStateToPoolRow('vsc1pool', HBD_HIVE_STATE, EMPTY_INDEXER, STD_PRICES, [
+			'HBD',
+			'HIVE'
+		]);
+		expect(row.decimals0).toBe(3);
+		expect(row.decimals1).toBe(3);
+	});
+});

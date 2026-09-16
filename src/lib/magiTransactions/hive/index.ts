@@ -11,7 +11,8 @@ import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp } from './vscOperations/bitcoin';
 import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
-import { getBtcApproveOp } from './vscOperations/swap';
+import { getBtcApproveOp, getTokenApproveOp } from './vscOperations/swap';
+import { fetchPoolTokens } from '$lib/tokens/customTokens';
 import { getReserveVoteOp, getSlashRestoreVoteOp } from './vscOperations/governance';
 import type { PoolRow } from '$lib/pools/poolsData';
 
@@ -109,8 +110,8 @@ export const hbdUnstakeTx = async (
 };
 
 export const addLiquidityTx = async (
-	amount0: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
-	amount1: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
+	amount0: CoinAmount<Coin>,
+	amount1: CoinAmount<Coin>,
 	username: string,
 	aioha: Aioha,
 	_selectedPool: PoolRow
@@ -122,21 +123,46 @@ export const addLiquidityTx = async (
 			errorCode: 0
 		};
 
-	// The router pre-funds mapped BTC via the mapping contract's
-	// transferFrom — that requires the user to have an active approval
-	// to the router on the BTC mapping contract. Prepend an
-	// increaseAllowance op sized to exactly the BTC leg so the allowance
-	// matches the liquidity being added.
-	const btcAmount =
-		amount0.coin.value === Coin.btc.value
-			? (amount0 as CoinAmount<typeof Coin.btc>)
-			: amount1.coin.value === Coin.btc.value
-				? (amount1 as CoinAmount<typeof Coin.btc>)
-				: null;
+	// Native HIVE/HBD ride in on `transfer.allow` intents attached to the
+	// deposit op itself. Every MAPPED asset is pulled by the router with
+	// `transferFrom` on that asset's own contract instead, which fails with
+	// "Insufficient allowance" unless an approval is already in place — so each
+	// mapped side needs an increaseAllowance op AHEAD of the deposit, in the
+	// SAME transaction (ops in one tx execute in order, so the allowance is
+	// live by the time the router pulls).
+	//
+	// This used to cover BTC only, so a custom-token pool always failed here.
+	const approveOps: Operation[] = [];
+	const mapped = [amount0, amount1].filter(
+		(a) => a.coin.value !== Coin.hive.value && a.coin.value !== Coin.hbd.value
+	);
 
-	const ops = [];
-	if (btcAmount) ops.push(getBtcApproveOp(username, btcAmount));
-	ops.push(getAddLiquidityOp(username, amount0, amount1));
+	if (mapped.length > 0) {
+		// Resolve custom tokens to their contracts. The ungated list: the
+		// approve itself is valid regardless of whether the router can route
+		// the pool, and the UI already blocks Add on unroutable pools.
+		const customTokens = mapped.some((a) => a.coin.value !== Coin.btc.value)
+			? await fetchPoolTokens()
+			: [];
+
+		for (const amount of mapped) {
+			if (amount.coin.value === Coin.btc.value) {
+				approveOps.push(getBtcApproveOp(username, amount as CoinAmount<typeof Coin.btc>));
+				continue;
+			}
+			const token = customTokens.find((t) => t.symbol === amount.coin.value.toLowerCase());
+			if (!token) {
+				return {
+					success: false,
+					error: `Error: no token contract found for ${amount.coin.label} — cannot approve the DEX router to spend it.`,
+					errorCode: 0
+				};
+			}
+			approveOps.push(getTokenApproveOp(username, token.contractId, amount.amount));
+		}
+	}
+
+	const ops: Operation[] = [...approveOps, getAddLiquidityOp(username, amount0, amount1)];
 
 	const res = await executeTx(aioha, ops);
 	return res;

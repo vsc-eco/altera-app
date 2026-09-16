@@ -5,8 +5,8 @@ import { CoinAmount } from '$lib/currency/CoinAmount';
 
 export type LiquidityDraft = {
 	selectedPool: PoolRow | null;
-	amount0Ca: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>;
-	amount1Ca: CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>;
+	amount0Ca: CoinAmount<Coin>;
+	amount1Ca: CoinAmount<Coin>;
 	coin0: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc;
 	coin1: typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc;
 	hasError: boolean;

@@ -3,11 +3,10 @@ import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId, DEX_ROUTER_CONTRACT_ID } from '../../../../client';
 
-type LiquidityCoin = typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc;
-
 /** Native (non-mapped) assets that need a `transfer.allow` intent so the
- *  router can `HiveDraw` them from the user. Mapped assets (BTC) move via
- *  the mapping contract's `transferFrom` and don't go through intents. */
+ *  router can `HiveDraw` them from the user. Mapped assets — BTC and every
+ *  Magi custom token — move via their mapping contract's `transferFrom` and
+ *  don't go through intents; they need a prior allowance instead. */
 function isNativeAsset(coinValue: string): boolean {
 	return coinValue === Coin.hive.value || coinValue === Coin.hbd.value;
 }
@@ -44,9 +43,10 @@ function wrapVscCall(
  * router pre-funds both sides:
  *   - native HIVE/HBD via HiveDraw + HiveTransfer (needs transfer.allow
  *     intents on this op)
- *   - mapped BTC via the mapping contract's transferFrom (needs a prior
- *     `approve` to the router on the BTC mapping contract — see
- *     `getBtcApproveOp` in swap.ts)
+ *   - every mapped asset — BTC and Magi custom tokens alike — via its
+ *     mapping contract's transferFrom, which needs a prior `approve` to the
+ *     router on THAT asset's contract. The approve must ride in the same
+ *     transaction, ahead of this op; `addLiquidityTx` assembles both.
  *
  * Reference payload (asset0/asset1 in alphabetical order):
  *   { type: "deposit", version: "1.0.0",
@@ -56,8 +56,8 @@ function wrapVscCall(
  */
 export function getAddLiquidityOp(
 	username: string,
-	amount0: CoinAmount<LiquidityCoin>,
-	amount1: CoinAmount<LiquidityCoin>
+	amount0: CoinAmount<Coin>,
+	amount1: CoinAmount<Coin>
 ): CustomJsonOperation {
 	const caller = `hive:${username}`;
 

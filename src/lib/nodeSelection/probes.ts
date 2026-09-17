@@ -1,17 +1,44 @@
 const PROBE_TIMEOUT_MS = 3000;
 
+/**
+ * How far behind the freshest responder a node may fall and still count as
+ * "current", in each category's own freshness units.
+ *
+ * Freshness is a *correctness gate*, not the ranking key: a node that is a
+ * block or two behind is serving the same data a user would see a moment
+ * later, so letting that decide the pick traded real latency for an
+ * invisible lead. Anything outside the tolerance is genuinely lagging and is
+ * dropped regardless of how fast it answers.
+ */
+export const FRESHNESS_TOLERANCE = {
+	indexer: 60_000, // ms of wall clock on contract_logs.ts
+	vsc: 20, // blocks (~30s of chain)
+	hive: 20 // blocks (~60s of chain)
+} as const;
+
 export interface ProbeResult {
 	url: string;
+	/** Category-specific recency: block height, or a timestamp in ms. */
 	freshness: number;
+	/** Round-trip time of the probe request, the ranking key. */
+	latencyMs: number;
+	/** Hive only: whether the node serves /health. Undefined elsewhere. */
+	healthy?: boolean;
 }
 
-function withTimeout<T>(
-	fn: (signal: AbortSignal) => Promise<T>,
-	ms = PROBE_TIMEOUT_MS
-): Promise<T> {
+type Measurement = Omit<ProbeResult, 'url' | 'latencyMs'>;
+
+/** Run one node's probe under the shared timeout, recording its round trip. */
+function probeNode(
+	url: string,
+	measure: (signal: AbortSignal) => Promise<Measurement>
+): Promise<ProbeResult> {
 	const ctrl = new AbortController();
-	const t = setTimeout(() => ctrl.abort(), ms);
-	return fn(ctrl.signal).finally(() => clearTimeout(t));
+	const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+	const started = Date.now();
+	return measure(ctrl.signal)
+		.then((m) => ({ ...m, url, latencyMs: Date.now() - started }))
+		.finally(() => clearTimeout(t));
 }
 
 async function postJson(
@@ -29,25 +56,36 @@ async function postJson(
 	return (await res.json()) as Record<string, unknown>;
 }
 
-/** Highest `freshness` among fulfilled probes; `nodes[0]` if none responded. */
-function pickFreshest(
+/**
+ * Fastest node among those that are current, or `nodes[0]` if none answered.
+ *
+ * Order of precedence: drop stale nodes, then (Hive) prefer nodes that serve
+ * /health, then take the lowest latency. Ties keep list order.
+ */
+export function pickBest(
 	nodes: string[],
-	results: PromiseSettledResult<ProbeResult>[]
+	results: PromiseSettledResult<ProbeResult>[],
+	tolerance: number
 ): string {
-	let best: ProbeResult | null = null;
-	for (const r of results) {
-		if (r.status === 'fulfilled' && (best === null || r.value.freshness > best.freshness)) {
-			best = r.value;
-		}
-	}
-	return best?.url ?? nodes[0];
+	const answered = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+	if (answered.length === 0) return nodes[0];
+
+	const freshest = Math.max(...answered.map((r) => r.freshness));
+	let candidates = answered.filter((r) => r.freshness >= freshest - tolerance);
+
+	// /health is a tie-breaker among equally current nodes, never a reason to
+	// accept a stale one — so it is applied after the freshness gate.
+	const healthy = candidates.filter((r) => r.healthy !== false);
+	if (healthy.length > 0) candidates = healthy;
+
+	return candidates.reduce((a, b) => (b.latencyMs < a.latencyMs ? b : a)).url;
 }
 
 export async function probeIndexer(nodes: string[]): Promise<string> {
 	const query = 'query{contract_logs(order_by:{ts:desc},limit:1){id log ts}}';
 	const results = await Promise.allSettled(
 		nodes.map((base) =>
-			withTimeout(async (signal): Promise<ProbeResult> => {
+			probeNode(base, async (signal): Promise<Measurement> => {
 				const json = (await postJson(
 					base.replace(/\/+$/, '') + '/v1/graphql',
 					{ query },
@@ -55,18 +93,18 @@ export async function probeIndexer(nodes: string[]): Promise<string> {
 				)) as { data?: { contract_logs?: Array<{ ts?: string }> } };
 				const ts = json?.data?.contract_logs?.[0]?.ts;
 				if (ts == null) throw new Error('no contract_logs');
-				return { url: base, freshness: new Date(ts).getTime() };
+				return { freshness: new Date(ts).getTime() };
 			})
 		)
 	);
-	return pickFreshest(nodes, results);
+	return pickBest(nodes, results, FRESHNESS_TOLERANCE.indexer);
 }
 
 export async function probeVscApi(nodes: string[]): Promise<string> {
 	const query = 'query{localNodeInfo{last_processed_block}}';
 	const results = await Promise.allSettled(
 		nodes.map((origin) =>
-			withTimeout(async (signal): Promise<ProbeResult> => {
+			probeNode(origin, async (signal): Promise<Measurement> => {
 				const json = (await postJson(
 					origin.replace(/\/+$/, '') + '/api/v1/graphql',
 					{ query },
@@ -74,17 +112,17 @@ export async function probeVscApi(nodes: string[]): Promise<string> {
 				)) as { data?: { localNodeInfo?: { last_processed_block?: number } } };
 				const blk = json?.data?.localNodeInfo?.last_processed_block;
 				if (blk == null) throw new Error('no localNodeInfo');
-				return { url: origin, freshness: Number(blk) };
+				return { freshness: Number(blk) };
 			})
 		)
 	);
-	return pickFreshest(nodes, results);
+	return pickBest(nodes, results, FRESHNESS_TOLERANCE.vsc);
 }
 
 export async function probeHiveRpc(nodes: string[]): Promise<string> {
 	const results = await Promise.allSettled(
 		nodes.map((origin) =>
-			withTimeout(async (signal): Promise<ProbeResult> => {
+			probeNode(origin, async (signal): Promise<Measurement> => {
 				const base = origin.replace(/\/+$/, '');
 				let healthy = false;
 				try {
@@ -105,11 +143,9 @@ export async function probeHiveRpc(nodes: string[]): Promise<string> {
 				)) as { result?: { head_block_number?: number } };
 				const head = json?.result?.head_block_number;
 				if (head == null) throw new Error('no head_block_number');
-				// Primary rank = head_block_number; /health adds a hair so a
-				// healthy node beats an unhealthy one only at equal height.
-				return { url: origin, freshness: Number(head) * 10 + (healthy ? 1 : 0) };
+				return { freshness: Number(head), healthy };
 			})
 		)
 	);
-	return pickFreshest(nodes, results);
+	return pickBest(nodes, results, FRESHNESS_TOLERANCE.hive);
 }

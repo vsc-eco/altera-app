@@ -2,12 +2,12 @@
 
 
 // const GQL_URL = 'http://127.0.0.1:8080'; // for running backend locally
-const GQL_URL = 'https://api.vsc.eco';
+const GQL_URL = 'https://api.okinoko.io';
 
 /** @type {import('houdini').ConfigFile} */
 const config = {
 	watchSchema: {
-		url: (GQL_URL || 'https://api.vsc.eco') + '/api/v1/graphql'
+		url: (GQL_URL || 'https://api.okinoko.io') + '/api/v1/graphql'
 	},
 	runtimeDir: '.houdini',
 	plugins: {

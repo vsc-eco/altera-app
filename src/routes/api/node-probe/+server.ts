@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { indexerNodes, vscApiNodes, hiveRpcNodes } from '$lib/nodeSelection/env';
+import { nodesFor, type Category, type Network } from '$lib/nodeSelection/env';
 import { probeIndexer, probeVscApi, probeHiveRpc } from '$lib/nodeSelection/probes';
 
 // The root layout sets `prerender = true`; opt out so this dynamic probe runs
@@ -20,19 +20,14 @@ export const prerender = false;
  * no console noise, and the freshness ranking is real. The browser just asks
  * "which node is freshest for this category?" and caches the answer.
  *
- *   GET /api/node-probe?category=indexer   (or vsc | hive)
- *   → { url: "<freshest node base URL>" }
+ *   GET /api/node-probe?category=indexer[&network=vsc-testnet]
+ *   → { url: "<fastest current node base URL>" }
  *
  * The candidate node lists come from server-controlled env config
  * (PUBLIC_*_NODES with hardcoded fallbacks), not from the caller, so there's
- * no SSRF surface here — a client can only pick a category, never a target.
+ * no SSRF surface here — a client can only pick a category and a network,
+ * never a target.
  */
-
-const NODES: Record<string, string[]> = {
-	indexer: indexerNodes,
-	vsc: vscApiNodes,
-	hive: hiveRpcNodes
-};
 
 const PROBE: Record<string, (n: string[]) => Promise<string>> = {
 	indexer: probeIndexer,
@@ -42,11 +37,15 @@ const PROBE: Record<string, (n: string[]) => Promise<string>> = {
 
 export const GET: RequestHandler = async ({ url }) => {
 	const category = url.searchParams.get('category') ?? '';
-	const nodes = NODES[category];
 	const probe = PROBE[category];
-	if (!nodes || !probe) {
+	if (!probe) {
 		throw error(400, "category must be 'indexer', 'vsc', or 'hive'");
 	}
+	// Anything other than an explicit testnet request probes mainnet, so a
+	// malformed value can never point the probe at an unintended list.
+	const network: Network =
+		url.searchParams.get('network') === 'vsc-testnet' ? 'vsc-testnet' : 'vsc-mainnet';
+	const nodes = nodesFor(category as Category, network);
 
 	// probe* never rejects (Promise.allSettled inside); it falls back to
 	// nodes[0] when nothing responds, so this can't throw under normal use.

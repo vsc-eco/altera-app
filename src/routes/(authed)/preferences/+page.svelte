@@ -134,7 +134,7 @@
 			id="keyVscApi"
 			bind:this={vscGqlUrlInput}
 			disabled={!customVsc}
-			value={(browser && localStorage.getItem(keyVscGql)) || 'https://api.vsc.eco'}
+			value={(browser && localStorage.getItem(keyVscGql)) || DEFAULT_GQL_URL}
 			type="url"
 		/>
 		{#if customVsc}

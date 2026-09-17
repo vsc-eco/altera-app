@@ -2,7 +2,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { KeyTypes } from '@aioha/aioha';
 	import { getAuth } from '$lib/auth/store';
-	import { getMagiIndexerBaseUrl, vscNetworkId } from '../../../client';
+	import { vscNetworkId } from '../../../client';
+	import { gqlEndpoints, configuredGqlEndpoints } from '$lib/nodeSelection/select';
 	import '@vsc.eco/market-widget/styles.css';
 
 	let auth = $derived(getAuth()());
@@ -20,26 +21,17 @@
 		: 'vsc1BdZFXb8HdLptKUamNG4nL74hSb6UUBEiQA';
 
 	// Read side (listings/auctions/mint-spots) is served by an indexer that
-	// projects the magi_market_* fold views. The okinoko indexer is the one we
-	// keep configured for this contract, so it is primary; the app's own
-	// configured Magi indexer is the failover. Ordering matters: failover fires
-	// only on error, NOT on an empty result — so the indexer that actually
-	// tracks this contract must come first, or a stale/generic indexer would
-	// return "no listings" without ever failing over.
-	const okinokoHasura = isTestnet
-		? 'https://api-testnet.okinoko.io/hasura/v1/graphql'
-		: 'https://api.okinoko.io/hasura/v1/graphql';
-	const indexerHasuraUrls = [okinokoHasura, `${getMagiIndexerBaseUrl()}/v1/graphql`];
+	// projects the magi_market_* fold views. Declared order, NOT the latency
+	// ranking: failover fires only on error, never on an empty result, so the
+	// indexer that actually tracks this contract has to come first or a
+	// generic one answers "no listings" and is believed.
+	const indexerHasuraUrls = configuredGqlEndpoints('indexer');
 
 	// VSC node GraphQL — used by the SDK for getStateByKeys / findContractOutput
-	// (write verification). Known-good mainnet/testnet node endpoints.
-	const gqlUrls = isTestnet
-		? ['https://magi-test.techcoderx.com/api/v1/graphql']
-		: [
-				'https://api.vsc.eco/api/v1/graphql',
-				'https://vsc.techcoderx.com/api/v1/graphql',
-				'https://api.okinoko.io/api/v1/graphql'
-			];
+	// (write verification). Every VSC node serves the same chain state, so this
+	// takes the auto-selected order: the latency-ranked pick leads, the rest
+	// stay as failover. Both lists are network-switched in lib/nodeSelection.
+	const gqlUrls = gqlEndpoints('vsc');
 
 	const marketConfig = {
 		network: (isTestnet ? 'vsc-testnet' : 'vsc-mainnet') as 'vsc-testnet' | 'vsc-mainnet',

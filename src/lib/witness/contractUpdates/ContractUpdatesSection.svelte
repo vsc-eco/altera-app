@@ -95,7 +95,7 @@
 		{#if isMock}
 			<div
 				class="mock-badge"
-				title={`Backend not yet returning data (${mockReason}). Showing mock fixtures until go-vsc-node PR #210 is live on api.vsc.eco.`}
+				title={`Backend not yet returning data (${mockReason}). Showing mock fixtures until go-vsc-node PR #210 is live on the configured VSC node.`}
 			>
 				MOCK DATA · PR #210
 			</div>

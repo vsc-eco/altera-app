@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isAllowedNodeUrl } from '$lib/nodeSelection/allowlist';
+import { GQL_PATH } from '$lib/nodeSelection/env';
 
 // The root layout sets `prerender = true`; opt out so this dynamic POST proxy
 // is served as a serverless function instead of being prerendered (which would
@@ -28,10 +29,9 @@ export const prerender = false;
  * a hostile caller can't make us fetch arbitrary internal hosts.
  */
 
-const PATH_BY_SERVICE: Record<string, string> = {
-	vsc: '/api/v1/graphql',
-	indexer: '/v1/graphql'
-};
+// Shared with the widget pages via lib/nodeSelection/env so a service's
+// GraphQL path is spelled out in exactly one place.
+const PATH_BY_SERVICE: Record<string, string> = GQL_PATH;
 
 export const POST: RequestHandler = async ({ request, url, fetch }) => {
 	const service = url.searchParams.get('service') ?? '';

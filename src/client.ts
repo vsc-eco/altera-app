@@ -1,8 +1,13 @@
 import { browser } from '$app/environment';
 import { HoudiniClient } from '$houdini';
 import { resolveNodeUrl } from '$lib/nodeSelection/select';
+import { nodesFor } from '$lib/nodeSelection/env';
 // const DEFAULT_GQL_URL="http://localhost:8080" // for running backend locally
-export const DEFAULT_GQL_URL = 'https://api.vsc.eco';
+// The value the preferences "Reset" button writes: the configured primary
+// VSC node, so resetting lands on whatever env.ts declares rather than a
+// literal that can rot (it was api.vsc.eco until that host stopped
+// accepting connections on 2026-09-17).
+export const DEFAULT_GQL_URL = nodesFor('vsc', 'vsc-mainnet')[0];
 
 export const keyVscGql = 'vsc-gql-url';
 export const keyVscNetworkId = 'vsc-network-id';
@@ -26,9 +31,9 @@ function lsGet(key: string): string | null {
 	}
 }
 
-/** Default Magi indexer (Hasura) base URL — same as okinoko/prod.
+/** Default Magi indexer (Hasura) base URL — the configured primary.
  *  The `/v1/graphql` path is appended by the GraphQL proxy route. */
-export const DEFAULT_MAGI_INDEXER_URL = 'https://indexer.magi.milohpr.com';
+export const DEFAULT_MAGI_INDEXER_URL = nodesFor('indexer', 'vsc-mainnet')[0];
 
 /** DEX Router contract — routes swaps and BTC/HBD liquidity deposits.
  *  Network-switched between mainnet and testnet. */
@@ -51,9 +56,7 @@ const TESTNET_DEPRECATED_POOL_IDS = [
 ];
 
 const deprecatedPoolIds: ReadonlySet<string> = new Set(
-	(browser && lsGet(keyVscNetworkId)) === 'vsc-testnet'
-		? TESTNET_DEPRECATED_POOL_IDS
-		: []
+	(browser && lsGet(keyVscNetworkId)) === 'vsc-testnet' ? TESTNET_DEPRECATED_POOL_IDS : []
 );
 
 /** True for pools tied to a retired router — shown but withdraw-only. */
@@ -61,18 +64,18 @@ export function isDeprecatedPool(contractId: string): boolean {
 	return deprecatedPoolIds.has(contractId);
 }
 
-export const currentGqlUrl = browser ? resolveNodeUrl('vsc') : DEFAULT_GQL_URL;
+// resolveNodeUrl falls back to the configured primary when there's no
+// localStorage, so this is correct on the server too.
+export const currentGqlUrl = resolveNodeUrl('vsc');
 
-export const vscNetworkId =
-	(browser && lsGet(keyVscNetworkId)) || DEFAULT_VSC_NET_ID;
+export const vscNetworkId = (browser && lsGet(keyVscNetworkId)) || DEFAULT_VSC_NET_ID;
 
 /** True when the configured VSC network is the testnet. */
 export const isVscTestnet = (): boolean => vscNetworkId === 'vsc-testnet';
 
 /** Configured Magi indexer base URL — falls back to okinoko/prod.
  *  The GraphQL path is appended by the proxy route, not here. */
-export const getMagiIndexerBaseUrl = (): string =>
-	browser ? resolveNodeUrl('indexer') : DEFAULT_MAGI_INDEXER_URL;
+export const getMagiIndexerBaseUrl = (): string => resolveNodeUrl('indexer');
 
 /** Display unit for Hive (e.g. TESTS on testnet). Use for UI only. */
 export const getHiveAssetName = (): string => (browser && lsGet(keyTests)) || 'HIVE';

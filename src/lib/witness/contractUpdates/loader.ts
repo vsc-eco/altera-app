@@ -4,7 +4,7 @@
  * Hits the VSC GraphQL endpoint directly (plain fetch — not Houdini)
  * for the `findPendingContractUpdates` field landing in go-vsc-node
  * PR #210. Houdini codegen would fail today because the schema on
- * api.vsc.eco doesn't have this field yet; using fetch bypasses
+ * the configured VSC node doesn't have this field yet; using fetch bypasses
  * codegen entirely.
  *
  * Behavior:

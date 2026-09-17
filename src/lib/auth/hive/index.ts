@@ -17,7 +17,7 @@ const HIVE_TESTNET_CHAIN_ID = '18dcf0a285365fc58b71f18b3d3fec954aa0c141c44e4e5cb
 // Hive L1 RPC endpoints. Testnet must NOT fall through to api.hive.blog or
 // broadcasts get rejected ("missing active authority") because the mainnet
 // node can't verify a testnet-chain-id signature.
-const HIVE_MAINNET_API = browser ? resolveNodeUrl('hive') : 'https://api.hive.blog';
+const HIVE_MAINNET_API = resolveNodeUrl('hive');
 const HIVE_TESTNET_API = 'https://testnet.techcoderx.com';
 
 async function getProfilePicUrl(username: string) {

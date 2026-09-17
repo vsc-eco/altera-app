@@ -1,5 +1,4 @@
 import { getAccounts } from '@aioha/aioha/build/rpc';
-import { browser } from '$app/environment';
 import { resolveNodeUrl } from '$lib/nodeSelection/select';
 
 /**
@@ -9,6 +8,6 @@ import { resolveNodeUrl } from '$lib/nodeSelection/select';
  * respect the user's node choice and hit a reachable, CORS-friendly endpoint.
  */
 export function getHiveAccounts(usernames: string[]) {
-	const node = browser ? resolveNodeUrl('hive') : 'https://api.hive.blog';
+	const node = resolveNodeUrl('hive');
 	return getAccounts(usernames, node);
 }

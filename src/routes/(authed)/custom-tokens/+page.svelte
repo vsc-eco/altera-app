@@ -2,7 +2,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { KeyTypes } from '@aioha/aioha';
 	import { getAuth } from '$lib/auth/store';
-	import { getMagiIndexerBaseUrl, vscNetworkId } from '../../../client';
+	import { vscNetworkId } from '../../../client';
+	import { gqlEndpoints, configuredGqlEndpoints, currentNetwork } from '$lib/nodeSelection/select';
+	import { deployerUrlFor } from '$lib/nodeSelection/env';
 	import '@vsc.eco/token-widget/styles.css';
 
 	let auth = $derived(getAuth()());
@@ -19,20 +21,14 @@
 	// these contracts answers "no tokens" perfectly successfully, so the one
 	// that DOES track them has to come first or the fallback never runs.
 	const isTestnet = vscNetworkId === 'vsc-testnet';
-	const okinokoHasura = isTestnet
-		? 'https://api-testnet.okinoko.io/hasura/v1/graphql'
-		: 'https://api.okinoko.io/hasura/v1/graphql';
 	const tokenConfig = {
 		network: (isTestnet ? 'vsc-testnet' : 'vsc-mainnet') as 'vsc-testnet' | 'vsc-mainnet',
-		indexerHasuraUrls: [okinokoHasura, `${getMagiIndexerBaseUrl()}/v1/graphql`],
-		gqlUrls: isTestnet
-			? ['https://magi-test.techcoderx.com/api/v1/graphql']
-			: [
-					'https://api.vsc.eco/api/v1/graphql',
-					'https://vsc.techcoderx.com/api/v1/graphql',
-					'https://api.okinoko.io/api/v1/graphql'
-				],
-		deployerUrl: isTestnet ? 'https://deploy-testnet.okinoko.io' : 'https://deploy.okinoko.io'
+		// Declared order (see the note above), not the latency ranking.
+		indexerHasuraUrls: configuredGqlEndpoints('indexer'),
+		// VSC nodes all serve the same chain state, so these take the
+		// auto-selected order with the latency-ranked pick leading.
+		gqlUrls: gqlEndpoints('vsc'),
+		deployerUrl: deployerUrlFor(currentNetwork())
 	};
 
 	let host: HTMLDivElement | undefined = $state();

@@ -1,6 +1,6 @@
 import { Client, type ClientOptions } from '@hiveio/dhive';
 import { browser } from '$app/environment';
-import { resolveNodeUrl } from '$lib/nodeSelection/select';
+import { resolveNodeUrl, orderedNodeUrls } from '$lib/nodeSelection/select';
 import { hiveRpcNodes } from '$lib/nodeSelection/env';
 
 export const keyHiveApiList = 'hive-api';
@@ -25,16 +25,16 @@ function lsGet(key: string): string | null {
 // 	'https://api.openhive.network'
 // ];
 
-export const DEFAULT_HIVE_APIS = [
-	(browser && lsGet(keyHiveApiList)) || 'https://api.hive.blog'
-];
+export const DEFAULT_HIVE_APIS = [(browser && lsGet(keyHiveApiList)) || hiveRpcNodes[0]];
 
 const urls: string[] = (() => {
-	const primary = browser ? resolveNodeUrl('hive') : 'https://api.hive.blog';
+	// resolveNodeUrl degrades to the configured primary without localStorage,
+	// so this is correct on the server too.
+	const primary = resolveNodeUrl('hive');
 	const allowBackupStr = browser && lsGet(keyHiveApiAllowBackups);
 	const allowBackups = allowBackupStr ? allowBackupStr === 'true' : true;
 	if (!allowBackups) return [primary];
-	return Array.from(new Set([primary, ...hiveRpcNodes]));
+	return orderedNodeUrls('hive');
 })();
 
 const opts: ClientOptions = {

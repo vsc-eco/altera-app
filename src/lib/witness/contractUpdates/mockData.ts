@@ -2,7 +2,7 @@
  * ⚠️ MOCK DATA — see `types.ts` for the spec. Live data lands when
  * go-vsc-node PR #210 ships `findPendingContractUpdates`.
  *
- * Replacement path (once PR #210 is on api.vsc.eco):
+ * Replacement path (once PR #210 is on the configured VSC node):
  *   - Replace `MOCK_PENDING_UPDATES` with the result of
  *     `FindPendingContractUpdatesStore` (already staged at
  *     `FindPendingContractUpdates.gql`).

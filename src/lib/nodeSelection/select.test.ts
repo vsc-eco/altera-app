@@ -3,12 +3,25 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 // $app/environment → pretend we're in the browser
 vi.mock('$app/environment', () => ({ browser: true }));
 vi.mock('./env', () => ({
-	indexerNodes: ['https://idx-default', 'https://idx-2'],
-	vscApiNodes: ['https://vsc-default'],
-	hiveRpcNodes: ['https://hive-default']
+	GQL_PATH: { vsc: '/api/v1/graphql', indexer: '/v1/graphql' },
+	nodesFor: (cat: string, network: string) => {
+		const testnet = network === 'vsc-testnet';
+		if (cat === 'indexer')
+			return testnet ? ['https://idx-testnet'] : ['https://idx-default', 'https://idx-2'];
+		if (cat === 'vsc') return testnet ? ['https://vsc-testnet-node'] : ['https://vsc-default'];
+		return ['https://hive-default'];
+	}
 }));
 
-import { resolveNodeUrl, refreshNode, isManualMode, autoSelectedNodeUrl } from './select';
+import {
+	resolveNodeUrl,
+	refreshNode,
+	isManualMode,
+	autoSelectedNodeUrl,
+	orderedNodeUrls,
+	gqlEndpoints,
+	currentNetwork
+} from './select';
 
 class MemStorage {
 	m = new Map<string, string>();
@@ -88,7 +101,7 @@ describe('refreshNode', () => {
 		}));
 		vi.stubGlobal('fetch', fetchMock);
 		await refreshNode('vsc');
-		expect(fetchMock).toHaveBeenCalledWith('/api/node-probe?category=vsc');
+		expect(fetchMock).toHaveBeenCalledWith('/api/node-probe?category=vsc&network=vsc-mainnet');
 		expect(localStorage.getItem('node-auto-vsc')).toBe('https://picked-vsc');
 		expect(Number(localStorage.getItem('node-auto-ts-vsc'))).toBeGreaterThan(0);
 	});
@@ -107,5 +120,54 @@ describe('refreshNode', () => {
 		localStorage.setItem('node-mode-vsc', 'manual');
 		await refreshNode('vsc');
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('orderedNodeUrls', () => {
+	it('puts the selected node first and keeps the rest as failover', () => {
+		localStorage.setItem('node-auto-indexer', 'https://idx-2');
+		expect(orderedNodeUrls('indexer')).toEqual(['https://idx-2', 'https://idx-default']);
+	});
+	it('never repeats the selected node', () => {
+		expect(orderedNodeUrls('indexer')).toEqual(['https://idx-default', 'https://idx-2']);
+	});
+	it('gqlEndpoints appends the service path to every node', () => {
+		expect(gqlEndpoints('indexer')).toEqual([
+			'https://idx-default/v1/graphql',
+			'https://idx-2/v1/graphql'
+		]);
+		expect(gqlEndpoints('vsc')).toEqual(['https://vsc-default/api/v1/graphql']);
+	});
+});
+
+describe('network scoping', () => {
+	it('defaults to mainnet and follows the network toggle', () => {
+		expect(currentNetwork()).toBe('vsc-mainnet');
+		localStorage.setItem('vsc-network-id', 'vsc-testnet');
+		expect(currentNetwork()).toBe('vsc-testnet');
+	});
+	it('resolves testnet nodes when the toggle is set', () => {
+		localStorage.setItem('vsc-network-id', 'vsc-testnet');
+		expect(resolveNodeUrl('vsc')).toBe('https://vsc-testnet-node');
+		expect(gqlEndpoints('vsc')).toEqual(['https://vsc-testnet-node/api/v1/graphql']);
+	});
+	it("keeps the two networks' auto caches apart", () => {
+		localStorage.setItem('node-auto-vsc', 'https://mainnet-cached');
+		localStorage.setItem('vsc-network-id', 'vsc-testnet');
+		// The mainnet cache must not leak into testnet resolution.
+		expect(resolveNodeUrl('vsc')).toBe('https://vsc-testnet-node');
+		localStorage.setItem('node-auto-vsc-testnet', 'https://testnet-cached');
+		expect(resolveNodeUrl('vsc')).toBe('https://testnet-cached');
+		localStorage.setItem('vsc-network-id', 'vsc-mainnet');
+		expect(resolveNodeUrl('vsc')).toBe('https://mainnet-cached');
+	});
+	it('probes per network', async () => {
+		const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ url: 'https://t' }) }));
+		vi.stubGlobal('fetch', fetchMock);
+		localStorage.setItem('vsc-network-id', 'vsc-testnet');
+		await refreshNode('vsc');
+		expect(fetchMock).toHaveBeenCalledWith('/api/node-probe?category=vsc&network=vsc-testnet');
+		expect(localStorage.getItem('node-auto-vsc-testnet')).toBe('https://t');
+		expect(localStorage.getItem('node-auto-vsc')).toBeNull();
 	});
 });

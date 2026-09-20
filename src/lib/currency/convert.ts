@@ -4,6 +4,28 @@ import { Network, Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sen
 import { btcToSats, satsToBtc } from '$lib/sendswap/utils/units';
 import type { CoinAmount, UnkCoinAmount } from './CoinAmount';
 Dinero.defaultPrecision = 10;
+
+/**
+ * Units the price feed can quote. Anything outside this set — every Magi
+ * custom token — has no exchange rate in either direction.
+ *
+ * Kept in step with `parseToRootedFormat`'s switch below: that throws on an
+ * unknown base, which is fine as a guard but useless as UI behaviour, since
+ * `convertTo` runs inside USD readouts and amount-input effects all over the
+ * app. `CoinAmount.convertTo` checks this first and yields zero instead.
+ */
+export const PRICEABLE_UNITS: ReadonlySet<string> = new Set([
+	'HIVE',
+	'HBD',
+	'USD',
+	'BTC',
+	'SATS'
+]);
+
+/** True when the price feed can quote this coin. */
+export function canPrice(coin: Coin): boolean {
+	return PRICEABLE_UNITS.has(coin.unit?.toUpperCase());
+}
 const getLightningExchangeRates = async (base: Coin) => {
 	const prices = await getCryptoPrices();
 

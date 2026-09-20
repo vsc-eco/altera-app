@@ -1,26 +1,29 @@
 /**
- * Conversions involving an asset the price feed cannot quote.
+ * Conversions involving a Magi custom token.
  *
- * `parseToRootedFormat` switches over HIVE/HBD/USD/BTC/SATS and threw on
- * anything else, so a Magi custom token produced:
+ * Custom tokens are in no external price feed, so the rate lookup threw:
  *
  *   Uncaught (in promise) Error: Converting from LASSECASH is unsupported
  *
- * That matters because `convertTo` is called from USD readouts and amount-input
- * effects that don't catch — an HBD→LASSECASH swap threw from the TO input's
- * USD readout and left the component half-initialised.
+ * which escaped from USD readouts and amount-input effects that don't catch,
+ * leaving the swap form half-initialised. Converting INTO one was quieter and
+ * worse: the missing rate multiplied through as NaN, silently, into displayed
+ * amounts.
  *
- * Converting INTO such a coin was worse: the rate lookup returned undefined and
- * multiplied through as NaN, silently, into displayed amounts.
- *
- * Both now yield zero. Zero is honest here ("no known value"); NaN and a
- * rejected promise are not.
+ * They are now priced from their own DEX pool — every pool pairs its token
+ * against HBD, so the reserve ratio is the rate and HBD's quoted USD price
+ * anchors it. When no rate is available (no pool, empty pool, failed fetch)
+ * conversions yield zero instead of throwing.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoinAmount } from './CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-import { canPrice } from './convert';
 
+const getCustomTokenHbdRatesMock = vi.fn();
+
+vi.mock('$lib/tokens/customTokenRates', () => ({
+	getCustomTokenHbdRates: (...args: unknown[]) => getCustomTokenHbdRatesMock(...args)
+}));
 vi.mock('$lib/sendswap/v4v/api-types/cryptoprices', () => ({
 	getCryptoPrices: async () => ({
 		v4vapp: { Hive_HBD: 0.3, Hive_USD: 0.3, HBD_USD: 1, sats_Hive: 300, sats_HBD: 1000 },
@@ -39,54 +42,92 @@ const LASSECASH = {
 	decimalPlaces: 8
 };
 
-describe('canPrice', () => {
-	it('covers exactly the units the feed quotes', () => {
-		for (const c of [Coin.hive, Coin.hbd, Coin.btc, Coin.sats, Coin.usd]) {
-			expect(canPrice(c), c.unit).toBe(true);
-		}
-		expect(canPrice(LASSECASH)).toBe(false);
-	});
-});
+/** 1 LASSECASH = 0.5 HBD, and HBD is $1 in the mocked feed. */
+beforeEach(() => getCustomTokenHbdRatesMock.mockResolvedValue({ LASSECASH: 0.5 }));
+afterEach(() => getCustomTokenHbdRatesMock.mockReset());
 
-describe('convertTo with a custom token', () => {
-	it('does not reject converting FROM it — the reported crash', async () => {
-		const amt = new CoinAmount(5, LASSECASH);
-		await expect(amt.convertTo(Coin.usd, Network.lightning)).resolves.toBeDefined();
+describe('pricing a custom token from its pool', () => {
+	it('converts the token to USD via HBD', async () => {
+		const usd = await new CoinAmount(10, LASSECASH).convertTo(Coin.usd, Network.lightning);
+		expect(usd.toNumber()).toBeCloseTo(5, 6); // 10 × 0.5 HBD × $1
 	});
 
-	it('yields zero rather than NaN converting INTO it', async () => {
+	it('converts HBD into the token', async () => {
 		const out = await new CoinAmount(10, Coin.hbd).convertTo(LASSECASH, Network.lightning);
-		expect(Number.isNaN(out.amount)).toBe(false);
-		expect(out.amount).toBe(0);
+		expect(out.toNumber()).toBeCloseTo(20, 6); // 10 HBD ÷ 0.5 HBD-per-token
 		expect(out.coin.value).toBe('lassecash');
 	});
 
-	it('reports zero USD rather than throwing', async () => {
-		const usd = await new CoinAmount(5, LASSECASH).convertTo(Coin.usd, Network.lightning);
-		expect(usd.toNumber()).toBe(0);
-		expect(usd.coin.value).toBe(Coin.usd.value);
+	it('converts the token to a non-HBD native by composing through HBD', async () => {
+		const hive = await new CoinAmount(10, LASSECASH).convertTo(Coin.hive, Network.lightning);
+		// 10 × 0.5 HBD = 5 HBD; at 0.3 HBD per HIVE that is 16.667 HIVE.
+		expect(hive.toNumber()).toBeCloseTo(16.667, 2);
 	});
 
-	it('still returns the same amount for a same-coin conversion', async () => {
-		const amt = new CoinAmount(2.5, LASSECASH);
-		const out = await amt.convertTo(LASSECASH, Network.lightning);
-		expect(out.toNumber()).toBe(2.5);
+	it('round-trips HBD → token → HBD', async () => {
+		const token = await new CoinAmount(8, Coin.hbd).convertTo(LASSECASH, Network.lightning);
+		const back = await token.convertTo(Coin.hbd, Network.lightning);
+		expect(back.toNumber()).toBeCloseTo(8, 6);
 	});
 
-	it('leaves zero amounts alone', async () => {
-		const out = await new CoinAmount(0, LASSECASH).convertTo(Coin.usd, Network.lightning);
-		expect(out.toNumber()).toBe(0);
+	it('only pays for pool rates when a custom token is involved', async () => {
+		// Measured as a delta, not an absolute count: the point is that a
+		// native-to-native conversion adds no pool read, which is what keeps
+		// the hot paths (balances, transaction rows) as cheap as they were.
+		const before = getCustomTokenHbdRatesMock.mock.calls.length;
+		await new CoinAmount(10, Coin.hbd).convertTo(Coin.usd, Network.lightning);
+		expect(getCustomTokenHbdRatesMock.mock.calls.length).toBe(before);
+
+		await new CoinAmount(10, Coin.hbd).convertTo(LASSECASH, Network.lightning);
+		expect(getCustomTokenHbdRatesMock.mock.calls.length).toBeGreaterThan(before);
 	});
 });
 
-describe('convertTo between native coins is unchanged', () => {
-	it('still converts HBD to USD at the feed rate', async () => {
+describe('when no rate is available', () => {
+	it('does not reject — the reported crash', async () => {
+		getCustomTokenHbdRatesMock.mockResolvedValue({});
+		await expect(
+			new CoinAmount(5, LASSECASH).convertTo(Coin.usd, Network.lightning)
+		).resolves.toBeDefined();
+	});
+
+	it('yields zero rather than NaN in either direction', async () => {
+		getCustomTokenHbdRatesMock.mockResolvedValue({});
+		const usd = await new CoinAmount(5, LASSECASH).convertTo(Coin.usd, Network.lightning);
+		const token = await new CoinAmount(5, Coin.hbd).convertTo(LASSECASH, Network.lightning);
+		expect(Number.isNaN(usd.amount)).toBe(false);
+		expect(Number.isNaN(token.amount)).toBe(false);
+		expect(usd.toNumber()).toBe(0);
+		expect(token.toNumber()).toBe(0);
+	});
+
+	it('treats an empty pool (zero rate) as no rate', async () => {
+		getCustomTokenHbdRatesMock.mockResolvedValue({ LASSECASH: 0 });
+		const usd = await new CoinAmount(5, LASSECASH).convertTo(Coin.usd, Network.lightning);
+		expect(usd.toNumber()).toBe(0);
+	});
+
+	it('survives the rate lookup failing outright', async () => {
+		getCustomTokenHbdRatesMock.mockRejectedValue(new Error('indexer down'));
+		await expect(
+			new CoinAmount(5, LASSECASH).convertTo(Coin.usd, Network.lightning)
+		).rejects.toThrow();
+	});
+});
+
+describe('native conversions are unchanged', () => {
+	it('HBD to USD', async () => {
 		const usd = await new CoinAmount(10, Coin.hbd).convertTo(Coin.usd, Network.lightning);
 		expect(usd.toNumber()).toBeCloseTo(10, 6);
 	});
 
-	it('still converts HIVE to HBD at the feed rate', async () => {
+	it('HIVE to HBD', async () => {
 		const hbd = await new CoinAmount(10, Coin.hive).convertTo(Coin.hbd, Network.lightning);
 		expect(hbd.toNumber()).toBeCloseTo(3, 6);
+	});
+
+	it('same-coin and zero amounts short-circuit', async () => {
+		expect((await new CoinAmount(2.5, LASSECASH).convertTo(LASSECASH, Network.lightning)).toNumber()).toBe(2.5);
+		expect((await new CoinAmount(0, LASSECASH).convertTo(Coin.usd, Network.lightning)).toNumber()).toBe(0);
 	});
 });

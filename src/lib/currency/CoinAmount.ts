@@ -1,6 +1,6 @@
 import { numberFormatLanguage } from '$lib/constants';
 import { Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
-import { canPrice, getExchangeRates } from './convert';
+import { getExchangeRates } from './convert';
 import { getHiveAssetName, getHbdAssetName } from '../../client';
 export type UnkCoinAmount = CoinAmount<Coin>;
 
@@ -155,16 +155,16 @@ export class CoinAmount<C extends Coin> {
 			return new CoinAmount(0, coin);
 		}
 		if (this.coin.value == coin.value) return this as unknown as CoinAmount<OtherCoin>;
-		// A Magi custom token has no entry in the price feed, in either
-		// direction. Yield zero rather than throwing: this runs inside USD
+		// Custom tokens are priced from their own DEX pool; natives come from the
+		// price feed. Either can be unavailable — an empty pool, a failed fetch —
+		// in which case yield zero rather than throwing. This runs inside USD
 		// readouts and amount-input effects that don't catch, where a rejection
-		// surfaces as "Converting from <TOKEN> is unsupported" and leaves the
-		// surrounding component half-initialised.
-		if (!canPrice(this.coin) || !canPrice(coin)) return new CoinAmount(0, coin);
-		const rates = await getExchangeRates(via, this.coin);
-		const myRate = rates[coin.unit as keyof typeof rates];
-		// A missing rate used to multiply through as NaN, which is worse than a
-		// throw because it propagates silently into displayed amounts.
+		// surfaced as "Converting from <TOKEN> is unsupported" and left the
+		// surrounding component half-initialised. A missing rate used to
+		// multiply through as NaN, which is worse still: silently wrong.
+		const rates = await getExchangeRates(via, this.coin, coin);
+		if (!rates) return new CoinAmount(0, coin);
+		const myRate = rates[coin.unit?.toUpperCase() as keyof typeof rates];
 		if (typeof myRate !== 'number' || !Number.isFinite(myRate)) {
 			return new CoinAmount(0, coin);
 		}

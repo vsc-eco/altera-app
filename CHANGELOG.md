@@ -32,6 +32,8 @@ All notable changes to Altera are documented here.
 
 - **Only tokens the DEX router has registered are offered.** A pool appearing in the indexer's `dex_pool_registry` is no evidence the router can route it: the router resolves assets and pools from its own state, written by `register_token` and `register_pool`. Mainnet's HBD:LASSECASH pool is deployed, funded and correctly bound to the live router, yet neither of those steps was ever run — so the token would have been offered and every swap would have aborted on chain. A token is now surfaced only when the pool binds it, the pool points back at our router, and the router holds both registrations naming that exact pool. **Net effect: no custom tokens are swappable on mainnet until those steps are run.**
 
+- **Custom tokens are now priced, instead of reading `$0` everywhere.** They appear in no external price feed, but the price is already on chain: every pool pairs its token against HBD, so the reserve ratio is the exchange rate and HBD's quoted USD price anchors it. Rates compose through HBD in both directions, so token→USD, HBD→token and token→native all work. It is a single-pool market price, so it is only as good as that pool's depth — used for display estimates only; swap amounts still come from the quote. Native-to-native conversions are unaffected and pay no extra round-trip, and the rates are cached briefly since conversions run on every render.
+
 - **Swapping to a custom token threw "Converting from LASSECASH is unsupported".** Exchange rates are quoted for HIVE/HBD/USD/BTC/SATS only, and the lookup threw on anything else — but `convertTo` runs inside USD readouts and amount-input effects that don't catch, so the rejection surfaced as an uncaught error and left the swap form half-initialised. Converting *into* such a coin was worse: the missing rate multiplied through as NaN, silently, into displayed amounts. Both now yield zero, which is honest for an asset with no price feed. Custom tokens therefore still show `$0` — see Known gaps.
 
 - **Swapping FROM a custom token showed no balance or Max.** The swap form read `accountBalance`, a fixed struct of native assets, so a custom token had no entry. It now falls back to the same indexer-backed balances the picker uses.
@@ -52,7 +54,7 @@ All notable changes to Altera are documented here.
 
 ### Known gaps
 
-- Custom tokens have no USD price feed, so their side of a pool and the swap's USD estimates read `$0`. Derivable from the pool's ratio against HBD; not yet wired.
+- USD figures are rendered to 2 decimal places, so a custom token worth a fraction of a cent still displays as `$0.00`. The underlying rate is correct; only the display precision rounds it away.
 - Remove liquidity is still enabled on unregistered pools, where it would abort like a deposit. It mirrors the deliberate `deprecated` treatment (add disabled, exit kept open), but the exit does not currently work either.
 
 ## [0.3.40] — 2026-08-17

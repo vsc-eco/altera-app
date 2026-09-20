@@ -36,7 +36,8 @@ vi.mock('../../client', () => ({
 	DEX_ROUTER_CONTRACT_ID: 'vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45'
 }));
 
-const { fetchCustomTokens, customTokenCoin } = await import('./customTokens');
+const { fetchCustomTokens, customTokenCoin, customTokenIcon, CUSTOM_TOKEN_ICON } =
+	await import('./customTokens');
 
 // Live mainnet identifiers, 2026-09-09.
 const LASSE_POOL = 'vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr';
@@ -236,5 +237,25 @@ describe('customTokenCoin', () => {
 		expect(coin.label).toBe('LASSECASH');
 		expect(coin.unit).toBe('LASSECASH');
 		expect(coin.decimalPlaces).toBe(8);
+	});
+});
+
+describe('customTokenIcon', () => {
+	it('uses the known logo for a token we have artwork for', () => {
+		expect(customTokenIcon('lassecash')).toBe('https://lassecash.com/logo/lassecash-mark.svg');
+	});
+
+	it('is case-insensitive, since symbols arrive in either case', () => {
+		expect(customTokenIcon('LASSECASH')).toBe(customTokenIcon('lassecash'));
+	});
+
+	it('falls back to the Magi mark for an unknown token', () => {
+		expect(customTokenIcon('diy')).toBe(CUSTOM_TOKEN_ICON);
+		expect(customTokenIcon('')).toBe(CUSTOM_TOKEN_ICON);
+	});
+
+	it('puts the logo on the coin the swap and liquidity forms render', async () => {
+		const [token] = await fetchCustomTokens();
+		expect(customTokenCoin(token).icon).toBe('https://lassecash.com/logo/lassecash-mark.svg');
 	});
 });

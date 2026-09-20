@@ -59,9 +59,31 @@ export type CustomToken = {
 	routerRegistered: boolean;
 };
 
-/** Custom tokens ship no artwork of their own, so they carry the Magi mark:
- *  it reads as "a token on this chain" rather than the `unk.svg` error glyph. */
+/** Fallback artwork. A custom token carries no icon on chain, so anything we
+ *  don't have a logo for gets the Magi mark: it reads as "a token on this
+ *  chain" rather than the `unk.svg` error glyph. */
 export const CUSTOM_TOKEN_ICON = '/magi.svg';
+
+/**
+ * Known token artwork, keyed by lowercase symbol.
+ *
+ * Keyed by symbol rather than contract id even though symbols aren't unique
+ * (mainnet has two LASSECASH contracts): this is brand artwork, not an
+ * authorization decision, so showing the same logo for a same-named token is
+ * the desired behaviour rather than a hazard. Everything that *matters* —
+ * approvals, routing — still resolves by contract.
+ *
+ * Remote URLs are fine here; they're plain <img> sources. A dead link simply
+ * renders nothing, so prefer an origin that is likely to outlive the listing.
+ */
+const CUSTOM_TOKEN_ICONS: Readonly<Record<string, string>> = {
+	lassecash: 'https://lassecash.com/logo/lassecash-mark.svg'
+};
+
+/** Artwork for a token symbol, falling back to the Magi mark. */
+export function customTokenIcon(symbol: string): string {
+	return CUSTOM_TOKEN_ICONS[symbol?.toLowerCase()] ?? CUSTOM_TOKEN_ICON;
+}
 
 /** Adapt a discovered token to the `Coin` shape the send/swap flows use.
  *  `value` is the lowercase symbol — the same name the DEX router routes on
@@ -70,7 +92,7 @@ export function customTokenCoin(token: CustomToken): Coin {
 	return {
 		value: token.symbol,
 		label: token.label,
-		icon: CUSTOM_TOKEN_ICON,
+		icon: customTokenIcon(token.symbol),
 		unit: token.label,
 		decimalPlaces: token.decimals
 	};

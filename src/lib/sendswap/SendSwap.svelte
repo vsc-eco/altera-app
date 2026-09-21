@@ -18,7 +18,8 @@
 	import ReviewSwap from './stages/ReviewSwap.svelte';
 	import StepsMachine, { type MixedStepsArray } from './StepsMachine.svelte';
 	import { SwapTxState, TransferTxState, provideTxState } from './utils/txState.svelte';
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { fetchCustomTokens, customTokenCoin } from '$lib/tokens/customTokens';
 
 	const { txType }: { txType: 'transfer' | 'swap' } = $props();
 
@@ -58,6 +59,48 @@
 	}
 
 	applyStartDetails();
+
+	/**
+	 * Restore a persisted CUSTOM-token selection.
+	 *
+	 * Only coin values are persisted, and resolving one to a Coin needs token
+	 * discovery, which is async — while `applyStartDetails` has to run
+	 * synchronously at mount. So a stored custom token resolved to undefined
+	 * above and silently fell back to the BTC→HIVE default: pick LASSECASH,
+	 * reload, and the page forgot it.
+	 *
+	 * Natives are restored synchronously as before; this upgrades the
+	 * selection afterwards, and only if:
+	 *   - the stored coin is a currently swappable custom token (a token that
+	 *     has since been de-listed must NOT come back), and
+	 *   - that side still holds exactly what mount put there, so a user who
+	 *     picked something during the round-trip isn't overridden.
+	 */
+	onMount(async () => {
+		if (txType !== 'swap') return;
+		const stored = loadSwapSelection(SWAP_PAGE_PREF_KEY);
+		if (!stored?.fromCoin && !stored?.toCoin) return;
+
+		const needsFrom = !!stored.fromCoin && !findFromOpt(stored.fromCoin);
+		const needsTo = !!stored.toCoin && !findToOpt(stored.toCoin);
+		if (!needsFrom && !needsTo) return;
+
+		const mountedFrom = txState.from?.coin.value;
+		const mountedTo = txState.to?.coin.value;
+
+		const tokens = await fetchCustomTokens();
+		const find = (v: string | undefined) => tokens.find((t) => t.symbol === v);
+
+		if (needsFrom && txState.from?.coin.value === mountedFrom) {
+			const token = find(stored.fromCoin);
+			// Custom tokens live on Magi only, so the stored network is moot.
+			if (token) txState.from = { coin: customTokenCoin(token), network: Network.magi };
+		}
+		if (needsTo && txState.to?.coin.value === mountedTo) {
+			const token = find(stored.toCoin);
+			if (token) txState.to = { coin: customTokenCoin(token), network: Network.magi };
+		}
+	});
 
 	$effect(() => {
 		// sets username for swap

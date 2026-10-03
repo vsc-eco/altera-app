@@ -218,7 +218,7 @@
 				<InfoTooltip>
 					Open witness-vote proposals — reserve disbursements and wrongful-slash restorations.
 					Voting signs a custom_json with your witness account's Active key. Only elected witnesses
-					can vote. <a href="https://docs.vsc.eco" target="_blank" rel="noopener">Learn more →</a>
+					can vote. <a href="https://docs.magiprotocol.com" target="_blank" rel="noopener">Learn more →</a>
 				</InfoTooltip>
 			</h3>
 			<p class="lead">

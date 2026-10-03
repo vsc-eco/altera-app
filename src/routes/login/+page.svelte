@@ -150,7 +150,7 @@
 		</div>
 		<div class="hero-buttons">
 			<button class="btn-primary" onclick={() => loginOpen = true}>Launch App <ArrowRight size={16} /></button>
-			<a href="https://docs.vsc.eco" target="_blank" rel="noopener" class="btn-secondary">Read Docs</a>
+			<a href="https://docs.alterawallet.com" target="_blank" rel="noopener" class="btn-secondary">Read Docs</a>
 		</div>
 	</section>
 

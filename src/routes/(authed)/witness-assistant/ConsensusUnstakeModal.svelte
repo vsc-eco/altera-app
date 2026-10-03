@@ -80,7 +80,7 @@
 			<InfoTooltip>
 				Staking deposits your HIVE into VSC and locks it while staked. Unstaking has a short
 				cooldown (about a day) before the HIVE returns to your liquid balance. Only Hive accounts
-				can stake. <a href="https://docs.vsc.eco" target="_blank" rel="noopener">Learn more →</a>
+				can stake. <a href="https://docs.magiprotocol.com" target="_blank" rel="noopener">Learn more →</a>
 			</InfoTooltip>
 		</div>
 		<p>Be sure to be signed in with the account you'd like to unstake hive from.</p>

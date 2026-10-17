@@ -29,16 +29,18 @@
 	type Props = {
 		tx: TransactionInter;
 		op: TransactionOpType;
+		/** The account the table lists; defaults to the signed-in one. */
+		viewDid?: string;
 		onRowClick: (op: [string, number], content: () => ReturnType<Snippet>) => void;
 	};
-	let { tx, op, onRowClick }: Props = $props();
+	let { tx, op, viewDid, onRowClick }: Props = $props();
 
 	let loaded = $state(false);
 	let indexerEvent = $state<BtcMappingEventResult>(null);
 	let fromAccount = $state('');
 	let toAccount = $state('');
 
-	const did = $derived(getAuth()().value?.did ?? '');
+	const did = $derived(viewDid ?? getAuth()().value?.did ?? '');
 	const { anchr_height: block_height } = $derived(tx);
 
 	const contractInfo = $derived.by(() => {

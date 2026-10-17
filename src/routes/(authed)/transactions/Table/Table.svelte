@@ -7,6 +7,7 @@
 		fetchTxs,
 		waitForExtend,
 		fetchBtcDeposits,
+		useStoresFor,
 		type TxListItem,
 		type TransactionOpType
 	} from '$lib/stores/txStores';
@@ -157,6 +158,10 @@
 	let skeletonRowCount = $state(8);
 	onMount(() => {
 		const fetchLimit = limitProp ?? 20;
+		// The shared stores may hold another account's rows (the transactions
+		// page can show any account); empty them first so the length check
+		// below doesn't mistake those for this account's.
+		useStoresFor(did);
 		if (!initialOpen && $allTransactionsStore.length < fetchLimit) {
 			fetchTxs(did, 'set', (val) => (loading = val), fetchLimit, serverVars);
 			fetchBtcDeposits(did, 'set', fetchLimit);
@@ -365,9 +370,9 @@
 									{#if op}
 										{@const trType = getOpTrType(op)}
 										{#if trType === 'regular'}
-											<Tr {tx} {op} onRowClick={toggleDetails} />
+											<Tr {tx} {op} viewDid={did} onRowClick={toggleDetails} />
 										{:else if trType === 'btc-vsc'}
-											<BtcMappingTr {tx} {op} onRowClick={toggleDetails} />
+											<BtcMappingTr {tx} {op} viewDid={did} onRowClick={toggleDetails} />
 										{:else if trType === 'contract'}
 											<ContractTr {tx} {op} onRowClick={toggleDetails} />
 										{/if}

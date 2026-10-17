@@ -5,7 +5,6 @@
 	import '@fontsource-variable/noto-sans-mono';
 	import '@fontsource-variable/dm-sans';
 	import AuthInjector from '$lib/auth/AuthInjector.svelte';
-	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 	import { onMount } from 'svelte';
 	import { themeStore, getInitialTheme, THEMES } from '$lib/theme';
 	import { cleanOldLocalStorage } from '$lib/cleanup';
@@ -13,7 +12,6 @@
 	import { showConsoleSecurityWarning } from '$lib/consoleWarning';
 
 	let { children } = $props();
-	injectAnalytics();
 	let allowFocusVisible = false;
 	// set the theme on load
 	onMount(() => {

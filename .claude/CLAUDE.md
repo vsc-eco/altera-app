@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Altera is a multi-chain wallet and DEX interface built with **SvelteKit 2 + Svelte 5 (runes mode)** supporting Hive, Bitcoin, Ethereum, and VSC (Vertical Scaling Collective) chains. Deployed on Vercel.
+Altera is a multi-chain wallet and DEX interface built with **SvelteKit 2 + Svelte 5 (runes mode)** supporting Hive, Bitcoin, Ethereum, and VSC (Vertical Scaling Collective) chains. Self-hosted as a Node server (`@sveltejs/adapter-node`); every push to `main` deploys alterawallet.com via `.github/workflows/deploy.yml`.
 
 ## Commands
 

@@ -252,12 +252,12 @@ export const getSendOpGenerator = (
 		if (toNetwork.value === Network.magi.value) {
 			return getBitcoinTransferOp;
 		} else if (toNetwork.value === Network.btcMainnet.value) {
-			// getBitcoinUnmapOp's signature (from, callerDid, toBtcAddress, amount,
+			// getBitcoinUnmapOp's signature (from, callerDid, toBtcAddress, amount, rcLimit,
 			// deductFee?, maxFee?) is incompatible with the generic 4-arg dispatch
 			// shape. Callers must import and call it directly — sendUtils.ts does
 			// exactly this for the BTC-unmap case before reaching getSendOpGenerator.
 			throw new Error(
-				'BTC unmap requires the direct getBitcoinUnmapOp path (see sendUtils.ts); getSendOpGenerator cannot adapt its 6-arg signature.'
+				'BTC unmap requires the direct getBitcoinUnmapOp path (see sendUtils.ts); getSendOpGenerator cannot adapt its 7-arg signature.'
 			);
 		} else {
 			throw new Error(

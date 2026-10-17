@@ -218,8 +218,20 @@
 		return () => window.removeEventListener('scroll', maybeLoadMore);
 	});
 
+	/** Decimals come from the pool row, which resolves custom tokens from the
+	 *  chain: they are not all 3 dp, and assuming so showed an HBD:LASSECASH
+	 *  deposit of 103.69516606 LASSECASH (8 dp) as 10,369,516.606. */
 	function decimalsForAsset(symbol: string): number {
-		return symbol?.toUpperCase() === 'BTC' ? 8 : 3;
+		const s = symbol?.toUpperCase();
+		if (s === sym0.toUpperCase()) return pool.decimals0;
+		if (s === sym1.toUpperCase()) return pool.decimals1;
+		return s === 'BTC' ? 8 : 3;
+	}
+
+	/** LP tokens are raw contract units with no decimal point — the same
+	 *  integer My Pools lists and Remove Liquidity takes as `lp_amount`. */
+	function fmtLp(raw: number): string {
+		return raw.toLocaleString();
 	}
 
 	function fmtAmt(raw: number, decimals = 3): string {
@@ -446,7 +458,7 @@
 								</td>
 								<td class="amount-cell mono">{fmtAmt(a.amount0, decimalsForAsset(sym0))}</td>
 								<td class="amount-cell mono">{fmtAmt(a.amount1, decimalsForAsset(sym1))}</td>
-								<td class="amount-cell mono">{fmtAmt(a.lp_minted)}</td>
+								<td class="amount-cell mono">{fmtLp(a.lp_minted)}</td>
 								<td class="tx-cell" onclick={(e) => e.stopPropagation()}>
 									<Clipboard value={a.indexer_tx_hash} label="" disabled={false} />
 								</td>
@@ -489,7 +501,7 @@
 								</td>
 								<td class="amount-cell mono">{fmtAmt(r.amount0, decimalsForAsset(sym0))} {sym0}</td>
 								<td class="amount-cell mono">{fmtAmt(r.amount1, decimalsForAsset(sym1))} {sym1}</td>
-								<td class="amount-cell mono">{fmtAmt(r.lp_burned)}</td>
+								<td class="amount-cell mono">{fmtLp(r.lp_burned)}</td>
 								<td class="tx-cell" onclick={(e) => e.stopPropagation()}>
 									<Clipboard value={r.indexer_tx_hash} label="" disabled={false} />
 								</td>
@@ -541,7 +553,7 @@
 				</div>
 				<div class="popup-amount-row">
 					<span class="popup-label">LP Minted</span>
-					<span class="mono">{fmtAmt(e.data.lp_minted)}</span>
+					<span class="mono">{fmtLp(e.data.lp_minted)}</span>
 				</div>
 				<div class="popup-amount-row">
 					<span class="popup-label">Provider</span>
@@ -560,7 +572,7 @@
 				</div>
 				<div class="popup-amount-row">
 					<span class="popup-label">LP Burned</span>
-					<span class="mono">{fmtAmt(e.data.lp_burned)}</span>
+					<span class="mono">{fmtLp(e.data.lp_burned)}</span>
 				</div>
 				<div class="popup-amount-row">
 					<span class="popup-label">Provider</span>

@@ -1,4 +1,3 @@
-// import { VERCEL_URL } from '$env/static/public';
 import { createAppKit } from '@reown/appkit';
 import { mainnet } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';

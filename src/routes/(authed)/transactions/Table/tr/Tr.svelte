@@ -28,10 +28,16 @@
 		tx: TransactionInter;
 		op: TransactionOpType;
 		ledgerIndex?: number;
+		/** The account the table lists; defaults to the signed-in one.
+		 *  Incoming/outgoing is relative to it. */
+		viewDid?: string;
 		onRowClick: (op: [string, number], content: () => ReturnType<Snippet>) => void;
 	};
-	let { tx, op, ledgerIndex, onRowClick }: Props = $props();
-	const did = $derived(getAuth()().value?.did ?? '');
+	let { tx, op, ledgerIndex, viewDid, onRowClick }: Props = $props();
+	const ownDid = $derived(getAuth()().value?.did ?? '');
+	const did = $derived(viewDid ?? ownDid);
+	// Status flips feed the signed-in user's bell, so only for their own rows.
+	const isOwnAccount = $derived(did === ownDid);
 	const {
 		ledger,
 		anchr_height: block_height,
@@ -101,7 +107,7 @@
 		return untrack(() => statusStore).subscribe((status) => {
 			if (tx.status !== status) {
 				tx = { ...tx, status };
-				if (['CONFIRMED', 'FAILED'].includes(status)) {
+				if (untrack(() => isOwnAccount) && ['CONFIRMED', 'FAILED'].includes(status)) {
 					if (!tx.ops) return;
 					for (const op of tx.ops) {
 						if (!op) return;

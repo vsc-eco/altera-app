@@ -41,6 +41,25 @@ export const magiTxsStore = writable<TransactionInter[]>([]);
 export const localTxsStore = writable<TransactionInter[]>([]);
 export const btcDepositStore = writable<BtcDepositEvent[]>([]);
 
+/**
+ * The account whose rows the shared stores above currently hold.
+ *
+ * The stores are app-wide: the dashboard embed, the transactions page and the
+ * Transfer page's recent-contacts lookup all read them, and each assumes they
+ * hold the signed-in account. The transactions page can now show ANY account,
+ * so every writer first points the stores at its own account
+ * (`useStoresFor`), and a response that lands after the stores moved on is
+ * dropped rather than merged into another account's list.
+ */
+let storesDid: string | null = null;
+
+/** Point the shared stores at `did`, emptying them if they hold another account. */
+export function useStoresFor(did: string) {
+	if (storesDid === did) return;
+	clearAllStores();
+	storesDid = did;
+}
+
 function getAlteraID(tx: TransactionInter) {
 	if (tx.isPending) return tx.id;
 	if (!tx.ops) return null;
@@ -87,7 +106,7 @@ function deduplicate(txs: TransactionInter[]) {
 	});
 
 	if (removedAnyPending) {
-		const did = get(authStore).value?.did;
+		const did = storesDid ?? get(authStore).value?.did;
 		if (did) updateTxsFromLocalStorage(did);
 	}
 	return [...acc.values()];
@@ -169,6 +188,7 @@ export async function fetchBtcDeposits(
 	limit = 20
 ): Promise<void> {
 	if (!did) return;
+	useStoresFor(did);
 	try {
 		let beforeHeight: number | undefined;
 		if (type === 'extend') {
@@ -177,6 +197,7 @@ export async function fetchBtcDeposits(
 			beforeHeight = Math.min(...current.map((e) => e.indexer_block_height));
 		}
 		const events = await fetchBtcDepositsByRecipient(did, limit, beforeHeight);
+		if (storesDid !== did) return; // the stores moved to another account meanwhile
 		if (type === 'set') {
 			btcDepositStore.set(events);
 			return;
@@ -224,6 +245,7 @@ export function clearAllStores() {
 	magiTxsStore.set([]);
 	localTxsStore.set([]);
 	btcDepositStore.set([]);
+	storesDid = null;
 }
 
 /**
@@ -248,6 +270,7 @@ export async function fetchTxs(
 	limit = 12,
 	serverFilters?: TxServerFilters
 ) {
+	useStoresFor(did);
 	if (type !== 'update') {
 		if (setLoading) setLoading(true);
 	}
@@ -262,6 +285,12 @@ export async function fetchTxs(
 		policy: 'NetworkOnly'
 	})
 		.then((post) => {
+			// The stores moved to another account while this was in flight
+			// (e.g. a poll from the account the page just switched away from).
+			if (storesDid !== did) {
+				if (setLoading) setLoading(false);
+				return false;
+			}
 			if (!post.data?.findTransaction) {
 				if (type === 'set') {
 					magiTxsStore.set([]);
@@ -308,7 +337,7 @@ export async function fetchTxs(
 			}
 			return false;
 		});
-	updateTxsFromLocalStorage(did);
+	if (storesDid === did) updateTxsFromLocalStorage(did);
 	return success;
 }
 

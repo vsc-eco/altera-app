@@ -42,14 +42,21 @@ export function classifyContractOp(
 	if (action !== 'execute' || !parsedPayload) return { opKind: 'generic', swapPayload: null };
 	const p = parsedPayload;
 
-	// Add liquidity: payload type="deposit" + 2 intents (both assets sent in)
+	// Add liquidity: a DEX-router `deposit` instruction. The router rejects any
+	// instruction without `version`, and the legacy pool swap that shares this
+	// payload shape never carried one, so `version` is what tells them apart.
+	// Intent count can't: only native HIVE/HBD ride in on `transfer.allow`
+	// intents, while a mapped side (BTC, LASSECASH, any custom token) is
+	// pulled via an allowance and adds none — an HBD:LASSECASH deposit has a
+	// single intent and was shown as a swap to "UNK". Two intents still
+	// count, for an unversioned deposit that sends in both native sides.
 	if (
 		p.type === 'deposit' &&
 		p.asset0 &&
 		p.asset1 &&
 		p.amount0 != null &&
 		p.amount1 != null &&
-		intentCount >= 2
+		(p.version != null || intentCount >= 2)
 	) {
 		return { opKind: 'add-liquidity', swapPayload: null };
 	}
@@ -73,8 +80,8 @@ export function classifyContractOp(
 			}
 		};
 	}
-	// Old pool format — amount1 is the settled value. Only match when intent
-	// count ≤ 1 (add-liquidity has ≥ 2 intents and is already classified above).
+	// Old pool format — amount1 is the settled value. Router deposits (versioned,
+	// or with both native intents) were already classified as add-liquidity above.
 	if (
 		p.asset0 &&
 		p.asset1 &&

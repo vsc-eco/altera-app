@@ -69,6 +69,46 @@ describe('classifyContractOp — swap normalisation', () => {
 		expect(swapPayload).toBeNull();
 	});
 
+	it('router deposit with a mapped side (one intent) is add-liquidity, not a swap', () => {
+		// herman-german's HBD:LASSECASH deposit, mainnet tx 534b071e…, 2026-10-16.
+		// Only the HBD side has a transfer.allow intent; LASSECASH is pulled via
+		// the increaseAllowance op ahead of it. Was shown as "0.038 HBD → UNK" SWAP.
+		const { opKind, swapPayload } = classifyContractOp(
+			{
+				type: 'deposit',
+				version: '1.0.0',
+				asset0: 'hbd',
+				asset1: 'lassecash',
+				amount0: '38',
+				amount1: '10369516606',
+				recipient: 'hive:herman-german'
+			},
+			'execute',
+			1
+		);
+		expect(opKind).toBe('add-liquidity');
+		expect(swapPayload).toBeNull();
+	});
+
+	it('router deposit with BTC (one intent) is add-liquidity', () => {
+		const { opKind } = classifyContractOp(
+			{ type: 'deposit', version: '1.0.0', asset0: 'btc', amount0: '1000', asset1: 'hbd', amount1: '650' },
+			'execute',
+			1
+		);
+		expect(opKind).toBe('add-liquidity');
+	});
+
+	it('unversioned legacy-pool deposit with ≤1 intent is still a settled swap', () => {
+		const { opKind, swapPayload } = classifyContractOp(
+			{ type: 'deposit', asset0: 'hbd', amount0: '5320', asset1: 'hive', amount1: '100311' },
+			'execute',
+			1
+		);
+		expect(opKind).toBe('generic');
+		expect(swapPayload?.isNewRouter).toBe(false);
+	});
+
 	it('remove-liquidity (withdrawal + lp_amount) is not a swap', () => {
 		const { opKind, swapPayload } = classifyContractOp(
 			{ type: 'withdrawal', lp_amount: '42' },

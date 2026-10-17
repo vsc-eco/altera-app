@@ -22,6 +22,7 @@
 		isAwaitingSettledAmount,
 		swapEventHashCandidates
 	} from './swapDisplay';
+	import { coinForAsset, isNativeAssetName, loadCustomTokenCoins } from '$lib/tokens/assetCoin.svelte';
 
 	type Props = {
 		tx: TransactionInter;
@@ -129,9 +130,18 @@
 	);
 
 	// ── Liquidity amounts ───────────────────────────────────────────────────
-	function coinFromAsset(asset: string): (typeof Coin)[keyof typeof Coin] {
-		return Coin[asset.split('_')[0] as keyof typeof Coin] || Coin.unk;
-	}
+	// Custom tokens (LASSECASH, …) resolve through on-chain pool discovery;
+	// without it they render as "UNK" with the wrong decimals.
+	const coinFromAsset = coinForAsset;
+	$effect(() => {
+		const assets = [
+			parsedPayload?.asset0,
+			parsedPayload?.asset1,
+			parsedPayload?.asset_in,
+			parsedPayload?.asset_out
+		].filter((a): a is string => typeof a === 'string');
+		if (assets.some((a) => !isNativeAssetName(a))) loadCustomTokenCoins();
+	});
 
 	// Add-liquidity: both token amounts the user deposited into the pool.
 	const liqAmount0 = $derived(
@@ -214,9 +224,15 @@
 		// Don't price the slippage floor while the settled amount is still pending —
 		// it would show a misleading USD value that then jumps once it resolves.
 		if (awaitingSettledAmount) return;
-		amount.convertTo(Coin.usd, Network.lightning).then((a) => {
-			inUsd = a.toNumber();
-		});
+		amount
+			.convertTo(Coin.usd, Network.lightning)
+			.then((a) => {
+				inUsd = a.toNumber();
+			})
+			// Custom tokens have no price feed and the conversion rejects.
+			.catch(() => {
+				inUsd = 0;
+			});
 	});
 
 	// ── Display type & direction ────────────────────────────────────────────

@@ -11,6 +11,12 @@ import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransacti
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
 import { getBtcApproveOp, getTokenApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
+import {
+	estimateCallRc,
+	MAX_RC_LIMIT,
+	rcShortfallMessage
+} from '$lib/magiTransactions/hive/vscOperations/rcSizing'
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants'
 import { fetchCustomTokens } from '$lib/tokens/customTokens'
 import { assertBtcRecipientAllowed } from './btcAddressGuard'
 import {
@@ -799,18 +805,53 @@ export async function send(
 			// Both Withdraw and Transfer flows can target BTC mainnet, so we
 			// read the network-fee fields off either flow's subclass.
 			opType = 'withdrawal';
-			setStatus('Waiting for Hive wallet approval…');
 			const carriesFeeFields =
 				details instanceof WithdrawTxState || details instanceof TransferTxState;
 			const deductFee = carriesFeeFields ? details.deductFee : false;
 			const maxFee = carriesFeeFields ? details.maxFee : undefined;
-			const { getBitcoinUnmapOp: getUnmapOp } =
+			const { getBitcoinUnmapOp: getUnmapOp, getBitcoinUnmapPayload } =
 				await import('$lib/magiTransactions/hive/vscOperations/bitcoin');
+			const unmapAmount = new CoinAmount(amount, toCoin.coin);
+			// Size rc_limit from a dry run: the cost grows with how many vault
+			// UTXOs the unmap has to chain, and a call that runs out of RC
+			// fails on chain after the user has signed it.
+			setStatus('Estimating network resources…');
+			const estimate = await estimateCallRc({
+				callerDid: auth.value.did,
+				contractId: BTC_MAPPING_CONTRACT_ID,
+				action: 'unmap',
+				payload: JSON.stringify(
+					getBitcoinUnmapPayload(toUsername, unmapAmount, deductFee || undefined, maxFee)
+				)
+			});
+			let rcLimit: number;
+			if (estimate.ok) {
+				rcLimit = estimate.rcLimit;
+			} else if (estimate.reason === 'insufficient-rc') {
+				const msg = rcShortfallMessage(estimate, 'withdrawal');
+				setStatus(msg, true);
+				return new Error(msg);
+			} else if (estimate.reason === 'call-fails') {
+				const msg = `This withdrawal would fail on chain: ${estimate.error}`;
+				setStatus(msg, true);
+				return new Error(msg);
+			} else {
+				// No dry run available (node error). Fall back to every RC the
+				// account has: the node only charges what the call uses, and an
+				// unmap draws no HBD intent, so a high cap costs nothing extra.
+				console.warn('unmap RC estimate unavailable, using full RC balance', estimate.error);
+				rcLimit = Math.max(
+					1,
+					Math.min(get(accountBalance).bal.resource_credits || MAX_RC_LIMIT, MAX_RC_LIMIT)
+				);
+			}
+			setStatus('Waiting for Hive wallet approval…');
 			sendOp = getUnmapOp(
 				auth.value.username!,
 				auth.value.did,
 				toUsername,
-				new CoinAmount(amount, toCoin.coin),
+				unmapAmount,
+				rcLimit,
 				deductFee || undefined,
 				maxFee
 			);

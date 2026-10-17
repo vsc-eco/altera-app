@@ -51,33 +51,47 @@ export function getBitcoinTransferOp(
 	];
 }
 
+/** The unmap payload, shared by the dry run and the broadcast op so the RC
+ *  estimate is measured on exactly the call that gets signed. */
+export function getBitcoinUnmapPayload(
+	toBtcAddress: string,
+	amount: CoinAmount<typeof Coin.btc>,
+	deductFee?: boolean,
+	maxFee?: number
+): UnmapInput {
+	return {
+		amount: amount.amount.toString(),
+		to: toBtcAddress,
+		...(deductFee ? { deduct_fee: true } : {}),
+		...(maxFee != null ? { max_fee: maxFee } : {})
+	};
+}
+
 /**
  * @param from         Hive username, e.g. "vaultec"
  * @param callerDid    Caller DID, e.g. "hive:vaultec"
  * @param toBtcAddress Raw Bitcoin mainnet address
+ * @param rcLimit      Size it with `estimateCallRc` (see rcSizing.ts). An
+ *                     unmap's cost grows with the number of vault UTXOs it
+ *                     chains, so no fixed value is safe: 10,000 failed every
+ *                     mainnet unmap above ~30,000 sats in October 2026.
  */
 export function getBitcoinUnmapOp(
 	from: string,
 	callerDid: string,
 	toBtcAddress: string,
 	amount: CoinAmount<typeof Coin.btc>,
+	rcLimit: number,
 	deductFee?: boolean,
 	maxFee?: number
 ): CustomJsonOperation {
-	const payload: UnmapInput = {
-		amount: amount.amount.toString(),
-		to: toBtcAddress,
-		...(deductFee ? { deduct_fee: true } : {}),
-		...(maxFee != null ? { max_fee: maxFee } : {})
-	};
-
 	const jsonOutput: callContractOp = {
 		net_id: vscNetworkId,
 		caller: callerDid,
 		contract_id: BTC_MAPPING_CONTRACT_ID,
 		action: 'unmap',
-		payload,
-		rc_limit: 10000
+		payload: getBitcoinUnmapPayload(toBtcAddress, amount, deductFee, maxFee),
+		rc_limit: rcLimit
 	};
 
 	return [

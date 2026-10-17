@@ -1,0 +1,11 @@
+query SimulateContractCalls($input: SimulateContractCallsInput!, $account: String!) {
+	simulateContractCalls(input: $input) {
+		success
+		err
+		err_msg
+		rc_used
+	}
+	getAccountRC(account: $account) {
+		amount
+	}
+}

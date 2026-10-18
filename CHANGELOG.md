@@ -32,6 +32,18 @@ All notable changes to Altera are documented here.
 
 - **Only tokens the DEX router has registered are offered.** A pool appearing in the indexer's `dex_pool_registry` is no evidence the router can route it: the router resolves assets and pools from its own state, written by `register_token` and `register_pool`. Mainnet's HBD:LASSECASH pool is deployed, funded and correctly bound to the live router, yet neither of those steps was ever run — so the token would have been offered and every swap would have aborted on chain. A token is now surfaced only when the pool binds it, the pool points back at our router, and the router holds both registrations naming that exact pool. **Net effect: no custom tokens are swappable on mainnet until those steps are run.**
 
+- **Custom tokens are now priced, instead of reading `$0` everywhere.** They appear in no external price feed, but the price is already on chain: every pool pairs its token against HBD, so the reserve ratio is the exchange rate and HBD's quoted USD price anchors it. Rates compose through HBD in both directions, so token→USD, HBD→token and token→native all work. It is a single-pool market price, so it is only as good as that pool's depth — used for display estimates only; swap amounts still come from the quote. Native-to-native conversions are unaffected and pay no extra round-trip, and the rates are cached briefly since conversions run on every render.
+
+- **The swap page forgot a custom token on reload.** The persisted from/to selection is stored as coin values and restored through the static swap catalog, which has no entry for a custom token — so picking one and reloading silently reset the page to its BTC→HIVE default. Natives still restore synchronously; a custom token is resolved once discovery completes, and only if it is still swappable and the user hasn't changed that side in the meantime.
+
+- **Confirming a swap to a custom token threw `can't access property "coin"`.** The broadcast path resolved its from/to assets from the static swap catalog — HIVE/HBD/sHBD/BTC only — using non-null assertions, so a custom token resolved to `undefined` while the compiler was told otherwise, and the first use downstream threw. It now resolves custom tokens too, and reports a clear message instead of asserting when an asset genuinely can't be used.
+
+- **Custom tokens can carry their own logo.** A small dictionary maps a token symbol to its artwork, so LASSECASH shows its own mark instead of the generic Magi one. Anything without an entry keeps the Magi mark.
+
+- **Swapping to a custom token threw "Converting from LASSECASH is unsupported".** Exchange rates are quoted for HIVE/HBD/USD/BTC/SATS only, and the lookup threw on anything else — but `convertTo` runs inside USD readouts and amount-input effects that don't catch, so the rejection surfaced as an uncaught error and left the swap form half-initialised. Converting *into* such a coin was worse: the missing rate multiplied through as NaN, silently, into displayed amounts. Both now yield zero, which is honest for an asset with no price feed. Custom tokens therefore still show `$0` — see Known gaps.
+
+- **Swapping FROM a custom token showed no balance or Max.** The swap form read `accountBalance`, a fixed struct of native assets, so a custom token had no entry. It now falls back to the same indexer-backed balances the picker uses.
+
 - **Adding liquidity to a custom-token pool failed with "Insufficient allowance".** The router pulls a mapped asset with `transferFrom` on that asset's own contract, so it needs an approval in place first — but the approve op was only ever built for BTC, leaving a custom token's side unauthorised. Every mapped side now gets an `increaseAllowance` op ordered ahead of the deposit in the same transaction, sized to exactly that leg. Native HIVE/HBD are unaffected; they ride in on `transfer.allow` intents as before.
 
 - **Add liquidity is disabled on pools the router cannot reach**, in the table row and the pool detail header, with a hint naming the pair and the missing step. A pool contract is self-contained — its deposit entrypoint works when called directly, which is how the LASSECASH pool came to hold funds — but everything Altera does goes through the router, so a deposit from here would have aborted. Such pools also carry a visible "not on dex" tag, since touch devices have no hover and a tooltip alone would hide the state entirely.
@@ -48,7 +60,7 @@ All notable changes to Altera are documented here.
 
 ### Known gaps
 
-- Custom tokens have no USD price feed, so their side of a pool and the swap's USD estimates read `$0`. Derivable from the pool's ratio against HBD; not yet wired.
+- USD figures are rendered to 2 decimal places, so a custom token worth a fraction of a cent still displays as `$0.00`. The underlying rate is correct; only the display precision rounds it away.
 - Remove liquidity is still enabled on unregistered pools, where it would abort like a deposit. It mirrors the deliberate `deprecated` treatment (add disabled, exit kept open), but the exit does not currently work either.
 
 ## [0.3.40] — 2026-08-17

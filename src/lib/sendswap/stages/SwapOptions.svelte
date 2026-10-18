@@ -821,6 +821,14 @@ let expectedOutputUsd = $derived.by(() => {
 			if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
 			return new CoinAmount(bal, from.coin, true);
 		}
+		// Custom tokens aren't in `accountBalance` — it's a fixed struct of
+		// native assets — so swapping FROM one would otherwise show no balance
+		// and no Max.
+		if (customTokens.some((t) => t.symbol === coinValue)) {
+			const raw = $customTokenBalances.bal[coinValue] ?? 0;
+			if (raw <= 0) return undefined;
+			return new CoinAmount(raw, from.coin, true);
+		}
 		const key = coinValue as keyof AccountBalance;
 		const bal = $accountBalance.bal?.[key];
 		if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;

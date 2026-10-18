@@ -117,6 +117,16 @@ function formatNum(value: number, unit: string, decimals = 3): string {
 	return unit === '$' ? `$${formatted}` : `${formatted} ${unit.toUpperCase()}`;
 }
 
+/** A per-unit USD price. Cents are fine for HIVE/HBD/BTC, but a custom token
+ *  can trade far below a cent (LASSECASH ≈ $0.0007) and would read "$0.00",
+ *  so sub-cent prices keep 3 significant digits instead. */
+function formatUsdPrice(value: number): string {
+	if (value > 0 && value < 0.01) {
+		return `$${value.toLocaleString(undefined, { maximumSignificantDigits: 3 })}`;
+	}
+	return formatNum(value, '$', 2);
+}
+
 export function mapStateToPoolRow(
 	poolContractId: string,
 	state: PoolState,
@@ -168,16 +178,31 @@ export function mapStateToPoolRow(
 		parseScaled(state['reserve1'], dec1) ??
 		(snapshot ? snapshot.reserve1 / 10 ** dec1 : null);
 
-	// USD prices per unit — look up by symbol
-	function getUsdPrice(sym: string): number {
+	// USD prices per unit. The price feed only quotes HIVE/HBD/BTC.
+	function getFeedUsdPrice(sym: string): number {
 		const s = sym.toUpperCase();
 		if (s === 'HIVE') return usdPrices.hive;
 		if (s === 'HBD') return usdPrices.hbd;
 		if (s === 'BTC') return usdPrices.btc;
 		return 0;
 	}
-	const usd0 = getUsdPrice(sym0);
-	const usd1 = getUsdPrice(sym1);
+	// A custom token has no feed price, so price it from this pool's own
+	// reserves against the side that does (in practice HBD, the DEX base
+	// asset). Without this its liquidity side and every fee collected in it
+	// counted as $0: HBD:LASSECASH showed "$0.00" fees after earning 117
+	// LASSECASH in its first four swaps.
+	let usd0 = getFeedUsdPrice(sym0);
+	let usd1 = getFeedUsdPrice(sym1);
+	if (reserve0 != null && reserve1 != null && reserve0 > 0 && reserve1 > 0) {
+		if (usd0 === 0 && usd1 > 0) usd0 = (usd1 * reserve1) / reserve0;
+		else if (usd1 === 0 && usd0 > 0) usd1 = (usd0 * reserve0) / reserve1;
+	}
+	function getUsdPrice(sym: string): number {
+		const s = sym.toUpperCase();
+		if (s === sym0) return usd0;
+		if (s === sym1) return usd1;
+		return getFeedUsdPrice(s);
+	}
 
 	// Price ratio: prefer on-chain reserves, fall back to USD price ratio
 	let ratio: number | null =
@@ -288,7 +313,7 @@ export function mapStateToPoolRow(
 		pairSymbols: [pairSym0, pairSym1],
 		priceRatio,
 		priceInverse,
-		priceUsd: [formatNum(usd0, '$', 2), formatNum(usd1, '$', 2)],
+		priceUsd: [formatUsdPrice(usd0), formatUsdPrice(usd1)],
 		totalLiquidityUsd: formatNum(totalLiquidityUsd, '$', 2),
 		totalLiquidityAssets,
 		feeEarnedUsd: formatNum(feeEarnedUsdTotal, '$', 2),

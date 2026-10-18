@@ -298,3 +298,75 @@ describe('mapStateToPoolRow — custom token decimals', () => {
 		expect(row.decimals1).toBe(3);
 	});
 });
+
+// ─── Custom token USD pricing ────────────────────────────────────────────────
+
+/**
+ * The price feed quotes HIVE/HBD/BTC only, so a custom token used to be worth
+ * $0: HBD:LASSECASH showed "$0.00" fees after earning 117.04 LASSECASH
+ * (21.94 LP + 95.09 protocol) in its first four swaps, and its liquidity
+ * counted the HBD side only. A custom token is now priced from the pool's own
+ * reserves against the side the feed does price.
+ */
+describe('mapStateToPoolRow — custom token USD pricing', () => {
+	// 9.905 HBD against 27,000 LASSECASH at $1/HBD → $0.00036685 per LASSECASH.
+	const lassePerHbd = 9.905 / 27_000;
+	const withFees = {
+		...EMPTY_INDEXER,
+		// The pool's real 30d fee totals (milo's indexer, 2026-10-18), 8 dp.
+		fees: [{ asset: 'lassecash', lpFee: 2_194_476_076, magiFee: 9_509_396_342 }]
+	};
+	const row = () =>
+		mapStateToPoolRow(
+			'vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr',
+			LASSECASH_STATE,
+			withFees,
+			STD_PRICES,
+			['HBD', 'LASSECASH'],
+			{ lassecash: 8 }
+		);
+
+	it('prices the custom side from the pool reserves', () => {
+		expect(row().usdPrice0).toBe(1);
+		expect(row().usdPrice1).toBeCloseTo(lassePerHbd, 10);
+	});
+
+	it('shows a sub-cent price with significant digits, not "$0.00"', () => {
+		expect(row().priceUsd).toEqual(['$1.00', '$0.000367']);
+	});
+
+	it('counts both sides of the liquidity', () => {
+		// 9.905 HBD + 27,000 × $0.00036685 = $19.81, not the HBD side's $9.91.
+		expect(parseUsd(row().totalLiquidityUsd)).toBeCloseTo(19.81, 2);
+	});
+
+	it('values fees collected in the custom token', () => {
+		const r = row();
+		// (21.94476076 + 95.09396342) LASSECASH × $0.00036685 ≈ $0.043.
+		expect(parseUsd(r.feeEarnedUsd)).toBeCloseTo(0.04, 2);
+		expect(parseUsd(r.feeEarnedUsdBreakdown[0])).toBeCloseTo(0.01, 2); // LP
+		expect(parseUsd(r.feeEarnedUsdBreakdown[1])).toBeCloseTo(0.03, 2); // protocol
+	});
+
+	it('leaves feed-priced pairs on the feed, not the reserves', () => {
+		const native = mapStateToPoolRow('vsc1pool', HBD_HIVE_STATE, EMPTY_INDEXER, STD_PRICES, [
+			'HBD',
+			'HIVE'
+		]);
+		expect(native.usdPrice1).toBe(STD_PRICES.hive);
+	});
+
+	it('stays at $0 (no NaN) when neither side has a feed price', () => {
+		const r = mapStateToPoolRow(
+			'vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr',
+			LASSECASH_STATE,
+			withFees,
+			{ hive: 0, hbd: 0, btc: 0 },
+			['HBD', 'LASSECASH'],
+			{ lassecash: 8 }
+		);
+		expect(r.usdPrice0).toBe(0);
+		expect(r.usdPrice1).toBe(0);
+		expect(r.feeEarnedUsd).toBe('$0.00');
+	});
+});

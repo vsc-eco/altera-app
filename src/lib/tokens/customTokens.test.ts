@@ -242,7 +242,7 @@ describe('customTokenCoin', () => {
 
 describe('customTokenIcon', () => {
 	it('uses the known logo for a token we have artwork for', () => {
-		expect(customTokenIcon('lassecash')).toBe('https://lassecash.com/logo/lassecash-mark.svg');
+		expect(customTokenIcon('lassecash')).toBe('https://lassecash.com/logo/lassecash-circle-512.png');
 	});
 
 	it('is case-insensitive, since symbols arrive in either case', () => {
@@ -256,6 +256,6 @@ describe('customTokenIcon', () => {
 
 	it('puts the logo on the coin the swap and liquidity forms render', async () => {
 		const [token] = await fetchCustomTokens();
-		expect(customTokenCoin(token).icon).toBe('https://lassecash.com/logo/lassecash-mark.svg');
+		expect(customTokenCoin(token).icon).toBe('https://lassecash.com/logo/lassecash-circle-512.png');
 	});
 });

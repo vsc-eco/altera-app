@@ -29,6 +29,7 @@
 		X
 	} from '@lucide/svelte';
 	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
+	import { usdPerUnit } from '$lib/currency/convert';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
@@ -770,12 +771,14 @@ let expectedOutputUsd = $derived.by(() => {
 	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
 	let pricesFailed = $state(false);
+	// Unrounded per-unit prices: a 1-unit CoinAmount converted to USD rounds to
+	// whole cents, so a custom token (LASSECASH ≈ $0.0007) read $0 and its
+	// "≈ $" line never showed.
 	$effect(() => {
 		if (txState.from) {
-			new CoinAmount(1, txState.from.coin)
-				.convertTo(Coin.usd, Network.lightning)
-				.then((amt) => {
-					fromPriceUsdRaw = amt.toNumber();
+			usdPerUnit(txState.from.coin)
+				.then((usd) => {
+					fromPriceUsdRaw = usd;
 					pricesFailed = false;
 				})
 				.catch(() => {
@@ -783,10 +786,9 @@ let expectedOutputUsd = $derived.by(() => {
 				});
 		}
 		if (txState.to) {
-			new CoinAmount(1, txState.to.coin)
-				.convertTo(Coin.usd, Network.lightning)
-				.then((amt) => {
-					toPriceUsdRaw = amt.toNumber();
+			usdPerUnit(txState.to.coin)
+				.then((usd) => {
+					toPriceUsdRaw = usd;
 					pricesFailed = false;
 				})
 				.catch(() => {

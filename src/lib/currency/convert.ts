@@ -124,6 +124,23 @@ export async function getExchangeRates(via: IntermediaryNetwork, base: Coin, tar
 	throw new Error(`${via.label} network not supported.`);
 }
 
+/**
+ * USD per 1 unit of `coin`, unrounded; 0 when the coin can't be quoted.
+ *
+ * Don't derive a per-unit price as `new CoinAmount(1, coin).convertTo(USD)`:
+ * USD amounts carry 2 decimal places, so that rounds to whole cents and any
+ * coin worth under half a cent per unit (every custom token today, LASSECASH
+ * ≈ $0.0007) comes back $0, which hid its "≈ $" hints in the swap form.
+ * Still rejects when the price feed itself fails, like `convertTo` does, so
+ * callers can tell "unavailable" from "unpriceable".
+ */
+export async function usdPerUnit(coin: Coin): Promise<number> {
+	if (coin.unit?.toUpperCase() === 'USD') return 1;
+	const rates = await getExchangeRates(Network.lightning, coin, Coin.usd);
+	const usd = rates?.USD;
+	return typeof usd === 'number' && Number.isFinite(usd) && usd > 0 ? usd : 0;
+}
+
 export async function convert<FromCoinAmount extends UnkCoinAmount, ToCoin extends Coin>(
 	from: FromCoinAmount,
 	into: ToCoin,

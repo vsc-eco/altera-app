@@ -17,6 +17,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoinAmount } from './CoinAmount';
+import { usdPerUnit } from './convert';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 
 const getCustomTokenHbdRatesMock = vi.fn();
@@ -129,5 +130,30 @@ describe('native conversions are unchanged', () => {
 	it('same-coin and zero amounts short-circuit', async () => {
 		expect((await new CoinAmount(2.5, LASSECASH).convertTo(LASSECASH, Network.lightning)).toNumber()).toBe(2.5);
 		expect((await new CoinAmount(0, LASSECASH).convertTo(Coin.usd, Network.lightning)).toNumber()).toBe(0);
+	});
+});
+
+/**
+ * The swap form priced each side as `new CoinAmount(1, coin).convertTo(USD)`.
+ * USD has 2 decimal places, so a token under half a cent per unit came back
+ * $0 and its "≈ $" line was hidden: 1000 LASSECASH showed no USD at all while
+ * the HIVE it bought showed "≈ $0.63". usdPerUnit returns the raw rate.
+ */
+describe('usdPerUnit — unrounded per-unit price', () => {
+	it('keeps a sub-cent custom token price that a 1-unit conversion rounds to $0', async () => {
+		getCustomTokenHbdRatesMock.mockResolvedValue({ LASSECASH: 0.00067 });
+		const rounded = await new CoinAmount(1, LASSECASH).convertTo(Coin.usd, Network.lightning);
+		expect(rounded.toNumber()).toBe(0); // the old path: whole cents only
+		expect(await usdPerUnit(LASSECASH)).toBeCloseTo(0.00067, 10); // × HBD $1
+	});
+
+	it('prices natives from the feed', async () => {
+		expect(await usdPerUnit(Coin.hive)).toBeCloseTo(0.3, 10);
+		expect(await usdPerUnit(Coin.usd)).toBe(1);
+	});
+
+	it('is 0 for a token with no pool rate', async () => {
+		getCustomTokenHbdRatesMock.mockResolvedValue({});
+		expect(await usdPerUnit(LASSECASH)).toBe(0);
 	});
 });

@@ -19,6 +19,7 @@
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { usdPerUnit } from '$lib/currency/convert';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
@@ -292,12 +293,18 @@
 		}
 	});
 
+	// Unrounded: a 1-unit CoinAmount converted to USD rounds to whole cents, so
+	// a sub-cent custom token read $0 and its fee's "≈ $" never showed.
 	let toPriceUsdRaw = $state(0);
 	$effect(() => {
 		if (txState.to) {
-			new CoinAmount(1, txState.to.coin).convertTo(Coin.usd, Network.lightning).then((amt) => {
-				toPriceUsdRaw = amt.toNumber();
-			});
+			usdPerUnit(txState.to.coin)
+				.then((usd) => {
+					toPriceUsdRaw = usd;
+				})
+				.catch(() => {
+					toPriceUsdRaw = 0;
+				});
 		}
 	});
 

@@ -2,13 +2,13 @@
 	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown, Plus, Minus } from '@lucide/svelte';
 	import { fetchPools, fetchMyPoolPositions, poolKind, type TimeRange } from './poolsData';
 	import type { PoolRow, MyPoolRow, PoolKind } from './poolsData';
-	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import PoolDetail from './PoolDetail.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { isDeprecatedPool } from '../../client';
 	import { registrationHint } from './routerRegistry';
+	import { assetIcon } from '$lib/tokens/assetIcon';
 
 	/** Which slice of the registry this instance shows. The Pools and Custom
 	 *  pools tabs render the same component; only this prop differs, so every
@@ -16,13 +16,6 @@
 	 *  the detail view) stays scoped to the tab the user is on. */
 	let { kind = 'standard' }: { kind?: PoolKind } = $props();
 
-	function getCoinIcon(symbol: string): string | undefined {
-		const s = symbol.toUpperCase();
-		if (s === 'BTC') return Coin.btc.icon;
-		if (s === 'HBD') return Coin.hbd.icon;
-		if (s === 'HIVE') return Coin.hive.icon;
-		return undefined;
-	}
 
 	let searchQuery = $state('');
 	let timeRange = $state<TimeRange>('30d');
@@ -270,13 +263,13 @@
 						<td class="col-pair">
 							<div class="pair-cell">
 								<span class="pair-icons" aria-hidden="true">
-									{#if getCoinIcon(pool.pairSymbols[0])}
-										<img class="coin-icon icon-a" src={getCoinIcon(pool.pairSymbols[0])} alt={pool.pairSymbols[0]} />
+									{#if assetIcon(pool.pairSymbols[0])}
+										<img class="coin-icon icon-a" src={assetIcon(pool.pairSymbols[0])} alt={pool.pairSymbols[0]} />
 									{:else}
 										<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
 									{/if}
-									{#if getCoinIcon(pool.pairSymbols[1])}
-										<img class="coin-icon icon-b" src={getCoinIcon(pool.pairSymbols[1])} alt={pool.pairSymbols[1]} />
+									{#if assetIcon(pool.pairSymbols[1])}
+										<img class="coin-icon icon-b" src={assetIcon(pool.pairSymbols[1])} alt={pool.pairSymbols[1]} />
 									{:else}
 										<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
 									{/if}
@@ -404,13 +397,13 @@
 						<td class="col-pair">
 							<div class="pair-cell">
 								<span class="pair-icons" aria-hidden="true">
-									{#if getCoinIcon(row.pairSymbols[0])}
-										<img class="coin-icon icon-a" src={getCoinIcon(row.pairSymbols[0])} alt={row.pairSymbols[0]} />
+									{#if assetIcon(row.pairSymbols[0])}
+										<img class="coin-icon icon-a" src={assetIcon(row.pairSymbols[0])} alt={row.pairSymbols[0]} />
 									{:else}
 										<span class="icon icon-a">{row.pairSymbols[0].slice(0, 3)}</span>
 									{/if}
-									{#if getCoinIcon(row.pairSymbols[1])}
-										<img class="coin-icon icon-b" src={getCoinIcon(row.pairSymbols[1])} alt={row.pairSymbols[1]} />
+									{#if assetIcon(row.pairSymbols[1])}
+										<img class="coin-icon icon-b" src={assetIcon(row.pairSymbols[1])} alt={row.pairSymbols[1]} />
 									{:else}
 										<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
 									{/if}

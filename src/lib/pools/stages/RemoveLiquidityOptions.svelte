@@ -2,17 +2,10 @@
 	import Select from '$lib/zag/Select.svelte';
 	import type { PoolRow, MyPoolRow } from '$lib/pools/poolsData';
 	import { removeLiquidityDraftStore } from '$lib/pools/removeLiquidityStore';
-	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { get } from 'svelte/store';
 	import { untrack } from 'svelte';
+	import { assetIcon } from '$lib/tokens/assetIcon';
 
-	function getCoinIcon(symbol: string): string | undefined {
-		const s = symbol.toUpperCase();
-		if (s === 'BTC') return Coin.btc.icon;
-		if (s === 'HBD') return Coin.hbd.icon;
-		if (s === 'HIVE') return Coin.hive.icon;
-		return undefined;
-	}
 
 	let {
 		editStage,
@@ -144,8 +137,8 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">
-							{#if getCoinIcon(selectedPool.pairSymbols[0])}
-								<img class="asset-icon" src={getCoinIcon(selectedPool.pairSymbols[0])} alt={selectedPool.pairSymbols[0]} />
+							{#if assetIcon(selectedPool.pairSymbols[0])}
+								<img class="asset-icon" src={assetIcon(selectedPool.pairSymbols[0])} alt={selectedPool.pairSymbols[0]} />
 							{:else}
 								<span class="asset-icon icon-a"></span>
 							{/if}
@@ -160,8 +153,8 @@
 				<div class="asset-card">
 					<div class="asset-header">
 						<div class="label">
-							{#if getCoinIcon(selectedPool.pairSymbols[1])}
-								<img class="asset-icon" src={getCoinIcon(selectedPool.pairSymbols[1])} alt={selectedPool.pairSymbols[1]} />
+							{#if assetIcon(selectedPool.pairSymbols[1])}
+								<img class="asset-icon" src={assetIcon(selectedPool.pairSymbols[1])} alt={selectedPool.pairSymbols[1]} />
 							{:else}
 								<span class="asset-icon icon-b"></span>
 							{/if}

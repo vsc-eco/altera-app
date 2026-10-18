@@ -80,9 +80,15 @@ const CUSTOM_TOKEN_ICONS: Readonly<Record<string, string>> = {
 	lassecash: 'https://lassecash.com/logo/lassecash-circle-512.png'
 };
 
+/** Artwork for a token symbol, or undefined when we have none — for callers
+ *  that keep their own fallback (the pool views' lettered badge). */
+export function knownTokenIcon(symbol: string): string | undefined {
+	return CUSTOM_TOKEN_ICONS[symbol?.toLowerCase()];
+}
+
 /** Artwork for a token symbol, falling back to the Magi mark. */
 export function customTokenIcon(symbol: string): string {
-	return CUSTOM_TOKEN_ICONS[symbol?.toLowerCase()] ?? CUSTOM_TOKEN_ICON;
+	return knownTokenIcon(symbol) ?? CUSTOM_TOKEN_ICON;
 }
 
 /** Adapt a discovered token to the `Coin` shape the send/swap flows use.

@@ -640,16 +640,18 @@ let expectedOutputUsd = $derived.by(() => {
 			: false
 	);
 
-	// Insufficient balance: check if from amount exceeds available balance
+	// Insufficient balance: check if from amount exceeds available balance.
+	// Custom tokens aren't in `accountBalance` (a fixed struct of native
+	// assets), so read them from their own store — the same source as
+	// `maxAmount` and the "Balance:" line. Reading `accountBalance` for them
+	// always gave 0, which blocked every swap FROM a custom token.
 	let insufficientBalance = $derived.by(() => {
 		const from = txState.from;
 		const fromAmount = txState.fromAmount;
 		if (!from || !fromAmount || fromAmount === '0') return false;
-		const bal = getBalanceSmallestUnits(
-			$accountBalance,
-			from.coin,
-			from.network
-		);
+		const bal = customTokens.some((t) => t.symbol === from.coin.value)
+			? ($customTokenBalances.bal[from.coin.value] ?? 0)
+			: getBalanceSmallestUnits($accountBalance, from.coin, from.network);
 		if (bal <= 0) return true;
 		const inputNum = new CoinAmount(fromAmount, from.coin).toNumber();
 		const balNum = new CoinAmount(bal, from.coin, true).toNumber();

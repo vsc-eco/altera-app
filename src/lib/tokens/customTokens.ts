@@ -77,7 +77,7 @@ export const CUSTOM_TOKEN_ICON = '/magi.svg';
  * renders nothing, so prefer an origin that is likely to outlive the listing.
  */
 const CUSTOM_TOKEN_ICONS: Readonly<Record<string, string>> = {
-	lassecash: 'https://lassecash.com/logo/lassecash-mark.svg'
+	lassecash: 'https://lassecash.com/logo/lassecash-circle-512.png'
 };
 
 /** Artwork for a token symbol, falling back to the Magi mark. */

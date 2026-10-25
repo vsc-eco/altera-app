@@ -11,6 +11,7 @@
 		estimateBtcUnmapFee,
 		type BtcFeeEstimate
 	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
+	import BtcVaultRotationNotice from '$lib/sendswap/components/BtcVaultRotationNotice.svelte';
 	import { numberFormatLanguage } from '$lib/constants';
 
 	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
@@ -126,6 +127,7 @@
 </script>
 
 <div class="sections">
+	<BtcVaultRotationNotice />
 	<div class="section">
 		<label for="btc-address">Bitcoin Address</label>
 		<input

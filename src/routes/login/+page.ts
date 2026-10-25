@@ -1,10 +1,11 @@
-// Render client-side only. The login page mounts browser-only wallet SDKs
-// (Reown AppKit / wagmi via AppKitLogin) and reads localStorage. Server-
-// rendering it crashed on a HARD navigation to /login
-// (a direct hit SSRs the page), returning a 500. Reaching /login via the
-// client-side redirect from `/` never crashed because `/` is an (authed)
-// route with ssr=false, so the login page only ever rendered in the browser.
-// Mirrors the (authed) group's `ssr = false`. prerender stays false
-// (inherited from the root layout) so the server still serves the route
-// with a CSR fallback shell — no catch-all 404.
-export const ssr = false;
+// Server-render the landing page so crawlers and link previews get its real
+// content instead of an empty CSR shell. This used to be `ssr = false`
+// because a hard navigation to /login crashed with a 500 while the
+// browser-only wallet SDKs (Reown AppKit / wagmi) were imported here. A
+// direct SSR hit now renders cleanly and hydrates (verified: 200 with the
+// full landing markup, no page errors, the connect modal still opens).
+// Everything browser-only on this page is guarded by `browser` or runs in
+// effects, which never run on the server.
+// prerender stays false (inherited from the root layout): the layout reads
+// `$env/dynamic/public` at module load, which is illegal during prerender.
+export const ssr = true;

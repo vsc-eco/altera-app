@@ -1,4 +1,5 @@
 import type { Handle } from '@sveltejs/kit';
+import { isIndexablePath } from '$lib/seo';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const oldDomain = 'altera.vsc.eco';
@@ -21,6 +22,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	const response = await resolve(event);
+
+	// SEO: only the landing pages should be indexed. App pages behind the
+	// wallet login render as an empty shell to a crawler, and dev hosts must
+	// not compete with the production domain at all.
+	const isDevHost = /(^|[.-])dev\./.test(event.url.hostname);
+	const isHtml = response.headers.get('content-type')?.startsWith('text/html') ?? false;
+	if (isHtml && (isDevHost || !isIndexablePath(event.url.pathname))) {
+		response.headers.set('X-Robots-Tag', 'noindex');
+	}
 
 	// APP-08: baseline security headers. CSP is kept intentionally permissive
 	// (self + inline styles + the API/GQL/indexer/Hive hosts already in use,

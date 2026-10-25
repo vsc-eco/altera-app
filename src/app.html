@@ -2,10 +2,13 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/magi.svg" />
+		<link rel="icon" href="%sveltekit.assets%/magi.svg" type="image/svg+xml" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" type="image/png" sizes="128x128" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="author" href="humans.txt" />
-		<title>Altera — Swap native assets, no wrapping, no bridges</title>
+		<!-- No static title tag: every page sets its own via <svelte:head>, and a
+		     second one here would duplicate it on server-rendered pages. -->
 		<meta name="description" content="Swap real BTC, real DASH and real HIVE. Zero fees, non-custodial, any wallet. Powered by Magi Network." />
 		<meta name="theme-color" content="#6c5ce7" />
 		<meta property="og:type" content="website" />

@@ -6,6 +6,15 @@
 	import { browser } from '$app/environment';
 	import Card from '$lib/cards/Card.svelte';
 	import { ArrowRight, Repeat, Wallet, Bitcoin, Shield, Layers, Zap, Globe, X } from '@lucide/svelte';
+	import { SITE_URL, SITE_TITLE, STRUCTURED_DATA } from '$lib/seo';
+
+	// JSON-LD for search engines. `<` is escaped so the payload can never close
+	// the script tag early, and the closing tag is split so it doesn't end
+	// this <script> block.
+	const structuredData =
+		'<script type="application/ld+json">' +
+		JSON.stringify(STRUCTURED_DATA).replace(/</g, '\\u003c') +
+		'</' + 'script>';
 
 	let loginOpen = $state(false);
 
@@ -111,9 +120,12 @@
 	];
 </script>
 
-<document:head>
-	<title>Altera - One Wallet. Every Chain.</title>
-</document:head>
+<svelte:head>
+	<title>{SITE_TITLE}</title>
+	<link rel="canonical" href="{SITE_URL}/login" />
+	<meta property="og:url" content="{SITE_URL}/login" />
+	{@html structuredData}
+</svelte:head>
 
 <div class="landing">
 	<!-- Background mesh -->
@@ -140,7 +152,7 @@
 			<img src="/altera_med.png" alt="Altera" class="hero-logo-mark" />
 			<span class="hero-logo-text">ALTERA</span>
 		</div>
-		<p class="hero-tagline">Swap native assets - no wrapping, no bridges.</p>
+		<h1 class="hero-tagline">Swap native assets - no wrapping, no bridges.</h1>
 		<p class="hero-sub">Swap real BTC, real DASH, real HIVE.</p>
 		<p class="hero-hook"><em>Why? Because every time you use a centralized exchange, someone else controls your funds.</em></p>
 		<div class="hero-tags">

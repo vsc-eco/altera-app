@@ -84,37 +84,37 @@
 		{
 			name: 'Matt Rosen',
 			title: 'CEO at Splinterlands',
-			image: 'https://media.licdn.com/dms/image/v2/C4E03AQHFKsKAgVjaDw/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1556050046446?e=1736380800&v=beta&t=CM6Ns8rMpU2xpJOcJckUtIaMKL4rynh58z-w7GdiJpM',
+			image: '/testimonials/matt-rosen.jpg',
 			text: 'Magi aims to address native smart contracts and interoperability - which we think will be a complete game-changer for blockchain-based applications.'
 		},
 		{
 			name: 'Benjamin Baraga',
 			title: 'Founder Crystal Spider Games',
-			image: 'https://pbs.twimg.com/profile_images/1695100148920053760/35D9gYQQ_400x400.jpg',
+			image: '/testimonials/benjamin-baraga.jpg',
 			text: 'Cross chain payments is the future and Magi is building it. If you care about digital money, check them out.'
 		},
 		{
 			name: 'Stoodkev',
 			title: 'CEO Hive Keychain',
-			image: 'https://images.hive.blog/u/stoodkev/avatar',
+			image: '/testimonials/stoodkev.png',
 			text: 'Magi is one of the most innovative projects on Hive. Smart contracts and bridges will lead the way to a new era of developments.'
 		},
 		{
 			name: 'Lordbutterfly',
 			title: 'Marketing at Hive Blockchain',
-			image: 'https://pbs.twimg.com/profile_images/1724916831121473536/T_b0nWKo_400x400.jpg',
+			image: '/testimonials/lordbutterfly.jpg',
 			text: 'L2 for Bitcoin with Hive speeds. A superior Lightning Network with no fees, routing issues, complexity. This is coming and it will fix everything.'
 		},
 		{
 			name: 'Gabe',
 			title: 'Crypto Shots founder',
-			image: 'https://pbs.twimg.com/profile_images/1734655410949201921/i09PK57L_400x400.jpg',
+			image: '/testimonials/gabe.jpg',
 			text: 'Excited to see Magi enable Crypto Shots to auto-reward players on Hive and Ethereum with Hive and Bitcoin during our daily tournaments.'
 		},
 		{
 			name: 'Asgarth',
 			title: 'Co-founder Peakd.com',
-			image: 'https://images.hive.blog/u/asgarth/avatar',
+			image: '/testimonials/asgarth.png',
 			text: 'Looking forward to have Magi fully integrated with Hive. Smart contracts and bitcoin/evm bridges will enable lots of exciting new features.'
 		}
 	];
@@ -197,7 +197,7 @@
 					<div class="testimonial-card">
 						<p class="testimonial-text">"{t.text}"</p>
 						<div class="testimonial-author">
-							<img src={t.image} alt={t.name} class="author-avatar" />
+							<img src={t.image} alt={t.name} class="author-avatar" width="36" height="36" loading="lazy" decoding="async" />
 							<div class="author-info">
 								<span class="author-name">{t.name}</span>
 								<span class="author-title">{t.title}</span>

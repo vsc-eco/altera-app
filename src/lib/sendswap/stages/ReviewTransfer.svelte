@@ -65,6 +65,21 @@
 	});
 	let toDid = $derived(getDidFromUsername(txState.toUsername));
 
+	// Internal (Magi→Magi) transfers of chain-backed assets stay on Magi: the
+	// recipient gets Magi-side funds, NOT a payout to a Bitcoin address or their
+	// Hive account. Warn loudly before signing — picking "Internal Transfer" for
+	// what should have been a withdrawal (as happened on mainnet) leaves the
+	// funds stuck until the recipient logs into Altera to move them.
+	const CHAIN_BACKED = new Set(['btc', 'sats', 'hive', 'hbd']);
+	let isInternalMagi = $derived(
+		txState.from?.network.value === Network.magi.value &&
+			txState.to?.network.value === Network.magi.value
+	);
+	let showInternalWarning = $derived(isInternalMagi && CHAIN_BACKED.has(toCoin.value));
+	let externalWhere = $derived(
+		toCoin.value === 'btc' || toCoin.value === 'sats' ? 'a Bitcoin address' : 'their Hive wallet'
+	);
+
 	// $inspect(waiting);
 </script>
 
@@ -146,6 +161,15 @@
 			</table>
 		</div>
 	{/if}
+	{#if showInternalWarning}
+		<div class={['internal-warning', { compact }]} role="alert">
+			<strong>Internal transfer — these funds stay on Magi.</strong>
+			You're sending {toCoin.label} to {txState.toDisplayName} inside Magi. It will
+			<strong>not</strong> be sent to {externalWhere} — {txState.toDisplayName} can only
+			access it by logging into Altera (or another Magi wallet). Make sure you meant an
+			internal transfer; it may not be recoverable otherwise.
+		</div>
+	{/if}
 	<TxStatus
 		{status}
 		{waiting}
@@ -176,6 +200,24 @@
 	}
 	.dark {
 		color: var(--dash-text-primary);
+	}
+	.internal-warning {
+		width: calc(100% - 1rem);
+		box-sizing: border-box;
+		margin: 1.5rem 0.5rem 0;
+		padding: 0.85rem 1rem;
+		border: 1px solid var(--dash-accent-red, #ef4444);
+		background: var(--dash-badge-red-bg, rgba(239, 68, 68, 0.15));
+		color: var(--dash-badge-red-text, #ef4444);
+		border-radius: 12px;
+		font-size: var(--text-sm);
+		line-height: 1.4;
+		strong {
+			font-weight: 700;
+		}
+		&.compact {
+			margin-top: 1rem;
+		}
 	}
 	table,
 	tbody,

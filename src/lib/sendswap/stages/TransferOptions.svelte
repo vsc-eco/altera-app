@@ -46,6 +46,7 @@
 		estimateBtcUnmapFee,
 		type BtcFeeEstimate
 	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
+	import BtcVaultRotationNotice from '../components/BtcVaultRotationNotice.svelte';
 	import { numberFormatLanguage } from '$lib/constants';
 
 	let {
@@ -472,6 +473,7 @@
 		{/if}
 	</div>
 	{#if isToBtcMainnet}
+		<BtcVaultRotationNotice />
 		<div class="btc-unmap-options">
 			<label class="deduct-fee-row">
 				<input type="checkbox" bind:checked={txState.deductFee} />

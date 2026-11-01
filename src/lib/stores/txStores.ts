@@ -279,8 +279,8 @@ export async function fetchTxs(
 			limit: limit,
 			did,
 			offset: type === 'extend' ? get(magiTxsStore).length : undefined,
-			byType: serverFilters?.byType,
-			byLedgerToFrom: serverFilters?.byLedgerToFrom
+			byType: serverFilters?.byType
+			// byLedgerToFrom omitted: mainnet nodes don't define it yet (see GetTransactions.gql)
 		},
 		policy: 'NetworkOnly'
 	})

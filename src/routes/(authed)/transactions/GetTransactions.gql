@@ -3,15 +3,18 @@ query GetTransactions(
 	$limit: Int
 	$offset: Int
 	$byType: [String!]
-	$byLedgerToFrom: String
 ) {
+	# NOTE: byLedgerToFrom is intentionally omitted — mainnet nodes (main /
+	# b10d0fab) do not define it on TransactionFilter, so including it fails the
+	# whole query with GRAPHQL_VALIDATION_FAILED and the page shows nothing.
+	# Re-add it (and the $byLedgerToFrom variable) once mainnet nodes ship it.
+	# The address filter still works client-side (see filters.ts).
 	findTransaction(
 		filterOptions: {
 			limit: $limit
 			offset: $offset
 			byAccount: $did
 			byType: $byType
-			byLedgerToFrom: $byLedgerToFrom
 		}
 	) @paginate {
 		anchr_height

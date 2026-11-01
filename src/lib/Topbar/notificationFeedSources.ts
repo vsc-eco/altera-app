@@ -184,8 +184,11 @@ function buildQuery(req: FeedRequest): string {
       }`
 		: '';
 	const txs = req.did
-		? `txs: findTransaction(filterOptions: { byAccount: ${JSON.stringify(req.did)}, limit: ${TX_LIMIT} }) { ${TX_FIELDS} }
-    txsLedger: findTransaction(filterOptions: { byLedgerToFrom: ${JSON.stringify(req.did)}, limit: ${TX_LIMIT} }) { ${TX_FIELDS} }`
+		? // txsLedger (byLedgerToFrom) omitted: mainnet nodes don't define that
+			// TransactionFilter field yet, and including it fails the whole query
+			// (GRAPHQL_VALIDATION_FAILED). The txsLedger consumer already tolerates
+			// its absence (?? []). Re-add once mainnet nodes ship byLedgerToFrom.
+			`txs: findTransaction(filterOptions: { byAccount: ${JSON.stringify(req.did)}, limit: ${TX_LIMIT} }) { ${TX_FIELDS} }`
 		: '';
 	return `query NotificationFeed {
     head: localNodeInfo { last_processed_block }

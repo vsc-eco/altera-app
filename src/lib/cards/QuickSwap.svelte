@@ -55,6 +55,10 @@
 		getAlteraFeePct
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
+	import {
+		btcPayoutShortfallMessage,
+		sizeBtcPayoutSwap
+	} from '$lib/magiTransactions/hive/vscOperations/rcSizing';
 	import { executeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import {
@@ -1098,6 +1102,22 @@
 					);
 				}
 				const minOut = txState.minAmountOut ? Number(txState.minAmountOut) : undefined;
+				// A BTC payout costs ~12,000 RC since the 0.12 BTC contract, over the
+				// fixed 10,000 every such swap failed with: give it the RC the account
+				// has, or say why it cannot pay. A HIVE/HBD input is deposited in this
+				// same transaction (above) and a BTC input is pulled by allowance, so
+				// no HBD already on Magi is pulled.
+				let payoutRcLimit: number | undefined;
+				if (destinationChain === 'BTC') {
+					swapStatus = 'Estimating network resources...';
+					const sizing = await sizeBtcPayoutSwap(
+						auth.value.did,
+						0,
+						$accountBalance.bal?.resource_credits
+					);
+					if (!sizing.ok) throw new Error(btcPayoutShortfallMessage(sizing));
+					payoutRcLimit = sizing.rcLimit;
+				}
 				ops.push(
 					await getHiveSwapOp(
 						username,
@@ -1106,7 +1126,8 @@
 						toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
 						minOut,
 						destinationChain || undefined,
-						routerRecipient || undefined
+						routerRecipient || undefined,
+						payoutRcLimit
 					)
 				);
 

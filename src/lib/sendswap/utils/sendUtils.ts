@@ -685,6 +685,30 @@ export async function send(
 				new CoinAmount(amount, toCoin.coin)
 			);
 
+			// A BTC withdrawal's cost grows with the vault coins it spends: size its
+			// rc_limit from a dry run, as the Hive path does. If the node cannot answer,
+			// the fixed limit stands.
+			if (sendOp.op === 'call' && sendOp.payload.action === 'unmap') {
+				setStatus('Estimating network resources…');
+				const estimate = await estimateCallRc({
+					callerDid: auth.value.did,
+					contractId: sendOp.payload.contract_id,
+					action: sendOp.payload.action,
+					payload: sendOp.payload.payload
+				});
+				if (estimate.ok) {
+					sendOp.payload.rc_limit = estimate.rcLimit;
+				} else if (estimate.reason === 'insufficient-rc') {
+					const msg = rcShortfallMessage(estimate, 'withdrawal');
+					setStatus(msg, true);
+					return new Error(msg);
+				} else if (estimate.reason === 'call-fails') {
+					const msg = `This withdrawal would fail on chain: ${estimate.error}`;
+					setStatus(msg, true);
+					return new Error(msg);
+				}
+			}
+
 			setStatus(
 				isBtcWallet ? 'Waiting for Bitcoin wallet approval…' : 'Preparing transaction for signing…'
 			);

@@ -1,4 +1,5 @@
 import { encodePayload } from 'dag-jose-utils';
+import { headerRcLimit } from './evmSwap';
 import { encode as encodeCborg } from './cborg_utils/encode';
 import { decode as decodeCborg } from './cborg_utils/decode';
 import { ensureWalletConnection } from '$lib/auth/reown/reconnect';
@@ -51,8 +52,7 @@ export type CallContractTransaction = {
 		action: string;
 		payload: string;
 		rc_limit: number;
-		// TODO: add support for intents
-		intents: [];
+		intents: Array<{ type: string; args: Record<string, string> }>;
 		caller: string;
 	};
 };
@@ -79,7 +79,7 @@ export type ConsensusStakeTransaction = {
 	};
 };
 
-type Transaction =
+export type Transaction =
 	| TransferTransaction
 	| WithdrawTransaction
 	| StakeTransaction
@@ -181,7 +181,7 @@ function createVSCTransactionOp(tx: Transaction, userId: string): VSCTransaction
 	};
 }
 
-function createVSCTransactionContainer(
+export function createVSCTransactionContainer(
 	transactions: Transaction[],
 	client: Client
 ): VSCTransactionContainer {
@@ -203,7 +203,7 @@ function createVSCTransactionContainer(
 		headers: {
 			nonce: client.nonce!,
 			required_auths: Array.from(requiredAuthsSet),
-			rc_limit: 1000,
+			rc_limit: headerRcLimit(transactions),
 			net_id: client.netId
 		},
 		tx: ops.map((op) => ({
@@ -228,7 +228,7 @@ function sortKeys(obj: unknown): unknown {
 	return sorted;
 }
 
-function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactionSigningShell {
+export function createSigningShell(txContainer: VSCTransactionContainer): VSCTransactionSigningShell {
 	const decodedOps = txContainer.tx.map((op) => ({
 		type: op.type,
 		payload: JSON.stringify(sortKeys(decodeCborg(op.payload)))

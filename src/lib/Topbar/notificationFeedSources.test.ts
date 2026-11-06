@@ -157,11 +157,15 @@ describe('transactions', () => {
 		expect(snap.transactions).toEqual([]);
 	});
 
-	it('queries BOTH filters, because neither is a superset of the other', async () => {
-		stubFetch(fullData({ txs: [], txsLedger: [] }));
+	it('queries byAccount only: mainnet nodes do not define byLedgerToFrom (#160)', async () => {
+		// One unknown TransactionFilter field fails the whole query
+		// (GRAPHQL_VALIDATION_FAILED) on mainnet nodes (main / b10d0fab), so the
+		// feed asks byAccount only. Re-add byLedgerToFrom (and this test's old
+		// form) once mainnet nodes ship it.
+		stubFetch(fullData({ txs: [] }));
 		await fetchFeed({ includeGovernance: false, did: 'hive:tibfox' });
 		expect(lastBody).toContain('byAccount: \\"hive:tibfox\\"');
-		expect(lastBody).toContain('byLedgerToFrom: \\"hive:tibfox\\"');
+		expect(lastBody).not.toContain('byLedgerToFrom');
 	});
 
 	it('merges the two result sets and deduplicates by tx id', async () => {

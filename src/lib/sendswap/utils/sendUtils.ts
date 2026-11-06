@@ -12,9 +12,11 @@ import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/depos
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
 import { getBtcApproveOp, getTokenApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
 import {
+	btcPayoutShortfallMessage,
 	estimateCallRc,
 	MAX_RC_LIMIT,
-	rcShortfallMessage
+	rcShortfallMessage,
+	sizeBtcPayoutSwap
 } from '$lib/magiTransactions/hive/vscOperations/rcSizing'
 import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants'
 import { fetchCustomTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens'
@@ -839,6 +841,27 @@ export async function send(
 					throw new Error('Missing recipient address for mainnet settlement');
 				}
 			}
+			// A BTC payout costs ~12,000 RC since the 0.12 BTC contract, over the
+			// fixed 10,000 every such swap failed with ("cost limit exceeded"):
+			// give it the RC the account has, or say why it cannot pay.
+			let payoutRcLimit: number | undefined;
+			if (destinationChain === 'BTC') {
+				setStatus('Estimating network resources…');
+				const hbdFromMagi =
+					fromCoin.coin.value === Coin.hbd.value && !needsDeposit ? fromCa.amount : 0;
+				const sizing = await sizeBtcPayoutSwap(
+					auth.value.did,
+					hbdFromMagi,
+					get(accountBalance).bal.resource_credits
+				);
+				if (!sizing.ok) {
+					const msg = btcPayoutShortfallMessage(sizing);
+					setStatus(msg, true);
+					return new Error(msg);
+				}
+				payoutRcLimit = sizing.rcLimit;
+				setStatus('Waiting for Hive wallet approval…');
+			}
 			sendOp = await getHiveSwapOp(
 				auth.value.username!,
 				fromCa,
@@ -846,7 +869,8 @@ export async function send(
 				toCoin.coin,
 				minOut,
 				destinationChain,
-				destinationRecipient
+				destinationRecipient,
+				payoutRcLimit
 			);
 			opType = 'swap';
 		} else if (

@@ -142,7 +142,11 @@ export async function getHiveSwapOp(
 	assetOut: Coin,
 	minAmountOut?: number,
 	destinationChain?: string,
-	destinationRecipient?: string
+	destinationRecipient?: string,
+	/** For a BTC payout: size it with `btcPayoutSwapRcLimit` (rcSizing.ts). The
+	 *  payout costs ~12,000 RC since the 0.12 BTC contract, over the 10,000 used
+	 *  for other destinations, so a fixed value fails it. */
+	payoutRcLimit?: number
 ): Promise<CustomJsonOperation> {
 	const caller = `hive:${username}`;
 	const isNative = assetIn.value === Coin.hive.value || assetIn.value === Coin.hbd.value;
@@ -174,6 +178,9 @@ export async function getHiveSwapOp(
 	if (destinationChain) {
 		payload.destination_chain = destinationChain;
 		rcLimit = 10000;
+		if (destinationChain === 'BTC' && payoutRcLimit != null) {
+			rcLimit = payoutRcLimit;
+		}
 	}
 	if (feeQualifies) {
 		payload.beneficiary = ALTERA_FEE_BENEFICIARY;

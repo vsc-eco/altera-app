@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('$houdini', () => ({ SimulateContractCallsStore: class {} }));
 
 import {
+	BTC_PAYOUT_SWAP_MIN_RC,
+	btcPayoutShortfallMessage,
+	btcPayoutSwapRcLimit,
 	interpretSimulation,
 	MAX_RC_LIMIT,
 	rcShortfallMessage,
@@ -98,6 +101,63 @@ describe('rcShortfallMessage', () => {
 		).toBe(
 			'Not enough RC for this withdrawal: it needs more than the 10,014 RC you have. ' +
 				'Deposit HBD to Magi to raise your RC, or try a smaller amount.'
+		);
+	});
+});
+
+describe('btcPayoutSwapRcLimit', () => {
+	it('gives a BTC payout everything the account can spend, not the old fixed 10,000', () => {
+		// audiohive-me 2026-11-05: 10,000 free + 3 HBD on Magi; the payout swap
+		// measured 12,007 RC on mainnet and failed with rc_limit 10,000.
+		expect(btcPayoutSwapRcLimit(13_000, 0)).toEqual({ ok: true, rcLimit: 13_000 });
+	});
+
+	it('leaves an HBD input pulled from Magi spendable', () => {
+		// The node reserves (rc_limit - free RC) of the HBD before the pull, so a
+		// limit of all 30,000 RC would leave 10 of the 20 HBD for a 15 HBD swap.
+		expect(btcPayoutSwapRcLimit(30_000, 15_000)).toEqual({ ok: true, rcLimit: 15_000 });
+	});
+
+	it('refuses before signing when the account cannot pay a payout', () => {
+		// The free 10,000 alone: below the cheapest payout measured on mainnet.
+		expect(btcPayoutSwapRcLimit(10_000, 0)).toEqual({
+			ok: false,
+			reason: 'insufficient-rc',
+			needed: BTC_PAYOUT_SWAP_MIN_RC,
+			available: 10_000
+		});
+	});
+
+	it('counts the HBD input against the RC it leaves', () => {
+		expect(btcPayoutSwapRcLimit(20_000, 10_000)).toEqual({
+			ok: false,
+			reason: 'insufficient-rc',
+			needed: BTC_PAYOUT_SWAP_MIN_RC,
+			available: 10_000
+		});
+	});
+
+	it('never exceeds the node maximum', () => {
+		expect(btcPayoutSwapRcLimit(500_000, 0)).toEqual({ ok: true, rcLimit: MAX_RC_LIMIT });
+	});
+
+	it('is above the 10,000 every BTC payout swap failed with', () => {
+		expect(BTC_PAYOUT_SWAP_MIN_RC).toBeGreaterThan(10_000);
+	});
+});
+
+describe('btcPayoutShortfallMessage', () => {
+	it('names the cost, the RC and the HBD to deposit', () => {
+		expect(
+			btcPayoutShortfallMessage({
+				ok: false,
+				reason: 'insufficient-rc',
+				needed: 11_700,
+				available: 10_000
+			})
+		).toBe(
+			'Not enough RC to pay out to a Bitcoin address: it needs at least 11,700 RC and you ' +
+				'have 10,000. Deposit at least 1.70 HBD to Magi to cover it.'
 		);
 	});
 });

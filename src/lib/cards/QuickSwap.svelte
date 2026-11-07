@@ -57,8 +57,16 @@
 	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 	import {
 		btcPayoutShortfallMessage,
+		fetchAccountRc,
+		rcShortfallMessage,
 		sizeBtcPayoutSwap
 	} from '$lib/magiTransactions/hive/vscOperations/rcSizing';
+	import {
+		buildEvmSwapOps,
+		evmSwapRcLimit,
+		EVM_APPROVE_RC_LIMIT
+	} from '$lib/magiTransactions/eth/evmSwap';
+	import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 	import { executeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import {
@@ -1172,19 +1180,45 @@
 					swapInstruction.beneficiary = ALTERA_FEE_BENEFICIARY;
 					swapInstruction.ref_bps = ALTERA_FEE_BPS;
 				}
-				const swapPayload: CallContractTransaction = {
-					op: 'call',
-					payload: {
-						contract_id: SWAP_CONTRACT_ID,
-						action: 'execute',
-						payload: JSON.stringify(swapInstruction),
-						rc_limit: 10000,
-						intents: [],
-						caller
-					}
-				};
-
-				const txOps: CallContractTransaction[] = [swapPayload];
+				// The router draws HIVE/HBD from the caller's Magi balance under a
+				// transfer.allow intent and moves a mapped asset with transferFrom,
+				// which needs an allowance. An EVM account has no free RC, so size the
+				// limit from what it holds (see evmSwapRcLimit).
+				const isNativeIn =
+					fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
+				swapStatus = 'Estimating network resources...';
+				const available =
+					(await fetchAccountRc(caller)) ?? $accountBalance.bal?.resource_credits ?? 0;
+				const sizing = evmSwapRcLimit(
+					available,
+					fromCoinDef.value === Coin.hbd.value ? amount.amount : 0,
+					isNativeIn ? 0 : EVM_APPROVE_RC_LIMIT,
+					destinationChain === 'BTC'
+				);
+				if (!sizing.ok) {
+					throw new Error(
+						destinationChain === 'BTC'
+							? btcPayoutShortfallMessage(sizing)
+							: rcShortfallMessage(sizing, 'swap')
+					);
+				}
+				const txOps: CallContractTransaction[] = buildEvmSwapOps({
+					caller,
+					routerId: SWAP_CONTRACT_ID,
+					instruction: JSON.stringify(swapInstruction),
+					rcLimit: sizing.rcLimit,
+					input: isNativeIn
+						? {
+								kind: 'native',
+								token: fromCoinDef.value,
+								limit: amount.toAmountString(true)
+							}
+						: {
+								kind: 'mapped',
+								mappingContractId: BTC_MAPPING_CONTRACT_ID,
+								rawAmount: String(amount.amount)
+							}
+				});
 
 				if (!wagmiConfig) {
 					setError('Connect an EVM wallet first');

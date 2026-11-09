@@ -191,7 +191,7 @@
 </script>
 
 {#snippet contractRowContent()}
-	<PopupTitleRow title={popupTitle} status={tx.status} />
+	<PopupTitleRow title={popupTitle} status={tx.status} {tx} opIndex={op.index} />
 	<p class="popup-subtitle">
 		{moment(getTimestamp(tx)).format('MMM DD, YYYY [at] H:mm')}
 		{#if fromAccount} · {fromAccount} → {toAccount}{/if}
@@ -300,7 +300,7 @@
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<ToFrom {otherAccount} />
-	<Status status={tx.status} />
+	<Status status={tx.status} {tx} opIndex={op.index} />
 	<Amount amount={displayAmount} direction={contractInfo.direction} />
 	<Type direction={contractInfo.direction} t={contractInfo.displayType} />
 </tr>

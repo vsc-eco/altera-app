@@ -1,11 +1,22 @@
 <script lang="ts">
 	import StatusBadge from '../StatusBadge.svelte';
+	import type { OutputRef } from '../tr/failureReason';
 
-	let { status }: { status: string } = $props();
+	let {
+		status,
+		tx = null,
+		opIndex = 0
+	}: {
+		status: string;
+		/** Passed through so a `failed` badge can explain itself — see
+		 *  StatusBadge. */
+		tx?: { id: string; output?: readonly (OutputRef | null | undefined)[] | null } | null;
+		opIndex?: number;
+	} = $props();
 </script>
 
 <td>
-	<StatusBadge {status} />
+	<StatusBadge {status} {tx} {opIndex} />
 </td>
 
 <style>

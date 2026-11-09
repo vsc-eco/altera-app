@@ -267,7 +267,7 @@
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
 	<ContractId address={op.data.contract_id ?? ''} />
-	<Status status={tx.status} />
+	<Status status={tx.status} {tx} opIndex={op.index} />
 	<Amount
 		{amount}
 		{fromAmount}
@@ -281,7 +281,7 @@
 </tr>
 
 {#snippet contractRowContent()}
-	<PopupTitleRow title={popupTitle} status={tx.status} />
+	<PopupTitleRow title={popupTitle} status={tx.status} {tx} opIndex={op.index} />
 	<p class="popup-subtitle">
 		{moment(getTimestamp(tx)).format('MMM DD, YYYY [at] H:mm')}
 		{#if op.data.from}

@@ -235,13 +235,13 @@
 >
 	<td class="date">{moment(timestamp).format('MMM DD')}</td>
 	<ToFrom {otherAccount} memo={memoNoId?.get('msg') ?? undefined} />
-	<Status {status} />
+	<Status {status} {tx} opIndex={op.index} />
 	<Amount {amount} {direction} />
 	<Type {direction} {t} />
 </tr>
 
 {#snippet thisRowContent()}
-	<PopupTitleRow title={formatOpType(t)} status={tx.status} />
+	<PopupTitleRow title={formatOpType(t)} status={tx.status} {tx} opIndex={op.index} />
 	<p class="popup-subtitle">
 		{moment(timestamp).format('MMM DD, YYYY [at] H:mm')}
 		{#if otherAccount}

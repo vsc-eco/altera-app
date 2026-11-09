@@ -15,8 +15,20 @@
 		 *  declare the parameter simply ignore it. */
 		children?: Snippet<[() => void]>;
 		open?: boolean;
+		/** Also reveal on mouse hover, tooltip-style, on top of the normal
+		 *  click-to-open. The pointer type is checked, so touch and pen keep
+		 *  tap-to-open only: a touch "hover" would otherwise open the popover
+		 *  and the click that follows would immediately toggle it shut. */
+		hoverable?: boolean;
 	};
-	let { title, description, trigger, children, open = $bindable() }: Props = $props();
+	let {
+		title,
+		description,
+		trigger,
+		children,
+		open = $bindable(),
+		hoverable = false
+	}: Props = $props();
 	const id = getUniqueId();
 	const service = $derived(
 		useMachine(popover.machine, {
@@ -34,12 +46,65 @@
 	$effect(() => {
 		if (open !== undefined) open = api.open;
 	});
+
+	// ── Hover mode (opt-in via `hoverable`) ─────────────────────────────────
+	/** Closing is deferred so the pointer can cross the gap between trigger
+	 *  and content without the popover vanishing mid-travel. */
+	let closeTimer: ReturnType<typeof setTimeout> | undefined;
+	/** Whether the current open state came from hovering. A click while the
+	 *  pointer is already over the trigger would otherwise toggle the popover
+	 *  shut the instant you tried to click into it. */
+	let openedByHover = false;
+
+	function cancelClose() {
+		clearTimeout(closeTimer);
+		closeTimer = undefined;
+	}
+	function hoverOpen(e: PointerEvent) {
+		if (e.pointerType !== 'mouse') return;
+		cancelClose();
+		if (!api.open) openedByHover = true;
+		api.setOpen(true);
+	}
+	function hoverClose(e: PointerEvent) {
+		if (e.pointerType !== 'mouse') return;
+		cancelClose();
+		closeTimer = setTimeout(() => {
+			closeTimer = undefined;
+			openedByHover = false;
+			api.setOpen(false);
+		}, 150);
+	}
+	$effect(() => () => cancelClose());
+
+	const triggerProps: HTMLButtonAttributes = $derived.by(() => {
+		const props = api.getTriggerProps() as HTMLButtonAttributes;
+		if (!hoverable) return props;
+		const baseClick = props.onclick;
+		return {
+			...props,
+			onpointerenter: hoverOpen,
+			onpointerleave: hoverClose,
+			onclick: (e: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) => {
+				// Already showing because of the hover — keep it up rather
+				// than letting the toggle close it.
+				if (openedByHover && api.open) return;
+				openedByHover = false;
+				baseClick?.(e);
+			}
+		};
+	});
 </script>
 
 <!-- <button {...api.getTriggerProps()}>Click me</button> -->
-{@render trigger(api.getTriggerProps())}
+{@render trigger(triggerProps)}
 <div use:portal={{ disabled: !api.portalled }} {...api.getPositionerProps()}>
-	<div {...api.getContentProps()} data-variant={title ? 'full' : 'simple'}>
+	<div
+		{...api.getContentProps()}
+		onpointerenter={hoverable ? cancelClose : undefined}
+		onpointerleave={hoverable ? hoverClose : undefined}
+		data-variant={title ? 'full' : 'simple'}
+	>
 		{#if title}
 			<div class="top-flex">
 				<div {...api.getTitleProps()}>{title}</div>

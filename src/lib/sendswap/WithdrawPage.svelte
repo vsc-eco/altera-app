@@ -36,7 +36,7 @@
 
 	function leave() {
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static root navigation; resolve() not exported in this kit version
-		goto('/');
+		goto('/dashboard');
 	}
 
 	const stepsData: MixedStepsArray = [

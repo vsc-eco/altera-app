@@ -112,7 +112,7 @@
 			txId = '';
 		}
 		if (step === 0) {
-			goto('/');
+			goto('/dashboard');
 		} else if (step === lastStep) {
 			step = 0;
 			sessionId = getTxSessionId();

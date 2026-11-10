@@ -83,7 +83,7 @@
 		id="sidebar-nav"
 	>
 		<div class="logo-section">
-			<a class="logo-link" href="/" tabindex="-1">
+			<a class="logo-link" href="/dashboard" tabindex="-1">
 				<img src="altera_med.png" alt="Altera" class="logo-icon" />
 				{#if !collapsed}
 					<span class="logo-text">Altera</span>

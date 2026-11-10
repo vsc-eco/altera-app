@@ -11,7 +11,7 @@ export const paths: SidebarPath[] = [
 	{
 		name: 'Dashboard',
 		icon: LayoutDashboard,
-		href: '/'
+		href: '/dashboard'
 	},
 	{
 		name: 'Transactions',

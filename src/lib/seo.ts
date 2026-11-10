@@ -11,10 +11,12 @@ export const SITE_DESCRIPTION =
 
 /** Pages that are meant to show up in search results. Everything else is the
  *  logged-in app (an empty shell to a crawler) and is sent with noindex.
- *  `/` stays indexable because it is the domain root, but it only redirects
- *  to /login in the browser, so the sitemap lists /login alone. */
+ *  `/` and `/login` render the same server-rendered landing page; the sitemap
+ *  lists only `/` and the landing's canonical tag names `/`, so the two URLs
+ *  consolidate onto the root. Listing /login here keeps it crawlable (a
+ *  noindex header would fight that canonical and could de-index the root). */
 export const INDEXABLE_PATHS = ['/', '/login'] as const;
-export const SITEMAP_PATHS = ['/login'] as const;
+export const SITEMAP_PATHS = ['/'] as const;
 
 export function isIndexablePath(pathname: string): boolean {
 	return (INDEXABLE_PATHS as readonly string[]).includes(pathname);
@@ -35,7 +37,7 @@ export const STRUCTURED_DATA = {
 			'@type': 'WebApplication',
 			'@id': `${SITE_URL}/#app`,
 			name: SITE_NAME,
-			url: `${SITE_URL}/login`,
+			url: `${SITE_URL}/`,
 			description: SITE_DESCRIPTION,
 			applicationCategory: 'FinanceApplication',
 			operatingSystem: 'Any',

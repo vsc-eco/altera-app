@@ -3,7 +3,7 @@
 	import Balance from '$lib/cards/Balance/Balance.svelte';
 	import PortfolioValue from '$lib/cards/Balance/PortfolioValue.svelte';
 	import StakingEarnings from '$lib/cards/StakingEarnings.svelte';
-	import Table from './transactions/Table/Table.svelte';
+	import Table from '../transactions/Table/Table.svelte';
 	import QuickSwap from '$lib/cards/QuickSwap.svelte';
 	import MarketPrices from '$lib/cards/MarketPrices.svelte';
 	import ResourceCredits from '$lib/cards/ResourceCredits/ResourceCredits.svelte';
@@ -15,9 +15,9 @@
 	let portfolioHeight = $state(0);
 </script>
 
-<document:head>
+<svelte:head>
 	<title>Dashboard</title>
-</document:head>
+</svelte:head>
 
 <div class="dashboard-wrapper" style:--portfolio-h="{portfolioHeight}px">
 	<div class="area-balance">

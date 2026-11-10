@@ -70,7 +70,7 @@
 				showSidebar = !showSidebar;
 			}}
 		/>
-		{#if page.url.pathname === '/'}
+		{#if page.url.pathname === '/dashboard'}
 			<div class="welcome">
 				Welcome, <span class="welcome-address">{displayAddress}</span>
 			</div>

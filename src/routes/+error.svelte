@@ -26,7 +26,7 @@
 		<h1>{title}</h1>
 		<p>{message}</p>
 
-		<PillButton href="/" styleType="invert">Go to dashboard</PillButton>
+		<PillButton href="/dashboard" styleType="invert">Go to dashboard</PillButton>
 	</div>
 
 	<footer>

@@ -80,6 +80,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 	import QRCode from 'qrcode';
+	import DepositAddressNotice from '$lib/sendswap/components/DepositAddressNotice.svelte';
 
 	const auth = $derived(getAuth()());
 
@@ -1599,6 +1600,7 @@
 			{:else if btcDepositError}
 				<p class="btc-deposit-error">{btcDepositError}</p>
 			{:else if btcDepositAddress}
+				<DepositAddressNotice />
 				{#if btcDepositQr}
 					<div class="btc-deposit-qr">
 						<img src={btcDepositQr} alt="Deposit address QR code" width="220" height="220" />

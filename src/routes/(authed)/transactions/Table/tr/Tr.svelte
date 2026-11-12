@@ -20,7 +20,7 @@
 	import moment from 'moment';
 	import { addNotification, type Notification } from '$lib/Topbar/notifications';
 	import { getHiveAssetName, getHbdAssetName } from '../../../../../client';
-	import { numberFormatLanguage } from '$lib/constants';
+	import { numberFormatLanguage, getVscExplorerTxUrl, getHiveExplorerTxUrl } from '$lib/constants';
 	import { getAccountNameFromDid } from '$lib/getAccountName';
 	import PopupTitleRow from './PopupTitleRow.svelte';
 
@@ -298,11 +298,11 @@
 		<div class="links section">
 			<h3>External Links</h3>
 			<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-				<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
+				<a href={getVscExplorerTxUrl(tx.id)} target="_blank" rel="noreferrer">
 					VSC Block Explorer<ExternalLink /></a
 				>
 				{#if to.slice(0, 5) === 'hive:' && from.slice(0, 5) === 'hive:'}
-					<a href={'https://hivehub.dev/tx/' + tx.id} target="_blank" rel="noreferrer">
+					<a href={getHiveExplorerTxUrl(tx.id)} target="_blank" rel="noreferrer">
 						Hive Block Explorer<ExternalLink /></a
 					>
 				{/if}

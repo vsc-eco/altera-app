@@ -17,6 +17,7 @@
 	import PopupTitleRow from './PopupTitleRow.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { hasuraQuery } from '$lib/indexer/query';
+	import { getVscExplorerTxUrl } from '$lib/constants';
 	import {
 		classifyContractOp,
 		isAwaitingSettledAmount,
@@ -331,7 +332,7 @@
 		<div class="links section">
 			<h3>External Links</h3>
 			<div class={`links ${tx.isPending ? 'links-disabled' : ''}`}>
-				<a href={'https://vsc.techcoderx.com/tx/' + tx.id} target="_blank" rel="noreferrer">
+				<a href={getVscExplorerTxUrl(tx.id)} target="_blank" rel="noreferrer">
 					VSC Block Explorer<ExternalLink /></a
 				>
 			</div>

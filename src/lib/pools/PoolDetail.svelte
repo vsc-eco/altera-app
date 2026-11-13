@@ -8,6 +8,7 @@
 	import { registrationHint } from './routerRegistry';
 	import moment from 'moment';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
+	import PoolRevenuePanel from './PoolRevenuePanel.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import { untrack } from 'svelte';
 	import SidePopup from '$lib/components/SidePopup.svelte';
@@ -354,6 +355,11 @@
 				value: 'removes',
 				label: 'Liquidity Removed',
 				content: removesContent
+			},
+			{
+				value: 'revenue',
+				label: 'My Revenue',
+				content: revenueContent
 			}
 		]}
 	/>
@@ -607,6 +613,12 @@
 >
 	{#snippet title()}{@render poolEventTitle()}{/snippet}
 </SidePopup>
+
+{#snippet revenueContent()}
+	<div class="tab-content">
+		<PoolRevenuePanel {pool} />
+	</div>
+{/snippet}
 
 <style lang="scss">
 	.pool-detail {

@@ -4,6 +4,7 @@
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { accountBalanceHistory } from '$lib/stores/balanceHistory';
 	import AccBalance from '$lib/AccBalance.svelte';
+	import AssetBalanceChart from './AssetBalanceChart.svelte';
 	import { Send } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 	import QuickSend from '$lib/sendswap/QuickSend.svelte';
@@ -29,7 +30,7 @@
 	let toggleQuickSend = $state<(open?: boolean) => void>(() => {});
 
 	// Magi vs. connected-wallet balances, toggled in-place (no extra card).
-	type BalTab = 'magi' | 'wallet';
+	type BalTab = 'magi' | 'wallet' | 'chart';
 	let activeTab = $state<BalTab>('magi');
 	let walletBalances = $state<WalletBalance[]>([]);
 	let walletTotalUsd = $state(0);
@@ -164,6 +165,17 @@
 			>
 				Wallet
 			</button>
+			<span class="bal-toggle-divider" aria-hidden="true"></span>
+			<button
+				type="button"
+				class="bal-toggle-item"
+				class:active={activeTab === 'chart'}
+				role="tab"
+				aria-selected={activeTab === 'chart'}
+				onclick={() => selectTab('chart')}
+			>
+				By asset
+			</button>
 		</div>
 
 		<div class="balance-row">
@@ -193,6 +205,8 @@
 				{#if did}
 					<AccBalance {did} />
 				{/if}
+			{:else if activeTab === 'chart'}
+				<AssetBalanceChart {did} />
 			{:else if walletLoading}
 				<p class="wallet-msg">Loading…</p>
 			{:else if walletError}

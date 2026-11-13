@@ -7,8 +7,6 @@
 	import QuickSwap from '$lib/cards/QuickSwap.svelte';
 	import MarketPrices from '$lib/cards/MarketPrices.svelte';
 	import ResourceCredits from '$lib/cards/ResourceCredits/ResourceCredits.svelte';
-	import AssetBalanceChart from '$lib/cards/Balance/AssetBalanceChart.svelte';
-	import PoolRevenueChart from '$lib/cards/PoolRevenueChart.svelte';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import { goto } from '$app/navigation';
 
@@ -45,15 +43,6 @@
 		<div class="area-market-inner">
 			<MarketPrices />
 		</div>
-	</div>
-
-	<!-- Per-asset balance history, and LP-fee revenue for anyone who has
-	     provided liquidity (the revenue card renders nothing otherwise). -->
-	<div class="area-charts">
-		{#if auth.value}
-			<AssetBalanceChart />
-			<PoolRevenueChart />
-		{/if}
 	</div>
 
 	<div class="area-transactions">
@@ -160,16 +149,6 @@
 		padding-bottom: 2rem;
 	}
 
-	/* The two history charts. auto-fit means a user with no LP position (the
-	   revenue card renders nothing) gets one full-width chart, not a half-empty
-	   row. */
-	.area-charts {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-		gap: 16px;
-		align-items: start;
-	}
-
 	/* In single-column, cap the balance card so tokens scroll */
 	@media (max-width: 1023px) {
 		.area-balance {
@@ -195,7 +174,6 @@
 			grid-template-areas:
 				'balance   portfolio'
 				'quickswap rc-mkt'
-				'charts    charts'
 				'txs       txs';
 			align-items: start;
 		}
@@ -212,9 +190,6 @@
 		}
 		.area-portfolio {
 			grid-area: portfolio;
-		}
-		.area-charts {
-			grid-area: charts;
 		}
 		.area-rc-market {
 			grid-area: rc-mkt;
@@ -269,7 +244,6 @@
 			grid-template-areas:
 				'balance   portfolio  quickswap'
 				'rc        market     quickswap'
-				'charts    charts     charts'
 				'txs       txs        txs';
 			align-items: start;
 		}
@@ -286,9 +260,6 @@
 		}
 		.area-portfolio {
 			grid-area: portfolio;
-		}
-		.area-charts {
-			grid-area: charts;
 		}
 
 		/* Wrapper becomes transparent — children are placed individually */

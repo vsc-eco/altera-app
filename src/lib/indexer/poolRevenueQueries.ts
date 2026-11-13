@@ -37,6 +37,32 @@ type LpEvent = { ts: Date; provider: string; delta: number };
 type FeeEvent = { ts: Date; asset: string | null; lpFee: number };
 
 /**
+ * When this account first deposited into each pool it has ever provided
+ * liquidity to, keyed by pool contract id (raw indexer timestamp strings, so
+ * they can be compared and reused as a `_gte` filter without a round trip).
+ *
+ * Everything downstream hangs off this: a pool the account never entered needs
+ * no fee events fetched at all, and fees charged before its first deposit were
+ * earned at a 0% share, so they cannot contribute either.
+ */
+export async function fetchUserPoolStarts(did: string): Promise<Map<string, string>> {
+	const firstAddByPool = new Map<string, string>();
+	if (!did) return firstAddByPool;
+	const myAdds = await fetchAllEventRows<{ indexer_ts: string; indexer_contract_id: string }>(
+		'dex_pool_add_liq_events',
+		'indexer_ts indexer_contract_id',
+		{ provider: { _eq: did } }
+	);
+	for (const row of myAdds) {
+		const prev = firstAddByPool.get(row.indexer_contract_id);
+		if (prev === undefined || row.indexer_ts < prev) {
+			firstAddByPool.set(row.indexer_contract_id, row.indexer_ts);
+		}
+	}
+	return firstAddByPool;
+}
+
+/**
  * Per-pool cumulative LP-fee revenue for one account.
  *
  * The Magi DEX keeps LP fees in the pool reserve (dex contract: "fees stay in
@@ -68,22 +94,8 @@ export async function fetchUserPoolRevenue(
 		return { pools: [], skippedLegacyRows: false };
 	}
 
-	// Which pools has this account EVER provided liquidity to? Everything else
-	// can be skipped without fetching a single fee event.
-	const myAdds = await fetchAllEventRows<{ indexer_ts: string; indexer_contract_id: string }>(
-		'dex_pool_add_liq_events',
-		'indexer_ts indexer_contract_id',
-		{ provider: { _eq: did } }
-	);
-	if (myAdds.length === 0) return { pools: [], skippedLegacyRows: false };
-
-	const firstAddByPool = new Map<string, string>();
-	for (const row of myAdds) {
-		const prev = firstAddByPool.get(row.indexer_contract_id);
-		if (prev === undefined || row.indexer_ts < prev) {
-			firstAddByPool.set(row.indexer_contract_id, row.indexer_ts);
-		}
-	}
+	const firstAddByPool = await fetchUserPoolStarts(did);
+	if (firstAddByPool.size === 0) return { pools: [], skippedLegacyRows: false };
 
 	const mine = pools.filter((p) => firstAddByPool.has(p.contractId));
 	let skippedLegacyRows = false;

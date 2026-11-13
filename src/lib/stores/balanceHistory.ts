@@ -55,7 +55,7 @@ export async function sumBalance(accBal: AccountBalance): Promise<number> {
 	return totalInUSD.toNumber();
 }
 
-async function getBlockHeightSeries(
+export async function getBlockHeightSeries(
 	start: Date | moment.Moment,
 	end: Date | moment.Moment,
 	interval: moment.Duration
@@ -163,44 +163,69 @@ async function runWithConcurrency<T, R>(
 	return results;
 }
 
+/** One sampled point of raw (unconverted) account balance. */
+export type AccountBalanceSample = {
+	blockHeight: number;
+	timestamp: moment.Moment;
+	balance: AccountBalance;
+};
+
+/**
+ * Sample the account's RAW per-asset balances across a time range.
+ *
+ * This is the shared half of every balance chart: the USD total (the
+ * "Balance trend" card) and the per-asset breakdown ("Balance by asset")
+ * differ only in what they do with these samples, so the batching, the
+ * selection-cap chunking and the concurrency bound live here once.
+ *
+ * Heights with no response are returned as a zero balance rather than
+ * dropped, so the caller's series stays index-aligned with the timeline.
+ */
+export async function fetchAccountBalanceSeries(
+	account: string,
+	start: Date | moment.Moment,
+	end: Date | moment.Moment,
+	interval: moment.Duration
+): Promise<AccountBalanceSample[]> {
+	if (!currentGqlUrl || typeof currentGqlUrl !== 'string') {
+		throw new Error('No API availabe.');
+	}
+	const blockHeightSeries = await getBlockHeightSeries(start, end, interval);
+	// Chunk the block-height list into batches small enough to satisfy
+	// the indexer's field-selection cap, then run them with bounded
+	// concurrency so a 365-day series doesn't flood the connection pool.
+	const batches: number[][] = [];
+	for (let i = 0; i < blockHeightSeries.length; i += MAX_HEIGHTS_PER_QUERY) {
+		batches.push(blockHeightSeries.slice(i, i + MAX_HEIGHTS_PER_QUERY).map((s) => s.blockHeight));
+	}
+	const batchResults = await runWithConcurrency(batches, MAX_PARALLEL_BATCHES, (batch) =>
+		fetchBalancesBatch(account, batch)
+	);
+	// Merge all batch maps into one alias → balance lookup.
+	const merged: Record<string, AccountBalance> = Object.assign({}, ...batchResults);
+
+	return blockHeightSeries.map((item) => ({
+		blockHeight: item.blockHeight,
+		timestamp: item.timestamp,
+		balance: merged[`block_${item.blockHeight}`] || getDefaultBalance()
+	}));
+}
+
 export async function fetchBalancesHTTP(
 	account: string,
 	start: Date | moment.Moment,
 	end: Date | moment.Moment,
 	interval: moment.Duration
 ): Promise<BalanceDataPoint[]> {
-	if (!currentGqlUrl || typeof currentGqlUrl !== 'string') {
-		throw new Error('No API availabe.');
-	}
-	const blockHeightSeries = await getBlockHeightSeries(start, end, interval);
 	try {
-		// Chunk the block-height list into batches small enough to satisfy
-		// the indexer's field-selection cap, then run them with bounded
-		// concurrency so a 365-day series doesn't flood the connection pool.
-		const batches: number[][] = [];
-		for (let i = 0; i < blockHeightSeries.length; i += MAX_HEIGHTS_PER_QUERY) {
-			batches.push(blockHeightSeries.slice(i, i + MAX_HEIGHTS_PER_QUERY).map((s) => s.blockHeight));
-		}
-		const batchResults = await runWithConcurrency(batches, MAX_PARALLEL_BATCHES, (batch) =>
-			fetchBalancesBatch(account, batch)
+		const samples = await fetchAccountBalanceSeries(account, start, end, interval);
+		return await Promise.all(
+			samples.map(async (item) => ({
+				blockHeight: item.blockHeight,
+				timestamp: item.timestamp,
+				amount: await sumBalance(item.balance)
+			}))
 		);
-		// Merge all batch maps into one alias → balance lookup.
-		const merged: Record<string, AccountBalance> = Object.assign({}, ...batchResults);
-
-		// Process the merged response.
-		const processed = await Promise.all(
-			blockHeightSeries.map(async (item) => {
-				const alias = `block_${item.blockHeight}`;
-				const balanceData: AccountBalance = merged[alias] || getDefaultBalance();
-				const totalAmount = await sumBalance(balanceData);
-				return {
-					blockHeight: item.blockHeight,
-					timestamp: item.timestamp,
-					amount: totalAmount
-				};
-			})
-		);
-		return processed;
 	} catch (error) {
 		console.error('Failed to fetch balances with raw fetch:', error);
 		return [];

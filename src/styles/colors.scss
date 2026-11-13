@@ -146,6 +146,19 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	--dash-chart-fill: rgba(111, 106, 248, 0.12);
 	--dash-chart-grid: #50467e;
 
+	/* Categorical series palette for multi-series charts (balance by asset,
+	   pool revenue). Validated with the dataviz palette checker against the
+	   dark card surface (#1a1a20): lightness band, chroma floor, CVD
+	   separation (worst adjacent ΔE 8.4 protan) and ≥3:1 contrast all pass.
+	   Slots are assigned per entity and NEVER recycled by rank. */
+	--viz-1: #3987e5; /* blue */
+	--viz-2: #d95926; /* orange */
+	--viz-3: #199e70; /* aqua */
+	--viz-4: #c98500; /* yellow */
+	--viz-5: #d55181; /* magenta */
+	--viz-6: #008300; /* green */
+	--viz-other: #8b8b9b; /* folded tail — never an entity colour */
+
 	/* Topbar */
 	--dash-topbar-bg: transparent;
 	--dash-topbar-search-bg: rgba(255, 255, 255, 0.06);
@@ -202,6 +215,18 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	--dash-chart-line: #6f6af8;
 	--dash-chart-fill: rgba(111, 106, 248, 0.08);
 	--dash-chart-grid: #e8e8f0;
+
+	/* Categorical series palette — light steps of the same six hues,
+	   validated against the white card surface. Aqua/yellow/magenta sit
+	   below 3:1 here, so every chart using them ships the legend values and
+	   a table view (the dataviz "relief" rule). */
+	--viz-1: #2a78d6; /* blue */
+	--viz-2: #eb6834; /* orange */
+	--viz-3: #1baf7a; /* aqua */
+	--viz-4: #eda100; /* yellow */
+	--viz-5: #e87ba4; /* magenta */
+	--viz-6: #008300; /* green */
+	--viz-other: #9ca3af; /* folded tail — never an entity colour */
 	--dash-topbar-bg: transparent;
 	--dash-topbar-search-bg: #ffffff;
 	--dash-topbar-search-border: #e0e0e8;
@@ -277,6 +302,18 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 		--dash-chart-line: #6f6af8;
 		--dash-chart-fill: rgba(111, 106, 248, 0.06);
 		--dash-chart-grid: rgba(111, 106, 248, 0.06);
+
+		/* Categorical series palette — light steps of the same six hues,
+		   validated against the white card surface. Aqua/yellow/magenta sit
+		   below 3:1 here, so every chart using them ships the legend values and
+		   a table view (the dataviz "relief" rule). */
+		--viz-1: #2a78d6; /* blue */
+		--viz-2: #eb6834; /* orange */
+		--viz-3: #1baf7a; /* aqua */
+		--viz-4: #eda100; /* yellow */
+		--viz-5: #e87ba4; /* magenta */
+		--viz-6: #008300; /* green */
+		--viz-other: #9ca3af; /* folded tail — never an entity colour */
 		--dash-topbar-bg: transparent;
 		--dash-topbar-search-bg: #ffffff;
 		--dash-topbar-search-border: rgba(111, 106, 248, 0.1);

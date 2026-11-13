@@ -51,6 +51,7 @@
 	import { getUpdateLayer } from '@aninest/extensions';
 	import moment from 'moment';
 	import WaveLoading from './components/WaveLoading.svelte';
+	import { pointerIndex } from './chartPointer';
 	import { untrack } from 'svelte';
 
 	type Props = {
@@ -262,15 +263,11 @@
 		if (!data || data.length === 0) return;
 
 		const bb = (e.currentTarget as HTMLElement).getBoundingClientRect();
-		const fromLeft = e.clientX - bb.left + margin.left;
-		let fromLeftChunk = Math.round(fromLeft / chunkSize);
-		const lastIndex = data.length - 1;
-		if (!isFinite(fromLeftChunk)) return;
-		if (fromLeftChunk < 0) fromLeftChunk = 0;
-		if (fromLeftChunk > lastIndex) fromLeftChunk = lastIndex;
+		const idx = pointerIndex(e.clientX, bb.left, margin.left, chunkSize, data.length - 1);
+		if (idx == null) return;
 
-		hoveredIndex = fromLeftChunk;
-		hoveredPoint = data[fromLeftChunk];
+		hoveredIndex = idx;
+		hoveredPoint = data[idx];
 		if (!hoveredPoint) return;
 		// The animated dot tracks one line; in multi-series mode the crosshair
 		// and a dot per series are drawn straight from `hoveredIndex` instead.

@@ -134,14 +134,26 @@
 		shown.map((s) => s.values[hoveredIndex ?? dates.length - 1] ?? 0)
 	);
 
-	/** Direct end labels only while they stay ≥ 14px apart — nudged labels
-	 *  detach from their lines, so converging series fall back to the legend. */
+	/**
+	 * Direct end labels.
+	 *
+	 * Lines get one label per series, but only while they stay ≥ 14px apart —
+	 * nudged labels detach from their lines, so converging series fall back to
+	 * the legend. A stack gets exactly ONE label, the total: a per-band label
+	 * would read the cumulative top while the legend beside it reads the band's
+	 * own value, and two different numbers for one colour is worse than none.
+	 */
 	const endLabels = $derived.by(() => {
-		if (shown.length === 0 || shown.length > 4 || dates.length === 0) return [];
+		if (shown.length === 0 || dates.length === 0) return [];
+		if (mode === 'stacked') {
+			const top = stacked[stacked.length - 1]?.[dates.length - 1] ?? 0;
+			return [{ y: yScale(top), text: formatValue(top) }];
+		}
+		if (shown.length > 4) return [];
 		const ys = endValue.map((v) => yScale(v));
 		const sorted = [...ys].sort((a, b) => a - b);
 		for (let i = 1; i < sorted.length; i++) if (sorted[i] - sorted[i - 1] < 14) return [];
-		return shown.map((s, i) => ({ color: s.color, y: ys[i], text: formatValue(endValue[i]) }));
+		return shown.map((s, i) => ({ y: ys[i], text: formatValue(endValue[i]) }));
 	});
 
 	function indexFromPointer(e: PointerEvent | MouseEvent) {
@@ -209,9 +221,12 @@
 					<path class="band" d={bandPath(i)} fill={s.color} />
 				{/each}
 			{:else}
-				{#each shown as s (s.key)}
-					<path class="wash" d={bandGen.y0(() => yScale(0))(s.values)} fill={s.color} />
-				{/each}
+				<!-- The wash under a line is only legible while nothing overlaps
+				     it; three translucent fills stacked on each other just read
+				     as mud, so multi-series line charts go without. -->
+				{#if shown.length === 1}
+					<path class="wash" d={bandGen.y0(() => yScale(0))(shown[0].values)} fill={shown[0].color} />
+				{/if}
 				{#each shown as s (s.key)}
 					<path class="line" d={lineGen(s.values)} stroke={s.color} />
 				{/each}
@@ -340,24 +355,16 @@
 	/* Part-to-whole bands: the 2px separation is drawn in the surface colour,
 	   never as a border in the series colour. */
 	.band {
-		opacity: 0.72;
-		stroke: var(--dash-card-bg-solid, #16161f);
+		opacity: 0.78;
+		stroke: var(--viz-surface);
 		stroke-width: 2;
-	}
-	:global(.light-theme) .band {
-		stroke: #ffffff;
-	}
-	@media (prefers-color-scheme: light) {
-		:global(:root:not(.light-theme):not(.dark-theme)) .band {
-			stroke: #ffffff;
-		}
 	}
 	.crosshair {
 		stroke: var(--dash-text-muted);
 		stroke-width: 1;
 	}
 	.dot {
-		stroke: var(--dash-bg);
+		stroke: var(--viz-surface);
 		stroke-width: 2;
 	}
 	.x-axis {

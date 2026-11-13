@@ -158,6 +158,7 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	--viz-5: #d55181; /* magenta */
 	--viz-6: #008300; /* green */
 	--viz-other: #8b8b9b; /* folded tail — never an entity colour */
+	--viz-surface: #1a1a21; /* card surface: the 2px gap between stacked bands */
 
 	/* Topbar */
 	--dash-topbar-bg: transparent;
@@ -227,6 +228,7 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 	--viz-5: #e87ba4; /* magenta */
 	--viz-6: #008300; /* green */
 	--viz-other: #9ca3af; /* folded tail — never an entity colour */
+	--viz-surface: #ffffff;
 	--dash-topbar-bg: transparent;
 	--dash-topbar-search-bg: #ffffff;
 	--dash-topbar-search-border: #e0e0e8;
@@ -314,6 +316,7 @@ $color-nums: 1, 2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 85, 90
 		--viz-5: #e87ba4; /* magenta */
 		--viz-6: #008300; /* green */
 		--viz-other: #9ca3af; /* folded tail — never an entity colour */
+		--viz-surface: #ffffff;
 		--dash-topbar-bg: transparent;
 		--dash-topbar-search-bg: #ffffff;
 		--dash-topbar-search-border: rgba(111, 106, 248, 0.1);

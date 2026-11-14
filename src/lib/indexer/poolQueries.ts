@@ -1,4 +1,5 @@
 import { type AggregateResult, hasuraQuery } from './query';
+import { isVscTestnet } from '../../client';
 
 export type TimeRange = '1d' | '7d' | '30d' | 'max';
 
@@ -232,8 +233,50 @@ function parseRegistryAssetSymbol(raw: unknown, fallback: string): string {
 	return fallback;
 }
 
-/** Query the indexer for every registered DEX pool. */
+// The last registry the indexer returned, per network. Pool contract ids change
+// only when a pool is migrated, so when the indexer does not answer (or answers
+// empty) the last one is used: every quote looks its pool up here, and a quote
+// that cannot find its pool blocks the swap. Reserves still come from the node.
+let registryCache: PoolRegistryEntry[] | null = null;
+const registryCacheKey = () => `altera-pool-registry-v1-${isVscTestnet() ? 'testnet' : 'mainnet'}`;
+
+function cachedRegistry(): PoolRegistryEntry[] | null {
+	if (registryCache) return registryCache;
+	try {
+		const raw = globalThis.localStorage?.getItem?.(registryCacheKey());
+		const parsed = raw ? JSON.parse(raw) : null;
+		if (Array.isArray(parsed) && parsed.length > 0) registryCache = parsed;
+	} catch {
+		// unreadable storage: no cached registry
+	}
+	return registryCache;
+}
+
+function rememberRegistry(rows: PoolRegistryEntry[]) {
+	registryCache = rows;
+	try {
+		globalThis.localStorage?.setItem?.(registryCacheKey(), JSON.stringify(rows));
+	} catch {
+		// storage full or blocked: the in-memory copy still serves this session
+	}
+}
+
+/** Every registered DEX pool: the indexer's registry, else the last one it returned. */
 export async function fetchPoolRegistry(): Promise<PoolRegistryEntry[]> {
+	let rows: PoolRegistryEntry[];
+	try {
+		rows = await queryPoolRegistry();
+	} catch (err) {
+		const cached = cachedRegistry();
+		if (cached) return cached;
+		throw err;
+	}
+	if (rows.length === 0) return cachedRegistry() ?? rows;
+	rememberRegistry(rows);
+	return rows;
+}
+
+async function queryPoolRegistry(): Promise<PoolRegistryEntry[]> {
 	const query = `
 		query PoolRegistry {
 			dex_pool_registry {

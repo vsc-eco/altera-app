@@ -11,6 +11,7 @@
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import { isVscTestnet } from '$lib/../client';
 	import QRCode from 'qrcode';
+	import DepositAddressNotice from '$lib/sendswap/components/DepositAddressNotice.svelte';
 
 	// `onClose` closes the parent Deposit dialog (wired via
 	// StepsMachine.extraProps to the parent Dialog's `toggle`).
@@ -221,8 +222,8 @@
 					<span><Info /></span>
 					<p>
 						Transfer {Coin.btc.value} to this bitcoin address with your favorite wallet or exchange. This
-						address is unique to you, and will not change. Please keep in mind that transaction settlement
-						time, averages about 30 minutes.
+						address is unique to you. Please keep in mind that transaction settlement time averages about
+						30 minutes.
 					</p>
 				</div>
 			</Card>
@@ -234,6 +235,7 @@
 			{:else if addressError}
 				<p class="error">{addressError}</p>
 			{:else if btcAddress}
+				<DepositAddressNotice />
 				{#if btcQrDataUrl}
 					<div class="qr-wrap">
 						<img

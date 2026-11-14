@@ -12,6 +12,7 @@
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import TxStatus from '../components/shared/TxStatus.svelte';
+	import BtcSwapDeposit from '../components/BtcSwapDeposit.svelte';
 	import { getHiveAssetName, getHbdAssetName } from '../../../client';
 	import { swapFeeExceedsGuard } from '$lib/pools/swapCalc';
 	import { numberFormatLanguage } from '$lib/constants';
@@ -117,6 +118,32 @@
 
 	let toCoin = $derived(txState.to?.coin ?? Coin.unk);
 	let fromCoin = $derived(txState.from?.coin ?? Coin.unk);
+
+	// A swap paid with Bitcoin from a Bitcoin wallet (Leather, Xverse, ...) has
+	// no Magi transaction to sign: the BTC is still on L1. Confirming opens the
+	// "Send Bitcoin" step instead (deposit address + wallet send), the same flow
+	// as the QuickSwap card. Going through send() here threw and left the
+	// "Waiting for signature" overlay up with no wallet prompt.
+	const payWithBtcWallet = $derived(
+		txState.kind === 'swap' &&
+			auth.value?.provider === 'reown' &&
+			!!auth.value.did?.startsWith('did:pkh:bip122:') &&
+			txState.from?.network.value === Network.btcMainnet.value &&
+			fromCoin.value === Coin.btc.value &&
+			toCoin.value !== Coin.btc.value
+	);
+	let btcDepositOpen = $state(false);
+	// Start from the review every time the stage opens.
+	$effect(() => {
+		if (!isActive) btcDepositOpen = false;
+	});
+	function onConfirm() {
+		if (payWithBtcWallet) {
+			btcDepositOpen = true;
+		} else {
+			next?.();
+		}
+	}
 	let effectiveFromAmount = $derived(txState.fromAmount || '0');
 	// Pool fees are now denominated in the OUTPUT asset: the full input
 	// enters the pool and fees are carved off the gross output. So the
@@ -674,7 +701,7 @@
 				Back
 			</PillButton>
 			<PillButton
-				onclick={() => next?.()}
+				onclick={onConfirm}
 				theme="accent"
 				styleType="invert"
 				disabled={waiting || feeGuardTripped}
@@ -685,13 +712,35 @@
 	{/if}
 {/snippet}
 
+{#snippet btcDepositContent()}
+	{#if txState.to}
+		<BtcSwapDeposit
+			fromAmount={txState.fromAmount ?? '0'}
+			recipient={txState.toUsername}
+			toCoin={txState.to.coin}
+			toNetwork={txState.to.network}
+			fallbackAddress={auth.value?.address}
+			refundTo={auth.value?.provider === 'aioha' && auth.value.username
+				? `hive:${auth.value.username}`
+				: auth.value?.address}
+			minAmountOut={asSwap?.minAmountOut}
+			onback={() => (btcDepositOpen = false)}
+			ondone={() => goHome?.()}
+		/>
+	{/if}
+{/snippet}
+
 {#if popup}
 	<Dialog bind:open={dialogOpen} bind:toggle={dialogToggle}>
 		{#snippet title()}
-			{reviewTitle}
+			{btcDepositOpen ? 'Send Bitcoin' : reviewTitle}
 		{/snippet}
 		{#snippet content()}
-			{@render reviewContent()}
+			{#if btcDepositOpen}
+				{@render btcDepositContent()}
+			{:else}
+				{@render reviewContent()}
+			{/if}
 		{/snippet}
 	</Dialog>
 {:else}

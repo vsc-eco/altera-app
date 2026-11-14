@@ -743,6 +743,11 @@
 			{/if}
 		{/snippet}
 	</Dialog>
+{:else if btcDepositOpen}
+	<!-- Not only in the popup: onConfirm opens this step for a BTC-wallet swap
+	     whether the stage is a popup or in-flow, and rendering the review here
+	     regardless would leave Confirm doing nothing at all. -->
+	{@render btcDepositContent()}
 {:else}
 	{@render reviewContent()}
 {/if}

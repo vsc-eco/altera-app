@@ -1016,7 +1016,8 @@
 					toNetwork: txState.to!.network.value,
 					amountSats: inputAmount.amount,
 					refundTo: auth.value?.address,
-					minAmountOut: txState.minAmountOut
+					minAmountOut: txState.minAmountOut,
+					testnet: isVscTestnet()
 				});
 				if (!built.ok) throw new Error(built.error);
 				if (txState.to!.network.value === Network.hiveMainnet.value) {

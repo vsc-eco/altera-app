@@ -31,11 +31,60 @@ export type BtcSwapInstructionInput = {
 	minAmountOut?: string;
 	/** Defaults to DEPOSIT_SWAP_REFUNDS_ACTIVE (tests set it). */
 	refundsActive?: boolean;
+	/**
+	 * Which Bitcoin network this instruction is for, so a refund address on the
+	 * other one is caught here instead of at the mapping bot. Omitted: unchecked.
+	 */
+	testnet?: boolean;
 };
 
 export type BtcSwapInstruction =
 	| { ok: true; instruction: string; recipient: string }
 	| { ok: false; error: string };
+
+/** bech32/bech32m human-readable parts, by network. */
+const BECH32_HRP: Record<string, 'mainnet' | 'testnet'> = {
+	bc: 'mainnet',
+	tb: 'testnet',
+	bcrt: 'testnet'
+};
+/** base58check leading characters (version byte), by network. */
+const BASE58_FIRST: Record<string, 'mainnet' | 'testnet'> = {
+	'1': 'mainnet',
+	'3': 'mainnet',
+	m: 'testnet',
+	n: 'testnet',
+	'2': 'testnet'
+};
+const BASE58_BODY = /^[1-9A-HJ-NP-Za-km-z]{26,35}$/;
+const BECH32_BODY = /^[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,71}$/;
+
+/**
+ * Which Bitcoin network `raw` is an address for, or null when it is not one.
+ *
+ * Checks the prefix, the charset and the length. A leading-character test alone
+ * (the first cut of this accepted anything starting with 1, 2, 3, m or n) let
+ * plain typos through as "a Bitcoin address" and could not tell mainnet from
+ * testnet, so a wrong-network refund address only failed later at the mapping
+ * bot. The bot and the contract remain authoritative (btcutil.DecodeAddress
+ * verifies the checksum, which is not worth a dependency here); this only has
+ * to stop what the user can still fix in the form.
+ */
+export function btcAddressNetwork(raw: string | undefined): 'mainnet' | 'testnet' | null {
+	const addr = (raw ?? '').trim();
+	if (!addr) return null;
+	// bech32 is case-insensitive but must not be MIXED case (BIP173).
+	if (addr === addr.toLowerCase() || addr === addr.toUpperCase()) {
+		const lower = addr.toLowerCase();
+		const sep = lower.lastIndexOf('1');
+		if (sep > 0 && lower.length >= 14 && lower.length <= 74) {
+			const net = BECH32_HRP[lower.slice(0, sep)];
+			if (net && BECH32_BODY.test(lower.slice(sep + 1))) return net;
+		}
+	}
+	const net = BASE58_FIRST[addr[0]];
+	return net && BASE58_BODY.test(addr) ? net : null;
+}
 
 /**
  * Build the mapping-bot instruction for a BTC deposit swap.
@@ -89,12 +138,24 @@ export function buildBtcSwapInstruction(input: BtcSwapInstructionInput): BtcSwap
 		// address is enough (the mapping bot and the contract apply the same rule).
 		const refundTo = (input.refundTo ?? '').trim();
 		const hiveRefund = refundTo.startsWith('hive:');
-		const btcRefund = /^(bc1|tb1|bcrt1|[123mn2])/.test(refundTo) && !hiveRefund;
-		if (!hiveRefund && !btcRefund) {
+		const refundNetwork = hiveRefund ? null : btcAddressNetwork(refundTo);
+		if (!hiveRefund && !refundNetwork) {
 			return {
 				ok: false,
 				error:
 					'A swap paid with Bitcoin needs a refund address: sign in with your Bitcoin wallet or your Hive account.'
+			};
+		}
+		if (
+			refundNetwork &&
+			input.testnet !== undefined &&
+			refundNetwork !== (input.testnet ? 'testnet' : 'mainnet')
+		) {
+			return {
+				ok: false,
+				error: `That refund address is for Bitcoin ${refundNetwork}, but this swap is on ${
+					input.testnet ? 'testnet' : 'mainnet'
+				}.`
 			};
 		}
 		params.set('refund_to', refundTo);

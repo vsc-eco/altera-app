@@ -1,0 +1,319 @@
+/**
+ * Altera redesign — design tokens.
+ *
+ * From the swap-redesign handoff. Every value is a CSS variable on a wrapper
+ * element (`.alt-root`), NOT on `:root`, so a redesigned page and a page still
+ * on the old `--dash-*` system can coexist while the rollout happens.
+ *
+ * The tokens are prefixed `--alt-*` rather than the handoff's bare names
+ * (`--bg`, `--card`, `--tx`). The bare names are already taken: LineChart
+ * reads `--bg`, `--bg-accent` and `--fg-mid` from whatever ancestor sets them,
+ * so a `--bg` on the page wrapper would silently repaint every chart.
+ *
+ * Three themes. Glass is the default and is closest to the current site; Flat
+ * drops the translucency and the mesh; Light is the light scheme.
+ */
+
+.alt-root {
+	--alt-bg: #07070e;
+	--alt-card: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
+	--alt-card-border: rgba(255, 255, 255, 0.12);
+	--alt-card-shadow:
+		0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+	--alt-card-blur: blur(14px);
+	--alt-field: rgba(0, 0, 0, 0.3);
+	--alt-field-2: rgba(0, 0, 0, 0.18);
+	--alt-field-border: rgba(255, 255, 255, 0.06);
+	--alt-tx: #ffffff;
+	--alt-tx-2: #9ca3af;
+	--alt-mut: #6b7280;
+	--alt-chip: rgba(255, 255, 255, 0.07);
+	--alt-chip-hover: rgba(255, 255, 255, 0.12);
+	--alt-pri: linear-gradient(135deg, #7b74ff 0%, #6f6af8 40%, #5b54e0 100%);
+	--alt-pri-shadow: 0 4px 20px rgba(111, 106, 248, 0.3);
+	--alt-acc-soft: rgba(111, 106, 248, 0.15);
+	--alt-acc-soft-hover: rgba(111, 106, 248, 0.25);
+	--alt-acc-tx: #a9a5ff;
+	--alt-modal: #0f1225;
+	--alt-overlay: rgba(0, 0, 0, 0.55);
+	--alt-overlay-blur: blur(8px);
+	--alt-green: #4ade80;
+	--alt-green-soft: rgba(74, 222, 128, 0.12);
+	--alt-red: #ff6b6b;
+	--alt-dis-bg: rgba(255, 255, 255, 0.06);
+	--alt-dis-tx: #6b7280;
+	/* The logo art is dark-on-transparent, so dark themes invert it. */
+	--alt-logo-filter: invert(1) brightness(2);
+	--alt-magi-filter: none;
+	--alt-mesh-opacity: 1;
+	/* Ring around the flip button, so it reads as cut out of both panels. */
+	--alt-flip-ring: #0d0d18;
+
+	--alt-accent: #6f6af8;
+	--alt-accent-hover: #7b74ff;
+	--alt-accent-deep: #5b54e0;
+
+	color: var(--alt-tx);
+	font-family: 'Nunito Sans', system-ui, sans-serif;
+	letter-spacing: 0.01em;
+}
+
+.alt-root.alt-flat {
+	--alt-bg: #0a0a12;
+	--alt-card: #13131c;
+	--alt-card-border: #22222f;
+	--alt-card-shadow: none;
+	--alt-card-blur: none;
+	--alt-field: #0c0c14;
+	--alt-field-2: #0c0c14;
+	--alt-field-border: #1b1b27;
+	--alt-chip: #1b1b27;
+	--alt-chip-hover: #252533;
+	--alt-pri: #6f6af8;
+	--alt-pri-shadow: none;
+	--alt-modal: #13131c;
+	--alt-overlay: rgba(0, 0, 0, 0.6);
+	--alt-dis-bg: #1b1b27;
+	--alt-mesh-opacity: 0;
+	--alt-flip-ring: #0a0a12;
+}
+
+.alt-root.alt-light {
+	--alt-bg: #f2f1f6;
+	--alt-card: #ffffff;
+	--alt-card-border: rgba(111, 106, 248, 0.14);
+	--alt-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 40px rgba(111, 106, 248, 0.08);
+	--alt-card-blur: none;
+	--alt-field: #f5f4fa;
+	--alt-field-2: #f5f4fa;
+	--alt-field-border: rgba(111, 106, 248, 0.08);
+	--alt-tx: #0f0e1a;
+	--alt-tx-2: #4b5563;
+	--alt-mut: #6b7280;
+	--alt-chip: rgba(111, 106, 248, 0.07);
+	--alt-chip-hover: rgba(111, 106, 248, 0.13);
+	--alt-pri: #6f6af8;
+	--alt-pri-shadow: 0 4px 16px rgba(111, 106, 248, 0.25);
+	--alt-acc-soft: rgba(111, 106, 248, 0.1);
+	--alt-acc-soft-hover: rgba(111, 106, 248, 0.18);
+	--alt-acc-tx: #4f48d6;
+	--alt-modal: #ffffff;
+	--alt-overlay: rgba(15, 14, 26, 0.35);
+	--alt-green: #15803d;
+	--alt-green-soft: rgba(22, 163, 74, 0.1);
+	--alt-red: #dc2626;
+	--alt-dis-bg: #ecebf3;
+	--alt-dis-tx: #9ca3af;
+	--alt-logo-filter: none;
+	--alt-magi-filter: invert(1);
+	--alt-mesh-opacity: 0;
+	--alt-flip-ring: #ffffff;
+}
+
+/**
+ * Bridge: re-point the old `--dash-*` tokens at the new ones inside the
+ * redesigned shell.
+ *
+ * The rollout moves pages one at a time, and the components they render
+ * (the swap card, the pools table, the dialogs) are the existing ones —
+ * they are styled against `--dash-*`. Rather than rewrite every rule in
+ * every component before its page can move, the variables themselves are
+ * remapped here: anything inside `.alt-root` picks up the redesign palette,
+ * and the same component keeps rendering in the old palette on the pages
+ * still on the sidebar shell.
+ *
+ * This is scaffolding for the rollout. As each component is rewritten
+ * against `--alt-*` directly, its entries here stop mattering; when none
+ * are left, the block goes.
+ */
+.alt-root {
+	--dash-bg: var(--alt-bg);
+	--dash-surface: var(--alt-field);
+	--dash-surface-alt: var(--alt-field-2);
+	--dash-card-bg: var(--alt-card);
+	--dash-card-bg-hover: var(--alt-chip);
+	--dash-card-border: var(--alt-card-border);
+	--dash-card-border-highlight: var(--alt-chip-hover);
+	--dash-card-shadow: var(--alt-card-shadow);
+	--dash-text-primary: var(--alt-tx);
+	--dash-text-secondary: var(--alt-tx-2);
+	--dash-text-muted: var(--alt-mut);
+	--dash-text-accent: var(--alt-acc-tx);
+	--dash-accent-purple: var(--alt-accent);
+	--dash-accent-green: var(--alt-green);
+	--dash-accent-red: var(--alt-red);
+	--dash-swap-field-bg: var(--alt-field);
+	--dash-input-border: var(--alt-field-border);
+}
+
+/* ── Primitives shared by every redesigned page ───────────────────────── */
+
+.alt-root :where(button, a, input):focus-visible {
+	outline: 2px solid var(--alt-accent);
+	outline-offset: 2px;
+}
+
+.alt-root :where(input) {
+	font-family: inherit;
+}
+.alt-root :where(input)::placeholder {
+	color: currentColor;
+	opacity: 0.35;
+}
+
+/** The page ground: mesh behind, content above. */
+.alt-page {
+	position: relative;
+	min-height: 100vh;
+	min-height: 100dvh;
+	background: var(--alt-bg);
+	display: flex;
+	flex-direction: column;
+	overflow-x: hidden;
+}
+
+.alt-mesh {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: var(--alt-mesh-opacity);
+	background:
+		radial-gradient(ellipse at 15% 10%, hsla(243, 90%, 65%, 0.32) 0, transparent 40%),
+		radial-gradient(ellipse at 82% 8%, hsla(238, 60%, 55%, 0.18) 0, transparent 38%),
+		radial-gradient(ellipse at 50% 45%, hsla(230, 50%, 40%, 0.16) 0, transparent 45%),
+		radial-gradient(ellipse at 6% 75%, hsla(245, 70%, 55%, 0.16) 0, transparent 35%);
+}
+
+/** Main surface. Padding is 8px — inner field panels carry their own 16px. */
+.alt-card {
+	background: var(--alt-card);
+	border: 1px solid var(--alt-card-border);
+	border-radius: 28px;
+	padding: 8px;
+	box-shadow: var(--alt-card-shadow);
+	-webkit-backdrop-filter: var(--alt-card-blur);
+	backdrop-filter: var(--alt-card-blur);
+}
+
+.alt-field {
+	background: var(--alt-field);
+	border: 1px solid var(--alt-field-border);
+	border-radius: 22px;
+	padding: 16px 16px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.alt-field.alt-field-secondary {
+	background: var(--alt-field-2);
+}
+
+.alt-label {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--alt-tx-2);
+}
+.alt-meta {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--alt-mut);
+}
+
+/** Pill that names the network an amount lives on (MAGI / MAINNET). */
+.alt-net-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	border: 0;
+	border-radius: 999px;
+	padding: 3px 9px;
+	font: inherit;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	background: var(--alt-chip);
+	color: var(--alt-tx-2);
+}
+button.alt-net-chip {
+	cursor: pointer;
+}
+button.alt-net-chip:hover {
+	background: var(--alt-chip-hover);
+	color: var(--alt-tx);
+}
+
+.alt-btn-primary {
+	width: 100%;
+	height: 56px;
+	border: 0;
+	border-radius: 20px;
+	font: inherit;
+	font-size: 17px;
+	font-weight: 800;
+	color: #fff;
+	background: var(--alt-pri);
+	box-shadow: var(--alt-pri-shadow);
+	cursor: pointer;
+	transition: filter 0.15s;
+}
+.alt-btn-primary:hover:not(:disabled) {
+	filter: brightness(1.08);
+}
+.alt-btn-primary:disabled {
+	background: var(--alt-dis-bg);
+	color: var(--alt-dis-tx);
+	box-shadow: none;
+	cursor: not-allowed;
+}
+
+.alt-btn-secondary {
+	height: 50px;
+	border-radius: 18px;
+	background: transparent;
+	border: 1px solid var(--alt-card-border);
+	color: var(--alt-tx);
+	font: inherit;
+	font-size: 15px;
+	font-weight: 700;
+	cursor: pointer;
+}
+.alt-btn-secondary:hover {
+	background: var(--alt-chip);
+}
+
+/** Small accent pill — "Max", badges, the Connect button. */
+.alt-btn-soft {
+	border: 0;
+	border-radius: 999px;
+	background: var(--alt-acc-soft);
+	color: var(--alt-acc-tx);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	padding: 2px 8px;
+	cursor: pointer;
+}
+.alt-btn-soft:hover {
+	background: var(--alt-acc-soft-hover);
+}
+
+@keyframes alt-float {
+	0%,
+	100% {
+		transform: translate(0, 0) rotate(0deg);
+	}
+	50% {
+		transform: translate(0, -18px) rotate(6deg);
+	}
+}
+@keyframes alt-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.alt-root :where(.alt-float) {
+		animation: none !important;
+	}
+}

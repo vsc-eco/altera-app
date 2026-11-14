@@ -1,134 +1,117 @@
 <script lang="ts">
 	import SendSwap from '$lib/sendswap/SendSwap.svelte';
-	import PoolsContent from '$lib/pools/PoolsContent.svelte';
-	import Tabs from '$lib/zag/Tabs.svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
-	const defaultTab = $derived(page.url.searchParams.get('tab') ?? 'swap');
+	/**
+	 * The redesign gives Pools its own page, so the swap screen is one task and
+	 * one card. The old tabbed links (`/swap?tab=pools`, `?tab=custom-pools`)
+	 * are still in the sidebar and in the wild, so they are forwarded rather
+	 * than broken.
+	 */
+	$effect(() => {
+		const tab = page.url.searchParams.get('tab');
+		if (tab === 'pools') {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
+			goto('/pools', { replaceState: true });
+		} else if (tab === 'custom-pools') {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
+			goto('/pools?kind=custom', { replaceState: true });
+		}
+	});
 </script>
 
-<document:head>
+<svelte:head>
 	<title>Swap</title>
-</document:head>
+</svelte:head>
 
-<div class="swap-page">
-	<div class="swap-page-header">
-		<div class="header-top">
-			<span class="status-dot"></span>
-			<span class="badge-text">MAGI CROSS-CHAIN</span>
-		</div>
+<div class="swap-screen">
+	<a
+		class="eyebrow"
+		href="https://magiprotocol.com"
+		target="_blank"
+		rel="noopener noreferrer"
+	>
+		<span class="dot" aria-hidden="true"></span>
+		POWERED BY MAGI NETWORK
+	</a>
+
+	<h1>Swap native assets &ndash; no wrapping, no bridges.</h1>
+
+	<SendSwap txType="swap" />
+
+	<div class="tags">
+		<span>Zero Fees</span>
+		<span>Non-Custodial</span>
+		<span>Any Wallet</span>
 	</div>
-	{#key defaultTab}
-		<Tabs
-			defaultValue={defaultTab}
-			items={[
-				{ value: 'swap', label: 'Swap', content: swapContent },
-				{ value: 'pools', label: 'Pools', content: poolsContent },
-				{ value: 'custom-pools', label: 'Custom Pools', content: customPoolsContent }
-			]}
-		/>
-	{/key}
 </div>
 
-{#snippet swapContent()}
-	<div class="tab-panel send-internal-wrapper">
-		<SendSwap txType="swap" />
-	</div>
-{/snippet}
-
-{#snippet poolsContent()}
-	<div class="tab-panel pools-tab-panel">
-		<PoolsContent kind="standard" />
-	</div>
-{/snippet}
-
-<!-- Pools with a Magi custom token on one side. Same table, same actions —
-     they're only split out so they don't crowd the core HIVE/HBD/BTC pools. -->
-{#snippet customPoolsContent()}
-	<div class="tab-panel pools-tab-panel">
-		<PoolsContent kind="custom" />
-	</div>
-{/snippet}
-
 <style lang="scss">
-	.swap-page {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		min-height: 0;
-	}
-
-	.swap-page-header {
+	.swap-screen {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding: 0.5rem 1rem 0.75rem;
+		gap: 0;
 	}
-	.header-top {
+
+	/* The card is the task surface and stays at the spec's 470px, while the
+	   heading above it uses the full column. */
+	.swap-screen :global(.send-internal-wrapper) {
+		width: 100%;
+		max-width: 470px;
+	}
+
+	.eyebrow {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.375rem;
+		gap: 7px;
+		padding: 6px 14px;
+		border-radius: 999px;
+		border: 1px solid var(--alt-card-border);
+		background: var(--alt-chip);
+		color: var(--alt-tx-2);
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-decoration: none;
+		white-space: nowrap;
 	}
-	.status-dot {
+	.eyebrow:hover {
+		color: var(--alt-tx);
+	}
+	.dot {
 		width: 6px;
 		height: 6px;
-		border-radius: 50%;
-		background-color: var(--dash-accent-green);
-	}
-	.badge-text {
-		color: var(--dash-text-muted);
-		font-size: 0.65rem;
-		font-weight: 600;
-		letter-spacing: 0.1em;
-	}
-	.swap-page-subtitle {
-		color: var(--dash-text-muted);
-		font-size: 0.8rem;
-		margin: 0.125rem 0 0;
+		border-radius: 999px;
+		background: var(--alt-green);
+		box-shadow: 0 0 8px var(--alt-green);
 	}
 
-	.swap-page :global([data-part='root']) {
+	h1 {
+		margin: 18px 0 28px;
+		text-align: center;
+		font-size: clamp(34px, 5.4vw, 56px);
+		font-weight: 700;
+		line-height: 1.06;
+		letter-spacing: -0.025em;
+		text-wrap: balance;
+		color: var(--alt-tx);
+	}
+
+	.tags {
 		display: flex;
-		flex-direction: column;
-		height: 100%;
-		min-height: 0;
-	}
-
-	.swap-page :global([data-part='content']) {
-		flex: 1;
-		min-height: 0;
-		overflow: auto;
-	}
-
-	/* Style the tab triggers */
-	.swap-page :global([data-part='list']) {
+		gap: 8px;
+		flex-wrap: wrap;
 		justify-content: center;
+		margin-top: 18px;
 	}
-	.swap-page :global([data-part='trigger']) {
-		color: var(--dash-text-muted);
-		font-weight: 500;
-		&[data-state='active'] {
-			color: var(--dash-text-primary);
-		}
-	}
-
-	.tab-panel {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		min-height: 0;
-	}
-
-	/* Pools tab: let the table size to its content instead of
-	   stretching to fill the full tab panel height. The tab's
-	   overflow:auto container provides scrolling when needed. */
-	.pools-tab-panel {
-		height: auto;
-	}
-
-	.send-internal-wrapper {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
+	.tags span {
+		padding: 6px 14px;
+		border-radius: 999px;
+		border: 1px solid var(--alt-card-border);
+		color: var(--alt-tx-2);
+		font-size: 12px;
+		font-weight: 600;
 	}
 </style>

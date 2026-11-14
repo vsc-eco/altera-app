@@ -14,9 +14,17 @@
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import UpdateToast from '$lib/components/UpdateToast.svelte';
 	import SwitchUserPanel from '$lib/auth/SwitchUserPanel.svelte';
+	import AltShell from '$lib/redesign/AltShell.svelte';
+	import { isRedesigned } from '$lib/redesign/redesignedRoutes';
 
 	let { children } = $props();
 	let showSidebar = $state(false);
+
+	/** Redesigned pages render in the top-bar shell; everything else keeps the
+	 *  sidebar until its own redesign lands. The auth bootstrap below (account
+	 *  polling, wallet reconnect, the login retry) is shared by both, which is
+	 *  why the switch lives here rather than in a separate route group. */
+	const redesigned = $derived(isRedesigned(page.url.pathname));
 
 	let auth = $derived(getAuth()());
 	let username = $derived(getAccountNameFromAuth(auth));
@@ -61,25 +69,34 @@
 	});
 </script>
 
-<div class="bg-mesh"></div>
-<div class={['app-shell', { showSidebar }]}>
-	<Sidebar bind:visible={showSidebar} />
-	<div class="main-area">
-		<Topbar
-			onMenuToggle={() => {
-				showSidebar = !showSidebar;
-			}}
-		/>
-		{#if page.url.pathname === '/dashboard'}
-			<div class="welcome">
-				Welcome, <span class="welcome-address">{displayAddress}</span>
-			</div>
-		{/if}
-		<main>
-			{@render children()}
-		</main>
+{#if redesigned}
+	<AltShell
+		width={page.url.pathname === '/swap' ? 'task' : 'wide'}
+		floatingCoins={page.url.pathname === '/swap'}
+	>
+		{@render children()}
+	</AltShell>
+{:else}
+	<div class="bg-mesh"></div>
+	<div class={['app-shell', { showSidebar }]}>
+		<Sidebar bind:visible={showSidebar} />
+		<div class="main-area">
+			<Topbar
+				onMenuToggle={() => {
+					showSidebar = !showSidebar;
+				}}
+			/>
+			{#if page.url.pathname === '/dashboard'}
+				<div class="welcome">
+					Welcome, <span class="welcome-address">{displayAddress}</span>
+				</div>
+			{/if}
+			<main>
+				{@render children()}
+			</main>
+		</div>
 	</div>
-</div>
+{/if}
 
 <UpdateToast />
 <SwitchUserPanel />

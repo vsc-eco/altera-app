@@ -587,3 +587,57 @@ describe('priceImpactForRoute / exceedsPoolDepthForRoute', () => {
 		expect(exceedsPoolDepthForRoute(1_000n, null)).toBe(false);
 	});
 });
+
+describe('swap-fee rule (THORChain: max(full slip fee, protocol tier))', () => {
+	// The 2026-06 incident swap (go-vsc-node applier_test incidentArgs): 80.861 HBD
+	// into a 2,474-HBD pool, 3.16% of the pool. The node's applier_slipparity_test
+	// pins the same numbers: fee 47,836 under the THORChain rule, 5,407 today.
+	const X = 2_474_000n;
+	const x = 80_861n;
+	const Y = 47_755_000n;
+
+	it("'off' is today's fee, unchanged", () => {
+		const r = calculateSwap(x, X, Y, 100, 'off');
+		expect(r.totalFee).toBe(calculateSwap(x, X, Y, 100).totalFee);
+		expect(Number(r.totalFee)).toBeGreaterThanOrEqual(5_406);
+		expect(Number(r.totalFee)).toBeLessThanOrEqual(5_408);
+	});
+
+	it("'on' charges the full slip fee on a large swap, uncapped", () => {
+		const r = calculateSwap(x, X, Y, 100, 'on');
+		expect(Number(r.totalFee)).toBeGreaterThanOrEqual(47_835);
+		expect(Number(r.totalFee)).toBeLessThanOrEqual(47_837);
+		expect(r.feeBps).toBeGreaterThan(300);
+		expect(r.feeBps).toBeLessThan(400);
+		expect(r.minAmountOut).toBeLessThanOrEqual(r.expectedOutput);
+	});
+
+	it("'on' charges only the protocol tier on a small swap (never more than today)", () => {
+		const small = 1_000n;
+		const on = calculateSwap(small, X, Y, 100, 'on');
+		const off = calculateSwap(small, X, Y, 100, 'off');
+		expect(on.totalFee).toBeLessThanOrEqual(off.totalFee);
+		expect(on.totalFee).toBe(on.baseFee);
+	});
+
+	it("'both' quotes the higher fee of the two, so min_amount_out holds under either", () => {
+		for (const amt of [1_000n, 20_000n, x, 400_000n]) {
+			const both = calculateSwap(amt, X, Y, 100, 'both');
+			const on = calculateSwap(amt, X, Y, 100, 'on');
+			const off = calculateSwap(amt, X, Y, 100, 'off');
+			const worst = on.totalFee > off.totalFee ? on.totalFee : off.totalFee;
+			expect(both.totalFee).toBe(worst);
+			expect(
+				both.expectedOutput <= on.expectedOutput && both.expectedOutput <= off.expectedOutput
+			).toBe(true);
+		}
+	});
+
+	it('the guard backstop moves to 10% under the THORChain rule (THORSwap only warns)', () => {
+		const r = calculateSwap(x, X, Y, 100, 'on');
+		expect(swapFeeExceedsGuard(r.feeBps, 'off')).toBe(true);
+		expect(swapFeeExceedsGuard(r.feeBps, 'on')).toBe(false);
+		expect(swapFeeExceedsGuard(1_001, 'on')).toBe(true);
+		expect(swapFeeExceedsGuard(301)).toBe(true); // today: unchanged
+	});
+});

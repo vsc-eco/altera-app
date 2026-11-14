@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
-import { SWAP_CONTRACT_ID } from '../hive/vscOperations/swap';
+import {
+	SWAP_CONTRACT_ID,
+	SWAP_NEEDS_QUOTE_MESSAGE,
+	getHiveSwapOp,
+	hasQuoteMinimum
+} from '../hive/vscOperations/swap';
 
 const fetchAccountRc = vi.fn();
 vi.mock('../hive/vscOperations/rcSizing', async (importOriginal) => ({
@@ -190,6 +195,52 @@ describe('buildWalletRouterSwapOps: the swap QuickSwap has always sent', () => {
 			{ feeQualifies: false, availableRc: 30_000 }
 		);
 		expect(r).toEqual({ ok: false, error: 'Enter a receiver address for the target chain' });
+	});
+
+	it('refuses a swap with no quote minimum (prices did not load): it would take any price', () => {
+		const r = buildWalletRouterSwapOps(
+			{
+				caller: EVM,
+				fromCoin: Coin.hbd,
+				toCoin: Coin.btc,
+				amount: new CoinAmount('10', Coin.hbd)
+			},
+			{ feeQualifies: false, availableRc: 30_000 }
+		);
+		expect(r).toEqual({ ok: false, error: SWAP_NEEDS_QUOTE_MESSAGE });
+	});
+
+	it('a quote whose minimum rounds to 0 (a dust swap) still goes out', () => {
+		const r = buildWalletRouterSwapOps(
+			{
+				caller: EVM,
+				fromCoin: Coin.hbd,
+				toCoin: Coin.btc,
+				amount: new CoinAmount('0.001', Coin.hbd),
+				minAmountOut: '0'
+			},
+			{ feeQualifies: false, availableRc: 30_000 }
+		);
+		expect(r.ok).toBe(true);
+	});
+});
+
+describe('hasQuoteMinimum / getHiveSwapOp: a Hive swap needs the quote too', () => {
+	it('only a missing minimum is refused', () => {
+		expect(hasQuoteMinimum(undefined)).toBe(false);
+		expect(hasQuoteMinimum(null)).toBe(false);
+		expect(hasQuoteMinimum('')).toBe(false);
+		expect(hasQuoteMinimum('abc')).toBe(false);
+		expect(hasQuoteMinimum(-1)).toBe(false);
+		expect(hasQuoteMinimum(0)).toBe(true);
+		expect(hasQuoteMinimum('0')).toBe(true);
+		expect(hasQuoteMinimum('4173')).toBe(true);
+	});
+
+	it('getHiveSwapOp refuses to build a swap with no minimum', async () => {
+		await expect(
+			getHiveSwapOp('alice', new CoinAmount('1', Coin.hive), Coin.hive, Coin.hbd, undefined)
+		).rejects.toThrow(SWAP_NEEDS_QUOTE_MESSAGE);
 	});
 });
 

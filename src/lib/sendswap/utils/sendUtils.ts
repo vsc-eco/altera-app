@@ -18,7 +18,13 @@ import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
-import { getBtcApproveOp, getTokenApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
+import {
+	getBtcApproveOp,
+	getTokenApproveOp,
+	getHiveSwapOp,
+	hasQuoteMinimum,
+	SWAP_NEEDS_QUOTE_MESSAGE
+} from '$lib/magiTransactions/hive/vscOperations/swap'
 import {
 	btcPayoutShortfallMessage,
 	estimateCallRc,
@@ -886,6 +892,10 @@ export async function send(
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
 			const fromAmountStr = details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : amount;
 			const minOut = details instanceof SwapTxState && details.minAmountOut ? Number(details.minAmountOut) : undefined;
+			if (!hasQuoteMinimum(minOut)) {
+				setStatus(SWAP_NEEDS_QUOTE_MESSAGE, true);
+				return new Error(SWAP_NEEDS_QUOTE_MESSAGE);
+			}
 			const fromCa = new CoinAmount(fromAmountStr, fromCoin.coin);
 			if (fromCoin.coin.value === Coin.btc.value) {
 				extraOps.push(

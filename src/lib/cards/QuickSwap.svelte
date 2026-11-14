@@ -48,9 +48,12 @@
 	import {
 		getHiveSwapOp,
 		getBtcApproveOp,
-		getAlteraFeePct
+		getAlteraFeePct,
+		hasQuoteMinimum,
+		SWAP_NEEDS_QUOTE_MESSAGE
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
+	import { retryWithBackoff } from '$lib/pools/retryWithBackoff';
 	import {
 		btcPayoutShortfallMessage,
 		sizeBtcPayoutSwap
@@ -388,14 +391,39 @@
 	let hiveHbdPool = $state<TypedPoolDepths | null>(null);
 	let btcHbdPool = $state<TypedPoolDepths | null>(null);
 	let swapResult: SwapCalcResult | null = $state(null);
-	(async () => {
-		const [hiveHbd, btcHbd] = await Promise.all([
-			fetchTypedPoolDepths('HIVE', 'HBD'),
-			fetchTypedPoolDepths('BTC', 'HBD')
-		]);
-		if (hiveHbd) hiveHbdPool = hiveHbd;
-		if (btcHbd) btcHbdPool = btcHbd;
-	})();
+	// A swap goes out only with a quote (SWAP_NEEDS_QUOTE_MESSAGE), so prices
+	// must not stay unloaded: a failed load is retried (1 s, 2 s), and the
+	// reserves are re-read every 30 s while the card is open, which also keeps
+	// a quote from going stale on a dashboard left open. A failed refresh keeps
+	// the last reserves.
+	const POOL_REFRESH_MS = 30_000;
+	let poolsLoading = $state(true);
+	let poolsLoadFailed = $state(false);
+	let poolsRefreshing = false;
+	async function loadPools(maxAttempts = 3) {
+		if (poolsRefreshing) return;
+		poolsRefreshing = true;
+		try {
+			await retryWithBackoff(async () => {
+				const [hiveHbd, btcHbd] = await Promise.all([
+					fetchTypedPoolDepths('HIVE', 'HBD'),
+					fetchTypedPoolDepths('BTC', 'HBD')
+				]);
+				if (hiveHbd) hiveHbdPool = hiveHbd;
+				if (btcHbd) btcHbdPool = btcHbd;
+				return !!hiveHbd && !!btcHbd;
+			}, maxAttempts);
+		} finally {
+			poolsRefreshing = false;
+			poolsLoading = false;
+			poolsLoadFailed = !hiveHbdPool || !btcHbdPool;
+		}
+	}
+	$effect(() => {
+		untrack(() => loadPools());
+		const timer = setInterval(() => loadPools(1), POOL_REFRESH_MS);
+		return () => clearInterval(timer);
+	});
 
 	/**
 	 * Clear local + mirrored swap state when there's no valid result yet
@@ -808,6 +836,11 @@
 			txState.from.coin.value === txState.to.coin.value
 	);
 	const missingReceiver = $derived(!txState.toUsername?.trim());
+	// No quote yet (prices loading or unavailable): the swap would carry no
+	// min_amount_out, so it cannot be sent.
+	const noQuote = $derived(
+		hasAmount && !sameCoinSelected && (!swapResult || !hasQuoteMinimum(txState.minAmountOut))
+	);
 	const exceedsBalance = $derived.by(() => {
 		const from = txState.from;
 		if (!from) return false;
@@ -944,6 +977,10 @@
 
 	async function requestSwap() {
 		if (!validateSwap()) return;
+		if (noQuote) {
+			setError(SWAP_NEEDS_QUOTE_MESSAGE);
+			return;
+		}
 
 		// Overcharge safety guard (hard stop — QuickSwap broadcasts directly,
 		// not through sendUtils.send(), so it needs its own backstop in addition
@@ -1516,13 +1553,26 @@
 			missingReceiver ||
 			exceedsBalance ||
 			exceedsPoolDepth ||
-			feeGuardTripped}
+			feeGuardTripped ||
+			noQuote}
 		styleType="invert submit"
 	>
 		{swapLoading ? 'Swapping...' : 'Swap'}
 	</PillButton>
 	{#if swapStatus && !reviewOpen && !sameCoinSelected && !exceedsBalance}
 		<p class="swap-status" class:error={swapError}>{swapStatus}</p>
+	{/if}
+	{#if noQuote && !swapStatus && !exceedsBalance && !exceedsPoolDepth}
+		<p class="swap-status" class:error={poolsLoadFailed && !poolsLoading}>
+			{#if poolsLoading}
+				Loading prices...
+			{:else if poolsLoadFailed}
+				Prices could not load.
+				<button type="button" class="max-btn" onclick={() => loadPools()}>Retry</button>
+			{:else}
+				Getting a quote...
+			{/if}
+		</p>
 	{/if}
 </div>
 

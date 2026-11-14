@@ -15,8 +15,10 @@ import {
 	ALTERA_FEE_ACTIVE,
 	ALTERA_FEE_BENEFICIARY,
 	ALTERA_FEE_BPS,
+	hasQuoteMinimum,
 	qualifiesForAlteraFee,
-	SWAP_CONTRACT_ID
+	SWAP_CONTRACT_ID,
+	SWAP_NEEDS_QUOTE_MESSAGE
 } from '../hive/vscOperations/swap';
 import {
 	btcPayoutShortfallMessage,
@@ -91,6 +93,9 @@ export function buildWalletRouterSwapOps(
 ): WalletRouterSwapOps {
 	if (swap.destinationChain && !swap.recipient) {
 		return { ok: false, error: 'Enter a receiver address for the target chain' };
+	}
+	if (!hasQuoteMinimum(swap.minAmountOut)) {
+		return { ok: false, error: SWAP_NEEDS_QUOTE_MESSAGE };
 	}
 	const isNativeIn =
 		swap.fromCoin.value === Coin.hive.value || swap.fromCoin.value === Coin.hbd.value;

@@ -68,6 +68,8 @@ export const DEPOSIT_SWAP_REFUNDS_ACTIVE = false;
 
 /**
  * Smallest deposit swap paid with Bitcoin, in sats: a failed swap's refund goes
- * home on Bitcoin with its miner fee taken from it (172 vB at up to ~50 sat/vB).
+ * home on Bitcoin with its miner fee taken from it. The contract prices one vault
+ * input, the payment and change at ~187 vB, so 10,000 sats still clears dust (546)
+ * at up to ~50 sat/vB; a refund that needs two vault inputs (~275 vB), up to ~34.
  */
 export const MIN_BTC_DEPOSIT_SWAP_SATS = 10_000;

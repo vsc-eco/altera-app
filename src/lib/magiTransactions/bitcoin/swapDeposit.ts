@@ -98,8 +98,17 @@ export function buildBtcSwapInstruction(input: BtcSwapInstructionInput): BtcSwap
 			};
 		}
 		params.set('refund_to', refundTo);
+		// Without a minimum the swap runs at whatever price it finds an hour later
+		// (the deposit needs its confirmations first): never issue an address
+		// without one.
 		const min = (input.minAmountOut ?? '').trim();
-		if (min && /^[0-9]+$/.test(min) && min !== '0') params.set('min_amount_out', min);
+		if (!/^[0-9]+$/.test(min) || /^0+$/.test(min)) {
+			return {
+				ok: false,
+				error: 'The quote is not ready yet: wait for the minimum amount received, then try again.'
+			};
+		}
+		params.set('min_amount_out', min);
 	}
 	return { ok: true, instruction: params.toString(), recipient };
 }

@@ -176,10 +176,29 @@ describe('deposit-swap refunds (refund_to, min_amount_out, minimum)', () => {
 		expect(btc.ok && btc.instruction).toBe(
 			'swap_to=hive%3Ainnopay&swap_asset_out=hbd&destination_chain=HIVE&refund_to=bc1qf87mytrp3dj9sm2y2yensj3g454n3p6k2t6sr5&min_amount_out=7900'
 		);
-		const hive = buildBtcSwapInstruction({ ...base, refundTo: 'hive:sender', refundsActive: true });
+		const hive = buildBtcSwapInstruction({
+			...base,
+			refundTo: 'hive:sender',
+			minAmountOut: '7900',
+			refundsActive: true
+		});
 		expect(hive.ok && hive.instruction).toBe(
-			'swap_to=hive%3Ainnopay&swap_asset_out=hbd&destination_chain=HIVE&refund_to=hive%3Asender'
+			'swap_to=hive%3Ainnopay&swap_asset_out=hbd&destination_chain=HIVE&refund_to=hive%3Asender&min_amount_out=7900'
 		);
+	});
+
+	it('refuses to issue an address without a quote minimum once active', () => {
+		for (const minAmountOut of [undefined, '', '0', '000', '12.5', 'abc', '-5']) {
+			const r = buildBtcSwapInstruction({
+				...base,
+				refundTo: 'hive:sender',
+				minAmountOut,
+				refundsActive: true
+			});
+			expect(r.ok, String(minAmountOut)).toBe(false);
+		}
+		// While refunds are off nothing changes: no min is sent, as today.
+		expect(buildBtcSwapInstruction({ ...base, refundsActive: false }).ok).toBe(true);
 	});
 
 	it('refuses without a refund target once active (an EVM-only login)', () => {

@@ -62,7 +62,8 @@
 			toNetwork: toNetwork.value,
 			amountSats: amount.amount,
 			refundTo,
-			minAmountOut
+			minAmountOut,
+			testnet: isVscTestnet()
 		});
 		if (!built.ok) {
 			error = built.error;

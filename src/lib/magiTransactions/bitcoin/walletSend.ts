@@ -93,14 +93,16 @@ export async function sendBtcFromConnectedWallet(params: {
 		);
 	}
 
-	// A payment from this wallet to this deposit address that is still
-	// unconfirmed means the user already paid (a send whose wallet window
-	// crashed or closed can still go out). Sending again would be a second
-	// swap. Stop and say so.
-	const pending = await findPendingPayment(params.recipient, walletAddress);
-	if (pending) {
+	// A payment from this wallet to this deposit address means the user already
+	// paid (a send whose wallet window crashed or closed can still go out).
+	// Sending again would be a second swap. Stop and say so.
+	const paid = await findPendingPayment(params.recipient, walletAddress);
+	if (paid) {
 		throw new Error(
-			`You already sent BTC to this deposit address (transaction ${pending}). It is waiting for confirmation: do not send again.`
+			`You already sent BTC to this deposit address (transaction ${paid.txid}). ` +
+				(paid.confirmed
+					? 'It has confirmed and the swap is on its way: do not send again.'
+					: 'It is waiting for confirmation: do not send again.')
 		);
 	}
 
@@ -178,24 +180,36 @@ function mempoolApiBase(address: string): string {
 	return testnet ? 'https://mempool.space/testnet/api' : 'https://mempool.space/api';
 }
 
+/** A payment this wallet already made to this deposit address. */
+export type ExistingPayment = { txid: string; confirmed: boolean };
+
 /**
- * The txid of an unconfirmed payment from `fromAddress` to `depositAddress`, or
- * null. A lookup failure returns null: this guards against a double payment and
- * must never stop a send on its own.
+ * An existing payment from `fromAddress` to `depositAddress`, or null.
+ *
+ * Both confirmed and unconfirmed count. A deposit address belongs to one swap
+ * instruction, so a payment that has already confirmed but not yet been mapped
+ * is just as much "already paid" as one still in the mempool — and the mempool
+ * is exactly where it stops being visible. Checking only the mempool left a
+ * window (confirmed, not yet swapped) in which a second payment, and so a
+ * second swap, went through. `/address/:addr/txs` returns the mempool
+ * transactions first, then the most recent confirmed ones, which is all a
+ * single-use deposit address can have.
+ *
+ * A lookup failure returns null: this guards against a double payment and must
+ * never stop a send on its own.
  */
 export async function findPendingPayment(
 	depositAddress: string,
 	fromAddress: string,
 	fetchImpl: typeof fetch = fetch
-): Promise<string | null> {
+): Promise<ExistingPayment | null> {
 	if (!depositAddress || !fromAddress) return null;
 	try {
-		const res = await fetchImpl(
-			`${mempoolApiBase(depositAddress)}/address/${depositAddress}/txs/mempool`
-		);
+		const res = await fetchImpl(`${mempoolApiBase(depositAddress)}/address/${depositAddress}/txs`);
 		if (!res.ok) return null;
 		const txs = (await res.json()) as Array<{
 			txid: string;
+			status?: { confirmed?: boolean };
 			vin?: Array<{ prevout?: { scriptpubkey_address?: string } }>;
 			vout?: Array<{ scriptpubkey_address?: string }>;
 		}>;
@@ -204,7 +218,7 @@ export async function findPendingPayment(
 				(i) => i.prevout?.scriptpubkey_address === fromAddress
 			);
 			const toDeposit = (tx.vout ?? []).some((o) => o.scriptpubkey_address === depositAddress);
-			if (fromWallet && toDeposit) return tx.txid;
+			if (fromWallet && toDeposit) return { txid: tx.txid, confirmed: !!tx.status?.confirmed };
 		}
 		return null;
 	} catch {

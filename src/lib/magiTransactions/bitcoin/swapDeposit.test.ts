@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
 	buildBtcSwapInstruction,
+	btcAddressNetwork,
 	requestBtcSwapDepositAddress,
 	hiveAccountExists
 } from './swapDeposit';
@@ -229,5 +230,85 @@ describe('deposit-swap refunds (refund_to, min_amount_out, minimum)', () => {
 				throw new Error('down');
 			})
 		).rejects.toThrow('down');
+	});
+});
+
+describe('btcAddressNetwork (a refund address is really one, on the right network)', () => {
+	it('names the network of each address form', () => {
+		for (const [addr, want] of [
+			['bc1qf87mytrp3dj9sm2y2yensj3g454n3p6k2t6sr5', 'mainnet'],
+			['BC1QF87MYTRP3DJ9SM2Y2YENSJ3G454N3P6K2T6SR5', 'mainnet'],
+			['1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2', 'mainnet'],
+			['3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy', 'mainnet'],
+			['tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx', 'testnet'],
+			['bcrt1q4h7w2n6jnvs4fc7rvxa78a75rkcxx4ch44jl8m', 'testnet'],
+			['mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn', 'testnet'],
+			['2N9hLwkSqr1cPQAPxbrGVUjxyjD11G2e1he', 'testnet']
+		] as const) {
+			expect(btcAddressNetwork(addr), addr).toBe(want);
+		}
+	});
+
+	it('refuses what only LOOKS like one', () => {
+		for (const addr of [
+			'',
+			undefined,
+			'nonsense', // a leading-character test accepted this: 'n' is a testnet prefix
+			'manual',
+			'3',
+			'1',
+			'2',
+			'bc1qshort', // too short for bech32
+			'bC1qf87mytrp3dj9sm2y2yensj3g454n3p6k2t6sr5', // mixed case is invalid bech32
+			'bc1qf87mytrp3dj9sm2y2yensj3g454n3p6k2t6sr5b1o', // 'b','1','o' are not bech32 data
+			'0BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2', // no base58 version byte
+			'1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN0', // '0' is not base58
+			'hive:sender',
+			'did:pkh:eip155:1:0xabc'
+		]) {
+			expect(btcAddressNetwork(addr), String(addr)).toBeNull();
+		}
+	});
+});
+
+describe('a refund address on the wrong network is caught here, not at the bot', () => {
+	const base = {
+		recipient: 'hive:innopay',
+		toCoin: Coin.hbd.value,
+		toNetwork: Network.hiveMainnet.value,
+		amountSats: 20_000,
+		minAmountOut: '7900',
+		refundsActive: true
+	};
+
+	it('refuses a testnet refund address on mainnet, and the reverse', () => {
+		const onMainnet = buildBtcSwapInstruction({
+			...base,
+			refundTo: 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx',
+			testnet: false
+		});
+		expect(onMainnet).toEqual({
+			ok: false,
+			error: 'That refund address is for Bitcoin testnet, but this swap is on mainnet.'
+		});
+		const onTestnet = buildBtcSwapInstruction({ ...base, refundTo: BTC_ADDR, testnet: true });
+		expect(onTestnet).toEqual({
+			ok: false,
+			error: 'That refund address is for Bitcoin mainnet, but this swap is on testnet.'
+		});
+	});
+
+	it('accepts the matching network, and a hive: refund on either', () => {
+		expect(buildBtcSwapInstruction({ ...base, refundTo: BTC_ADDR, testnet: false }).ok).toBe(true);
+		expect(
+			buildBtcSwapInstruction({
+				...base,
+				refundTo: 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx',
+				testnet: true
+			}).ok
+		).toBe(true);
+		expect(buildBtcSwapInstruction({ ...base, refundTo: 'hive:sender', testnet: true }).ok).toBe(
+			true
+		);
 	});
 });

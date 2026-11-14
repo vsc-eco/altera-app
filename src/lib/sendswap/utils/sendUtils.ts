@@ -5,12 +5,26 @@ import { CoinAmount } from '$lib/currency/CoinAmount'
 import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName'
 import { btcSigner } from '$lib/magiTransactions/bitcoin/signer'
 import { getEVMOpType } from '$lib/magiTransactions/eth'
-import { createClient, signAndBrodcastTransaction } from '$lib/magiTransactions/eth/client'
+import {
+	createClient,
+	signAndBrodcastTransaction,
+	type Transaction
+} from '$lib/magiTransactions/eth/client'
+import {
+	prepareWalletRouterSwap,
+	walletSwapFromMagi
+} from '$lib/magiTransactions/eth/walletRouterSwap'
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
-import { getBtcApproveOp, getTokenApproveOp, getHiveSwapOp } from '$lib/magiTransactions/hive/vscOperations/swap'
+import {
+	getBtcApproveOp,
+	getTokenApproveOp,
+	getHiveSwapOp,
+	hasQuoteMinimum,
+	SWAP_NEEDS_QUOTE_MESSAGE
+} from '$lib/magiTransactions/hive/vscOperations/swap'
 import {
 	btcPayoutShortfallMessage,
 	estimateCallRc,
@@ -675,38 +689,89 @@ export async function send(
 
 			// console.log('created reown client:', client);
 
-			const evmToDid =
-				toNetwork.value === Network.btcMainnet.value ? toUsername : getDidFromUsername(toUsername);
-			const sendOp = getEVMOpType(
-				fromNetwork,
-				toNetwork,
-				auth.value.did,
-				evmToDid,
-				new CoinAmount(amount, toCoin.coin)
-			);
-
-			// A BTC withdrawal's cost grows with the vault coins it spends: size its
-			// rc_limit from a dry run, as the Hive path does. If the node cannot answer,
-			// the fixed limit stands.
-			if (sendOp.op === 'call' && sendOp.payload.action === 'unmap') {
-				setStatus('Estimating network resources…');
-				const estimate = await estimateCallRc({
-					callerDid: auth.value.did,
-					contractId: sendOp.payload.contract_id,
-					action: sendOp.payload.action,
-					payload: sendOp.payload.payload
+			// A swap from the account's Magi balance goes through the DEX router,
+			// as on the QuickSwap card. getEVMOpType below only moves an asset: it
+			// signed a transfer, withdraw or unmap of the OUTPUT, so no swap ran and
+			// whatever the account held of the output went out instead.
+			let txOps: Transaction[];
+			let walletSwap: ReturnType<typeof walletSwapFromMagi> = null;
+			if (fromNetwork.value === Network.magi.value && fromCoin.coin.value !== toCoin.coin.value) {
+				const customTokens = await getCustomTokens();
+				walletSwap = walletSwapFromMagi({
+					caller: auth.value.did,
+					fromCoin: fromCoin.coin,
+					toCoin: toCoin.coin,
+					fromNetwork: fromNetwork.value,
+					toNetwork: toNetwork.value,
+					fromAmount: details.fromAmount ?? '',
+					toUsername,
+					minAmountOut: details instanceof SwapTxState ? details.minAmountOut : undefined,
+					swapCoins: [
+						Coin.hive.value,
+						Coin.hbd.value,
+						Coin.btc.value,
+						...customTokens.map((t) => t.symbol)
+					],
+					customTokenContractId: customTokens.find((t) => t.symbol === fromCoin.coin.value)
+						?.contractId
 				});
-				if (estimate.ok) {
-					sendOp.payload.rc_limit = estimate.rcLimit;
-				} else if (estimate.reason === 'insufficient-rc') {
-					const msg = rcShortfallMessage(estimate, 'withdrawal');
-					setStatus(msg, true);
-					return new Error(msg);
-				} else if (estimate.reason === 'call-fails') {
-					const msg = `This withdrawal would fail on chain: ${estimate.error}`;
+			}
+			if (walletSwap && 'error' in walletSwap) {
+				setStatus(walletSwap.error, true);
+				return new Error(walletSwap.error);
+			}
+			if (walletSwap) {
+				// Same overcharge guard as the Hive wallet path.
+				if (details instanceof SwapTxState && swapFeeExceedsGuard(details.swapFeeBps)) {
+					const msg = swapFeeGuardMessage(details.swapFeeBps);
 					setStatus(msg, true);
 					return new Error(msg);
 				}
+				setStatus('Estimating network resources…');
+				const prepared = await prepareWalletRouterSwap(
+					walletSwap,
+					get(accountBalance).bal?.resource_credits
+				);
+				if (!prepared.ok) {
+					setStatus(prepared.error, true);
+					return new Error(prepared.error);
+				}
+				txOps = prepared.ops;
+			} else {
+				const evmToDid =
+					toNetwork.value === Network.btcMainnet.value ? toUsername : getDidFromUsername(toUsername);
+				const sendOp = getEVMOpType(
+					fromNetwork,
+					toNetwork,
+					auth.value.did,
+					evmToDid,
+					new CoinAmount(amount, toCoin.coin)
+				);
+
+				// A BTC withdrawal's cost grows with the vault coins it spends: size its
+				// rc_limit from a dry run, as the Hive path does. If the node cannot answer,
+				// the fixed limit stands.
+				if (sendOp.op === 'call' && sendOp.payload.action === 'unmap') {
+					setStatus('Estimating network resources…');
+					const estimate = await estimateCallRc({
+						callerDid: auth.value.did,
+						contractId: sendOp.payload.contract_id,
+						action: sendOp.payload.action,
+						payload: sendOp.payload.payload
+					});
+					if (estimate.ok) {
+						sendOp.payload.rc_limit = estimate.rcLimit;
+					} else if (estimate.reason === 'insufficient-rc') {
+						const msg = rcShortfallMessage(estimate, 'withdrawal');
+						setStatus(msg, true);
+						return new Error(msg);
+					} else if (estimate.reason === 'call-fails') {
+						const msg = `This withdrawal would fail on chain: ${estimate.error}`;
+						setStatus(msg, true);
+						return new Error(msg);
+					}
+				}
+				txOps = [sendOp];
 			}
 
 			setStatus(
@@ -718,8 +783,8 @@ export async function send(
 			}
 			const id = await (
 				isBtcWallet
-					? signAndBrodcastTransaction([sendOp], btcSigner, client, signal)
-					: signAndBrodcastTransaction([sendOp], wagmiSigner, client, signal, wagmiConfig!)
+					? signAndBrodcastTransaction(txOps, btcSigner, client, signal)
+					: signAndBrodcastTransaction(txOps, wagmiSigner, client, signal, wagmiConfig!)
 			)
 				.then((result) => {
 					setStatus(`Transaction submitted successfully!`);
@@ -827,6 +892,10 @@ export async function send(
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
 			const fromAmountStr = details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : amount;
 			const minOut = details instanceof SwapTxState && details.minAmountOut ? Number(details.minAmountOut) : undefined;
+			if (!hasQuoteMinimum(minOut)) {
+				setStatus(SWAP_NEEDS_QUOTE_MESSAGE, true);
+				return new Error(SWAP_NEEDS_QUOTE_MESSAGE);
+			}
 			const fromCa = new CoinAmount(fromAmountStr, fromCoin.coin);
 			if (fromCoin.coin.value === Coin.btc.value) {
 				extraOps.push(

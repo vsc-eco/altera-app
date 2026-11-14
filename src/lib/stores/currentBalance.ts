@@ -8,6 +8,12 @@ import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 import { queryOnce } from '$lib/queryOnce';
+import {
+	btcSendFeeReserve,
+	fetchBtcFeeReserve,
+	spendableSats,
+	type MempoolAddressStats
+} from '$lib/stores/btcSpendable';
 
 type AccountBalanceSnapshot = {
 	bal: AccountBalance;
@@ -89,11 +95,11 @@ export function isBtcTestnetAddress(address: string): boolean {
 
 /**
  * On-chain Bitcoin wallet balance via mempool.space's public REST
- * API. Returns sats (confirmed + unconfirmed mempool net). Used for
- * the QuickSwap card so reown-BTC users see their real wallet max
- * instead of the Magi-mapped balance — QuickSwap is a mainnet↔
- * mainnet cross-chain swap so the Leather wallet balance is the
- * right cap.
+ * API: what the wallet can spend now, in sats (confirmed coins less
+ * what pending payments spend; unconfirmed change is not spendable
+ * yet). Used for the QuickSwap card and /swap so reown-BTC users see
+ * their real wallet max instead of the Magi-mapped balance. Also
+ * refreshes the miner-fee reserve a send must leave room for.
  */
 async function fetchOnChainBtcBalance(address: string): Promise<number> {
 	if (!address) return 0;
@@ -101,17 +107,13 @@ async function fetchOnChainBtcBalance(address: string): Promise<number> {
 		? 'https://mempool.space/testnet/api/address/'
 		: 'https://mempool.space/api/address/';
 	try {
-		const res = await fetch(`${base}${address}`);
+		const [res, reserve] = await Promise.all([
+			fetch(`${base}${address}`),
+			fetchBtcFeeReserve(isBtcTestnetAddress(address))
+		]);
+		btcSendFeeReserve.set(reserve);
 		if (!res.ok) return 0;
-		const data = (await res.json()) as {
-			chain_stats?: { funded_txo_sum?: number; spent_txo_sum?: number };
-			mempool_stats?: { funded_txo_sum?: number; spent_txo_sum?: number };
-		};
-		const confirmed =
-			(data.chain_stats?.funded_txo_sum ?? 0) - (data.chain_stats?.spent_txo_sum ?? 0);
-		const unconfirmed =
-			(data.mempool_stats?.funded_txo_sum ?? 0) - (data.mempool_stats?.spent_txo_sum ?? 0);
-		return Math.max(0, confirmed + unconfirmed);
+		return spendableSats((await res.json()) as MempoolAddressStats);
 	} catch (err) {
 		console.error('Failed to fetch on-chain BTC balance', err);
 		return 0;

@@ -61,6 +61,19 @@ const BPS_SCALE = 10000n;
  */
 const CLP_SCALE_BPS = 625n;
 
+/**
+ * Which swap-fee rule the node charges (go-vsc-node
+ * params.ConsensusParams.PendulumSlipParityHeight):
+ *  - 'off':  today's rule, protocol tier (8 bps × m) + the slip fee × 1/16.
+ *  - 'on':   THORChain's rule (x/thorchain/swap_current.go GetSwapCalc): the
+ *            larger of the full slip fee x²·Y/(x+X)² and the protocol tier.
+ *  - 'both': across the activation height, quote the higher of the two fees so
+ *            min_amount_out holds whichever rule the swap meets.
+ * Set 'both' in the release before the node height, 'on' once it has passed.
+ */
+export type SlipFeeRule = 'off' | 'both' | 'on';
+export const SLIP_FEE_RULE: SlipFeeRule = 'off';
+
 import { GetStateByKeysStore } from '$houdini';
 import { queryOnce } from '$lib/queryOnce';
 import { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from './poolsData';
@@ -142,9 +155,20 @@ export interface SwapCalcResult {
  */
 export const SWAP_FEE_GUARD_BPS = 300; // 3%
 
+/**
+ * Under THORChain's rule the slip fee is the trade's own price impact, honestly
+ * charged, so 3% only means the trade is ~3% of the pool. THORSwap warns on high
+ * impact and never blocks; this keeps a backstop for a clearly wrong quote.
+ */
+export const SWAP_FEE_GUARD_PARITY_BPS = 1000; // 10%
+
 /** True when a modelled swap fee is above the safety threshold. */
-export function swapFeeExceedsGuard(feeBps: number | undefined | null): boolean {
-	return feeBps != null && feeBps > SWAP_FEE_GUARD_BPS;
+export function swapFeeExceedsGuard(
+	feeBps: number | undefined | null,
+	rule: SlipFeeRule = SLIP_FEE_RULE
+): boolean {
+	const limit = rule === 'off' ? SWAP_FEE_GUARD_BPS : SWAP_FEE_GUARD_PARITY_BPS;
+	return feeBps != null && feeBps > limit;
 }
 
 /** Single source of truth for the user-facing guard message. */
@@ -239,7 +263,8 @@ export function calculateSwap(
 	x: bigint,
 	X: bigint,
 	Y: bigint,
-	slippageBps: number
+	slippageBps: number,
+	rule: SlipFeeRule = SLIP_FEE_RULE
 ): SwapCalcResult {
 	if (x <= 0n || X <= 0n || Y <= 0n) {
 		return {
@@ -273,7 +298,18 @@ export function calculateSwap(
 	//     (Pre-fix this also got `m`, charging ≈2× price impact — the bug milo
 	//     fixed.) `charged = floor(base * bps / BpsScale)`.
 	const chargedProtocolFee = (baseProtocolFee * STABILIZER_CAP_BPS) / BPS_SCALE;
-	const chargedClpFee = (baseClpFee * CLP_SCALE_BPS) / BPS_SCALE;
+	const scaledClpFee = (baseClpFee * CLP_SCALE_BPS) / BPS_SCALE;
+	// THORChain's rule: the total is max(full slip fee, protocol tier), so the
+	// CLP leg carries only what the slip fee adds above the protocol tier.
+	const parityClpFee = baseClpFee > chargedProtocolFee ? baseClpFee - chargedProtocolFee : 0n;
+	const chargedClpFee =
+		rule === 'off'
+			? scaledClpFee
+			: rule === 'on'
+				? parityClpFee
+				: parityClpFee > scaledClpFee
+					? parityClpFee
+					: scaledClpFee;
 	const totalFee = chargedProtocolFee + chargedClpFee;
 
 	// expectedOutput is the worst-case net delivery (m = 2.0).
@@ -300,9 +336,18 @@ export function calculateSwap(
 	// while still rising with a genuine large-fee regression. `totalFee` /
 	// `expectedOutput` keep the floored values so the quote stays honest about
 	// what's actually charged.
+	const structuralProtocol = ((grossOut * 8n) / 10000n) * (STABILIZER_CAP_BPS / BPS_SCALE);
+	const structuralClp = (x * x * Y) / (newX * newX);
+	const structuralScaled = structuralProtocol + (structuralClp * CLP_SCALE_BPS) / BPS_SCALE;
+	const structuralParity = structuralClp > structuralProtocol ? structuralClp : structuralProtocol;
 	const structuralFee =
-		((grossOut * 8n) / 10000n) * (STABILIZER_CAP_BPS / BPS_SCALE) +
-		(((x * x * Y) / (newX * newX)) * CLP_SCALE_BPS) / BPS_SCALE;
+		rule === 'off'
+			? structuralScaled
+			: rule === 'on'
+				? structuralParity
+				: structuralParity > structuralScaled
+					? structuralParity
+					: structuralScaled;
 
 	return {
 		baseFee: chargedProtocolFee,
@@ -519,7 +564,8 @@ export function calculateTwoHopSwap(
 	assetIn: string,
 	hopAsset: string,
 	assetOut: string,
-	slippageBps: number
+	slippageBps: number,
+	rule: SlipFeeRule = SLIP_FEE_RULE
 ): SwapCalcResult {
 	const hop1Depths = getOrderedDepthsFor(pool1, assetIn);
 	if (!hop1Depths) {
@@ -534,7 +580,7 @@ export function calculateTwoHopSwap(
 		};
 	}
 	// First hop runs at its own pool and produces an intermediate amount.
-	const hop1 = calculateSwap(x, hop1Depths.X, hop1Depths.Y, 0);
+	const hop1 = calculateSwap(x, hop1Depths.X, hop1Depths.Y, 0, rule);
 	const hop1Fee = {
 		asset: hopAsset,
 		baseFee: hop1.baseFee,
@@ -558,7 +604,7 @@ export function calculateTwoHopSwap(
 			hop1Fee
 		};
 	}
-	const hop2 = calculateSwap(hop1.expectedOutput, hop2Depths.X, hop2Depths.Y, slippageBps);
+	const hop2 = calculateSwap(hop1.expectedOutput, hop2Depths.X, hop2Depths.Y, slippageBps, rule);
 
 	// Fees are output-denominated at each hop: hop1 fees are in `hopAsset`,
 	// hop2 fees are in `assetOut`. The top-level fee fields hold hop2 (in

@@ -32,6 +32,7 @@
 	import { usdPerUnit } from '$lib/currency/convert';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
+	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { getHiveAssetName, getHbdAssetName, vscNetworkId } from '$lib/../client';
@@ -654,8 +655,12 @@ let expectedOutputUsd = $derived.by(() => {
 			? ($customTokenBalances.bal[from.coin.value] ?? 0)
 			: getBalanceSmallestUnits($accountBalance, from.coin, from.network);
 		if (bal <= 0) return true;
+		const sendable =
+			from.coin.value === Coin.btc.value && from.network.value === Network.btcMainnet.value
+				? maxSendableSats(bal, $btcSendFeeReserve)
+				: bal;
 		const inputNum = new CoinAmount(fromAmount, from.coin).toNumber();
-		const balNum = new CoinAmount(bal, from.coin, true).toNumber();
+		const balNum = new CoinAmount(sendable, from.coin, true).toNumber();
 		return inputNum > balNum;
 	});
 
@@ -818,7 +823,13 @@ let expectedOutputUsd = $derived.by(() => {
 		const from = txState.from;
 		if (!from) return undefined;
 		const coinValue = from.coin.value;
-		if (from.network.value === Network.hiveMainnet.value) {
+		// BTC on Bitcoin is the wallet's on-chain balance (connectedBal), as for
+		// Hive L1; reading the Magi-mapped balance here showed one balance and
+		// checked another (insufficientBalance reads the wallet).
+		if (
+			from.network.value === Network.hiveMainnet.value ||
+			from.network.value === Network.btcMainnet.value
+		) {
 			const connected = $accountBalance.connectedBal;
 			if (!connected) return undefined;
 			const bal = connected[coinValue as keyof typeof connected];
@@ -837,6 +848,18 @@ let expectedOutputUsd = $derived.by(() => {
 		const bal = $accountBalance.bal?.[key];
 		if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
 		return new CoinAmount(bal, from.coin, true);
+	});
+
+	// A BTC send from the wallet must leave room for its miner fee: asking the
+	// wallet for the whole balance fails there (Leather: InsufficientFunds).
+	const paysBitcoinFee = $derived(
+		txState.from?.coin.value === Coin.btc.value &&
+			txState.from?.network.value === Network.btcMainnet.value
+	);
+	const maxSendable = $derived.by(() => {
+		if (!maxAmount || !paysBitcoinFee) return maxAmount;
+		const sats = maxSendableSats(maxAmount.amount, $btcSendFeeReserve);
+		return sats > 0 ? new CoinAmount(sats, maxAmount.coin, true) : undefined;
 	});
 
 	let dialogOpen = $state(false);
@@ -1218,7 +1241,7 @@ let expectedOutputUsd = $derived.by(() => {
 							bind:coinAmount={inputAmount}
 							coinOpts={amountInputCoinOpts}
 							{minAmount}
-							{maxAmount}
+							maxAmount={maxSendable}
 							hideUnit
 							hideUsd
 							hideNetwork
@@ -1250,7 +1273,9 @@ let expectedOutputUsd = $derived.by(() => {
 						<span class="section-error-inline">Select a different token</span>
 					{:else if insufficientBalance && txState.from}
 						<span class="section-error-inline"
-							>Insufficient {coinDisplayLabel(txState.from.coin)} balance</span
+							>{paysBitcoinFee
+								? `Not enough BTC for the amount plus the network fee (about ${$btcSendFeeReserve} sats)`
+								: `Insufficient ${coinDisplayLabel(txState.from.coin)} balance`}</span
 						>
 					{:else if exceedsPoolDepth}
 						<span class="section-error-inline">Insufficient pool liquidity — try a smaller amount</span>

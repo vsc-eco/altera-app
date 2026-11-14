@@ -18,6 +18,7 @@ import {
 	calculatePriceImpact,
 	swapFeeExceedsGuard,
 	SWAP_FEE_GUARD_BPS,
+	SLIP_FEE_RULE,
 	buildSwapRoute,
 	calculateRouteSwap,
 	priceImpactForRoute,
@@ -127,7 +128,7 @@ describe('calculateSwap', () => {
 	// leg, these turn red — that's the overcharge bug.
 
 	it('expectedOutput = grossOut − 2×protocol − (1/16)×CLP (exact)', () => {
-		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100);
+		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100, 'off');
 		const newX = 2_313_898n + 150_000n;
 		const grossOut = 1_426_458n - (2_313_898n * 1_426_458n) / newX;
 		let baseProtocol = (grossOut * 8n) / 10000n;
@@ -140,7 +141,7 @@ describe('calculateSwap', () => {
 	});
 
 	it('CLP leg is scaled to 1/16 with no stabilizer (the overcharge fix)', () => {
-		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100);
+		const r = calculateSwap(150_000n, 2_313_898n, 1_426_458n, 100, 'off');
 		const newX = 2_313_898n + 150_000n;
 		let baseCLP = (150_000n * 150_000n * 1_426_458n) / (newX * newX);
 		if (baseCLP === 0n) baseCLP = 1n;
@@ -426,9 +427,9 @@ describe('swap fee guard', () => {
 		// 200,000 units ≈ 9% of reserve. Pre-2026-06-19 (CLP × 2× stabilizer) this
 		// modelled at ~4% and was wrongly blocked; post-fix (CLP × 1/16) it's well
 		// under the 3% guard, so it goes through.
-		const r = calculateSwap(200_000n, hiveHbdPool.reserve0, hiveHbdPool.reserve1, 100);
+		const r = calculateSwap(200_000n, hiveHbdPool.reserve0, hiveHbdPool.reserve1, 100, 'off');
 		expect(r.feeBps).toBeLessThan(SWAP_FEE_GUARD_BPS);
-		expect(swapFeeExceedsGuard(r.feeBps)).toBe(false);
+		expect(swapFeeExceedsGuard(r.feeBps, 'off')).toBe(false);
 	});
 
 	it('feeBps grows monotonically with swap size', () => {
@@ -447,8 +448,8 @@ describe('swap fee guard', () => {
 		expect(swapFeeExceedsGuard(undefined)).toBe(false);
 		expect(swapFeeExceedsGuard(null)).toBe(false);
 		expect(swapFeeExceedsGuard(0)).toBe(false);
-		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS)).toBe(false); // boundary: not strictly greater
-		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS + 1)).toBe(true);
+		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS, 'off')).toBe(false); // boundary: not strictly greater
+		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS + 1, 'off')).toBe(true);
 	});
 });
 
@@ -585,5 +586,68 @@ describe('priceImpactForRoute / exceedsPoolDepthForRoute', () => {
 	it('returns neutral values for a null route', () => {
 		expect(priceImpactForRoute(1_000n, null)).toBe(0);
 		expect(exceedsPoolDepthForRoute(1_000n, null)).toBe(false);
+	});
+});
+
+describe('swap-fee rule (THORChain: max(full slip fee, protocol tier))', () => {
+	// The 2026-06 incident swap (go-vsc-node applier_test incidentArgs): 80.861 HBD
+	// into a 2,474-HBD pool, 3.16% of the pool. The node's applier_slipparity_test
+	// pins the same numbers: fee 47,836 under the THORChain rule, 5,407 today.
+	const X = 2_474_000n;
+	const x = 80_861n;
+	const Y = 47_755_000n;
+
+	it("'off' is today's fee, unchanged", () => {
+		const r = calculateSwap(x, X, Y, 100, 'off');
+		expect(Number(r.totalFee)).toBeGreaterThanOrEqual(5_406);
+		expect(Number(r.totalFee)).toBeLessThanOrEqual(5_408);
+	});
+
+	it("'on' charges the full slip fee on a large swap, uncapped", () => {
+		const r = calculateSwap(x, X, Y, 100, 'on');
+		expect(Number(r.totalFee)).toBeGreaterThanOrEqual(47_835);
+		expect(Number(r.totalFee)).toBeLessThanOrEqual(47_837);
+		expect(r.feeBps).toBeGreaterThan(300);
+		expect(r.feeBps).toBeLessThan(400);
+		expect(r.minAmountOut).toBeLessThanOrEqual(r.expectedOutput);
+	});
+
+	it("'on' charges only the protocol tier on a small swap (never more than today)", () => {
+		const small = 1_000n;
+		const on = calculateSwap(small, X, Y, 100, 'on');
+		const off = calculateSwap(small, X, Y, 100, 'off');
+		expect(on.totalFee).toBeLessThanOrEqual(off.totalFee);
+		expect(on.totalFee).toBe(on.baseFee);
+	});
+
+	it("'both' quotes the higher fee of the two, so min_amount_out holds under either", () => {
+		for (const amt of [1_000n, 20_000n, x, 400_000n]) {
+			const both = calculateSwap(amt, X, Y, 100, 'both');
+			const on = calculateSwap(amt, X, Y, 100, 'on');
+			const off = calculateSwap(amt, X, Y, 100, 'off');
+			const worst = on.totalFee > off.totalFee ? on.totalFee : off.totalFee;
+			expect(both.totalFee).toBe(worst);
+			expect(
+				both.expectedOutput <= on.expectedOutput && both.expectedOutput <= off.expectedOutput
+			).toBe(true);
+		}
+	});
+
+	it('the guard backstop moves to 10% under the THORChain rule (THORSwap only warns)', () => {
+		const r = calculateSwap(x, X, Y, 100, 'on');
+		expect(swapFeeExceedsGuard(r.feeBps, 'off')).toBe(true);
+		expect(swapFeeExceedsGuard(r.feeBps, 'on')).toBe(false);
+		expect(swapFeeExceedsGuard(1_001, 'on')).toBe(true);
+		expect(swapFeeExceedsGuard(301, 'off')).toBe(true); // today: unchanged
+	});
+
+	it('the quote and the guard follow SLIP_FEE_RULE when no rule is named', () => {
+		for (const amt of [1_000n, x, 400_000n]) {
+			const byDefault = calculateSwap(amt, X, Y, 100);
+			const named = calculateSwap(amt, X, Y, 100, SLIP_FEE_RULE);
+			expect(byDefault.totalFee).toBe(named.totalFee);
+			expect(byDefault.minAmountOut).toBe(named.minAmountOut);
+		}
+		expect(swapFeeExceedsGuard(301)).toBe(swapFeeExceedsGuard(301, SLIP_FEE_RULE));
 	});
 });

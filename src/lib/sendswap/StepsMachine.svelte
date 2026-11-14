@@ -63,6 +63,14 @@
 	function setStatus(s: string, isError = false) {
 		status = { message: s, isError: isError };
 	}
+	// send() and onSubmit report failures by returning an Error, but some paths
+	// throw instead. Without this the "Waiting for signature" overlay stayed up
+	// for good, with no message and no wallet prompt.
+	function failSend(err: unknown) {
+		console.error(err);
+		setStatus(err instanceof Error ? err.message : String(err), true);
+		waiting = false;
+	}
 
 	// stages and navigation
 	//
@@ -92,14 +100,16 @@
 			setStatus('');
 			if (onSubmit) {
 				waiting = true;
-				onSubmit(setStatus, abortSend.signal).then((res) => {
-					if (res instanceof Error) {
-						console.error(res.message);
-					} else {
-						txId = res.id;
-					}
-					waiting = false;
-				});
+				onSubmit(setStatus, abortSend.signal)
+					.then((res) => {
+						if (res instanceof Error) {
+							console.error(res.message);
+						} else {
+							txId = res.id;
+						}
+						waiting = false;
+					})
+					.catch(failSend);
 			} else {
 				initSend();
 			}
@@ -183,15 +193,17 @@
 
 		waiting = true;
 		// console.log('waiting for signature');
-		send(txState, auth, decision.intermediary, setStatus, abortSend.signal).then((res) => {
-			if (res instanceof Error) {
-				// log the error if it isn't caught
-				console.error(res.message);
-			} else {
-				txId = res.id;
-			}
-			waiting = false;
-		});
+		send(txState, auth, decision.intermediary, setStatus, abortSend.signal)
+			.then((res) => {
+				if (res instanceof Error) {
+					// log the error if it isn't caught
+					console.error(res.message);
+				} else {
+					txId = res.id;
+				}
+				waiting = false;
+			})
+			.catch(failSend);
 		return;
 	}
 

@@ -318,10 +318,16 @@
 		font-weight: 500;
 		color: var(--alt-mut);
 	}
+	/* Below the header, not above it. `header` sets `z-index: 5`, which makes it
+	   a stacking context, so the popup's own `z-index: 20` only orders it
+	   *within* the header — against this scrim the whole header counts as 5. A
+	   scrim above that still shows the popup (it is transparent) while eating
+	   every click aimed at it. Sitting at 4 it covers the page content
+	   (`main` and `footer` are at 1) and nothing else. */
 	.menu-scrim {
 		position: fixed;
 		inset: 0;
-		z-index: 10;
+		z-index: 4;
 	}
 
 	.right {

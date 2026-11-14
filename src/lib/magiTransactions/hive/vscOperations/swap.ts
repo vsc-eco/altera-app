@@ -76,6 +76,21 @@ export async function qualifiesForAlteraFee(
 export const SWAP_CONTRACT_ID = DEX_ROUTER_CONTRACT_ID;
 
 /**
+ * A router swap goes out only with the quote's min_amount_out. Without a quote
+ * (pool prices did not load) the router would take any price, and the pool fee
+ * has no cap of its own. A quote whose minimum rounds to 0 (a dust swap) is
+ * still a quote; only a missing one is refused.
+ */
+export const SWAP_NEEDS_QUOTE_MESSAGE =
+	'Prices have not loaded yet, so this swap would have no price protection. Wait a moment or retry.';
+
+export function hasQuoteMinimum(min: string | number | undefined | null): boolean {
+	if (min === undefined || min === null || min === '') return false;
+	const n = Number(min);
+	return Number.isFinite(n) && n >= 0;
+}
+
+/**
  * Grants the DEX router allowance to spend exactly `amount` BTC (in SATS)
  * on the mapping contract. Uses `increaseAllowance` so the allowance is
  * additive per operation and matches the liquidity/swap amount being
@@ -148,6 +163,7 @@ export async function getHiveSwapOp(
 	 *  for other destinations, so a fixed value fails it. */
 	payoutRcLimit?: number
 ): Promise<CustomJsonOperation> {
+	if (!hasQuoteMinimum(minAmountOut)) throw new Error(SWAP_NEEDS_QUOTE_MESSAGE);
 	const caller = `hive:${username}`;
 	const isNative = assetIn.value === Coin.hive.value || assetIn.value === Coin.hbd.value;
 

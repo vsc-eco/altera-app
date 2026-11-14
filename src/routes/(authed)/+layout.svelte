@@ -15,7 +15,7 @@
 	import UpdateToast from '$lib/components/UpdateToast.svelte';
 	import SwitchUserPanel from '$lib/auth/SwitchUserPanel.svelte';
 	import AltShell from '$lib/redesign/AltShell.svelte';
-	import { isRedesigned } from '$lib/redesign/redesignedRoutes';
+	import { isRedesigned, pageWidth } from '$lib/redesign/redesignedRoutes';
 
 	let { children } = $props();
 	let showSidebar = $state(false);
@@ -71,7 +71,7 @@
 
 {#if redesigned}
 	<AltShell
-		width={page.url.pathname === '/swap' ? 'task' : 'wide'}
+		width={pageWidth(page.url.pathname)}
 		floatingCoins={page.url.pathname === '/swap'}
 	>
 		{@render children()}

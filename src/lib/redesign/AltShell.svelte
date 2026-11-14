@@ -32,10 +32,14 @@
 	}
 
 	const walletItems = [
-		{ href: '/dashboard', title: 'Portfolio', hint: 'Balances and history' },
+		{ href: '/portfolio', title: 'Portfolio', hint: 'Balances and history' },
 		{ href: '/transactions', title: 'Transactions', hint: 'Everything on your account' },
 		{ href: '/transfer', title: 'Transfer', hint: 'Send to someone else' },
-		{ href: '/deposit', title: 'Deposit / Withdraw', hint: 'Move assets in and out' }
+		{ href: '/deposit', title: 'Deposit / Withdraw', hint: 'Move assets in and out' },
+		// The old dashboard stays on the previous shell as the working backup
+		// of the controls the redesigned pages have not picked up yet. Linked
+		// here so it is reachable rather than orphaned at a URL nobody knows.
+		{ href: '/dashboard', title: 'Classic dashboard', hint: 'The previous layout' }
 	];
 	const marketItems = [
 		{ href: '/custom-tokens', title: 'Magi Tokens / NFTs', hint: 'What you hold' },
@@ -446,9 +450,31 @@
 		color: var(--alt-tx-2);
 	}
 
+	/* The coins are drawn behind a *translucent* card. On a wide screen they
+	   are placed in the margins either side of it; once the column narrows to
+	   the card's own width they end up behind it instead, and glass being
+	   glass, they read as blobs sitting ON the task. The reference prototype
+	   is desktop-only and has no answer for this — drop them. */
 	@media (max-width: 760px) {
+		.coins {
+			display: none;
+		}
 		.account-name {
 			display: none;
+		}
+	}
+
+	/* Narrower still, brand + nav + account no longer share a line. Left to
+	   itself `nav` wraps *inside* its own flex child and stacks Swap over
+	   Pools next to the logo; give it a row of its own instead. */
+	@media (max-width: 560px) {
+		.brand {
+			margin-right: auto;
+		}
+		nav {
+			order: 3;
+			flex-basis: 100%;
+			justify-content: center;
 		}
 	}
 </style>

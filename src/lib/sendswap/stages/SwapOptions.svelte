@@ -153,7 +153,8 @@
 	});
 
 	let swapResult: SwapCalcResult | null = $state(null);
-	let slippageBps = $state(100); // default 1%
+	const DEFAULT_SLIPPAGE_BPS = 100; // 1%
+	let slippageBps = $state(DEFAULT_SLIPPAGE_BPS);
 	const slippageOptions = [50, 100, 200, 300]; // 0.5%, 1%, 2%, 3%
 	let customSlippageOpen = $state(false);
 	let customSlippageInput = $state('');
@@ -425,6 +426,17 @@ let expectedOutputUsd = $derived.by(() => {
 	const isMainnet = vscNetworkId === 'vsc-mainnet';
 	const chainLabel = isMainnet ? 'Mainnet' : 'Testnet';
 
+	/**
+	 * The redesign's "Advanced" switch, off by default.
+	 *
+	 * It gates the two expert controls the handoff names: the slippage chips
+	 * and the Deliver-to panel. Turning it back off resets BOTH to their
+	 * defaults — not just Deliver-to, as the spec says, because a slippage
+	 * the user raised and can no longer see is a setting acting on their swap
+	 * behind their back.
+	 */
+	let advanced = $state(false);
+
 	let destChoice: 'wallet' | 'address' = $state('wallet');
 
 	/** True when the selected TO asset exists only on Magi — i.e. a custom
@@ -442,6 +454,18 @@ let expectedOutputUsd = $derived.by(() => {
 	$effect(() => {
 		if (toIsMagiOnly && destChoice === 'address') destChoice = 'wallet';
 	});
+
+	/** Leaving Advanced returns the controls it hides to their defaults, so
+	 *  nothing it set keeps applying out of sight. */
+	function setAdvanced(on: boolean) {
+		advanced = on;
+		if (on) return;
+		destChoice = 'wallet';
+		destAddress = '';
+		customSlippageOpen = false;
+		slippageBps = DEFAULT_SLIPPAGE_BPS;
+	}
+
 	let destAddress = $state('');
 
 	function getStoredNetwork(): string {
@@ -1219,6 +1243,19 @@ let expectedOutputUsd = $derived.by(() => {
 	<!-- ── Swap Card ── -->
 	<div class="swap-col-left">
 		<div class="quick-swap-card">
+			<!-- Card header: the task's name, and the one switch that reveals
+			     every expert control on this screen. -->
+			<div class="card-head">
+				<h2 class="card-title">Swap</h2>
+				<label class="advanced-toggle">
+					<input
+						type="checkbox"
+						checked={advanced}
+						onchange={(e) => setAdvanced(e.currentTarget.checked)}
+					/>
+					Advanced
+				</label>
+			</div>
 			<!-- From Section -->
 			<div class="swap-section">
 				<div class="section-header">
@@ -1373,7 +1410,11 @@ let expectedOutputUsd = $derived.by(() => {
 
 	<!-- ── CENTER RIGHT: Deliver To ── -->
 	<div class="swap-col-right">
-		<!-- Deliver To Section -->
+		<!-- Deliver To Section. An expert control: the default swap keeps the
+		     asset on Magi in the user's own account, so it only appears under
+		     Advanced. The quote summary below it is NOT gated — it shares this
+		     column but is what every user reads before confirming. -->
+		{#if advanced}
 		<div class="deliver-to-card">
 			<span class="deliver-label">DELIVER TO</span>
 
@@ -1480,6 +1521,7 @@ let expectedOutputUsd = $derived.by(() => {
 				</p>
 			</div>
 		</div>
+		{/if}
 		<!-- Fees Section (collapsible) -->
 		{#if txState.from && txState.to}
 			{@const fromDec = txState.from.coin.decimalPlaces}
@@ -1511,7 +1553,10 @@ let expectedOutputUsd = $derived.by(() => {
 					{/if}
 				</div>
 
-				<!-- Always visible: slippage + toggle header -->
+				<!-- Slippage chips: an expert control, so Advanced-only. The
+				     tolerance in force is still reported in the rows below, so
+				     hiding the chips never hides the value. -->
+				{#if advanced}
 				<div class="fees-header">
 					<span class="fee-label">Slippage Tolerance</span>
 					<div class="fees-header-right">
@@ -1570,6 +1615,7 @@ let expectedOutputUsd = $derived.by(() => {
 						</div>
 					</div>
 				</div>
+				{/if}
 
 				<!-- Text warning — always rendered to reserve space; visibility toggled via CSS -->
 				<div
@@ -1689,6 +1735,44 @@ let expectedOutputUsd = $derived.by(() => {
 {/if}
 
 <style lang="scss">
+	/* ── Card header: title + the Advanced switch ──────────────────────── */
+	.card-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 6px 8px 10px 14px;
+	}
+	.card-title {
+		margin: 0;
+		font-size: 16px;
+		font-weight: 700;
+		color: var(--dash-text-primary);
+	}
+	.advanced-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		height: 34px;
+		padding: 0 10px;
+		border-radius: 999px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--dash-text-secondary);
+		cursor: pointer;
+		user-select: none;
+	}
+	.advanced-toggle:hover {
+		color: var(--dash-text-primary);
+	}
+	.advanced-toggle input {
+		width: 16px;
+		height: 16px;
+		margin: 0;
+		accent-color: #6f6af8;
+		cursor: pointer;
+	}
+
 	/* ═══ Layout ═══ */
 	.swap-layout {
 		display: flex;

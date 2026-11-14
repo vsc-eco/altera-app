@@ -720,6 +720,10 @@
 			toCoin={txState.to.coin}
 			toNetwork={txState.to.network}
 			fallbackAddress={auth.value?.address}
+			refundTo={auth.value?.provider === 'aioha' && auth.value.username
+				? `hive:${auth.value.username}`
+				: auth.value?.address}
+			minAmountOut={asSwap?.minAmountOut}
 			onback={() => (btcDepositOpen = false)}
 			ondone={() => goHome?.()}
 		/>

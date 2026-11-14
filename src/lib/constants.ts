@@ -55,3 +55,19 @@ export function getMemPoolTxUrl(btcTxId: string): string {
 	const network = isVscTestnet() ? '/testnet' : '';
 	return `https://mempool.space${network}/tx/${btcTxId}`;
 }
+
+/**
+ * Deposit swaps paid with Bitcoin carry refund_to (the sender's own hive:
+ * account or Bitcoin address) and min_amount_out. Off until the BTC mapping
+ * contract that refunds to refund_to is active on this network: the contract
+ * before it honours min_amount_out but pays a swap that misses it to swap_to,
+ * which may be a third party. Turn on with the contract upgrade, before the
+ * mapping bot starts requiring refund_to.
+ */
+export const DEPOSIT_SWAP_REFUNDS_ACTIVE = false;
+
+/**
+ * Smallest deposit swap paid with Bitcoin, in sats: a failed swap's refund goes
+ * home on Bitcoin with its miner fee taken from it (172 vB at up to ~50 sat/vB).
+ */
+export const MIN_BTC_DEPOSIT_SWAP_SATS = 10_000;

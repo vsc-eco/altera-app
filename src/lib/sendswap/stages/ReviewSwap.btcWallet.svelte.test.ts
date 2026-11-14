@@ -37,6 +37,25 @@ vi.mock('$lib/currency/convert', async (importOriginal) => ({
 	getExchangeRates: async () => null
 }));
 
+// The Hive payout's receiver must exist on Hive before an address is issued.
+const getAccounts = vi.fn();
+vi.mock('$lib/magiTransactions/dhive', () => ({
+	DHive: { database: { getAccounts: (names: string[]) => getAccounts(names) } }
+}));
+
+// refund_to and min_amount_out go into the instruction only once the contract
+// that refunds to refund_to is live; the flag is read at call time.
+let refundsActive = false;
+vi.mock('$lib/constants', async (importOriginal) => {
+	const orig = await importOriginal<typeof import('$lib/constants')>();
+	return {
+		...orig,
+		get DEPOSIT_SWAP_REFUNDS_ACTIVE() {
+			return refundsActive;
+		}
+	};
+});
+
 const DEPOSIT = 'bc1qdepositaddressxxxxxxxxxxxxxxxxxxxxxxxxx';
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
@@ -65,6 +84,9 @@ function mappingBotCalls() {
 
 beforeEach(() => {
 	auth = LEATHER;
+	refundsActive = false;
+	getAccounts.mockReset();
+	getAccounts.mockImplementation(async (names: string[]) => names.map((name) => ({ name })));
 	sendBtc.mockReset();
 	fetchMock.mockReset();
 	fetchMock.mockImplementation(async (url: string) => {
@@ -163,6 +185,67 @@ describe('ReviewSwap: swap paid with Bitcoin from a Bitcoin wallet', () => {
 		expect(sendBtc).not.toHaveBeenCalled();
 		await fireEvent.click(screen.getByRole('button', { name: 'Back' }));
 		await screen.findByRole('button', { name: 'Swap' });
+	});
+
+	it('checks the Hive receiver exists before asking for an address', async () => {
+		render(Harness, { txState: swapState({}), next: vi.fn(), goHome: vi.fn() });
+		await clickSwap();
+		await screen.findByText('Send with connected wallet');
+		expect(getAccounts).toHaveBeenCalledWith(['innopay']);
+	});
+
+	it('refuses a Hive receiver that has no Hive account, without asking the mapping bot', async () => {
+		getAccounts.mockResolvedValue([]);
+		render(Harness, { txState: swapState({}), next: vi.fn(), goHome: vi.fn() });
+		await clickSwap();
+		await screen.findByText('There is no Hive account innopay.');
+		expect(mappingBotCalls()).toHaveLength(0);
+		expect(sendBtc).not.toHaveBeenCalled();
+	});
+
+	it('refuses to issue an address when Hive cannot be asked', async () => {
+		getAccounts.mockRejectedValue(new Error('rpc down'));
+		render(Harness, { txState: swapState({}), next: vi.fn(), goHome: vi.fn() });
+		await clickSwap();
+		await screen.findByText('Could not check the Hive account. Try again.');
+		expect(mappingBotCalls()).toHaveLength(0);
+	});
+
+	it('does not check Hive for a payout kept on Magi', async () => {
+		render(Harness, {
+			txState: swapState({ toNet: Network.magi, toUsername: BTC_ADDR }),
+			next: vi.fn(),
+			goHome: vi.fn()
+		});
+		await clickSwap();
+		await screen.findByText('Send with connected wallet');
+		expect(getAccounts).not.toHaveBeenCalled();
+	});
+
+	it('refuses a swap below the Bitcoin minimum without asking the mapping bot', async () => {
+		const s = swapState({});
+		s.fromAmount = '0.00009';
+		render(Harness, { txState: s, next: vi.fn(), goHome: vi.fn() });
+		await clickSwap();
+		await screen.findByText(/needs at least 0.0001 BTC/);
+		expect(mappingBotCalls()).toHaveLength(0);
+	});
+
+	it('with refunds active, refunds go to the sender: own Bitcoin address, quote minimum', async () => {
+		refundsActive = true;
+		const s = swapState({});
+		s.minAmountOut = '8600';
+		render(Harness, { txState: s, next: vi.fn(), goHome: vi.fn() });
+		await clickSwap();
+		await screen.findByText('Send with connected wallet');
+		const sent = new URLSearchParams(JSON.parse(mappingBotCalls()[0][1].body).instruction);
+		expect(Object.fromEntries(sent)).toEqual({
+			swap_to: 'hive:innopay',
+			swap_asset_out: 'hbd',
+			destination_chain: 'HIVE',
+			refund_to: BTC_ADDR,
+			min_amount_out: '8600'
+		});
 	});
 
 	it('refuses a Hive payout to a non-Hive receiver without asking the mapping bot', async () => {

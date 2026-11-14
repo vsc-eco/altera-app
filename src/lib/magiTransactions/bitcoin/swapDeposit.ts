@@ -1,5 +1,6 @@
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { getDidFromUsername } from '$lib/getAccountName';
+import { DEPOSIT_SWAP_REFUNDS_ACTIVE, MIN_BTC_DEPOSIT_SWAP_SATS } from '$lib/constants';
 
 /**
  * Swaps paid with Bitcoin from the user's own wallet (Leather, Xverse, ...).
@@ -19,6 +20,17 @@ export type BtcSwapInstructionInput = {
 	toCoin: string;
 	/** Network value the output settles on. */
 	toNetwork: string;
+	/** The BTC amount, in sats (refused below MIN_BTC_DEPOSIT_SWAP_SATS). */
+	amountSats?: number;
+	/**
+	 * Where the BTC goes back if the swap does not complete: the sender's own
+	 * hive: account or Bitcoin address (never a third party).
+	 */
+	refundTo?: string;
+	/** Smallest output accepted, in the output asset's smallest units. */
+	minAmountOut?: string;
+	/** Defaults to DEPOSIT_SWAP_REFUNDS_ACTIVE (tests set it). */
+	refundsActive?: boolean;
 };
 
 export type BtcSwapInstruction =
@@ -61,8 +73,34 @@ export function buildBtcSwapInstruction(input: BtcSwapInstructionInput): BtcSwap
 		return { ok: false, error: 'Enter a Hive account to receive on Hive.' };
 	}
 
+	if (input.amountSats !== undefined && input.amountSats < MIN_BTC_DEPOSIT_SWAP_SATS) {
+		return {
+			ok: false,
+			error: `A swap paid with Bitcoin needs at least ${MIN_BTC_DEPOSIT_SWAP_SATS / 1e8} BTC, so a refund can always cover its network fee.`
+		};
+	}
+
 	const params = new URLSearchParams({ swap_to: recipient, swap_asset_out: input.toCoin });
 	if (destinationChain) params.set('destination_chain', destinationChain);
+
+	if (input.refundsActive ?? DEPOSIT_SWAP_REFUNDS_ACTIVE) {
+		// The contract sends a swap that does not complete back to refund_to; a
+		// payout on Magi or Hive settles in the swap itself, so a Bitcoin refund
+		// address is enough (the mapping bot and the contract apply the same rule).
+		const refundTo = (input.refundTo ?? '').trim();
+		const hiveRefund = refundTo.startsWith('hive:');
+		const btcRefund = /^(bc1|tb1|bcrt1|[123mn2])/.test(refundTo) && !hiveRefund;
+		if (!hiveRefund && !btcRefund) {
+			return {
+				ok: false,
+				error:
+					'A swap paid with Bitcoin needs a refund address: sign in with your Bitcoin wallet or your Hive account.'
+			};
+		}
+		params.set('refund_to', refundTo);
+		const min = (input.minAmountOut ?? '').trim();
+		if (min && /^[0-9]+$/.test(min) && min !== '0') params.set('min_amount_out', min);
+	}
 	return { ok: true, instruction: params.toString(), recipient };
 }
 
@@ -87,4 +125,23 @@ export async function requestBtcSwapDepositAddress(
 	const { address } = (await res.json()) as { address?: string };
 	if (!address) throw new Error('Mapping bot returned no address');
 	return address;
+}
+
+/**
+ * Whether a Hive account exists. A payout to a name Hive has no account for
+ * fails at the gateway and holds every Hive withdrawal behind it (NEW-GW-2), so
+ * an address is never issued for one. Throws if Hive cannot be asked.
+ */
+export async function hiveAccountExists(
+	name: string,
+	getAccounts?: (names: string[]) => Promise<unknown[]>
+): Promise<boolean> {
+	const lookup =
+		getAccounts ??
+		(async (names: string[]) => {
+			const { DHive } = await import('$lib/magiTransactions/dhive');
+			return DHive.database.getAccounts(names);
+		});
+	const found = await lookup([name.replace(/^hive:/, '').replace(/^@/, '')]);
+	return Array.isArray(found) && found.length > 0;
 }

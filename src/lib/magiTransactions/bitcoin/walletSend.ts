@@ -93,18 +93,26 @@ export async function sendBtcFromConnectedWallet(params: {
 		);
 	}
 
+	// A payment from this wallet to this deposit address that is still
+	// unconfirmed means the user already paid (a send whose wallet window
+	// crashed or closed can still go out). Sending again would be a second
+	// swap. Stop and say so.
+	const pending = await findPendingPayment(params.recipient, walletAddress);
+	if (pending) {
+		throw new Error(
+			`You already sent BTC to this deposit address (transaction ${pending}). It is waiting for confirmation: do not send again.`
+		);
+	}
+
 	// Some wallets (notably Leather) depend on a flaky external
-	// fee-estimation API and spuriously reject with
-	// `InsufficientFunds` when that API is momentarily unavailable.
-	// Retry once with a short backoff before surfacing the error.
-	// Wallet-agnostic: any wallet whose error message matches the
-	// transient-failure patterns benefits from the retry, and the
-	// happy path is unaffected (first call succeeds → no retry).
+	// fee-estimation API and spuriously reject with `InsufficientFunds`
+	// when that API is momentarily unavailable. That happens during coin
+	// selection, before anything is signed, so one retry cannot pay twice.
+	// A timeout, a 500 or a network error can come AFTER the wallet
+	// broadcast: those are never retried (a retry there is a second payment).
 	const MAX_ATTEMPTS = 2;
 	const isRetryable = (raw: string): boolean =>
-		/InsufficientFunds|insufficient[_\s]?funds|fee[_\s]?estimat|500|temporarily|timeout|network\s*error/i.test(
-			raw
-		);
+		/InsufficientFunds|insufficient[_\s]?funds|fee[_\s]?estimat/i.test(raw);
 
 	let lastErr: unknown = null;
 	for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -159,5 +167,47 @@ export async function sendBtcFromConnectedWallet(params: {
 			);
 		}
 		throw new Error(raw);
+	}
+}
+
+function mempoolApiBase(address: string): string {
+	const testnet =
+		address.startsWith('tb1') ||
+		address.startsWith('bcrt1') ||
+		['2', 'm', 'n'].includes(address[0]);
+	return testnet ? 'https://mempool.space/testnet/api' : 'https://mempool.space/api';
+}
+
+/**
+ * The txid of an unconfirmed payment from `fromAddress` to `depositAddress`, or
+ * null. A lookup failure returns null: this guards against a double payment and
+ * must never stop a send on its own.
+ */
+export async function findPendingPayment(
+	depositAddress: string,
+	fromAddress: string,
+	fetchImpl: typeof fetch = fetch
+): Promise<string | null> {
+	if (!depositAddress || !fromAddress) return null;
+	try {
+		const res = await fetchImpl(
+			`${mempoolApiBase(depositAddress)}/address/${depositAddress}/txs/mempool`
+		);
+		if (!res.ok) return null;
+		const txs = (await res.json()) as Array<{
+			txid: string;
+			vin?: Array<{ prevout?: { scriptpubkey_address?: string } }>;
+			vout?: Array<{ scriptpubkey_address?: string }>;
+		}>;
+		for (const tx of txs) {
+			const fromWallet = (tx.vin ?? []).some(
+				(i) => i.prevout?.scriptpubkey_address === fromAddress
+			);
+			const toDeposit = (tx.vout ?? []).some((o) => o.scriptpubkey_address === depositAddress);
+			if (fromWallet && toDeposit) return tx.txid;
+		}
+		return null;
+	} catch {
+		return null;
 	}
 }

@@ -2,13 +2,14 @@
 	import { onMount } from 'svelte';
 	import QRCode from 'qrcode';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import { Coin, type Network } from '$lib/sendswap/utils/sendOptions';
+	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import DepositAddressNotice from '$lib/sendswap/components/DepositAddressNotice.svelte';
 	import { isVscTestnet } from '$lib/../client';
 	import {
 		buildBtcSwapInstruction,
+		hiveAccountExists,
 		requestBtcSwapDepositAddress
 	} from '$lib/magiTransactions/bitcoin/swapDeposit';
 
@@ -22,6 +23,8 @@
 		toCoin,
 		toNetwork,
 		fallbackAddress,
+		refundTo,
+		minAmountOut,
 		onback,
 		ondone
 	}: {
@@ -31,6 +34,11 @@
 		toCoin: Coin;
 		toNetwork: Network;
 		fallbackAddress?: string;
+		/** The sender's own hive: account or Bitcoin address: where a swap that
+		 *  does not complete goes back to. */
+		refundTo?: string;
+		/** The quote's smallest accepted output, in the output's smallest units. */
+		minAmountOut?: string;
 		/** Back to the review. */
 		onback: () => void;
 		/** Close the flow. */
@@ -51,7 +59,10 @@
 		const built = buildBtcSwapInstruction({
 			recipient,
 			toCoin: toCoin.value,
-			toNetwork: toNetwork.value
+			toNetwork: toNetwork.value,
+			amountSats: amount.amount,
+			refundTo,
+			minAmountOut
 		});
 		if (!built.ok) {
 			error = built.error;
@@ -59,6 +70,18 @@
 			return;
 		}
 		try {
+			// A payout to a name Hive has no account for fails at the gateway and
+			// holds every Hive withdrawal behind it: never issue an address for one.
+			if (toNetwork.value === Network.hiveMainnet.value) {
+				let exists: boolean;
+				try {
+					exists = await hiveAccountExists(built.recipient);
+				} catch {
+					throw new Error('Could not check the Hive account. Try again.');
+				}
+				if (!exists)
+					throw new Error(`There is no Hive account ${built.recipient.replace(/^hive:/, '')}.`);
+			}
 			address = await requestBtcSwapDepositAddress(
 				built.instruction,
 				isVscTestnet() ? 'testnet' : 'mainnet'

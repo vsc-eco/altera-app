@@ -28,6 +28,7 @@
 		getBalanceSmallestUnits,
 		type AccountBalance
 	} from '$lib/stores/currentBalance';
+	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import { untrack } from 'svelte';
 	import { ArrowDown, ArrowUpDown, ChevronDown, Search } from '@lucide/svelte';
 	import { getHiveAssetName, getHbdAssetName, isVscTestnet } from '$lib/../client';
@@ -47,26 +48,14 @@
 	import {
 		getHiveSwapOp,
 		getBtcApproveOp,
-		SWAP_CONTRACT_ID,
-		qualifiesForAlteraFee,
-		ALTERA_FEE_BENEFICIARY,
-		ALTERA_FEE_BPS,
-		ALTERA_FEE_ACTIVE,
 		getAlteraFeePct
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 	import {
 		btcPayoutShortfallMessage,
-		fetchAccountRc,
-		rcShortfallMessage,
 		sizeBtcPayoutSwap
 	} from '$lib/magiTransactions/hive/vscOperations/rcSizing';
-	import {
-		buildEvmSwapOps,
-		evmSwapRcLimit,
-		EVM_APPROVE_RC_LIMIT
-	} from '$lib/magiTransactions/eth/evmSwap';
-	import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+	import { prepareWalletRouterSwap } from '$lib/magiTransactions/eth/walletRouterSwap';
 	import { executeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import {
@@ -81,6 +70,11 @@
 	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 	import QRCode from 'qrcode';
 	import DepositAddressNotice from '$lib/sendswap/components/DepositAddressNotice.svelte';
+	import {
+		buildBtcSwapInstruction,
+		hiveAccountExists,
+		requestBtcSwapDepositAddress
+	} from '$lib/magiTransactions/bitcoin/swapDeposit';
 
 	const auth = $derived(getAuth()());
 
@@ -584,6 +578,19 @@
 		return new CoinAmount(raw, from.coin, true);
 	});
 
+	// A BTC send from the wallet must leave room for its miner fee: asking the
+	// wallet for the whole balance fails there (Leather: InsufficientFunds).
+	const paysBitcoinFee = $derived(
+		txState.from?.coin.value === Coin.btc.value &&
+			txState.from?.network.value === Network.btcMainnet.value
+	);
+	const maxSendable = $derived.by(() => {
+		if (!maxAmount) return undefined;
+		if (!paysBitcoinFee) return maxAmount;
+		const sats = maxSendableSats(maxAmount.amount, $btcSendFeeReserve);
+		return sats > 0 ? new CoinAmount(sats, maxAmount.coin, true) : undefined;
+	});
+
 	let dialogOpen = $state(false);
 	let toggle = $state<(open?: boolean) => void>(() => {});
 	let currentlyOpen: 'from' | 'to' = $state('from');
@@ -806,8 +813,9 @@
 		if (!from) return false;
 		const entered = inputAmount.amount;
 		if (!Number.isFinite(entered) || entered <= 0) return false;
-		const maxSmallest = getBalanceSmallestUnits($accountBalance, from.coin, from.network);
-		if (maxSmallest <= 0) return false;
+		const balance = getBalanceSmallestUnits($accountBalance, from.coin, from.network);
+		if (balance <= 0) return false;
+		const maxSmallest = paysBitcoinFee ? maxSendableSats(balance, $btcSendFeeReserve) : balance;
 		return entered > maxSmallest;
 	});
 
@@ -962,42 +970,31 @@
 			btcDepositToggle(true);
 			btcDepositLoading = true;
 			try {
-				const rawReceiver = txState.toUsername?.trim() ?? '';
-				const normalizedReceiver = rawReceiver.startsWith('hive:')
-					? rawReceiver
-					: rawReceiver.startsWith('@')
-						? `hive:${rawReceiver.slice(1)}`
-						: `hive:${rawReceiver}`;
-				const toAsset = txState.to!.coin.value;
-				// Map the target coin to the chain the DEX router should
-				// settle on. Without this the swapped funds stay in Magi
-				// instead of being withdrawn to the user's mainnet wallet.
-				const chainMap: Record<string, string> = {
-					hive: 'HIVE',
-					hbd: 'HIVE',
-					btc: 'BTC'
-				};
-				const destinationChain = chainMap[toAsset] ?? 'MAGI';
-				const instructionParams = new URLSearchParams({
-					swap_to: normalizedReceiver,
-					swap_asset_out: toAsset,
-					destination_chain: destinationChain
+				// Same instruction and refund rules as the /swap page
+				// (swapDeposit.ts): the sender's own refund_to, the quote's
+				// min_amount_out, a minimum that a Bitcoin refund can pay for.
+				const built = buildBtcSwapInstruction({
+					recipient: txState.toUsername,
+					toCoin: txState.to!.coin.value,
+					toNetwork: txState.to!.network.value,
+					amountSats: inputAmount.amount,
+					refundTo: auth.value?.address,
+					minAmountOut: txState.minAmountOut
 				});
-				const res = await fetch('/api/mapping-bot', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						instruction: instructionParams.toString(),
-						network: isVscTestnet() ? 'testnet' : 'mainnet'
-					})
-				});
-				if (!res.ok) {
-					const text = await res.text();
-					throw new Error(`Mapping bot error (${res.status}): ${text}`);
+				if (!built.ok) throw new Error(built.error);
+				if (txState.to!.network.value === Network.hiveMainnet.value) {
+					let exists: boolean;
+					try {
+						exists = await hiveAccountExists(built.recipient);
+					} catch {
+						throw new Error('Could not check the Hive account. Try again.');
+					}
+					if (!exists) throw new Error(`There is no Hive account ${built.recipient.replace(/^hive:/, '')}.`);
 				}
-				const { address } = (await res.json()) as { address: string };
-				if (!address) throw new Error('Mapping bot returned no address');
-				btcDepositAddress = address;
+				btcDepositAddress = await requestBtcSwapDepositAddress(
+					built.instruction,
+					isVscTestnet() ? 'testnet' : 'mainnet'
+				);
 			} catch (err) {
 				btcDepositError = err instanceof Error ? err.message : String(err);
 			} finally {
@@ -1016,9 +1013,12 @@
 	 * 500); if it does, the user can still copy the address and
 	 * send manually from their wallet's main Send flow.
 	 */
+	let btcSending = $state(false);
 	async function sendBtcViaConnectedWallet() {
-		if (!btcDepositAddress) return;
+		if (!btcDepositAddress || btcSending) return;
 		btcDepositError = null;
+		btcSending = true;
+		swapError = false;
 		swapStatus = 'Waiting for Bitcoin wallet approval…';
 		try {
 			const { sendBtcFromConnectedWallet } =
@@ -1029,12 +1029,15 @@
 				recipient: btcDepositAddress,
 				fallbackAddress: auth.value?.address
 			});
-			swapStatus = `BTC sent: ${txHash}`;
+			// Keep this on screen: the user must know the BTC went out, or they
+			// pay again (sorin 11-14: the message was cleared at once).
+			swapStatus = `Bitcoin sent (transaction ${txHash}). The swap runs once it is confirmed on Bitcoin. Do not send again.`;
 			btcDepositToggle(false);
 		} catch (err) {
+			swapStatus = '';
 			btcDepositError = err instanceof Error ? err.message : String(err);
 		} finally {
-			swapStatus = '';
+			btcSending = false;
 		}
 	}
 
@@ -1146,80 +1149,23 @@
 				txId = res.result;
 			} else {
 				// EVM reown wallet path (no BTC reown since BTC is
-				// handled above).
-				const feeQualifies =
-					ALTERA_FEE_ACTIVE &&
-					(await qualifiesForAlteraFee(
-						amount as CoinAmount<typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc>,
-						toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
-						destinationChain || undefined
-					));
-				const storeMin = txState.minAmountOut;
-				// Contract validates min_amount_out AFTER altera deduction,
-				// so scale the store's pre-fee min down by the same bps.
-				const finalMin =
-					feeQualifies && storeMin
-						? String(Math.floor((Number(storeMin) * (10000 - ALTERA_FEE_BPS)) / 10000))
-						: (storeMin ?? '0');
-				const swapInstruction: Record<string, string | number> = {
-					type: 'swap',
-					version: '1.0.0',
-					asset_in: fromCoinDef.value.toUpperCase(),
-					asset_out: toCoinDef.value.toUpperCase(),
-					amount_in: String(amount.amount),
-					min_amount_out: finalMin,
-					// Recipient is the user-entered target-chain address
-					// (already normalised into routerRecipient above). Only
-					// falls back to the Magi caller when the swap stays on
-					// Magi (no destination_chain).
-					recipient: routerRecipient || (destinationChain ? '' : caller)
-				};
-				if (destinationChain) {
-					swapInstruction.destination_chain = destinationChain;
-				}
-				if (feeQualifies) {
-					swapInstruction.beneficiary = ALTERA_FEE_BENEFICIARY;
-					swapInstruction.ref_bps = ALTERA_FEE_BPS;
-				}
-				// The router draws HIVE/HBD from the caller's Magi balance under a
-				// transfer.allow intent and moves a mapped asset with transferFrom,
-				// which needs an allowance. An EVM account has no free RC, so size the
-				// limit from what it holds (see evmSwapRcLimit).
-				const isNativeIn =
-					fromCoinDef.value === Coin.hive.value || fromCoinDef.value === Coin.hbd.value;
+				// handled above). The /swap page builds the same swap
+				// (walletRouterSwap.ts).
 				swapStatus = 'Estimating network resources...';
-				const available =
-					(await fetchAccountRc(caller)) ?? $accountBalance.bal?.resource_credits ?? 0;
-				const sizing = evmSwapRcLimit(
-					available,
-					fromCoinDef.value === Coin.hbd.value ? amount.amount : 0,
-					isNativeIn ? 0 : EVM_APPROVE_RC_LIMIT,
-					destinationChain === 'BTC'
+				const prepared = await prepareWalletRouterSwap(
+					{
+						caller,
+						fromCoin: fromCoinDef,
+						toCoin: toCoinDef,
+						amount,
+						minAmountOut: txState.minAmountOut,
+						destinationChain: destinationChain || undefined,
+						recipient: routerRecipient || undefined
+					},
+					$accountBalance.bal?.resource_credits
 				);
-				if (!sizing.ok) {
-					throw new Error(
-						destinationChain === 'BTC'
-							? btcPayoutShortfallMessage(sizing)
-							: rcShortfallMessage(sizing, 'swap')
-					);
-				}
-				const txOps: CallContractTransaction[] = buildEvmSwapOps({
-					caller,
-					routerId: SWAP_CONTRACT_ID,
-					instruction: JSON.stringify(swapInstruction),
-					rcLimit: sizing.rcLimit,
-					input: isNativeIn
-						? {
-								kind: 'native',
-								token: fromCoinDef.value,
-								limit: amount.toAmountString(true)
-							}
-						: {
-								kind: 'mapped',
-								mappingContractId: BTC_MAPPING_CONTRACT_ID,
-								rawAmount: String(amount.amount)
-							}
-				});
+				if (!prepared.ok) throw new Error(prepared.error);
+				const txOps: CallContractTransaction[] = prepared.ops;
 
 				if (!wagmiConfig) {
 					setError('Connect an EVM wallet first');
@@ -1321,9 +1267,11 @@
 					>Balance: {maxAmount.toPrettyAmountString()}
 					{txState.from?.coin.label ?? ''}</span
 				>
-				<button type="button" class="max-btn" onclick={() => (inputAmount = maxAmount!)}>
-					Max
-				</button>
+				{#if maxSendable}
+					<button type="button" class="max-btn" onclick={() => (inputAmount = maxSendable!)}>
+						Max
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -1549,7 +1497,11 @@
 	{#if sameCoinSelected}
 		<p class="swap-status error">From and To assets must be different.</p>
 	{:else if exceedsBalance}
-		<p class="swap-status error">Amount exceeds your wallet balance.</p>
+		<p class="swap-status error">
+			{paysBitcoinFee
+				? `Amount plus the Bitcoin network fee (about ${$btcSendFeeReserve} sats) exceeds what your wallet can send now.`
+				: 'Amount exceeds your wallet balance.'}
+		</p>
 	{:else if exceedsPoolDepth}
 		<p class="swap-status error">Amount exceeds 50% of pool depth — reduce the amount.</p>
 	{/if}
@@ -1592,7 +1544,7 @@
 			<p class="btc-deposit-intro">
 				Send exactly the amount below to the address shown. The mapping bot observes the transaction
 				and forwards the swap to <strong>{txState.toUsername ?? ''}</strong> as {txState.to
-					?.coin.label ?? ''} on Magi.
+					?.coin.label ?? ''} on {txState.to?.network.label ?? 'Magi'}.
 			</p>
 
 			{#if btcDepositLoading}
@@ -1626,7 +1578,7 @@
 					<PillButton
 						styleType="invert submit"
 						onclick={sendBtcViaConnectedWallet}
-						disabled={swapLoading}
+						disabled={swapLoading || btcSending}
 					>
 						Send with connected wallet
 					</PillButton>

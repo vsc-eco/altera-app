@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildBtcSwapInstruction, requestBtcSwapDepositAddress } from './swapDeposit';
+import {
+	buildBtcSwapInstruction,
+	requestBtcSwapDepositAddress,
+	hiveAccountExists
+} from './swapDeposit';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { BTC_MAINNET_CAIP } from '$lib/auth/btcCaip';
 
@@ -139,5 +143,72 @@ describe('requestBtcSwapDepositAddress', () => {
 		await expect(requestBtcSwapDepositAddress('i', 'mainnet', fetchImpl)).rejects.toThrow(
 			'Mapping bot returned no address'
 		);
+	});
+});
+
+describe('deposit-swap refunds (refund_to, min_amount_out, minimum)', () => {
+	const base = {
+		recipient: 'innopay',
+		toCoin: 'hbd',
+		toNetwork: 'hive_mainnet',
+		amountSats: 11_600
+	};
+
+	it('adds nothing while refunds are not active (contract not upgraded)', () => {
+		const r = buildBtcSwapInstruction({
+			...base,
+			refundTo: 'hive:sender',
+			minAmountOut: '7900',
+			refundsActive: false
+		});
+		expect(r.ok && r.instruction).toBe(
+			'swap_to=hive%3Ainnopay&swap_asset_out=hbd&destination_chain=HIVE'
+		);
+	});
+
+	it("carries the sender's refund_to and the min once active", () => {
+		const btc = buildBtcSwapInstruction({
+			...base,
+			refundTo: 'bc1qf87mytrp3dj9sm2y2yensj3g454n3p6k2t6sr5',
+			minAmountOut: '7900',
+			refundsActive: true
+		});
+		expect(btc.ok && btc.instruction).toBe(
+			'swap_to=hive%3Ainnopay&swap_asset_out=hbd&destination_chain=HIVE&refund_to=bc1qf87mytrp3dj9sm2y2yensj3g454n3p6k2t6sr5&min_amount_out=7900'
+		);
+		const hive = buildBtcSwapInstruction({ ...base, refundTo: 'hive:sender', refundsActive: true });
+		expect(hive.ok && hive.instruction).toBe(
+			'swap_to=hive%3Ainnopay&swap_asset_out=hbd&destination_chain=HIVE&refund_to=hive%3Asender'
+		);
+	});
+
+	it('refuses without a refund target once active (an EVM-only login)', () => {
+		const r = buildBtcSwapInstruction({
+			...base,
+			refundTo: 'did:pkh:eip155:1:0xabc',
+			refundsActive: true
+		});
+		expect(r.ok).toBe(false);
+		expect(buildBtcSwapInstruction({ ...base, refundsActive: true }).ok).toBe(false);
+	});
+
+	it('refuses a swap too small to refund on Bitcoin', () => {
+		const r = buildBtcSwapInstruction({ ...base, amountSats: 9_999 });
+		expect(r).toEqual({
+			ok: false,
+			error:
+				'A swap paid with Bitcoin needs at least 0.0001 BTC, so a refund can always cover its network fee.'
+		});
+		expect(buildBtcSwapInstruction({ ...base, amountSats: 10_000 }).ok).toBe(true);
+	});
+
+	it('checks a Hive payout account exists', async () => {
+		expect(await hiveAccountExists('hive:innopay', async () => [{ name: 'innopay' }])).toBe(true);
+		expect(await hiveAccountExists('@nobody-here', async () => [])).toBe(false);
+		await expect(
+			hiveAccountExists('x', async () => {
+				throw new Error('down');
+			})
+		).rejects.toThrow('down');
 	});
 });

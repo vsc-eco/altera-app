@@ -2,8 +2,8 @@
 	import SendSwap from '$lib/sendswap/SendSwap.svelte';
 </script>
 
-<document:head>
-	<title>Send</title>
-</document:head>
+<svelte:head>
+	<title>Wallet · Transfer</title>
+</svelte:head>
 
 <SendSwap txType="transfer" />

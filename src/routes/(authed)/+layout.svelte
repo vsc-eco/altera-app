@@ -16,6 +16,8 @@
 	import SwitchUserPanel from '$lib/auth/SwitchUserPanel.svelte';
 	import AltShell from '$lib/redesign/AltShell.svelte';
 	import { isRedesigned, pageWidth } from '$lib/redesign/redesignedRoutes';
+	import WalletChrome from '$lib/redesign/WalletChrome.svelte';
+	import { isWalletRoute } from '$lib/redesign/walletTabs';
 
 	let { children } = $props();
 	let showSidebar = $state(false);
@@ -74,7 +76,16 @@
 		width={pageWidth(page.url.pathname)}
 		floatingCoins={page.url.pathname === '/swap'}
 	>
-		{@render children()}
+		<!-- The five wallet routes are one tabbed page. Wrapping here rather
+		     than in each of them keeps the chrome in the same place as the
+		     shell switch, and leaves the routes themselves untouched. -->
+		{#if isWalletRoute(page.url.pathname)}
+			<WalletChrome>
+				{@render children()}
+			</WalletChrome>
+		{:else}
+			{@render children()}
+		{/if}
 	</AltShell>
 {:else}
 	<div class="bg-mesh"></div>

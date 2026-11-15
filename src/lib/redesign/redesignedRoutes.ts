@@ -21,9 +21,15 @@ const REDESIGNED: Record<string, PageWidth> = {
 	'/pools': 'wide',
 	'/portfolio': 'wide',
 	'/transactions': 'wide',
-	'/transfer': 'task',
-	'/deposit': 'task',
-	'/withdraw': 'task',
+	// The five wallet routes carry a shared tab row (see `walletTabs.ts`), so
+	// they all run at the same width — a tab row that changes width as you
+	// move along it reads as a different page each time. Deposit and Withdraw
+	// also lay themselves out at 66rem internally and were being squeezed.
+	// The task forms inside Transfer / Deposit / Withdraw still centre at
+	// their own width; it is the chrome around them that lines up.
+	'/transfer': 'wide',
+	'/deposit': 'wide',
+	'/withdraw': 'wide',
 	'/stake': 'task',
 	'/custom-tokens': 'wide',
 	'/market': 'wide',

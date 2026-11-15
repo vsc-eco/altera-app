@@ -97,14 +97,17 @@
 	});
 </script>
 
-<document:head>
-	<title>Transactions</title>
-</document:head>
+<svelte:head>
+	<title>Wallet · Transactions</title>
+</svelte:head>
 <div class="flex">
 	<div class="title-row">
-		<h1>
+		<!-- The wallet chrome above owns this page's <h1> ("Wallet"). This names
+		     WHOSE history is on screen — which `?account=` can make someone
+		     else's — so it stays, as the section heading it now is. -->
+		<h2>
 			Transactions involving {viewDid ? getAccountNameFromDid(viewDid) : '0xd072...AdAA'}
-		</h1>
+		</h2>
 		{#if did}
 			<form class="account-lookup" role="search" onsubmit={lookUp}>
 				<Search size={15} aria-hidden="true" />
@@ -165,7 +168,7 @@
 		gap: 0.5rem 1rem;
 		margin: 0 0 0.75rem 0;
 	}
-	h1 {
+	h2 {
 		display: flex;
 		color: var(--dash-text-primary);
 		font-family: 'Nunito Sans', sans-serif;

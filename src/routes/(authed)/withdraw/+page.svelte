@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Withdraw</title>
+	<title>Wallet · Withdraw</title>
 </svelte:head>
 
 <div class="withdraw-route">

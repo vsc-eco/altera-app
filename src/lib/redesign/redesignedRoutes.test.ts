@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isRedesigned, pageWidth } from './redesignedRoutes';
+import { WALLET_TABS } from './walletTabs';
 
 /**
  * The list in `redesignedRoutes.ts` is the only switch between the two shells,
@@ -51,9 +52,20 @@ describe('redesignedRoutes', () => {
 
 	it('centres task pages and widens list pages', () => {
 		expect(pageWidth('/swap')).toBe('task');
-		expect(pageWidth('/transfer')).toBe('task');
+		expect(pageWidth('/preferences')).toBe('task');
 		expect(pageWidth('/pools')).toBe('wide');
 		expect(pageWidth('/portfolio')).toBe('wide');
 		expect(pageWidth('/pools/create')).toBe('wide');
+	});
+
+	/**
+	 * The wallet's five routes share one tab row. If one of them ran at a
+	 * different width the row would change size as the reader moved along it,
+	 * and the page would stop reading as one place — which is the whole point
+	 * of grouping them.
+	 */
+	it.each(WALLET_TABS.map((tab) => tab.href))('runs %s wide, like its sibling tabs', (href) => {
+		expect(isRedesigned(href)).toBe(true);
+		expect(pageWidth(href)).toBe('wide');
 	});
 });

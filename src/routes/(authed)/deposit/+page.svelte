@@ -2,9 +2,9 @@
 	import DepositPage from '$lib/sendswap/DepositPage.svelte';
 </script>
 
-<document:head>
-	<title>Deposit</title>
-</document:head>
+<svelte:head>
+	<title>Wallet · Deposit</title>
+</svelte:head>
 
 <div class="deposit-route">
 	<DepositPage />

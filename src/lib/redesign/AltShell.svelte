@@ -3,6 +3,7 @@
 	import { getAuth } from '$lib/auth/store';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import { altTheme, altThemeClass } from './altTheme';
+	import { WALLET_TABS } from './walletTabs';
 	import { ChevronDown, Settings } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 
@@ -31,11 +32,11 @@
 		return page.url.search.includes(query);
 	}
 
+	// The menu IS the wallet page's tab row — same entries, same order — so
+	// picking one lands on the wallet with that tab already open rather than
+	// on a page the reader then has to orient in.
 	const walletItems = [
-		{ href: '/portfolio', title: 'Portfolio', hint: 'Balances and history' },
-		{ href: '/transactions', title: 'Transactions', hint: 'Everything on your account' },
-		{ href: '/transfer', title: 'Transfer', hint: 'Send to someone else' },
-		{ href: '/deposit', title: 'Deposit / Withdraw', hint: 'Move assets in and out' },
+		...WALLET_TABS.map((tab) => ({ href: tab.href, title: tab.label, hint: tab.hint })),
 		// The old dashboard stays on the previous shell as the working backup
 		// of the controls the redesigned pages have not picked up yet. Linked
 		// here so it is reachable rather than orphaned at a URL nobody knows.

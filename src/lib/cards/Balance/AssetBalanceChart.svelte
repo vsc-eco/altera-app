@@ -10,7 +10,12 @@
 	import { numberFormatLanguage } from '$lib/constants';
 	import { compactUsd } from '$lib/currency/compactUsd';
 
-	let { did }: { did: string | undefined } = $props();
+	let {
+		did,
+		/** Plot height in px. The default is the dashboard card's size; the
+		 *  pop-out passes the room it actually has. */
+		height = 200
+	}: { did: string | undefined; height?: number } = $props();
 
 	const dateRanges = buildDateRanges();
 	let selectedDateRange: DateRange = $state(dateRanges[1]); // Last 30 Days
@@ -100,6 +105,7 @@
 			<DatePicker
 				onValueChange={(v) => (selectedDateRange = v)}
 				{dateRanges}
+				selected={selectedDateRange}
 				hourly={isHourly(selectedDateRange)}
 			></DatePicker>
 		</div>
@@ -109,7 +115,7 @@
 		<LineChart
 			data={timeline}
 			series={chartSeries}
-			height={200}
+			{height}
 			isLoading={loading}
 			formatValue={usd}
 			formatTick={compactUsd}

@@ -6,10 +6,21 @@
 		dateRanges?: DateRange[];
 		currDate?: Date;
 		hourly?: boolean;
+		/** The range the chart is actually drawing. Defaults to the first preset,
+		 *  which is what every caller that does not say otherwise starts on. A
+		 *  caller that starts on a different one must pass it, or the dropdown
+		 *  names a range the chart is not showing. */
+		selected?: DateRange;
 		onValueChange: (v: DateRange) => void;
 	};
-	let { dateRanges = [], currDate, hourly, onValueChange: onRangeChange }: Props = $props();
-	let initial: string = $derived(dateRanges[0].label);
+	let {
+		dateRanges = [],
+		currDate,
+		hourly,
+		selected,
+		onValueChange: onRangeChange
+	}: Props = $props();
+	let initial: string = $derived((selected ?? dateRanges[0]).label);
 </script>
 
 {#if currDate}

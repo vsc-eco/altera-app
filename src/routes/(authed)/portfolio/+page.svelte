@@ -11,6 +11,7 @@
 <script lang="ts">
 	import AccBalance from '$lib/AccBalance.svelte';
 	import AssetBalanceChart from '$lib/cards/Balance/AssetBalanceChart.svelte';
+	import PopOut from '$lib/redesign/PopOut.svelte';
 	import { getAuth } from '$lib/auth/store';
 
 	const auth = $derived(getAuth()());
@@ -32,7 +33,19 @@
 	</section>
 
 	<section class="alt-card history">
-		<h2>Balance by asset</h2>
+		<div class="card-head">
+			<h2>Balance by asset</h2>
+			<PopOut title="Balance by asset">
+				{#snippet content(room)}
+					<!-- `room` is the height the dialog body has for us. The chart
+					     draws a caption row above the plot and a legend plus
+					     footnote below it — 116px together, measured — so the plot
+					     takes what is left of that, and never less than 260, below
+					     which the pop-out would not be showing anything bigger. -->
+					<AssetBalanceChart {did} height={Math.max(260, room - 120)} />
+				{/snippet}
+			</PopOut>
+		</div>
 		<AssetBalanceChart {did} />
 	</section>
 </div>
@@ -53,6 +66,15 @@
 		font-size: 16px;
 		font-weight: 700;
 		color: var(--alt-tx);
+	}
+	/* The pop-out trigger rides on the card's title row. The h2 keeps its own
+	   bottom margin so this card's heading still lines up with the Assets
+	   card's next to it. */
+	.card-head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
 	}
 	.empty {
 		color: var(--alt-mut);

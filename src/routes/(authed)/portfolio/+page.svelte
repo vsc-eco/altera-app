@@ -12,10 +12,18 @@
 	import AccBalance from '$lib/AccBalance.svelte';
 	import AssetBalanceChart from '$lib/cards/Balance/AssetBalanceChart.svelte';
 	import PopOut from '$lib/redesign/PopOut.svelte';
+	import { ACTION_LABEL, ASSET_ACTIONS, assetActionHref } from '$lib/redesign/assetActions';
+	import { ArrowDownToLine, ArrowUpFromLine, Send } from '@lucide/svelte';
 	import { getAuth } from '$lib/auth/store';
 
 	const auth = $derived(getAuth()());
 	const did = $derived(auth.value?.did);
+
+	const ACTION_ICON = {
+		transfer: Send,
+		deposit: ArrowDownToLine,
+		withdraw: ArrowUpFromLine
+	};
 </script>
 
 <svelte:head>
@@ -24,9 +32,26 @@
 
 <div class="grid">
 	<section class="alt-card assets">
-		<h2>Assets</h2>
+		<div class="card-head">
+			<h2>Assets</h2>
+			<!-- Once, above the list. Per-row these were three icons on each of
+			     five rows — fifteen controls competing with the balances, which
+			     are what the list is for. Here they are asset-agnostic: each
+			     flow starts on whatever the reader holds. -->
+			<div class="asset-actions">
+				{#each ASSET_ACTIONS as action (action)}
+					{@const Icon = ACTION_ICON[action]}
+					{@const href = assetActionHref(action)}
+					{@const label = ACTION_LABEL[action]}
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static route -->
+					<a class="asset-action" {href} title={label} aria-label={label}>
+						<Icon size={15} aria-hidden="true" />
+					</a>
+				{/each}
+			</div>
+		</div>
 		{#if did}
-			<AccBalance {did} actions />
+			<AccBalance {did} />
 		{:else}
 			<p class="empty">Connect a wallet to see your balances.</p>
 		{/if}
@@ -78,6 +103,36 @@
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: 12px;
+		flex-wrap: wrap;
+	}
+	.asset-actions {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		flex-wrap: wrap;
+	}
+	/* Icon-only. The name is carried by `title` and `aria-label`, so it is
+	   still reachable by hover, by screen reader and by keyboard focus. */
+	.asset-action {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 30px;
+		height: 30px;
+		border: 1px solid var(--alt-field-border);
+		border-radius: 10px;
+		background: var(--alt-field);
+		color: var(--alt-tx-2);
+		text-decoration: none;
+		transition:
+			background 0.15s,
+			color 0.15s,
+			border-color 0.15s;
+	}
+	.asset-action:hover {
+		background: var(--alt-chip-hover);
+		border-color: var(--alt-card-border);
+		color: var(--alt-tx);
 	}
 	.empty {
 		color: var(--alt-mut);

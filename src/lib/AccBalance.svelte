@@ -9,27 +9,11 @@
 	import InfoToolip from './components/InfoTooltip.svelte';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { sHbdAprStore } from '$lib/stores/aprStore';
-	import {
-		ACTION_LABEL,
-		actionsForCoin,
-		assetActionHref,
-		type AssetAction
-	} from '$lib/redesign/assetActions';
-	import { ArrowDownToLine, ArrowUpFromLine, Send } from '@lucide/svelte';
 
 	type Props = {
 		did: string;
-		/** Show the per-asset Transfer / Deposit / Withdraw icons. Off by
-		 *  default so the classic dashboard's Balance card is unchanged. */
-		actions?: boolean;
 	};
-	let { did, actions = false }: Props = $props();
-
-	const ACTION_ICON = {
-		transfer: Send,
-		deposit: ArrowDownToLine,
-		withdraw: ArrowUpFromLine
-	} satisfies Record<AssetAction, unknown>;
+	let { did }: Props = $props();
 
 	const hiveAssetName = $derived(browser ? getHiveAssetName() : 'HIVE');
 	const hbdAssetName = $derived(browser ? getHbdAssetName() : 'HBD');
@@ -63,28 +47,7 @@
 	});
 </script>
 
-{#snippet rowActions(coinValue: string, assetLabel: string)}
-	{#if actions}
-		{@const available = actionsForCoin(coinValue)}
-		{#if available.length > 0}
-			<div class="row-actions">
-				{#each available as action (action)}
-					{@const Icon = ACTION_ICON[action]}
-					<a
-						class="row-action"
-						href={assetActionHref(action, coinValue)}
-						title="{ACTION_LABEL[action]} {assetLabel}"
-						aria-label="{ACTION_LABEL[action]} {assetLabel}"
-					>
-						<Icon size={14} aria-hidden="true" />
-					</a>
-				{/each}
-			</div>
-		{/if}
-	{/if}
-{/snippet}
-
-<div class="balances-list" class:has-actions={actions}>
+<div class="balances-list">
 	<div class="balance-row">
 		<div class="row-icon hbd"><img src={Coin.hbd.icon} alt="" /></div>
 		<div class="row-info">
@@ -99,7 +62,6 @@
 			</div>
 			<span class="coin-sub">Hive Backed Dollar</span>
 		</div>
-		{@render rowActions(Coin.hbd.value, hbdAssetName)}
 	</div>
 
 	<div class="balance-row">
@@ -126,7 +88,6 @@
 			</div>
 			<span class="coin-sub">Liquid Hive Dollar Savings</span>
 		</div>
-		{@render rowActions(Coin.shbd.value, `s${hbdAssetName}`)}
 	</div>
 
 	{#if $accountBalance.bal.pending_hbd_unstaking && $accountBalance.bal.pending_hbd_unstaking !== 0}
@@ -160,7 +121,6 @@
 			</div>
 			<span class="coin-sub">Native Hive Token</span>
 		</div>
-		{@render rowActions(Coin.hive.value, hiveAssetName)}
 	</div>
 
 	<div class="balance-row">
@@ -207,7 +167,6 @@
 			</div>
 			<span class="coin-sub">Bitcoin Native Asset Mapping</span>
 		</div>
-		{@render rowActions(Coin.btc.value, 'Bitcoin')}
 	</div>
 </div>
 
@@ -289,47 +248,6 @@
 	.tooltip-inline {
 		display: inline-flex;
 		vertical-align: middle;
-	}
-
-	/* Quick actions for this asset. They sit at the end of the row and stay
-	   dim until the row is hovered, so a list of five assets does not read as
-	   fifteen buttons — but they are always reachable (and always visible to
-	   keyboard and touch, which have no hover). */
-	.row-actions {
-		display: flex;
-		align-items: center;
-		gap: 2px;
-		flex-shrink: 0;
-		margin-left: 0.5rem;
-	}
-	.row-action {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 28px;
-		height: 28px;
-		border-radius: 9px;
-		color: var(--alt-mut, var(--dash-text-muted));
-		text-decoration: none;
-		opacity: 0.75;
-		transition:
-			opacity 0.15s,
-			color 0.15s,
-			background 0.15s;
-	}
-	.balance-row:hover .row-action,
-	.row-action:focus-visible {
-		opacity: 1;
-	}
-	.row-action:hover {
-		background: var(--alt-chip-hover, rgba(255, 255, 255, 0.12));
-		color: var(--alt-tx, var(--dash-text-primary));
-		opacity: 1;
-	}
-	@media (hover: none) {
-		.row-action {
-			opacity: 1;
-		}
 	}
 
 	.row-amount {

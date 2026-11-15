@@ -1,35 +1,49 @@
 import { describe, expect, it } from 'vitest';
-import { ASSET_ACTIONS, actionsForCoin, assetActionHref, coinParamFor } from './assetActions';
+import { ASSET_ACTIONS, assetActionHref, coinParamFor, supportsCoin } from './assetActions';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 
 describe('assetActions', () => {
-	it('offers all three actions for the assets with a mainnet rail', () => {
+	it('supports the assets with a mainnet rail everywhere', () => {
 		for (const coin of [Coin.hive.value, Coin.hbd.value, Coin.btc.value]) {
-			expect(actionsForCoin(coin)).toEqual(['transfer', 'deposit', 'withdraw']);
+			for (const action of ASSET_ACTIONS) expect(supportsCoin(action, coin)).toBe(true);
 		}
 	});
 
 	/** sHBD stays transferable while earning, but cannot move in or out on a
-	 *  rail of its own — offering Deposit there would dead-end the reader. */
-	it('offers only transfer for sHBD', () => {
-		expect(actionsForCoin(Coin.shbd.value)).toEqual(['transfer']);
+	 *  rail of its own. */
+	it('supports sHBD for transfer only', () => {
+		expect(supportsCoin('transfer', Coin.shbd.value)).toBe(true);
+		expect(supportsCoin('deposit', Coin.shbd.value)).toBe(false);
+		expect(supportsCoin('withdraw', Coin.shbd.value)).toBe(false);
 	});
 
-	it('offers nothing for staked, unstaking or unknown rows', () => {
-		expect(actionsForCoin('hive_consensus')).toEqual([]);
-		expect(actionsForCoin('consensus_unstaking')).toEqual([]);
-		expect(actionsForCoin(undefined)).toEqual([]);
-		expect(actionsForCoin('')).toEqual([]);
+	it('supports nothing for staked, unstaking or unknown values', () => {
+		for (const v of ['hive_consensus', 'consensus_unstaking', undefined, '']) {
+			for (const action of ASSET_ACTIONS) expect(supportsCoin(action, v)).toBe(false);
+		}
 	});
 
 	it('keeps a stable display order', () => {
 		expect(ASSET_ACTIONS).toEqual(['transfer', 'deposit', 'withdraw']);
 	});
 
-	it('links to the matching wallet tab with the asset preselected', () => {
+	/** The header buttons are asset-agnostic: no coin, no query string. */
+	it('links to the bare wallet tab when no asset is named', () => {
+		expect(assetActionHref('transfer')).toBe('/transfer');
+		expect(assetActionHref('deposit')).toBe('/deposit');
+		expect(assetActionHref('withdraw')).toBe('/withdraw');
+	});
+
+	it('names the asset when the flow can handle it', () => {
 		expect(assetActionHref('deposit', Coin.hbd.value)).toBe('/deposit?coin=hbd');
 		expect(assetActionHref('transfer', Coin.shbd.value)).toBe('/transfer?coin=hbd_savings');
 		expect(assetActionHref('withdraw', Coin.btc.value)).toBe('/withdraw?coin=btc');
+	});
+
+	/** Passing a coin the flow cannot handle must not produce a dead link. */
+	it('drops an unusable coin instead of passing it on', () => {
+		expect(assetActionHref('deposit', Coin.shbd.value)).toBe('/deposit');
+		expect(assetActionHref('withdraw', 'eth')).toBe('/withdraw');
 	});
 
 	describe('coinParamFor', () => {

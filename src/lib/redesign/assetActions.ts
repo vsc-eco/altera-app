@@ -1,13 +1,16 @@
 /**
- * The per-asset quick actions on the wallet's Assets list.
+ * The wallet's Assets actions — Transfer, Deposit, Withdraw.
  *
- * Each row offers the things you can do with THAT asset, and each lands on
- * the matching wallet tab with the asset already chosen (`?coin=`). A row
- * only ever offers an action the flow behind it actually supports — an icon
- * that drops the reader on a page where their asset is not selectable is
- * worse than no icon.
+ * They sit once above the list rather than on every row: three icons per row
+ * over five rows read as fifteen controls, and none of them is the thing the
+ * reader came to the list for.
  *
- * The three matrices below mirror the flows:
+ * `assetActionHref` can still name an asset (`?coin=`), which all three flows
+ * read and resolve — so a link that knows which asset it means opens on that
+ * asset. Nothing in the UI links that way at the moment; the header buttons
+ * are deliberately asset-agnostic.
+ *
+ * The matrix below mirrors the flows:
  *  - transfer  — `swapOptions.from`, the assets a transfer can send: HIVE,
  *                HBD, sHBD and BTC, all on Magi.
  *  - deposit   — `DepositTimeline`'s ASSETS, minus the disabled ETH chip.
@@ -35,15 +38,20 @@ export const ACTION_LABEL: Record<AssetAction, string> = {
 	withdraw: 'Withdraw'
 };
 
-/** The actions offered for a coin, in display order. Unknown coins get none. */
-export function actionsForCoin(coinValue: string | undefined): AssetAction[] {
-	if (!coinValue) return [];
-	return ASSET_ACTIONS.filter((action) => SUPPORTED[action].includes(coinValue));
+/** Whether a flow can handle a given coin at all. */
+export function supportsCoin(action: AssetAction, coinValue: string | undefined): boolean {
+	return !!coinValue && SUPPORTED[action].includes(coinValue);
 }
 
-/** Where an action icon goes: the wallet tab, with the asset preselected. */
-export function assetActionHref(action: AssetAction, coinValue: string): string {
-	return `/${action}?coin=${encodeURIComponent(coinValue)}`;
+/**
+ * Where an action goes: its wallet tab, optionally with an asset preselected.
+ * A coin the flow cannot handle is dropped rather than passed on, so the link
+ * still works and the flow picks its own default.
+ */
+export function assetActionHref(action: AssetAction, coinValue?: string): string {
+	return supportsCoin(action, coinValue)
+		? `/${action}?coin=${encodeURIComponent(coinValue!)}`
+		: `/${action}`;
 }
 
 /**

@@ -61,12 +61,66 @@
 	const coins = [
 		{ src: '/hive/hive.svg', size: 76, left: '11%', top: '29%', blur: 0, op: 1, dur: 9, delay: -2 },
 		{ src: '/btc/btc.svg', size: 88, left: '84%', top: '37%', blur: 0, op: 1, dur: 11, delay: -5 },
-		{ src: '/coins/dash-coin.svg', size: 52, left: '78%', top: '12%', blur: 2, op: 0.8, dur: 8, delay: -1 },
-		{ src: '/coins/eth-coin.svg', size: 56, left: '7%', top: '70%', blur: 2, op: 0.8, dur: 10, delay: -6 },
-		{ src: '/coins/hbd-coin.svg', size: 46, left: '21%', top: '58%', blur: 2, op: 0.8, dur: 12, delay: -3 },
-		{ src: '/coins/hive-coin.svg', size: 34, left: '93%', top: '72%', blur: 5, op: 0.5, dur: 9, delay: -4 },
-		{ src: '/btc/btc.svg', size: 30, left: '5%', top: '13%', blur: 6, op: 0.45, dur: 10, delay: -7 },
-		{ src: '/coins/dash-coin.svg', size: 26, left: '66%', top: '82%', blur: 6, op: 0.45, dur: 11, delay: -2 }
+		{
+			src: '/coins/dash-coin.svg',
+			size: 52,
+			left: '78%',
+			top: '12%',
+			blur: 2,
+			op: 0.8,
+			dur: 8,
+			delay: -1
+		},
+		{
+			src: '/coins/eth-coin.svg',
+			size: 56,
+			left: '7%',
+			top: '70%',
+			blur: 2,
+			op: 0.8,
+			dur: 10,
+			delay: -6
+		},
+		{
+			src: '/coins/hbd-coin.svg',
+			size: 46,
+			left: '21%',
+			top: '58%',
+			blur: 2,
+			op: 0.8,
+			dur: 12,
+			delay: -3
+		},
+		{
+			src: '/coins/hive-coin.svg',
+			size: 34,
+			left: '93%',
+			top: '72%',
+			blur: 5,
+			op: 0.5,
+			dur: 9,
+			delay: -4
+		},
+		{
+			src: '/btc/btc.svg',
+			size: 30,
+			left: '5%',
+			top: '13%',
+			blur: 6,
+			op: 0.45,
+			dur: 10,
+			delay: -7
+		},
+		{
+			src: '/coins/dash-coin.svg',
+			size: 26,
+			left: '66%',
+			top: '82%',
+			blur: 6,
+			op: 0.45,
+			dur: 11,
+			delay: -2
+		}
 	];
 </script>
 
@@ -169,12 +223,7 @@
 		</main>
 
 		<footer>
-			<a
-				class="powered"
-				href="https://magiprotocol.com"
-				target="_blank"
-				rel="noopener noreferrer"
-			>
+			<a class="powered" href="https://magiprotocol.com" target="_blank" rel="noopener noreferrer">
 				Powered by <img src="/magi-with-name.svg" alt="Magi" />
 			</a>
 			<div class="links">
@@ -469,6 +518,12 @@
 		.account-name {
 			display: none;
 		}
+		/* 8vh of a phone screen is ~67px of nothing between the nav and the
+		   page's own heading — and the nav has usually wrapped to two rows by
+		   here, so the gap reads as a hole. */
+		main {
+			padding-top: clamp(16px, 2.5vh, 28px);
+		}
 	}
 
 	/* Narrower still, brand + nav + account no longer share a line. Left to
@@ -482,6 +537,9 @@
 			order: 3;
 			flex-basis: 100%;
 			justify-content: center;
+		}
+		main {
+			padding-top: 12px;
 		}
 	}
 </style>

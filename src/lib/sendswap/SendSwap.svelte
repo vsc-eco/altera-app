@@ -22,6 +22,7 @@
 	import { fetchCustomTokens, customTokenCoin } from '$lib/tokens/customTokens';
 	import { page } from '$app/state';
 	import { coinParamFor } from '$lib/redesign/assetActions';
+	import TransferSidebar from './stages/TransferSidebar.svelte';
 
 	const { txType }: { txType: 'transfer' | 'swap' } = $props();
 
@@ -145,7 +146,22 @@
 </script>
 
 <div class="send-internal-wrapper">
-	<StepsMachine size="page" {txType} resetState={applyStartDetails} {stepsData} />
+	{#if txType === 'transfer'}
+		<!-- Same two-column shape as DepositPage / WithdrawPage: the flow on the
+		     left at a readable width, recent activity and FAQ on the right.
+		     Without the rail the form stretched the full 1120px column and the
+		     fields read as a wall. -->
+		<div class="transfer-layout">
+			<div class="transfer-flow-col">
+				<StepsMachine size="page" {txType} resetState={applyStartDetails} {stepsData} />
+			</div>
+			<aside class="transfer-rail-col">
+				<TransferSidebar />
+			</aside>
+		</div>
+	{:else}
+		<StepsMachine size="page" {txType} resetState={applyStartDetails} {stepsData} />
+	{/if}
 </div>
 
 <style lang="scss">
@@ -153,5 +169,39 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+	}
+	.transfer-layout {
+		display: grid;
+		/* The padding below sits INSIDE the 100% width — this project has no
+		   global border-box, and without this the layout runs past its column
+		   by exactly the padding on a phone. */
+		box-sizing: border-box;
+		grid-template-columns: minmax(0, 1fr) 18rem;
+		gap: 4rem;
+		max-width: 66rem;
+		width: 100%;
+		margin: 0 auto;
+		padding: 0 0 3rem;
+	}
+	.transfer-flow-col {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.transfer-rail-col {
+		min-width: 0;
+	}
+	/* Matches the deposit and withdraw pages: the rail drops under the flow
+	   before the two columns get too narrow to read. */
+	@media (max-width: 1440px) {
+		.transfer-layout {
+			grid-template-columns: 1fr;
+			gap: 2.5rem;
+		}
+	}
+	@media (max-width: 720px) {
+		.transfer-layout {
+			gap: 2rem;
+		}
 	}
 </style>

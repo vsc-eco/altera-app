@@ -351,3 +351,45 @@ textarea,
 .swap-arrow-btn {
 	cursor: pointer;
 }
+
+/*
+ * Filter chips — the one definition for every filter control in the app.
+ *
+ * The values come from the transactions FilterBar, which is the size the
+ * filters settled on; pools shipped a second, much larger pill and the two
+ * read as different controls doing the same job. Anything that filters a list
+ * should use this. The exceptions are the Magi Market and Magi Tokens / NFTs
+ * views, which render through the external market SDK widget and bring their
+ * own styling.
+ *
+ * `.on` is the selected state: a tinted background and an accent border, not
+ * a solid accent fill — a row of solid-filled pills competes with the page's
+ * primary actions.
+ */
+.filter-chip {
+	padding: 0.3rem 0.8rem;
+	border-radius: 999px;
+	border: 1px solid var(--dash-card-border);
+	background: rgba(255, 255, 255, 0.03);
+	color: var(--dash-text-secondary);
+	font: inherit;
+	font-family: 'Nunito Sans', sans-serif;
+	font-size: 0.78rem;
+	font-weight: 500;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: all 130ms ease;
+}
+.filter-chip:not(:disabled):hover {
+	border-color: rgba(255, 255, 255, 0.28);
+	color: var(--dash-text-primary);
+}
+.filter-chip.on {
+	border-color: var(--dash-accent-purple, #6f6af8);
+	background: rgba(111, 106, 248, 0.18);
+	color: var(--dash-text-primary);
+}
+.filter-chip:disabled {
+	cursor: progress;
+	opacity: 0.6;
+}

@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown, Plus, Minus } from '@lucide/svelte';
+	import {
+		Layers,
+		ArrowUpDown,
+		BarChart2,
+		ChevronUp,
+		ChevronDown,
+		Plus,
+		Minus
+	} from '@lucide/svelte';
 	import { fetchPools, fetchMyPoolPositions, poolKind, type TimeRange } from './poolsData';
 	import type { PoolRow, MyPoolRow, PoolKind } from './poolsData';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
@@ -15,7 +23,6 @@
 	 *  downstream consumer (table, My liquidity, the Add/Remove pool pickers,
 	 *  the detail view) stays scoped to the tab the user is on. */
 	let { kind = 'standard' }: { kind?: PoolKind } = $props();
-
 
 	let searchQuery = $state('');
 	let timeRange = $state<TimeRange>('30d');
@@ -152,7 +159,6 @@
 			return sortDirection === 'desc' ? -cmp : cmp;
 		})
 	);
-
 </script>
 
 {#if selectedPool}
@@ -160,289 +166,319 @@
 		<PoolDetail pool={selectedPool} {pools} {myPools} onback={() => (selectedPool = null)} />
 	</div>
 {:else}
-<div class="pools-content">
-	<div class="toolbar">
-		<input
-			type="search"
-			class="search-input"
-			placeholder="Search..."
-			bind:value={searchQuery}
-			aria-label="Search pools"
-		/>
-		<div class="time-filters" role="group" aria-label="Time range">
-			{#each timeRangeLabels as tr}
-				<button
-					type="button"
-					class="time-btn"
-					class:active={timeRange === tr.value}
-					disabled={loading}
-					onclick={() => (timeRange = tr.value)}
-				>
-					{tr.label}
-				</button>
-			{/each}
+	<div class="pools-content">
+		<div class="toolbar">
+			<input
+				type="search"
+				class="search-input"
+				placeholder="Search..."
+				bind:value={searchQuery}
+				aria-label="Search pools"
+			/>
+			<div class="time-filters" role="group" aria-label="Time range">
+				{#each timeRangeLabels as tr (tr.value)}
+					<button
+						type="button"
+						class="filter-chip"
+						class:on={timeRange === tr.value}
+						disabled={loading}
+						onclick={() => (timeRange = tr.value)}
+					>
+						{tr.label}
+					</button>
+				{/each}
+			</div>
 		</div>
-	</div>
 
-	{@render poolsTable(sortedPools)}
+		{@render poolsTable(sortedPools)}
 
-	<!-- Only render once we actually have positions. Gating on `myPoolsLoading`
+		<!-- Only render once we actually have positions. Gating on `myPoolsLoading`
 	     too caused the section to flash in and out on every filter change (the
 	     position fetch re-runs when `pools` is reassigned, finds none, hides). -->
-	{#if did && myPools.length > 0}
-		<div class="my-pools-section">
-			<h3 class="section-title">My liquidity</h3>
-			{@render myPoolsTable(myPools)}
-		</div>
-	{/if}
-</div>
+		{#if did && myPools.length > 0}
+			<div class="my-pools-section">
+				<h3 class="section-title">My liquidity</h3>
+				{@render myPoolsTable(myPools)}
+			</div>
+		{/if}
+	</div>
 
-{#snippet poolsTable(rows: PoolRow[])}
-	<div class="table-wrapper">
-		<table class="pools-table">
-			<thead>
-				<tr>
-					<th class="col-pair">Pair</th>
-					<th class="col-price">Price</th>
-					<th class="col-liquidity sortable" class:active={sortColumn === 'liquidity'}>
-						<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('liquidity', e)}>
-							<Layers size={16} aria-hidden="true" />
-							Total Liquidity
-							{#if sortColumn === 'liquidity'}
-								{#if sortDirection === 'desc'}
-									<ChevronDown size={16} aria-label="descending" />
-								{:else}
-									<ChevronUp size={16} aria-label="ascending" />
-								{/if}
-							{/if}
-						</button>
-					</th>
-					<th class="col-fee sortable" class:active={sortColumn === 'fee'}>
-						<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('fee', e)}>
-							<ArrowUpDown size={16} aria-hidden="true" />
-							Fee Earned
-							{#if sortColumn === 'fee'}
-								{#if sortDirection === 'desc'}
-									<ChevronDown size={16} aria-label="descending" />
-								{:else}
-									<ChevronUp size={16} aria-label="ascending" />
-								{/if}
-							{/if}
-						</button>
-					</th>
-					<th class="col-volume sortable" class:active={sortColumn === 'volume'}>
-						<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('volume', e)}>
-							<BarChart2 size={16} aria-hidden="true" />
-							Volume
-							{#if sortColumn === 'volume'}
-								{#if sortDirection === 'desc'}
-									<ChevronDown size={16} aria-label="descending" />
-								{:else}
-									<ChevronUp size={16} aria-label="ascending" />
-								{/if}
-							{/if}
-						</button>
-					</th>
-					<th class="col-actions" aria-label="Actions"></th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each rows as pool (pool.id)}
-					{@const deprecated = isDeprecatedPool(pool.contractId)}
-					{@const unregistered = !pool.routerRegistered}
-					{@const addBlocked = deprecated || unregistered}
-					{@const addHint = deprecated
-						? 'Deprecated pool — adding liquidity is disabled'
-						: unregistered
-							? registrationHint(
-									{ registered: false, missing: pool.registrationMissing },
-									pool.pair
-								)
-							: undefined}
-					<tr class="clickable" onclick={() => (selectedPool = pool)}>
-						<td class="col-pair">
-							<div class="pair-cell">
-								<span class="pair-icons" aria-hidden="true">
-									{#if assetIcon(pool.pairSymbols[0])}
-										<img class="coin-icon icon-a" src={assetIcon(pool.pairSymbols[0])} alt={pool.pairSymbols[0]} />
+	{#snippet poolsTable(rows: PoolRow[])}
+		<div class="table-wrapper">
+			<table class="pools-table">
+				<thead>
+					<tr>
+						<th class="col-pair">Pair</th>
+						<th class="col-price">Price</th>
+						<th class="col-liquidity sortable" class:active={sortColumn === 'liquidity'}>
+							<button
+								type="button"
+								class="col-heading-btn"
+								onclick={(e) => toggleSort('liquidity', e)}
+							>
+								<Layers size={16} aria-hidden="true" />
+								Total Liquidity
+								{#if sortColumn === 'liquidity'}
+									{#if sortDirection === 'desc'}
+										<ChevronDown size={16} aria-label="descending" />
 									{:else}
-										<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
+										<ChevronUp size={16} aria-label="ascending" />
 									{/if}
-									{#if assetIcon(pool.pairSymbols[1])}
-										<img class="coin-icon icon-b" src={assetIcon(pool.pairSymbols[1])} alt={pool.pairSymbols[1]} />
+								{/if}
+							</button>
+						</th>
+						<th class="col-fee sortable" class:active={sortColumn === 'fee'}>
+							<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('fee', e)}>
+								<ArrowUpDown size={16} aria-hidden="true" />
+								Fee Earned
+								{#if sortColumn === 'fee'}
+									{#if sortDirection === 'desc'}
+										<ChevronDown size={16} aria-label="descending" />
 									{:else}
-										<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
+										<ChevronUp size={16} aria-label="ascending" />
 									{/if}
-								</span>
-								<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
-								{#if deprecated}
-									<span class="deprecated-tag">deprecated</span>
-								{:else if unregistered}
-									<!-- Visible as well as hoverable: touch devices have no
+								{/if}
+							</button>
+						</th>
+						<th class="col-volume sortable" class:active={sortColumn === 'volume'}>
+							<button
+								type="button"
+								class="col-heading-btn"
+								onclick={(e) => toggleSort('volume', e)}
+							>
+								<BarChart2 size={16} aria-hidden="true" />
+								Volume
+								{#if sortColumn === 'volume'}
+									{#if sortDirection === 'desc'}
+										<ChevronDown size={16} aria-label="descending" />
+									{:else}
+										<ChevronUp size={16} aria-label="ascending" />
+									{/if}
+								{/if}
+							</button>
+						</th>
+						<th class="col-actions" aria-label="Actions"></th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each rows as pool (pool.id)}
+						{@const deprecated = isDeprecatedPool(pool.contractId)}
+						{@const unregistered = !pool.routerRegistered}
+						{@const addBlocked = deprecated || unregistered}
+						{@const addHint = deprecated
+							? 'Deprecated pool — adding liquidity is disabled'
+							: unregistered
+								? registrationHint(
+										{ registered: false, missing: pool.registrationMissing },
+										pool.pair
+									)
+								: undefined}
+						<tr class="clickable" onclick={() => (selectedPool = pool)}>
+							<td class="col-pair">
+								<div class="pair-cell">
+									<span class="pair-icons" aria-hidden="true">
+										{#if assetIcon(pool.pairSymbols[0])}
+											<img
+												class="coin-icon icon-a"
+												src={assetIcon(pool.pairSymbols[0])}
+												alt={pool.pairSymbols[0]}
+											/>
+										{:else}
+											<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
+										{/if}
+										{#if assetIcon(pool.pairSymbols[1])}
+											<img
+												class="coin-icon icon-b"
+												src={assetIcon(pool.pairSymbols[1])}
+												alt={pool.pairSymbols[1]}
+											/>
+										{:else}
+											<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
+										{/if}
+									</span>
+									<span
+										class="pair-label"
+										class:deprecated
+										title={deprecated ? 'Deprecated pool — withdraw only' : undefined}
+										>{pool.pair}</span
+									>
+									{#if deprecated}
+										<span class="deprecated-tag">deprecated</span>
+									{:else if unregistered}
+										<!-- Visible as well as hoverable: touch devices have no
 									     hover, so a tooltip alone would hide this entirely. -->
-									<span class="deprecated-tag unregistered-tag" title={addHint}>not on dex</span>
-								{/if}
-							</div>
-						</td>
-						<td class="col-price">
-							<div class="price-cell">
-								<span>{pool.priceRatio}</span>
-								<span>{pool.priceInverse}</span>
-								<span class="price-usd">
-									{pool.priceUsd[0]}, {pool.priceUsd[1]}
-								</span>
-							</div>
-						</td>
-						<td class="col-liquidity">
-							<div class="amount-cell">
-								<span class="total">{pool.totalLiquidityUsd}</span>
-								<span class="breakdown">{pool.totalLiquidityAssets[0]}</span>
-								<span class="breakdown">{pool.totalLiquidityAssets[1]}</span>
-							</div>
-						</td>
-						<td class="col-fee">
-							<div class="amount-cell">
-								<span class="total">{pool.feeEarnedUsd}</span>
-								<span class="breakdown fee-row">
-									<span class="fee-label">LP</span>{pool.feeEarnedAssets[0]}
-									<span class="fee-sub">{pool.feeEarnedUsdBreakdown[0]}</span>
-								</span>
-								<span class="breakdown fee-row">
-									<span class="fee-label">Protocol</span>{pool.feeEarnedAssets[1]}
-									<span class="fee-sub">{pool.feeEarnedUsdBreakdown[1]}</span>
-								</span>
-							</div>
-						</td>
-						<td class="col-volume">
-							<div class="amount-cell">
-								<span class="total">{pool.volumeUsd}</span>
-								<span class="breakdown">{pool.volumeAssets[0]}</span>
-								<span class="breakdown">{pool.volumeAssets[1]}</span>
-							</div>
-						</td>
-						<td class="col-actions">
-							<div class="row-actions">
-								<button
-									type="button"
-									class="row-action row-action-primary"
-									aria-label="Add liquidity to {pool.pair}"
-									disabled={addBlocked}
-									title={addHint}
-									onclick={(e) => {
-										e.stopPropagation();
-										if (addBlocked) return;
-										openAddForPool(pool);
-									}}
-								>
-									<Plus size={14} />
-									Add
-								</button>
-								{#if myPools.some((mp) => mp.contractId === pool.contractId)}
+										<span class="deprecated-tag unregistered-tag" title={addHint}>not on dex</span>
+									{/if}
+								</div>
+							</td>
+							<td class="col-price">
+								<div class="price-cell">
+									<span>{pool.priceRatio}</span>
+									<span>{pool.priceInverse}</span>
+									<span class="price-usd">
+										{pool.priceUsd[0]}, {pool.priceUsd[1]}
+									</span>
+								</div>
+							</td>
+							<td class="col-liquidity">
+								<div class="amount-cell">
+									<span class="total">{pool.totalLiquidityUsd}</span>
+									<span class="breakdown">{pool.totalLiquidityAssets[0]}</span>
+									<span class="breakdown">{pool.totalLiquidityAssets[1]}</span>
+								</div>
+							</td>
+							<td class="col-fee">
+								<div class="amount-cell">
+									<span class="total">{pool.feeEarnedUsd}</span>
+									<span class="breakdown fee-row">
+										<span class="fee-label">LP</span>{pool.feeEarnedAssets[0]}
+										<span class="fee-sub">{pool.feeEarnedUsdBreakdown[0]}</span>
+									</span>
+									<span class="breakdown fee-row">
+										<span class="fee-label">Protocol</span>{pool.feeEarnedAssets[1]}
+										<span class="fee-sub">{pool.feeEarnedUsdBreakdown[1]}</span>
+									</span>
+								</div>
+							</td>
+							<td class="col-volume">
+								<div class="amount-cell">
+									<span class="total">{pool.volumeUsd}</span>
+									<span class="breakdown">{pool.volumeAssets[0]}</span>
+									<span class="breakdown">{pool.volumeAssets[1]}</span>
+								</div>
+							</td>
+							<td class="col-actions">
+								<div class="row-actions">
 									<button
 										type="button"
-										class="row-action row-action-outline"
-										aria-label="Remove liquidity from {pool.pair}"
+										class="row-action row-action-primary"
+										aria-label="Add liquidity to {pool.pair}"
+										disabled={addBlocked}
+										title={addHint}
 										onclick={(e) => {
 											e.stopPropagation();
-											openRemoveForPool(pool);
+											if (addBlocked) return;
+											openAddForPool(pool);
 										}}
 									>
-										<Minus size={14} />
-										Remove
+										<Plus size={14} />
+										Add
 									</button>
+									{#if myPools.some((mp) => mp.contractId === pool.contractId)}
+										<button
+											type="button"
+											class="row-action row-action-outline"
+											aria-label="Remove liquidity from {pool.pair}"
+											onclick={(e) => {
+												e.stopPropagation();
+												openRemoveForPool(pool);
+											}}
+										>
+											<Minus size={14} />
+											Remove
+										</button>
+									{/if}
+								</div>
+							</td>
+						</tr>
+					{:else}
+						<tr>
+							<td class="empty-cell" colspan="6">
+								{#if loading}
+									Loading pools…
+								{:else if searchQuery.trim()}
+									No pools match “{searchQuery.trim()}”.
+								{:else if kind === 'custom'}
+									No custom token pools yet.
+								{:else}
+									No pools yet.
 								{/if}
-							</div>
-						</td>
-					</tr>
-				{:else}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/snippet}
+
+	{#snippet myPoolsTable(rows: MyPoolRow[])}
+		<div class="table-wrapper">
+			<table class="pools-table">
+				<thead>
 					<tr>
-						<td class="empty-cell" colspan="6">
-							{#if loading}
-								Loading pools…
-							{:else if searchQuery.trim()}
-								No pools match “{searchQuery.trim()}”.
-							{:else if kind === 'custom'}
-								No custom token pools yet.
-							{:else}
-								No pools yet.
-							{/if}
-						</td>
+						<th class="col-pair">Pair</th>
+						<th class="col-share">My Share</th>
+						<th class="col-liquidity">My Liquidity</th>
+						<th class="col-lp">LP Tokens</th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{/snippet}
+				</thead>
+				<tbody>
+					{#each rows as row (row.id)}
+						{@const fullPool = pools.find((p) => p.contractId === row.contractId)}
+						<tr
+							class="clickable"
+							onclick={() => {
+								if (fullPool) selectedPool = fullPool;
+							}}
+						>
+							<td class="col-pair">
+								<div class="pair-cell">
+									<span class="pair-icons" aria-hidden="true">
+										{#if assetIcon(row.pairSymbols[0])}
+											<img
+												class="coin-icon icon-a"
+												src={assetIcon(row.pairSymbols[0])}
+												alt={row.pairSymbols[0]}
+											/>
+										{:else}
+											<span class="icon icon-a">{row.pairSymbols[0].slice(0, 3)}</span>
+										{/if}
+										{#if assetIcon(row.pairSymbols[1])}
+											<img
+												class="coin-icon icon-b"
+												src={assetIcon(row.pairSymbols[1])}
+												alt={row.pairSymbols[1]}
+											/>
+										{:else}
+											<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
+										{/if}
+									</span>
+									<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}
+										>{row.pair}</span
+									>
+								</div>
+							</td>
+							<td class="col-share">
+								<span class="share-pct">{row.sharePct.toFixed(4)}%</span>
+							</td>
+							<td class="col-liquidity">
+								<div class="amount-cell">
+									<span class="total">{row.myLiquidityUsd}</span>
+									<span class="breakdown">{row.myAmounts[0]}</span>
+									<span class="breakdown">{row.myAmounts[1]}</span>
+								</div>
+							</td>
+							<td class="col-lp">
+								<span class="lp-amount">{row.lpBalance.toLocaleString()}</span>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/snippet}
 
-{#snippet myPoolsTable(rows: MyPoolRow[])}
-	<div class="table-wrapper">
-		<table class="pools-table">
-			<thead>
-				<tr>
-					<th class="col-pair">Pair</th>
-					<th class="col-share">My Share</th>
-					<th class="col-liquidity">My Liquidity</th>
-					<th class="col-lp">LP Tokens</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each rows as row (row.id)}
-					{@const fullPool = pools.find((p) => p.contractId === row.contractId)}
-					<tr
-						class="clickable"
-						onclick={() => {
-							if (fullPool) selectedPool = fullPool;
-						}}
-					>
-						<td class="col-pair">
-							<div class="pair-cell">
-								<span class="pair-icons" aria-hidden="true">
-									{#if assetIcon(row.pairSymbols[0])}
-										<img class="coin-icon icon-a" src={assetIcon(row.pairSymbols[0])} alt={row.pairSymbols[0]} />
-									{:else}
-										<span class="icon icon-a">{row.pairSymbols[0].slice(0, 3)}</span>
-									{/if}
-									{#if assetIcon(row.pairSymbols[1])}
-										<img class="coin-icon icon-b" src={assetIcon(row.pairSymbols[1])} alt={row.pairSymbols[1]} />
-									{:else}
-										<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
-									{/if}
-								</span>
-								<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}>{row.pair}</span>
-							</div>
-						</td>
-						<td class="col-share">
-							<span class="share-pct">{row.sharePct.toFixed(4)}%</span>
-						</td>
-						<td class="col-liquidity">
-							<div class="amount-cell">
-								<span class="total">{row.myLiquidityUsd}</span>
-								<span class="breakdown">{row.myAmounts[0]}</span>
-								<span class="breakdown">{row.myAmounts[1]}</span>
-							</div>
-						</td>
-						<td class="col-lp">
-							<span class="lp-amount">{row.lpBalance.toLocaleString()}</span>
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-	</div>
-{/snippet}
-
-<AddLiquidityPopup
-	bind:open={addLiquidityOpen}
-	pools={pools.filter((p) => !isDeprecatedPool(p.contractId) && p.routerRegistered)}
-	preselectedPool={addPrefillPool}
-/>
-<RemoveLiquidityPopup
-	bind:open={removeLiquidityOpen}
-	pools={myPoolsAsRows}
-	{myPools}
-	preselectedPool={removePrefillPool}
-/>
-
+	<AddLiquidityPopup
+		bind:open={addLiquidityOpen}
+		pools={pools.filter((p) => !isDeprecatedPool(p.contractId) && p.routerRegistered)}
+		preselectedPool={addPrefillPool}
+	/>
+	<RemoveLiquidityPopup
+		bind:open={removeLiquidityOpen}
+		pools={myPoolsAsRows}
+		{myPools}
+		preselectedPool={removePrefillPool}
+	/>
 {/if}
 
 <style lang="scss">
@@ -476,7 +512,7 @@
 			color: var(--dash-text-muted);
 		}
 		&:focus {
-			outline: 2px solid #6F6AF8;
+			outline: 2px solid #6f6af8;
 			outline-offset: 2px;
 		}
 	}
@@ -484,30 +520,6 @@
 	.time-filters {
 		display: flex;
 		gap: 0.25rem;
-	}
-
-	.time-btn {
-		font: inherit;
-		font-family: 'Nunito Sans', sans-serif;
-		color: var(--dash-text-secondary);
-		background-color: var(--dash-surface);
-		border: 1px solid var(--dash-card-border);
-		border-radius: 1.5rem;
-		padding: 0.5rem 0.75rem;
-		cursor: pointer;
-		transition: background-color 0.1s, color 0.1s;
-		&:not(:disabled):hover {
-			background-color: var(--dash-surface-alt);
-			color: var(--dash-text-primary);
-		}
-		&.active {
-			background-color: #6F6AF8;
-			color: #FFFFFF;
-		}
-		&:disabled {
-			cursor: progress;
-			opacity: 0.6;
-		}
 	}
 
 	.table-wrapper {
@@ -739,7 +751,11 @@
 		font-weight: 600;
 		cursor: pointer;
 		white-space: nowrap;
-		transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+		transition:
+			background-color 0.15s,
+			border-color 0.15s,
+			color 0.15s,
+			box-shadow 0.15s;
 	}
 	.row-action-primary {
 		border: none;

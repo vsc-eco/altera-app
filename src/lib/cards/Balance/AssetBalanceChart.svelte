@@ -9,13 +9,24 @@
 	} from '$lib/stores/assetBalanceHistory';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { compactUsd } from '$lib/currency/compactUsd';
+	import { ChevronLeft, ChevronRight, RotateCcw, ZoomIn, ZoomOut } from '@lucide/svelte';
+	import {
+		MIN_POINTS,
+		panWindow,
+		resolveWindow,
+		zoomWindow,
+		type ChartWindow
+	} from './chartWindow';
 
 	let {
 		did,
 		/** Plot height in px. The default is the dashboard card's size; the
 		 *  pop-out passes the room it actually has. */
-		height = 200
-	}: { did: string | undefined; height?: number } = $props();
+		height = 200,
+		/** Show the zoom / pan controls. Off by default: they are worth the
+		 *  row they cost in the pop-out, not in a 200px card. */
+		zoomable = false
+	}: { did: string | undefined; height?: number; zoomable?: boolean } = $props();
 
 	const dateRanges = buildDateRanges();
 	let selectedDateRange: DateRange = $state(dateRanges[1]); // Last 30 Days
@@ -47,17 +58,49 @@
 		})} ${unit}`;
 	}
 
+	/** The visible slice of what has been fetched. See `chartWindow.ts`. */
+	let win = $state<ChartWindow>(null);
+	const pointCount = $derived(history.dates.length);
+	const view = $derived(resolveWindow(win, pointCount));
+	const zoomed = $derived(win !== null);
+
+	$effect(() => {
+		// Reading `history` is the point: any new data drops the window.
+		history;
+		win = null;
+	});
+
+	const zoomBy = (factor: number) => (win = zoomWindow(win, factor, pointCount));
+	const panBy = (fraction: number) => (win = panWindow(win, fraction, pointCount));
+
+	const canZoomIn = $derived(view.e - view.s > MIN_POINTS);
+	const canPanLeft = $derived(zoomed && view.s > 0);
+	const canPanRight = $derived(zoomed && view.e < pointCount);
+
+	const visibleDates = $derived(history.dates.slice(view.s, view.e));
+
 	/** LineChart reads only `date` from this in multi-series mode. */
-	const timeline = $derived<Point[]>(history.dates.map((date) => ({ date, value: 0 })));
+	const timeline = $derived<Point[]>(visibleDates.map((date) => ({ date, value: 0 })));
 
 	const chartSeries = $derived<ChartSeries[]>(
 		history.series.map((s) => ({
 			key: s.key,
 			label: s.label,
 			color: COLOR[s.key],
-			values: s.usd,
-			detail: s.amounts.map((a) => native(a, s.decimals, s.unit))
+			values: s.usd.slice(view.s, view.e),
+			detail: s.amounts.slice(view.s, view.e).map((a) => native(a, s.decimals, s.unit))
 		}))
+	);
+
+	const dayFormat = new Intl.DateTimeFormat(numberFormatLanguage, {
+		month: 'short',
+		day: 'numeric'
+	});
+	/** What the window currently covers, so zooming says where it landed. */
+	const windowLabel = $derived(
+		visibleDates.length > 0
+			? `${dayFormat.format(visibleDates[0])} – ${dayFormat.format(visibleDates[visibleDates.length - 1])}`
+			: ''
 	);
 
 	$effect(() => {
@@ -97,10 +140,61 @@
 					day: 'numeric',
 					...(isHourly(selectedDateRange) ? { hour: '2-digit', minute: '2-digit' } : {})
 				}).format(hoveredPoint.date)}
+			{:else if zoomable && zoomed}
+				{windowLabel}
 			{:else}
 				Balance per asset
 			{/if}
 		</span>
+		{#if zoomable}
+			<div class="zoom-controls" role="group" aria-label="Zoom and move the chart">
+				<button
+					type="button"
+					onclick={() => panBy(-0.5)}
+					disabled={!canPanLeft}
+					title="Move back"
+					aria-label="Move back"
+				>
+					<ChevronLeft size={15} aria-hidden="true" />
+				</button>
+				<button
+					type="button"
+					onclick={() => zoomBy(1 / 0.6)}
+					disabled={!zoomed}
+					title="Zoom out"
+					aria-label="Zoom out"
+				>
+					<ZoomOut size={15} aria-hidden="true" />
+				</button>
+				<button
+					type="button"
+					onclick={() => zoomBy(0.6)}
+					disabled={!canZoomIn}
+					title="Zoom in"
+					aria-label="Zoom in"
+				>
+					<ZoomIn size={15} aria-hidden="true" />
+				</button>
+				<button
+					type="button"
+					onclick={() => panBy(0.5)}
+					disabled={!canPanRight}
+					title="Move forward"
+					aria-label="Move forward"
+				>
+					<ChevronRight size={15} aria-hidden="true" />
+				</button>
+				<button
+					type="button"
+					onclick={() => (win = null)}
+					disabled={!zoomed}
+					title="Show the whole range"
+					aria-label="Show the whole range"
+				>
+					<RotateCcw size={14} aria-hidden="true" />
+				</button>
+			</div>
+		{/if}
 		<div class="date-select">
 			<DatePicker
 				onValueChange={(v) => (selectedDateRange = v)}
@@ -154,6 +248,44 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	/* One segmented cluster, so it reads as a single control rather than five
+	   loose buttons. Sits between the caption and the range dropdown: the
+	   dropdown chooses what is loaded, these choose what is shown of it. */
+	.zoom-controls {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		margin-left: auto;
+		padding: 2px;
+		border-radius: 999px;
+		background: var(--alt-field, rgba(0, 0, 0, 0.3));
+		border: 1px solid var(--alt-field-border, rgba(255, 255, 255, 0.06));
+	}
+	.zoom-controls button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 24px;
+		padding: 0;
+		border: 0;
+		border-radius: 999px;
+		background: transparent;
+		color: var(--alt-tx-2, var(--dash-text-secondary));
+		cursor: pointer;
+		transition:
+			color 0.15s,
+			background 0.15s;
+	}
+	.zoom-controls button:hover:not(:disabled) {
+		background: var(--alt-chip-hover, rgba(255, 255, 255, 0.12));
+		color: var(--alt-tx, var(--dash-text-primary));
+	}
+	.zoom-controls button:disabled {
+		opacity: 0.35;
+		cursor: default;
+	}
+
 	.chart {
 		min-width: 0;
 		--fg-mid: var(--dash-chart-line);

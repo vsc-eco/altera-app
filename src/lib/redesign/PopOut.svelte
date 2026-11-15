@@ -112,15 +112,36 @@
 		color: var(--alt-tx);
 	}
 
+	/*
+	 * This is the card, enlarged — so it wears the card's own surface
+	 * (`--alt-card` + its blur), not `--alt-modal`. `--alt-modal` is the
+	 * navy the handoff gives the nav popups, and at this size it reads as a
+	 * blue panel that belongs to nothing on the page; the glass surface is
+	 * what the rest of the redesign is built out of.
+	 */
 	dialog {
-		width: min(1100px, 94vw);
+		width: min(1680px, 96vw);
 		max-width: none;
-		height: min(660px, 88dvh);
+		height: min(1000px, 93dvh);
 		max-height: none;
 		padding: 0;
 		border: 1px solid var(--alt-card-border);
-		border-radius: 20px;
-		background: var(--alt-modal);
+		border-radius: 28px;
+		/*
+		 * The page background, with the card's own surface laid over it by
+		 * `.panel` below — which is what a card looks like in situ.
+		 *
+		 * It has to be two elements. `--alt-card` is a translucent GRADIENT in
+		 * Glass but a solid COLOUR in Flat and Light, so it cannot be stacked
+		 * with an opaque base in one `background` shorthand: a colour is only
+		 * legal in the final layer, and `background: var(--alt-card), var(--alt-bg)`
+		 * is therefore invalid in two themes out of three.
+		 *
+		 * An opaque base matters at this size. Left translucent, the Assets
+		 * rows behind it ghost straight through the plot — coloured asset
+		 * icons and all — and the chart becomes hard to read.
+		 */
+		background: var(--alt-bg);
 		box-shadow: var(--alt-card-shadow);
 		color: var(--alt-tx);
 		overflow: hidden;
@@ -137,6 +158,7 @@
 		flex-direction: column;
 		height: 100%;
 		min-height: 0;
+		background: var(--alt-card);
 	}
 	header {
 		display: flex;

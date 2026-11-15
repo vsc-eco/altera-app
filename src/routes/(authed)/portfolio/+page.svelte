@@ -42,7 +42,7 @@
 					     footnote below it — 116px together, measured — so the plot
 					     takes what is left of that, and never less than 260, below
 					     which the pop-out would not be showing anything bigger. -->
-					<AssetBalanceChart {did} height={Math.max(260, room - 120)} />
+					<AssetBalanceChart {did} zoomable height={Math.max(260, room - 120)} />
 				{/snippet}
 			</PopOut>
 		</div>

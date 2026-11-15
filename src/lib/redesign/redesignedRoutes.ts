@@ -17,7 +17,9 @@
 export type PageWidth = 'task' | 'wide';
 
 const REDESIGNED: Record<string, PageWidth> = {
-	'/swap': 'task',
+	// The swap screen is the app's front door and owns `/`. `/swap` is a
+	// permanent redirect to it and so is deliberately not listed.
+	'/': 'task',
 	'/pools': 'wide',
 	'/portfolio': 'wide',
 	'/transactions': 'wide',

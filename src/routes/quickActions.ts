@@ -33,7 +33,7 @@ export const actions: NavigationAction[] = [
 	{
 		type: 'navigation',
 		label: 'Swap',
-		href: '/swap',
+		href: '/',
 		icon: ArrowRightLeft
 	}
 ];

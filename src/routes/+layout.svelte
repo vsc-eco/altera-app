@@ -6,6 +6,7 @@
 	import '@fontsource-variable/noto-sans-mono';
 	import '@fontsource-variable/dm-sans';
 	import AuthInjector from '$lib/auth/AuthInjector.svelte';
+	import ConnectModal from '$lib/auth/ConnectModal.svelte';
 	import { onMount } from 'svelte';
 	import { themeStore, getInitialTheme, THEMES } from '$lib/theme';
 	import { cleanOldLocalStorage } from '$lib/cleanup';
@@ -50,4 +51,7 @@
 
 <AuthInjector>
 	{@render children()}
+	<!-- One dialog for the whole app: the landing page, the shell's Connect
+	     pill and the swap CTA all open this same one. -->
+	<ConnectModal />
 </AuthInjector>

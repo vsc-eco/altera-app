@@ -5,6 +5,9 @@
 	import { altTheme, altThemeClass } from './altTheme';
 	import { WALLET_TABS } from './walletTabs';
 	import { ChevronDown, Settings } from '@lucide/svelte';
+	import Notifications from '$lib/Topbar/Notifications.svelte';
+	import { accountBalance } from '$lib/stores/currentBalance';
+	import { openConnect } from '$lib/auth/connectModal';
 	import type { Snippet } from 'svelte';
 
 	type Props = {
@@ -19,6 +22,16 @@
 	const auth = $derived(getAuth()());
 	const account = $derived(getAccountNameFromAuth(auth));
 	const connected = $derived(!!auth.value);
+
+	/** Same figure the old top bar showed. Hive accounts get a 10k free tier
+	 *  on top of their HBD-derived allowance; see `vsc_rc_derivation`. */
+	const rcDisplay = $derived.by(() => {
+		const bal = $accountBalance.bal;
+		const isHive = auth.value?.provider === 'aioha';
+		const maxRCs = isHive ? bal.hbd + 10000 : bal.hbd;
+		if (!bal) return 'MAGI RC: 0 / 0';
+		return `MAGI RC: ${(bal.resource_credits || 0).toLocaleString()} / ${maxRCs.toLocaleString()}`;
+	});
 
 	type MenuName = 'wallet' | 'market' | null;
 	let menu = $state<MenuName>(null);
@@ -156,7 +169,7 @@
 			</a>
 
 			<nav>
-				<a class={['nav-item', { active: isActive('/swap') }]} href="/swap">Swap</a>
+				<a class={['nav-item', { active: isActive('/') }]} href="/">Swap</a>
 				<a class={['nav-item', { active: isActive('/pools') }]} href="/pools">Pools</a>
 
 				{#if connected}
@@ -196,6 +209,12 @@
 			</nav>
 
 			<div class="right">
+				{#if connected}
+					<div class="rc-badge" title="Resource credits">
+						<span class="rc-text">{rcDisplay}</span>
+					</div>
+					<div class="bell"><Notifications /></div>
+				{/if}
 				<a class="cog" href="/preferences" title="Preferences" aria-label="Preferences">
 					<Settings size={18} />
 				</a>
@@ -205,7 +224,7 @@
 						<span class="account-name">{account}</span>
 					</a>
 				{:else}
-					<a class="connect" href="/login">Connect</a>
+					<button class="connect" type="button" onclick={openConnect}>Connect</button>
 				{/if}
 			</div>
 		</header>
@@ -385,6 +404,28 @@
 		align-items: center;
 		gap: 10px;
 	}
+	/* Resource credits and the notification bell, carried over from the old
+	   top bar. Both are account state, so neither exists logged out. */
+	.rc-badge {
+		display: flex;
+		align-items: center;
+		height: 34px;
+		padding: 0 14px;
+		border-radius: 999px;
+		background: var(--alt-field);
+		border: 1px solid var(--alt-field-border);
+		white-space: nowrap;
+	}
+	.rc-text {
+		font-size: 12.5px;
+		font-weight: 600;
+		color: var(--alt-tx-2);
+	}
+	.bell {
+		display: flex;
+		align-items: center;
+	}
+
 	.cog {
 		width: 40px;
 		height: 40px;
@@ -401,6 +442,8 @@
 		color: var(--alt-tx);
 	}
 	.connect {
+		font: inherit;
+		cursor: pointer;
 		border-radius: 999px;
 		background: var(--alt-acc-soft);
 		color: var(--alt-acc-tx);

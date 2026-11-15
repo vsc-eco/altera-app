@@ -74,7 +74,7 @@
 {#if redesigned}
 	<AltShell
 		width={pageWidth(page.url.pathname)}
-		floatingCoins={page.url.pathname === '/swap'}
+		floatingCoins={page.url.pathname === '/'}
 	>
 		<!-- The five wallet routes are one tabbed page. Wrapping here rather
 		     than in each of them keeps the chrome in the same place as the

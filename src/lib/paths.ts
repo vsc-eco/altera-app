@@ -26,12 +26,12 @@ export const paths: SidebarPath[] = [
 	{
 		name: 'Cross-chain Swaps',
 		icon: ArrowRightLeft,
-		href: '/swap'
+		href: '/'
 	},
 	{
 		name: 'Pools',
 		icon: Droplets,
-		href: '/swap?tab=pools'
+		href: '/pools'
 	},
 	{ name: 'Witness Assistant', icon: Eye, href: '/witness-assistant' },
 	{

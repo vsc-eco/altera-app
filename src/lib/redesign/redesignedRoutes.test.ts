@@ -24,7 +24,7 @@ describe('redesignedRoutes', () => {
 	/** Mirrors the nav and the two popups in `AltShell.svelte`, minus the
 	 *  deliberate "Classic dashboard" entry asserted above. */
 	const topBarDestinations = [
-		'/swap',
+		'/',
 		'/pools',
 		'/portfolio',
 		'/transactions',
@@ -50,8 +50,16 @@ describe('redesignedRoutes', () => {
 		expect(isRedesigned('/marketing')).toBe(false);
 	});
 
+	/** The swap screen is the app's front door and owns `/`. `/swap` is a
+	 *  permanent redirect, so it must not resolve as a shell route — if it
+	 *  did, the shell would render under a URL that is on its way elsewhere. */
+	it('gives the swap screen the root path, not /swap', () => {
+		expect(isRedesigned('/')).toBe(true);
+		expect(isRedesigned('/swap')).toBe(false);
+	});
+
 	it('centres task pages and widens list pages', () => {
-		expect(pageWidth('/swap')).toBe('task');
+		expect(pageWidth('/')).toBe('task');
 		expect(pageWidth('/preferences')).toBe('task');
 		expect(pageWidth('/pools')).toBe('wide');
 		expect(pageWidth('/portfolio')).toBe('wide');

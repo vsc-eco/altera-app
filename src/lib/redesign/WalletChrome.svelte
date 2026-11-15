@@ -56,6 +56,10 @@
 	 * else's history would read as theirs. Hide it rather than explain it.
 	 */
 	const viewingOther = $derived(!!page.url.searchParams.get('account')?.trim());
+
+	/** Assets is the tab the wallet total describes, so it is the only one
+	 *  that shows it. */
+	const showWalletInfo = $derived(active?.href === WALLET_TABS[0].href);
 </script>
 
 <div class="wallet">
@@ -75,18 +79,24 @@
 		{/each}
 	</nav>
 
-	<header>
-		<div class="title-area">
-			<h1>Wallet</h1>
-			{#if !viewingOther}
-				<div class="total" class:loading>
-					<span class="dollars">${dollars.toLocaleString(numberFormatLanguage)}</span><span
-						class="cents">.{cents}</span
-					>
-				</div>
-			{/if}
-		</div>
-	</header>
+	<!-- The title and total belong to Assets, which is the tab that is ABOUT
+	     what you hold. On Transactions, Transfer, Deposit and Withdraw the
+	     page has its own heading right below, and a running total above it is
+	     a second thing to read that the task does not need. -->
+	{#if showWalletInfo}
+		<header>
+			<div class="title-area">
+				<h1>Wallet</h1>
+				{#if !viewingOther}
+					<div class="total" class:loading>
+						<span class="dollars">${dollars.toLocaleString(numberFormatLanguage)}</span><span
+							class="cents">.{cents}</span
+						>
+					</div>
+				{/if}
+			</div>
+		</header>
+	{/if}
 
 	<div class="tab-body">
 		{@render children()}

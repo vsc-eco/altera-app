@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
+	import { openConnect } from '$lib/auth/connectModal';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { getTxSessionId, send } from '$lib/sendswap/utils/sendUtils';
@@ -142,21 +143,38 @@
 	);
 	let customButtons: ComponentProps<typeof NavButtons>['buttons'] | undefined = $state();
 
+	/**
+	 * Logged out, the only move is to connect.
+	 *
+	 * The swap screen is the app's front door now and renders for anonymous
+	 * visitors, so the card is reachable with no account behind it. The CTA
+	 * ladder in the handoff starts at "Connect wallet" for exactly this, and
+	 * it takes precedence over everything below: without an account there is
+	 * no balance to validate and nothing to sign, so offering "Review swap"
+	 * would be an invitation to a dead end.
+	 *
+	 * This gates the button only. None of the swap-safety logic below is
+	 * touched — it simply never runs until there is an account.
+	 */
+	const connected = $derived(!!auth.value);
+
 	const buttons = $derived(
-		customButtons ?? {
-			fwd: {
-				label: nextLabel,
-				action: next,
-				disabled: !stepComplete
-			},
-			back:
-				step !== 0
-					? {
-							label: 'Back',
-							action: previous
-						}
-					: undefined
-		}
+		!connected
+			? { fwd: { label: 'Connect wallet', action: openConnect } }
+			: (customButtons ?? {
+					fwd: {
+						label: nextLabel,
+						action: next,
+						disabled: !stepComplete
+					},
+					back:
+						step !== 0
+							? {
+									label: 'Back',
+									action: previous
+								}
+							: undefined
+				})
 	);
 	$effect(() => {
 		if (status.message.includes('cancel') || status.message.includes('reject')) {

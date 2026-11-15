@@ -1,11 +1,9 @@
 <script lang="ts">
-	import AppKitLogin from '$lib/auth/AppKitLogin.svelte';
-	import HiveLogin from '$lib/auth/HiveLogin.svelte';
 	import { goto } from '$app/navigation';
 	import { getAuth } from '$lib/auth/store';
 	import { browser } from '$app/environment';
 	import Card from '$lib/cards/Card.svelte';
-	import { ArrowRight, Repeat, Wallet, Bitcoin, Shield, Layers, Zap, Globe, X } from '@lucide/svelte';
+	import { ArrowRight, Repeat, Wallet, Shield, Layers, Zap, Globe } from '@lucide/svelte';
 	import { SITE_URL, SITE_TITLE, STRUCTURED_DATA } from '$lib/seo';
 
 	// JSON-LD for search engines. `<` is escaped so the payload can never close
@@ -14,9 +12,10 @@
 	const structuredData =
 		'<script type="application/ld+json">' +
 		JSON.stringify(STRUCTURED_DATA).replace(/</g, '\\u003c') +
-		'</' + 'script>';
+		'</' +
+		'script>';
 
-	let loginOpen = $state(false);
+	import { openConnect } from '$lib/auth/connectModal';
 
 	let auth = $derived(getAuth()());
 	// APP-10: never honour a stored redirect that points off-origin (open
@@ -54,7 +53,7 @@
 		{
 			icon: Zap,
 			title: 'Zero Transaction Fees',
-			desc: 'Magi\'s resource credit model means zero cost to transfer. Hold HBD, transact for free.',
+			desc: "Magi's resource credit model means zero cost to transfer. Hold HBD, transact for free.",
 			color: 'green',
 			badge: null
 		},
@@ -78,7 +77,7 @@
 			desc: 'Provide liquidity, become a validator, earn from trading fees. Help power the network and get rewarded.',
 			color: 'pink',
 			badge: null
-		},
+		}
 	];
 
 	const testimonials = [
@@ -138,7 +137,7 @@
 			<img src="/altera_med.png" alt="Altera" class="nav-logo" />
 			<span class="nav-brand">ALTERA</span>
 		</div>
-		<button class="nav-cta" onclick={() => loginOpen = true}>
+		<button class="nav-cta" onclick={openConnect}>
 			Launch App <ArrowRight size={14} />
 		</button>
 	</nav>
@@ -155,15 +154,21 @@
 		</div>
 		<h1 class="hero-tagline">Swap native assets - no wrapping, no bridges.</h1>
 		<p class="hero-sub">Swap real BTC, real DASH, real HIVE.</p>
-		<p class="hero-hook"><em>Why? Because every time you use a centralized exchange, someone else controls your funds.</em></p>
+		<p class="hero-hook">
+			<em
+				>Why? Because every time you use a centralized exchange, someone else controls your funds.</em
+			>
+		</p>
 		<div class="hero-tags">
 			<span class="tag">Zero Fees</span>
 			<span class="tag">Non-Custodial</span>
 			<span class="tag">Any Wallet</span>
 		</div>
 		<div class="hero-buttons">
-			<button class="btn-primary" onclick={() => loginOpen = true}>Launch App <ArrowRight size={16} /></button>
-			<a href="https://docs.magiprotocol.com" target="_blank" rel="noopener" class="btn-secondary">Read Docs</a>
+			<button class="btn-primary" onclick={openConnect}>Launch App <ArrowRight size={16} /></button>
+			<a href="https://docs.magiprotocol.com" target="_blank" rel="noopener" class="btn-secondary"
+				>Read Docs</a
+			>
 		</div>
 	</section>
 
@@ -198,7 +203,15 @@
 					<div class="testimonial-card">
 						<p class="testimonial-text">"{t.text}"</p>
 						<div class="testimonial-author">
-							<img src={t.image} alt={t.name} class="author-avatar" width="36" height="36" loading="lazy" decoding="async" />
+							<img
+								src={t.image}
+								alt={t.name}
+								class="author-avatar"
+								width="36"
+								height="36"
+								loading="lazy"
+								decoding="async"
+							/>
 							<div class="author-info">
 								<span class="author-name">{t.name}</span>
 								<span class="author-title">{t.title}</span>
@@ -211,67 +224,6 @@
 	</section>
 
 	<!-- Login Modal -->
-	{#if loginOpen}
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div class="login-overlay" onclick={() => loginOpen = false}>
-			<div class="login-modal" onclick={(e) => e.stopPropagation()}>
-				<button class="modal-close" onclick={() => loginOpen = false}><X size={20} /></button>
-				<img src="/altera_med.png" alt="" class="modal-logo" />
-				<h2 class="login-title">Connect to Altera</h2>
-				<p class="login-subtitle">Choose how you want to connect</p>
-				{#if redirectTo && redirectTo.pathname != '/'}
-					<p class="continue">
-						Continue to <span class="redirect">{redirectTo.pathname}</span>
-					</p>
-				{/if}
-					<div class="login-option evm">
-					<div class="option-left">
-						<Wallet size={20} />
-						<div class="option-text">
-							<span class="option-label">EVM Wallet</span>
-							<span class="option-hint">MetaMask · Coinbase · WalletConnect</span>
-						</div>
-					</div>
-					<div class="option-right">
-						<ArrowRight size={16} class="option-arrow" />
-					</div>
-					<div class="option-button" onclick={() => setTimeout(() => loginOpen = false, 100)}>
-						<AppKitLogin namespace="eip155" />
-					</div>
-				</div>
-				<div class="login-option btc">
-					<div class="option-left">
-						<Bitcoin size={20} />
-						<div class="option-text">
-							<span class="option-label">BTC Wallet</span>
-							<span class="option-hint">Leather · Xverse · Unisat · OKX</span>
-						</div>
-					</div>
-					<div class="option-right">
-						<ArrowRight size={16} class="option-arrow" />
-					</div>
-					<div class="option-button" onclick={() => setTimeout(() => loginOpen = false, 100)}>
-						<AppKitLogin namespace="bip122" />
-					</div>
-				</div>
-				<div class="login-divider">
-					<span>or</span>
-				</div>
-				<div class="hive-login-wrap">
-					<HiveLogin />
-				</div>
-				<div class="modal-footer">
-					<div class="powered-footer">
-						<span>Powered by</span>
-						<img src="/magi-with-name.svg" alt="Magi Network" />
-					</div>
-					<span class="custody-note">Non-custodial · Your keys, your assets</span>
-				</div>
-			</div>
-		</div>
-	{/if}
-
 	<!-- Footer -->
 	<footer class="landing-footer">
 		<img src="/altera_med.png" alt="Altera" class="footer-logo" />
@@ -283,8 +235,8 @@
 	.landing {
 		position: relative;
 		min-height: 100dvh;
-		background: #07070E;
-		color: var(--dash-text-primary, #E8E6F0);
+		background: #07070e;
+		color: var(--dash-text-primary, #e8e6f0);
 		font-family: 'Nunito Sans', sans-serif;
 		overflow-x: hidden;
 	}
@@ -336,7 +288,7 @@
 		align-items: center;
 		gap: 0.4rem;
 		padding: 0.5rem 1.25rem;
-		background: linear-gradient(135deg, #7B74FF 0%, #5B54E0 100%);
+		background: linear-gradient(135deg, #7b74ff 0%, #5b54e0 100%);
 		color: white;
 		border: none;
 		border-radius: 2rem;
@@ -380,7 +332,7 @@
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: #4ADE80;
+		background: #4ade80;
 		box-shadow: 0 0 8px 2px rgba(74, 222, 128, 0.5);
 		animation: dot-pulse 2s ease-in-out infinite;
 	}
@@ -398,14 +350,19 @@
 		animation: logo-glow 3s ease-in-out infinite;
 	}
 	@keyframes logo-glow {
-		0%, 100% { filter: invert(1) brightness(2) drop-shadow(0 0 15px rgba(111, 106, 248, 0.3)); }
-		50% { filter: invert(1) brightness(2) drop-shadow(0 0 30px rgba(111, 106, 248, 0.6)); }
+		0%,
+		100% {
+			filter: invert(1) brightness(2) drop-shadow(0 0 15px rgba(111, 106, 248, 0.3));
+		}
+		50% {
+			filter: invert(1) brightness(2) drop-shadow(0 0 30px rgba(111, 106, 248, 0.6));
+		}
 	}
 	.hero-logo-text {
 		font-size: clamp(3rem, 7vw, 5rem);
 		font-weight: 700;
 		letter-spacing: 0.25em;
-		background: linear-gradient(135deg, #FFFFFF, #B0ADFF, #FFFFFF);
+		background: linear-gradient(135deg, #ffffff, #b0adff, #ffffff);
 		background-size: 200% 200%;
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
@@ -413,8 +370,13 @@
 		animation: gradient-shift 4s ease infinite;
 	}
 	@keyframes gradient-shift {
-		0%, 100% { background-position: 0% 50%; }
-		50% { background-position: 100% 50%; }
+		0%,
+		100% {
+			background-position: 0% 50%;
+		}
+		50% {
+			background-position: 100% 50%;
+		}
 	}
 	.hero-tagline {
 		font-size: clamp(1.4rem, 3vw, 1.9rem);
@@ -461,7 +423,7 @@
 		align-items: center;
 		gap: 0.4rem;
 		padding: 0.7rem 1.5rem;
-		background: linear-gradient(135deg, #7B74FF 0%, #6F6AF8 40%, #5B54E0 100%);
+		background: linear-gradient(135deg, #7b74ff 0%, #6f6af8 40%, #5b54e0 100%);
 		color: white;
 		border: none;
 		border-radius: 2rem;
@@ -486,7 +448,9 @@
 		font-weight: 600;
 		font-size: 0.9rem;
 		text-decoration: none;
-		transition: border-color 0.15s ease, color 0.15s ease;
+		transition:
+			border-color 0.15s ease,
+			color 0.15s ease;
 		&:hover {
 			border-color: rgba(255, 255, 255, 0.3);
 			color: white;
@@ -507,7 +471,7 @@
 		font-size: 0.7rem;
 		font-weight: 700;
 		letter-spacing: 0.12em;
-		color: #7B74FF;
+		color: #7b74ff;
 		margin-bottom: 0.75rem;
 	}
 	h2 {
@@ -537,7 +501,9 @@
 		border-radius: 20px;
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-		transition: border-color 0.2s ease, transform 0.2s ease;
+		transition:
+			border-color 0.2s ease,
+			transform 0.2s ease;
 		&:hover {
 			border-color: rgba(255, 255, 255, 0.15);
 			transform: translateY(-2px);
@@ -562,7 +528,7 @@
 		padding: 0.2rem 0.6rem;
 		border-radius: 2rem;
 		background: rgba(251, 191, 36, 0.15);
-		color: #FBBF24;
+		color: #fbbf24;
 		font-size: 0.65rem;
 		font-weight: 700;
 		letter-spacing: 0.05em;
@@ -576,12 +542,30 @@
 		height: 40px;
 		border-radius: 12px;
 	}
-	.feature-card.purple .feature-icon { background: rgba(111, 106, 248, 0.15); color: #7B74FF; }
-	.feature-card.blue .feature-icon { background: rgba(59, 130, 246, 0.15); color: #60A5FA; }
-	.feature-card.green .feature-icon { background: rgba(74, 222, 128, 0.15); color: #4ADE80; }
-	.feature-card.amber .feature-icon { background: rgba(251, 191, 36, 0.15); color: #FBBF24; }
-	.feature-card.teal .feature-icon { background: rgba(45, 212, 191, 0.15); color: #2DD4BF; }
-	.feature-card.pink .feature-icon { background: rgba(236, 72, 153, 0.15); color: #EC4899; }
+	.feature-card.purple .feature-icon {
+		background: rgba(111, 106, 248, 0.15);
+		color: #7b74ff;
+	}
+	.feature-card.blue .feature-icon {
+		background: rgba(59, 130, 246, 0.15);
+		color: #60a5fa;
+	}
+	.feature-card.green .feature-icon {
+		background: rgba(74, 222, 128, 0.15);
+		color: #4ade80;
+	}
+	.feature-card.amber .feature-icon {
+		background: rgba(251, 191, 36, 0.15);
+		color: #fbbf24;
+	}
+	.feature-card.teal .feature-icon {
+		background: rgba(45, 212, 191, 0.15);
+		color: #2dd4bf;
+	}
+	.feature-card.pink .feature-icon {
+		background: rgba(236, 72, 153, 0.15);
+		color: #ec4899;
+	}
 
 	/* ═══ Testimonials ═══ */
 	.testimonials-section {
@@ -606,8 +590,12 @@
 		}
 	}
 	@keyframes marquee {
-		from { transform: translateX(0); }
-		to { transform: translateX(-50%); }
+		from {
+			transform: translateX(0);
+		}
+		to {
+			transform: translateX(-50%);
+		}
 	}
 	.testimonial-card {
 		flex-shrink: 0;
@@ -650,220 +638,6 @@
 	}
 
 	/* ═══ Login Modal ═══ */
-	.login-overlay {
-		position: fixed;
-		inset: 0;
-		z-index: 40;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(10px);
-		animation: overlayIn 0.2s ease;
-	}
-	@keyframes overlayIn {
-		from { opacity: 0; }
-		to { opacity: 1; }
-	}
-	.login-modal {
-		position: relative;
-		max-width: 400px;
-		width: calc(100% - 2rem);
-		background:
-			radial-gradient(ellipse at 50% 30%, rgba(99, 88, 255, 0.08) 0%, transparent 70%),
-			#0F1225;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 16px;
-		padding: 2rem 1.75rem;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		box-shadow: 0 0 60px rgba(99, 88, 255, 0.15);
-		animation: modalIn 0.2s ease;
-	}
-	@keyframes modalIn {
-		from { opacity: 0; transform: scale(0.95); }
-		to { opacity: 1; transform: scale(1); }
-	}
-	.modal-logo {
-		width: 32px;
-		height: 32px;
-		filter: invert(1) brightness(2);
-		margin-bottom: 0.75rem;
-	}
-	.modal-close {
-		position: absolute;
-		top: 0.75rem;
-		right: 0.75rem;
-		background: none;
-		border: none;
-		color: rgba(255, 255, 255, 0.3);
-		cursor: pointer;
-		padding: 0.25rem;
-		border-radius: 50%;
-		display: flex;
-		transition: color 0.15s;
-		&:hover { color: white; }
-	}
-	.login-title {
-		text-align: center;
-		margin: 0 0 0.25rem;
-		font-size: 1.25rem;
-		font-weight: 700;
-	}
-	.login-subtitle {
-		text-align: center;
-		font-size: 0.8rem;
-		color: rgba(255, 255, 255, 0.4);
-		margin: 0 0 1.5rem;
-	}
-	.continue {
-		font-size: 0.85rem;
-		color: rgba(255, 255, 255, 0.5);
-		margin: -0.5rem 0 1rem;
-	}
-	.redirect {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		color: #7B74FF;
-		text-decoration: underline;
-	}
-
-	/* ── Login options ── */
-	.login-option {
-		position: relative;
-		width: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.875rem 1rem;
-		background: #1A1F35;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 12px;
-		cursor: pointer;
-		transition: border-color 0.15s ease, box-shadow 0.15s ease;
-		box-sizing: border-box;
-		&:hover {
-			border-color: rgba(99, 88, 255, 0.5);
-			box-shadow: 0 0 20px rgba(99, 88, 255, 0.1);
-		}
-	}
-	.option-left {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		color: rgba(255, 255, 255, 0.6);
-	}
-	.hive-icon {
-		width: 20px;
-		height: 20px;
-	}
-	.option-text {
-		display: flex;
-		flex-direction: column;
-	}
-	.option-label {
-		font-weight: 600;
-		font-size: 0.9rem;
-		color: var(--dash-text-primary, white);
-	}
-	.option-hint {
-		font-size: 0.65rem;
-		color: rgba(255, 255, 255, 0.3);
-		margin-top: 0.1rem;
-	}
-	.option-right {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: rgba(255, 255, 255, 0.25);
-	}
-	/* Web3 button overlay covers entire card */
-	.option-button {
-		position: absolute;
-		inset: 0;
-		z-index: 1;
-		cursor: pointer;
-		:global(button) {
-			background: transparent !important;
-			border: none !important;
-			box-shadow: none !important;
-			padding: 0 !important;
-			margin: 0 !important;
-			height: 100% !important;
-			width: 100% !important;
-			color: transparent !important;
-			cursor: pointer;
-		}
-	}
-	/* Hive login - styled to match EVM card */
-	.hive-login-wrap {
-		width: 100%;
-		:global(button) {
-			width: 100% !important;
-			background: #1A1F35 !important;
-			border: 1px solid rgba(255, 255, 255, 0.08) !important;
-			border-radius: 12px !important;
-			padding: 0.875rem 1rem !important;
-			color: white !important;
-			font-family: 'Nunito Sans', sans-serif !important;
-			font-weight: 600 !important;
-			font-size: 0.9rem !important;
-			box-shadow: none !important;
-			transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
-			&:hover {
-				border-color: rgba(99, 88, 255, 0.5) !important;
-				box-shadow: 0 0 20px rgba(99, 88, 255, 0.1) !important;
-			}
-		}
-	}
-
-	/* ── Divider ── */
-	.login-divider {
-		display: flex;
-		align-items: center;
-		width: 100%;
-		gap: 0.75rem;
-		margin: 0.75rem 0;
-		span {
-			font-size: 0.75rem;
-			color: rgba(255, 255, 255, 0.25);
-			white-space: nowrap;
-		}
-		&::before, &::after {
-			content: '';
-			flex: 1;
-			height: 1px;
-			background: rgba(255, 255, 255, 0.08);
-		}
-	}
-
-	/* ── Modal footer ── */
-	.modal-footer {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		margin-top: 1.25rem;
-		gap: 0.35rem;
-	}
-	.powered-footer {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		span {
-			font-size: 0.75rem;
-			color: rgba(255, 255, 255, 0.3);
-		}
-		img {
-			height: 18px;
-			opacity: 0.5;
-		}
-	}
-	.custody-note {
-		font-size: 0.65rem;
-		color: rgba(255, 255, 255, 0.2);
-		letter-spacing: 0.02em;
-	}
-
 	/* ═══ Footer ═══ */
 	.landing-footer {
 		position: relative;
@@ -885,7 +659,6 @@
 		opacity: 0.4;
 		filter: invert(1) brightness(2);
 	}
-
 
 	/* ═══ Entrance animations ═══ */
 	.hero-badge {
@@ -911,31 +684,66 @@
 	}
 	.feature-card {
 		animation: fadeUp 0.5s ease both;
-		&:nth-child(1) { animation-delay: 0.7s; }
-		&:nth-child(2) { animation-delay: 0.8s; }
-		&:nth-child(3) { animation-delay: 0.9s; }
-		&:nth-child(4) { animation-delay: 1.0s; }
-		&:nth-child(5) { animation-delay: 1.1s; }
-		&:nth-child(6) { animation-delay: 1.2s; }
+		&:nth-child(1) {
+			animation-delay: 0.7s;
+		}
+		&:nth-child(2) {
+			animation-delay: 0.8s;
+		}
+		&:nth-child(3) {
+			animation-delay: 0.9s;
+		}
+		&:nth-child(4) {
+			animation-delay: 1s;
+		}
+		&:nth-child(5) {
+			animation-delay: 1.1s;
+		}
+		&:nth-child(6) {
+			animation-delay: 1.2s;
+		}
 	}
 	@keyframes fadeUp {
-		from { opacity: 0; transform: translateY(20px); }
-		to { opacity: 1; transform: translateY(0); }
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	/* ═══ Other animations ═══ */
 	@keyframes dot-pulse {
-		0%, 100% { box-shadow: 0 0 4px 1px rgba(74, 222, 128, 0.3); }
-		50% { box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.7); }
+		0%,
+		100% {
+			box-shadow: 0 0 4px 1px rgba(74, 222, 128, 0.3);
+		}
+		50% {
+			box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.7);
+		}
 	}
 
 	/* ═══ Responsive ═══ */
 	@media (max-width: 640px) {
-		.hero { padding: 4rem 5% 3rem; }
-		h1 { font-size: 2.2rem; }
-		.hero-sub { font-size: 0.95rem; }
-		.features-grid { gap: 0.75rem; }
-		.testimonial-card { width: 280px; }
-		.login-section :global(div) { padding: 1rem; }
+		.hero {
+			padding: 4rem 5% 3rem;
+		}
+		h1 {
+			font-size: 2.2rem;
+		}
+		.hero-sub {
+			font-size: 0.95rem;
+		}
+		.features-grid {
+			gap: 0.75rem;
+		}
+		.testimonial-card {
+			width: 280px;
+		}
+		.login-section :global(div) {
+			padding: 1rem;
+		}
 	}
 </style>

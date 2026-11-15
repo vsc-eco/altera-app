@@ -10,9 +10,7 @@
 	import Card from '$lib/cards/Card.svelte';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
-	import { getAuth } from '$lib/auth/store';
-	import { GetTransactionsStore } from '$houdini';
-	import { queryOnce } from '$lib/queryOnce';
+	import { useRecentTxs } from '../recentTxs.svelte';
 	import moment from 'moment';
 	import { type Snippet } from 'svelte';
 	// Tr.svelte and SidePopup ARE the transactions table's modal pieces —
@@ -22,7 +20,7 @@
 	// page uses for its SidePopup. End result: identical modal, no
 	// navigation, no duplicated content.
 	import Tr from '../../../../routes/(authed)/transactions/Table/tr/Tr.svelte';
-	import { getTimestamp, type TransactionInter } from '$lib/stores/txStores';
+	import { getTimestamp } from '$lib/stores/txStores';
 	import { Check, ChevronDown, Clock } from '@lucide/svelte';
 
 	// ─── Recent deposits ────────────────────────────────────────────────
@@ -76,14 +74,8 @@
 	//   - 'loading': initial state AND fetch in flight.
 	//   - 'unauth':  auth resolved with no did. Show mock fixtures.
 	//   - 'loaded':  fetch done. Show real deposits, or an empty state.
-	const authValue = $derived(getAuth()());
-	let depositsState = $state<'unauth' | 'loading' | 'loaded'>('loading');
-	let didFetch = $state(false);
-	let realDeposits = $state<DisplayDeposit[]>([]);
-	let realTxs = $state<TransactionInter[]>([]);
-	let hasMoreDeposits = $state(false);
+	const recent = useRecentTxs();
 	const RECENT_DEPOSIT_LIMIT = 10;
-	const RAW_TX_FETCH_LIMIT = 30;
 
 	// ─── Transaction-detail modal state ─────────────────────────────────
 	let openSnippet = $state<(() => ReturnType<Snippet>) | undefined>();
@@ -168,41 +160,26 @@
 		return out;
 	}
 
-	$effect(() => {
-		if (didFetch) return; // one-shot: don't re-fire on auth churn
-
-		if (authValue.status === 'pending') return;
-
-		didFetch = true;
-		const did = authValue.value?.did;
-
-		if (!did) {
-			depositsState = 'unauth';
-			return;
-		}
-
-		queryOnce(new GetTransactionsStore(), {
-			variables: { did, limit: RAW_TX_FETCH_LIMIT, offset: 0 },
-			policy: 'NetworkOnly'
-		})
-			.then((result) => {
-				const rawTxs = (result.data?.findTransaction ?? []) as TransactionInter[];
-				const allDeposits = rawTxs.flatMap((tx) => extractDeposits(tx));
-
-				hasMoreDeposits =
-					allDeposits.length > RECENT_DEPOSIT_LIMIT || rawTxs.length >= RAW_TX_FETCH_LIMIT;
-				realTxs = rawTxs.map((tx) => ({ ...tx, isPending: false }));
-				realDeposits = allDeposits.slice(0, RECENT_DEPOSIT_LIMIT);
-				depositsState = 'loaded';
-			})
-			.catch(() => {
-				realDeposits = [];
-				depositsState = 'loaded';
-			});
-	});
+	/**
+	 * Recent deposits come from the SHARED transaction store, not from a
+	 * query of this component's own.
+	 *
+	 * A private `GetTransactionsStore` fetch here is a concurrent query for
+	 * the same Houdini document as the rest of the app, and the loser is
+	 * ABORTED (`AbortError: aborted`) — after which the catch emptied the
+	 * list and the rail said "No recent deposits yet" over an account that
+	 * had them. A silent failure: an empty rail looks like a true result.
+	 * This rail usually won the race; the transfer rail lost it every time,
+	 * which is how it was found. `useRecentTxs` also dedupes, so a repeated
+	 * transaction can no longer collide in the keyed `{#each}` below.
+	 */
+	const allDeposits = $derived(recent.txs.flatMap((tx) => extractDeposits(tx)));
+	const realDeposits = $derived(allDeposits.slice(0, RECENT_DEPOSIT_LIMIT));
+	const realTxs = $derived(recent.txs);
+	const hasMoreDeposits = $derived(allDeposits.length > RECENT_DEPOSIT_LIMIT);
 
 	const displayDeposits = $derived<DisplayDeposit[]>(
-		depositsState === 'unauth' ? MOCK_RECENT_DEPOSITS : realDeposits
+		recent.unauth ? MOCK_RECENT_DEPOSITS : realDeposits
 	);
 
 	let activeMockDeposit = $state<DisplayDeposit | null>(null);
@@ -237,7 +214,7 @@
 			  - has items: the list (real for authed users with data,
 			    or mock fixtures for unauthenticated previews)
 		-->
-		{#if depositsState === 'loading'}
+		{#if recent.loading}
 			<div class="recent-loading">
 				<WaveLoading size={18} />
 			</div>
@@ -245,7 +222,7 @@
 			<p class="rail-empty">No recent deposits yet.</p>
 		{:else}
 			<ul class="recent-list">
-				{#each displayDeposits as d (d.id)}
+				{#each displayDeposits as d, i (`${d.id}#${i}`)}
 					<li>
 						<button class="recent-item" type="button" onclick={() => handleDepositClick(d)}>
 							<div class="recent-icon" data-status={d.status}>
@@ -403,7 +380,7 @@
 	callback then plugs `thisRowContent` into the SidePopup below.
 -->
 <div class="hidden-tr-mount" aria-hidden="true">
-	{#each realDeposits ?? [] as d (d.id)}
+	{#each realDeposits ?? [] as d, i (`${d.id}#${i}`)}
 		{#if d.realRef}
 			{@const tx = realTxs.find((t) => t.id === d.realRef!.tx)}
 			{@const op = tx?.ops?.[d.realRef.index]}

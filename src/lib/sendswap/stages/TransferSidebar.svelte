@@ -16,7 +16,8 @@
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import moment from 'moment';
-	import { fetchTxs, getTimestamp, magiTxsStore } from '$lib/stores/txStores';
+	import { getTimestamp } from '$lib/stores/txStores';
+	import { useRecentTxs } from './recentTxs.svelte';
 	import { ArrowDownLeft, ArrowUpRight, ChevronDown } from '@lucide/svelte';
 
 	type DisplayTransfer = {
@@ -32,10 +33,8 @@
 	};
 
 	const authValue = $derived(getAuth()());
-	let loadState = $state<'unauth' | 'loading' | 'loaded'>('loading');
-	let didKick = $state(false);
+	const recent = useRecentTxs();
 	const RECENT_LIMIT = 8;
-	const RAW_TX_FETCH_LIMIT = 30;
 
 	function formatTime(ts: string): string {
 		const m = moment(ts);
@@ -126,41 +125,10 @@
 		return out;
 	}
 
-	/**
-	 * Read from the SHARED transaction store rather than issuing another
-	 * `GetTransactionsStore` query of our own.
-	 *
-	 * A private query here raced the app's existing transaction fetches for the
-	 * same document and lost: Houdini aborted it (`AbortError: aborted`), the
-	 * catch emptied the list, and the rail showed "No transfers yet" over an
-	 * account with plenty. Sharing the store removes the race and the duplicate
-	 * request, and keeps the rail live as the store updates.
-	 */
 	const me = $derived(getUsernameFromAuth(authValue));
-	const transfers = $derived(
-		$magiTxsStore.flatMap((tx) => extractTransfers(tx, me)).slice(0, RECENT_LIMIT)
-	);
-	const hasMore = $derived(
-		$magiTxsStore.flatMap((tx) => extractTransfers(tx, me)).length > RECENT_LIMIT
-	);
-
-	$effect(() => {
-		if (didKick) return;
-		if (authValue.status === 'pending') return;
-		didKick = true;
-		const did = authValue.value?.did;
-		if (!did) {
-			loadState = 'unauth';
-			return;
-		}
-		// Someone else may already have filled it (the transactions page, the
-		// notification feed); only pay for a fetch when it is empty.
-		if ($magiTxsStore.length > 0) {
-			loadState = 'loaded';
-			return;
-		}
-		fetchTxs(did, 'set', undefined, RAW_TX_FETCH_LIMIT).finally(() => (loadState = 'loaded'));
-	});
+	const allTransfers = $derived(recent.txs.flatMap((tx) => extractTransfers(tx, me)));
+	const transfers = $derived(allTransfers.slice(0, RECENT_LIMIT));
+	const hasMore = $derived(allTransfers.length > RECENT_LIMIT);
 
 	let openFaqIdx = $state<number | null>(null);
 	function toggleFaq(idx: number) {
@@ -171,15 +139,16 @@
 <aside class="rail">
 	<section>
 		<h5>Recent transfers</h5>
-		{#if loadState === 'loading'}
-			<div class="recent-loading"><WaveLoading size={18} /></div>
-		{:else if loadState === 'unauth'}
+		{#if recent.unauth}
 			<p class="rail-empty">Connect a wallet to see your recent transfers.</p>
-		{:else if transfers.length === 0}
-			<p class="rail-empty">No transfers yet. Your next one will show up here.</p>
-		{:else}
+		{:else if transfers.length > 0}
 			<ul class="recent-list">
-				{#each transfers as t (t.id)}
+				<!-- Position is part of the key on purpose. The ids are derived
+				     from tx id + entry index, and a single bad duplicate throws
+				     `each_key_duplicate`, which breaks the component for the rest
+				     of the session — not worth risking for list-diffing on a
+				     rail that only ever replaces itself wholesale. -->
+				{#each transfers as t, i (`${t.id}#${i}`)}
 					<li>
 						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static internal link; resolve() not exported in this kit version -->
 						<a class="recent-item" href={t.href}>
@@ -210,6 +179,10 @@
 				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static internal link; resolve() not exported in this kit version -->
 				<a class="recent-view-more" href="/transactions">View all transactions →</a>
 			{/if}
+		{:else if recent.loading}
+			<div class="recent-loading"><WaveLoading size={18} /></div>
+		{:else}
+			<p class="rail-empty">No transfers yet. Your next one will show up here.</p>
 		{/if}
 	</section>
 

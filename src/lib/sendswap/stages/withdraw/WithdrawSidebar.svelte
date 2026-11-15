@@ -10,13 +10,11 @@
 	import Card from '$lib/cards/Card.svelte';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
-	import { getAuth } from '$lib/auth/store';
-	import { GetTransactionsStore } from '$houdini';
-	import { queryOnce } from '$lib/queryOnce';
+	import { useRecentTxs } from '../recentTxs.svelte';
 	import moment from 'moment';
 	import { type Snippet } from 'svelte';
 	import Tr from '../../../../routes/(authed)/transactions/Table/tr/Tr.svelte';
-	import { getTimestamp, type TransactionInter } from '$lib/stores/txStores';
+	import { getTimestamp } from '$lib/stores/txStores';
 	import { Check, ChevronDown, Clock } from '@lucide/svelte';
 
 	// ─── Recent withdrawals ─────────────────────────────────────────────────
@@ -57,14 +55,8 @@
 		}
 	];
 
-	const authValue = $derived(getAuth()());
-	let loadState = $state<'unauth' | 'loading' | 'loaded'>('loading');
-	let didFetch = $state(false);
-	let realWithdrawals = $state<DisplayWithdrawal[]>([]);
-	let realTxs = $state<TransactionInter[]>([]);
-	let hasMore = $state(false);
+	const recent = useRecentTxs();
 	const RECENT_LIMIT = 10;
-	const RAW_TX_FETCH_LIMIT = 30;
 
 	let openSnippet = $state<(() => ReturnType<Snippet>) | undefined>();
 	let popupOpen = $state(false);
@@ -148,35 +140,26 @@
 		return out;
 	}
 
-	$effect(() => {
-		if (didFetch) return;
-		if (authValue.status === 'pending') return;
-		didFetch = true;
-		const did = authValue.value?.did;
-		if (!did) {
-			loadState = 'unauth';
-			return;
-		}
-		queryOnce(new GetTransactionsStore(), {
-			variables: { did, limit: RAW_TX_FETCH_LIMIT, offset: 0 },
-			policy: 'NetworkOnly'
-		})
-			.then((result) => {
-				const rawTxs = (result.data?.findTransaction ?? []) as TransactionInter[];
-				const all = rawTxs.flatMap((tx) => extractWithdrawals(tx));
-				hasMore = all.length > RECENT_LIMIT || rawTxs.length >= RAW_TX_FETCH_LIMIT;
-				realTxs = rawTxs.map((tx) => ({ ...tx, isPending: false }));
-				realWithdrawals = all.slice(0, RECENT_LIMIT);
-				loadState = 'loaded';
-			})
-			.catch(() => {
-				realWithdrawals = [];
-				loadState = 'loaded';
-			});
-	});
+	/**
+	 * Recent withdrawals come from the SHARED transaction store, not from a
+	 * query of this component's own.
+	 *
+	 * A private `GetTransactionsStore` fetch here is a concurrent query for
+	 * the same Houdini document as the rest of the app, and the loser is
+	 * ABORTED (`AbortError: aborted`) — after which the catch emptied the
+	 * list and the rail said "No recent withdrawals yet" over an account that
+	 * had them. A silent failure: an empty rail looks like a true result.
+	 * This rail usually won the race; the transfer rail lost it every time,
+	 * which is how it was found. `useRecentTxs` also dedupes, so a repeated
+	 * transaction can no longer collide in the keyed `{#each}` below.
+	 */
+	const allWithdrawals = $derived(recent.txs.flatMap((tx) => extractWithdrawals(tx)));
+	const realWithdrawals = $derived(allWithdrawals.slice(0, RECENT_LIMIT));
+	const realTxs = $derived(recent.txs);
+	const hasMore = $derived(allWithdrawals.length > RECENT_LIMIT);
 
 	const displayWithdrawals = $derived<DisplayWithdrawal[]>(
-		loadState === 'unauth' ? MOCK_RECENT_WITHDRAWALS : realWithdrawals
+		recent.unauth ? MOCK_RECENT_WITHDRAWALS : realWithdrawals
 	);
 
 	let activeMock = $state<DisplayWithdrawal | null>(null);
@@ -202,13 +185,13 @@
 <aside class="rail">
 	<section>
 		<h5>Recent withdrawals</h5>
-		{#if loadState === 'loading'}
+		{#if recent.loading}
 			<div class="recent-loading"><WaveLoading size={18} /></div>
 		{:else if displayWithdrawals.length === 0}
 			<p class="rail-empty">No recent withdrawals yet.</p>
 		{:else}
 			<ul class="recent-list">
-				{#each displayWithdrawals as d (d.id)}
+				{#each displayWithdrawals as d, i (`${d.id}#${i}`)}
 					<li>
 						<button class="recent-item" type="button" onclick={() => handleClick(d)}>
 							<div class="recent-icon" data-status={d.status}>
@@ -340,7 +323,7 @@
 </aside>
 
 <div class="hidden-tr-mount" aria-hidden="true">
-	{#each realWithdrawals ?? [] as d (d.id)}
+	{#each realWithdrawals ?? [] as d, i (`${d.id}#${i}`)}
 		{#if d.realRef}
 			{@const tx = realTxs.find((t) => t.id === d.realRef!.tx)}
 			{@const op = tx?.ops?.[d.realRef.index]}

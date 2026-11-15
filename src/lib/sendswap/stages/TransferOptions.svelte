@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { getAuth } from '$lib/auth/store';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
-	import { Coins } from '@lucide/svelte';
+	import { Check } from '@lucide/svelte';
 	import { untrack, type ComponentProps, type Snippet } from 'svelte';
+	import * as steps from '@zag-js/steps';
+	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import {
 		momentToLastPaidString,
 		getLastPaidContact,
@@ -29,7 +31,6 @@
 		setAllContacts,
 		type Contact
 	} from '$lib/sendswap/contacts/contacts';
-	import ClickableCard from '$lib/cards/ClickableCard.svelte';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type AssetObject } from '../components/info/SendSnippets.svelte';
@@ -38,10 +39,12 @@
 	import TransferBar from '../components/TransferBar.svelte';
 	import SelectAssetFlattened from '../components/assetSelection/SelectAssetFlattened.svelte';
 	import Select from '$lib/zag/Select.svelte';
-	import Divider from '$lib/components/Divider.svelte';
-	import BalanceInfo from '../components/info/BalanceInfo.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import { accountBalance, getBalanceAmount, type AccountBalance } from '$lib/stores/currentBalance';
+	import {
+		accountBalance,
+		getBalanceAmount,
+		type AccountBalance
+	} from '$lib/stores/currentBalance';
 	import {
 		estimateBtcUnmapFee,
 		type BtcFeeEstimate
@@ -112,13 +115,12 @@
 	let lastNetwork = $state('Never');
 	$effect(() => {
 		if (!auth.value) return;
-		Promise.all([
-			getLastPaidContact(toDid),
-			getLastPaidNetwork(txState.to?.network.value)
-		]).then(([paid, net]) => {
-			lastPaid = momentToLastPaidString(paid);
-			lastNetwork = momentToLastPaidString(net);
-		});
+		Promise.all([getLastPaidContact(toDid), getLastPaidNetwork(txState.to?.network.value)]).then(
+			([paid, net]) => {
+				lastPaid = momentToLastPaidString(paid);
+				lastNetwork = momentToLastPaidString(net);
+			}
+		);
 	});
 
 	$effect(() => {
@@ -152,9 +154,7 @@
 	);
 
 	let isSwap = $derived(
-		txState.from &&
-			txState.to &&
-			txState.from.coin.value !== txState.to.coin.value
+		txState.from && txState.to && txState.from.coin.value !== txState.to.coin.value
 	);
 
 	// default to USD
@@ -189,12 +189,31 @@
 		if (txState.toAmount !== amountStr) txState.toAmount = amountStr;
 	});
 
-	// Keep max in the currently-selected coin so AmountInput's Max button and
-	// balance display stay visible for both SATS and BTC on Magi.
+	/**
+	 * `max` follows the selected asset's LIVE balance.
+	 *
+	 * It used to be written only by the asset dialog, plus a BTC-on-Magi
+	 * special case here. Step 1 is now a chip row that sets the asset without
+	 * opening that dialog, so on this path nothing would have set `max` for
+	 * HIVE / HBD / sHBD — and `max` is what bounds the amount check above
+	 * (`inputAmt.amount <= (max?.amount ?? MAX_SAFE_INTEGER)`), so leaving it
+	 * undefined would silently accept ANY amount.
+	 *
+	 * Deriving it from the balance also fixes it going stale: balances poll
+	 * every 5s, and the dialog only ever set `max` at the moment it closed.
+	 */
 	$effect(() => {
-		if (!isBtcOnMagi || inputAmt.coin.value === Coin.unk.value) return;
-		const balance = getBalanceAmount($accountBalance, txState.from!.coin, txState.from!.network);
-		max = new CoinAmount(balance.amount, inputAmt.coin, true);
+		const from = txState.from;
+		if (!from || from.coin.value === Coin.unk.value) {
+			max = undefined;
+			return;
+		}
+		const balance = getBalanceAmount($accountBalance, from.coin, from.network);
+		// BTC on Magi can be typed in SATS. BTC and SATS share the same raw
+		// integer unit, so re-wrapping the raw amount in whichever unit the
+		// input is using keeps the Max button matching what gets typed.
+		const unit = isBtcOnMagi && inputAmt.coin.value !== Coin.unk.value ? inputAmt.coin : from.coin;
+		max = new CoinAmount(balance.amount, unit, true);
 	});
 
 	let toSelf = $derived(
@@ -223,16 +242,14 @@
 	}
 	$effect(() => {
 		// read reactive fields to track changes
-		txState.toUsername; txState.from; txState.to?.coin;
+		txState.toUsername;
+		txState.from;
+		txState.to?.coin;
 		untrack(() => {
 			const newOptions = solveToNetworks(txState);
 			const oldSet = new Set(toNetworkOptions.map((net) => net.value));
 			const newSet = new Set(newOptions.map((net) => net.value));
-			if (
-				newOptions.length === 0 &&
-				txState.toUsername &&
-				txState.from
-			) {
+			if (newOptions.length === 0 && txState.toUsername && txState.from) {
 				transferError = `Cannot transfer ${txState.from.coin.label}
 					from ${txState.from.network.label}
 					to ${txState.toDisplayName}.`;
@@ -386,13 +403,52 @@
 
 	const hasAnyBalance = $derived(coinsWithBalance.length > 0);
 
+	// ─── Step machine (Zag) — drives the timeline indicators ─────────────────
+	// Mirrors WithdrawTimeline / DepositTimeline so transfer reads as the same
+	// kind of page: asset first, then who, then how much.
+	const stepDefs = [
+		{ id: 'asset', label: 'I want to send' },
+		{ id: 'recipient', label: 'To' },
+		{ id: 'amount', label: 'Send' }
+	] as const;
+
+	const stepId = $props.id();
+	const stepsService = useMachine(steps.machine, {
+		id: stepId,
+		orientation: 'vertical',
+		count: stepDefs.length,
+		linear: true
+	});
+	const stepsApi = $derived(steps.connect(stepsService, normalizeProps));
+
+	const hasRecipient = $derived(!!txState.toUsername?.trim());
+	const hasAsset = $derived(!!txState.from && txState.from.coin.value !== Coin.unk.value);
+
+	$effect(() => {
+		if (hasAsset && hasRecipient) stepsApi.setStep(2);
+		else if (hasAsset) stepsApi.setStep(1);
+		else stepsApi.setStep(0);
+	});
+
+	/** Step 1's chips. Magi is the only source a chip offers — the dialog
+	 *  below step 1 still reaches a mainnet balance. `max` follows from the
+	 *  effect above, so nothing here has to set it. */
+	function pickAsset(coin: Coin) {
+		txState.from = { coin, network: Network.magi };
+		txState.to = { coin, network: Network.magi };
+	}
+
+	/** The balance behind each chip, for the sub-line. */
+	function chipBalance(coin: Coin) {
+		return getBalanceAmount($accountBalance, coin, Network.magi);
+	}
+
 	$effect(() => {
 		const balanceCount = coinsWithBalance.length;
 		if (balanceCount === 0) return;
 
 		const currentCoinHasBalance =
-			txState.from &&
-			coinsWithBalance.some((item) => item.coin.value === txState.from?.coin.value);
+			txState.from && coinsWithBalance.some((item) => item.coin.value === txState.from?.coin.value);
 
 		if (currentCoinHasBalance) return;
 
@@ -410,118 +466,167 @@
 	<TransferBar {...params} />
 {/snippet}
 
-<h2>Transfer</h2>
-<div class="sections">
-	<div class="contact-search">
-		<RecipientCard edit={openContact} {contact} />
-		<ContactSearchBox bind:value={txState.toUsername} bind:selectedContact={contact} />
-	</div>
-	<Divider text="Amount" />
-	<ClickableCard onclick={() => toggleAsset(true)}>
-		<div class="asset-card">
-			{#if !hasAnyBalance}
-				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-				<div class="error">
-					No balance found on your account. Please make a deposit to get started.
-				</div>
-			{:else if txState.from}
-				<BalanceInfo
-					coin={txState.from.coin}
-					network={txState.from.network}
-					size="large"
-					styleType="vertical"
-				/>
-			{:else}
-				<span class="user-icon-placeholder"><Coins size="40" absoluteStrokeWidth={true} /></span>
-				Select Asset
-			{/if}
+<div class="page">
+	<div class="main">
+		<header class="page-head">
+			<h2>Transfer</h2>
+			<p class="lead">Send funds to someone else on Magi.</p>
+		</header>
 
-			<span class="edit">Edit</span>
-		</div>
-	</ClickableCard>
-	<div class="amounts">
-		<div class="inputs">
-			<AmountInput
-				bind:coinAmount={inputAmt}
-				{coinOpts}
-				expressIn={isBtcOnMagi ? undefined : txState.from?.coin}
-				maxAmount={max}
-				bind:id={inputId}
-			/>
-			<!-- <Link2 />
-			<AmountInput
-				bind:amount={inUsd}
-				coinOpt={{
-					coin: coins.usd,
-					networks: []
-				}}
-				network={undefined}
-				connectedCoinAmount={new CoinAmount(fromAmount, txState.fromCoin?.coin ?? Coin.unk)}
-			/> -->
-		</div>
-	</div>
-	<div class="select-wrapper">
-		{#if transferError}
-			<div class="transfer-error error">{transferError}</div>
-		{:else}
-			<Select
-				items={transferTypes}
-				onValueChange={(details) => (currentType = details.value[0] as 'internal' | 'external')}
-				styleType="dropdown"
-				initial={currentType}
-			/>
-		{/if}
-	</div>
-	{#if isToBtcMainnet}
-		<BtcVaultRotationNotice />
-		<div class="btc-unmap-options">
-			<label class="deduct-fee-row">
-				<input type="checkbox" bind:checked={txState.deductFee} />
-				<span class="deduct-fee-label">Deduct fee from amount</span>
-				<span class="deduct-fee-hint"
-					>Fee is subtracted from your withdrawal instead of added on top</span
-				>
-			</label>
-			<div class="fee-row">
-				<div class="fee-field">
-					<span class="fee-label">Estimated Fee</span>
-					<div class="fee-display">
-						{#if btcFeeEstimate}
-							~{formatSats(btcFeeEstimate.minSats)} – {formatSats(btcFeeEstimate.maxSats)} sats
+		<div {...stepsApi.getRootProps()} class="timeline">
+			<!-- ─── Step 1: Asset ──────────────────────────────────────────── -->
+			<div {...stepsApi.getItemProps({ index: 0 })} class="timeline-item">
+				<div {...stepsApi.getIndicatorProps({ index: 0 })} class="timeline-indicator">
+					{#if stepsApi.value > 0}<Check size={14} strokeWidth={3} />{:else}1{/if}
+				</div>
+				<div class="timeline-content">
+					<h4 class="step-heading">{stepDefs[0].label}</h4>
+					<div class="step-body">
+						{#if !hasAnyBalance}
+							<p class="picker-empty">
+								No balance found on your account. Make a deposit to get started.
+							</p>
 						{:else}
-							…
+							<div class="chip-row">
+								{#each coinsWithBalance as item (item.coin.value)}
+									<button
+										type="button"
+										class="asset-chip"
+										class:sel={txState.from?.coin.value === item.coin.value &&
+											txState.from?.network.value === Network.magi.value}
+										onclick={() => pickAsset(item.coin)}
+									>
+										<img src={item.coin.icon} alt="" width="22" height="22" />
+										<span class="chip-text">
+											<span class="chip-tk">{item.coin.label}</span>
+											<span class="chip-bal">{chipBalance(item.coin).toPrettyAmountString()}</span>
+										</span>
+									</button>
+								{/each}
+							</div>
+							<p class="held-note">
+								Only assets you hold on Magi are shown.
+								<!-- The chips cover Magi, which is where a transfer starts almost
+								     every time. The picker is still the way to a Hive Mainnet
+								     balance, so that path is not lost. -->
+								<button type="button" class="link-btn" onclick={() => toggleAsset(true)}>
+									Use another asset or network
+								</button>
+							</p>
 						{/if}
 					</div>
-					<span class="fee-hint">Approximate network fee at the current base rate</span>
 				</div>
-				<div class="fee-field">
-					<span class="fee-label">Max fee (sats)</span>
-					<input
-						type="number"
-						placeholder="No limit"
-						value={txState.maxFee ?? ''}
-						onchange={(e) => {
-							const val = parseInt(e.currentTarget.value)
-							txState.maxFee = isNaN(val) ? undefined : val
-						}}
-					/>
-					<span class="fee-hint">Transaction reverts if total fee exceeds this amount</span>
+			</div>
+
+			<!-- ─── Step 2: Recipient ──────────────────────────────────────── -->
+			<div {...stepsApi.getItemProps({ index: 1 })} class="timeline-item">
+				<div {...stepsApi.getIndicatorProps({ index: 1 })} class="timeline-indicator">
+					{#if stepsApi.value > 1}<Check size={14} strokeWidth={3} />{:else}2{/if}
+				</div>
+				<div class="timeline-content">
+					<h4 class="step-heading">{stepDefs[1].label}</h4>
+					<div class="step-body">
+						<div class="contact-search">
+							<RecipientCard edit={openContact} {contact} />
+							<ContactSearchBox bind:value={txState.toUsername} bind:selectedContact={contact} />
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ─── Step 3: Amount, route and memo ─────────────────────────── -->
+			<div {...stepsApi.getItemProps({ index: 2 })} class="timeline-item">
+				<div {...stepsApi.getIndicatorProps({ index: 2 })} class="timeline-indicator">
+					{#if stepsApi.value > 2}<Check size={14} strokeWidth={3} />{:else}3{/if}
+				</div>
+				<div class="timeline-content">
+					<h4 class="step-heading">{stepDefs[2].label}</h4>
+					<div class="step-body">
+						{#if !hasAsset}
+							<p class="locked-hint">Pick an asset above to continue.</p>
+						{:else}
+							<div class="amounts">
+								<div class="inputs">
+									<AmountInput
+										bind:coinAmount={inputAmt}
+										{coinOpts}
+										expressIn={isBtcOnMagi ? undefined : txState.from?.coin}
+										maxAmount={max}
+										bind:id={inputId}
+									/>
+								</div>
+							</div>
+							<div class="select-wrapper">
+								{#if transferError}
+									<div class="transfer-error error">{transferError}</div>
+								{:else}
+									<Select
+										items={transferTypes}
+										onValueChange={(details) =>
+											(currentType = details.value[0] as 'internal' | 'external')}
+										styleType="dropdown"
+										initial={currentType}
+									/>
+								{/if}
+							</div>
+							{#if isToBtcMainnet}
+								<BtcVaultRotationNotice />
+								<div class="btc-unmap-options">
+									<label class="deduct-fee-row">
+										<input type="checkbox" bind:checked={txState.deductFee} />
+										<span class="deduct-fee-label">Deduct fee from amount</span>
+										<span class="deduct-fee-hint"
+											>Fee is subtracted from your withdrawal instead of added on top</span
+										>
+									</label>
+									<div class="fee-row">
+										<div class="fee-field">
+											<span class="fee-label">Estimated Fee</span>
+											<div class="fee-display">
+												{#if btcFeeEstimate}
+													~{formatSats(btcFeeEstimate.minSats)} – {formatSats(
+														btcFeeEstimate.maxSats
+													)} sats
+												{:else}
+													…
+												{/if}
+											</div>
+											<span class="fee-hint">Approximate network fee at the current base rate</span>
+										</div>
+										<div class="fee-field">
+											<span class="fee-label">Max fee (sats)</span>
+											<input
+												type="number"
+												placeholder="No limit"
+												value={txState.maxFee ?? ''}
+												onchange={(e) => {
+													const val = parseInt(e.currentTarget.value);
+													txState.maxFee = isNaN(val) ? undefined : val;
+												}}
+											/>
+											<span class="fee-hint"
+												>Transaction reverts if total fee exceeds this amount</span
+											>
+										</div>
+									</div>
+								</div>
+							{/if}
+							<div class="details">
+								<span class="sm-caption">Memo (optional)</span>
+								<input
+									bind:value={memo}
+									maxlength="300"
+									onchange={() => {
+										txState.memo = memo;
+									}}
+								/>
+								<span>Custom message to the recipient.</span>
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 		</div>
-	{/if}
-	<Divider text="Details" />
-	<!-- <h4>Details</h4> -->
-	<div class="details">
-		<span class="sm-caption">Memo (optional)</span>
-		<input
-			bind:value={memo}
-			maxlength="300"
-			onchange={() => {
-				txState.memo = memo;
-			}}
-		/>
-		<span>Custom message to the recipient.</span>
 	</div>
 </div>
 
@@ -548,6 +653,194 @@
 </Dialog>
 
 <style lang="scss">
+	/* ── Timeline chrome ──────────────────────────────────────────────────
+	   Deliberately the same values as WithdrawTimeline / DepositTimeline, so
+	   the three wallet task pages read as one family. */
+	$accent: #6f6af8;
+	$accent-soft: rgba(111, 106, 248, 0.16);
+	$border: rgba(255, 255, 255, 0.09);
+	$border-strong: rgba(255, 255, 255, 0.16);
+	$surface: rgba(255, 255, 255, 0.035);
+
+	.page {
+		display: flex;
+		flex-direction: column;
+		padding: 0.5rem 0.75rem;
+	}
+	.page-head {
+		margin-bottom: 2rem;
+	}
+	.page-head h2 {
+		margin: 0 0 0.25rem;
+		font-size: 1.85rem;
+	}
+	.lead {
+		color: var(--dash-text-secondary);
+		margin: 0;
+	}
+
+	.timeline {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+	.timeline-item {
+		display: grid;
+		grid-template-columns: 2.5rem 1fr;
+		gap: 1rem;
+		position: relative;
+	}
+	.timeline-item:not(:last-child)::before {
+		content: '';
+		position: absolute;
+		top: 2.5rem;
+		left: 1.2rem;
+		bottom: -1.25rem;
+		width: 1px;
+		background: linear-gradient(to bottom, $border, transparent);
+	}
+	.timeline-indicator {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 50%;
+		border: 1px solid $border;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: $surface;
+		font-weight: 600;
+		color: var(--dash-text-secondary);
+		font-size: 0.9rem;
+		transition: all 200ms ease;
+	}
+	.timeline-indicator[data-state='current'] {
+		border-color: $accent;
+		background: $accent-soft;
+		color: #fff;
+		box-shadow: 0 0 0 4px rgba(111, 106, 248, 0.08);
+	}
+	.timeline-indicator[data-state='complete'] {
+		border-color: $accent;
+		background: $accent;
+		color: #fff;
+	}
+	.timeline-content {
+		min-width: 0;
+	}
+	.step-heading {
+		font-size: 1.05rem;
+		font-weight: 600;
+		color: var(--dash-text-primary);
+		margin: 0;
+	}
+	.step-body {
+		margin-top: 0.4rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	/* Step 1 — asset chips with balance */
+	.chip-row {
+		display: flex;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+	.asset-chip {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+		padding: 0.55rem 0.75rem;
+		border-radius: 14px;
+		border: 1px solid $border;
+		background: $surface;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		transition:
+			background-color 150ms ease,
+			border-color 150ms ease;
+	}
+	.asset-chip:hover {
+		border-color: $border-strong;
+	}
+	.asset-chip.sel {
+		border-color: $accent;
+		background: $accent-soft;
+	}
+	.chip-text {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.2;
+		text-align: left;
+	}
+	.chip-tk {
+		font-weight: 600;
+		font-size: 0.92rem;
+		color: var(--dash-text-primary);
+	}
+	.chip-bal {
+		font-size: 0.72rem;
+		color: var(--dash-text-secondary);
+		font-variant-numeric: tabular-nums;
+	}
+	.held-note {
+		margin: 0;
+		font-size: 0.72rem;
+		color: var(--dash-text-muted);
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.1rem 0.4rem;
+	}
+	.link-btn {
+		background: none;
+		border: 0;
+		padding: 0;
+		font: inherit;
+		color: var(--dash-text-accent, #{$accent});
+		cursor: pointer;
+		text-decoration: underline;
+	}
+	.locked-hint {
+		color: var(--dash-text-muted);
+		font-style: italic;
+		margin: 0;
+	}
+
+	/* Phones: the 2.5rem indicator column plus a 1rem gap is 3.5rem of the
+	   screen the form fields need, and the transfer-type dropdown has a
+	   min-width that then pushes past the viewport. */
+	@media (max-width: 560px) {
+		.page {
+			padding: 0.5rem 0;
+		}
+		.page-head h2 {
+			font-size: 1.5rem;
+		}
+		.timeline-item {
+			grid-template-columns: 1.75rem 1fr;
+			gap: 0.6rem;
+		}
+		.timeline-item:not(:last-child)::before {
+			top: 1.9rem;
+			left: 0.85rem;
+		}
+		.timeline-indicator {
+			width: 1.75rem;
+			height: 1.75rem;
+			font-size: 0.78rem;
+		}
+		.chip-row {
+			gap: 0.4rem;
+		}
+	}
+	.picker-empty {
+		color: var(--dash-text-muted);
+		font-style: italic;
+		margin: 0;
+		padding: 0.5rem 0;
+	}
+
 	.contact-search {
 		display: flex;
 		flex-direction: column;
@@ -644,7 +937,7 @@
 		input[type='checkbox'] {
 			width: 1rem;
 			height: 1rem;
-			accent-color: #6F6AF8;
+			accent-color: #6f6af8;
 			cursor: pointer;
 		}
 	}
@@ -685,8 +978,13 @@
 			font-size: var(--text-sm);
 		}
 		input {
-			&::placeholder { color: var(--dash-text-muted); }
-			&:focus { outline: none; border-color: #6F6AF8; }
+			&::placeholder {
+				color: var(--dash-text-muted);
+			}
+			&:focus {
+				outline: none;
+				border-color: #6f6af8;
+			}
 		}
 		.fee-display {
 			color: var(--dash-text-muted);

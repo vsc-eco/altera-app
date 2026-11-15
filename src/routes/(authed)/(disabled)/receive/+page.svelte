@@ -1,3 +1,3 @@
-<document:head>
+<svelte:head>
 	<title>Receive</title>
-</document:head>
+</svelte:head>

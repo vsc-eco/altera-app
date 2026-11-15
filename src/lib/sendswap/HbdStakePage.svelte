@@ -201,6 +201,10 @@
 	.stake-flow-col {
 		min-width: 0;
 		width: 100%;
+		/* No global border-box in this project, so the padding below would be
+		   added to the 100% width and overflow the column on a phone — the
+		   same bug as the deposit and withdraw layouts had. */
+		box-sizing: border-box;
 		/* Match the deposit page's flow-column width so the timeline cards
 		   read identically across /deposit, /withdraw and /stake. */
 		max-width: 44rem;

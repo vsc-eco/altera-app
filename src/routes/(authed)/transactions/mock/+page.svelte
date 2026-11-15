@@ -93,9 +93,9 @@
 	});
 </script>
 
-<document:head>
+<svelte:head>
 	<title>Mock Transactions Preview</title>
-</document:head>
+</svelte:head>
 
 <div class="page">
 	<div class="banner">

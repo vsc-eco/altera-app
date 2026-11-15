@@ -59,6 +59,22 @@
 </script>
 
 <div class="wallet">
+	<!-- The tab row leads, and the title and total sit under it. The tabs are
+	     what the reader came here to use; the total is what they came to read,
+	     and it belongs with the content it sums rather than above the
+	     navigation. -->
+	<nav class="tabs" aria-label="Wallet sections">
+		{#each WALLET_TABS as tab (tab.href)}
+			<a
+				class={['tab', { active: tab.href === active?.href }]}
+				href={tab.href}
+				aria-current={tab.href === active?.href ? 'page' : undefined}
+			>
+				{tab.label}
+			</a>
+		{/each}
+	</nav>
+
 	<header>
 		<div class="title-area">
 			<h1>Wallet</h1>
@@ -71,18 +87,6 @@
 			{/if}
 		</div>
 	</header>
-
-	<nav class="tabs" aria-label="Wallet sections">
-		{#each WALLET_TABS as tab (tab.href)}
-			<a
-				class={['tab', { active: tab.href === active?.href }]}
-				href={tab.href}
-				aria-current={tab.href === active?.href ? 'page' : undefined}
-			>
-				{tab.label}
-			</a>
-		{/each}
-	</nav>
 
 	<div class="tab-body">
 		{@render children()}
@@ -104,9 +108,10 @@
 		flex-wrap: wrap;
 	}
 	h1 {
-		margin: 0 0 6px;
-		font-size: 22px;
+		margin: 0 0 2px;
+		font-size: 15px;
 		font-weight: 700;
+		letter-spacing: 0.02em;
 		color: var(--alt-tx-2);
 	}
 	.total {
@@ -164,6 +169,37 @@
 	.tab.active {
 		background: var(--alt-chip-hover);
 		color: var(--alt-tx);
+	}
+
+	/*
+	 * Phones: the row is wider than the screen, so let it run edge to edge and
+	 * scroll rather than being clipped mid-tab inside the page gutter. The
+	 * negative margin cancels `main`'s 16px padding; the matching padding
+	 * keeps the first and last tab off the screen edge.
+	 */
+	@media (max-width: 560px) {
+		.tabs {
+			/* There is no global border-box in this project, so the inline
+			   padding below would otherwise be ADDED to max-width and the row
+			   would end up 32px wider than the screen it is bleeding to. */
+			box-sizing: border-box;
+			margin-inline: -16px;
+			padding-inline: 16px;
+			max-width: calc(100% + 32px);
+			border-radius: 0;
+			border-left: 0;
+			border-right: 0;
+			background: transparent;
+		}
+		.tab {
+			padding: 8px 13px;
+		}
+		.dollars {
+			font-size: 30px;
+		}
+		h1 {
+			font-size: 14px;
+		}
 	}
 
 	/* Deposit and Withdraw lay themselves out as full-height flex columns. */

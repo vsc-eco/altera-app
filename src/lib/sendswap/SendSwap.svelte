@@ -20,6 +20,8 @@
 	import { SwapTxState, TransferTxState, provideTxState } from './utils/txState.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { fetchCustomTokens, customTokenCoin } from '$lib/tokens/customTokens';
+	import { page } from '$app/state';
+	import { coinParamFor } from '$lib/redesign/assetActions';
 
 	const { txType }: { txType: 'transfer' | 'swap' } = $props();
 
@@ -28,18 +30,14 @@
 	// txType is a fixed string set by the parent route and never changes for the
 	// lifetime of this component; use untrack to suppress the "captures initial
 	// value" warning while still choosing the right state class at mount time.
-	const txState = untrack(() => txType === 'swap' ? new SwapTxState() : new TransferTxState());
+	const txState = untrack(() => (txType === 'swap' ? new SwapTxState() : new TransferTxState()));
 	provideTxState(txState);
 
 	function applyStartDetails() {
 		if (txType === 'swap') {
 			const stored = loadSwapSelection(SWAP_PAGE_PREF_KEY);
-			const fromOpt =
-				findFromOpt(stored?.fromCoin) ??
-				getFromOption(Coin.btc.value);
-			const toOpt =
-				findToOpt(stored?.toCoin) ??
-				getToOption(Coin.hive.value);
+			const fromOpt = findFromOpt(stored?.fromCoin) ?? getFromOption(Coin.btc.value);
+			const toOpt = findToOpt(stored?.toCoin) ?? getToOption(Coin.hive.value);
 			const fromNet = findNetwork(stored?.fromNetwork) ?? Network.magi;
 			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
 			// /swap page bridges external assets via Lightning even when
@@ -49,10 +47,15 @@
 			txState.from = fromOpt ? { coin: fromOpt.coin, network: fromNet } : undefined;
 			txState.to = toOpt ? { coin: toOpt.coin, network: toNet } : undefined;
 		} else {
+			// The wallet's Assets rows link here as `/transfer?coin=…`, so the
+			// asset the reader clicked is the one that opens. Anything else
+			// (no param, an asset transfer cannot send, a hand-edited URL)
+			// falls back to the first asset they actually hold.
+			const requested = coinParamFor('transfer', page.url.searchParams.get('coin'));
 			const balOpt = scanForBalance(
 				[Coin.hive, Coin.hbd, Coin.shbd].map((c) => ({ coin: c, network: Network.magi }))
 			);
-			const coinOpt = getFromOption(balOpt?.coin.value);
+			const coinOpt = getFromOption(requested) ?? getFromOption(balOpt?.coin.value);
 			txState.from = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
 			txState.to = coinOpt ? { coin: coinOpt.coin, network: Network.magi } : undefined;
 		}

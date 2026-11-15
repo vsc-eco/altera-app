@@ -2,9 +2,9 @@
 	import HbdStakePage from '$lib/sendswap/HbdStakePage.svelte';
 </script>
 
-<document:head>
+<svelte:head>
 	<title>Stake HBD</title>
-</document:head>
+</svelte:head>
 
 <div class="stake-route">
 	<HbdStakePage />

@@ -78,6 +78,10 @@
 	}
 	.withdraw-layout {
 		display: grid;
+		/* The padding below sits INSIDE the 100% width. Without this the
+		   layout computes to viewport-width + 2rem on a phone and
+		   overflows its column by exactly that padding. */
+		box-sizing: border-box;
 		grid-template-columns: minmax(0, 1fr) 18rem;
 		gap: 4rem;
 		max-width: 66rem;

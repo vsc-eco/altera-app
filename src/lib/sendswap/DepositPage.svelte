@@ -180,6 +180,10 @@
 	   rendered directly beneath it) and the recent-deposits + FAQ rail. */
 	.deposit-layout {
 		display: grid;
+		/* The padding below sits INSIDE the 100% width. Without this the
+		   layout computes to viewport-width + 2rem on a phone and
+		   overflows its column by exactly that padding. */
+		box-sizing: border-box;
 		grid-template-columns: minmax(0, 1fr) 18rem;
 		/* Generous horizontal gap on wide layouts so the flow column and the
 		   FAQ rail clearly read as separate concerns. When the layout

@@ -26,7 +26,7 @@
 	<section class="alt-card assets">
 		<h2>Assets</h2>
 		{#if did}
-			<AccBalance {did} />
+			<AccBalance {did} actions />
 		{:else}
 			<p class="empty">Connect a wallet to see your balances.</p>
 		{/if}
@@ -53,7 +53,10 @@
 <style lang="scss">
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+		/* `min(380px, 100%)` and not a bare 380px: a bare floor cannot shrink
+		   below 380 even when the column is narrower than that, so on a phone
+		   the cards ran 22px past the viewport. */
+		grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr));
 		gap: 16px;
 		align-items: start;
 	}

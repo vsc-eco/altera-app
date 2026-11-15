@@ -12,9 +12,9 @@
 	let canStake = $derived(auth.value == undefined || auth.value.username != undefined);
 </script>
 
-<document:head>
+<svelte:head>
 	<title>Witness Assistant</title>
-</document:head>
+</svelte:head>
 
 <h1>Witness Assistant</h1>
 

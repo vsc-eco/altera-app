@@ -19,7 +19,9 @@
 <script lang="ts">
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
-	import { untrack, type ComponentProps } from 'svelte';
+	import { onMount, untrack, type ComponentProps } from 'svelte';
+	import { page } from '$app/state';
+	import { coinParamFor } from '$lib/redesign/assetActions';
 	import { Check, Clock, Info, Receipt } from '@lucide/svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 
@@ -141,6 +143,19 @@
 		if (selectedAsset && !selectedDest) stepsApi.setStep(1);
 		else if (selectedAsset && selectedDest) stepsApi.setStep(2);
 		else stepsApi.setStep(0);
+	});
+
+	/**
+	 * `/withdraw?coin=…` — the wallet's Assets rows link straight to the asset
+	 * the reader clicked. Only preselects an asset they actually HOLD: step 1
+	 * lists held assets only, so selecting one that is not there would mark a
+	 * chip the reader cannot see. Once, at mount.
+	 */
+	onMount(() => {
+		const requested = coinParamFor('withdraw', page.url.searchParams.get('coin'));
+		if (requested && heldAssets.some((a) => a.value === requested)) {
+			pickAsset(requested);
+		}
 	});
 
 	function pickAsset(value: string) {

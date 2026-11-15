@@ -9,9 +9,9 @@
 	});
 </script>
 
-<document:head>
+<svelte:head>
 	<title>Logout</title>
-</document:head>
+</svelte:head>
 
 <main>
 	<h1>Logout</h1>

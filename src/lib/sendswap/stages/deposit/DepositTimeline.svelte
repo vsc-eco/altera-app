@@ -26,7 +26,9 @@
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { getAuth } from '$lib/auth/store';
-	import { untrack, type ComponentProps } from 'svelte';
+	import { onMount, untrack, type ComponentProps } from 'svelte';
+	import { page } from '$app/state';
+	import { coinParamFor } from '$lib/redesign/assetActions';
 	import { Check, Clock, Info, Receipt, Search } from '@lucide/svelte';
 
 	// ─── Real deposit wiring ─────────────────────────────────────────────────
@@ -236,6 +238,19 @@
 	$effect(() => {
 		if (sourceRadio && sourceRadio !== selectedSource) {
 			untrack(() => pickSource(sourceRadio as DepositSource));
+		}
+	});
+
+	/**
+	 * `/deposit?coin=…` — the wallet's Assets rows link straight to the asset
+	 * the reader clicked. Written through `assetRadio` rather than calling
+	 * `pickAsset` directly so the RadioGroup shows the chip as chosen; the
+	 * effect above routes it on. Once, at mount: later edits are the user's.
+	 */
+	onMount(() => {
+		const requested = coinParamFor('deposit', page.url.searchParams.get('coin'));
+		if (requested && ASSETS.some((a) => a.value === requested && !a.disabled)) {
+			assetRadio = requested;
 		}
 	});
 

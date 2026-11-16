@@ -172,6 +172,36 @@ export async function login(
 		default:
 			aiohaProvider = Providers.Custom;
 	}
+	/**
+	 * A stale entry in aioha's multi-account list blocks logging back in.
+	 *
+	 * aioha keeps `aiohaOtherLogins` in localStorage, and its `logout()` — the
+	 * one `hiveLogout` calls — does not clear it; only `logoutAll()` does, and
+	 * that is wired to the Switch-user panel's "Log out all". So after
+	 * switching away from an account and then logging out, that account still
+	 * sits in the list, `loadAuth()` restores the list on the next page load,
+	 * and `loginCheck()` rejects a fresh login for that name with 4901
+	 * "Already logged in" — over a page that is plainly logged out.
+	 *
+	 * The reader is stuck there: the Switch-user panel opens from the account
+	 * menu, which only renders while connected, so the one piece of UI that
+	 * could clear the entry is unreachable exactly when it is in the way.
+	 *
+	 * The parked entry is DROPPED rather than adopted. `switchUser` would
+	 * restore it without any wallet interaction at all — verified: it succeeds
+	 * in a browser with no Keychain extension installed, because the provider's
+	 * `loadLogin` only rehydrates stored state and never re-authenticates. On a
+	 * wallet that would mean anyone who can open the browser and type a
+	 * username gets in after a logout, so the only safe reading of "log in" on
+	 * a logged-out page is a real one, through the wallet, below.
+	 *
+	 * Only when logged OUT: multi-account switching while connected still goes
+	 * through the panel and `switchUser`, and is untouched.
+	 */
+	if (!aioha.isLoggedIn() && aioha.getOtherLogins()[username]) {
+		aioha.removeOtherLogin(username);
+	}
+
 	const login = await aioha.login(aiohaProvider, username, {
 		msg: `Sign into Altera`,
 		hiveauth: {

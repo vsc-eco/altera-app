@@ -17,7 +17,7 @@
 	import { NodeHeadStore, WitnessScheduleStore, CurrentElectionStore } from '$houdini';
 	import { queryOnce } from '$lib/queryOnce';
 	import Card from '$lib/cards/Card.svelte';
-	import { getHiveAccountUrl, getHiveAvatarUrl, getVscExplorerUrl } from '$lib/constants';
+	import { getHiveAccountUrl, getHiveAvatarUrl, getVscBlocksUrl } from '$lib/constants';
 	import { Boxes, ChevronRight } from '@lucide/svelte';
 
 	type Slot = { account: string; bn: number };
@@ -116,7 +116,7 @@
 <Card>
 	<div class="head">
 		<h3><Boxes size={18} /> Block production</h3>
-		<a class="live-link" href={getVscExplorerUrl()} target="_blank" rel="noopener">Live blocks ↗</a>
+		<a class="live-link" href={getVscBlocksUrl()} target="_blank" rel="noopener">Live blocks ↗</a>
 	</div>
 
 	{#if prodLoad === 'error'}

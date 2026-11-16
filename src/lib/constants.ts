@@ -29,8 +29,11 @@ export function getVscExplorerTxUrl(txId: string): string {
 }
 
 /** VSC explorer home (shows the live block feed). Testnet-aware. */
-export function getVscExplorerUrl(): string {
-	return vscExplorerBase();
+/** The explorer's block list — where "Live blocks" on the witness page goes.
+ *  Built off `vscExplorerBase()` rather than hardcoded, so a testnet build
+ *  links to magi-test's block list instead of mainnet's. */
+export function getVscBlocksUrl(): string {
+	return `${vscExplorerBase()}/blocks`;
 }
 
 /** Hive L1 transaction on hivehub (e.g. governance vote/apply custom_json txs,

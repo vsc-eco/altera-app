@@ -743,6 +743,17 @@
 		.brand {
 			margin-right: auto;
 		}
+		/* Brand + buttons do not fit one phone row, so the buttons wrap onto
+		   their own line — where, left to themselves, they start at the left
+		   margin under the logo and read as a second unrelated toolbar.
+		   `margin-left: auto` keeps them on the right edge they occupy on a
+		   desktop. (`.brand`'s `margin-right: auto` only pushes within a line,
+		   and once these two are on separate lines it does nothing for this
+		   one.) */
+		.right {
+			margin-left: auto;
+			gap: 8px;
+		}
 		.rc-badge {
 			height: 30px;
 			padding: 0 10px;
@@ -791,6 +802,12 @@
 		.menu-wrap,
 		.nav-item {
 			flex: none;
+		}
+		/* Tighter than the desktop's 14px: the padding is what the eye reads
+		   as the gap between items, and at this width it was spacing five
+		   items out over more than a screen's width for no reason. */
+		.nav-item {
+			padding: 8px 9px;
 		}
 		/* Out of the scroller: an `overflow-x` box clips its absolutely
 		   positioned children, so the dropdowns would be trapped inside a 40px

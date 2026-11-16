@@ -9,7 +9,6 @@
 	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type OperationError, type OperationResult } from '@aioha/aioha/build/types';
-	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	// Consensus staking is locked to the signed-in account: the on-chain op's
@@ -104,15 +103,8 @@
 			});
 		}}
 	>
-		<div class="modal-title">
-			<h2>Consensus Staking</h2>
-			<InfoTooltip>
-				Staking deposits your HIVE into VSC and locks it while staked. Unstaking has a short
-				cooldown (about a day) before the HIVE returns to your liquid balance. Only Hive accounts
-				can stake. <a href="https://docs.magiprotocol.com" target="_blank" rel="noopener">Learn more →</a>
-			</InfoTooltip>
-		</div>
-		<p>Be sure to be signed in with the account you'd like to deposit and stake hive from.</p>
+		<!-- No heading here: the card head in `StakeUnstakeTabsModal` names the
+		     section once, for both tabs, and carries the explanation. -->
 		{#if error}<p class="error">{error}</p>{/if}
 		<div class="account-lock">
 			<span class="account-label">Witness Account</span>
@@ -163,15 +155,12 @@
 	}
 	form {
 		box-sizing: border-box;
-		padding-top: 0;
+		/* Breathing room under the tab row — the card head above it names the
+		   section, so the form no longer starts with a heading of its own. */
+		padding-top: 0.85rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.85rem;
-	}
-	.modal-title {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
 	}
 	.amount-flex {
 		display: flex;

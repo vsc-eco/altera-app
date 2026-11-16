@@ -19,7 +19,9 @@
 	import { queryOnce } from '$lib/queryOnce';
 	import Card from '$lib/cards/Card.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
+	// `Hint`, not `InfoTooltip`: the old tooltip portals its popover to <body>,
+	// which lands outside `.alt-root` and renders in the old dashboard palette.
+	import { Hint, Notice } from '$lib/ui';
 	import { reserveVoteTx, slashRestoreVoteTx } from '$lib/magiTransactions/hive';
 	import { Landmark, Check } from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -216,11 +218,12 @@
 			<h3>
 				<Landmark size={18} />
 				Governance proposals
-				<InfoTooltip>
+				<Hint size={16}>
 					Open witness-vote proposals — reserve disbursements and wrongful-slash restorations.
 					Voting signs a custom_json with your witness account's Active key. Only elected witnesses
-					can vote. <a href="https://docs.magiprotocol.com" target="_blank" rel="noopener">Learn more →</a>
-				</InfoTooltip>
+					can vote.
+					<a href="https://docs.magiprotocol.com" target="_blank" rel="noopener">Learn more →</a>
+				</Hint>
 			</h3>
 			<p class="lead">
 				Review each open proposal and cast your approval vote. A vote is final once broadcast.
@@ -229,24 +232,29 @@
 	</header>
 
 	{#if !canVote}
-		<p class="notice">
-			{#if !username}
-				Governance voting requires a Hive witness account. Please <a href="/logout">logout</a> and sign
-				in with a Hive account to vote.
-			{:else if !auth.value?.aioha}
-				Governance voting needs your Hive Active key — connect with a Hive wallet (Keychain,
-				PeakVault, …) to vote.
-			{:else if witnessLoadError}
-				Couldn't verify your witness status — retrying. Voting stays disabled until the current
-				election loads.
-			{:else if witnessAccounts === null}
-				Verifying witness status…
-			{:else}
-				Only elected witnesses can vote on governance proposals. Your account (<code
-					>@{username}</code
-				>) isn't in the current consensus committee.
-			{/if}
-		</p>
+		<!-- `Notice` carries no outer margin of its own (it takes the gap of
+		     whatever lays it out); this card stacks its children with plain
+		     margins, so the spacing lives here. -->
+		<div class="notice-slot">
+			<Notice tone="info">
+				{#if !username}
+					Governance voting requires a Hive witness account.
+					<a href="/logout">Log out</a> and sign in with a Hive account to vote.
+				{:else if !auth.value?.aioha}
+					Governance voting needs your Hive Active key — connect with a Hive wallet (Keychain,
+					PeakVault, …) to vote.
+				{:else if witnessLoadError}
+					Couldn't verify your witness status — retrying. Voting stays disabled until the
+					current election loads.
+				{:else if witnessAccounts === null}
+					Verifying witness status…
+				{:else}
+					Only elected witnesses can vote on governance proposals. Your account (<code
+						>@{username}</code
+					>) isn't in the current consensus committee.
+				{/if}
+			</Notice>
+		</div>
 	{/if}
 
 	{#if load === 'loading'}
@@ -390,10 +398,8 @@
 		max-width: 38rem;
 		line-height: 1.45;
 	}
-	.notice {
-		margin: 0 0 1rem;
-		font-size: 0.85rem;
-		color: var(--dash-text-secondary);
+	.notice-slot {
+		margin-bottom: 1rem;
 	}
 
 	.list {

@@ -95,7 +95,11 @@
 		flex-direction: column;
 		gap: 2px;
 		min-width: 0;
-		flex: 1 1 auto;
+		/* Basis 0, not `auto`: under the `flex-wrap: wrap` below (which exists
+		   so `actions` can take its own line on a phone) an `auto` basis makes
+		   the sentence ask for its content width, and a sentence of any length
+		   then wraps underneath the icon instead of sitting beside it. */
+		flex: 1 1 0;
 	}
 	.title {
 		font-weight: 800;

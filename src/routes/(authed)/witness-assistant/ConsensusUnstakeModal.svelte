@@ -8,7 +8,7 @@
 	import { consensusUnstakeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction, type PendingTx } from '$lib/stores/localStorageTxs';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
-	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
+	import { Notice } from '$lib/ui';
 	let auth = $derived(getAuth()());
 	let username = $derived(auth.value?.username);
 	// Locked to the signed-in account: the on-chain op's `to` must equal `from`.
@@ -75,19 +75,19 @@
 			});
 		}}
 	>
-		<div class="modal-title">
-			<h2>Consensus Unstaking</h2>
-			<InfoTooltip>
-				Staking deposits your HIVE into VSC and locks it while staked. Unstaking has a short
-				cooldown (about a day) before the HIVE returns to your liquid balance. Only Hive accounts
-				can stake. <a href="https://docs.magiprotocol.com" target="_blank" rel="noopener">Learn more →</a>
-			</InfoTooltip>
-		</div>
-		<p>Be sure to be signed in with the account you'd like to unstake hive from.</p>
-		<p>
-			<b>Note:</b> Unstaked coins will be made available after an unbonding period of five elections
-			(about a day).
-		</p>
+		<!-- No heading here: the card head in `StakeUnstakeTabsModal` names the
+		     section once, for both tabs, and carries the explanation. -->
+		<!-- The unbonding delay is the one thing about this form that can
+		     surprise someone, so it is a notice rather than the third paragraph
+		     of body text it used to be. -->
+		<Notice
+			tone="warn"
+			hint="Unstaking takes effect over five elections so the committee can't be drained
+			      between two blocks. Your HIVE stays staked — and keeps earning — until the
+			      cooldown ends, then lands in your liquid balance automatically."
+		>
+			Unstaked HIVE returns after about a day (five elections).
+		</Notice>
 		{#if error}<p class="error">{error}</p>{/if}
 		<div class="account-lock">
 			<span class="account-label">Witness Account</span>
@@ -127,15 +127,12 @@
 <style>
 	form {
 		box-sizing: border-box;
-		padding-top: 0;
+		/* Breathing room under the tab row — the card head above it names the
+		   section, so the form no longer starts with a heading of its own. */
+		padding-top: 0.85rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.85rem;
-	}
-	.modal-title {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
 	}
 	.amount-flex {
 		display: flex;
@@ -169,9 +166,5 @@
 	}
 	p {
 		margin: 0;
-	}
-	b {
-		color: var(--dash-accent-red);
-		font-weight: 500;
 	}
 </style>

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import SwapFees from './SwapFees.svelte';
+	import SwapAmountField from './SwapAmountField.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import {
 		getFee,
@@ -20,11 +22,9 @@
 	import {
 		ArrowDown,
 		ArrowUpDown,
-		ChevronDown,
 		ChevronRight,
 		Search,
 		Send,
-		TriangleAlert,
 		Wallet,
 		X
 	} from '@lucide/svelte';
@@ -155,45 +155,6 @@
 	let swapResult: SwapCalcResult | null = $state(null);
 	const DEFAULT_SLIPPAGE_BPS = 100; // 1%
 	let slippageBps = $state(DEFAULT_SLIPPAGE_BPS);
-	const slippageOptions = [50, 100, 200, 300]; // 0.5%, 1%, 2%, 3%
-	let customSlippageOpen = $state(false);
-	let customSlippageInput = $state('');
-	let customSlippageInputEl: HTMLInputElement | null = $state(null);
-
-	// Auto-focus the custom input when it opens and pre-select the text.
-	$effect(() => {
-		if (customSlippageOpen && customSlippageInputEl) {
-			customSlippageInputEl.focus();
-			customSlippageInputEl.select();
-		}
-	});
-
-	// Whether the raw custom input is syntactically invalid (for red border).
-	let customSlippageInvalid = $derived.by(() => {
-		if (!customSlippageInput.trim()) return false;
-		const v = parseFloat(customSlippageInput.replace(',', '.'));
-		return isNaN(v) || v <= 0 || v > 99.99;
-	});
-
-	function applyCustomSlippage() {
-		const raw = customSlippageInput.replace(',', '.').trim();
-		if (!raw) {
-			customSlippageOpen = false;
-			return;
-		}
-		let v = parseFloat(raw);
-		if (isNaN(v) || v <= 0) {
-			customSlippageOpen = false;
-			return;
-		}
-		v = Math.min(Math.max(v, 0.01), 99.99);
-		// Round to at most 2 decimal places and strip trailing zeroes.
-		customSlippageInput = parseFloat(v.toFixed(2)).toString();
-		slippageBps = Math.round(v * 100);
-		// Collapse back to pill — shows as active button with the custom value.
-		customSlippageOpen = false;
-	}
-
 	// Mirror slippage into the shared store regardless of pair. The
 	// calculate-swap effect below only runs for HIVE↔HBD pairs, so for
 	// BTC pairs (or any other route that doesn't have live pool math
@@ -462,7 +423,6 @@ let expectedOutputUsd = $derived.by(() => {
 		if (on) return;
 		destChoice = 'wallet';
 		destAddress = '';
-		customSlippageOpen = false;
 		slippageBps = DEFAULT_SLIPPAGE_BPS;
 	}
 
@@ -1256,69 +1216,26 @@ let expectedOutputUsd = $derived.by(() => {
 					Advanced
 				</label>
 			</div>
-			<!-- From Section -->
-			<div class="swap-section">
-				<div class="section-header">
-					<span class="section-label">From</span>
-					<span class="section-header-center">
-						{#if txState.from}
-							<span class={['network-pill', { external: txState.from.network.value !== 'magi' }]}>{txState.from.network.label}</span>
-						{/if}
-					</span>
-					<span class="section-balance sm-caption">
-						{#if txState.from && maxAmount}
-							Balance: {maxAmount.toPrettyAmountString()}
-							{coinDisplayLabel(txState.from.coin)}
-						{/if}
-					</span>
-				</div>
-				<div class="section-input-row">
-					<div class="input-field">
-						<AmountInput
-							bind:coinAmount={inputAmount}
-							coinOpts={amountInputCoinOpts}
-							{minAmount}
-							maxAmount={maxSendable}
-							hideUnit
-							hideUsd
-							hideNetwork
-						/>
-					</div>
-					<button class="token-selector-btn" onclick={() => openDialog('from')}>
-						{#if txState.from}
-							<img
-								src={txState.from.coin.icon}
-								alt={coinDisplayLabel(txState.from.coin)}
-								class="token-icon"
-							/>
-							<span class="token-name">{coinDisplayLabel(txState.from.coin)}</span>
-						{:else}
-							<span class="token-name">Select</span>
-						{/if}
-						<ChevronDown size={14} />
-					</button>
-				</div>
-				<div class="section-usd-row">
-					<span class="section-usd-approx">
-						{#if inputAmountUsd !== null}
-							≈ {formatUsd(inputAmountUsd)}
-						{:else if pricesFailed && txState.from && txState.fromAmount && txState.fromAmount !== '0'}
-							<span class="price-unavailable">Price unavailable</span>
-						{/if}
-					</span>
-					{#if sameCoinError}
-						<span class="section-error-inline">Select a different token</span>
-					{:else if insufficientBalance && txState.from}
-						<span class="section-error-inline"
-							>{paysBitcoinFee
-								? `Not enough BTC for the amount plus the network fee (about ${$btcSendFeeReserve} sats)`
-								: `Insufficient ${coinDisplayLabel(txState.from.coin)} balance`}</span
-						>
-					{:else if exceedsPoolDepth}
-						<span class="section-error-inline">Insufficient pool liquidity — try a smaller amount</span>
-					{/if}
-				</div>
-			</div>
+			<!-- You pay -->
+			<SwapAmountField
+				label="You pay"
+				hint="The asset leaving your wallet, and how much of it. Everything below updates from this amount."
+				networkLabel={txState.from?.network.label}
+				external={!!txState.from && txState.from.network.value !== 'magi'}
+				balance={txState.from && maxAmount
+					? `Balance: ${maxAmount.toPrettyAmountString()} ${coinDisplayLabel(txState.from.coin)}`
+					: undefined}
+				coinIcon={txState.from?.coin.icon}
+				coinLabel={txState.from ? coinDisplayLabel(txState.from.coin) : undefined}
+				onPickToken={() => openDialog('from')}
+				usd={inputAmountUsd !== null ? `≈ ${formatUsd(inputAmountUsd)}` : null}
+				priceUnavailable={pricesFailed &&
+					!!txState.from &&
+					!!txState.fromAmount &&
+					txState.fromAmount !== '0'}
+				amount={fromAmountInput}
+				errors={fromErrors}
+			/>
 
 			<!-- Swap Arrow -->
 			<div class="swap-toggle-wrapper">
@@ -1334,66 +1251,23 @@ let expectedOutputUsd = $derived.by(() => {
 				</button>
 			</div>
 
-			<!-- To Section -->
-			<div class="swap-section">
-				<div class="section-header">
-					<span class="section-label">You Receive</span>
-					<span class="section-header-center">
-						{#if txState.to}
-							<span class={['network-pill', { external: txState.to.network.value !== 'magi' }]}>{txState.to.network.label}</span>
-						{/if}
-					</span>
-					<span class="section-balance sm-caption"></span>
-				</div>
-				<div class="section-input-row">
-					<div class="input-field">
-						<!-- Recreate AmountInput on zero↔non-zero so its initializer
-						     produces an empty placeholder ('') instead of "0". -->
-						{#key outputAmount.amount === 0}
-							<AmountInput
-								coinAmount={outputAmount}
-								coinOpts={toAmountCoinOpts}
-								hideUnit
-								hideUsd
-								hideNetwork
-								disabled
-							/>
-						{/key}
-					</div>
-					<button class="token-selector-btn" onclick={() => openDialog('to')}>
-						{#if txState.to}
-							<img
-								src={txState.to.coin.icon}
-								alt={coinDisplayLabel(txState.to.coin)}
-								class="token-icon"
-							/>
-							<span class="token-name">{coinDisplayLabel(txState.to.coin)}</span>
-						{:else}
-							<span class="token-name">Select</span>
-						{/if}
-						<ChevronDown size={14} />
-					</button>
-				</div>
-				<div class="section-usd-row">
-					<span class="section-usd-approx">
-						{#if expectedOutputUsd !== null}
-							≈ {formatUsd(expectedOutputUsd)}
-						{:else if pricesFailed && txState.to && txState.toAmount && txState.toAmount !== '0'}
-							<span class="price-unavailable">Price unavailable</span>
-						{/if}
-					</span>
-					<!-- Mirror the "exceeds pool depth" hint on the receive side too:
-					     when the input overflows the pool the calc clamps expectedOutput
-					     to 0 and AmountInput renders empty, which reads as "nothing
-					     happened". This makes the cause obvious right next to the
-					     blank field. Other section-error-inline cases (sameCoin,
-					     insufficientBalance) already render on the FROM side, so we
-					     only echo the pool-depth one here. -->
-					{#if exceedsPoolDepth}
-						<span class="section-error-inline">Pool can't absorb this amount</span>
-					{/if}
-				</div>
-			</div>
+			<!-- You receive -->
+			<SwapAmountField
+				label="You receive"
+				hint="The estimate at the current pool price, after fees. The exact amount is set when the swap executes — 'Min received' below is the floor you are protected to."
+				networkLabel={txState.to?.network.label}
+				external={!!txState.to && txState.to.network.value !== 'magi'}
+				coinIcon={txState.to?.coin.icon}
+				coinLabel={txState.to ? coinDisplayLabel(txState.to.coin) : undefined}
+				onPickToken={() => openDialog('to')}
+				usd={expectedOutputUsd !== null ? `≈ ${formatUsd(expectedOutputUsd)}` : null}
+				priceUnavailable={pricesFailed &&
+					!!txState.to &&
+					!!txState.toAmount &&
+					txState.toAmount !== '0'}
+				amount={toAmountInput}
+				errors={toErrors}
+			/>
 
 			<!-- Route Info -->
 			{#if txState.from && txState.to}
@@ -1524,183 +1398,28 @@ let expectedOutputUsd = $derived.by(() => {
 		{/if}
 		<!-- Fees Section (collapsible) -->
 		{#if txState.from && txState.to}
-			{@const fromDec = txState.from.coin.decimalPlaces}
 			{@const toDec = txState.to.coin.decimalPlaces}
-			{@const fromUnit = coinDisplayLabel(txState.from.coin)}
 			{@const toUnit = coinDisplayLabel(txState.to.coin)}
-			{@const hop1FeeCoin = swapResult?.hop1Fee
-				? swapResult.hop1Fee.asset === Coin.hbd.value
-					? Coin.hbd
-					: swapResult.hop1Fee.asset === Coin.hive.value
-						? Coin.hive
-						: swapResult.hop1Fee.asset === Coin.btc.value
-							? Coin.btc
-							: null
-				: null}
-			<div class="swap-fees">
-				<!-- Always visible: price impact summary row -->
-				<div class="fees-impact-row">
-					<span class="fee-label">Price Impact</span>
-					{#if swapResult && priceImpactPct > 0}
-						<span
-							class="impact-pct"
-							class:good={priceImpactPct < 2}
-							class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
-							class:bad={priceImpactPct >= 10}>{priceImpactPct.toFixed(2)}%</span
-						>
-					{:else}
-						<span class="impact-pct-empty">—</span>
-					{/if}
-				</div>
-
-				<!-- Slippage chips: an expert control, so Advanced-only. The
-				     tolerance in force is still reported in the rows below, so
-				     hiding the chips never hides the value. -->
-				{#if advanced}
-				<div class="fees-header">
-					<span class="fee-label">Slippage Tolerance</span>
-					<div class="fees-header-right">
-						<div class="slippage-options">
-							{#each slippageOptions as bps}
-								<button
-									class={{ active: slippageBps === bps && !customSlippageOpen }}
-									onclick={() => {
-										slippageBps = bps;
-										customSlippageOpen = false;
-									}}
-								>
-									{(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
-								</button>
-							{/each}
-							{#if customSlippageOpen}
-								<div class="custom-slippage" class:invalid={customSlippageInvalid}>
-									<input
-										bind:this={customSlippageInputEl}
-										type="text"
-										inputmode="decimal"
-										placeholder="0.5"
-										bind:value={customSlippageInput}
-										oninput={() => {
-											// Normalise decimal separator only — validate on commit.
-											customSlippageInput = customSlippageInput.replace(',', '.');
-										}}
-										onblur={applyCustomSlippage}
-										onkeydown={(e) => {
-											if (e.key === 'Enter') {
-												applyCustomSlippage();
-												e.currentTarget.blur();
-											}
-											if (e.key === 'Escape') {
-												customSlippageOpen = false;
-											}
-										}}
-									/>
-									<span class="custom-slippage-unit">%</span>
-								</div>
-							{:else}
-								<button
-									class={{ active: !slippageOptions.includes(slippageBps) }}
-									onclick={() => {
-										customSlippageOpen = true;
-										customSlippageInput = slippageOptions.includes(slippageBps)
-											? ''
-											: parseFloat((slippageBps / 100).toFixed(2)).toString();
-									}}
-								>
-									{slippageOptions.includes(slippageBps)
-										? 'Custom'
-										: `${parseFloat((slippageBps / 100).toFixed(2))}%`}
-								</button>
-							{/if}
-						</div>
-					</div>
-				</div>
-				{/if}
-
-				<!-- Text warning — always rendered to reserve space; visibility toggled via CSS -->
-				<div
-					class="impact-warning"
-					class:severe={priceImpactPct >= 15}
-					class:hidden={priceImpactPct < 10}
-				>
-					<TriangleAlert size={14} />
-					<!-- Both messages stacked in the same grid cell so height never changes -->
-					<div class="impact-text">
-						<span class="impact-severe"
-							>Very high price impact. Pool liquidity is low for this trade size. Try a smaller
-							amount.</span
-						>
-						<span class="impact-medium"
-							>High price impact. Consider using a smaller amount for better rates.</span
-						>
-					</div>
-				</div>
-
-				<!-- Fee breakdown — always visible when a swap is calculated -->
-				{#if swapResult}
-					<div class="fee-details">
-						<div class="fee-row">
-							<span class="fee-label">Expected Output</span>
-							<span class="fee-value fee-value-stack">
-								<span>{formatSmallUnits(swapResult.expectedOutput, toDec)} {toUnit}</span>
-								{#if expectedOutputUsd !== null}
-									<span class="usd-approx">≈ {formatUsd(expectedOutputUsd)}</span>
-								{/if}
-							</span>
-						</div>
-						<!-- Protocol fee: 0.08% per pool (0.16% total for two-hop routes) -->
-						<div class="fee-row">
-							<span class="fee-label">
-								Protocol Fee
-								<span class="fee-sublabel">({swapResult.hop1Fee ? '0.16%' : '0.08%'})</span>
-							</span>
-							<span class="fee-value">
-								{#if totalProtocolFeeUsd !== null}
-									≈ {formatUsd(totalProtocolFeeUsd)}
-								{:else}
-									—
-								{/if}
-							</span>
-						</div>
-						{#if exchangeFeePct !== null}
-							<div class="fee-row">
-								<span class="fee-label">
-									Exchange Fee
-									<span class="fee-sublabel">(Altera)</span>
-								</span>
-								<span
-									class="fee-value"
-									class:fee-free={exchangeFeePct === 0}
-									class:fee-cost={exchangeFeePct > 0}
-								>
-									{exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
-								</span>
-							</div>
-						{/if}
-						<div class="fee-row">
-							<span class="fee-label">Min amount received</span>
-							<span class="fee-value fee-value-stack">
-								<span>{formatSmallUnits(swapResult.minAmountOut, toDec)} {toUnit}</span>
-								{#if minAmountOutUsd !== null}
-									<span class="usd-approx">≈ {formatUsd(minAmountOutUsd)}</span>
-								{/if}
-							</span>
-						</div>
-					</div>
-				{:else if (poolLoadFailed || poolLoadingRetry) && txState.fromAmount && txState.fromAmount !== '0'}
-					<div class="pool-warning">
-						<TriangleAlert size={14} />
-						{#if poolLoadingRetry}
-							<span>Loading pool data...</span>
-						{:else}
-							<span>Unable to load pool data.</span>
-							<button type="button" class="pool-retry-btn" onclick={() => loadPoolsWithRetry()}>
-								Retry
-							</button>
-						{/if}
-					</div>
-				{/if}
-			</div>
+			<SwapFees
+				bind:slippageBps
+				{advanced}
+				{priceImpactPct}
+				expectedOutput={swapResult
+					? `${formatSmallUnits(swapResult.expectedOutput, toDec)} ${toUnit}`
+					: undefined}
+				expectedOutputUsd={expectedOutputUsd !== null ? `\u2248 ${formatUsd(expectedOutputUsd)}` : null}
+				minAmountOut={swapResult
+					? `${formatSmallUnits(swapResult.minAmountOut, toDec)} ${toUnit}`
+					: undefined}
+				minAmountOutUsd={minAmountOutUsd !== null ? `\u2248 ${formatUsd(minAmountOutUsd)}` : null}
+				protocolFeeUsd={totalProtocolFeeUsd !== null ? `\u2248 ${formatUsd(totalProtocolFeeUsd)}` : null}
+				twoHop={!!swapResult?.hop1Fee}
+				{exchangeFeePct}
+				hasQuote={!!swapResult}
+				{poolLoadFailed}
+				{poolLoadingRetry}
+				onRetry={() => loadPoolsWithRetry()}
+			/>
 		{/if}
 	</div>
 </div>
@@ -1733,6 +1452,60 @@ let expectedOutputUsd = $derived.by(() => {
 		</div>
 	</div>
 {/if}
+
+<!-- The amount inputs and the inline errors stay here: they are bound to the
+     swap state machine and to the quote effect above, and SwapAmountField is
+     only the chrome around them. -->
+{#snippet fromAmountInput()}
+	<AmountInput
+		bind:coinAmount={inputAmount}
+		coinOpts={amountInputCoinOpts}
+		{minAmount}
+		maxAmount={maxSendable}
+		hideUnit
+		hideUsd
+		hideNetwork
+	/>
+{/snippet}
+
+{#snippet toAmountInput()}
+	<!-- Recreate AmountInput on zero↔non-zero so its initializer produces an
+	     empty placeholder ('') instead of "0". -->
+	{#key outputAmount.amount === 0}
+		<AmountInput
+			coinAmount={outputAmount}
+			coinOpts={toAmountCoinOpts}
+			hideUnit
+			hideUsd
+			hideNetwork
+			disabled
+		/>
+	{/key}
+{/snippet}
+
+{#snippet fromErrors()}
+	{#if sameCoinError}
+		<span class="section-error-inline">Select a different token</span>
+	{:else if insufficientBalance && txState.from}
+		<span class="section-error-inline"
+			>{paysBitcoinFee
+				? `Not enough BTC for the amount plus the network fee (about ${$btcSendFeeReserve} sats)`
+				: `Insufficient ${coinDisplayLabel(txState.from.coin)} balance`}</span
+		>
+	{:else if exceedsPoolDepth}
+		<span class="section-error-inline">Insufficient pool liquidity — try a smaller amount</span>
+	{/if}
+{/snippet}
+
+{#snippet toErrors()}
+	<!-- Echo the pool-depth problem on the receive side: when the input
+	     overflows the pool the calc clamps expectedOutput to 0 and the field
+	     renders empty, which otherwise reads as "nothing happened". The other
+	     two cases already show on the pay side. -->
+	{#if exceedsPoolDepth}
+		<span class="section-error-inline">Pool can't absorb this amount</span>
+	{/if}
+{/snippet}
 
 <style lang="scss">
 	/* ── Card header: title + the Advanced switch ──────────────────────── */
@@ -1819,134 +1592,7 @@ let expectedOutputUsd = $derived.by(() => {
 		gap: 0;
 	}
 
-	/* ── Swap Section (From / To) ── */
-	.swap-section {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		background-color: var(--dash-swap-field-bg);
-		border: 1px solid var(--dash-input-border);
-		border-radius: 16px;
-		padding: 0.75rem;
-	}
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-	}
-	.section-label {
-		flex: 1;
-		font-size: 0.8rem;
-		color: var(--dash-text-muted);
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-	}
-	.section-header-center {
-		flex: 1;
-		display: flex;
-		justify-content: center;
-	}
-	.section-balance {
-		flex: 1;
-		text-align: right;
-		font-size: var(--text-xs);
-		color: var(--dash-text-muted);
-	}
-	.network-pill {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.1rem 0.45rem;
-		border-radius: 1rem;
-		border: 1px solid var(--dash-accent-purple);
-		font-size: 0.7rem;
-		font-weight: 600;
-		color: var(--dash-accent-purple);
-		letter-spacing: 0.02em;
-		text-transform: uppercase;
-		&.external {
-			border-color: var(--dash-text-secondary);
-			color: var(--dash-text-secondary);
-		}
-	}
-	.section-input-row {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		min-height: 3rem;
-	}
-	.input-field {
-		flex: 1;
-		min-width: 0;
-		--number-input-padding-right: 0;
-	}
-	.input-field :global(.normal-wrapper label) {
-		display: none;
-	}
-	.input-field :global(.normal-wrapper .amount-input) {
-		border: none;
-		background: transparent;
-		padding: 0;
-		gap: 0;
-	}
-	.input-field :global(.normal-wrapper .amount-input > .icons),
-	.input-field :global(.normal-wrapper .amount-input > svg) {
-		display: none;
-	}
-	.input-field :global(.normal-wrapper .amount-input [data-part='input']) {
-		font-size: 1.5rem;
-		font-family: 'Nunito Sans', sans-serif;
-		font-weight: 500;
-		height: auto;
-		border: none;
-		border-radius: 0;
-		padding: 0.5rem 0;
-	}
-	.input-field :global(.normal-wrapper .amount-input:has(input:focus-visible)) {
-		box-shadow: none;
-		border-bottom-color: transparent;
-		border-radius: 0;
-	}
-	/* Hide AmountInput's internal validation error — errors are shown inline
-	   in the section-usd-row instead, which doesn't shift the layout. */
-	.input-field :global(.normal-wrapper .bottom-info) {
-		display: none;
-	}
 
-	/* ── Token Selector Button ── */
-	.token-selector-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.5rem 0.75rem;
-		background-color: var(--dash-surface);
-		border: 1px solid var(--dash-card-border);
-		border-radius: 2rem;
-		cursor: pointer;
-		color: var(--dash-text-primary);
-		font: inherit;
-		font-size: 0.9rem;
-		font-weight: 600;
-		white-space: nowrap;
-		transition: background-color 0.15s ease;
-		&:hover {
-			background-color: var(--dash-card-border);
-		}
-		&.fixed {
-			cursor: default;
-			&:hover {
-				background-color: var(--dash-surface);
-			}
-		}
-		.token-icon {
-			width: 1.5rem;
-			height: 1.5rem;
-			border-radius: 50%;
-		}
-		.token-name {
-			font-weight: 600;
-		}
-	}
 
 	/* ── Swap Toggle ── */
 	.swap-toggle-wrapper {
@@ -2045,125 +1691,6 @@ let expectedOutputUsd = $derived.by(() => {
 		color: var(--dash-text-muted);
 	}
 
-	/* ── Fees Section (collapsible) ── */
-	.swap-fees {
-		display: flex;
-		flex-direction: column;
-		border: 1px solid var(--dash-card-border);
-		border-radius: 16px;
-		background-color: var(--dash-surface);
-		overflow: hidden;
-	}
-	.fees-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1rem;
-		flex-wrap: wrap;
-	}
-	.fees-header-right {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-	}
-	.fee-details {
-		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-		padding: 0 1rem 0.75rem;
-		border-top: 1px solid var(--dash-card-border);
-		padding-top: 0.75rem;
-	}
-	.fee-row {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		align-items: baseline;
-		gap: 0.75rem;
-		padding: 0.125rem 0;
-	}
-	.fee-label {
-		color: var(--dash-text-muted);
-		font-size: var(--text-sm);
-	}
-	.fee-sublabel {
-		font-size: var(--text-xs);
-		opacity: 0.7;
-	}
-	.fee-value {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		font-weight: 400;
-		font-size: var(--text-sm);
-		color: var(--dash-text-primary);
-		text-align: right;
-		white-space: nowrap;
-	}
-	.fee-value-stack {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 0.125rem;
-		span {
-			white-space: nowrap;
-		}
-	}
-	.usd-approx {
-		font-size: var(--text-xs);
-		color: var(--dash-text-muted);
-	}
-	.section-usd-row {
-		display: flex;
-		flex-wrap: wrap-reverse;
-		justify-content: space-between;
-		align-items: center;
-		min-height: 1.4em;
-		gap: 0.125rem 0.5rem;
-	}
-	.section-usd-approx {
-		font-size: var(--text-xs);
-		color: var(--dash-text-muted);
-		font-family: 'Noto Sans Mono Variable', monospace;
-	}
-	.pool-warning {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		font-size: var(--text-sm);
-		color: #f59e0b;
-		margin: 0.5rem;
-		padding: 0.5rem 0.75rem;
-		border: 1px solid rgba(245, 158, 11, 0.25);
-		border-radius: 12px;
-		background: rgba(245, 158, 11, 0.06);
-	}
-	.pool-retry-btn {
-		padding: 0.2rem 0.6rem;
-		border: 1px solid rgba(111, 106, 248, 0.35);
-		border-radius: 12px;
-		background: transparent;
-		color: var(--dash-text-secondary);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		font-style: normal;
-		cursor: pointer;
-		transition:
-			background-color 0.15s ease,
-			border-color 0.15s ease,
-			color 0.15s ease;
-		&:hover {
-			background: rgba(111, 106, 248, 0.15);
-			color: var(--dash-text-primary);
-			border-color: var(--dash-accent-purple);
-		}
-	}
-	.price-unavailable {
-		font-size: var(--text-xs);
-		color: var(--dash-text-muted);
-		font-style: italic;
-		font-family: inherit;
-	}
 	.section-error-inline {
 		font-size: var(--text-xs);
 		color: var(--negative-text, #f87171);
@@ -2171,81 +1698,6 @@ let expectedOutputUsd = $derived.by(() => {
 		font-weight: 500;
 		margin-left: auto;
 	}
-	.fee-free {
-		color: var(--dash-accent-green) !important;
-	}
-	.fee-cost {
-		color: #f59e0b !important;
-	}
-	.slippage-options {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25rem;
-		align-items: center;
-		button {
-			padding: 0.25rem 0.5rem;
-			border: 1px solid var(--dash-card-border);
-			border-radius: 12px;
-			background: transparent;
-			color: var(--dash-text-secondary);
-			cursor: pointer;
-			font-size: var(--text-xs);
-			font-weight: 500;
-			transition:
-				background-color 0.15s ease,
-				border-color 0.15s ease;
-			&.active {
-				background-color: var(--dash-accent-purple);
-				color: var(--dash-text-primary);
-				border-color: var(--dash-accent-purple);
-			}
-			&:hover:not(.active) {
-				background-color: var(--dash-card-border);
-			}
-		}
-	}
-	.custom-slippage {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		padding: 0.25rem 0.5rem;
-		border: 1px solid var(--dash-accent-purple);
-		border-radius: 12px;
-		background: rgba(111, 106, 248, 0.1);
-		transition: border-color 0.15s ease;
-		&.invalid {
-			border-color: var(--dash-accent-red);
-			background: rgba(239, 68, 68, 0.08);
-		}
-		input {
-			width: 2.5rem;
-			height: auto;
-			border: none;
-			background: transparent;
-			color: var(--dash-text-primary);
-			font: inherit;
-			font-size: var(--text-xs);
-			font-weight: 600;
-			outline: none;
-			text-align: center;
-			-moz-appearance: textfield;
-			&::placeholder {
-				color: var(--dash-text-muted);
-				font-weight: 400;
-			}
-			&::-webkit-inner-spin-button,
-			&::-webkit-outer-spin-button {
-				-webkit-appearance: none;
-				margin: 0;
-			}
-		}
-		.custom-slippage-unit {
-			font-size: var(--text-xs);
-			font-weight: 600;
-			color: var(--dash-accent-purple);
-		}
-	}
-
 	/* ═══ Right Column: Deliver To ═══ */
 	.deliver-to-card {
 		background: var(--dash-card-bg);
@@ -2633,70 +2085,6 @@ let expectedOutputUsd = $derived.by(() => {
 		}
 	}
 
-	/* ── Price Impact Summary Row ── */
-	.fees-impact-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.625rem 1rem 0;
-	}
-	.impact-pct {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		font-size: var(--text-sm);
-		font-weight: 600;
-		&.good {
-			color: var(--dash-accent-green);
-		}
-		&.medium {
-			color: #d97706;
-		}
-		&.bad {
-			color: var(--dash-accent-red);
-		}
-	}
-	.impact-pct-empty {
-		font-family: 'Noto Sans Mono Variable', monospace;
-		font-size: var(--text-sm);
-		color: var(--dash-text-muted);
-	}
-
-	/* ── Price Impact Warning ── */
-	.impact-warning {
-		display: flex;
-		align-items: start;
-		gap: 0.5rem;
-		padding: 0.375rem 1rem;
-		border-top: 1px solid var(--dash-card-border);
-		color: #d97706; /* amber-600 */
-		font-size: var(--text-sm);
-		:global(svg) {
-			flex-shrink: 0;
-		}
-		&.severe {
-			color: var(--dash-accent-red);
-		}
-		/* Hidden state — keeps layout space, just invisible */
-		&.hidden {
-			visibility: hidden;
-		}
-	}
-	/* Both message variants stacked in one grid cell — container height is
-	   always the taller of the two, so nothing shifts when the text changes. */
-	.impact-text {
-		display: grid;
-		.impact-severe,
-		.impact-medium {
-			grid-area: 1 / 1;
-			visibility: hidden;
-		}
-	}
-	.impact-warning.severe .impact-severe {
-		visibility: visible;
-	}
-	.impact-warning:not(.severe):not(.hidden) .impact-medium {
-		visibility: visible;
-	}
-
 	/* ── Status & Waiting ── */
 	.status-wrapper {
 		max-width: 72rem;
@@ -2769,18 +2157,5 @@ let expectedOutputUsd = $derived.by(() => {
 			margin-right: 1rem;
 		}
 		/* Slippage: label on first line, pills on second line */
-		.fees-header {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 0.5rem;
-			padding: 0.625rem 0.875rem;
-		}
-		.fees-header-right {
-			width: 100%;
-		}
-		.slippage-options {
-			width: 100%;
-			justify-content: flex-start;
-		}
 	}
 </style>

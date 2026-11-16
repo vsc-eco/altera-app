@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { PageHeader } from '$lib/ui';
 	import { getAuth } from '$lib/auth/store';
 	import { getDidFromUsername, getUsernameFromAuth } from '$lib/getAccountName';
 	import { Check } from '@lucide/svelte';
@@ -468,10 +469,12 @@
 
 <div class="page">
 	<div class="main">
-		<header class="page-head">
-			<h2>Transfer</h2>
-			<p class="lead">Send funds to someone else on Magi.</p>
-		</header>
+		<PageHeader
+			titleAs="h2"
+			title="Transfer"
+			subtitle="Send funds to someone else on Magi."
+			hint="A transfer moves what you already hold to another account. It settles in the next block and cannot be reversed, so check the recipient on the review screen."
+		/>
 
 		<div {...stepsApi.getRootProps()} class="timeline">
 			<!-- ─── Step 1: Asset ──────────────────────────────────────────── -->
@@ -667,18 +670,6 @@
 		flex-direction: column;
 		padding: 0.5rem 0.75rem;
 	}
-	.page-head {
-		margin-bottom: 2rem;
-	}
-	.page-head h2 {
-		margin: 0 0 0.25rem;
-		font-size: 1.85rem;
-	}
-	.lead {
-		color: var(--dash-text-secondary);
-		margin: 0;
-	}
-
 	.timeline {
 		display: flex;
 		flex-direction: column;
@@ -813,9 +804,6 @@
 	@media (max-width: 560px) {
 		.page {
 			padding: 0.5rem 0;
-		}
-		.page-head h2 {
-			font-size: 1.5rem;
 		}
 		.timeline-item {
 			grid-template-columns: 1.75rem 1fr;

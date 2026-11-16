@@ -17,6 +17,7 @@
 	column) — this component is the flow only.
 -->
 <script lang="ts">
+	import { PageHeader } from '$lib/ui';
 	import * as steps from '@zag-js/steps';
 	import { useMachine, normalizeProps } from '@zag-js/svelte';
 	import { onMount, untrack, type ComponentProps } from 'svelte';
@@ -198,10 +199,12 @@
 <div class="page" class:bare={secondaryMenu}>
 	<div class="main">
 		{#if !secondaryMenu}
-			<header class="page-head">
-				<h2>Withdraw</h2>
-				<p class="lead">Send funds from your Magi balance.</p>
-			</header>
+			<PageHeader
+				titleAs="h2"
+				title="Withdraw"
+				subtitle="Send funds from your Magi balance."
+				hint="Moves funds off Magi to Hive mainnet, Lightning or Bitcoin. How long it takes is up to the destination chain, not to Magi."
+			/>
 		{/if}
 
 		<div {...stepsApi.getRootProps()} class="timeline">
@@ -344,18 +347,6 @@
 	.page.bare {
 		padding: 0;
 	}
-	.page-head {
-		margin-bottom: 2rem;
-	}
-	.page-head h2 {
-		margin: 0 0 0.25rem;
-		font-size: 1.85rem;
-	}
-	.lead {
-		color: var(--dash-text-secondary);
-		margin: 0;
-	}
-
 	.timeline {
 		display: flex;
 		flex-direction: column;

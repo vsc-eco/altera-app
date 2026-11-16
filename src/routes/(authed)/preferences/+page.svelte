@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto, invalidateAll } from '$app/navigation';
-	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
+	import { LabelHint } from '$lib/ui';
 	import {
 		keyHiveApiAllowBackups,
 		keyHiveApiList,
@@ -122,10 +122,11 @@
 			location.reload();
 		}}
 	>
-		<span class="label-tooltip">
-			<label for="keyVscApi">API URL</label>
-			<InfoTooltip>Edit this to direct queries to a custom Magi node.</InfoTooltip>
-		</span>
+		<LabelHint
+			forId="keyVscApi"
+			text="API URL"
+			hint="The Magi node every query goes to. Leave it on auto unless you are running your own."
+		/>
 
 		<label class="custom-toggle">
 			<input type="checkbox" bind:checked={customVsc} /> Custom (override auto node selection)
@@ -152,13 +153,11 @@
 		{/if}
 		<br />
 		<br />
-		<span class="label-tooltip">
-			<label for="magi-indexer-url">Magi Indexer</label>
-			<InfoTooltip>
-				Hasura GraphQL endpoint used to query indexed Magi data. Defaults to the okinoko/prod
-				indexer.
-			</InfoTooltip>
-		</span>
+		<LabelHint
+			forId="magi-indexer-url"
+			text="Magi Indexer"
+			hint="Where the history and pool figures come from — a Hasura endpoint over indexed Magi data. Defaults to the okinoko production indexer."
+		/>
 		<label class="custom-toggle">
 			<input type="checkbox" bind:checked={customIndexer} /> Custom (override auto node selection)
 		</label>
@@ -184,10 +183,11 @@
 		{/if}
 		<br />
 		<br />
-		<span class="label-tooltip">
-			<label for="vsc-gql-url">Hive API URL</label>
-			<InfoTooltip>Edit this to direct queries to a custom Hive node.</InfoTooltip>
-		</span>
+		<LabelHint
+			forId="vsc-gql-url"
+			text="Hive API URL"
+			hint="The Hive node used for L1 reads and broadcasts. Leave it on auto unless you are running your own."
+		/>
 
 		<label class="custom-toggle">
 			<input type="checkbox" bind:checked={customHive} /> Custom (override auto node selection)
@@ -237,13 +237,11 @@
 		</PillButton>
 
 		{#if advancedOptions}
-			<span class="label-tooltip">
-				<label for="vsc-network-id">Magi Custom Network ID</label>
-				<InfoTooltip warning>
-					Enables posting transactions to an alternate network. Not recommended unless you
-					understand the implications.
-				</InfoTooltip>
-			</span>
+			<LabelHint
+				forId="vsc-network-id"
+				text="Magi Custom Network ID"
+				hint="⚠ Posts your transactions to a different network. Leave this alone unless you know exactly what it does."
+			/>
 			<input
 				id="vsc-network-id"
 				bind:this={vscNetworkIdInput}
@@ -251,13 +249,11 @@
 				type="text"
 			/>
 			<br />
-			<span class="label-tooltip">
-				<label for="hive-network-id">Hive Custom Network ID</label>
-				<InfoTooltip warning>
-					Enables posting transactions to an alternate network. Not recommended unless you
-					understand the implications.
-				</InfoTooltip>
-			</span>
+			<LabelHint
+				forId="hive-network-id"
+				text="Hive Custom Network ID"
+				hint="⚠ Posts your transactions to a different network. Leave this alone unless you know exactly what it does."
+			/>
 			<input
 				id="hive-network-id"
 				bind:this={hiveNetworkIdInput}
@@ -265,10 +261,11 @@
 				type="text"
 			/>
 			<br />
-			<span class="label-tooltip">
-				<label for="prefs-tests">HIVE Asset Name</label>
-				<InfoTooltip warning>Change the asset name for HIVE.</InfoTooltip>
-			</span>
+			<LabelHint
+				forId="prefs-tests"
+				text="HIVE Asset Name"
+				hint="⚠ Renames HIVE everywhere in the interface. For testnets that use a different ticker."
+			/>
 			<input
 				id="prefs-tests"
 				bind:this={testsInput}
@@ -276,10 +273,11 @@
 				type="text"
 			/>
 			<br />
-			<span class="label-tooltip">
-				<label for="prefs-tbd"> HBD Asset Name</label>
-				<InfoTooltip warning>Change the asset name for HBD.</InfoTooltip>
-			</span>
+			<LabelHint
+				forId="prefs-tbd"
+				text="HBD Asset Name"
+				hint="⚠ Renames HBD everywhere in the interface. For testnets that use a different ticker."
+			/>
 			<input
 				id="prefs-tbd"
 				bind:this={tbdInput}
@@ -313,14 +311,13 @@
 		flex-direction: column;
 		gap: 2rem;
 	}
-	.label-tooltip {
-		display: flex;
-		align-items: center;
-		label {
-			margin-bottom: 0;
-			color: var(--dash-text-primary);
-			font-family: 'Nunito Sans', sans-serif;
-		}
+	/* The field labels are `ui/LabelHint`, which brings its own layout; this
+	   only restores the colour and face the page sets for the rest of the form. */
+	.sections :global(label.alt-label) {
+		margin-bottom: 0;
+		color: var(--alt-tx, var(--dash-text-primary));
+		font-family: 'Nunito Sans', sans-serif;
+		font-size: 1rem;
 	}
 	.theme {
 		span {

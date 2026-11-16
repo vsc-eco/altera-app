@@ -7,7 +7,7 @@
 	contained: pulls `auth` via getAuth() itself.
 -->
 <script lang="ts">
-	import Card from '$lib/cards/Card.svelte';
+	import { Faq } from '$lib/ui';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { useRecentTxs } from '../recentTxs.svelte';
@@ -15,7 +15,7 @@
 	import { type Snippet } from 'svelte';
 	import Tr from '../../../../routes/(authed)/transactions/Table/tr/Tr.svelte';
 	import { getTimestamp } from '$lib/stores/txStores';
-	import { Check, ChevronDown, Clock } from '@lucide/svelte';
+	import { Check, Clock } from '@lucide/svelte';
 
 	// ─── Recent withdrawals ─────────────────────────────────────────────────
 	type DisplayWithdrawal = {
@@ -176,10 +176,6 @@
 		}
 	}
 
-	let openFaqIdx = $state<number | null>(null);
-	function toggleFaq(idx: number) {
-		openFaqIdx = openFaqIdx === idx ? null : idx;
-	}
 </script>
 
 <aside class="rail">
@@ -221,105 +217,14 @@
 		{/if}
 	</section>
 
-	<section>
-		<h5>FAQ</h5>
-		<Card>
-			<button
-				class="faq-trigger"
-				class:open={openFaqIdx === 0}
-				type="button"
-				onclick={() => toggleFaq(0)}
-				aria-expanded={openFaqIdx === 0}
-			>
-				<span>How long does a withdrawal take?</span>
-				<ChevronDown class="faq-chevron" size={16} />
-			</button>
-			{#if openFaqIdx === 0}
-				<div class="faq-divider"><hr /></div>
-				<div class="faq-body">
-					<p>Depends on the destination you pick:</p>
-					<ul>
-						<li><strong>Hive mainnet</strong> — instant once the block confirms</li>
-						<li><strong>Lightning</strong> — about a minute</li>
-						<li><strong>Bitcoin mainnet</strong> — about 10 minutes (1 confirmation)</li>
-					</ul>
-					<p>Each option shows its ETA in step 2.</p>
-				</div>
-			{/if}
-		</Card>
-		<Card>
-			<button
-				class="faq-trigger"
-				class:open={openFaqIdx === 1}
-				type="button"
-				onclick={() => toggleFaq(1)}
-				aria-expanded={openFaqIdx === 1}
-			>
-				<span>Are there fees?</span>
-				<ChevronDown class="faq-chevron" size={16} />
-			</button>
-			{#if openFaqIdx === 1}
-				<div class="faq-divider"><hr /></div>
-				<div class="faq-body">
-					<ul>
-						<li><strong>Hive mainnet</strong> — free</li>
-						<li><strong>Lightning</strong> — small gateway fee (~10 sats)</li>
-						<li>
-							<strong>Bitcoin mainnet</strong> — pays the on-chain network fee (you can cap it)
-						</li>
-					</ul>
-				</div>
-			{/if}
-		</Card>
-		<Card>
-			<button
-				class="faq-trigger"
-				class:open={openFaqIdx === 2}
-				type="button"
-				onclick={() => toggleFaq(2)}
-				aria-expanded={openFaqIdx === 2}
-			>
-				<span>Why can&rsquo;t I see an asset?</span>
-				<ChevronDown class="faq-chevron" size={16} />
-			</button>
-			{#if openFaqIdx === 2}
-				<div class="faq-divider"><hr /></div>
-				<div class="faq-body">
-					<p>
-						Step 1 only lists assets you currently hold on Magi — you can&rsquo;t withdraw a balance
-						you don&rsquo;t have. Deposit or swap into an asset first and it&rsquo;ll appear here.
-					</p>
-				</div>
-			{/if}
-		</Card>
-		<Card>
-			<button
-				class="faq-trigger"
-				class:open={openFaqIdx === 3}
-				type="button"
-				onclick={() => toggleFaq(3)}
-				aria-expanded={openFaqIdx === 3}
-			>
-				<span>Withdrawal hasn&rsquo;t arrived?</span>
-				<ChevronDown class="faq-chevron" size={16} />
-			</button>
-			{#if openFaqIdx === 3}
-				<div class="faq-divider"><hr /></div>
-				<div class="faq-body">
-					<ol>
-						<li>For Bitcoin mainnet, allow at least 1 on-chain confirmation (~10 min).</li>
-						<li>Double-check the destination address/account was correct.</li>
-						<li>
-							Refresh the
-							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static internal link; resolve() not exported in this kit version -->
-							<a href="/transactions">Transactions</a> page — there&rsquo;s no live polling yet.
-						</li>
-						<li>Still missing? Share the tx id with support.</li>
-					</ol>
-				</div>
-			{/if}
-		</Card>
-	</section>
+	<Faq
+		items={[
+			{ q: 'How long does a withdrawal take?', a: faqTiming },
+			{ q: 'Are there fees?', a: faqFees },
+			{ q: "Why can\u2019t I see an asset?", a: faqMissingAsset },
+			{ q: "Withdrawal hasn\u2019t arrived?", a: faqMissing }
+		]}
+	/>
 </aside>
 
 <div class="hidden-tr-mount" aria-hidden="true">
@@ -365,6 +270,45 @@
 
 <SidePopup content={openSnippet} bind:open={popupOpen} toggle={togglePopup} />
 
+{#snippet faqTiming()}
+	<p>Depends on the destination you pick:</p>
+	<ul>
+		<li><strong>Hive mainnet</strong> &mdash; instant once the block confirms</li>
+		<li><strong>Lightning</strong> &mdash; about a minute</li>
+		<li><strong>Bitcoin mainnet</strong> &mdash; about 10 minutes (1 confirmation)</li>
+	</ul>
+	<p>Each option shows its ETA in step 2.</p>
+{/snippet}
+
+{#snippet faqFees()}
+	<ul>
+		<li><strong>Hive mainnet</strong> &mdash; free</li>
+		<li><strong>Lightning</strong> &mdash; small gateway fee (~10 sats)</li>
+		<li><strong>Bitcoin mainnet</strong> &mdash; pays the on-chain network fee (you can cap it)</li>
+	</ul>
+{/snippet}
+
+{#snippet faqMissingAsset()}
+	<p>
+		Step 1 only lists assets you currently hold on Magi &mdash; you can&rsquo;t withdraw a
+		balance you don&rsquo;t have. Deposit or swap into an asset first and it&rsquo;ll appear
+		here.
+	</p>
+{/snippet}
+
+{#snippet faqMissing()}
+	<ol>
+		<li>For Bitcoin mainnet, allow at least 1 on-chain confirmation (~10 min).</li>
+		<li>Double-check the destination address/account was correct.</li>
+		<li>
+			Refresh the
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static internal link; resolve() not exported in this kit version -->
+			<a href="/transactions">Transactions</a> page &mdash; there&rsquo;s no live polling yet.
+		</li>
+		<li>Still missing? Share the tx id with support.</li>
+	</ol>
+{/snippet}
+
 <style lang="scss">
 	$accent: #6f6af8;
 	$accent-soft: rgba(111, 106, 248, 0.16);
@@ -396,26 +340,6 @@
 		font-size: 0.85rem;
 	}
 
-	:global(.faq-trigger) {
-		width: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		margin: -1.25rem;
-		padding: 1.25rem;
-		background: transparent;
-		border: none;
-		color: var(--dash-text-primary);
-		font: inherit;
-		font-weight: 500;
-		text-align: left;
-		cursor: pointer;
-		border-radius: 27px;
-	}
-	:global(.faq-trigger.open) {
-		margin-bottom: 0;
-	}
 	:global(.faq-trigger) :global(.faq-chevron) {
 		flex-shrink: 0;
 		transition: transform 200ms ease;
@@ -424,47 +348,7 @@
 	:global(.faq-trigger[aria-expanded='true']) :global(.faq-chevron) {
 		transform: rotate(180deg);
 	}
-	:global(.faq-divider) {
-		padding: 0.5rem 0;
-	}
-	:global(.faq-divider hr) {
-		margin: 0;
-		border: none;
-		border-top: 1px solid rgba(255, 255, 255, 0.08);
-	}
-	:global(.faq-body) {
-		font-size: 0.83rem;
-		line-height: 1.5;
-		color: var(--dash-text-secondary);
-		font-weight: 400;
-	}
-	:global(.faq-body p) {
-		margin: 0 0 0.5rem;
-	}
-	:global(.faq-body p:last-child) {
-		margin-bottom: 0;
-	}
 	:global(.faq-body ul),
-	:global(.faq-body ol) {
-		margin: 0.25rem 0 0.5rem;
-		padding-left: 1.1rem;
-	}
-	:global(.faq-body li) {
-		margin: 0.25rem 0;
-	}
-	:global(.faq-body li::marker) {
-		color: var(--dash-text-muted);
-	}
-	:global(.faq-body strong) {
-		color: var(--dash-text-primary);
-		font-weight: 600;
-	}
-	:global(.faq-body a) {
-		color: $accent;
-		text-decoration: none;
-		border-bottom: 1px solid rgba(111, 106, 248, 0.35);
-	}
-
 	.recent-list {
 		list-style: none;
 		padding: 0;

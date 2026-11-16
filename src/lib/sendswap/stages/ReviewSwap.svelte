@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Notice } from '$lib/ui';
+	import { bpsToPct } from '$lib/calc';
 	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
@@ -683,11 +685,17 @@
 	/>
 
 	{#if feeGuardTripped}
-		<p class="fee-guard-warning">
-			This swap is temporarily blocked: the network would charge an abnormally high fee
-			(~{((asSwap?.swapFeeBps ?? 0) / 100).toFixed(1)}%) on it right now. Try a smaller amount, or
-			wait until it's resolved.
-		</p>
+		<div class="fee-guard-warning">
+			<Notice
+				tone="error"
+				title="Swap blocked to protect you."
+				hint="The pool would charge about {bpsToPct(asSwap?.swapFeeBps ?? 0).toFixed(1)}% on this trade — far above the usual ~0.1%. Altera stops the swap rather than letting it through at that price. A smaller amount usually clears it; otherwise the pool is too thin for this size right now."
+			>
+				The network fee on this trade is abnormally high (~{bpsToPct(
+					asSwap?.swapFeeBps ?? 0
+				).toFixed(1)}%). Try a smaller amount.
+			</Notice>
+		</div>
 	{/if}
 
 	{#if popup}
@@ -748,14 +756,9 @@
 {/if}
 
 <style lang="scss">
+	/* Only the placement; the box itself is `ui/Notice`. */
 	.fee-guard-warning {
 		margin: 0.75rem 0 0;
-		padding: 0.65rem 0.85rem;
-		border: 1px solid var(--dash-accent-red, #dc2626);
-		border-radius: 12px;
-		color: var(--dash-accent-red, #dc2626);
-		font-size: 0.85rem;
-		line-height: 1.45;
 	}
 	.stacked-cards {
 		display: flex;

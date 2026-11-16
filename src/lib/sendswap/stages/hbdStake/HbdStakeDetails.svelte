@@ -8,6 +8,7 @@
 	Hive Mainnet first — the same source concept the deposit flow uses.
 -->
 <script lang="ts">
+	import { PageHeader } from '$lib/ui';
 	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import * as steps from '@zag-js/steps';
@@ -276,10 +277,12 @@
 
 <div class="page">
 	<div class="main">
-		<header class="page-head">
-			<h2>Staking</h2>
-			<p class="lead">Stake HBD to earn {aprLabel} APR, or unstake it back to your balance.</p>
-		</header>
+		<PageHeader
+			titleAs="h2"
+			title="Staking"
+			subtitle="Stake HBD to earn {aprLabel} APR, or unstake it back to your balance."
+			hint="Staked HBD becomes sHBD, which stays transferable while it earns. The interest is the Hive savings rate, paid out by the gateway roughly every 30 days."
+		/>
 
 		<!-- Timeline (Zag steps machine drives indicator state only) -->
 		<div {...stepsApi.getRootProps()} class="timeline">
@@ -407,18 +410,6 @@
 		flex-direction: column;
 		/* Inset so the active step indicator's glow ring isn't clipped. */
 		padding: 0.5rem 0.75rem;
-	}
-
-	.page-head {
-		margin-bottom: 2rem;
-	}
-	.page-head h2 {
-		margin: 0 0 0.25rem;
-		font-size: 1.85rem;
-	}
-	.lead {
-		color: var(--dash-text-secondary);
-		margin: 0;
 	}
 
 	/* ─── Timeline (mirrors DepositTimeline) ─────────────────────────────── */

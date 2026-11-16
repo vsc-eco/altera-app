@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Notice } from '$lib/ui';
 	import { getAuth } from '$lib/auth/store';
 	import Card from '$lib/cards/Card.svelte';
 	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
@@ -162,12 +163,14 @@
 		</div>
 	{/if}
 	{#if showInternalWarning}
-		<div class={['internal-warning', { compact }]} role="alert">
-			<strong>Internal transfer — these funds stay on Magi.</strong>
-			You're sending {toCoin.label} to {txState.toDisplayName} inside Magi. It will
-			<strong>not</strong> be sent to {externalWhere} — {txState.toDisplayName} can only
-			access it by logging into Altera (or another Magi wallet). Make sure you meant an
-			internal transfer; it may not be recoverable otherwise.
+		<div class={['internal-warning', { compact }]}>
+			<Notice
+				tone="error"
+				title="These funds stay on Magi."
+				hint="You are sending {toCoin.label} to {txState.toDisplayName} inside Magi. It will NOT reach {externalWhere} — {txState.toDisplayName} can only get at it by signing in to Altera, or another Magi wallet. If you meant to send to {externalWhere}, go back and pick that network. An internal transfer to the wrong account may not be recoverable."
+			>
+				{txState.toDisplayName} receives it on Magi, not on {externalWhere}.
+			</Notice>
 		</div>
 	{/if}
 	<TxStatus
@@ -201,20 +204,11 @@
 	.dark {
 		color: var(--dash-text-primary);
 	}
+	/* Only the placement; the box itself is `ui/Notice`. */
 	.internal-warning {
 		width: calc(100% - 1rem);
 		box-sizing: border-box;
 		margin: 1.5rem 0.5rem 0;
-		padding: 0.85rem 1rem;
-		border: 1px solid var(--dash-accent-red, #ef4444);
-		background: var(--dash-badge-red-bg, rgba(239, 68, 68, 0.15));
-		color: var(--dash-badge-red-text, #ef4444);
-		border-radius: 12px;
-		font-size: var(--text-sm);
-		line-height: 1.4;
-		strong {
-			font-weight: 700;
-		}
 		&.compact {
 			margin-top: 1rem;
 		}

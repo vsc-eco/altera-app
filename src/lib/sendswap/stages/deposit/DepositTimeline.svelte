@@ -21,6 +21,7 @@
 	column (DepositSidebar.svelte) — this component is the flow only.
 -->
 <script lang="ts">
+	import { PageHeader } from '$lib/ui';
 	import RadioGroup from '$lib/zag/RadioGroup.svelte';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import * as steps from '@zag-js/steps';
@@ -340,10 +341,12 @@
 <div class="page" class:bare={secondaryMenu}>
 	<div class="main">
 		{#if !secondaryMenu}
-			<header class="page-head">
-				<h2>Deposit</h2>
-				<p class="lead">Add funds to your Magi balance.</p>
-			</header>
+			<PageHeader
+				titleAs="h2"
+				title="Deposit"
+				subtitle="Add funds to your Magi balance."
+				hint="Pick what you want to end up with, then where it is coming from. If the two differ, Magi swaps for you on arrival."
+			/>
 		{/if}
 
 		<!-- Timeline (Zag steps machine drives indicator state only) -->
@@ -476,18 +479,6 @@
 	   padding so the sub-picker owns the full surface. */
 	.page.bare {
 		padding: 0;
-	}
-
-	.page-head {
-		margin-bottom: 2rem;
-	}
-	.page-head h2 {
-		margin: 0 0 0.25rem;
-		font-size: 1.85rem;
-	}
-	.lead {
-		color: var(--dash-text-secondary);
-		margin: 0;
 	}
 
 	/* ─── Timeline ──────────────────────────────────────────────────────── */

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Clock } from '@lucide/svelte';
 	import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 	import { fetchVaultRotationStatus } from '$lib/magiTransactions/bitcoin/vaultRotation';
+	import { Notice } from '$lib/ui';
 
 	// Self-fetching, fail-safe heads-up shown only while the BTC vault is
 	// mid-rotation — the window in which an `unmap` can take ~an hour to settle
@@ -24,36 +24,11 @@
 </script>
 
 {#if show}
-	<div class="vault-rotation-notice" role="status">
-		<span class="icon"><Clock size={18} /></span>
-		<span>
-			<strong>BTC vault is rotating right now.</strong> A withdrawal can take up to about an hour
-			to arrive on-chain while funds move between vaults. Your balance is safe — only the
-			on-chain payout is slower than usual.
-		</span>
-	</div>
+	<Notice
+		tone="warn"
+		title="BTC withdrawals are slower right now."
+		hint="The Bitcoin vault is rotating: funds are being swept from one vault generation to the next, and a withdrawal has to wait for that sweep. Expect up to about an hour on chain. Your balance is not affected — only the payout is slower than usual."
+	>
+		A withdrawal can take up to about an hour to arrive.
+	</Notice>
 {/if}
-
-<style lang="scss">
-	.vault-rotation-notice {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.6rem;
-		padding: 0.85rem 1rem;
-		border: 1px solid var(--dash-warning, #f59e0b);
-		background: rgba(245, 158, 11, 0.13);
-		color: var(--dash-text-primary);
-		border-radius: 12px;
-		font-size: var(--text-sm);
-		line-height: 1.4;
-		.icon {
-			color: var(--dash-warning, #f59e0b);
-			flex-shrink: 0;
-			display: flex;
-			margin-top: 0.1rem;
-		}
-		strong {
-			font-weight: 700;
-		}
-	}
-</style>

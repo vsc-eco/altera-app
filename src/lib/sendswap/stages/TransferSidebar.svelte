@@ -11,14 +11,14 @@
 	second copy of the modal machinery.
 -->
 <script lang="ts">
-	import Card from '$lib/cards/Card.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import moment from 'moment';
 	import { getTimestamp } from '$lib/stores/txStores';
 	import { useRecentTxs } from './recentTxs.svelte';
-	import { ArrowDownLeft, ArrowUpRight, ChevronDown } from '@lucide/svelte';
+	import { ArrowDownLeft, ArrowUpRight } from '@lucide/svelte';
+	import { Faq } from '$lib/ui';
 
 	type DisplayTransfer = {
 		id: string;
@@ -130,10 +130,6 @@
 	const transfers = $derived(allTransfers.slice(0, RECENT_LIMIT));
 	const hasMore = $derived(allTransfers.length > RECENT_LIMIT);
 
-	let openFaqIdx = $state<number | null>(null);
-	function toggleFaq(idx: number) {
-		openFaqIdx = openFaqIdx === idx ? null : idx;
-	}
 </script>
 
 <aside class="rail">
@@ -186,107 +182,50 @@
 		{/if}
 	</section>
 
-	<section>
-		<h5>FAQ</h5>
-		<Card>
-			<button
-				class="faq-trigger"
-				class:open={openFaqIdx === 0}
-				type="button"
-				onclick={() => toggleFaq(0)}
-				aria-expanded={openFaqIdx === 0}
-			>
-				<span>How long does a transfer take?</span>
-				<ChevronDown class="faq-chevron" size={16} />
-			</button>
-			{#if openFaqIdx === 0}
-				<div class="faq-divider"><hr /></div>
-				<div class="faq-body">
-					<p>
-						A transfer between two Magi accounts settles in the next block — a few seconds. It shows
-						as <strong>pending</strong> until that block confirms.
-					</p>
-					<p>
-						Sending out to Hive mainnet or Bitcoin takes as long as that chain does. Pick the route
-						in step 3.
-					</p>
-				</div>
-			{/if}
-		</Card>
-		<Card>
-			<button
-				class="faq-trigger"
-				class:open={openFaqIdx === 1}
-				type="button"
-				onclick={() => toggleFaq(1)}
-				aria-expanded={openFaqIdx === 1}
-			>
-				<span>Are there fees?</span>
-				<ChevronDown class="faq-chevron" size={16} />
-			</button>
-			{#if openFaqIdx === 1}
-				<div class="faq-divider"><hr /></div>
-				<div class="faq-body">
-					<ul>
-						<li><strong>Magi → Magi</strong> — free, and it costs no resource credits</li>
-						<li><strong>Hive mainnet</strong> — free</li>
-						<li>
-							<strong>Bitcoin mainnet</strong> — pays the on-chain network fee, which you can cap
-						</li>
-					</ul>
-				</div>
-			{/if}
-		</Card>
-		<Card>
-			<button
-				class="faq-trigger"
-				class:open={openFaqIdx === 2}
-				type="button"
-				onclick={() => toggleFaq(2)}
-				aria-expanded={openFaqIdx === 2}
-			>
-				<span>Why can&rsquo;t I see an asset?</span>
-				<ChevronDown class="faq-chevron" size={16} />
-			</button>
-			{#if openFaqIdx === 2}
-				<div class="faq-divider"><hr /></div>
-				<div class="faq-body">
-					<p>
-						Step 1 lists only what you hold on Magi, so an asset with a zero balance is not offered.
-					</p>
-					<p>
-						To send from a Hive Mainnet balance instead, use
-						<strong>Use another asset or network</strong> under the chips.
-					</p>
-				</div>
-			{/if}
-		</Card>
-		<Card>
-			<button
-				class="faq-trigger"
-				class:open={openFaqIdx === 3}
-				type="button"
-				onclick={() => toggleFaq(3)}
-				aria-expanded={openFaqIdx === 3}
-			>
-				<span>Can I get a transfer back?</span>
-				<ChevronDown class="faq-chevron" size={16} />
-			</button>
-			{#if openFaqIdx === 3}
-				<div class="faq-divider"><hr /></div>
-				<div class="faq-body">
-					<p>
-						No. A confirmed transfer is final and there is no one who can reverse it — check the
-						recipient on the review screen before you sign.
-					</p>
-					<p>
-						Save the people you pay often as contacts so you are picking a name, not typing one.
-					</p>
-				</div>
-			{/if}
-		</Card>
-	</section>
+	<Faq
+		items={[
+			{ q: 'How long does a transfer take?', a: faqTiming },
+			{ q: 'Are there fees?', a: faqFees },
+			{ q: "Why can\u2019t I see an asset?", a: faqMissingAsset },
+			{ q: 'Can I get a transfer back?', a: faqReversal }
+		]}
+	/>
 </aside>
+
+{#snippet faqTiming()}
+	<p>
+		A transfer between two Magi accounts settles in the next block &mdash; a few seconds. It
+		shows as <strong>pending</strong> until that block confirms.
+	</p>
+	<p>
+		Sending out to Hive mainnet or Bitcoin takes as long as that chain does. Pick the route in
+		step 3.
+	</p>
+{/snippet}
+
+{#snippet faqFees()}
+	<ul>
+		<li><strong>Magi &rarr; Magi</strong> &mdash; free, and it costs no resource credits</li>
+		<li><strong>Hive mainnet</strong> &mdash; free</li>
+		<li><strong>Bitcoin mainnet</strong> &mdash; pays the on-chain network fee, which you can cap</li>
+	</ul>
+{/snippet}
+
+{#snippet faqMissingAsset()}
+	<p>Step 1 lists only what you hold on Magi, so an asset with a zero balance is not offered.</p>
+	<p>
+		To send from a Hive Mainnet balance instead, use
+		<strong>Use another asset or network</strong> under the chips.
+	</p>
+{/snippet}
+
+{#snippet faqReversal()}
+	<p>
+		No. A confirmed transfer is final and there is no one who can reverse it &mdash; check the
+		recipient on the review screen before you sign.
+	</p>
+	<p>Save the people you pay often as contacts so you are picking a name, not typing one.</p>
+{/snippet}
 
 <style lang="scss">
 	$accent: #6f6af8;
@@ -320,69 +259,6 @@
 
 	/* The FAQ accordion lives inside <Card>, so these have to be :global —
 	   same arrangement as the deposit and withdraw rails. */
-	:global(.faq-trigger) {
-		width: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		margin: -1.25rem;
-		padding: 1.25rem;
-		background: transparent;
-		border: none;
-		color: var(--dash-text-primary);
-		font: inherit;
-		font-weight: 500;
-		text-align: left;
-		cursor: pointer;
-		border-radius: 27px;
-	}
-	:global(.faq-trigger.open) {
-		margin-bottom: 0;
-	}
-	:global(.faq-chevron) {
-		flex-shrink: 0;
-		transition: transform 200ms ease;
-		color: var(--dash-text-secondary);
-	}
-	:global(.faq-trigger.open .faq-chevron) {
-		transform: rotate(180deg);
-	}
-	:global(.faq-divider) {
-		padding: 0.5rem 0;
-	}
-	:global(.faq-divider hr) {
-		margin: 0;
-		border: none;
-		border-top: 1px solid rgba(255, 255, 255, 0.08);
-	}
-	:global(.faq-body) {
-		font-size: 0.83rem;
-		line-height: 1.5;
-		color: var(--dash-text-secondary);
-		font-weight: 400;
-	}
-	:global(.faq-body p) {
-		margin: 0 0 0.5rem;
-	}
-	:global(.faq-body p:last-child) {
-		margin-bottom: 0;
-	}
-	:global(.faq-body ul) {
-		margin: 0.25rem 0 0.5rem;
-		padding-left: 1.1rem;
-	}
-	:global(.faq-body li) {
-		margin: 0.25rem 0;
-	}
-	:global(.faq-body li::marker) {
-		color: var(--dash-text-muted);
-	}
-	:global(.faq-body strong) {
-		color: var(--dash-text-primary);
-		font-weight: 600;
-	}
-
 	.recent-list {
 		list-style: none;
 		padding: 0;

@@ -17,7 +17,8 @@
 	import { openConnect } from '$lib/auth/connectModal';
 	import { isDeprecatedPool } from '../../client';
 	import { registrationHint } from './routerRegistry';
-	import { assetIcon } from '$lib/tokens/assetIcon';
+	import PairIcons from './PairIcons.svelte';
+	import { Hint } from '$lib/ui';
 
 	/** Which slice of the registry this instance shows. The Pools and Custom
 	 *  pools tabs render the same component; only this prop differs, so every
@@ -201,7 +202,13 @@
 	     position fetch re-runs when `pools` is reassigned, finds none, hides). -->
 		{#if did && myPools.length > 0}
 			<div class="my-pools-section">
-				<h3 class="section-title">My liquidity</h3>
+				<h3 class="section-title">
+					My liquidity
+					<Hint
+						size={15}
+						text="The pools you have deposited into. Open one to add more, or to take it back out."
+					/>
+				</h3>
 				{@render myPoolsTable(myPools)}
 			</div>
 		{/if}
@@ -213,7 +220,13 @@
 				<thead>
 					<tr>
 						<th class="col-pair">Pair</th>
-						<th class="col-price">Price</th>
+						<th class="col-price">
+							Price
+							<Hint
+								size={14}
+								text="What one unit of each side is worth in the other, taken from the pool's own reserves. The dollar figures underneath are the same two prices in USD."
+							/>
+						</th>
 						<th class="col-liquidity sortable" class:active={sortColumn === 'liquidity'}>
 							<button
 								type="button"
@@ -230,6 +243,10 @@
 									{/if}
 								{/if}
 							</button>
+							<Hint
+								size={14}
+								text="Everything the pool currently holds, valued in USD, with the two asset amounts underneath. A deeper pool moves its price less when you swap."
+							/>
 						</th>
 						<th class="col-fee sortable" class:active={sortColumn === 'fee'}>
 							<button type="button" class="col-heading-btn" onclick={(e) => toggleSort('fee', e)}>
@@ -243,6 +260,12 @@
 									{/if}
 								{/if}
 							</button>
+							<Hint size={14}>
+								Fees this pool charged over the selected period, split two ways:
+								<br /><b>LP</b> goes to whoever provided the liquidity — your share of
+								it is proportional to your share of the pool.
+								<br /><b>Protocol</b> goes to the network.
+							</Hint>
 						</th>
 						<th class="col-volume sortable" class:active={sortColumn === 'volume'}>
 							<button
@@ -260,6 +283,10 @@
 									{/if}
 								{/if}
 							</button>
+							<Hint
+								size={14}
+								text="How much was swapped through this pool over the selected period. Volume is what generates the fees in the column to the left."
+							/>
 						</th>
 						<th class="col-actions" aria-label="Actions"></th>
 					</tr>
@@ -278,28 +305,9 @@
 									)
 								: undefined}
 						<tr class="clickable" onclick={() => (selectedPool = pool)}>
-							<td class="col-pair">
+							<td class="col-pair" data-label="Pair">
 								<div class="pair-cell">
-									<span class="pair-icons" aria-hidden="true">
-										{#if assetIcon(pool.pairSymbols[0])}
-											<img
-												class="coin-icon icon-a"
-												src={assetIcon(pool.pairSymbols[0])}
-												alt={pool.pairSymbols[0]}
-											/>
-										{:else}
-											<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
-										{/if}
-										{#if assetIcon(pool.pairSymbols[1])}
-											<img
-												class="coin-icon icon-b"
-												src={assetIcon(pool.pairSymbols[1])}
-												alt={pool.pairSymbols[1]}
-											/>
-										{:else}
-											<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
-										{/if}
-									</span>
+									<PairIcons symbols={pool.pairSymbols} />
 									<span
 										class="pair-label"
 										class:deprecated
@@ -315,7 +323,7 @@
 									{/if}
 								</div>
 							</td>
-							<td class="col-price">
+							<td class="col-price" data-label="Price">
 								<div class="price-cell">
 									<span>{pool.priceRatio}</span>
 									<span>{pool.priceInverse}</span>
@@ -324,14 +332,14 @@
 									</span>
 								</div>
 							</td>
-							<td class="col-liquidity">
+							<td class="col-liquidity" data-label="Total liquidity">
 								<div class="amount-cell">
 									<span class="total">{pool.totalLiquidityUsd}</span>
 									<span class="breakdown">{pool.totalLiquidityAssets[0]}</span>
 									<span class="breakdown">{pool.totalLiquidityAssets[1]}</span>
 								</div>
 							</td>
-							<td class="col-fee">
+							<td class="col-fee" data-label="Fees earned">
 								<div class="amount-cell">
 									<span class="total">{pool.feeEarnedUsd}</span>
 									<span class="breakdown fee-row">
@@ -344,14 +352,14 @@
 									</span>
 								</div>
 							</td>
-							<td class="col-volume">
+							<td class="col-volume" data-label="Volume">
 								<div class="amount-cell">
 									<span class="total">{pool.volumeUsd}</span>
 									<span class="breakdown">{pool.volumeAssets[0]}</span>
 									<span class="breakdown">{pool.volumeAssets[1]}</span>
 								</div>
 							</td>
-							<td class="col-actions">
+							<td class="col-actions" data-label="">
 								<div class="row-actions">
 									<button
 										type="button"
@@ -411,9 +419,21 @@
 				<thead>
 					<tr>
 						<th class="col-pair">Pair</th>
-						<th class="col-share">My Share</th>
+						<th class="col-share">
+							My Share
+							<Hint
+								size={14}
+								text="Your LP tokens as a percentage of all of them. It is also the share of this pool's fees that you earn."
+							/>
+						</th>
 						<th class="col-liquidity">My Liquidity</th>
-						<th class="col-lp">LP Tokens</th>
+						<th class="col-lp">
+							LP Tokens
+							<Hint
+								size={14}
+								text="The receipt for your deposit. Burn them to take your two assets back out, plus the fees they earned while they were in."
+							/>
+						</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -425,44 +445,25 @@
 								if (fullPool) selectedPool = fullPool;
 							}}
 						>
-							<td class="col-pair">
+							<td class="col-pair" data-label="Pair">
 								<div class="pair-cell">
-									<span class="pair-icons" aria-hidden="true">
-										{#if assetIcon(row.pairSymbols[0])}
-											<img
-												class="coin-icon icon-a"
-												src={assetIcon(row.pairSymbols[0])}
-												alt={row.pairSymbols[0]}
-											/>
-										{:else}
-											<span class="icon icon-a">{row.pairSymbols[0].slice(0, 3)}</span>
-										{/if}
-										{#if assetIcon(row.pairSymbols[1])}
-											<img
-												class="coin-icon icon-b"
-												src={assetIcon(row.pairSymbols[1])}
-												alt={row.pairSymbols[1]}
-											/>
-										{:else}
-											<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
-										{/if}
-									</span>
+									<PairIcons symbols={row.pairSymbols} />
 									<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}
 										>{row.pair}</span
 									>
 								</div>
 							</td>
-							<td class="col-share">
+							<td class="col-share" data-label="My share">
 								<span class="share-pct">{row.sharePct.toFixed(4)}%</span>
 							</td>
-							<td class="col-liquidity">
+							<td class="col-liquidity" data-label="My liquidity">
 								<div class="amount-cell">
 									<span class="total">{row.myLiquidityUsd}</span>
 									<span class="breakdown">{row.myAmounts[0]}</span>
 									<span class="breakdown">{row.myAmounts[1]}</span>
 								</div>
 							</td>
-							<td class="col-lp">
+							<td class="col-lp" data-label="LP tokens">
 								<span class="lp-amount">{row.lpBalance.toLocaleString()}</span>
 							</td>
 						</tr>
@@ -558,6 +559,16 @@
 		white-space: nowrap;
 		background-color: transparent;
 	}
+	/* A heading is label + (?) — and on a sortable column the label is itself
+	   a button, so the row has to be flex rather than inline text. */
+	.pools-table th.col-price,
+	.pools-table th.col-share,
+	.pools-table th.col-lp,
+	.pools-table th.sortable {
+		> :global(*) {
+			vertical-align: middle;
+		}
+	}
 
 	.pools-table tbody tr:hover {
 		background-color: var(--dash-surface-alt);
@@ -592,37 +603,6 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-	}
-
-	.pair-icons {
-		display: flex;
-		align-items: center;
-	}
-
-	.pair-icons .icon,
-	.pair-icons .coin-icon {
-		width: 1.5rem;
-		height: 1.5rem;
-		border-radius: 50%;
-		border: 2px solid var(--dash-bg);
-		margin-left: -0.35rem;
-	}
-	.pair-icons .icon {
-		background-color: var(--dash-surface-alt);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.5rem;
-		font-weight: 600;
-		color: var(--dash-text-secondary);
-		letter-spacing: 0.02em;
-	}
-	.pair-icons .icon:first-child,
-	.pair-icons .coin-icon:first-child {
-		margin-left: 0;
-	}
-	.pair-icons .icon-b:not(.coin-icon) {
-		background-color: var(--dash-accent-purple);
 	}
 
 	.pair-label {
@@ -785,5 +765,139 @@
 		border-color: var(--dash-accent-purple);
 		color: var(--dash-text-primary);
 		background: rgba(111, 106, 248, 0.08);
+	}
+
+	/* ──────────────────────────────────────────────────────────────────
+	   Phone: the table becomes a list of cards.
+
+	   Six columns cannot fit 390px, and the horizontal scroller it used to
+	   fall back to hid the three numbers the page exists for plus the Add
+	   button — you had to know to swipe sideways to find them. Each row
+	   becomes its own card and each cell a `label · value` line, with the
+	   label coming from the `data-label` on the <td>. The markup and the
+	   semantics are unchanged; this is only how it lays out.
+	   ────────────────────────────────────────────────────────────────── */
+	@media (max-width: 760px) {
+		.table-wrapper {
+			overflow: visible;
+			border: 0;
+			background: none;
+			box-shadow: none;
+			border-radius: 0;
+		}
+		.pools-table,
+		.pools-table tbody,
+		.pools-table tr,
+		.pools-table td {
+			display: block;
+			width: 100%;
+			box-sizing: border-box;
+		}
+		/* The header row carries the sort controls, so it is not dropped —
+		   it moves into the sort bar below instead. */
+		.pools-table thead {
+			display: block;
+		}
+		.pools-table thead tr {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.35rem;
+			border-bottom: 0;
+		}
+		.pools-table th {
+			display: none;
+			padding: 0;
+			border-bottom: 0;
+		}
+		.pools-table th.sortable {
+			display: inline-flex;
+			align-items: center;
+			border: 1px solid var(--dash-card-border);
+			border-radius: 999px;
+			padding: 0.3rem 0.7rem;
+		}
+		.pools-table th.sortable.active {
+			border-color: var(--dash-accent-purple);
+		}
+		.pools-table th.sortable :global(.hint) {
+			display: none;
+		}
+
+		.pools-table tbody tr {
+			margin-bottom: 0.75rem;
+			padding: 0.9rem 1rem;
+			border: 1px solid var(--dash-card-border);
+			border-radius: 20px;
+			background: var(--dash-card-bg);
+		}
+		.pools-table td {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 0.75rem;
+			padding: 0.3rem 0;
+			border-bottom: 0;
+			text-align: right;
+		}
+		.pools-table td::before {
+			content: attr(data-label);
+			flex: 0 0 auto;
+			text-align: left;
+			color: var(--dash-text-muted);
+			font-size: var(--text-xs);
+			font-weight: 600;
+			padding-top: 0.1rem;
+		}
+		/* The pair is the card's title, not another labelled line. */
+		.pools-table td.col-pair {
+			justify-content: flex-start;
+			padding-bottom: 0.6rem;
+			margin-bottom: 0.3rem;
+			border-bottom: 1px solid var(--dash-card-border);
+			text-align: left;
+		}
+		.pools-table td.col-pair::before {
+			display: none;
+		}
+		.price-cell,
+		.amount-cell {
+			align-items: flex-end;
+			min-width: 0;
+		}
+		.fee-row {
+			justify-content: flex-end;
+		}
+		.pools-table td.col-actions {
+			width: auto;
+			white-space: normal;
+			padding-right: 0 !important;
+			padding-top: 0.7rem;
+		}
+		.pools-table td.col-actions::before {
+			display: none;
+		}
+		.row-actions {
+			width: 100%;
+		}
+		.row-action {
+			flex: 1;
+			justify-content: center;
+			padding: 0.5rem 0.7rem;
+		}
+		.empty-cell {
+			display: block;
+			text-align: center !important;
+		}
+		.empty-cell::before {
+			display: none;
+		}
+		.toolbar {
+			gap: 0.5rem;
+		}
+		.search-input {
+			flex: 1 1 100%;
+			box-sizing: border-box;
+			min-width: 0;
+		}
 	}
 </style>

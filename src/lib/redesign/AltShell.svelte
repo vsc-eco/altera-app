@@ -4,10 +4,12 @@
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import { altTheme, altThemeClass } from './altTheme';
 	import { WALLET_TABS } from './walletTabs';
-	import { ChevronDown, Settings } from '@lucide/svelte';
+	import { ChevronDown, LogOut, Settings, Users } from '@lucide/svelte';
 	import Notifications from '$lib/Topbar/Notifications.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { openConnect } from '$lib/auth/connectModal';
+	import { switchUserPanelOpen } from '$lib/auth/switchUserStore';
+	import { isPublicRoute } from './publicRoutes';
 	import type { Snippet } from 'svelte';
 
 	type Props = {
@@ -33,8 +35,33 @@
 		return `MAGI RC: ${(bal.resource_credits || 0).toLocaleString()} / ${maxRCs.toLocaleString()}`;
 	});
 
-	type MenuName = 'wallet' | 'market' | null;
+	type MenuName = 'wallet' | 'market' | 'account' | null;
 	let menu = $state<MenuName>(null);
+
+	/**
+	 * For a Hive (aioha) login, "logging out" is really account switching —
+	 * re-logging in with Keychain is just picking another username — so those
+	 * sessions get the switcher panel as well as a plain log out. An EVM wallet
+	 * has only the disconnect. Same split the old sidebar and topbar made.
+	 */
+	const isHiveSession = $derived(auth.value?.provider === 'aioha');
+
+	function openSwitchUser() {
+		closeMenus();
+		switchUserPanelOpen.set(true);
+	}
+
+	async function handleLogout() {
+		closeMenus();
+		await auth.value?.logout?.();
+		// This shell had no logout at all before now, so nothing has ever moved
+		// the reader off a page that needs an account; the layout guard stays
+		// out of the way on purpose while `loginRetry` is 'logout'. Leaving
+		// them on a signed-out `/portfolio` would just show an empty wallet.
+		// A full load rather than `goto`, so every in-memory wallet object
+		// goes with it — nothing survives a log out that a reload wouldn't.
+		if (!isPublicRoute(page.url.pathname)) window.location.href = '/';
+	}
 
 	/** Marks the nav item for the page being viewed. Query strings matter here:
 	 *  Swap and Pools are the same route today, split only by `?tab=`. */
@@ -222,10 +249,22 @@
 					<Settings size={18} />
 				</a>
 				{#if connected}
-					<a class="account" href="/portfolio">
-						<span class="avatar">{(account ?? '?').charAt(0).toUpperCase()}</span>
-						<span class="account-name">{account}</span>
-					</a>
+					<div class="menu-wrap">
+						<button
+							class={['account', { open: menu === 'account' }]}
+							type="button"
+							aria-expanded={menu === 'account'}
+							aria-haspopup="menu"
+							onclick={() => toggle('account')}
+						>
+							<span class="avatar">{(account ?? '?').charAt(0).toUpperCase()}</span>
+							<span class="account-name">{account}</span>
+							<ChevronDown size={14} />
+						</button>
+						{#if menu === 'account'}
+							{@render accountPopup()}
+						{/if}
+					</div>
 				{:else}
 					<button class="connect" type="button" onclick={openConnect}>Connect</button>
 				{/if}
@@ -258,6 +297,31 @@
 		</footer>
 	</div>
 </div>
+
+{#snippet accountPopup()}
+	<!-- Right-aligned: this one hangs off the last element in the header, and
+	     `left: 0` would run it off the side of the page. -->
+	<div class="popup popup-right">
+		<!-- The chip hides the name below 760px and truncates it at 12ch above,
+		     so the popup is the one place the whole account is readable. -->
+		<div class="popup-head">
+			<span class="avatar">{(account ?? '?').charAt(0).toUpperCase()}</span>
+			<span class="popup-account">{account}</span>
+		</div>
+		{#if isHiveSession}
+			<button class="popup-item" type="button" onclick={openSwitchUser}>
+				<span class="popup-title"><Users size={14} /> Switch user</span>
+				<span class="popup-hint">Add, switch or remove a Hive account</span>
+			</button>
+		{/if}
+		<button class="popup-item" type="button" onclick={handleLogout}>
+			<span class="popup-title"><LogOut size={14} /> Log out</span>
+			<span class="popup-hint">
+				{isHiveSession ? 'Sign out of this account' : 'Disconnect your wallet'}
+			</span>
+		</button>
+	</div>
+{/snippet}
 
 {#snippet popup(items: { href: string; title: string; hint: string }[])}
 	<div class="popup">
@@ -369,6 +433,25 @@
 		border: 1px solid var(--alt-card-border);
 		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
 	}
+	/* Right-aligned variant, for a popup hanging off the end of the header. */
+	.popup-right {
+		left: auto;
+		right: 0;
+	}
+	.popup-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 12px 10px;
+		margin-bottom: 4px;
+		border-bottom: 1px solid var(--alt-card-border);
+	}
+	.popup-account {
+		font-size: 14px;
+		font-weight: 700;
+		color: var(--alt-tx);
+		overflow-wrap: anywhere;
+	}
 	.popup-item {
 		display: flex;
 		flex-direction: column;
@@ -376,11 +459,22 @@
 		padding: 10px 12px;
 		border-radius: 12px;
 		text-decoration: none;
+		/* The account popup's items are <button>s, the nav popups' are <a>s;
+		   these four lines are what make a button look like the link. */
+		width: 100%;
+		text-align: left;
+		background: none;
+		border: 0;
+		font: inherit;
+		cursor: pointer;
 	}
 	.popup-item:hover {
 		background: var(--alt-chip);
 	}
 	.popup-title {
+		display: flex;
+		align-items: center;
+		gap: 7px;
 		font-size: 14px;
 		font-weight: 700;
 		color: var(--alt-tx);
@@ -462,14 +556,17 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		padding: 5px 14px 5px 5px;
+		padding: 5px 10px 5px 5px;
 		border-radius: 999px;
 		background: var(--alt-chip);
 		border: 1px solid var(--alt-card-border);
 		color: var(--alt-tx);
 		text-decoration: none;
+		font: inherit;
+		cursor: pointer;
 	}
-	.account:hover {
+	.account:hover,
+	.account.open {
 		background: var(--alt-chip-hover);
 	}
 	.avatar {

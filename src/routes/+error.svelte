@@ -26,7 +26,10 @@
 		<h1>{title}</h1>
 		<p>{message}</p>
 
-		<PillButton href="/dashboard" styleType="invert">Go to dashboard</PillButton>
+		<!-- The swap screen, not `/dashboard`: that is the old shell, kept as a
+		     backup but no longer somewhere the app sends anyone. `/` is also
+		     public, so this works for a signed-out visitor who hit a bad URL. -->
+		<PillButton href="/" styleType="invert">Go to Altera</PillButton>
 	</div>
 
 	<footer>

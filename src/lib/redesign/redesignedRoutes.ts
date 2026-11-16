@@ -11,8 +11,8 @@
  *
  * `/dashboard` is deliberately absent and should stay that way: it is kept on
  * the old shell as the working backup of the controls the new pages have not
- * picked up yet. The Wallet menu links to it as "Classic dashboard" so it is
- * reachable rather than orphaned.
+ * picked up yet. Nothing in the top bar links to it any more — it is a URL you
+ * type, not a destination the app offers — so it must not resolve here either.
  */
 export type PageWidth = 'task' | 'wide';
 

@@ -48,13 +48,16 @@
 	// The menu IS the wallet page's tab row — same entries, same order — so
 	// picking one lands on the wallet with that tab already open rather than
 	// on a page the reader then has to orient in.
-	const walletItems = [
-		...WALLET_TABS.map((tab) => ({ href: tab.href, title: tab.label, hint: tab.hint })),
-		// The old dashboard stays on the previous shell as the working backup
-		// of the controls the redesigned pages have not picked up yet. Linked
-		// here so it is reachable rather than orphaned at a URL nobody knows.
-		{ href: '/dashboard', title: 'Classic dashboard', hint: 'The previous layout' }
-	];
+	// `/dashboard` is NOT in this list. The old shell is still live at that URL
+	// as the working backup of the controls the redesigned pages have not
+	// picked up yet, but offering it in the menu invites the reader into a
+	// second, different-looking app from a menu that otherwise never leaves
+	// this one. It stays reachable by typing the URL.
+	const walletItems = WALLET_TABS.map((tab) => ({
+		href: tab.href,
+		title: tab.label,
+		hint: tab.hint
+	}));
 	const marketItems = [
 		{ href: '/custom-tokens', title: 'Magi Tokens / NFTs', hint: 'What you hold' },
 		{ href: '/market', title: 'Magi Market', hint: 'Buy and sell' }
@@ -219,7 +222,7 @@
 					<Settings size={18} />
 				</a>
 				{#if connected}
-					<a class="account" href="/dashboard">
+					<a class="account" href="/portfolio">
 						<span class="avatar">{(account ?? '?').charAt(0).toUpperCase()}</span>
 						<span class="account-name">{account}</span>
 					</a>

@@ -9,8 +9,7 @@ import { WALLET_TABS } from './walletTabs';
  *
  *  1. `/dashboard` slipping INTO the list. It is deliberately left on the old
  *     sidebar shell as the working backup of the controls the redesigned pages
- *     have not picked up yet, and it is linked from the Wallet menu as
- *     "Classic dashboard". Adding it silently deletes that backup.
+ *     have not picked up yet. Adding it silently deletes that backup.
  *  2. A top-bar destination slipping OUT of it. Every link in the shell's own
  *     nav has to land on a page wearing that same shell, or the nav throws the
  *     reader between two different-looking apps.
@@ -21,8 +20,8 @@ describe('redesignedRoutes', () => {
 		expect(isRedesigned('/dashboard/anything')).toBe(false);
 	});
 
-	/** Mirrors the nav and the two popups in `AltShell.svelte`, minus the
-	 *  deliberate "Classic dashboard" entry asserted above. */
+	/** Mirrors the nav and the two popups in `AltShell.svelte`. Every entry in
+	 *  them is here; `/dashboard` is in neither, as asserted above. */
 	const topBarDestinations = [
 		'/',
 		'/pools',

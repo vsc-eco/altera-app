@@ -23,7 +23,10 @@
 	// once (no reassignment) so it stays a non-reactive init-time constant.
 	const redirectTo = browser
 		? (() => {
-				const home = new URL('/dashboard', window.location.origin);
+				// Where a sign-in lands when nothing sent the user here. The
+				// wallet's Assets tab, not `/dashboard` — that is the old shell,
+				// kept as a backup but no longer a destination the app offers.
+				const home = new URL('/portfolio', window.location.origin);
 				const url = new URL(localStorage.getItem('redirect_url') ?? home);
 				return url.origin === window.location.origin ? url : home;
 			})()

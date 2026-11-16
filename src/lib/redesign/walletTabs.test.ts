@@ -24,8 +24,8 @@ describe('walletTabs', () => {
 		expect(isWalletRoute('/depositors')).toBe(false);
 	});
 
-	/** The old dashboard is reachable from the Wallet menu but is NOT a tab:
-	 *  it is on the previous shell, which has no tab row to belong to. */
+	/** The old dashboard is NOT a tab: it is on the previous shell, which has
+	 *  no tab row to belong to, and the Wallet menu no longer offers it. */
 	it('does not make the classic dashboard a tab', () => {
 		expect(activeWalletTab('/dashboard')).toBeUndefined();
 	});

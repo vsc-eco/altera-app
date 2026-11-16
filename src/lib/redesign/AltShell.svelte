@@ -231,11 +231,7 @@
 				<span>ALTERA</span>
 			</a>
 
-			<nav
-				bind:this={navEl}
-				style:--menu-top="{menuTop}px"
-				use:scrollEdges={(e) => (navEdges = e)}
-			>
+			<nav bind:this={navEl} style:--menu-top="{menuTop}px" use:scrollEdges={(e) => (navEdges = e)}>
 				<span class={['alt-rail-arrow', 'start', { on: navEdges.start }]} aria-hidden="true">
 					<ChevronLeft size={12} />
 				</span>
@@ -674,18 +670,38 @@
 		flex-direction: column;
 		align-items: center;
 		width: 100%;
-		padding: clamp(32px, 8vh, 88px) clamp(16px, 4vw, 32px) 48px;
+		/* Named so a full-bleed child can cancel exactly this much. */
+		--alt-main-pad-x: clamp(16px, 4vw, 32px);
+		padding: clamp(32px, 8vh, 88px) var(--alt-main-pad-x) 48px;
 		box-sizing: border-box;
 	}
 	/* A task page's CARD is 470px, but its heading is not — the hero has to
 	   breathe, so the column is wider and the page narrows the card itself. */
-	main.task > :global(*) {
+	/* A page child opts out of the column with `data-fullbleed`, for content
+	   drawn to span the window — the marketing sections under the logged-out
+	   swap card. Without the opt-out the cap below wins over any width the
+	   child sets, and a full-bleed section silently renders at column width. */
+	main.task > :global(*:not([data-fullbleed])) {
 		width: 100%;
 		max-width: 760px;
 	}
-	main.wide > :global(*) {
+	main.wide > :global(*:not([data-fullbleed])) {
 		width: 100%;
 		max-width: 1120px;
+	}
+	/*
+	 * `main` is a centred flex column, so the usual `width: 100vw` +
+	 * `margin-inline: calc(50% - 50vw)` trick does NOT reach the window edges
+	 * here — flex centring recomputes around the negative margins and the
+	 * child lands at the column width instead. `align-self: stretch` fills the
+	 * container's cross size, and cancelling `main`'s own padding takes it the
+	 * rest of the way out.
+	 */
+	main > :global([data-fullbleed]) {
+		align-self: stretch;
+		width: auto;
+		max-width: none;
+		margin-inline: calc(-1 * var(--alt-main-pad-x));
 	}
 
 	footer {

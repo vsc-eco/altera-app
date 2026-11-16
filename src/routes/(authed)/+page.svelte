@@ -52,16 +52,15 @@
 	<!-- Full-bleed: the shell caps a task page's children at 760px, and these
 	     sections were drawn for the whole width. The negative inline margin
 	     walks back out of that column. -->
-	<div class="landing-below">
+	<div class="landing-below" data-fullbleed>
 		<LandingSections />
 	</div>
 {/if}
 
 <style lang="scss">
 	.landing-below {
-		width: 100vw;
-		max-width: 100vw;
-		margin-inline: calc(50% - 50vw);
+		/* Width comes from the shell: `data-fullbleed` on the element above
+		   opts it out of the task column and cancels `main`'s padding. */
 		margin-top: 40px;
 		/* The marquee inside is wider than the viewport by design; clip it here
 		   so it cannot add a horizontal scrollbar to the whole page. */

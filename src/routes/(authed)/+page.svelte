@@ -1,5 +1,7 @@
 <script lang="ts">
 	import SendSwap from '$lib/sendswap/SendSwap.svelte';
+	import LandingSections from '$lib/landing/LandingSections.svelte';
+	import { getAuth } from '$lib/auth/store';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -9,6 +11,10 @@
 	 * are still in the sidebar and in the wild, so they are forwarded rather
 	 * than broken.
 	 */
+	/** The pitch below the card is for people who have not connected yet.
+	 *  Once you have an account it is just a long scroll past your own app. */
+	const connected = $derived(!!getAuth()().value);
+
 	$effect(() => {
 		const tab = page.url.searchParams.get('tab');
 		if (tab === 'pools') {
@@ -26,12 +32,7 @@
 </svelte:head>
 
 <div class="swap-screen">
-	<a
-		class="eyebrow"
-		href="https://magiprotocol.com"
-		target="_blank"
-		rel="noopener noreferrer"
-	>
+	<a class="eyebrow" href="https://magiprotocol.com" target="_blank" rel="noopener noreferrer">
 		<span class="dot" aria-hidden="true"></span>
 		POWERED BY MAGI NETWORK
 	</a>
@@ -47,7 +48,26 @@
 	</div>
 </div>
 
+{#if !connected}
+	<!-- Full-bleed: the shell caps a task page's children at 760px, and these
+	     sections were drawn for the whole width. The negative inline margin
+	     walks back out of that column. -->
+	<div class="landing-below">
+		<LandingSections />
+	</div>
+{/if}
+
 <style lang="scss">
+	.landing-below {
+		width: 100vw;
+		max-width: 100vw;
+		margin-inline: calc(50% - 50vw);
+		margin-top: 40px;
+		/* The marquee inside is wider than the viewport by design; clip it here
+		   so it cannot add a horizontal scrollbar to the whole page. */
+		overflow-x: clip;
+	}
+
 	.swap-screen {
 		display: flex;
 		flex-direction: column;

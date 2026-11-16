@@ -43,7 +43,21 @@ export function cleanUpAccountData() {
 
 export function cleanUpLogout() {
 	cleanUpAccountData();
-	goto('/login');
+	/**
+	 * Logging out lands on the swap screen, not on `/login`.
+	 *
+	 * `/login` asks you to connect, which is the opposite of what someone who
+	 * just logged out asked for. It made sense when every page needed an
+	 * account; now `/` is the public front door (see `publicRoutes.ts`) and
+	 * reads perfectly well logged out, with a Connect pill for whenever they
+	 * do want back in.
+	 *
+	 * A navigation is still needed rather than staying put: the logout may
+	 * have happened on a guarded page, and leaving them there would just have
+	 * the route guard bounce them to `/login` anyway.
+	 */
+	// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
+	goto('/');
 }
 
 export const getAuth = () => {

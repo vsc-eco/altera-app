@@ -1,4 +1,5 @@
 import { Aioha, KeyTypes, Providers } from '@aioha/aioha';
+import { get } from 'svelte/store';
 import { DOMAIN } from '../url';
 import { browser } from '$app/environment';
 import { _hiveAuthStore, cleanUpAccountData, cleanUpLogout, loginRetry } from '../store';
@@ -30,15 +31,32 @@ async function getProfilePicUrl(username: string) {
 let aioha: Aioha;
 
 if (browser) {
+	/**
+	 * Fill in the profile picture once it has been fetched.
+	 *
+	 * The guard here is against the CURRENT store, not the value this
+	 * subscription captured. The fetch is async, so logging out while it is in
+	 * flight used to resolve afterwards and re-publish the OLD authenticated
+	 * value — logging the UI straight back in. It was invisible while logout
+	 * landed on `/login`, which has no shell; now that it lands on `/` the
+	 * header sat there still showing the account that had just left.
+	 *
+	 * The result is also written as a fresh object rather than by mutating the
+	 * captured one, so a stale closure cannot reach into live state.
+	 */
 	_hiveAuthStore.subscribe((value) => {
-		if (value.value) {
-			getProfilePicUrl(value.value.address).then((pp) => {
-				if (value.value != undefined && pp && value.value.profilePicUrl == undefined) {
-					value.value.profilePicUrl = pp;
-					_hiveAuthStore.set(value);
-				}
+		const username = value.value?.address;
+		if (!username) return;
+		getProfilePicUrl(username).then((pp) => {
+			if (!pp) return;
+			const current = get(_hiveAuthStore);
+			// Logged out, switched account, or already filled in since.
+			if (current.value?.address !== username || current.value.profilePicUrl) return;
+			_hiveAuthStore.set({
+				...current,
+				value: { ...current.value, profilePicUrl: pp }
 			});
-		}
+		});
 	});
 
 	try {

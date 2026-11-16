@@ -343,6 +343,7 @@
 		{#if !secondaryMenu}
 			<PageHeader
 				titleAs="h2"
+			spacing="page"
 				title="Deposit"
 				subtitle="Add funds to your Magi balance."
 				hint="Pick what you want to end up with, then where it is coming from. If the two differ, Magi swaps for you on arrival."

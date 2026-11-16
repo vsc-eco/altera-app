@@ -7,7 +7,7 @@
 	contained: pulls `auth` via getAuth() itself.
 -->
 <script lang="ts">
-	import { Faq } from '$lib/ui';
+	import { EmptyState, Faq } from '$lib/ui';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { useRecentTxs } from '../recentTxs.svelte';
@@ -184,7 +184,11 @@
 		{#if recent.loading}
 			<div class="recent-loading"><WaveLoading size={18} /></div>
 		{:else if displayWithdrawals.length === 0}
-			<p class="rail-empty">No recent withdrawals yet.</p>
+			<EmptyState
+				title="No withdrawals yet"
+				description="Your next one will show up here."
+				hint="A withdrawal appears here as soon as it is signed, and updates as the destination chain confirms it."
+			/>
 		{:else}
 			<ul class="recent-list">
 				{#each displayWithdrawals as d, i (`${d.id}#${i}`)}
@@ -333,11 +337,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.6rem;
-	}
-	.rail-empty {
-		margin: 0;
-		color: var(--dash-text-muted);
-		font-size: 0.85rem;
 	}
 
 	:global(.faq-trigger) :global(.faq-chevron) {

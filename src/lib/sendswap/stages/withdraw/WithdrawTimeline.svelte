@@ -201,6 +201,7 @@
 		{#if !secondaryMenu}
 			<PageHeader
 				titleAs="h2"
+			spacing="page"
 				title="Withdraw"
 				subtitle="Send funds from your Magi balance."
 				hint="Moves funds off Magi to Hive mainnet, Lightning or Bitcoin. How long it takes is up to the destination chain, not to Magi."

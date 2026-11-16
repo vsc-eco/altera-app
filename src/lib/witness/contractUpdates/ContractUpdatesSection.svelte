@@ -12,12 +12,13 @@
 	(showing a truncated id) but with no friendly label.
 -->
 <script lang="ts">
+	import { Spinner } from '$lib/ui';
 	import Card from '$lib/cards/Card.svelte';
 	import Countdown from './Countdown.svelte';
 	import { loadPendingUpdates, type LoadResult } from './loader';
 	import { tsToUnixSec, type ContractUpdateView } from './types';
 	import { proposerTxUrl, codeIpfsUrl, contractExplorerUrl } from './auditLinks';
-	import { ExternalLink, FileCode2, Loader2, ShieldAlert, User } from '@lucide/svelte';
+	import { ExternalLink, FileCode2, ShieldAlert, User } from '@lucide/svelte';
 
 	type SectionState = { source: 'loading' } | LoadResult;
 	let state = $state<SectionState>({ source: 'loading' });
@@ -118,7 +119,7 @@
 
 		{#if state.source === 'loading'}
 			<p class="empty loading">
-				<Loader2 size={14} class="spin" />
+				<Spinner size={14} inline label="Loading" />
 				Loading pending updates…
 			</p>
 		{:else if isDormant}
@@ -441,17 +442,6 @@
 		align-items: center;
 		gap: 0.4rem;
 		font-style: normal;
-	}
-	:global(.spin) {
-		animation: spin 1s linear infinite;
-	}
-	@keyframes spin {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
-			transform: rotate(360deg);
-		}
 	}
 
 	@media (max-width: 600px) {

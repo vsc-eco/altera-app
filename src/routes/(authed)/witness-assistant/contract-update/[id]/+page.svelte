@@ -10,6 +10,7 @@
 	PR #210). Reads from `mockData.ts` until that field is live.
 -->
 <script lang="ts">
+	import { Spinner } from '$lib/ui';
 	import { page } from '$app/state';
 	import Card from '$lib/cards/Card.svelte';
 	import Countdown from '$lib/witness/contractUpdates/Countdown.svelte';
@@ -21,7 +22,7 @@
 		contractExplorerUrl,
 		proposerTxUrl
 	} from '$lib/witness/contractUpdates/auditLinks';
-	import { ArrowLeft, ExternalLink, FileCode2, GitCompare, Loader2, User } from '@lucide/svelte';
+	import { ArrowLeft, ExternalLink, FileCode2, GitCompare, User } from '@lucide/svelte';
 
 	let state = $state<
 		{ source: 'loading' } | { source: 'loaded'; update: ContractUpdateView | undefined }
@@ -66,7 +67,7 @@
 	{#if state.source === 'loading'}
 		<Card>
 			<p class="loading-row">
-				<Loader2 size={14} class="spin" />
+				<Spinner size={14} inline label="Loading" />
 				Loading update details…
 			</p>
 		</Card>
@@ -470,17 +471,6 @@
 		gap: 0.4rem;
 		color: var(--dash-text-secondary);
 		font-size: 0.9rem;
-	}
-	:global(.spin) {
-		animation: spin 1s linear infinite;
-	}
-	@keyframes spin {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
-			transform: rotate(360deg);
-		}
 	}
 
 	@media (max-width: 600px) {

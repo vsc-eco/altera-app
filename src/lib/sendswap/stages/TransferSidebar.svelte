@@ -18,7 +18,7 @@
 	import { getTimestamp } from '$lib/stores/txStores';
 	import { useRecentTxs } from './recentTxs.svelte';
 	import { ArrowDownLeft, ArrowUpRight } from '@lucide/svelte';
-	import { Faq } from '$lib/ui';
+	import { EmptyState, Faq } from '$lib/ui';
 
 	type DisplayTransfer = {
 		id: string;
@@ -136,7 +136,7 @@
 	<section>
 		<h5>Recent transfers</h5>
 		{#if recent.unauth}
-			<p class="rail-empty">Connect a wallet to see your recent transfers.</p>
+			<EmptyState title="Not connected" description="Connect a wallet to see your recent transfers." />
 		{:else if transfers.length > 0}
 			<ul class="recent-list">
 				<!-- Position is part of the key on purpose. The ids are derived
@@ -178,7 +178,11 @@
 		{:else if recent.loading}
 			<div class="recent-loading"><WaveLoading size={18} /></div>
 		{:else}
-			<p class="rail-empty">No transfers yet. Your next one will show up here.</p>
+			<EmptyState
+				title="No transfers yet"
+				description="Your next one will show up here."
+				hint="This lists transfers you signed — swaps and contract calls settle as other kinds of entry and appear under Transactions instead."
+			/>
 		{/if}
 	</section>
 
@@ -250,11 +254,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.6rem;
-	}
-	.rail-empty {
-		margin: 0;
-		color: var(--dash-text-muted);
-		font-size: 0.85rem;
 	}
 
 	/* The FAQ accordion lives inside <Card>, so these have to be :global —

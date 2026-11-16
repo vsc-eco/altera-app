@@ -279,6 +279,7 @@
 	<div class="main">
 		<PageHeader
 			titleAs="h2"
+			spacing="page"
 			title="Staking"
 			subtitle="Stake HBD to earn {aprLabel} APR, or unstake it back to your balance."
 			hint="Staked HBD becomes sHBD, which stays transferable while it earns. The interest is the Hive savings rate, paid out by the gateway roughly every 30 days."

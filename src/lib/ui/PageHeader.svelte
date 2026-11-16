@@ -16,7 +16,8 @@
 		hint,
 		hintContent,
 		actions,
-		titleAs = 'h1'
+		titleAs = 'h1',
+		spacing = 'tight'
 	}: {
 		title: string;
 		/** At most one short line. */
@@ -29,10 +30,13 @@
 		/** Heading level, so a page keeps one h1 and a sane outline. A page
 		 *  inside the wallet chrome already has one above it. */
 		titleAs?: 'h1' | 'h2' | 'h3';
+		/** `page` leaves the 2rem gap a standalone page heading wants before
+		 *  its first section; `tight` sits just above its own content. */
+		spacing?: 'tight' | 'page';
 	} = $props();
 </script>
 
-<header class="page-header">
+<header class="page-header {spacing}">
 	<div class="left">
 		<svelte:element this={titleAs} class="title">
 			{title}
@@ -61,6 +65,9 @@
 		flex-wrap: wrap;
 		min-width: 0;
 		margin-bottom: 4px;
+	}
+	.page-header.page {
+		margin-bottom: 2rem;
 	}
 	.left {
 		min-width: 0;

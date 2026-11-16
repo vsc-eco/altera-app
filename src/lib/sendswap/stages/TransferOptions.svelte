@@ -471,6 +471,7 @@
 	<div class="main">
 		<PageHeader
 			titleAs="h2"
+			spacing="page"
 			title="Transfer"
 			subtitle="Send funds to someone else on Magi."
 			hint="A transfer moves what you already hold to another account. It settles in the next block and cannot be reversed, so check the recipient on the review screen."

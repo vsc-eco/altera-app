@@ -9,6 +9,7 @@
 	accounts and EVM logins see a notice.
 -->
 <script lang="ts">
+	import { Spinner } from '$lib/ui';
 	import {
 		FindGovernanceProposalsStore,
 		CurrentElectionStore,
@@ -20,7 +21,7 @@
 	import PillButton from '$lib/PillButton.svelte';
 	import InfoTooltip from '$lib/components/InfoTooltip.svelte';
 	import { reserveVoteTx, slashRestoreVoteTx } from '$lib/magiTransactions/hive';
-	import { Landmark, Loader2, Check } from '@lucide/svelte';
+	import { Landmark, Check } from '@lucide/svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { getHiveExplorerTxUrl } from '$lib/constants';
@@ -295,7 +296,7 @@
 								onclick={() => vote(p)}
 							>
 								{#if ui.busy}
-									<Loader2 size={15} class="spin" /> Signing…
+									<Spinner size={15} inline label="Loading" /> Signing…
 								{:else}
 									Vote
 								{/if}
@@ -549,17 +550,6 @@
 	.empty.error {
 		color: var(--error-text, #ff8585);
 		font-style: normal;
-	}
-	:global(.spin) {
-		animation: spin 1s linear infinite;
-	}
-	@keyframes spin {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
-			transform: rotate(360deg);
-		}
 	}
 
 	@media (max-width: 600px) {

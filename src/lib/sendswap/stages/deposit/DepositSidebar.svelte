@@ -7,7 +7,7 @@
 	pulls `auth` via getAuth() itself.
 -->
 <script lang="ts">
-	import { Faq } from '$lib/ui';
+	import { EmptyState, Faq } from '$lib/ui';
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { useRecentTxs } from '../recentTxs.svelte';
@@ -215,7 +215,11 @@
 				<WaveLoading size={18} />
 			</div>
 		{:else if displayDeposits.length === 0}
-			<p class="rail-empty">No recent deposits yet.</p>
+			<EmptyState
+				title="No deposits yet"
+				description="Your next one will show up here."
+				hint="A deposit appears once its source chain confirms — instantly for Hive, about ten minutes for Bitcoin."
+			/>
 		{:else}
 			<ul class="recent-list">
 				{#each displayDeposits as d, i (`${d.id}#${i}`)}
@@ -394,11 +398,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.6rem;
-	}
-	.rail-empty {
-		margin: 0;
-		color: var(--dash-text-muted);
-		font-size: 0.85rem;
 	}
 
 	/* ── Custom FAQ accordion. */

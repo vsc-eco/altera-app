@@ -522,6 +522,32 @@
 		display: flex;
 		align-items: center;
 	}
+	/* The bell is the old design system's `PillButton styleType="icon"`, which
+	   is a FILLED circle with no border (`rgba(255,255,255,.1)`), while the cog
+	   next to it is bordered and transparent — two different buttons sitting
+	   side by side in the same corner. PillButton is shared with the old shell,
+	   so the match is made here: same 40px round, same border, same hover as
+	   `.cog` below. The `:hover` override also has to beat PillButton's own
+	   `.icon:hover`, which recolours the icon and border to #6f6af8. */
+	.bell :global(button.icon) {
+		margin: 0;
+		border-radius: 999px;
+		background: transparent;
+		border: 1px solid var(--alt-card-border);
+		color: var(--alt-tx-2);
+		/* 42, not 40: this app has no global `box-sizing`, so `.cog` below is
+		   40px of content plus its 1px border on each side, while PillButton
+		   sets `box-sizing: border-box` and lands on 40 flat. Matching the
+		   number here leaves the cog exactly as it renders today. */
+		width: 42px;
+		height: 42px;
+	}
+	.bell :global(button.icon:hover),
+	.bell :global(button.icon:active) {
+		background: var(--alt-chip);
+		border-color: var(--alt-card-border);
+		color: var(--alt-tx);
+	}
 
 	.cog {
 		width: 40px;

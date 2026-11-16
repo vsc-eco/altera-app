@@ -16,82 +16,28 @@
 
 import { GetAccountBalanceStore, SimulateContractCallsStore } from '$houdini';
 import { queryOnce } from '$lib/queryOnce';
+import { rcShortfallToHbd } from '$lib/calc';
 
-/** The node rejects `rc_limit` outside [1, 100000] (schema.resolvers.go). */
-export const MAX_RC_LIMIT = 100_000;
+// ⚠️ The RC arithmetic itself — the limits, the margin, the sizing and the
+// RC→HBD conversion — lives in `$lib/calc` (§7 Resource credits), with every
+// other calculation in the app. This module is the node round-trips around it.
+export {
+	MAX_RC_LIMIT,
+	RC_MARGIN,
+	BTC_PAYOUT_SWAP_MIN_RC,
+	sizeRcLimit,
+	btcPayoutSwapRcLimit
+} from '$lib/calc';
+export type { InsufficientRc, RcSizing } from '$lib/calc';
 
-/** Headroom over the simulated cost: chain state (e.g. which vault UTXOs an
- *  unmap picks) can move between the dry run and block inclusion. Same
- *  factor the VSC explorer uses for its broadcast limit. */
-export const RC_MARGIN = 1.25;
-
-/** `needed` is the exact cost when the dry run completed; absent when it ran
- *  out of RC first, in which case all we know is "more than `available`". */
-export type InsufficientRc = {
-	ok: false;
-	reason: 'insufficient-rc';
-	needed?: number;
-	available: number;
-};
-
-export type RcSizing = { ok: true; rcLimit: number } | InsufficientRc;
-
-/**
- * Pick the broadcast `rc_limit` for a call the dry run measured at `rcUsed`.
- *
- * `rcUsed` + margin when the account can afford it; otherwise everything the
- * account has, as long as that still covers the measured cost. Below the
- * measured cost the call is certain to fail, so report it instead.
- */
-export function sizeRcLimit(rcUsed: number, available: number): RcSizing {
-	const cap = Math.min(Math.floor(available), MAX_RC_LIMIT);
-	if (rcUsed > cap) {
-		return { ok: false, reason: 'insufficient-rc', needed: rcUsed, available: Math.floor(available) };
-	}
-	const padded = Math.ceil(rcUsed * RC_MARGIN);
-	return { ok: true, rcLimit: Math.max(1, Math.min(padded, cap)) };
-}
-
-/**
- * The least a swap paid out to a BTC address costs. Measured with dry runs on
- * the mainnet contracts on 2026-11-05: 11,686 RC for HBD -> BTC and 12,007 RC
- * for HIVE -> HBD -> BTC, one vault input each (each extra input costs more).
- * Since the 0.12 BTC contract (live 2026-11-04) a withdrawal also writes its
- * settle record, so the payout costs more than the old fixed `rc_limit:
- * 10000`, and every such swap sent with it failed "cost limit exceeded".
- */
-export const BTC_PAYOUT_SWAP_MIN_RC = 11_700;
-
-/**
- * Pick the `rc_limit` for a swap paid out to a BTC address: everything the
- * account can spend, capped at the node maximum. The node runs a Hive-origin
- * call with min(available RC, rc_limit) gas and charges only what it uses, so
- * this costs nothing over what the swap uses (the BTC unmap fallback above does
- * the same).
- *
- * `hbdPulledFromMagi` is the swap input when it is HBD already on the Magi
- * ledger (no deposit in the same transaction), else 0. The node reserves
- * (rc_limit - free RC) of the caller's HBD against RC before an HBD intent
- * pull, so the limit must leave the input amount spendable or the swap fails
- * "insufficient balance". A deposit in the same transaction adds the input
- * itself, so the account's RC before it is the bound.
- *
- * Below BTC_PAYOUT_SWAP_MIN_RC the swap cannot succeed; report it before the
- * user signs instead of failing on chain.
- */
-export function btcPayoutSwapRcLimit(available: number, hbdPulledFromMagi: number): RcSizing {
-	const spendable = Math.floor(available - Math.max(0, hbdPulledFromMagi));
-	const cap = Math.min(spendable, MAX_RC_LIMIT);
-	if (cap < BTC_PAYOUT_SWAP_MIN_RC) {
-		return {
-			ok: false,
-			reason: 'insufficient-rc',
-			needed: BTC_PAYOUT_SWAP_MIN_RC,
-			available: Math.max(0, spendable)
-		};
-	}
-	return { ok: true, rcLimit: cap };
-}
+import {
+	MAX_RC_LIMIT,
+	BTC_PAYOUT_SWAP_MIN_RC,
+	sizeRcLimit,
+	btcPayoutSwapRcLimit,
+	type InsufficientRc,
+	type RcSizing
+} from '$lib/calc';
 
 /** The fresh RC (the node's getAccountRC) when the node answers, else
  *  `fallbackAvailable` (the polled balance store), sized by btcPayoutSwapRcLimit. */
@@ -108,7 +54,7 @@ export async function sizeBtcPayoutSwap(
  *  barely changes the cost, so a smaller swap does not help; HBD on Magi does. */
 export function btcPayoutShortfallMessage(shortfall: InsufficientRc): string {
 	const needed = shortfall.needed ?? BTC_PAYOUT_SWAP_MIN_RC;
-	const missingHbd = Math.ceil(Math.max(0, needed - shortfall.available) / 10) / 100;
+	const missingHbd = rcShortfallToHbd(needed, shortfall.available);
 	return (
 		`Not enough RC to pay out to a Bitcoin address: it needs at least ` +
 		`${needed.toLocaleString('en-US')} RC and you have ` +
@@ -181,7 +127,7 @@ export function rcShortfallMessage(shortfall: InsufficientRc, what: string): str
 			`Deposit HBD to Magi to raise your RC, or try a smaller amount.`
 		);
 	}
-	const missingHbd = Math.ceil(Math.max(0, shortfall.needed - shortfall.available) / 10) / 100;
+	const missingHbd = rcShortfallToHbd(shortfall.needed, shortfall.available);
 	return (
 		`Not enough RC for this ${what}: it needs ${fmt(shortfall.needed)} RC and you have ` +
 		`${have}. Deposit at least ${missingHbd.toFixed(2)} HBD to Magi to cover it, ` +

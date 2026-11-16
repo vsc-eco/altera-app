@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { arcDashOffset } from '$lib/calc';
 
 	let {
 		size = 24,
@@ -17,7 +18,7 @@
 	const radius = 40;
 	const circumference = 2 * Math.PI * radius;
 
-	let strokeDashoffset = $derived(circumference - (progress / 100) * circumference);
+	let strokeDashoffset = $derived(arcDashOffset(progress, radius));
 
 	function start() {
 		if (isRunning) return;

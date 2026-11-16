@@ -1,4 +1,11 @@
 import { writable } from 'svelte/store';
+import {
+	spendableSats as spendableFromBalances,
+	feeReserveSats as feeReserveFromRate,
+	maxSendableSats as maxSendableFromReserve,
+	BTC_SEND_FEE_VBYTES as FEE_VBYTES,
+	BTC_FALLBACK_FEE_RATE
+} from '$lib/calc';
 
 /**
  * What a Bitcoin wallet can send now, and how much of it the miner fee needs.
@@ -18,24 +25,21 @@ export type MempoolAddressStats = {
 export function spendableSats(stats: MempoolAddressStats): number {
 	const confirmed =
 		(stats.chain_stats?.funded_txo_sum ?? 0) - (stats.chain_stats?.spent_txo_sum ?? 0);
-	const pendingOut = stats.mempool_stats?.spent_txo_sum ?? 0;
-	return Math.max(0, confirmed - pendingOut);
+	return spendableFromBalances(confirmed, stats.mempool_stats?.spent_txo_sum ?? 0);
 }
 
 /** vbytes held back for a send's fee: a two-input, two-output P2WPKH payment with margin. */
-export const BTC_SEND_FEE_VBYTES = 200;
+export const BTC_SEND_FEE_VBYTES = FEE_VBYTES;
 /** Used when the fee feed cannot be read: never block a send on it. */
-export const FALLBACK_FEE_RATE = 10;
+export const FALLBACK_FEE_RATE = BTC_FALLBACK_FEE_RATE;
 
 export function feeReserveSats(feeRate: number): number {
 	const rate = Number.isFinite(feeRate) && feeRate >= 1 ? feeRate : FALLBACK_FEE_RATE;
-	return Math.ceil(rate * BTC_SEND_FEE_VBYTES);
+	return feeReserveFromRate(rate, BTC_SEND_FEE_VBYTES);
 }
 
 /** The most a wallet can send now: spendable less the fee reserve. */
-export function maxSendableSats(spendable: number, reserve: number): number {
-	return Math.max(0, spendable - reserve);
-}
+export const maxSendableSats = maxSendableFromReserve;
 
 /** Sats held back for the miner fee of a BTC send from the connected wallet. */
 export const btcSendFeeReserve = writable<number>(feeReserveSats(FALLBACK_FEE_RATE));

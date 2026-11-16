@@ -7,6 +7,7 @@
 	import moment from 'moment';
 	import { getDateFromBlockHeight } from '../../../routes/(authed)/transactions/getDateFromBlockHeight';
 	import InfoToolip from '$lib/components/InfoTooltip.svelte';
+	import { maxRc, rcPercent, toDisplay } from '$lib/calc';
 	let { username }: { username: string | undefined } = $props();
 	import { getAuth } from '$lib/auth/store';
 
@@ -15,21 +16,20 @@
 
 	let rc: Manabar | null = $state(null);
 
-	const maxRCs = $derived(isHive ? $accountBalance.bal.hbd + 10000 : $accountBalance.bal.hbd);
-	// adjust the RCs to round up within 1, if user has more than 5 total.
+	// RC is the account's Magi-ledger HBD in milli-units, plus a free
+	// allowance for a Hive account. Both the ceiling and the percentage are
+	// in `$lib/calc` (§7), next to the sizing the broadcast path uses.
+	const maxRCs = $derived(maxRc($accountBalance.bal.hbd, isHive));
+	// Shown in whole HBD rather than milli-units.
 	let [adjustedRCs, adjustedMaxRCs] = $derived.by(() => {
-		if ($accountBalance.loading) {
-			return [null, 0];
-		}
-		return [$accountBalance.bal.resource_credits / 1000, maxRCs / 1000];
+		if ($accountBalance.loading) return [null, 0];
+		return [toDisplay($accountBalance.bal.resource_credits, 3), toDisplay(maxRCs, 3)];
 	});
 
 	let customPercentage = $derived(
 		$accountBalance.loading
 			? undefined
-			: maxRCs
-				? Math.floor((Math.max($accountBalance.bal.resource_credits, 0) / maxRCs) * 100)
-				: 0
+			: rcPercent($accountBalance.bal.resource_credits, maxRCs)
 	);
 
 	$effect(() => {

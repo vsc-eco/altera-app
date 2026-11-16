@@ -1,4 +1,5 @@
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
+import { netAfterFees } from '$lib/calc';
 
 export type LightningWithdrawFlowParams = {
 	kind?: string;
@@ -29,8 +30,7 @@ export type NetToAmountParams = {
 export function computeNetToAmountSmallest(params: NetToAmountParams): number {
 	const gatewayFee =
 		params.isLightningWithdraw && params.gatewayFeeCoinMatchesToCoin
-			? (params.gatewayFeeAmount ?? 0)
+			? params.gatewayFeeAmount
 			: 0;
-	const alteraFee = params.alteraFeeAmount ?? 0;
-	return Math.max(0, params.rawToAmount - gatewayFee - alteraFee);
+	return netAfterFees(params.rawToAmount, gatewayFee, params.alteraFeeAmount);
 }

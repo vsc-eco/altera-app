@@ -1,3 +1,5 @@
+import { backoffDelayMs } from '$lib/calc';
+
 /**
  * Runs `attempt` until it reports success, at most `maxAttempts` times, waiting
  * 1 s, 2 s, 4 s ... between tries. Returns whether it succeeded. Used to load
@@ -11,7 +13,7 @@ export async function retryWithBackoff(
 ): Promise<boolean> {
 	for (let i = 0; i < maxAttempts; i++) {
 		if (await attempt()) return true;
-		if (i < maxAttempts - 1) await sleep(1000 * 2 ** i);
+		if (i < maxAttempts - 1) await sleep(backoffDelayMs(i));
 	}
 	return false;
 }

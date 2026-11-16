@@ -15,6 +15,7 @@
 	} from '$lib/cards/ConnectedWallet/connectedWalletBalances';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
+	import { dollarsAndCents } from '$lib/calc';
 
 	let auth = $derived(getAuth()());
 	let did = $derived(auth.value?.did);
@@ -43,17 +44,12 @@
 	// The headline $ amount tracks the active tab: Magi total vs. connected-wallet
 	// total (falls back to the Magi figure while the wallet total is still loading).
 	let displayValue = $derived(activeTab === 'wallet' && !walletLoading ? walletTotalUsd : balance);
-	// Derive dollars and cents from the same rounded integer so a cents field
-	// that rounds up to 100 (e.g. balance = 999.999) correctly bumps the dollar
-	// digit instead of displaying "$999.100".
-	let totalCents = $derived(Math.round(displayValue * 100));
-	let dollars = $derived(Math.floor(totalCents / 100));
-	let cents = $derived(
-		new Intl.NumberFormat('en-US', {
-			minimumIntegerDigits: 2,
-			maximumFractionDigits: 0
-		}).format(totalCents % 100)
-	);
+	// `dollarsAndCents` rounds to cents FIRST and then splits, so a cents
+	// field that carries (balance = 999.999) bumps the dollar digit instead
+	// of printing "$999.100".
+	let split = $derived(dollarsAndCents(displayValue));
+	let dollars = $derived(split.dollars);
+	let cents = $derived(split.cents);
 
 	async function selectTab(tab: BalTab) {
 		activeTab = tab;

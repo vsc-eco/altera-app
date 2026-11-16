@@ -1,7 +1,7 @@
 import Dinero from 'dinero.js';
 import { getCryptoPrices, type Cryptoprices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 import { Network, Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
-import { btcToSats, satsToBtc } from '$lib/sendswap/utils/units';
+import { composeRates, isFeedUnit, type FeedPrices } from '$lib/calc';
 import type { CoinAmount, UnkCoinAmount } from './CoinAmount';
 import {
 	getCustomTokenHbdRates,
@@ -9,12 +9,24 @@ import {
 } from '$lib/tokens/customTokenRates';
 Dinero.defaultPrecision = 10;
 
-/** Units the external price feed quotes directly. Everything else is a Magi
- *  custom token, priced from its own pool instead (see customTokenRates). */
-const NATIVE_UNITS: ReadonlySet<string> = new Set(['HIVE', 'HBD', 'USD', 'BTC', 'SATS']);
-
+/** True when the external price feed quotes this coin directly. Everything
+ *  else is a Magi custom token, priced from its own pool (customTokenRates). */
 function isNativeUnit(coin: Coin): boolean {
-	return NATIVE_UNITS.has(coin.unit?.toUpperCase());
+	return isFeedUnit(coin.unit);
+}
+
+/** The feed's own shape, flattened into the one `calc` works from. */
+function toFeedPrices(prices: Cryptoprices): FeedPrices {
+	return {
+		hiveHbd: prices.v4vapp.Hive_HBD,
+		hiveUsd: prices.v4vapp.Hive_USD,
+		hiveBtc: prices.hive.btc,
+		satsHive: prices.v4vapp.sats_Hive,
+		hbdUsd: prices.v4vapp.HBD_USD,
+		hbdBtc: prices.hive_dollar.btc,
+		satsHbd: prices.v4vapp.sats_HBD,
+		btcUsd: prices.bitcoin.usd
+	};
 }
 
 const getLightningExchangeRates = async (base: Coin, target?: Coin) => {
@@ -29,92 +41,20 @@ const getLightningExchangeRates = async (base: Coin, target?: Coin) => {
 	return parseToRootedFormat(base, prices, tokenHbd);
 };
 
-function nativeRates(unit: string, prices: Cryptoprices): Record<string, number> | null {
-	switch (unit) {
-		case 'HIVE':
-			return {
-				HIVE: 1,
-				HBD: prices.v4vapp.Hive_HBD,
-				USD: prices.v4vapp.Hive_USD,
-				BTC: prices.hive.btc,
-				SATS: prices.v4vapp.sats_Hive
-			};
-		case 'HBD':
-			return {
-				HIVE: 1 / prices.v4vapp.Hive_HBD,
-				HBD: 1,
-				USD: prices.v4vapp.HBD_USD,
-				BTC: prices.hive_dollar.btc,
-				SATS: prices.v4vapp.sats_HBD
-			};
-		case 'USD':
-			return {
-				HIVE: 1 / prices.hive.usd,
-				HBD: 1 / prices.hive_dollar.usd,
-				USD: 1,
-				BTC: 1 / prices.bitcoin.usd,
-				SATS: satsToBtc(prices.bitcoin.usd)
-			};
-		case 'BTC':
-			return {
-				HIVE: 1 / prices.hive.btc,
-				HBD: 1 / prices.hive_dollar.btc,
-				USD: prices.bitcoin.usd,
-				BTC: 1,
-				SATS: btcToSats(1)
-			};
-
-		case 'SATS':
-			return {
-				HIVE: satsToBtc(1 / prices.hive.btc),
-				HBD: satsToBtc(1 / prices.hive_dollar.btc),
-				USD: satsToBtc(prices.bitcoin.usd),
-				BTC: satsToBtc(1),
-				SATS: 1
-			};
-
-		default:
-			return null;
-	}
-}
-
 /**
  * Rates from `base` to every unit we can quote, or null when `base` itself is
  * unquotable (a custom token with no pool, or an empty one).
  *
- * Custom tokens compose through HBD, which is how the DEX itself is laid out:
- *   - from a native base: tokens per base = (HBD per base) / (HBD per token)
- *   - from a token base:  X per token = (HBD per token) × (X per HBD)
+ * ⚠️ The rate arithmetic — the native cross-rate table and the composition of
+ * custom tokens through HBD — lives in `$lib/calc` (§4 Exchange rates). This
+ * only adapts the feed's shape to it.
  */
 function parseToRootedFormat(
 	base: Coin,
 	prices: Cryptoprices,
 	tokenHbd: CustomTokenRates
 ): Record<string, number> | null {
-	const unit = base.unit?.toUpperCase();
-	const native = nativeRates(unit, prices);
-
-	if (native) {
-		const out: Record<string, number> = { ...native };
-		for (const [tokenUnit, hbdPerToken] of Object.entries(tokenHbd)) {
-			if (hbdPerToken > 0) out[tokenUnit] = native.HBD / hbdPerToken;
-		}
-		return out;
-	}
-
-	const hbdPerToken = tokenHbd[unit];
-	if (!hbdPerToken || hbdPerToken <= 0) return null;
-
-	const hbdRates = nativeRates('HBD', prices);
-	if (!hbdRates) return null;
-
-	const out: Record<string, number> = {};
-	for (const [k, perHbd] of Object.entries(hbdRates)) out[k] = hbdPerToken * perHbd;
-	// Token-to-token goes through HBD as well.
-	for (const [tokenUnit, otherHbd] of Object.entries(tokenHbd)) {
-		if (otherHbd > 0) out[tokenUnit] = hbdPerToken / otherHbd;
-	}
-	return out;
+	return composeRates(base.unit ?? '', toFeedPrices(prices), tokenHbd);
 }
 
 /** Rates from `base`, or null when `base` can't be quoted. `target` is a hint

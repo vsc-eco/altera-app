@@ -18,6 +18,15 @@ import {
 	type PoolRegistryEntry,
 	type PoolAssetFee
 } from '$lib/indexer/poolQueries';
+import {
+	toDisplay,
+	formatAmountWithUnit,
+	formatUsdPrice,
+	lpShare,
+	lpPositionAmounts,
+	lpPositionUsd,
+	impliedPoolUsdPrices
+} from '$lib/calc';
 
 export type { TimeRange, UserLpPosition, PoolRegistryEntry } from '$lib/indexer/poolQueries';
 export { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from '$lib/indexer/poolQueries';
@@ -101,31 +110,16 @@ function hexBytesToDecimalString(hex: string | null | undefined): string | null 
 	return BigInt('0x' + h).toString();
 }
 
+/** Base units → display, or null when the key was missing entirely — which
+ *  is not the same as zero: it means "fall back to the other source". */
 function parseScaled(raw: string | null | undefined, decimals = 3): number | null {
 	if (raw == null) return null;
 	const n = Number(raw);
 	if (!Number.isFinite(n)) return null;
-	return n / 10 ** decimals;
+	return toDisplay(n, decimals);
 }
 
-function formatNum(value: number, unit: string, decimals = 3): string {
-	const formatted = value.toLocaleString(undefined, {
-		useGrouping: true,
-		minimumFractionDigits: decimals,
-		maximumFractionDigits: decimals
-	});
-	return unit === '$' ? `$${formatted}` : `${formatted} ${unit.toUpperCase()}`;
-}
-
-/** A per-unit USD price. Cents are fine for HIVE/HBD/BTC, but a custom token
- *  can trade far below a cent (LASSECASH ≈ $0.0007) and would read "$0.00",
- *  so sub-cent prices keep 3 significant digits instead. */
-function formatUsdPrice(value: number): string {
-	if (value > 0 && value < 0.01) {
-		return `$${value.toLocaleString(undefined, { maximumSignificantDigits: 3 })}`;
-	}
-	return formatNum(value, '$', 2);
-}
+const formatNum = formatAmountWithUnit;
 
 export function mapStateToPoolRow(
 	poolContractId: string,
@@ -194,8 +188,7 @@ export function mapStateToPoolRow(
 	let usd0 = getFeedUsdPrice(sym0);
 	let usd1 = getFeedUsdPrice(sym1);
 	if (reserve0 != null && reserve1 != null && reserve0 > 0 && reserve1 > 0) {
-		if (usd0 === 0 && usd1 > 0) usd0 = (usd1 * reserve1) / reserve0;
-		else if (usd1 === 0 && usd0 > 0) usd1 = (usd0 * reserve0) / reserve1;
+		[usd0, usd1] = impliedPoolUsdPrices(usd0, usd1, reserve0, reserve1);
 	}
 	function getUsdPrice(sym: string): number {
 		const s = sym.toUpperCase();
@@ -369,10 +362,15 @@ export async function fetchMyPoolPositions(
 	for (const pos of positions) {
 		const pool = poolByContract.get(pos.contractId);
 		if (!pool) continue; // user holds LP for a pool not currently in the loaded list
-		const share = pool.totalLpRaw > 0 ? pos.lpBalance / pool.totalLpRaw : 0;
-		const myAmt0 = (pool.reserve0Raw * share) / 10 ** pool.decimals0;
-		const myAmt1 = (pool.reserve1Raw * share) / 10 ** pool.decimals1;
-		const myUsd = myAmt0 * pool.usdPrice0 + myAmt1 * pool.usdPrice1;
+		const share = lpShare(pos.lpBalance, pool.totalLpRaw);
+		const [myAmt0, myAmt1] = lpPositionAmounts(
+			share,
+			pool.reserve0Raw,
+			pool.reserve1Raw,
+			pool.decimals0,
+			pool.decimals1
+		);
+		const myUsd = lpPositionUsd([myAmt0, myAmt1], pool.usdPrice0, pool.usdPrice1);
 		out.push({
 			id: pos.contractId,
 			contractId: pos.contractId,

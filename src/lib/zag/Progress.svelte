@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { progressPercent, roundToSigFigs } from '$lib/calc';
 	import * as progress from '@zag-js/progress';
 	import { normalizeProps, useMachine } from '@zag-js/svelte';
 	import { getUniqueId } from './idgen';
@@ -10,14 +11,9 @@
 	};
 	let { boundaries, currentValue, theme = 'primary', timerLabel }: Props = $props();
 	let percentage = $derived.by(() => {
-		if (currentValue !== null) {
-			if (currentValue === 0) {
-				return 0;
-			} else {
-				return Math.floor((Math.max(currentValue, boundaries.min) / boundaries.max) * 100);
-			}
-		}
-		return null;
+		if (currentValue === null) return null;
+		if (currentValue === 0) return 0;
+		return progressPercent(currentValue, boundaries.max, boundaries.min);
 	});
 
 	const id = getUniqueId();
@@ -35,13 +31,8 @@
 	});
 
 	function formatNumber(n: number): string {
-		// Helper function to format to 4 significant figures
-		function toSignificantFigures(num: number, sigFigs: number = 4): number {
-			if (num === 0) return 0;
-			const magnitude = Math.floor(Math.log10(Math.abs(num)));
-			const factor = Math.pow(10, sigFigs - 1 - magnitude);
-			return Math.round(num * factor) / factor;
-		}
+		const toSignificantFigures = (num: number, sigFigs: number = 4) =>
+			roundToSigFigs(num, sigFigs);
 
 		if (n >= 1e15) {
 			const quadrillions = toSignificantFigures(n / 1e15);

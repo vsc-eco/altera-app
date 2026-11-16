@@ -1,6 +1,7 @@
 import { readable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { DHive } from '$lib/magiTransactions/dhive';
+import { hbdAprFromChainRate } from '$lib/calc';
 
 /**
  * Fetch the current HBD savings interest rate from the Hive blockchain.
@@ -15,7 +16,7 @@ async function fetchHbdApr(): Promise<number> {
 		const props = await DHive.database.getDynamicGlobalProperties();
 		const bps = (props as unknown as { hbd_interest_rate?: number }).hbd_interest_rate;
 		if (typeof bps === 'number' && bps > 0) {
-			return Math.round(bps / 100);
+			return hbdAprFromChainRate(bps);
 		}
 	} catch {
 		// Node unreachable — fall through

@@ -1,67 +1,47 @@
-import { numberFormatLanguage } from '$lib/constants';
 import { Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
 import { getExchangeRates } from './convert';
 import { getHiveAssetName, getHbdAssetName } from '../../client';
+import {
+	formatAmountGrouped,
+	formatBaseUnits,
+	formatMinFigs,
+	parseAmountToBaseUnits,
+	rescaleBaseUnits,
+	toBaseUnits,
+	toDisplay
+} from '$lib/calc';
+
 export type UnkCoinAmount = CoinAmount<Coin>;
 
 /**
- * Canonical "the user has entered a usable amount" check for raw amount
- * strings (the kind bound to AmountInput / stored in txState.fromAmount,
- * txState.toAmount, etc.). True iff `s` parses to a finite number > 0.
- *
- * Replaces ad-hoc `Number(amount) > 0`, `Number(amount) == 0`,
- * `parseFloat(amount)` and `!!amount && amount !== '0'` patterns scattered
- * across the send/swap/withdraw flows — those are equivalent only by accident
- * and all reject NaN/negatives less consistently than this does.
+ * `CoinAmount` is the app's handle on an on-chain amount: an integer in the
+ * asset's smallest unit, plus the asset. It is deliberately NOT where the
+ * arithmetic lives — every method below is a thin call into `$lib/calc`,
+ * which holds the one copy of each formula. Keep it that way: a shortcut
+ * written here is a formula that has quietly forked.
  */
-export function isValidAmountString(s: string | undefined | null): boolean {
-	if (!s) return false;
-	const n = Number(s);
-	return Number.isFinite(n) && n > 0;
-}
 
-/**
- * Canonical US-dollar formatter. Always renders 2 decimal places (cents) with
- * the `$` prefix and locale-aware thousands separators — `$1,234.56`.
- * Returns `$0.00` for null / undefined / non-finite input (rather than
- * throwing or showing `NaN`). Sub-cent values render as `$0.00` by design —
- * keep the display consistent rather than expanding to more decimals.
- *
- * Replaces a mix of `toMinFigs()`, `toAmountString()`, `toPrettyString()` and
- * ad-hoc local `formatUsd(n)` helpers across the app, which all formatted
- * USD amounts differently (e.g. `0.0 US$` for sub-cent values).
- */
-export function formatUsd(amount: number | undefined | null): string {
-	if (amount == null || !Number.isFinite(amount)) return '$0.00';
-	return new Intl.NumberFormat('en-US', {
-		style: 'currency',
-		currency: 'USD',
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 2
-	}).format(amount);
-}
+/** "The user has entered a usable amount" — true iff `s` is finite and > 0. */
+export { isValidAmountString, formatUsd } from '$lib/calc';
 
 export class CoinAmount<C extends Coin> {
 	coin: C;
 	amount: number;
 
+	/**
+	 * `num` is a display amount unless `preshiftedInt` is set, in which case
+	 * it is already in base units. A string is parsed digit by digit and
+	 * TRUNCATED at the asset's decimals — see `parseAmountToBaseUnits`.
+	 */
 	constructor(num: string | number, coin: C, preshiftedInt?: boolean) {
-		let amount: number;
 		if (num == '' || Number.isNaN(num)) num = '0';
+		let amount: number;
 		if (typeof num == 'number') {
-			amount = Math.round(num * (preshiftedInt ? 1 : 10 ** coin.decimalPlaces));
+			amount = preshiftedInt ? Math.round(num) : toBaseUnits(num, coin.decimalPlaces);
 		} else if (preshiftedInt && num.indexOf('.') === -1) {
 			amount = Number.parseInt(num);
 		} else {
-			const decIdx = num.indexOf('.');
-			if (decIdx == -1) {
-				amount = Number.parseInt(num.padEnd(coin.decimalPlaces + num.length, '0'));
-			} else {
-				const integer = num.slice(0, decIdx);
-				let decimal = num.slice(decIdx + 1, coin.decimalPlaces + decIdx + 1);
-				decimal = decimal.padEnd(coin.decimalPlaces, '0');
-				amount = Number.parseInt(integer.concat(decimal));
-			}
+			amount = parseAmountToBaseUnits(num, coin.decimalPlaces);
 		}
 		this.coin = coin;
 		this.amount = amount;
@@ -79,27 +59,7 @@ export class CoinAmount<C extends Coin> {
 	}
 
 	toAmountString(keepTrailingZeroes?: boolean) {
-		if (this.amount == 0 && !keepTrailingZeroes) {
-			return this.amount.toString();
-		}
-		const isNegative = this.isNegative();
-		const amountStr = this.amount
-			.toString()
-			.slice(isNegative ? 1 : 0)
-			.padStart(this.coin.decimalPlaces, '0');
-		const decLoc = amountStr.length - this.coin.decimalPlaces;
-		const integer = amountStr.slice(0, decLoc);
-		let decimal = amountStr.slice(decLoc);
-		if (!keepTrailingZeroes) {
-			const zeroes = /0*$/m.exec(decimal)![0];
-			if (zeroes.length != 0) decimal = decimal.slice(0, -zeroes.length);
-			if (decimal.length == 0) return integer;
-		}
-		// Zero-decimal coins (e.g. sats) produce an empty decimal string — never
-		// emit a trailing dot regardless of keepTrailingZeroes.
-		if (decimal.length === 0) return `${isNegative ? '-' : ''}${integer || '0'}`;
-		const out = `${isNegative ? '-' : ''}${integer || '0'}.${decimal}`;
-		return out;
+		return formatBaseUnits(this.amount, this.coin.decimalPlaces, keepTrailingZeroes);
 	}
 	getDisplayUnit(): string {
 		return this.coin.value === Coin.hive.value
@@ -112,34 +72,16 @@ export class CoinAmount<C extends Coin> {
 		return `${this.toAmountString()} ${this.getDisplayUnit()}`;
 	}
 	toPrettyString() {
-		const isNegative = this.isNegative();
-		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
-		// console.log(this.coin.label, this.coin.decimalPlaces);
-		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
-			useGrouping: true,
-			minimumFractionDigits: this.coin.decimalPlaces
-		});
-		const formatted = formatter.format(numericValue);
-		return `${isNegative ? '-' : ''}${formatted} ${this.getDisplayUnit()}`;
+		return `${formatAmountGrouped(this.toNumber(), this.coin.decimalPlaces)} ${this.getDisplayUnit()}`;
 	}
 	toMinFigs(figures = this.coin.decimalPlaces + 1, decimals = this.coin.decimalPlaces) {
-		const isNegative = this.isNegative();
-		const numericValue = Math.abs(this.amount) / 10 ** this.coin.decimalPlaces;
-		const minFigs = numericValue < 1 ? Math.min(this.coin.decimalPlaces, figures) : figures;
-		const formatter = new Intl.NumberFormat(numberFormatLanguage, {
-			useGrouping: true,
-			minimumSignificantDigits: minFigs,
-			minimumFractionDigits: decimals,
-			maximumSignificantDigits: 21
-		});
-		const formatted = formatter.format(numericValue);
-		return `${isNegative ? '-' : ''}${formatted}`;
+		return formatMinFigs(this.toNumber(), this.coin.decimalPlaces, figures, decimals);
 	}
 	toPrettyMinFigs(figures = this.coin.decimalPlaces + 1, decimals = this.coin.decimalPlaces) {
 		return `${this.toMinFigs(figures, decimals)} ${this.getDisplayUnit()}`;
 	}
 	toNumber() {
-		return this.amount / 10 ** this.coin.decimalPlaces;
+		return toDisplay(this.amount, this.coin.decimalPlaces);
 	}
 	async convertTo<OtherCoin extends Coin>(
 		coin: OtherCoin,
@@ -183,9 +125,8 @@ export class CoinAmount<C extends Coin> {
 		return new CoinAmount(Math.round(this.amount * multip), this.coin, true);
 	}
 	mulTo<ToCoin extends Coin>(multip: number, into: ToCoin): CoinAmount<ToCoin> {
-		// console.log(multip * 10 ** (into.decimalPlaces - this.coin.decimalPlaces));
 		return new CoinAmount(
-			Math.round(this.amount * (multip * 10 ** (into.decimalPlaces - this.coin.decimalPlaces))),
+			rescaleBaseUnits(this.amount, multip, this.coin.decimalPlaces, into.decimalPlaces),
 			into,
 			true
 		);

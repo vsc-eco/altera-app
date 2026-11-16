@@ -7,6 +7,8 @@
 	ContractUpdatesSection's status badge).
 -->
 <script lang="ts">
+	import { splitDuration } from '$lib/calc';
+
 	let { targetUnixSec, compact = false }: { targetUnixSec: number; compact?: boolean } = $props();
 
 	let now = $state(Math.floor(Date.now() / 1000));
@@ -21,10 +23,11 @@
 	const secondsRemaining = $derived(Math.max(0, targetUnixSec - now));
 	const expired = $derived(secondsRemaining === 0);
 
-	const days = $derived(Math.floor(secondsRemaining / 86400));
-	const hours = $derived(Math.floor((secondsRemaining % 86400) / 3600));
-	const mins = $derived(Math.floor((secondsRemaining % 3600) / 60));
-	const secs = $derived(secondsRemaining % 60);
+	const parts = $derived(splitDuration(secondsRemaining));
+	const days = $derived(parts.days);
+	const hours = $derived(parts.hours);
+	const mins = $derived(parts.minutes);
+	const secs = $derived(parts.seconds);
 </script>
 
 {#if expired}

@@ -2,7 +2,9 @@ import { isVscTestnet } from '../client';
 
 export const vscGateway = 'vsc.gateway';
 export const v4vApp = 'v4v.app';
-export const numberFormatLanguage = 'en-US';
+/** The one locale every formatter uses. Defined in $lib/calc so the math
+ *  module can format without importing anything. */
+export { NUMBER_LOCALE as numberFormatLanguage } from './calc';
 
 // BTC mapping contract — single source of truth for every map/unmap/approve/
 // balance-lookup call across the app. Network-switched via isVscTestnet().

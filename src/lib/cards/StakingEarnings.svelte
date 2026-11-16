@@ -6,6 +6,7 @@
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { getDateFromBlockHeight } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
 	import moment from 'moment';
+	import { stakingEarnings, toDisplay } from '$lib/calc';
 
 	type Props = {
 		onStake: () => void;
@@ -15,25 +16,18 @@
 
 	// HBD savings balance in whole HBD (1 HBD ≈ $1 USD)
 	const hbdSavings = $derived(
-		$accountBalance.bal.hbd_savings / 10 ** Coin.hbd.decimalPlaces
+		toDisplay($accountBalance.bal.hbd_savings, Coin.hbd.decimalPlaces)
 	);
 
 	const aprLabel = $derived($sHbdAprStore !== null ? `${$sHbdAprStore}%` : '—');
 
-	// Estimated earnings based on current balance × APR. HBD ≈ $1 so these
-	// double as approximate USD values. Shown as '—' while APR is loading or
-	// if the user has no sHBD balance.
-	const todayLabel = $derived.by(() => {
-		if ($sHbdAprStore === null || hbdSavings === 0) return '—';
-		const daily = (hbdSavings * ($sHbdAprStore / 100)) / 365;
-		return `$${daily.toFixed(3)}`;
-	});
-
-	const monthLabel = $derived.by(() => {
-		if ($sHbdAprStore === null || hbdSavings === 0) return '—';
-		const monthly = (hbdSavings * ($sHbdAprStore / 100)) / 12;
-		return `$${monthly.toFixed(2)}`;
-	});
+	// Estimated accrual at the current balance × APR (the arithmetic is in
+	// `$lib/calc`). HBD ≈ $1, so these double as approximate USD values.
+	// '—' while the APR is loading or the user holds no sHBD.
+	const earnings = $derived(stakingEarnings(hbdSavings, $sHbdAprStore ?? 0));
+	const hasEstimate = $derived($sHbdAprStore !== null && hbdSavings !== 0);
+	const todayLabel = $derived(hasEstimate ? `$${earnings.daily.toFixed(3)}` : '—');
+	const monthLabel = $derived(hasEstimate ? `$${earnings.monthly.toFixed(2)}` : '—');
 
 	// sHBD interest is the VSC gateway's L1 HBD-savings interest: the gateway
 	// holds the backing HBD in Hive savings, and when it RECEIVES that interest

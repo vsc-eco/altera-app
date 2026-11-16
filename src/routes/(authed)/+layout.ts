@@ -36,9 +36,21 @@ export const load: LayoutLoad = async ({ url }) => {
 		initModal();
 	}
 
+	// Swap (`/`) and Pools render logged out (see `publicRoutes.ts`), so they
+	// must not WAIT for auth either. `last_connection` survives a disconnect,
+	// so the reconnect kicked off above can be one that already failed, and
+	// `waitForAuth` would then burn its full 10 s timeout before resolving
+	// `false`. On a client-side navigation that is 10 seconds of the Pools
+	// link looking like it did nothing. The reconnect above still runs — the
+	// page just doesn't block on it, and the shell picks the session up from
+	// the store whenever it settles.
+	if (isPublicRoute(url.pathname)) {
+		const current = get(authStore);
+		return { auth: current.status === 'authenticated' ? current : false };
+	}
+
 	const authed = await waitForAuth(authStore);
-	// Swap (`/`) and Pools render logged out; see `publicRoutes.ts`.
-	if (!authed && !isPublicRoute(url.pathname)) {
+	if (!authed) {
 		localStorage.setItem('redirect_url', url.toString());
 		throw redirect(307, '/login');
 	}

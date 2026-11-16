@@ -11,7 +11,9 @@
 	import { useSwapState } from '$lib/sendswap/utils/txState.svelte';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import { onMount, untrack } from 'svelte';
-	import swapOptions, { getFromOption, getToOption,
+	import swapOptions, {
+		getFromOption,
+		getToOption,
 		Coin,
 		Network,
 		type CoinOnNetwork,
@@ -19,15 +21,7 @@
 	} from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
-	import {
-		ArrowDown,
-		ArrowUpDown,
-		ChevronRight,
-		Search,
-		Send,
-		Wallet,
-		X
-	} from '@lucide/svelte';
+	import { ArrowDown, ArrowUpDown, ChevronRight, Search, Send, Wallet, X } from '@lucide/svelte';
 	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import { usdPerUnit } from '$lib/currency/convert';
 	import Dialog from '$lib/zag/Dialog.svelte';
@@ -53,10 +47,7 @@
 		CUSTOM_TOKEN_ICON,
 		type CustomToken
 	} from '$lib/tokens/customTokens';
-	import {
-		customTokenBalances,
-		refreshCustomTokenBalances
-	} from '$lib/tokens/customTokenBalances';
+	import { customTokenBalances, refreshCustomTokenBalances } from '$lib/tokens/customTokenBalances';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { browser } from '$app/environment';
@@ -127,9 +118,7 @@
 				);
 				const loaded = depths.filter((d): d is TypedPoolDepths => d != null);
 				customPools = loaded;
-				const routable = new Set(
-					loaded.flatMap((d) => [d.asset0, d.asset1])
-				);
+				const routable = new Set(loaded.flatMap((d) => [d.asset0, d.asset1]));
 				customTokens = tokens.filter((t) => routable.has(t.symbol));
 			}
 
@@ -180,8 +169,7 @@
 	const toOptions = $derived<AssetOption[]>([...swapOptions.to, ...customAssetOptions]);
 	const findFromOption = (value: string | undefined) =>
 		fromOptions.find((o) => o.coin.value === value);
-	const findToOption = (value: string | undefined) =>
-		toOptions.find((o) => o.coin.value === value);
+	const findToOption = (value: string | undefined) => toOptions.find((o) => o.coin.value === value);
 
 	/** Every pool the picker can route through, native and custom alike. */
 	const allPools = $derived(
@@ -190,12 +178,7 @@
 
 	/** Symbols this control can swap: the natives plus any pool-backed token. */
 	const swapAssets = $derived(
-		new Set([
-			Coin.hive.value,
-			Coin.hbd.value,
-			Coin.btc.value,
-			...customTokens.map((t) => t.symbol)
-		])
+		new Set([Coin.hive.value, Coin.hbd.value, Coin.btc.value, ...customTokens.map((t) => t.symbol)])
 	);
 
 	/**
@@ -325,7 +308,7 @@
 		});
 	}
 
-let expectedOutputUsd = $derived.by(() => {
+	let expectedOutputUsd = $derived.by(() => {
 		const toCoinDef = txState.to;
 		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
 			return null;
@@ -349,10 +332,7 @@ let expectedOutputUsd = $derived.by(() => {
 	});
 
 	let exchangeFeePct = $derived(
-		getAlteraFeePct(
-			txState.from?.coin.value ?? '',
-			txState.to?.coin.value ?? ''
-		)
+		getAlteraFeePct(txState.from?.coin.value ?? '', txState.to?.coin.value ?? '')
 	);
 
 	/**
@@ -468,8 +448,7 @@ let expectedOutputUsd = $derived.by(() => {
 			const externalNet = findToOption(txState.to?.coin.value)?.networks?.find(
 				(n: Network) => n.value !== Network.magi.value
 			);
-			const net =
-				destNetworkChoice === 'magi' ? Network.magi : (externalNet ?? Network.magi);
+			const net = destNetworkChoice === 'magi' ? Network.magi : (externalNet ?? Network.magi);
 			if (txState.to && txState.to.network.value !== net.value) {
 				txState.to = { coin: txState.to.coin, network: net };
 			}
@@ -498,10 +477,7 @@ let expectedOutputUsd = $derived.by(() => {
 		untrack(() => {
 			if (valid) {
 				getFee(txState.toAmount, txState).then((fee) => {
-					if (
-						fee?.amount !== txState.fee?.amount ||
-						fee?.coin.value !== txState.fee?.coin.value
-					)
+					if (fee?.amount !== txState.fee?.amount || fee?.coin.value !== txState.fee?.coin.value)
 						txState.fee = fee;
 				});
 			}
@@ -583,7 +559,7 @@ let expectedOutputUsd = $derived.by(() => {
 
 	$effect(() => {
 		// FROM auto selection
-		if (!(txState.from) && assetOptions.length > 0) {
+		if (!txState.from && assetOptions.length > 0) {
 			const btcOption = assetOptions.find(
 				(opt) => opt.coin.value === Coin.btc.value && !opt.disabled
 			);
@@ -601,7 +577,7 @@ let expectedOutputUsd = $derived.by(() => {
 			const bal = getBalanceSmallestUnits($accountBalance, coinDef, Network.magi);
 			return bal > 0.001;
 		});
-		if (!(txState.to)) {
+		if (!txState.to) {
 			let nextToCoin: (typeof swapOptions.to)[number] | undefined;
 			let nextToNetwork: Network | undefined;
 			if (visibleToObjs.length > 0) {
@@ -635,9 +611,7 @@ let expectedOutputUsd = $derived.by(() => {
 
 	// Same-coin error: show when from and to are the same asset
 	let sameCoinError = $derived(
-		txState.from && txState.to
-			? txState.from.coin.value === txState.to.coin.value
-			: false
+		txState.from && txState.to ? txState.from.coin.value === txState.to.coin.value : false
 	);
 
 	// Insufficient balance: check if from amount exceeds available balance.
@@ -720,9 +694,7 @@ let expectedOutputUsd = $derived.by(() => {
 	);
 
 	// Only the from coin for the amount input – no dropdown; from is changed only via the left card.
-	let amountInputCoinOpts: CoinOnNetwork[] = $derived(
-		txState.from ? [txState.from] : []
-	);
+	let amountInputCoinOpts: CoinOnNetwork[] = $derived(txState.from ? [txState.from] : []);
 
 	let inputAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
@@ -767,9 +739,7 @@ let expectedOutputUsd = $derived.by(() => {
 		if (raw && raw !== '0' && !fromEmpty) return new CoinAmount(raw, toCoin);
 		return new CoinAmount(0, toCoin);
 	});
-	const toAmountCoinOpts: CoinOnNetwork[] = $derived(
-		txState.to ? [txState.to] : []
-	);
+	const toAmountCoinOpts: CoinOnNetwork[] = $derived(txState.to ? [txState.to] : []);
 
 	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
@@ -1004,10 +974,7 @@ let expectedOutputUsd = $derived.by(() => {
 		const cameFrom: 'tokens' | 'custom' = dialogStep === 'custom' ? 'custom' : 'tokens';
 
 		// If the user picks the token already in the OTHER slot, swap tokens.
-		const otherValue =
-			currentlyOpen === 'from'
-				? txState.to?.coin.value
-				: txState.from?.coin.value;
+		const otherValue = currentlyOpen === 'from' ? txState.to?.coin.value : txState.from?.coin.value;
 
 		if (otherValue && token.value === otherValue) {
 			if (currentlyOpen === 'from') {
@@ -1099,7 +1066,8 @@ let expectedOutputUsd = $derived.by(() => {
 			</button>
 		{/each}
 		{#if customAssetObjs.length > 0}
-			{@const customIsFrom = !!activeCustomObj && activeCustomObj.value === txState.from?.coin.value}
+			{@const customIsFrom =
+				!!activeCustomObj && activeCustomObj.value === txState.from?.coin.value}
 			{@const customIsTo = !!activeCustomObj && activeCustomObj.value === txState.to?.coin.value}
 			{@const customIsSelected = customIsFrom || customIsTo}
 			{@const customIsActive =
@@ -1112,11 +1080,7 @@ let expectedOutputUsd = $derived.by(() => {
 				]}
 				onclick={openCustomStep}
 			>
-				<img
-					src={activeCustomObj?.icon ?? CUSTOM_TOKEN_ICON}
-					alt=""
-					class="chip-icon"
-				/>
+				<img src={activeCustomObj?.icon ?? CUSTOM_TOKEN_ICON} alt="" class="chip-icon" />
 				<span>{activeCustomObj ? coinDisplayLabel(activeCustomObj) : 'Custom'}</span>
 				{#if customIsSelected && !customIsActive}
 					<span class="chip-role-badge">{customIsFrom ? 'FROM' : 'TO'}</span>
@@ -1303,112 +1267,113 @@ let expectedOutputUsd = $derived.by(() => {
 		     Advanced. The quote summary below it is NOT gated — it shares this
 		     column but is what every user reads before confirming. -->
 		{#if advanced}
-		<div class="deliver-to-card">
-			<span class="deliver-label">DELIVER TO</span>
+			<div class="deliver-to-card">
+				<span class="deliver-label">DELIVER TO</span>
 
-			{#if txState.to}
-				<div class="dest-header">
-					<CoinNetworkIcon
-						coin={toCoin}
-						network={txState.to?.network ?? Network.magi}
-						size={28}
-					/>
-					<h3>Where should {coinDisplayLabel(toCoin)} go?</h3>
-				</div>
-			{/if}
-
-			<div class="dest-options">
-				<button
-					class="dest-card"
-					class:selected={destChoice === 'wallet'}
-					onclick={() => {
-						destChoice = 'wallet';
-					}}
-				>
-					<div class="dest-card-icon"><Wallet size={18} /></div>
-					<div class="dest-card-info">
-						<span class="dest-card-name">Keep on Magi Network</span>
-						<span class="dest-card-desc sm-caption"
-							>Swap to yourself &middot; Asset stays on Magi.</span
-						>
-					</div>
-					<div class="dest-radio" class:checked={destChoice === 'wallet'}></div>
-				</button>
-
-				{#if destChoice === 'wallet'}
-					{@const connectedWalletLabel =
-						auth.value?.provider === 'aioha'
-							? 'HIVE'
-							: auth.value?.did?.startsWith('did:pkh:bip122:')
-								? 'BTC'
-								: 'EVM'}
-					<div class="wallet-settle-info">
-						<span class="settle-dot"></span>
-						<span class="settle-text"
-							>{coinDisplayLabel(toCoin)} will settle natively in your {connectedWalletLabel}
-							wallet on Magi.</span
-						>
+				{#if txState.to}
+					<div class="dest-header">
+						<CoinNetworkIcon
+							coin={toCoin}
+							network={txState.to?.network ?? Network.magi}
+							size={28}
+						/>
+						<h3>Where should {coinDisplayLabel(toCoin)} go?</h3>
 					</div>
 				{/if}
 
-				<button
-					class="dest-card"
-					class:selected={destChoice === 'address'}
-					disabled={toIsMagiOnly}
-					title={toIsMagiOnly
-						? `${coinDisplayLabel(toCoin)} only exists on the Magi network`
-						: undefined}
-					onclick={() => {
-						destChoice = 'address';
-					}}
-				>
-					<div class="dest-card-icon"><Send size={18} /></div>
-					<div class="dest-card-info">
-						<span class="dest-card-name">Send to address</span>
-						<span class="dest-card-desc sm-caption">
-							{#if toIsMagiOnly}
-								Unavailable &middot; {coinDisplayLabel(toCoin)} only exists on Magi
-							{:else}
-								Enter a recipient address &middot; Choose Magi or mainnet settlement
-							{/if}
-						</span>
-					</div>
-					<div class="dest-radio" class:checked={destChoice === 'address'}></div>
-				</button>
-			</div>
+				<div class="dest-options">
+					<button
+						class="dest-card"
+						class:selected={destChoice === 'wallet'}
+						onclick={() => {
+							destChoice = 'wallet';
+						}}
+					>
+						<div class="dest-card-icon"><Wallet size={18} /></div>
+						<div class="dest-card-info">
+							<span class="dest-card-name">Keep on Magi Network</span>
+							<span class="dest-card-desc sm-caption"
+								>Swap to yourself &middot; Asset stays on Magi.</span
+							>
+						</div>
+						<div class="dest-radio" class:checked={destChoice === 'wallet'}></div>
+					</button>
 
-			<!-- Address Section -->
-			<div class="dest-address-section" class:hidden={destChoice !== 'address'}>
-				<div class="dest-network-row">
-					<span class="dest-network-label">Target Network</span>
-					<div class="dest-network-toggle">
-						<button
-							class:active={destNetworkChoice === 'mainnet'}
-							onclick={() => {
-								destNetworkChoice = 'mainnet';
-							}}>{chainLabel}</button
-						>
-						<button
-							class:active={destNetworkChoice === 'magi'}
-							onclick={() => {
-								destNetworkChoice = 'magi';
-							}}>Magi Network</button
-						>
-					</div>
+					{#if destChoice === 'wallet'}
+						{@const connectedWalletLabel =
+							auth.value?.provider === 'aioha'
+								? 'HIVE'
+								: auth.value?.did?.startsWith('did:pkh:bip122:')
+									? 'BTC'
+									: 'EVM'}
+						<div class="wallet-settle-info">
+							<span class="settle-dot"></span>
+							<span class="settle-text"
+								>{coinDisplayLabel(toCoin)} will settle natively in your {connectedWalletLabel}
+								wallet on Magi.</span
+							>
+						</div>
+					{/if}
+
+					<button
+						class="dest-card"
+						class:selected={destChoice === 'address'}
+						disabled={toIsMagiOnly}
+						title={toIsMagiOnly
+							? `${coinDisplayLabel(toCoin)} only exists on the Magi network`
+							: undefined}
+						onclick={() => {
+							destChoice = 'address';
+						}}
+					>
+						<div class="dest-card-icon"><Send size={18} /></div>
+						<div class="dest-card-info">
+							<span class="dest-card-name">Send to address</span>
+							<span class="dest-card-desc sm-caption">
+								{#if toIsMagiOnly}
+									Unavailable &middot; {coinDisplayLabel(toCoin)} only exists on Magi
+								{:else}
+									Enter a recipient address &middot; Choose Magi or mainnet settlement
+								{/if}
+							</span>
+						</div>
+						<div class="dest-radio" class:checked={destChoice === 'address'}></div>
+					</button>
 				</div>
-				<textarea
-					bind:value={destAddress}
-					placeholder="Paste Hive, BTC, EVM or DASH address... *"
-					rows="2"
-					class:empty-required={destChoice === 'address' && !destAddress?.trim()}
-					disabled={destChoice !== 'address'}
-				></textarea>
-				<p class="dest-hint sm-caption">
-					{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi' ? 'Magi' : chainLabel} &mdash;
-					accepts Hive, BTC, EVM or DASH addresses
-				</p>
+
+				<!-- Address Section -->
+				<div class="dest-address-section" class:hidden={destChoice !== 'address'}>
+					<div class="dest-network-row">
+						<span class="dest-network-label">Target Network</span>
+						<div class="dest-network-toggle">
+							<button
+								class:active={destNetworkChoice === 'mainnet'}
+								onclick={() => {
+									destNetworkChoice = 'mainnet';
+								}}>{chainLabel}</button
+							>
+							<button
+								class:active={destNetworkChoice === 'magi'}
+								onclick={() => {
+									destNetworkChoice = 'magi';
+								}}>Magi Network</button
+							>
+						</div>
+					</div>
+					<textarea
+						bind:value={destAddress}
+						placeholder="Paste Hive, BTC, EVM or DASH address... *"
+						rows="2"
+						class:empty-required={destChoice === 'address' && !destAddress?.trim()}
+						disabled={destChoice !== 'address'}
+					></textarea>
+					<p class="dest-hint sm-caption">
+						{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi'
+							? 'Magi'
+							: chainLabel} &mdash; accepts Hive, BTC, EVM or DASH addresses
+					</p>
+				</div>
 			</div>
-		</div>
 		{/if}
 		<!-- Fees Section (collapsible) -->
 		{#if txState.from && txState.to}
@@ -1421,12 +1386,16 @@ let expectedOutputUsd = $derived.by(() => {
 				expectedOutput={swapResult
 					? `${formatSmallUnits(swapResult.expectedOutput, toDec)} ${toUnit}`
 					: undefined}
-				expectedOutputUsd={expectedOutputUsd !== null ? `\u2248 ${formatUsd(expectedOutputUsd)}` : null}
+				expectedOutputUsd={expectedOutputUsd !== null
+					? `\u2248 ${formatUsd(expectedOutputUsd)}`
+					: null}
 				minAmountOut={swapResult
 					? `${formatSmallUnits(swapResult.minAmountOut, toDec)} ${toUnit}`
 					: undefined}
 				minAmountOutUsd={minAmountOutUsd !== null ? `\u2248 ${formatUsd(minAmountOutUsd)}` : null}
-				protocolFeeUsd={totalProtocolFeeUsd !== null ? `\u2248 ${formatUsd(totalProtocolFeeUsd)}` : null}
+				protocolFeeUsd={totalProtocolFeeUsd !== null
+					? `\u2248 ${formatUsd(totalProtocolFeeUsd)}`
+					: null}
 				twoHop={!!swapResult?.hop1Fee}
 				{exchangeFeePct}
 				hasQuote={!!swapResult}
@@ -1552,13 +1521,8 @@ let expectedOutputUsd = $derived.by(() => {
 	.advanced-toggle:hover {
 		color: var(--dash-text-primary);
 	}
-	.advanced-toggle input {
-		width: 16px;
-		height: 16px;
-		margin: 0;
-		accent-color: #6f6af8;
-		cursor: pointer;
-	}
+	/* Size, shape and colour come from the `.alt-root input[type='checkbox']`
+	   rule in redesign.scss, so every checkbox on the new shell matches. */
 
 	/* ═══ Layout ═══ */
 	.swap-layout {
@@ -1605,8 +1569,6 @@ let expectedOutputUsd = $derived.by(() => {
 		flex-direction: column;
 		gap: 0;
 	}
-
-
 
 	/* ── Swap Toggle ── */
 	.swap-toggle-wrapper {

@@ -18,8 +18,7 @@
 	--alt-bg: #07070e;
 	--alt-card: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
 	--alt-card-border: rgba(255, 255, 255, 0.12);
-	--alt-card-shadow:
-		0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+	--alt-card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.18);
 	--alt-card-blur: blur(14px);
 	--alt-field: rgba(0, 0, 0, 0.3);
 	--alt-field-2: rgba(0, 0, 0, 0.18);
@@ -193,6 +192,70 @@
 	box-shadow: var(--alt-card-shadow);
 	-webkit-backdrop-filter: var(--alt-card-blur);
 	backdrop-filter: var(--alt-card-blur);
+}
+
+/**
+ * Checkboxes.
+ *
+ * The native control paints an opaque white box with near-square corners —
+ * the one thing on the swap card that looks like it came from a different
+ * site. `accent-color` only tints the CHECKED fill, so it never fixed the
+ * unchecked state.
+ *
+ * Scoped to `.alt-root` so it is the redesigned shell that changes; the
+ * classic dashboard keeps the native control it was built against.
+ *
+ * The tick is drawn with `clip-path` on a pseudo-element rather than a
+ * background image, so it inherits no asset and scales with the box.
+ */
+.alt-root input[type='checkbox'] {
+	appearance: none;
+	-webkit-appearance: none;
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	display: inline-grid;
+	place-content: center;
+	/* `--alt-card-border` is tuned for a large panel edge and is far too faint
+	   for a 16px control — on the Light theme it is the accent at 14% on
+	   white, which all but disappears. A checkbox has to read as a target, so
+	   this borrows the muted TEXT colour, which every theme already guarantees
+	   is legible against its own background. */
+	border: 1.5px solid var(--alt-mut);
+	border-radius: 5px;
+	background: transparent;
+	cursor: pointer;
+	transition:
+		background-color 0.15s,
+		border-color 0.15s;
+}
+.alt-root input[type='checkbox']::before {
+	content: '';
+	width: 10px;
+	height: 10px;
+	transform: scale(0);
+	transition: transform 0.12s ease-out;
+	background: #fff;
+	clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+.alt-root input[type='checkbox']:hover:not(:disabled) {
+	border-color: var(--alt-accent);
+}
+.alt-root input[type='checkbox']:checked {
+	background: var(--alt-accent);
+	border-color: var(--alt-accent);
+}
+.alt-root input[type='checkbox']:checked::before {
+	transform: scale(1);
+}
+.alt-root input[type='checkbox']:focus-visible {
+	outline: 2px solid var(--alt-accent);
+	outline-offset: 2px;
+}
+.alt-root input[type='checkbox']:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 .alt-field {

@@ -33,6 +33,7 @@ import {
 	// §3 money
 	formatUsd,
 	formatUsdPrice,
+	compactCount,
 	compactUsd,
 	formatAmountWithUnit,
 	formatAmountGrouped,
@@ -309,6 +310,21 @@ describe('dollar formatting', () => {
 		expect(compactUsd(12_000)).toBe('$12K');
 		expect(compactUsd(0)).toBe('$0');
 		expect(compactUsd(-1500)).toBe('-$1.5K');
+	});
+
+	it('compactCount keeps the digit a resource-credit figure is read for', () => {
+		// 13,463 RC must not collapse to "13K" — the tenths are the whole point
+		// of showing the number in a chip this small.
+		expect(compactCount(13_463)).toBe('13.5K');
+		expect(compactCount(1500)).toBe('1.5K');
+		// Past 100K the tenth is noise, so it goes.
+		expect(compactCount(250_400)).toBe('250K');
+		expect(compactCount(1_500_000)).toBe('1.5M');
+		// Below a thousand nothing is gained by collapsing.
+		expect(compactCount(999)).toBe('999');
+		expect(compactCount(0)).toBe('0');
+		expect(compactCount(-1500)).toBe('-1.5K');
+		expect(compactCount(Number.NaN)).toBe('0');
 	});
 
 	it('compactUsd keeps two significant digits below a dollar', () => {

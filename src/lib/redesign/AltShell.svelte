@@ -10,6 +10,7 @@
 	import { openConnect } from '$lib/auth/connectModal';
 	import { switchUserPanelOpen } from '$lib/auth/switchUserStore';
 	import { isPublicRoute } from './publicRoutes';
+	import { compactCount, formatAmountGrouped, maxRc } from '$lib/calc';
 	import type { Snippet } from 'svelte';
 
 	type Props = {
@@ -25,15 +26,31 @@
 	const account = $derived(getAccountNameFromAuth(auth));
 	const connected = $derived(!!auth.value);
 
-	/** Same figure the old top bar showed. Hive accounts get a 10k free tier
-	 *  on top of their HBD-derived allowance; see `vsc_rc_derivation`. */
-	const rcDisplay = $derived.by(() => {
+	/**
+	 * Same figure the old top bar showed. Hive accounts get a 10k free tier on
+	 * top of their HBD-derived allowance; see `vsc_rc_derivation`.
+	 *
+	 * Two forms, because the full one is most of a phone's header. The short
+	 * one collapses thousands and drops the "MAGI" — the chip itself says what
+	 * it is, and on a 390px screen it was pushing the account chip off the
+	 * edge. CSS picks the form; both are rendered.
+	 *
+	 * The numbers go through `$lib/calc`, not a bare `toLocaleString()`: that
+	 * takes the BROWSER's locale, so this chip read "13.463" to a German
+	 * reader while every other number in the app used en-US grouping.
+	 */
+	const rc = $derived.by(() => {
 		const bal = $accountBalance.bal;
-		const isHive = auth.value?.provider === 'aioha';
-		const maxRCs = isHive ? bal.hbd + 10000 : bal.hbd;
-		if (!bal) return 'MAGI RC: 0 / 0';
-		return `MAGI RC: ${(bal.resource_credits || 0).toLocaleString()} / ${maxRCs.toLocaleString()}`;
+		if (!bal) return { now: 0, max: 0 };
+		return {
+			now: bal.resource_credits || 0,
+			max: maxRc(bal.hbd, auth.value?.provider === 'aioha')
+		};
 	});
+	const rcDisplay = $derived(
+		`MAGI RC: ${formatAmountGrouped(rc.now, 0)} / ${formatAmountGrouped(rc.max, 0)}`
+	);
+	const rcCompact = $derived(`RC ${compactCount(rc.now)} / ${compactCount(rc.max)}`);
 
 	type MenuName = 'wallet' | 'market' | 'account' | null;
 	let menu = $state<MenuName>(null);
@@ -90,8 +107,18 @@
 		{ href: '/market', title: 'Magi Market', hint: 'Buy and sell' }
 	];
 
+	let navEl: HTMLElement | undefined = $state();
+	/** Viewport y of the nav row's bottom edge, for the mobile popups. */
+	let menuTop = $state(0);
+
 	function toggle(name: Exclude<MenuName, null>) {
 		menu = menu === name ? null : name;
+		// On a phone the nav is a horizontal scroller, and an `overflow-x` box
+		// clips an absolutely-positioned popup inside it. The phone rule takes
+		// the nav popups out of the scroller with `position: fixed`, which
+		// needs a viewport coordinate rather than an offset — measured here,
+		// on open, so it is right wherever the page happens to be scrolled.
+		if (menu && navEl) menuTop = Math.round(navEl.getBoundingClientRect().bottom + 6);
 	}
 	function closeMenus() {
 		menu = null;
@@ -167,7 +194,9 @@
 	];
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<!-- A popup pinned to the viewport (the phone rule below) would otherwise
+     hang in mid-air once the page moves under it. -->
+<svelte:window onkeydown={onKeydown} onscroll={closeMenus} />
 
 <div class={['alt-root', altThemeClass($altTheme)]}>
 	<div class="alt-page">
@@ -198,7 +227,7 @@
 				<span>ALTERA</span>
 			</a>
 
-			<nav>
+			<nav bind:this={navEl} style:--menu-top="{menuTop}px">
 				<a class={['nav-item', { active: isActive('/') }]} href="/">Swap</a>
 				<a class={['nav-item', { active: isActive('/pools') }]} href="/pools">Pools</a>
 
@@ -240,8 +269,9 @@
 
 			<div class="right">
 				{#if connected}
-					<div class="rc-badge" title="Resource credits">
-						<span class="rc-text">{rcDisplay}</span>
+					<div class="rc-badge" title={rcDisplay}>
+						<span class="rc-text rc-full">{rcDisplay}</span>
+						<span class="rc-text rc-short">{rcCompact}</span>
 					</div>
 					<div class="bell"><Notifications /></div>
 				{/if}
@@ -518,6 +548,10 @@
 		font-weight: 600;
 		color: var(--alt-tx-2);
 	}
+	/* Both forms are rendered; the phone rule swaps which one shows. */
+	.rc-short {
+		display: none;
+	}
 	.bell {
 		display: flex;
 		align-items: center;
@@ -535,12 +569,8 @@
 		background: transparent;
 		border: 1px solid var(--alt-card-border);
 		color: var(--alt-tx-2);
-		/* 42, not 40: this app has no global `box-sizing`, so `.cog` below is
-		   40px of content plus its 1px border on each side, while PillButton
-		   sets `box-sizing: border-box` and lands on 40 flat. Matching the
-		   number here leaves the cog exactly as it renders today. */
-		width: 42px;
-		height: 42px;
+		width: var(--alt-icon-btn, 42px);
+		height: var(--alt-icon-btn, 42px);
 	}
 	.bell :global(button.icon:hover),
 	.bell :global(button.icon:active) {
@@ -550,8 +580,13 @@
 	}
 
 	.cog {
-		width: 40px;
-		height: 40px;
+		/* `border-box` and 42 rather than `content-box` and 40 — they render
+		   identically, but the bell beside it is a `PillButton`, which is
+		   border-box, and the two have to agree on one number to stay the same
+		   size. `--alt-icon-btn` is that number; the phone rule shrinks it. */
+		box-sizing: border-box;
+		width: var(--alt-icon-btn, 42px);
+		height: var(--alt-icon-btn, 42px);
 		border-radius: 999px;
 		border: 1px solid var(--alt-card-border);
 		display: inline-flex;
@@ -699,14 +734,75 @@
 	   itself `nav` wraps *inside* its own flex child and stacks Swap over
 	   Pools next to the logo; give it a row of its own instead. */
 	@media (max-width: 560px) {
+		/* The top row has to fit: RC chip + bell + cog + account chip. At the
+		   full 42px each, plus the untruncated RC figure, the account chip was
+		   being cut off by the edge of the screen. */
+		.alt-page {
+			--alt-icon-btn: 34px;
+		}
 		.brand {
 			margin-right: auto;
 		}
+		.rc-badge {
+			height: 30px;
+			padding: 0 10px;
+		}
+		.rc-full {
+			display: none;
+		}
+		.rc-short {
+			display: inline;
+			font-size: 11.5px;
+		}
+		.bell :global(button.icon svg) {
+			width: 18px;
+			height: 18px;
+		}
+		.account {
+			padding: 3px 7px 3px 3px;
+			gap: 5px;
+		}
+		.avatar {
+			width: 26px;
+			height: 26px;
+			font-size: 12px;
+		}
+
+		/* Five nav items do not fit one phone row and wrapping them cost a
+		   whole second row of header before the page even started. A scroller
+		   keeps them on one line; `justify-content` has to go with it, because
+		   centring an overflowing flex row makes the first item unreachable
+		   (it overflows past scroll position 0). Full-bleed so the row runs to
+		   the screen edges and the last item is not half-hidden in the gutter. */
 		nav {
 			order: 3;
 			flex-basis: 100%;
-			justify-content: center;
+			flex-wrap: nowrap;
+			justify-content: flex-start;
+			overflow-x: auto;
+			overscroll-behavior-x: contain;
+			scrollbar-width: none;
+			margin: 0 calc(-1 * clamp(16px, 4vw, 32px));
+			padding: 0 clamp(16px, 4vw, 32px);
 		}
+		nav::-webkit-scrollbar {
+			display: none;
+		}
+		.menu-wrap,
+		.nav-item {
+			flex: none;
+		}
+		/* Out of the scroller: an `overflow-x` box clips its absolutely
+		   positioned children, so the dropdowns would be trapped inside a 40px
+		   tall strip. `--menu-top` is set in `toggle()`. */
+		nav .popup {
+			position: fixed;
+			top: var(--menu-top, 64px);
+			left: 12px;
+			right: 12px;
+			min-width: 0;
+		}
+
 		main {
 			padding-top: 12px;
 		}

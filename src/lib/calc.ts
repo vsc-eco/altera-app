@@ -274,6 +274,26 @@ export function compactUsd(value: number): string {
 }
 
 /**
+ * The same collapse as `compactUsd`, without the currency — for a plain count
+ * that has to fit a chip the layout cannot widen (resource credits in the top
+ * bar, where the full figure is most of a phone's header).
+ *
+ * It keeps one decimal up to 100K (`13,463` → `13.5K`), because dropping to
+ * `13K` loses the digit the number is actually read for. Below 1,000 nothing
+ * is gained by collapsing, so the exact figure stays.
+ */
+export function compactCount(value: number): string {
+	if (!Number.isFinite(value)) return '0';
+	const abs = Math.abs(value);
+	const sign = value < 0 ? '-' : '';
+	const round = (n: number) =>
+		n.toLocaleString(NUMBER_LOCALE, { maximumFractionDigits: n >= 100 ? 0 : 1 });
+	if (abs >= 1_000_000) return `${sign}${round(abs / 1_000_000)}M`;
+	if (abs >= 1_000) return `${sign}${round(abs / 1_000)}K`;
+	return `${sign}${Math.round(abs).toLocaleString(NUMBER_LOCALE)}`;
+}
+
+/**
  * An asset amount with grouping and a fixed number of decimals:
  * `1,234.500 HIVE`. Pass `'$'` as the unit for a dollar column.
  */

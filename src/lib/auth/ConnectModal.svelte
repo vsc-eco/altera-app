@@ -9,23 +9,77 @@
 -->
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
 	import AppKitLogin from '$lib/auth/AppKitLogin.svelte';
 	import HiveLogin from '$lib/auth/HiveLogin.svelte';
+	import { getAuth } from '$lib/auth/store';
 	import { ArrowRight, Bitcoin, Wallet, X } from '@lucide/svelte';
 	import { closeConnect, connectOpen } from './connectModal';
 
-	/** Where the user was headed before the auth guard sent them away. Shown
-	 *  so they know the dialog is a detour, not the destination. */
-	const redirectTo = browser
-		? (() => {
-				try {
-					const stored = localStorage.getItem('redirect_url');
-					return stored ? new URL(stored) : undefined;
-				} catch {
-					return undefined;
-				}
-			})()
-		: undefined;
+	/**
+	 * Where the user was headed before the auth guard sent them away. Shown so
+	 * they know the dialog is a detour, not the destination.
+	 *
+	 * Read when the dialog OPENS, not once at startup: this component is
+	 * mounted for the lifetime of the app (it lives in the root layout), so a
+	 * value captured at load would be whatever was stored then — stale by the
+	 * time a guard stores a new one and opens the dialog.
+	 *
+	 * APP-10: never honour a stored redirect that points off-origin. It comes
+	 * from localStorage, so it is attacker-controllable and would otherwise be
+	 * an open redirect.
+	 */
+	let redirectTo = $state<URL | undefined>();
+
+	function readRedirect(): URL | undefined {
+		if (!browser) return undefined;
+		try {
+			const stored = localStorage.getItem('redirect_url');
+			if (!stored) return undefined;
+			const url = new URL(stored, window.location.origin);
+			return url.origin === window.location.origin ? url : undefined;
+		} catch {
+			return undefined;
+		}
+	}
+
+	$effect(() => {
+		if ($connectOpen) redirectTo = readRedirect();
+	});
+
+	/**
+	 * Close once the sign-in actually lands.
+	 *
+	 * `HiveLogin` has a `close` of its own, but it is bound to HiveLogin's OWN
+	 * inner dialog (`bind:toggle={close}`) — it dismisses the Hive form and
+	 * leaves this dialog sitting there, which is what the user saw after a
+	 * successful Hive login.
+	 *
+	 * Keying on the auth state rather than on any one provider's callback
+	 * means every route in here is covered — Hive, EVM, BTC — and the dialog
+	 * closes when the login SUCCEEDS rather than when a button was pressed.
+	 *
+	 * Guarded on the dialog being open so an already-connected visitor who
+	 * never opened it is not navigated anywhere.
+	 */
+	const auth = $derived(getAuth()());
+
+	$effect(() => {
+		if (!$connectOpen) return;
+		if (auth?.status !== 'authenticated') return;
+		const target = redirectTo;
+		closeConnect();
+		if (!browser) return;
+		try {
+			localStorage.removeItem('redirect_url');
+		} catch {
+			// A blocked store must not stop the navigation below.
+		}
+		// Only when something actually sent them here. Signing in from the
+		// swap screen should leave them on the swap screen.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- same-origin URL validated above
+		if (target) goto(target);
+	});
 </script>
 
 {#if $connectOpen}

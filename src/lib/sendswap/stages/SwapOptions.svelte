@@ -384,19 +384,30 @@ let expectedOutputUsd = $derived.by(() => {
 
 	// ── Destination state (from SwapDestination) ──
 	const DEST_NETWORK_KEY = 'swap-dest-network';
+	const ADVANCED_KEY = 'swap-advanced';
 	const isMainnet = vscNetworkId === 'vsc-mainnet';
 	const chainLabel = isMainnet ? 'Mainnet' : 'Testnet';
 
 	/**
-	 * The redesign's "Advanced" switch, off by default.
+	 * The redesign's "Advanced" switch, off for a first-time visitor.
 	 *
 	 * It gates the two expert controls the handoff names: the slippage chips
 	 * and the Deliver-to panel. Turning it back off resets BOTH to their
 	 * defaults — not just Deliver-to, as the spec says, because a slippage
 	 * the user raised and can no longer see is a setting acting on their swap
 	 * behind their back.
+	 *
+	 * The switch itself persists (same pattern as `DEST_NETWORK_KEY` below):
+	 * someone who works in Advanced was re-hiding their own controls on every
+	 * reload. What it reveals does NOT persist — slippage and the destination
+	 * still come back at their defaults, so a stored preference can only ever
+	 * show you more, never apply a setting you can't see.
 	 */
-	let advanced = $state(false);
+	function getStoredAdvanced(): boolean {
+		if (!browser) return false;
+		return localStorage.getItem(ADVANCED_KEY) === '1';
+	}
+	let advanced = $state(getStoredAdvanced());
 
 	let destChoice: 'wallet' | 'address' = $state('wallet');
 
@@ -420,6 +431,9 @@ let expectedOutputUsd = $derived.by(() => {
 	 *  nothing it set keeps applying out of sight. */
 	function setAdvanced(on: boolean) {
 		advanced = on;
+		// Written here, not in an `$effect`, because this is the only place
+		// `advanced` changes — an effect would also write it back on mount.
+		if (browser) localStorage.setItem(ADVANCED_KEY, on ? '1' : '0');
 		if (on) return;
 		destChoice = 'wallet';
 		destAddress = '';

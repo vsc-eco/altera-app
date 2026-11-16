@@ -15,7 +15,9 @@ const config = {
 			'@styles': 'src/styles',
 			$houdini: '.houdini/'
 		},
-		adapter: adapter()
+		// ALTERA_BUILD_OUT lets a preview build go somewhere other than the
+		// `build/` the running dev server is serving from.
+		adapter: adapter({ out: process.env.ALTERA_BUILD_OUT || 'build' })
 	},
 	compilerOptions: {
 		runes: true

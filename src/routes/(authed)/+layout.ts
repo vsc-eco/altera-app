@@ -5,6 +5,7 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 import { initModal } from '$lib/auth/reown';
 import { waitForAuth } from '$lib/auth/waitForAuth';
+import { isPublicRoute } from '$lib/redesign/publicRoutes';
 import '$lib/auth/hive';
 
 export const ssr = false;
@@ -36,12 +37,8 @@ export const load: LayoutLoad = async ({ url }) => {
 	}
 
 	const authed = await waitForAuth(authStore);
-	// `/` is the swap screen, and the swap screen is the app's front door: it
-	// renders logged out, with the CTA reading "Connect wallet". Sending an
-	// anonymous visitor from `/` to `/login` is exactly the redirect at the
-	// domain root that Google flagged in November, so it must not come back.
-	const isPublic = url.pathname === '/login' || url.pathname === '/';
-	if (!authed && !isPublic) {
+	// Swap (`/`) and Pools render logged out; see `publicRoutes.ts`.
+	if (!authed && !isPublicRoute(url.pathname)) {
 		localStorage.setItem('redirect_url', url.toString());
 		throw redirect(307, '/login');
 	}

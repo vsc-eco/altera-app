@@ -14,6 +14,7 @@
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
 	import PoolDetail from './PoolDetail.svelte';
 	import { getAuth } from '$lib/auth/store';
+	import { openConnect } from '$lib/auth/connectModal';
 	import { isDeprecatedPool } from '../../client';
 	import { registrationHint } from './routerRegistry';
 	import { assetIcon } from '$lib/tokens/assetIcon';
@@ -36,6 +37,9 @@
 	let removePrefillPool = $state<PoolRow | null>(null);
 
 	function openAddForPool(pool: PoolRow) {
+		// Pools is public; providing liquidity is not. Ask for a wallet in
+		// place rather than opening a form that cannot be submitted.
+		if (!did) return openConnect();
 		addPrefillPool = pool;
 		addLiquidityOpen = true;
 	}

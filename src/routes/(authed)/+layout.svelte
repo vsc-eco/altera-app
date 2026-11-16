@@ -16,6 +16,7 @@
 	import SwitchUserPanel from '$lib/auth/SwitchUserPanel.svelte';
 	import AltShell from '$lib/redesign/AltShell.svelte';
 	import { isRedesigned, pageWidth } from '$lib/redesign/redesignedRoutes';
+	import { isPublicRoute } from '$lib/redesign/publicRoutes';
 	import WalletChrome from '$lib/redesign/WalletChrome.svelte';
 	import { isWalletRoute } from '$lib/redesign/walletTabs';
 
@@ -27,6 +28,9 @@
 	 *  polling, wallet reconnect, the login retry) is shared by both, which is
 	 *  why the switch lives here rather than in a separate route group. */
 	const redesigned = $derived(isRedesigned(page.url.pathname));
+	/** Swap and Pools read public chain data and must survive a logged-out
+	 *  visit — including the reown reconnect failing below. */
+	const isPublic = $derived(isPublicRoute(page.url.pathname));
 
 	let auth = $derived(getAuth()());
 	let username = $derived(getAccountNameFromAuth(auth));
@@ -42,6 +46,10 @@
 		startAccountPolling(auth);
 		localStorage.setItem('last_connection', auth.value.provider);
 	});
+	/** One silent reconnect attempt per page load. Without this the public
+	 *  branch below would loop: fail → cooldown → stay → try again. */
+	let reconnectTried = false;
+
 	$effect(() => {
 		if ($loginRetry === 'logout') return;
 		if ($loginRetry === 'cooldown') {
@@ -49,18 +57,28 @@
 				loginRetry.set('retry');
 				return;
 			}
+			// 🚨 This `goto('/login')` was kicking logged-out visitors off the
+			// PUBLIC pages. `last_connection` survives a disconnect, so anyone
+			// who had ever connected a reown (BTC/EVM) wallet hit `/` or
+			// `/pools`, failed the silent reconnect, and got bounced — which
+			// looked exactly like the route guard still being wrong. The guard
+			// was fine; this was the redirect. A public page stays put, and
+			// the visitor connects from the Connect pill when they want to.
+			if (isPublic) return;
 			clearAllStores();
 			goto('/login');
 			return;
 		}
-		if (!browser || auth.value || localStorage.getItem('last_connection') !== 'reown') {
-			return;
-		}
+		if (!browser || auth.value || reconnectTried) return;
+		if (localStorage.getItem('last_connection') !== 'reown') return;
+		reconnectTried = true;
 		(async () => {
 			const success = await ensureWalletConnection();
 			if (!success) {
 				loginRetry.set('cooldown');
-				openModal();
+				// Don't throw a wallet modal at someone who only opened the
+				// swap page; the Connect pill is right there.
+				if (!isPublic) openModal();
 			}
 		})();
 	});

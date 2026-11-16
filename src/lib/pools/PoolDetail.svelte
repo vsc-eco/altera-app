@@ -14,6 +14,8 @@
 	import SidePopup from '$lib/components/SidePopup.svelte';
 	import { ExternalLink } from '@lucide/svelte';
 	import { getVscExplorerTxUrl } from '$lib/constants';
+	import { getAuth } from '$lib/auth/store';
+	import { openConnect } from '$lib/auth/connectModal';
 
 	let {
 		pool,
@@ -27,6 +29,7 @@
 		myPools?: MyPoolRow[];
 	} = $props();
 
+	const auth = $derived(getAuth()());
 	let addLiquidityOpen = $state(false);
 	let removeLiquidityOpen = $state(false);
 	const hasUserPosition = $derived(myPools.some((p) => p.contractId === pool.contractId));
@@ -288,7 +291,9 @@
 				disabled={addBlocked}
 				title={addHint}
 				onclick={() => {
-					if (!addBlocked) addLiquidityOpen = true;
+					if (addBlocked) return;
+					if (!auth.value?.did) return openConnect();
+					addLiquidityOpen = true;
 				}}
 			>
 				<Plus size={14} />

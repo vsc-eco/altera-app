@@ -10,13 +10,11 @@ export const SITE_DESCRIPTION =
 	'Swap real BTC, real DASH and real HIVE. Zero fees, non-custodial, any wallet. Powered by Magi Network.';
 
 /** Pages that are meant to show up in search results. Everything else is the
- *  logged-in app (an empty shell to a crawler) and is sent with noindex.
- *  `/` and `/login` render the same server-rendered landing page; the sitemap
- *  lists only `/` and the landing's canonical tag names `/`, so the two URLs
- *  consolidate onto the root. Listing /login here keeps it crawlable (a
- *  noindex header would fight that canonical and could de-index the root). */
-export const INDEXABLE_PATHS = ['/', '/login'] as const;
-export const SITEMAP_PATHS = ['/'] as const;
+ *  logged-in app and is sent with noindex. `/` (swap) and `/pools` render
+ *  for logged-out visitors (see `redesign/publicRoutes.ts`); `/login` stays
+ *  crawlable so a noindex header cannot fight its canonical. */
+export const INDEXABLE_PATHS = ['/', '/pools', '/login'] as const;
+export const SITEMAP_PATHS = ['/', '/pools'] as const;
 
 export function isIndexablePath(pathname: string): boolean {
 	return (INDEXABLE_PATHS as readonly string[]).includes(pathname);

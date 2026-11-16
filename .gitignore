@@ -26,3 +26,7 @@ vite.config.ts.timestamp-*
 # VSCode
 .vscode/settings.json
 .vscode/extensions.json
+
+# Preview builds (ALTERA_BUILD_OUT), so a build never clobbers the one
+# the dev server is serving from /build.
+/build-preview

@@ -312,8 +312,59 @@ button.alt-net-chip:hover {
 	}
 }
 
+/*
+ * The "there is more this way" arrow for a horizontal scroller (the top bar's
+ * nav, the wallet's tab row). It lives INSIDE the scroller as its first and
+ * last child and is `position: sticky`, so it pins itself to whichever edge
+ * of the scrollport it belongs to with no wrapper element and no measuring of
+ * where that edge is — which is what keeps it out of the way of the popups
+ * anchored inside those same rows.
+ *
+ * Zero net width: the negative margin cancels the 20px, so adding one to a
+ * row cannot push the row's own content around. It overlays the item it sits
+ * on, which is the point — the item under it is cut off anyway.
+ *
+ * `$lib/ui/scrollEdges.ts` decides when `.on` goes on. Decoration only, so it
+ * is hidden from a screen reader and never eats a tap meant for a link.
+ */
+.alt-root .alt-rail-arrow {
+	position: sticky;
+	z-index: 2;
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 20px;
+	height: 20px;
+	border-radius: 999px;
+	/* `--alt-modal`, not `--alt-chip`: the chip tokens are translucent white,
+	   so the cut-off label underneath showed through the arrow and the two
+	   read as one smudge. The popup surface is opaque in every theme. */
+	background: var(--alt-modal);
+	border: 1px solid var(--alt-card-border);
+	color: var(--alt-tx);
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+.alt-root .alt-rail-arrow.on {
+	opacity: 1;
+}
+.alt-root .alt-rail-arrow.start {
+	left: 2px;
+	margin-right: -20px;
+}
+.alt-root .alt-rail-arrow.end {
+	right: 2px;
+	margin-left: -20px;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.alt-root :where(.alt-float) {
 		animation: none !important;
+	}
+	.alt-root .alt-rail-arrow {
+		transition: none;
 	}
 }

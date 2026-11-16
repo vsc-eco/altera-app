@@ -27,3 +27,4 @@ export { default as EmptyState } from './EmptyState.svelte';
 export { default as PageHeader } from './PageHeader.svelte';
 export { default as LabelHint } from './LabelHint.svelte';
 export { default as Faq } from './Faq.svelte';
+export { scrollEdges, type ScrollEdges } from './scrollEdges';

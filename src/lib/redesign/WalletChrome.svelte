@@ -11,9 +11,16 @@
 	import { sumBalance } from '$lib/stores/balanceHistory';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { WALLET_TABS, activeWalletTab } from './walletTabs';
+	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import { scrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
 	import type { Snippet } from 'svelte';
 
 	let { children }: { children: Snippet } = $props();
+
+	/** Whether the tab row has tabs hidden off either end. Five tabs do not
+	 *  fit a phone, and a row that is cut off mid-word with nothing to say so
+	 *  reads as a bug rather than as something you can swipe. */
+	let tabEdges = $state<ScrollEdges>({ start: false, end: false });
 
 	const active = $derived(activeWalletTab(page.url.pathname));
 
@@ -67,7 +74,10 @@
 	     what the reader came here to use; the total is what they came to read,
 	     and it belongs with the content it sums rather than above the
 	     navigation. -->
-	<nav class="tabs" aria-label="Wallet sections">
+	<nav class="tabs" aria-label="Wallet sections" use:scrollEdges={(e) => (tabEdges = e)}>
+		<span class={['alt-rail-arrow', 'start', { on: tabEdges.start }]} aria-hidden="true">
+			<ChevronLeft size={12} />
+		</span>
 		{#each WALLET_TABS as tab (tab.href)}
 			<a
 				class={['tab', { active: tab.href === active?.href }]}
@@ -77,6 +87,9 @@
 				{tab.label}
 			</a>
 		{/each}
+		<span class={['alt-rail-arrow', 'end', { on: tabEdges.end }]} aria-hidden="true">
+			<ChevronRight size={12} />
+		</span>
 	</nav>
 
 	<!-- The title and total belong to Assets, which is the tab that is ABOUT

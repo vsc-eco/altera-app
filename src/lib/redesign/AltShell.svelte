@@ -4,7 +4,8 @@
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
 	import { altTheme, altThemeClass } from './altTheme';
 	import { WALLET_TABS } from './walletTabs';
-	import { ChevronDown, LogOut, Settings, Users } from '@lucide/svelte';
+	import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Settings, Users } from '@lucide/svelte';
+	import { scrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
 	import Notifications from '$lib/Topbar/Notifications.svelte';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { openConnect } from '$lib/auth/connectModal';
@@ -108,6 +109,9 @@
 	];
 
 	let navEl: HTMLElement | undefined = $state();
+	/** Whether the nav row has items hidden off either end (phones only — it
+	 *  wraps rather than scrolls above 560px, so both stay false). */
+	let navEdges = $state<ScrollEdges>({ start: false, end: false });
 	/** Viewport y of the nav row's bottom edge, for the mobile popups. */
 	let menuTop = $state(0);
 
@@ -227,7 +231,14 @@
 				<span>ALTERA</span>
 			</a>
 
-			<nav bind:this={navEl} style:--menu-top="{menuTop}px">
+			<nav
+				bind:this={navEl}
+				style:--menu-top="{menuTop}px"
+				use:scrollEdges={(e) => (navEdges = e)}
+			>
+				<span class={['alt-rail-arrow', 'start', { on: navEdges.start }]} aria-hidden="true">
+					<ChevronLeft size={12} />
+				</span>
 				<a class={['nav-item', { active: isActive('/') }]} href="/">Swap</a>
 				<a class={['nav-item', { active: isActive('/pools') }]} href="/pools">Pools</a>
 
@@ -265,6 +276,10 @@
 						Witnesses
 					</a>
 				{/if}
+
+				<span class={['alt-rail-arrow', 'end', { on: navEdges.end }]} aria-hidden="true">
+					<ChevronRight size={12} />
+				</span>
 			</nav>
 
 			<div class="right">

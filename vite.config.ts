@@ -7,6 +7,23 @@ import { execSync } from 'child_process';
 
 const isReverseProxyDev = process.env.DEV_BEHIND_PROXY === '1';
 
+// mkcert exists only to hand the local dev server a trusted HTTPS certificate.
+// Loading it is not free: vite-plugin-mkcert asks the GitHub API for the latest
+// mkcert release every time Vite resolves this config. From a CI runner that
+// request is unauthenticated and shares an IP with every other runner, so it is
+// rate-limited to 403 — and because it happens during config load, Vite never
+// starts and `pnpm test` dies before a single test runs:
+//
+//   Startup Error
+//   AxiosError: Request failed with status code 403
+//       at async _GithubSource.getSourceInfo (vite-plugin-mkcert/dist/mkcert.mjs:261)
+//
+// That is what failed the deploy of 9398991 (run 43655565523) and of fce0ffc
+// before it — in both cases the tests themselves were fine. Neither `vitest`
+// nor a production build serves anything over HTTPS, so skip it there and keep
+// it for `vite dev`, which is the only thing that wants it.
+const useMkcert = !isReverseProxyDev && !process.env.VITEST && !process.env.CI;
+
 // Build-time version stamp: short git SHA + ISO timestamp.
 // Used by the client to detect when a new deployment is live.
 const gitSha = (() => {
@@ -23,7 +40,7 @@ export default defineConfig({
 		__APP_VERSION__: JSON.stringify(gitSha),
 		__APP_BUILD_TIME__: JSON.stringify(buildTime)
 	},
-	plugins: [houdini(), sveltekit(), ...(isReverseProxyDev ? [] : [mkcert()])],
+	plugins: [houdini(), sveltekit(), ...(useMkcert ? [mkcert()] : [])],
 	// TEMPORARY (npm publishing for @vsc.eco/market-* is blocked):
 	// `@vsc.eco/market-widget` installs from a self-hosted tarball, which is
 	// a normal package — its react/react-dom peers resolve from OUR tree, so

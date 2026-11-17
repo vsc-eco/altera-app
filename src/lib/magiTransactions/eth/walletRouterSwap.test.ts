@@ -296,11 +296,37 @@ describe('walletSwapFromMagi: which /swap sends are swaps', () => {
 		expect(walletSwapFromMagi({ ...base, fromNetwork: Network.btcMainnet.value })).toBeNull();
 	});
 
-	it('kept on Magi pays the caller, whatever the receiver field says', () => {
+	/**
+	 * CHANGED by M1 (11-17 review). This used to assert that a swap kept on
+	 * Magi pays the CALLER whatever the receiver field says — which is the
+	 * bug: "Send to address" with Magi selected did exactly what "Keep on
+	 * Magi" does, while Review printed the typed address as the receiver. The
+	 * router accepts a Magi recipient, so it is now paid.
+	 *
+	 * What makes this safe is that the swap card resets `toUsername` to the
+	 * signed-in account whenever the destination is not an address (M2), so a
+	 * stale value cannot be paid.
+	 */
+	it('kept on Magi pays the address it was given', () => {
 		const r = walletSwapFromMagi(base);
-		expect(r && !('error' in r) && r.recipient).toBe(undefined);
+		expect(r && !('error' in r) && r.recipient).toBe('hive:someone-else');
 		expect(r && !('error' in r) && r.destinationChain).toBe(undefined);
 		expect(r && !('error' in r) && r.amount.amount).toBe(50_000);
+	});
+
+	it('kept on Magi with no receiver still pays the caller', () => {
+		const r = walletSwapFromMagi({ ...base, toUsername: '' });
+		expect(r && !('error' in r) && r.recipient).toBe(undefined);
+		expect(r && !('error' in r) && r.destinationChain).toBe(undefined);
+	});
+
+	/** A wallet login's own account is an EVM address, so the Magi recipient
+	 *  must be its DID — never `hive:0x…`. */
+	it('resolves an EVM account to its DID rather than prefixing hive:', () => {
+		const r = walletSwapFromMagi({ ...base, toUsername: EVM });
+		const recipient = r && !('error' in r) ? r.recipient : undefined;
+		expect(recipient).toMatch(/^did:pkh:eip155:/);
+		expect(recipient).not.toMatch(/^hive:/);
 	});
 
 	it('a Hive payout names the hive: account', () => {

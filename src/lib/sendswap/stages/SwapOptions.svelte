@@ -2,6 +2,7 @@
 	import SwapFees from './SwapFees.svelte';
 	import SwapAmountField from './SwapAmountField.svelte';
 	import { getAuth } from '$lib/auth/store';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import {
 		getFee,
 		getTxSessionId,
@@ -456,10 +457,26 @@
 		}
 	});
 
-	// Update toUsername when sending to address
+	/**
+	 * `toUsername` is the router's recipient, so it must always say who is
+	 * actually being paid — the typed address, or the signed-in account.
+	 *
+	 * It used to be written only while "Send to address" held text, and never
+	 * cleared. Switching back to "Keep on Magi", or turning Advanced off,
+	 * emptied the BOX but left the address in state. Nothing on Magi read it,
+	 * so it was invisible — until the bad flip state turned the swap into a
+	 * plain transfer and sent the money there (H1), while the Review screen
+	 * printed it as the receiver all along (M1).
+	 *
+	 * Now that M1 pays `toUsername` on Magi too, a stale value would be paid
+	 * rather than ignored, so the reset is what makes that safe.
+	 */
 	$effect(() => {
+		const own = getUsernameFromAuth(auth);
 		if (destChoice === 'address' && destAddress.trim()) {
 			txState.toUsername = destAddress.trim();
+		} else if (own) {
+			txState.toUsername = own;
 		}
 	});
 

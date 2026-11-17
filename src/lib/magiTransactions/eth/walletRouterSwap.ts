@@ -8,6 +8,7 @@
  * the account already held of the output asset went out instead.
  */
 
+import { getDidFromUsername } from '$lib/getAccountName';
 import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
@@ -188,6 +189,19 @@ export function walletSwapFromMagi(args: {
 				? `hive:${raw.replace(/^@/, '')}`
 				: raw;
 		if (!recipient) return { error: 'Missing recipient address for mainnet settlement' };
+	} else {
+		/**
+		 * Staying on Magi pays `toUsername` too — the wallet-path sibling of
+		 * the same fix in `sendUtils`. "Send to address" with Magi selected
+		 * used to pay the swapper and ignore the address (M1). Blank means
+		 * "pay me": `buildRouterInstruction` falls back to the caller.
+		 */
+		const raw = (args.toUsername ?? '').trim();
+		// `getDidFromUsername`, not a `hive:` prefix: the caller here is an EVM
+		// or BTC wallet, so its own account IS an address and `hive:0x…` would
+		// be nonsense. This resolves a Hive name to `hive:name`, an EVM address
+		// to its checksummed `did:pkh:eip155:` form, and passes a DID through.
+		if (raw) recipient = getDidFromUsername(raw) || undefined;
 	}
 	if (!/^[0-9]*\.?[0-9]+$/.test(args.fromAmount) || Number(args.fromAmount) <= 0) {
 		return { error: 'Enter an amount to swap.' };

@@ -1,59 +1,62 @@
-import { postingMetadataFromString, type Account } from '$lib/auth/hive/accountTypes'
-import { wagmiConfig } from '$lib/auth/reown'
-import { authStore, getAuth, type Auth } from '$lib/auth/store'
-import { CoinAmount } from '$lib/currency/CoinAmount'
-import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName'
-import { btcSigner } from '$lib/magiTransactions/bitcoin/signer'
-import { getEVMOpType } from '$lib/magiTransactions/eth'
+import { postingMetadataFromString, type Account } from '$lib/auth/hive/accountTypes';
+import { wagmiConfig } from '$lib/auth/reown';
+import { authStore, getAuth, type Auth } from '$lib/auth/store';
+import { CoinAmount } from '$lib/currency/CoinAmount';
+import { getDidFromUsername, getUsernameFromAuth, getUsernameFromDid } from '$lib/getAccountName';
+import { btcSigner } from '$lib/magiTransactions/bitcoin/signer';
+import { getEVMOpType } from '$lib/magiTransactions/eth';
 import {
 	createClient,
 	signAndBrodcastTransaction,
 	type Transaction
-} from '$lib/magiTransactions/eth/client'
+} from '$lib/magiTransactions/eth/client';
 import {
 	prepareWalletRouterSwap,
 	walletSwapFromMagi
-} from '$lib/magiTransactions/eth/walletRouterSwap'
-import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
-import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
-import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
-import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
+} from '$lib/magiTransactions/eth/walletRouterSwap';
+import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
+import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
+import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
+import {
+	getKeepsatsDestinationDid,
+	getKeepsatsTransferOp
+} from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer';
 import {
 	getBtcApproveOp,
 	getTokenApproveOp,
 	getHiveSwapOp,
 	hasQuoteMinimum,
 	SWAP_NEEDS_QUOTE_MESSAGE
-} from '$lib/magiTransactions/hive/vscOperations/swap'
+} from '$lib/magiTransactions/hive/vscOperations/swap';
 import {
 	btcPayoutShortfallMessage,
 	estimateCallRc,
 	MAX_RC_LIMIT,
 	rcShortfallMessage,
 	sizeBtcPayoutSwap
-} from '$lib/magiTransactions/hive/vscOperations/rcSizing'
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants'
-import { fetchCustomTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens'
-import { assertBtcRecipientAllowed } from './btcAddressGuard'
+} from '$lib/magiTransactions/hive/vscOperations/rcSizing';
+import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+import { fetchCustomTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens';
+import { assertBtcRecipientAllowed } from './btcAddressGuard';
 import {
 	accountBalance,
 	type AccountBalance,
 	type HiveMainnetBalance
-} from '$lib/stores/currentBalance'
+} from '$lib/stores/currentBalance';
 import {
 	fetchTxs,
 	getTimestamp,
 	magiTxsStore,
 	waitForExtend,
 	type TransactionInter
-} from '$lib/stores/txStores'
-import { getAccounts } from '@aioha/aioha/build/rpc'
-import type { Operation, TransferOperation } from '@hiveio/dhive'
-import { Network as BtcNetwork, validate } from 'bitcoin-address-validation'
-import moment, { type Moment } from 'moment'
-import { get } from 'svelte/store'
-import { addLocalTransaction } from '../../stores/localStorageTxs'
-import { getIntermediaryNetwork } from './getNetwork'
+} from '$lib/stores/txStores';
+import { getAccounts } from '@aioha/aioha/build/rpc';
+import type { Operation, TransferOperation } from '@hiveio/dhive';
+import { Network as BtcNetwork, validate } from 'bitcoin-address-validation';
+import moment, { type Moment } from 'moment';
+import { get } from 'svelte/store';
+import { addLocalTransaction } from '../../stores/localStorageTxs';
+import { getIntermediaryNetwork } from './getNetwork';
 import swapOptions, {
 	Coin,
 	Network,
@@ -63,10 +66,10 @@ import swapOptions, {
 	type CoinOnNetwork,
 	type AssetOption,
 	type IntermediaryNetwork
-} from './sendOptions'
-import type { TxStateBase } from './txState.svelte'
-import { SwapTxState, TransferTxState, WithdrawTxState, type TxState } from './txState.svelte'
-import { swapFeeExceedsGuard, swapFeeGuardMessage } from '$lib/pools/swapCalc'
+} from './sendOptions';
+import type { TxStateBase } from './txState.svelte';
+import { SwapTxState, TransferTxState, WithdrawTxState, type TxState } from './txState.svelte';
+import { swapFeeExceedsGuard, swapFeeGuardMessage } from '$lib/pools/swapCalc';
 
 export function scanForBalance(opts: CoinOnNetwork[]): CoinOnNetwork | undefined {
 	const accBal = get(accountBalance);
@@ -382,11 +385,7 @@ export async function getLastPaidNetwork(netVal?: string): Promise<moment.Moment
 }
 
 export async function getFee(toAmount: string, state: TxStateBase) {
-	if (
-		state.from &&
-		state.to &&
-		state.to.coin.value !== Coin.usd.value
-	) {
+	if (state.from && state.to && state.to.coin.value !== Coin.usd.value) {
 		const fee = await getIntermediaryNetwork(state.from, state.to).feeCalculation(
 			new CoinAmount(Number(toAmount), state.to.coin),
 			state.from.coin
@@ -577,9 +576,7 @@ export function solveToNetworks(state: TxStateBase): Network[] {
 	const recipientNetworks: Network[] | undefined = state.toUsername
 		? getRecipientNetworks(getDidFromUsername(state.toUsername)).filter((net) => !net.disabled)
 		: undefined;
-	const coinNetworks = state.from
-		? getFromOption(state.from.coin.value)?.networks
-		: undefined;
+	const coinNetworks = state.from ? getFromOption(state.from.coin.value)?.networks : undefined;
 	const intersection =
 		recipientNetworks && coinNetworks
 			? coinNetworks.filter((net) =>
@@ -665,7 +662,11 @@ export async function send(
 	// fall back to fromAmount which is always set by the stage components.
 	const raw = details.toAmount;
 	const amount =
-		raw && raw !== '0' ? raw : details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : raw;
+		raw && raw !== '0'
+			? raw
+			: details.fromAmount && details.fromAmount !== '0'
+				? details.fromAmount
+				: raw;
 	// Refuse any BTC-mainnet settlement/withdrawal whose recipient is an address
 	// the app generated for this user (their own deposit address). Such a
 	// destination is bridge-controlled, so the funds would return to the vault
@@ -739,7 +740,9 @@ export async function send(
 				txOps = prepared.ops;
 			} else {
 				const evmToDid =
-					toNetwork.value === Network.btcMainnet.value ? toUsername : getDidFromUsername(toUsername);
+					toNetwork.value === Network.btcMainnet.value
+						? toUsername
+						: getDidFromUsername(toUsername);
 				const sendOp = getEVMOpType(
 					fromNetwork,
 					toNetwork,
@@ -890,17 +893,19 @@ export async function send(
 			}
 			setStatus('Waiting for Hive wallet approval…');
 			// For swap, amount_in must be the from-asset amount (asset_in), e.g. 5 TBD => 5000
-			const fromAmountStr = details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : amount;
-			const minOut = details instanceof SwapTxState && details.minAmountOut ? Number(details.minAmountOut) : undefined;
+			const fromAmountStr =
+				details.fromAmount && details.fromAmount !== '0' ? details.fromAmount : amount;
+			const minOut =
+				details instanceof SwapTxState && details.minAmountOut
+					? Number(details.minAmountOut)
+					: undefined;
 			if (!hasQuoteMinimum(minOut)) {
 				setStatus(SWAP_NEEDS_QUOTE_MESSAGE, true);
 				return new Error(SWAP_NEEDS_QUOTE_MESSAGE);
 			}
 			const fromCa = new CoinAmount(fromAmountStr, fromCoin.coin);
 			if (fromCoin.coin.value === Coin.btc.value) {
-				extraOps.push(
-					getBtcApproveOp(auth.value.username!, fromCa as CoinAmount<typeof Coin.btc>)
-				);
+				extraOps.push(getBtcApproveOp(auth.value.username!, fromCa as CoinAmount<typeof Coin.btc>));
 			} else if (customToken) {
 				// Same shape as BTC: the router pulls the funds with
 				// `transferFrom`, so it needs an allowance on the token's own
@@ -932,6 +937,30 @@ export async function send(
 					toOnHiveL1 && !raw.startsWith('hive:') ? `hive:${raw.replace(/^@/, '')}` : raw;
 				if (!destinationRecipient) {
 					throw new Error('Missing recipient address for mainnet settlement');
+				}
+			} else {
+				/**
+				 * A swap that stays on Magi pays `toUsername` as well.
+				 *
+				 * It used to pay the caller whatever was typed, so "Send to
+				 * address" with Magi selected did exactly what "Keep on Magi"
+				 * does, while the Review screen printed the typed address as
+				 * the receiver (M1). The router already accepts and validates
+				 * a Magi recipient, so this needs no contract change.
+				 *
+				 * `toUsername` is the signed-in account whenever the user has
+				 * not chosen an address (the swap card resets it), so the
+				 * default is unchanged: the caller is paid.
+				 */
+				const raw = (toUsername ?? '').trim();
+				if (raw) {
+					// `getDidFromUsername` and not a `hive:` prefix: on a wallet
+					// login the account IS an EVM or BTC address, so prefixing
+					// it would build a bogus `hive:0x…` recipient. This maps a
+					// Hive name to `hive:name`, an EVM address to its
+					// checksummed `did:pkh:eip155:` form, and passes a DID
+					// through unchanged.
+					destinationRecipient = getDidFromUsername(raw) || undefined;
 				}
 			}
 			// A BTC payout costs ~12,000 RC since the 0.12 BTC contract, over the
@@ -1032,7 +1061,9 @@ export async function send(
 				auth.value.username!,
 				getDidFromUsername(toUsername),
 				new CoinAmount(amount, toCoin.coin),
-				details instanceof TransferTxState && details.memo ? new URLSearchParams({ msg: details.memo }) : undefined
+				details instanceof TransferTxState && details.memo
+					? new URLSearchParams({ msg: details.memo })
+					: undefined
 			);
 		}
 
@@ -1130,15 +1161,11 @@ export async function send(
 				new CoinAmount(amount, toCoin!.coin)
 			);
 
-			const id = await signAndBrodcastTransaction(
-				[evmOp],
-				wagmiSigner,
-				client,
-				signal,
-				wagmiConfig
-			)
+			const id = await signAndBrodcastTransaction([evmOp], wagmiSigner, client, signal, wagmiConfig)
 				.then((result) => {
-					setStatus('Transaction submitted. You will be notified when your transaction is finished.');
+					setStatus(
+						'Transaction submitted. You will be notified when your transaction is finished.'
+					);
 					addLocalTransaction({
 						ops: [
 							{

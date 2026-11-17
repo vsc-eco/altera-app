@@ -123,7 +123,12 @@
 			txId = '';
 		}
 		if (step === 0) {
-			goto('/dashboard');
+			// Leaving a task used to land on `/dashboard`, the OLD shell — so
+			// Back out of Deposit and you were in a different app (L7). The
+			// wallet's Assets tab is where these flows belong; a swap backs out
+			// to the swap screen, which is now the front door.
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
+			goto(txType === 'swap' ? '/' : '/portfolio');
 		} else if (step === lastStep) {
 			step = 0;
 			sessionId = getTxSessionId();

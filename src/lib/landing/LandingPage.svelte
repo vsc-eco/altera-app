@@ -80,7 +80,7 @@
 			>
 		</p>
 		<div class="hero-tags">
-			<span class="tag">Zero Fees</span>
+			<span class="tag">No Fee Transfers</span>
 			<span class="tag">Non-Custodial</span>
 			<span class="tag">Any Wallet</span>
 		</div>

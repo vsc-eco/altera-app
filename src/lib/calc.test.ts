@@ -81,8 +81,6 @@ import {
 	spendableSats,
 	feeReserveSats,
 	maxSendableSats,
-	clampedFeeRate,
-	estimateVSize,
 	// §11 time
 	dateFromBlockHeight,
 	blockHeightFromDate,
@@ -189,9 +187,7 @@ describe('formatBaseUnits', () => {
 
 	it('round-trips with parseAmountToBaseUnits', () => {
 		for (const s of ['0.001', '1.5', '1234.567', '0.1']) {
-			expect(formatBaseUnits(parseAmountToBaseUnits(s, 3), 3)).toBe(
-				Number(s).toString()
-			);
+			expect(formatBaseUnits(parseAmountToBaseUnits(s, 3), 3)).toBe(Number(s).toString());
 		}
 	});
 });
@@ -426,10 +422,7 @@ describe('exchange rates', () => {
 
 	it('prices a token from its pool reserves across differing decimals', () => {
 		// 1,000,000 TOKEN (8 dp) against 700 HBD (3 dp) → 0.0007 HBD/token
-		expect(hbdPerTokenFromReserves(100_000_000_000_000, 8, 700_000, 3)).toBeCloseTo(
-			0.0007,
-			10
-		);
+		expect(hbdPerTokenFromReserves(100_000_000_000_000, 8, 700_000, 3)).toBeCloseTo(0.0007, 10);
 		expect(hbdPerTokenFromReserves(0, 8, 700_000, 3)).toBe(0);
 	});
 });
@@ -640,17 +633,6 @@ describe('bitcoin fees and spendable', () => {
 		expect(feeReserveSats(10)).toBe(2000);
 		expect(maxSendableSats(100_000, feeReserveSats(10))).toBe(98_000);
 		expect(maxSendableSats(1000, 2000)).toBe(0);
-	});
-
-	it('clamps a fee rate into what the node accepts', () => {
-		expect(clampedFeeRate(0)).toBe(1);
-		expect(clampedFeeRate(5000)).toBe(1000);
-		expect(clampedFeeRate(12.4)).toBe(12);
-		expect(clampedFeeRate(Number.NaN)).toBe(1);
-	});
-
-	it('estimates a segwit virtual size', () => {
-		expect(estimateVSize(100, 200)).toBe(Math.floor((100 * 3 + 200 + 3) / 4) + 2);
 	});
 });
 

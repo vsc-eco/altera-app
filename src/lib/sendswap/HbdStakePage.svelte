@@ -49,7 +49,7 @@
 
 	function leave() {
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static root navigation; resolve() not exported in this kit version
-		goto('/dashboard');
+		goto('/portfolio');
 	}
 
 	/** Map a thrown reown/wagmi error to user-readable copy (ported from StakeHBDModal). */

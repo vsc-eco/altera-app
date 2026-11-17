@@ -98,11 +98,25 @@
 	// picked up yet, but offering it in the menu invites the reader into a
 	// second, different-looking app from a menu that otherwise never leaves
 	// this one. It stays reachable by typing the URL.
-	const walletItems = WALLET_TABS.map((tab) => ({
-		href: tab.href,
-		title: tab.label,
-		hint: tab.hint
-	}));
+	const walletItems = [
+		...WALLET_TABS.map((tab) => ({
+			href: tab.href,
+			title: tab.label,
+			hint: tab.hint
+		})),
+		/**
+		 * HBD staking had no way in from the new UI at all: `/stake` was
+		 * reachable only from `/dashboard` (the old shell, no longer linked)
+		 * and the old command palette — while the front page still advertised
+		 * staking as a feature (M4).
+		 *
+		 * It goes in this menu rather than the tab row on purpose: the five
+		 * wallet tabs share one width so the row does not resize as you move
+		 * along it, and staking is a task you visit, not a view you flick
+		 * between.
+		 */
+		{ href: '/stake', title: 'Stake HBD', hint: 'Earn yield on your HBD' }
+	];
 	const marketItems = [
 		{ href: '/custom-tokens', title: 'Magi Tokens / NFTs', hint: 'What you hold' },
 		{ href: '/market', title: 'Magi Market', hint: 'Buy and sell' }

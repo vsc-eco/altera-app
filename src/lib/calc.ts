@@ -59,7 +59,10 @@ export function unitScale(decimals: number): number {
  * components. Non-finite input yields 0 rather than NaN: a NaN here used to
  * propagate into a total and print "$NaN" over a funded wallet.
  */
-export function toDisplay(base: number | bigint | string | null | undefined, decimals: number): number {
+export function toDisplay(
+	base: number | bigint | string | null | undefined,
+	decimals: number
+): number {
 	if (base == null) return 0;
 	const n = typeof base === 'bigint' ? Number(base) : Number(base);
 	if (!Number.isFinite(n)) return 0;
@@ -999,10 +1002,7 @@ export function lpPositionAmounts(
 	decimals0: number,
 	decimals1: number
 ): [number, number] {
-	return [
-		toDisplay(reserve0Base * share, decimals0),
-		toDisplay(reserve1Base * share, decimals1)
-	];
+	return [toDisplay(reserve0Base * share, decimals0), toDisplay(reserve1Base * share, decimals1)];
 }
 
 /** The USD value of a two-sided position. */
@@ -1068,12 +1068,7 @@ export function impliedPoolUsdPrices(
 }
 
 /** Total value locked, both sides at their USD prices. */
-export function poolTvlUsd(
-	amount0: number,
-	amount1: number,
-	usd0: number,
-	usd1: number
-): number {
+export function poolTvlUsd(amount0: number, amount1: number, usd0: number, usd1: number): number {
 	return amount0 * usd0 + amount1 * usd1;
 }
 
@@ -1192,7 +1187,11 @@ export function hbdAprFromChainRate(rateBps: number | null | undefined, fallback
  * when the gateway receives it (~every 30 days), so these are estimates of an
  * accrual, not of a payout date.
  */
-export function interestOverPeriod(balance: number, aprPct: number, periodsPerYear: number): number {
+export function interestOverPeriod(
+	balance: number,
+	aprPct: number,
+	periodsPerYear: number
+): number {
 	if (!Number.isFinite(balance) || !Number.isFinite(aprPct) || !(periodsPerYear > 0)) return 0;
 	return (balance * (aprPct / 100)) / periodsPerYear;
 }
@@ -1339,16 +1338,17 @@ export function maxSendableSats(spendable: number, reserve: number): number {
 	return Math.max(0, spendable - reserve);
 }
 
-/** A fee rate the node will accept, in sat/vB. */
-export function clampedFeeRate(rate: number, min = 1, max = 1000): number {
-	if (!Number.isFinite(rate)) return min;
-	return Math.min(max, Math.max(min, Math.round(rate)));
-}
-
-/** Segwit virtual size: `ceil(weight / 4)` with the standard +2 allowance. */
-export function estimateVSize(nonWitnessBytes: number, totalBytes: number): number {
-	return Math.floor((nonWitnessBytes * 3 + totalBytes + 3) / 4) + 2;
-}
+/*
+ * `clampedFeeRate` and `estimateVSize` used to live here as well.
+ *
+ * They were dead copies: the live ones are module-private in
+ * `magiTransactions/bitcoin/btcFeeEstimate.ts` and nothing imported these.
+ * Worse, they had drifted — this `clampedFeeRate` rounded and the live one
+ * does not, and this `estimateVSize` took the TOTAL byte count as its second
+ * argument while the live one takes the witness bytes only. Same names, same
+ * shape, different meaning: whichever one the next edit reached for, half the
+ * time it would have been the wrong one.
+ */
 
 // ═══════════════════════════════════════════════════════════════════════════
 // §11  BLOCK HEIGHTS AND TIME

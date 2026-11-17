@@ -74,15 +74,17 @@
 		if (moment().diff(m, 'days') < 7) return m.fromNow();
 		return m.format('MMM DD, YYYY');
 	}
+	/**
+	 * Unsigned on purpose: the row prints its own leading minus, and ledger
+	 * amounts are already negative for a withdrawal, so passing the sign
+	 * through rendered "−-155.663 HIVE" (L12).
+	 */
 	function formatAmount(raw: unknown, asset: string): string {
 		const dp = asset.toLowerCase() === 'btc' ? 8 : 3;
-		if (typeof raw === 'number') return (raw / 10 ** dp).toFixed(dp);
-		if (typeof raw === 'string') {
-			const n = Number(raw);
-			if (Number.isFinite(n) && raw.indexOf('.') === -1) return (n / 10 ** dp).toFixed(dp);
-			return raw;
-		}
-		return '—';
+		const n = typeof raw === 'number' ? raw : Number(raw);
+		if (!Number.isFinite(n)) return typeof raw === 'string' ? raw : '—';
+		if (typeof raw === 'string' && raw.indexOf('.') !== -1) return raw.replace(/^-/, '');
+		return (Math.abs(n) / 10 ** dp).toFixed(dp);
 	}
 	function isWithdrawType(t: unknown): boolean {
 		return String(t ?? '')
@@ -175,7 +177,6 @@
 			popupOpen = true;
 		}
 	}
-
 </script>
 
 <aside class="rail">
@@ -225,8 +226,8 @@
 		items={[
 			{ q: 'How long does a withdrawal take?', a: faqTiming },
 			{ q: 'Are there fees?', a: faqFees },
-			{ q: "Why can\u2019t I see an asset?", a: faqMissingAsset },
-			{ q: "Withdrawal hasn\u2019t arrived?", a: faqMissing }
+			{ q: 'Why can\u2019t I see an asset?', a: faqMissingAsset },
+			{ q: 'Withdrawal hasn\u2019t arrived?', a: faqMissing }
 		]}
 	/>
 </aside>
@@ -294,9 +295,8 @@
 
 {#snippet faqMissingAsset()}
 	<p>
-		Step 1 only lists assets you currently hold on Magi &mdash; you can&rsquo;t withdraw a
-		balance you don&rsquo;t have. Deposit or swap into an asset first and it&rsquo;ll appear
-		here.
+		Step 1 only lists assets you currently hold on Magi &mdash; you can&rsquo;t withdraw a balance
+		you don&rsquo;t have. Deposit or swap into an asset first and it&rsquo;ll appear here.
 	</p>
 {/snippet}
 

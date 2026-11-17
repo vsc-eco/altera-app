@@ -21,8 +21,11 @@
 	const features = [
 		{
 			icon: Layers,
-			title: 'Up to 15% APR',
-			desc: 'Stake HBD - a dollar-pegged stablecoin - and earn yield directly from your Altera dashboard.',
+			// No hard-coded rate: the old "Up to 15% APR" was simply wrong —
+			// Hive's `hbd_interest_rate` pays 10% today — and any number
+			// written here goes stale the next time the chain changes it.
+			title: 'Earn yield on HBD',
+			desc: 'Stake HBD - a dollar-pegged stablecoin - and earn the current Hive savings rate, straight from Altera.',
 			color: 'amber',
 			badge: 'Earn Yield'
 		},
@@ -35,8 +38,11 @@
 		},
 		{
 			icon: Zap,
-			title: 'Zero Transaction Fees',
-			desc: "Magi's resource credit model means zero cost to transfer. Hold HBD, transact for free.",
+			// "Zero fees" sat under a quote that charges a protocol fee per hop,
+			// and the 0.25% Altera fee is coming (F1). Transfers really are
+			// free; swaps are not, so the claim is narrowed to what is true.
+			title: 'No Fee Transfers',
+			desc: "Magi's resource credit model means transfers cost nothing. Hold HBD, move it for free.",
 			color: 'green',
 			badge: null
 		},

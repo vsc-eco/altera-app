@@ -42,7 +42,7 @@
 	<SendSwap txType="swap" />
 
 	<div class="tags">
-		<span>Zero Fees</span>
+		<span>No Fee Transfers</span>
 		<span>Non-Custodial</span>
 		<span>Any Wallet</span>
 	</div>

@@ -10,12 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { decideBroadcast } from './broadcastDecision';
-import {
-	SwapTxState,
-	TransferTxState,
-	DepositTxState,
-	WithdrawTxState
-} from './txState.svelte';
+import { SwapTxState, TransferTxState, DepositTxState, WithdrawTxState } from './txState.svelte';
 import { Coin, Network } from './sendOptions';
 
 // ─── Error cases ─────────────────────────────────────────────────────────────
@@ -169,6 +164,46 @@ describe('decideBroadcast — v4v popup branch', () => {
 		state.from = { coin: Coin.btc, network: Network.lightning };
 		state.to = { coin: Coin.hive, network: Network.magi };
 		expect(decideBroadcast(state, 'swap')).toEqual({ action: 'v4v' });
+	});
+
+	/**
+	 * H1. The flip used to hand the incoming coin the outgoing coin's network,
+	 * producing a source that cannot exist. `send()` then fails to classify
+	 * the pair as a swap and falls through to the generic builder, signing a
+	 * plain transfer of the OUTPUT asset — to a leftover recipient if one was
+	 * still in state. This gate makes that state unsignable.
+	 */
+	it('refuses a swap whose source coin cannot be on its source network', () => {
+		const state = new SwapTxState();
+		state.from = { coin: Coin.hive, network: Network.btcMainnet };
+		state.to = { coin: Coin.btc, network: Network.magi };
+		const decision = decideBroadcast(state, 'swap');
+		expect(decision.action).toBe('error');
+	});
+
+	it('still allows every real source pair', () => {
+		for (const from of [
+			{ coin: Coin.hive, network: Network.magi },
+			{ coin: Coin.hive, network: Network.hiveMainnet },
+			{ coin: Coin.hbd, network: Network.hiveMainnet },
+			{ coin: Coin.btc, network: Network.magi },
+			{ coin: Coin.btc, network: Network.btcMainnet }
+		]) {
+			const state = new SwapTxState();
+			state.from = from;
+			state.to = { coin: Coin.hbd, network: Network.magi };
+			expect(decideBroadcast(state, 'swap').action).not.toBe('error');
+		}
+	});
+
+	/** Deposit and withdraw cross networks in ways the swap rule does not
+	 *  describe, so the gate must not reach them. */
+	it('does not apply the swap source rule to deposit or withdraw', () => {
+		const state = new SwapTxState();
+		state.from = { coin: Coin.hive, network: Network.btcMainnet };
+		state.to = { coin: Coin.hive, network: Network.magi };
+		expect(decideBroadcast(state, 'deposit').action).not.toBe('error');
+		expect(decideBroadcast(state, 'withdraw').action).not.toBe('error');
 	});
 
 	it('Lightning-routed transfer (to.network = lightning) → v4v on transfer', () => {

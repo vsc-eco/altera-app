@@ -10,6 +10,7 @@
 		findToOpt,
 		findNetwork
 	} from '$lib/sendswap/utils/swapPersistence';
+	import { resolveSourceNetwork } from '$lib/sendswap/utils/sendOptions';
 	import SwapOptions from './stages/SwapOptions.svelte';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Complete from '$lib/sendswap/stages/Complete.svelte';
@@ -39,7 +40,13 @@
 			const stored = loadSwapSelection(SWAP_PAGE_PREF_KEY);
 			const fromOpt = findFromOpt(stored?.fromCoin) ?? getFromOption(Coin.btc.value);
 			const toOpt = findToOpt(stored?.toCoin) ?? getToOption(Coin.hive.value);
-			const fromNet = findNetwork(stored?.fromNetwork) ?? Network.magi;
+			// A stored pair is not re-checked anywhere else, so the impossible
+			// source H1 could create came back on every reload (M7). Resolve it
+			// against what the coin can actually be on.
+			const fromNet = resolveSourceNetwork(
+				fromOpt?.coin.value,
+				(findNetwork(stored?.fromNetwork) ?? Network.magi).value
+			);
 			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
 			// /swap page bridges external assets via Lightning even when
 			// neither from nor to is on the Lightning network — override the

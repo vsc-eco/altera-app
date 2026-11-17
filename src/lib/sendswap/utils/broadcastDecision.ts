@@ -1,4 +1,4 @@
-import { Network } from './sendOptions';
+import { Network, isSelectableSource } from './sendOptions';
 import type { CoinOnNetwork, IntermediaryNetwork } from './sendOptions';
 import { getIntermediaryNetwork } from './getNetwork';
 import type { TxState } from './txState.svelte';
@@ -49,11 +49,7 @@ export function decideBroadcast(txState: TxState, txType: TxType): BroadcastDeci
 	let defaultedTo: CoinOnNetwork | undefined;
 	if (!effectiveTo && txState.from) {
 		const defaultToNetwork =
-			txType === 'deposit'
-				? Network.magi
-				: txType === 'withdraw'
-					? Network.hiveMainnet
-					: undefined;
+			txType === 'deposit' ? Network.magi : txType === 'withdraw' ? Network.hiveMainnet : undefined;
 		if (defaultToNetwork) {
 			defaultedTo = { coin: txState.from.coin, network: defaultToNetwork };
 			effectiveTo = defaultedTo;
@@ -68,6 +64,32 @@ export function decideBroadcast(txState: TxState, txType: TxType): BroadcastDeci
 
 	if (intermediary.value === Network.lightning.value && txType !== 'withdraw') {
 		return { action: 'v4v', defaultedTo };
+	}
+
+	/**
+	 * Last gate before `send()`: a swap must start from a network its source
+	 * coin can actually be on.
+	 *
+	 * Without it an impossible pair — "HIVE on the Bitcoin network", which the
+	 * flip used to produce — reaches `send()`, which cannot classify it as a
+	 * swap and falls through to the generic builder. The result was a plain
+	 * transfer of the OUTPUT asset to whatever was left in `toUsername` (H1).
+	 * The flip and the restore are both fixed; this makes a wrong pair
+	 * unsignable whatever creates it next.
+	 *
+	 * Deliberately BELOW the v4v branch: a Lightning-routed swap
+	 * (`from.network = lightning`) is a real flow that never reaches `send()`,
+	 * and an earlier version of this guard broke it. Scoped to `swap` because
+	 * deposit and withdraw cross networks in ways this rule does not describe.
+	 */
+	if (
+		txType === 'swap' &&
+		!isSelectableSource(txState.from.coin.value, txState.from.network.value)
+	) {
+		return {
+			action: 'error',
+			message: `${txState.from.coin.label} cannot be swapped from ${txState.from.network.label}. Pick the source asset and network again.`
+		};
 	}
 
 	return { action: 'send', intermediary, defaultedTo };

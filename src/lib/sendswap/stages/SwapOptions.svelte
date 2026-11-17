@@ -17,7 +17,8 @@
 		Coin,
 		Network,
 		type CoinOnNetwork,
-		type AssetOption
+		type AssetOption,
+		resolveSourceNetwork
 	} from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
@@ -936,9 +937,16 @@
 		const prevFromCoin = txState.from.coin;
 		const prevFromNet = txState.from.network;
 		const prevToCoin = txState.to.coin;
-		// Tokens swap; FROM keeps its source network. TO network is managed
-		// by the destChoice $effect — don't set it here (preserve it).
-		txState.from = { coin: prevToCoin, network: prevFromNet };
+		// Tokens swap; FROM keeps its source network ONLY IF the incoming coin
+		// can be on it. It used to keep it unconditionally, which turned
+		// BTC/Bitcoin -> HIVE into "HIVE on the Bitcoin network" — a pair
+		// `send()` cannot classify as a swap, so Review signed a plain BTC
+		// transfer instead (H1). TO network is managed by the destChoice
+		// $effect — don't set it here (preserve it).
+		txState.from = {
+			coin: prevToCoin,
+			network: resolveSourceNetwork(prevToCoin.value, prevFromNet.value)
+		};
 		txState.to = { coin: prevFromCoin, network: txState.to.network };
 	}
 

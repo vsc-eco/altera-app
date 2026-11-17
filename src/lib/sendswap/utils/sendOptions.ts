@@ -229,3 +229,50 @@ export const getToOption = (coinValue: string | undefined): AssetOption | undefi
 if (import.meta.env.DEV) {
 	globalThis.coins = Coin;
 }
+
+/**
+ * Can `coinValue` be the SOURCE of a swap on `networkValue`?
+ *
+ * The swap card's flip handed the incoming coin whatever network the outgoing
+ * one had been on, which produces pairs like "HIVE on the Bitcoin network" —
+ * a coin on a network it cannot exist on. Nothing downstream rejected it:
+ * `send()` fails to classify such a pair as a swap and falls through to the
+ * plain-transfer builder, so pressing "Review swap" signed a BTC TRANSFER
+ * instead of a swap — to a leftover recipient if one was still in state (H1).
+ *
+ * Lightning is excluded on purpose: the source step never offers it, so a
+ * source sitting on it is the same kind of impossible state.
+ *
+ * A coin with no entry in `swapOptions.from` (a custom token, SATS) exists on
+ * Magi only, so Magi is the one legal answer for it.
+ */
+export function isSelectableSource(
+	coinValue: string | undefined,
+	networkValue: string | undefined
+): boolean {
+	if (!coinValue || !networkValue) return false;
+	if (networkValue === Network.lightning.value) return false;
+	const opt = getFromOption(coinValue);
+	if (!opt) return networkValue === Network.magi.value;
+	return opt.networks.some((n) => n.value === networkValue);
+}
+
+/**
+ * The network a coin should be sourced from: `preferred` when the coin can
+ * actually be there, otherwise the coin's own first selectable network.
+ *
+ * Used wherever a source pair is built from parts that may not belong
+ * together — the flip, and the pair restored from localStorage.
+ */
+export function resolveSourceNetwork(
+	coinValue: string | undefined,
+	preferredValue: string | undefined
+): Network {
+	if (isSelectableSource(coinValue, preferredValue)) {
+		const preferred = Object.values(Network).find((n) => n.value === preferredValue);
+		if (preferred) return preferred;
+	}
+	const opt = getFromOption(coinValue);
+	const first = opt?.networks.find((n) => n.value !== Network.lightning.value);
+	return first ?? Network.magi;
+}

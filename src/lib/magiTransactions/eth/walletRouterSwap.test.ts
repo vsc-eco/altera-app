@@ -10,9 +10,11 @@ import {
 } from '../hive/vscOperations/swap';
 
 const fetchAccountRc = vi.fn();
+const fetchBtcPayoutSwapMinRc = vi.fn();
 vi.mock('../hive/vscOperations/rcSizing', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../hive/vscOperations/rcSizing')>()),
-	fetchAccountRc: (did: string) => fetchAccountRc(did)
+	fetchAccountRc: (did: string) => fetchAccountRc(did),
+	fetchBtcPayoutSwapMinRc: () => fetchBtcPayoutSwapMinRc()
 }));
 
 const {
@@ -21,6 +23,8 @@ const {
 	walletRouterSwapInstruction,
 	walletSwapFromMagi
 } = await import('./walletRouterSwap');
+const { BTC_PAYOUT_SWAP_MIN_RC, BTC_PAYOUT_SWAP_MIN_RC_V0_15 } =
+	await import('../hive/vscOperations/rcSizing');
 
 const EVM = 'did:pkh:eip155:1:0x00000000000000000000000000000000000000a1';
 const LEATHER =
@@ -29,6 +33,7 @@ const BTC_TO = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
 
 beforeEach(() => {
 	fetchAccountRc.mockReset();
+	fetchBtcPayoutSwapMinRc.mockReset();
 });
 
 describe('buildWalletRouterSwapOps: the swap QuickSwap has always sent', () => {
@@ -264,6 +269,36 @@ describe('prepareWalletRouterSwap', () => {
 		const r = await prepareWalletRouterSwap(swap, 2500);
 		if (!r.ok) throw new Error(r.error);
 		expect(r.ops[0].payload.rc_limit).toBe(2500);
+	});
+	it('does not ask for the payout minimum when the swap stays on Magi', async () => {
+		fetchAccountRc.mockResolvedValue(3000);
+		await prepareWalletRouterSwap(swap, 0);
+		expect(fetchBtcPayoutSwapMinRc).not.toHaveBeenCalled();
+	});
+
+	const payout = {
+		caller: EVM,
+		fromCoin: Coin.hive,
+		toCoin: Coin.btc,
+		amount: new CoinAmount('100', Coin.hive),
+		minAmountOut: '1000',
+		destinationChain: 'BTC' as const,
+		recipient: BTC_TO
+	};
+	it('a BTC payout is sized against the minimum of the chain as it is now', async () => {
+		// 8 HBD of RC: under the original minimum, over the one from consensus 0.15.
+		fetchAccountRc.mockResolvedValue(8000);
+
+		fetchBtcPayoutSwapMinRc.mockResolvedValue(BTC_PAYOUT_SWAP_MIN_RC);
+		const before = await prepareWalletRouterSwap(payout, 0);
+		expect(before.ok).toBe(false);
+		if (before.ok) throw new Error('expected a refusal');
+		expect(before.error).toContain(`${BTC_PAYOUT_SWAP_MIN_RC.toLocaleString('en-US')} RC`);
+
+		fetchBtcPayoutSwapMinRc.mockResolvedValue(BTC_PAYOUT_SWAP_MIN_RC_V0_15);
+		const after = await prepareWalletRouterSwap(payout, 0);
+		if (!after.ok) throw new Error(after.error);
+		expect(after.ops[0].payload.rc_limit).toBe(8000);
 	});
 });
 

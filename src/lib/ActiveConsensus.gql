@@ -1,0 +1,7 @@
+query ActiveConsensus {
+	electionByBlockHeight {
+		epoch
+		version_major
+		protocol_version
+	}
+}

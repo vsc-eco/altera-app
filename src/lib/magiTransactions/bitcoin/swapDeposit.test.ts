@@ -25,6 +25,11 @@ function quickSwapInstruction(receiver: string, toAsset: string) {
 	}).toString();
 }
 
+// These pin the instruction SHAPE (swap_to / swap_asset_out /
+// destination_chain), so they set refundsActive explicitly rather than reading
+// DEPOSIT_SWAP_REFUNDS_ACTIVE — the live flag is now on, and a shape test
+// should not change meaning when it is flipped. The flag-on shape has its own
+// coverage in the 'deposit-swap refunds' block below.
 describe('buildBtcSwapInstruction', () => {
 	it.each(['innopay', '@innopay', 'hive:innopay', '  innopay  '])(
 		'settles on Hive like QuickSwap for receiver %j',
@@ -33,7 +38,8 @@ describe('buildBtcSwapInstruction', () => {
 				const r = buildBtcSwapInstruction({
 					recipient,
 					toCoin: coin.value,
-					toNetwork: Network.hiveMainnet.value
+					toNetwork: Network.hiveMainnet.value,
+					refundsActive: false
 				});
 				expect(r).toEqual({
 					ok: true,
@@ -48,7 +54,8 @@ describe('buildBtcSwapInstruction', () => {
 		const r = buildBtcSwapInstruction({
 			recipient: 'innopay',
 			toCoin: Coin.hbd.value,
-			toNetwork: Network.hiveMainnet.value
+			toNetwork: Network.hiveMainnet.value,
+			refundsActive: false
 		});
 		expect(r.ok && r.instruction).toBe(
 			'swap_to=hive%3Ainnopay&swap_asset_out=hbd&destination_chain=HIVE'
@@ -59,7 +66,8 @@ describe('buildBtcSwapInstruction', () => {
 		const r = buildBtcSwapInstruction({
 			recipient: BTC_ADDR,
 			toCoin: Coin.hbd.value,
-			toNetwork: Network.magi.value
+			toNetwork: Network.magi.value,
+			refundsActive: false
 		});
 		const did = `did:pkh:bip122:${BTC_MAINNET_CAIP}:${BTC_ADDR}`;
 		expect(r).toEqual({
@@ -71,9 +79,19 @@ describe('buildBtcSwapInstruction', () => {
 
 	it('passes a DID through and accepts a Hive account on Magi', () => {
 		const did = `did:pkh:bip122:${BTC_MAINNET_CAIP}:${BTC_ADDR}`;
-		const a = buildBtcSwapInstruction({ recipient: did, toCoin: 'hive', toNetwork: 'magi' });
+		const a = buildBtcSwapInstruction({
+			recipient: did,
+			toCoin: 'hive',
+			toNetwork: 'magi',
+			refundsActive: false
+		});
 		expect(a.ok && a.recipient).toBe(did);
-		const b = buildBtcSwapInstruction({ recipient: 'innopay', toCoin: 'hive', toNetwork: 'magi' });
+		const b = buildBtcSwapInstruction({
+			recipient: 'innopay',
+			toCoin: 'hive',
+			toNetwork: 'magi',
+			refundsActive: false
+		});
 		expect(b.ok && b.instruction).toBe('swap_to=hive%3Ainnopay&swap_asset_out=hive');
 	});
 
@@ -219,7 +237,9 @@ describe('deposit-swap refunds (refund_to, min_amount_out, minimum)', () => {
 			error:
 				'A swap paid with Bitcoin needs at least 0.0001 BTC, so a refund can always cover its network fee.'
 		});
-		expect(buildBtcSwapInstruction({ ...base, amountSats: 10_000 }).ok).toBe(true);
+		expect(buildBtcSwapInstruction({ ...base, amountSats: 10_000, refundsActive: false }).ok).toBe(
+			true
+		);
 	});
 
 	it('checks a Hive payout account exists', async () => {

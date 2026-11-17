@@ -58,13 +58,20 @@ export function getMemPoolTxUrl(btcTxId: string): string {
 
 /**
  * Deposit swaps paid with Bitcoin carry refund_to (the sender's own hive:
- * account or Bitcoin address) and min_amount_out. Off until the BTC mapping
- * contract that refunds to refund_to is active on this network: the contract
- * before it honours min_amount_out but pays a swap that misses it to swap_to,
- * which may be a third party. Turn on with the contract upgrade, before the
- * mapping bot starts requiring refund_to.
+ * account or Bitcoin address) and min_amount_out.
+ *
+ * ON since 2026-11-17. The precondition was the BTC mapping contract that
+ * refunds to refund_to being live on mainnet: before it, the contract honoured
+ * min_amount_out but paid a swap that missed it to swap_to, which may be a
+ * third party. That contract (vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d) activated
+ * at Hive block 111727937 — verified on chain, and by simulating its sendHome
+ * export, which only the new code has.
+ *
+ * The other end of the window: the mapping bot from go-vsc-node #309 REFUSES a
+ * swap_to without refund_to, so this must be on before that bot is deployed or
+ * every BTC deposit swap gets a 400. On first, bot second.
  */
-export const DEPOSIT_SWAP_REFUNDS_ACTIVE = false;
+export const DEPOSIT_SWAP_REFUNDS_ACTIVE = true;
 
 /**
  * Smallest deposit swap paid with Bitcoin, in sats: a failed swap's refund goes

@@ -53,7 +53,11 @@
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { browser } from '$app/environment';
-	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
+	import {
+		recipientHint,
+		validateRecipient,
+		type RecipientTarget
+	} from '$lib/sendswap/utils/recipientValidation';
 	import { isVscTestnet } from '../../../client';
 	import { getAlteraFeePct } from '$lib/magiTransactions/hive/vscOperations/swap';
 
@@ -506,18 +510,34 @@
 	// user picked "Send to address" on a mainnet settlement, the
 	// entered address must parse as a Bitcoin address on the right
 	// network. Non-BTC targets only require a non-empty string.
-	let destValid = $derived.by(() => {
-		if (destChoice === 'wallet') return true;
-		const addr = destAddress.trim();
-		if (!addr) return false;
-		const isBtcTarget = txState.to?.coin.value === Coin.btc.value;
-		const wantsMainnet = destNetworkChoice === 'mainnet';
-		if (isBtcTarget && wantsMainnet) {
-			const net = isVscTestnet() ? BtcNetwork.testnet : BtcNetwork.mainnet;
-			return validateBtcAddr(addr, net);
-		}
-		return true;
+	/**
+	 * Where the output actually lands, which is what decides the address
+	 * format the recipient field must accept.
+	 */
+	const recipientTarget = $derived.by<RecipientTarget>(() => {
+		if (destNetworkChoice === 'magi') return 'magi';
+		return txState.to?.coin.value === Coin.btc.value ? 'btc' : 'hive';
 	});
+
+	/**
+	 * Re-checked on every asset and network change, not just on submit: the
+	 * target moves under an address typed for a different one (a BTC address
+	 * left behind when the output switches to HIVE).
+	 *
+	 * Only BTC-on-mainnet used to be checked, and silently — the Review
+	 * button just stayed disabled with nothing saying why. A Hive payout took
+	 * any non-empty string, and a malformed name reverts the whole router
+	 * transaction on chain and spends the RC for nothing.
+	 */
+	const destCheck = $derived(
+		destChoice === 'wallet'
+			? ({ ok: true } as const)
+			: validateRecipient(destAddress, recipientTarget, { testnet: isVscTestnet() })
+	);
+	const destValid = $derived(destCheck.ok);
+	/** Shown only once something has been typed, so an untouched field is not
+	 *  scolded for being empty. */
+	const destError = $derived(!destCheck.ok && destAddress.trim() ? destCheck.reason : undefined);
 
 	/**
 	 * True when the input amount exceeds 50% of the relevant pool's input-side
@@ -1387,16 +1407,24 @@
 					</div>
 					<textarea
 						bind:value={destAddress}
-						placeholder="Paste Hive, BTC, EVM or DASH address... *"
+						placeholder="Paste {recipientHint(recipientTarget)}... *"
 						rows="2"
+						spellcheck="false"
+						autocapitalize="off"
+						aria-invalid={!!destError}
 						class:empty-required={destChoice === 'address' && !destAddress?.trim()}
+						class:invalid={!!destError}
 						disabled={destChoice !== 'address'}
 					></textarea>
-					<p class="dest-hint sm-caption">
-						{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi'
-							? 'Magi'
-							: chainLabel} &mdash; accepts Hive, BTC, EVM or DASH addresses
-					</p>
+					{#if destError}
+						<p class="dest-error sm-caption">{destError}</p>
+					{:else}
+						<p class="dest-hint sm-caption">
+							{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi'
+								? 'Magi'
+								: chainLabel} &mdash; accepts {recipientHint(recipientTarget)}
+						</p>
+					{/if}
 				</div>
 			</div>
 		{/if}
@@ -1904,6 +1932,12 @@
 				background-color: var(--dash-surface);
 			}
 		}
+	}
+	.dest-error {
+		color: var(--alt-red, #ff6b6b);
+	}
+	textarea.invalid {
+		border-color: var(--alt-red, #ff6b6b);
 	}
 	.dest-hint {
 		margin: 0;

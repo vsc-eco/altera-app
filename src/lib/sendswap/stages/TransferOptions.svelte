@@ -434,9 +434,23 @@
 	/** Step 1's chips. Magi is the only source a chip offers — the dialog
 	 *  below step 1 still reaches a mainnet balance. `max` follows from the
 	 *  effect above, so nothing here has to set it. */
+	/**
+	 * Step 1's chips change the ASSET, not the route.
+	 *
+	 * They used to force the destination to Magi as well. The effect that maps
+	 * the route dropdown to `txState.to.network` only re-runs when
+	 * `currentType` or the option set changes, so neither noticed: the
+	 * dropdown went on showing "mainnet" while the transfer had been quietly
+	 * pointed at Magi, and the funds arrived there (M6).
+	 *
+	 * The destination the user picked is kept. If the new asset cannot go
+	 * there, the option-set effect above recomputes `toNetworkOptions` — the
+	 * coin is one of its dependencies — and corrects it.
+	 */
 	function pickAsset(coin: Coin) {
+		const keepDestination = txState.to?.network ?? Network.magi;
 		txState.from = { coin, network: Network.magi };
-		txState.to = { coin, network: Network.magi };
+		txState.to = { coin, network: keepDestination };
 	}
 
 	/** The balance behind each chip, for the sub-line. */

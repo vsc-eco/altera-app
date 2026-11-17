@@ -59,7 +59,11 @@
 		type RecipientTarget
 	} from '$lib/sendswap/utils/recipientValidation';
 	import { isVscTestnet } from '../../../client';
-	import { getAlteraFeePct } from '$lib/magiTransactions/hive/vscOperations/swap';
+	import {
+		alteraFeePct,
+		applyAlteraFeeBig,
+		swapPaysAlteraFee
+	} from '$lib/magiTransactions/hive/vscOperations/swap';
 
 	let {
 		editStage,
@@ -297,7 +301,12 @@
 				txState.swapHop1Fee = hop1;
 			}
 
-			const outputAmt = new CoinAmount(Number(result.expectedOutput), toCoin.coin, true);
+			// Display amount, so after the Altera fee like the rows below.
+			const outputAmt = new CoinAmount(
+				Number(applyAlteraFeeBig(result.expectedOutput)),
+				toCoin.coin,
+				true
+			);
 			const outputStr = outputAmt.toAmountString();
 			if (txState.toAmount !== outputStr) {
 				txState.toAmount = outputStr;
@@ -314,11 +323,41 @@
 		});
 	}
 
+	/**
+	 * What the card SHOWS, after the Altera fee.
+	 *
+	 * The quote from `calculateRouteSwap` is pool math only. The transaction
+	 * then scales `min_amount_out` down by the fee because the contract checks
+	 * it AFTER the fee comes off — so the card used to promise 0.25% more
+	 * output, and a higher floor, than the swap could actually pay (F1).
+	 *
+	 * `txState.minAmountOut` deliberately stays the PRE-fee number: the
+	 * builders apply the reduction themselves, and doing it here as well would
+	 * charge it twice.
+	 */
+	// `$derived.by` and not `$derived(...)`: at module level TS narrows
+	// `swapResult` to the `null` it was initialised with — every reassignment
+	// is inside a closure — so an inline ternary types the truthy branch as
+	// `never`. A function body resets that narrowing, which is why the other
+	// readers of `swapResult` here are all `.by` too.
+	const shownExpectedOutput = $derived.by(() => {
+		if (!swapResult) return 0n;
+		return swapPaysAlteraFee()
+			? applyAlteraFeeBig(swapResult.expectedOutput)
+			: swapResult.expectedOutput;
+	});
+	const shownMinAmountOut = $derived.by(() => {
+		if (!swapResult) return 0n;
+		return swapPaysAlteraFee()
+			? applyAlteraFeeBig(swapResult.minAmountOut)
+			: swapResult.minAmountOut;
+	});
+
 	let expectedOutputUsd = $derived.by(() => {
 		const toCoinDef = txState.to;
 		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
 			return null;
-		return (Number(swapResult.expectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+		return (Number(shownExpectedOutput) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
 	});
 
 	let minAmountOutUsd = $derived.by(() => {
@@ -337,9 +376,7 @@
 		return amt * fromPriceUsdRaw;
 	});
 
-	let exchangeFeePct = $derived(
-		getAlteraFeePct(txState.from?.coin.value ?? '', txState.to?.coin.value ?? '')
-	);
+	let exchangeFeePct = $derived(alteraFeePct());
 
 	/**
 	 * Total protocol fee across all hops in USD.
@@ -1437,13 +1474,13 @@
 				{advanced}
 				{priceImpactPct}
 				expectedOutput={swapResult
-					? `${formatSmallUnits(swapResult.expectedOutput, toDec)} ${toUnit}`
+					? `${formatSmallUnits(shownExpectedOutput, toDec)} ${toUnit}`
 					: undefined}
 				expectedOutputUsd={expectedOutputUsd !== null
 					? `\u2248 ${formatUsd(expectedOutputUsd)}`
 					: null}
 				minAmountOut={swapResult
-					? `${formatSmallUnits(swapResult.minAmountOut, toDec)} ${toUnit}`
+					? `${formatSmallUnits(shownMinAmountOut, toDec)} ${toUnit}`
 					: undefined}
 				minAmountOutUsd={minAmountOutUsd !== null ? `\u2248 ${formatUsd(minAmountOutUsd)}` : null}
 				protocolFeeUsd={totalProtocolFeeUsd !== null

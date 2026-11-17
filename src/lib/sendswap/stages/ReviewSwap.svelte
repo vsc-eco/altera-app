@@ -25,8 +25,8 @@
 	} from '$lib/magiTransactions/bitcoin/btcFeeEstimate';
 	import {
 		ALTERA_FEE_BPS,
-		ALTERA_FEE_USD_THRESHOLD,
-		getAlteraFeePct
+		alteraFeePct,
+		swapPaysAlteraFee
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import {
 		computeNetToAmountSmallest,
@@ -152,7 +152,11 @@
 	// "amount in" the user commits is simply the gross entered amount.
 	let netSwapFromAmountCa = $derived(new CoinAmount(effectiveFromAmount, fromCoin));
 	let effectiveToAmount = $derived(txState.toAmount || '0');
-	const exchangeFeePct = $derived(getAlteraFeePct(fromCoin.value, toCoin.value));
+	// One rule, shared with the transaction builders: every swap pays while
+	// the fee is active. This screen used to carry its own copy — output must
+	// leave Magi, never HIVE/HBD, over a USD threshold — which disagreed with
+	// what was actually charged.
+	const exchangeFeePct = $derived(alteraFeePct());
 	const isLightningWithdraw = $derived(
 		isLightningWithdrawFlow({
 			kind: txState.kind,
@@ -350,15 +354,7 @@
 				grossInUsd = amt;
 			});
 	});
-	const alteraFeeApplies = $derived(
-		effectiveAlteraFeeBps > 0 &&
-		!!txState.to &&
-			txState.to.network.value !== Network.magi.value &&
-			toCoin.value !== Coin.hive.value &&
-			toCoin.value !== Coin.hbd.value &&
-			!!grossInUsd &&
-			grossInUsd.toNumber() >= ALTERA_FEE_USD_THRESHOLD
-	);
+	const alteraFeeApplies = $derived(effectiveAlteraFeeBps > 0 && swapPaysAlteraFee());
 	const alteraFeeAmount = $derived.by(() => {
 		if (!alteraFeeApplies) return undefined;
 		const out = convertedToAmount ?? new CoinAmount(effectiveToAmount, toCoin);

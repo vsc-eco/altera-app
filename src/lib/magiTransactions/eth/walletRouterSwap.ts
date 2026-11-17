@@ -13,11 +13,11 @@ import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import {
-	ALTERA_FEE_ACTIVE,
+	swapPaysAlteraFee,
+	applyAlteraFee,
 	ALTERA_FEE_BENEFICIARY,
 	ALTERA_FEE_BPS,
 	hasQuoteMinimum,
-	qualifiesForAlteraFee,
 	SWAP_CONTRACT_ID,
 	SWAP_NEEDS_QUOTE_MESSAGE
 } from '../hive/vscOperations/swap';
@@ -64,7 +64,7 @@ export function walletRouterSwapInstruction(
 	// scale the quote's pre-fee minimum down by the same bps.
 	const min =
 		feeQualifies && storeMin
-			? String(Math.floor((Number(storeMin) * (10000 - ALTERA_FEE_BPS)) / 10000))
+			? String(applyAlteraFee(Number(storeMin)))
 			: (storeMin ?? '0');
 	const instruction: Record<string, string | number> = {
 		type: 'swap',
@@ -140,8 +140,7 @@ export async function prepareWalletRouterSwap(
 	fallbackRc?: number
 ): Promise<WalletRouterSwapOps> {
 	const feeQualifies =
-		ALTERA_FEE_ACTIVE &&
-		(await qualifiesForAlteraFee(swap.amount, swap.toCoin, swap.destinationChain || undefined));
+		swapPaysAlteraFee();
 	const availableRc = (await fetchAccountRc(swap.caller)) ?? fallbackRc ?? 0;
 	return buildWalletRouterSwapOps(swap, { feeQualifies, availableRc });
 }

@@ -48,7 +48,7 @@
 	import {
 		getHiveSwapOp,
 		getBtcApproveOp,
-		getAlteraFeePct,
+		alteraFeePct,
 		hasQuoteMinimum,
 		SWAP_NEEDS_QUOTE_MESSAGE
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
@@ -364,7 +364,7 @@
 	}
 
 	let exchangeFeePct = $derived(
-		getAlteraFeePct(txState.from?.coin.value ?? '', txState.to?.coin.value ?? '')
+		alteraFeePct()
 	);
 
 	/**

@@ -3,69 +3,68 @@ import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId, DEX_ROUTER_CONTRACT_ID } from '../../../../client';
 import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
-import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 
 export const ALTERA_FEE_BENEFICIARY = 'hive:altera.app';
 export const ALTERA_FEE_BPS = 25;
-export const ALTERA_FEE_USD_THRESHOLD = 0;
+
 /**
  * Master switch for the Altera exchange fee.
- * Set to true to start charging ALTERA_FEE_BPS on qualifying swaps
- * and show the amber fee badge in the UI.
- * Set to false → fee is not charged and the UI shows "Free" (green).
+ *
+ * OFF for now. Turning it on is a separate, deliberate change — the policy
+ * below is implemented either way so that the switch is the only thing left
+ * to flip, and so the card already shows what the transaction will do.
  */
 export const ALTERA_FEE_ACTIVE = false;
 
 /**
- * Returns the exchange fee percentage to display in the UI for a given swap pair.
+ * Does this swap pay the Altera fee?
  *
- * - HIVE/HBD → BTC: ALTERA_FEE_ACTIVE ? ALTERA_FEE_BPS/100 : 0  (amber when >0, green "Free" when 0)
- * - BTC → HIVE/HBD: always 0  ("Free" — Altera never charges on BTC purchases)
- * - HIVE ↔ HBD:     null       (row hidden — no Altera fee applies)
+ * **Every swap does, while the fee is active.** Any input asset, any output
+ * asset, any destination — kept on Magi included. No minimum and no cap.
  *
- * To change the fee rate: update ALTERA_FEE_BPS.
- * To enable/disable:      flip ALTERA_FEE_ACTIVE.
+ * It used to be far narrower, and wrong against the policy: it charged only
+ * when the output LEFT Magi, never when the output was HIVE or HBD, and never
+ * for inputs other than HIVE/HBD/BTC, so ETH and custom tokens were free. It
+ * also looked up a USD price to compare against a $100 threshold that had
+ * already been set to 0 — a price call that could fail, on a path where
+ * failing meant silently not charging.
+ *
+ * Charged ONCE per swap. That is the contract's doing, not ours: the pool
+ * takes `ref_bps` from the swap's final output, and on a two-hop route the
+ * router passes `beneficiary`/`ref_bps` on the second hop only.
+ *
+ * Deliberately takes no arguments. Five places used to hold their own copy of
+ * a fee rule and they had drifted apart; there is nothing left to disagree
+ * about.
  */
-export function getAlteraFeePct(assetIn: string, assetOut: string): number | null {
-	const aIn = assetIn.toLowerCase();
-	const aOut = assetOut.toLowerCase();
-	const effectivePct = ALTERA_FEE_ACTIVE ? ALTERA_FEE_BPS / 100 : 0;
-	if (aOut === 'btc') return effectivePct;
-	if (aIn === 'btc') return 0; // BTC → HIVE/HBD always free
-	return null; // HIVE ↔ HBD — no Altera fee
+export function swapPaysAlteraFee(): boolean {
+	return ALTERA_FEE_ACTIVE;
+}
+
+/** The fee as a percentage, for display. 0 while the switch is off. */
+export function alteraFeePct(): number {
+	return ALTERA_FEE_ACTIVE ? ALTERA_FEE_BPS / 100 : 0;
 }
 
 /**
- * Altera charges a UI usage fee on swaps that leave the Hive/Magi ecosystem
- * to a non-HIVE, non-HBD mainnet target when the input value is at least
- * $100 USD. Prices come from the same v4v feed the UI already uses.
+ * Take the fee off an output amount in smallest units.
+ *
+ * The contract checks `min_amount_out` AFTER the fee comes off, so the same
+ * reduction has to be applied to the minimum we send and to the figures the
+ * card shows — otherwise the card promises 0.25% more than the swap can pay.
+ *
+ * UNCONDITIONAL on purpose: whether the fee applies is `swapPaysAlteraFee()`,
+ * and the caller asks that separately. `buildRouterInstruction` is TOLD
+ * whether the fee applies, as a parameter, so a version of this that also
+ * re-read the global switch quietly stopped scaling for it.
  */
-export async function qualifiesForAlteraFee(
-	amountIn: CoinAmount<Coin>,
-	assetOut: Coin,
-	destinationChain?: string
-): Promise<boolean> {
-	if (!destinationChain || destinationChain === 'MAGI') return false;
-	if (assetOut.value === Coin.hive.value || assetOut.value === Coin.hbd.value) return false;
+export function applyAlteraFee(amountSmallestUnits: number): number {
+	return Math.floor((amountSmallestUnits * (10000 - ALTERA_FEE_BPS)) / 10000);
+}
 
-	const prices = await getCryptoPrices();
-	let usdPerUnit: number;
-	switch (amountIn.coin.value) {
-		case Coin.hive.value:
-			usdPerUnit = prices.hive.usd;
-			break;
-		case Coin.hbd.value:
-			usdPerUnit = prices.hive_dollar.usd;
-			break;
-		case Coin.btc.value:
-			usdPerUnit = prices.bitcoin.usd;
-			break;
-		default:
-			return false;
-	}
-	if (!Number.isFinite(usdPerUnit) || usdPerUnit <= 0) return false;
-	const usdValue = amountIn.toNumber() * usdPerUnit;
-	return usdValue >= ALTERA_FEE_USD_THRESHOLD;
+/** The same reduction for the bigint amounts the swap quote works in. */
+export function applyAlteraFeeBig(amountSmallestUnits: bigint): bigint {
+	return (amountSmallestUnits * BigInt(10000 - ALTERA_FEE_BPS)) / 10000n;
 }
 
 /**
@@ -167,18 +166,14 @@ export async function getHiveSwapOp(
 	const caller = `hive:${username}`;
 	const isNative = assetIn.value === Coin.hive.value || assetIn.value === Coin.hbd.value;
 
-	// Gated by ALTERA_FEE_ACTIVE — set that to true (and restore the real call below)
-	// to re-enable. Note: refBps is a nil check on the contract, not a zero check,
-	// so we cannot disable by setting BPS to 0; we must omit the field entirely.
-	// const feeQualifies = await qualifiesForAlteraFee(amount, assetOut, destinationChain);
-	const feeQualifies = ALTERA_FEE_ACTIVE && await qualifiesForAlteraFee(amount, assetOut, destinationChain);
-	// Contract validates min_amount_out AFTER the referral/altera deduction.
-	// Scale the caller's pre-fee min down by the same bps so slippage
-	// tolerance is measured against what the user actually receives.
+	// `ref_bps` is a nil check on the contract, not a zero check, so the fee is
+	// disabled by omitting the field entirely rather than sending 0.
+	const feeQualifies = swapPaysAlteraFee();
+	// The contract validates min_amount_out AFTER the fee comes off, so scale
+	// the caller's pre-fee minimum by the same bps: slippage tolerance is then
+	// measured against what the user actually receives.
 	const finalMinAmountOut =
-		feeQualifies && minAmountOut !== undefined
-			? Math.floor((minAmountOut * (10000 - ALTERA_FEE_BPS)) / 10000)
-			: minAmountOut;
+		feeQualifies && minAmountOut !== undefined ? applyAlteraFee(minAmountOut) : minAmountOut;
 
 	// TODO: estimate RC usage
 	let rcLimit = 2000;

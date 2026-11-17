@@ -16,7 +16,7 @@
 	import { numberFormatLanguage } from '$lib/constants';
 	import {
 		ALTERA_FEE_BPS,
-		ALTERA_FEE_USD_THRESHOLD
+		swapPaysAlteraFee
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 
 	const txState = requireTxState();
@@ -94,13 +94,10 @@
 				inUsd = amount.toNumber();
 			});
 	});
-	const alteraFeeApplies = $derived(
-		!!txState.to &&
-			txState.to.network.value !== Network.magi.value &&
-			toCoin.value !== Coin.hive.value &&
-			toCoin.value !== Coin.hbd.value &&
-			inUsd >= ALTERA_FEE_USD_THRESHOLD
-	);
+	// Same single rule as the transaction and the Review screen. This used to
+	// be a fourth copy of the old one (output must leave Magi, never HIVE/HBD,
+	// over a USD threshold), so a receipt could disagree with what was charged.
+	const alteraFeeApplies = $derived(swapPaysAlteraFee());
 	const alteraFeeAmount = $derived.by(() => {
 		if (!alteraFeeApplies) return undefined;
 		const out = new CoinAmount(txState.toAmount, toCoin);

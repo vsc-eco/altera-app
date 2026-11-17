@@ -10,7 +10,13 @@
 	 * The clamping and the percent↔bps conversion come from `$lib/calc`, like
 	 * every other number in the app.
 	 */
-	import { bpsToPct, clampSlippagePct, pctToBps } from '$lib/calc';
+	import {
+		bpsToPct,
+		clampSlippagePct,
+		pctToBps,
+		MAX_SLIPPAGE_PCT,
+		SLIPPAGE_WARN_PCT
+	} from '$lib/calc';
 
 	let {
 		slippageBps = $bindable(),
@@ -39,8 +45,15 @@
 	const invalid = $derived.by(() => {
 		if (!customInput.trim()) return false;
 		const v = parseFloat(customInput.replace(',', '.'));
-		return isNaN(v) || v <= 0 || v > 99.99;
+		return isNaN(v) || v <= 0 || v > MAX_SLIPPAGE_PCT;
 	});
+
+	/**
+	 * A tolerance this high is how a swap gets filled at almost any price, so
+	 * it is said out loud rather than left to the "Min received" row. The
+	 * clamp used to top out at 99.99% and say nothing at all (M3).
+	 */
+	const warnHigh = $derived(bpsToPct(slippageBps) > SLIPPAGE_WARN_PCT);
 
 	const isPreset = $derived(options.includes(slippageBps));
 
@@ -117,7 +130,21 @@
 	{/if}
 </div>
 
+{#if warnHigh}
+	<p class="slippage-warning" role="status">
+		A {parseFloat(bpsToPct(slippageBps).toFixed(2))}% tolerance lets this swap fill well below the
+		quote. Most swaps need 3% or less.
+	</p>
+{/if}
+
 <style lang="scss">
+	.slippage-warning {
+		margin: 0.4rem 0 0;
+		font-size: 0.72rem;
+		line-height: 1.4;
+		color: var(--alt-red, #ff6b6b);
+	}
+
 	.slippage-options {
 		box-sizing: border-box;
 		display: flex;

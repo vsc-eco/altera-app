@@ -209,7 +209,21 @@ export function netAfterBpsBig(amount: bigint, bps: number): bigint {
 }
 
 /** Clamp a user-entered slippage percentage into what the form allows. */
-export function clampSlippagePct(pct: number, min = 0.01, max = 99.99): number {
+/**
+ * The highest slippage the swap card will accept.
+ *
+ * The clamp used to allow 99.99%, which is not a tolerance — it is consent to
+ * receive almost nothing. Typing 250 silently became 99.99 and "Min received"
+ * fell to 1/100th of the quote with nothing on screen to say so. 50% is still
+ * far beyond any real swap and leaves the clamp as a backstop rather than a
+ * setting.
+ */
+export const MAX_SLIPPAGE_PCT = 50;
+
+/** Above this, the card warns. Normal swaps sit at 0.5–3%. */
+export const SLIPPAGE_WARN_PCT = 5;
+
+export function clampSlippagePct(pct: number, min = 0.01, max = MAX_SLIPPAGE_PCT): number {
 	if (!Number.isFinite(pct)) return min;
 	return Math.min(max, Math.max(min, pct));
 }

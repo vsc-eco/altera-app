@@ -83,8 +83,9 @@
 		<Notice
 			tone="warn"
 			hint="Unstaking takes effect over five elections so the committee can't be drained
-			      between two blocks. Your HIVE stays staked — and keeps earning — until the
-			      cooldown ends, then lands in your liquid balance automatically."
+			      between two blocks. Your stake is removed straight away — it stops counting
+			      and stops earning now — and the HIVE lands in your liquid balance when the
+			      cooldown ends."
 		>
 			Unstaked HIVE returns after about a day (five elections).
 		</Notice>

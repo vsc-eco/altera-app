@@ -30,6 +30,7 @@ import {
 	netAfterBps,
 	netAfterBpsBig,
 	clampSlippagePct,
+	MAX_SLIPPAGE_PCT,
 	// §3 money
 	formatUsd,
 	formatUsdPrice,
@@ -276,7 +277,10 @@ describe('basis points', () => {
 
 	it('clamps a typed slippage into the range the form offers', () => {
 		expect(clampSlippagePct(0)).toBe(0.01);
-		expect(clampSlippagePct(150)).toBe(99.99);
+		// 99.99% is consent to receive almost nothing, not a tolerance (M3).
+		expect(clampSlippagePct(150)).toBe(MAX_SLIPPAGE_PCT);
+		expect(clampSlippagePct(75)).toBe(MAX_SLIPPAGE_PCT);
+		expect(clampSlippagePct(49)).toBe(49);
 		expect(clampSlippagePct(0.5)).toBe(0.5);
 		expect(clampSlippagePct(Number.NaN)).toBe(0.01);
 	});

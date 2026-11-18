@@ -497,7 +497,20 @@ export function nativeRates(unit: string, p: FeedPrices): Record<string, number>
 				HBD: 1 / p.hbdUsd,
 				USD: 1,
 				BTC: 1 / p.btcUsd,
-				SATS: satsToBtc(p.btcUsd)
+				/**
+				 * Sats per USD, which is the INVERSE of the USD-per-sat rate
+				 * below — written as that inverse so the two cannot disagree.
+				 *
+				 * Both directions used to read `satsToBtc(btcUsd)`, the same
+				 * expression, which can only be right if the rate is 1: at
+				 * $90k it answered 0.0009 sats per dollar instead of 1,111, a
+				 * factor of 1.2 million. Carried over from `main` by the math
+				 * move, and latent rather than live — nothing converts FROM
+				 * USD today, it is only ever a display target. Not rounded
+				 * with `btcToSats`: this is a rate, and rates are not whole
+				 * numbers of satoshis.
+				 */
+				SATS: 1 / satsToBtc(p.btcUsd)
 			};
 		case 'BTC':
 			return {

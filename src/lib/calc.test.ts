@@ -399,6 +399,31 @@ describe('exchange rates', () => {
 		expect(hive.HBD * hbd.HIVE).toBeCloseTo(1, 10);
 	});
 
+	/**
+	 * L1 asked whether changing the USD source during the math move was a
+	 * regression. It is the opposite, and this is the property that says so.
+	 *
+	 * `main` priced HIVE→USD from v4v's `Hive_USD` but USD→HIVE from
+	 * `1 / prices.hive.usd` — a different field of the feed — so a USD amount
+	 * converted to HIVE and back did not come home. Every direction here is
+	 * derived from ONE rate per pair, so every round trip is exact.
+	 */
+	it('round-trips every native pair through USD and back', () => {
+		for (const unit of ['HIVE', 'HBD', 'BTC', 'SATS']) {
+			const out = nativeRates(unit, PRICES)!;
+			const back = nativeRates('USD', PRICES)!;
+			expect(out.USD * back[unit], `${unit}→USD→${unit}`).toBeCloseTo(1, 10);
+		}
+	});
+
+	it('round-trips every native pair through BTC and back', () => {
+		for (const unit of ['HIVE', 'HBD', 'USD']) {
+			const out = nativeRates(unit, PRICES)!;
+			const back = nativeRates('BTC', PRICES)!;
+			expect(out.BTC * back[unit], `${unit}→BTC→${unit}`).toBeCloseTo(1, 10);
+		}
+	});
+
 	it('composes a custom token through HBD in both directions', () => {
 		const tokens = { LASSECASH: 0.0007 }; // HBD per token
 		const fromHbd = composeRates('HBD', PRICES, tokens)!;
@@ -778,5 +803,26 @@ describe('alignedAxisTop', () => {
 		expect(alignedAxisTop(5, [3])).toBe(5);
 		expect(alignedAxisTop(5, [2, 2])).toBe(5);
 		expect(alignedAxisTop(Number.NaN, [0, 1])).toBeNaN();
+	});
+});
+
+/**
+ * Found by the round-trip property above: both directions of the USD/SATS
+ * pair read the same expression, so one of them had to be wrong.
+ */
+describe('USD to SATS', () => {
+	it('is sats per dollar, not dollars per sat', () => {
+		// $90,000/BTC → 1 BTC per $90k → 1e8/90000 ≈ 1,111 sats per dollar.
+		expect(nativeRates('USD', PRICES)!.SATS).toBeCloseTo(1_111.111, 3);
+	});
+
+	it('is the exact inverse of the sats-to-USD rate', () => {
+		const perSat = nativeRates('SATS', PRICES)!.USD;
+		expect(nativeRates('USD', PRICES)!.SATS).toBeCloseTo(1 / perSat, 10);
+	});
+
+	it('is not rounded to a whole satoshi — it is a rate', () => {
+		const odd = { ...PRICES, btcUsd: 87_654 };
+		expect(nativeRates('USD', odd)!.SATS % 1).not.toBe(0);
 	});
 });

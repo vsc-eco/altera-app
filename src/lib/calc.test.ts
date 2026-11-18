@@ -33,6 +33,7 @@ import {
 	MAX_SLIPPAGE_PCT,
 	// §3 money
 	formatUsd,
+	formatUsdCost,
 	formatUsdPrice,
 	compactCount,
 	compactUsd,
@@ -701,5 +702,30 @@ describe('small helpers', () => {
 		expect(netAfterFees(1000, 10, 20)).toBe(970);
 		expect(netAfterFees(1000, undefined, 20)).toBe(980);
 		expect(netAfterFees(10, 50)).toBe(0);
+	});
+});
+
+describe('formatUsdCost', () => {
+	/** L3: a real fee under a cent rendered as "$0.00" and read as free. */
+	it('never rounds a real cost down to zero', () => {
+		expect(formatUsdCost(0.003)).toBe('< $0.01');
+		expect(formatUsdCost(0.0099)).toBe('< $0.01');
+		expect(formatUsdCost(-0.004)).toBe('-< $0.01');
+	});
+
+	it('keeps $0.00 for an actually free swap', () => {
+		expect(formatUsdCost(0)).toBe('$0.00');
+	});
+
+	it('formats a cent and above normally', () => {
+		expect(formatUsdCost(0.01)).toBe('$0.01');
+		expect(formatUsdCost(1.5)).toBe('$1.50');
+		expect(formatUsdCost(65006.26)).toBe('$65,006.26');
+	});
+
+	it('matches formatUsd for missing values', () => {
+		expect(formatUsdCost(null)).toBe(formatUsd(null));
+		expect(formatUsdCost(undefined)).toBe(formatUsd(undefined));
+		expect(formatUsdCost(Number.NaN)).toBe(formatUsd(Number.NaN));
 	});
 });

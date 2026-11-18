@@ -258,6 +258,21 @@ export function formatUsd(amount: number | undefined | null): string {
 }
 
 /**
+ * A cost, where rounding to zero is a lie.
+ *
+ * `formatUsd` renders a fee of a third of a cent as "$0.00", so a quote that
+ * charges a real fee read as free — and on a small swap those minimum fees are
+ * the dominant cost, not a rounding error (L3: 10 HIVE → BTC loses 0.72% to
+ * them). Exactly zero is still "$0.00", because then it IS free.
+ */
+export function formatUsdCost(amount: number | undefined | null): string {
+	if (amount == null || !Number.isFinite(amount) || amount === 0) return formatUsd(amount);
+	const abs = Math.abs(amount);
+	if (abs < 0.01) return `${amount < 0 ? '-' : ''}< $0.01`;
+	return formatUsd(amount);
+}
+
+/**
  * A per-unit price. Cents are enough for HIVE, HBD and BTC, but a custom
  * token can trade at $0.0007 — `formatUsd` renders that as `$0.00` and the
  * whole column reads as worthless — so below a cent this keeps three

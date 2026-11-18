@@ -25,7 +25,7 @@
 	import AmountInput from '$lib/currency/AmountInput.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import { ArrowDown, ArrowUpDown, ChevronRight, Search, Send, Wallet, X } from '@lucide/svelte';
-	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsd, formatUsdCost } from '$lib/currency/CoinAmount';
 	import { usdPerUnit } from '$lib/currency/convert';
 	import Dialog from '$lib/zag/Dialog.svelte';
 	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
@@ -1577,7 +1577,7 @@
 					: undefined}
 				minAmountOutUsd={minAmountOutUsd !== null ? `\u2248 ${formatUsd(minAmountOutUsd)}` : null}
 				protocolFeeUsd={totalProtocolFeeUsd !== null
-					? `\u2248 ${formatUsd(totalProtocolFeeUsd)}`
+					? `\u2248 ${formatUsdCost(totalProtocolFeeUsd)}`
 					: null}
 				twoHop={!!swapResult?.hop1Fee}
 				{exchangeFeePct}

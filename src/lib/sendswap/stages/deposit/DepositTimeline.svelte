@@ -76,7 +76,7 @@
 	//   step 2 = where the funds physically come FROM (network / rail)
 	//   step 3 = sign-and-send details
 	const stepDefs = [
-		{ id: 'asset', label: 'I want to receive' },
+		{ id: 'asset', label: 'Asset to deposit' },
 		{ id: 'source', label: 'From' },
 		{ id: 'send', label: 'Send' }
 	] as const;

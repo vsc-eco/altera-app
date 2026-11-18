@@ -22,7 +22,7 @@ export type UnkCoinAmount = CoinAmount<Coin>;
  */
 
 /** "The user has entered a usable amount" — true iff `s` is finite and > 0. */
-export { isValidAmountString, formatUsd } from '$lib/calc';
+export { isValidAmountString, formatUsd, formatUsdCost } from '$lib/calc';
 
 export class CoinAmount<C extends Coin> {
 	coin: C;

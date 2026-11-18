@@ -22,7 +22,7 @@
 	 * this only decides how they read.
 	 */
 	import { TriangleAlert } from '@lucide/svelte';
-	import { Hint, StatRow } from '$lib/ui';
+	import { Hint, Spinner, StatRow } from '$lib/ui';
 	import SlippageControl from './SlippageControl.svelte';
 
 	let {
@@ -163,15 +163,21 @@
 			</StatRow>
 		</div>
 	{:else if poolLoadFailed || poolLoadingRetry}
-		<div class="pool-warning">
-			<TriangleAlert size={14} />
-			{#if poolLoadingRetry}
+		<!-- Loading and failing used to share the amber box and the warning
+		     triangle, so waiting a moment looked like something had gone
+		     wrong. Only the failure is a warning now. -->
+		{#if poolLoadingRetry}
+			<div class="pool-loading">
+				<Spinner size={14} />
 				<span>Loading pool data…</span>
-			{:else}
+			</div>
+		{:else}
+			<div class="pool-warning">
+				<TriangleAlert size={14} />
 				<span>Unable to load pool data.</span>
 				<button type="button" class="pool-retry-btn" onclick={() => onRetry?.()}>Retry</button>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -258,6 +264,18 @@
 		font-size: var(--text-xs);
 		font-weight: 400;
 		color: var(--dash-text-muted);
+	}
+
+	.pool-loading {
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		font-size: var(--text-sm);
+		color: var(--dash-text-muted);
+		margin: 0.5rem;
+		padding: 0.5rem 0.75rem;
 	}
 
 	.pool-warning {

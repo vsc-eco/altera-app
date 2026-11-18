@@ -2,7 +2,9 @@
 	import { getAuth } from '$lib/auth/store';
 	import { solveNetworkConstraints, optionsEqual } from '$lib/sendswap/utils/sendUtils';
 	import { SwapTxState, provideTxState } from '$lib/sendswap/utils/txState.svelte';
-	import swapOptions, { getFromOption, getToOption,
+	import swapOptions, {
+		getFromOption,
+		getToOption,
 		Coin,
 		Network,
 		type CoinOnNetwork
@@ -18,7 +20,7 @@
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
-	import { CoinAmount } from '$lib/currency/CoinAmount';
+	import { CoinAmount, formatUsdCost } from '$lib/currency/CoinAmount';
 	import { usdPerUnit } from '$lib/currency/convert';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import Dialog from '$lib/zag/Dialog.svelte';
@@ -335,14 +337,6 @@
 		);
 	});
 
-	function formatUsd(amount: number): string {
-		return amount.toLocaleString(undefined, {
-			useGrouping: true,
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2
-		});
-	}
-
 	/**
 	 * Formats a coin amount for the Rate row — always decimal notation, no scientific
 	 * notation, trailing zeros stripped, thousands separator on the integer part only.
@@ -363,9 +357,7 @@
 		return `${formatted} ${amt.getDisplayUnit()}`;
 	}
 
-	let exchangeFeePct = $derived(
-		alteraFeePct()
-	);
+	let exchangeFeePct = $derived(alteraFeePct());
 
 	/**
 	 * Total protocol fee across all hops in USD.
@@ -737,10 +729,7 @@
 		// If the user picks the token that's already in the OTHER slot,
 		// swap positions: FROM ↔ TO. This avoids ending up with the same
 		// token on both sides and feels natural (like PancakeSwap).
-		const otherValue =
-			currentlyOpen === 'from'
-				? txState.to?.coin.value
-				: txState.from?.coin.value;
+		const otherValue = currentlyOpen === 'from' ? txState.to?.coin.value : txState.from?.coin.value;
 
 		if (otherValue && token.value === otherValue) {
 			// The user picked the token that's in the other slot → swap positions.
@@ -831,9 +820,7 @@
 		!!txState.fromAmount && txState.fromAmount !== '0' && inputAmount.amount > 0
 	);
 	const sameCoinSelected = $derived(
-		!!txState.from &&
-			!!txState.to &&
-			txState.from.coin.value === txState.to.coin.value
+		!!txState.from && !!txState.to && txState.from.coin.value === txState.to.coin.value
 	);
 	const missingReceiver = $derived(!txState.toUsername?.trim());
 	// No quote yet (prices loading or unavailable): the swap would carry no
@@ -1027,7 +1014,8 @@
 					} catch {
 						throw new Error('Could not check the Hive account. Try again.');
 					}
-					if (!exists) throw new Error(`There is no Hive account ${built.recipient.replace(/^hive:/, '')}.`);
+					if (!exists)
+						throw new Error(`There is no Hive account ${built.recipient.replace(/^hive:/, '')}.`);
 				}
 				btcDepositAddress = await requestBtcSwapDepositAddress(
 					built.instruction,
@@ -1439,111 +1427,113 @@
 
 	<!-- Variable content: grows to fill space, content anchored to bottom so button never moves -->
 	<div class="swap-middle">
-	<!-- Swap Details — replaced by the guard notice when the fee guard trips, so the
+		<!-- Swap Details — replaced by the guard notice when the fee guard trips, so the
 	     block reason occupies the quote area instead of crowding it from below. -->
-	{#if feeGuardTripped}
-		<div class="swap-blocked">
-			<p class="fee-guard-warning">
-				Swap blocked: the network would charge an abnormally high fee
-				(~{((txState.swapFeeBps ?? 0) / 100).toFixed(1)}%) on this trade right now. Try a
-				smaller amount, or wait until it's resolved.
-			</p>
-		</div>
-	{:else if txState.from && txState.to}
-		<div class="swap-details">
-			<div class="detail-row">
-				<span class="detail-label">Rate</span>
-				<span class="detail-value"
-					>{fromInTo ? `1 ${txState.from.coin.label} ≈ ${fromInTo}` : '—'}</span
-				>
+		{#if feeGuardTripped}
+			<div class="swap-blocked">
+				<p class="fee-guard-warning">
+					Swap blocked: the network would charge an abnormally high fee (~{(
+						(txState.swapFeeBps ?? 0) / 100
+					).toFixed(1)}%) on this trade right now. Try a smaller amount, or wait until it's
+					resolved.
+				</p>
 			</div>
-			<div class="detail-row">
-				<span class="detail-label">
-					Protocol fee
-					<span class="detail-sublabel">({swapResult?.hop1Fee ? '0.16%' : '0.08%'})</span>
-				</span>
-				<span class="detail-value">
-					{#if totalProtocolFeeUsd !== null}
-						≈ ${formatUsd(totalProtocolFeeUsd)}
-					{:else}
-						—
-					{/if}
-				</span>
-			</div>
-			{#if exchangeFeePct !== null}
+		{:else if txState.from && txState.to}
+			<div class="swap-details">
 				<div class="detail-row">
-					<span class="detail-label"
-						>Exchange fee <span class="detail-sublabel">(Altera)</span></span
+					<span class="detail-label">Rate</span>
+					<span class="detail-value"
+						>{fromInTo ? `1 ${txState.from.coin.label} ≈ ${fromInTo}` : '—'}</span
 					>
-					<span
-						class="detail-value"
-						class:detail-free={exchangeFeePct === 0}
-						class:detail-cost={exchangeFeePct > 0}
-					>
-						{exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
+				</div>
+				<div class="detail-row">
+					<span class="detail-label">
+						Protocol fee
+						<span class="detail-sublabel">({swapResult?.hop1Fee ? '0.16%' : '0.08%'})</span>
+					</span>
+					<span class="detail-value">
+						{#if totalProtocolFeeUsd !== null}
+							≈ {formatUsdCost(totalProtocolFeeUsd)}
+						{:else}
+							—
+						{/if}
 					</span>
 				</div>
-			{/if}
-			<div class="detail-row">
-				<span class="detail-label">Route</span>
-				<span class="detail-value route">
-					{txState.from.coin.label}
-					→
-					{#if txState.from.coin.value !== 'hbd' && txState.to.coin.value !== 'hbd'}
-						HBD →
-					{/if}
-					{txState.to.coin.label}
-				</span>
-			</div>
-			<div class="detail-row">
-				<span class="detail-label">Min amount received</span>
-				<span class="detail-value">
-					{#if swapResult && swapResult.minAmountOut > 0n && txState.to}
-						{formatFee(swapResult.minAmountOut, txState.to.coin.decimalPlaces)}
-						{txState.to.coin.unit}
-					{:else}
-						—
-					{/if}
-				</span>
-			</div>
-			<div class="detail-row">
-				<span class="detail-label">Price Impact</span>
-				{#if swapResult && priceImpactPct > 0}
-					<span
-						class="detail-value impact-pct"
-						class:good={priceImpactPct < 2}
-						class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
-						class:bad={priceImpactPct >= 10}>{priceImpactPct.toFixed(2)}%</span
-					>
-				{:else}
-					<span class="detail-value">—</span>
+				{#if exchangeFeePct !== null}
+					<div class="detail-row">
+						<span class="detail-label"
+							>Exchange fee <span class="detail-sublabel">(Altera)</span></span
+						>
+						<span
+							class="detail-value"
+							class:detail-free={exchangeFeePct === 0}
+							class:detail-cost={exchangeFeePct > 0}
+						>
+							{exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
+						</span>
+					</div>
 				{/if}
+				<div class="detail-row">
+					<span class="detail-label">Route</span>
+					<span class="detail-value route">
+						{txState.from.coin.label}
+						→
+						{#if txState.from.coin.value !== 'hbd' && txState.to.coin.value !== 'hbd'}
+							HBD →
+						{/if}
+						{txState.to.coin.label}
+					</span>
+				</div>
+				<div class="detail-row">
+					<span class="detail-label">Min amount received</span>
+					<span class="detail-value">
+						{#if swapResult && swapResult.minAmountOut > 0n && txState.to}
+							{formatFee(swapResult.minAmountOut, txState.to.coin.decimalPlaces)}
+							{txState.to.coin.unit}
+						{:else}
+							—
+						{/if}
+					</span>
+				</div>
+				<div class="detail-row">
+					<span class="detail-label">Price Impact</span>
+					{#if swapResult && priceImpactPct > 0}
+						<span
+							class="detail-value impact-pct"
+							class:good={priceImpactPct < 2}
+							class:medium={priceImpactPct >= 2 && priceImpactPct < 10}
+							class:bad={priceImpactPct >= 10}>{priceImpactPct.toFixed(2)}%</span
+						>
+					{:else}
+						<span class="detail-value">—</span>
+					{/if}
+				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
 
-	{#if priceImpactPct >= 10 && !feeGuardTripped}
-		<p class="swap-status error" class:severe={priceImpactPct >= 15}>
-			{#if priceImpactPct >= 15}
-				⚠ Very high price impact. Pool liquidity is low. Try a smaller amount.
-			{:else}
-				⚠ High price impact. Consider a smaller amount for better rates.
-			{/if}
-		</p>
-	{/if}
+		{#if priceImpactPct >= 10 && !feeGuardTripped}
+			<p class="swap-status error" class:severe={priceImpactPct >= 15}>
+				{#if priceImpactPct >= 15}
+					⚠ Very high price impact. Pool liquidity is low. Try a smaller amount.
+				{:else}
+					⚠ High price impact. Consider a smaller amount for better rates.
+				{/if}
+			</p>
+		{/if}
 
-	{#if sameCoinSelected}
-		<p class="swap-status error">From and To assets must be different.</p>
-	{:else if exceedsBalance}
-		<p class="swap-status error">
-			{paysBitcoinFee
-				? `Amount plus the Bitcoin network fee (about ${$btcSendFeeReserve} sats) exceeds what your wallet can send now.`
-				: 'Amount exceeds your wallet balance.'}
-		</p>
-	{:else if exceedsPoolDepth}
-		<p class="swap-status error">Amount exceeds 50% of pool depth — reduce the amount.</p>
-	{/if}
-	</div><!-- end .swap-middle -->
+		{#if sameCoinSelected}
+			<p class="swap-status error">From and To assets must be different.</p>
+		{:else if exceedsBalance}
+			<p class="swap-status error">
+				{paysBitcoinFee
+					? `Amount plus the Bitcoin network fee (about ${$btcSendFeeReserve} sats) exceeds what your wallet can send now.`
+					: 'Amount exceeds your wallet balance.'}
+			</p>
+		{:else if exceedsPoolDepth}
+			<p class="swap-status error">Amount exceeds 50% of pool depth — reduce the amount.</p>
+		{/if}
+	</div>
+	<!-- end .swap-middle -->
 
 	<!-- Exchange -->
 	<PillButton
@@ -1594,8 +1584,8 @@
 		<div class="btc-deposit">
 			<p class="btc-deposit-intro">
 				Send exactly the amount below to the address shown. The mapping bot observes the transaction
-				and forwards the swap to <strong>{txState.toUsername ?? ''}</strong> as {txState.to
-					?.coin.label ?? ''} on {txState.to?.network.label ?? 'Magi'}.
+				and forwards the swap to <strong>{txState.toUsername ?? ''}</strong> as {txState.to?.coin
+					.label ?? ''} on {txState.to?.network.label ?? 'Magi'}.
 			</p>
 
 			{#if btcDepositLoading}
@@ -1655,8 +1645,7 @@
 			</div>
 			<div class="token-chip-grid">
 				{#each getFilteredTokens(currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs) as token (token.value)}
-					{@const walletBlocked =
-						currentlyOpen === 'from' && !isFromTokenAllowed(token.value)}
+					{@const walletBlocked = currentlyOpen === 'from' && !isFromTokenAllowed(token.value)}
 					{@const isFrom = token.value === txState.from?.coin.value}
 					{@const isTo = token.value === txState.to?.coin.value}
 					{@const isSelected = isFrom || isTo}

@@ -135,7 +135,7 @@
 					)}</span
 				>
 			</div>
-			<span class="coin-sub">Hive Consensus</span>
+			<span class="coin-sub">Staked to secure the network</span>
 		</div>
 	</div>
 

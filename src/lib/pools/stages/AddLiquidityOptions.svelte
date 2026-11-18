@@ -163,7 +163,7 @@
 		pool: PoolRow,
 		input: CoinAmount<Coin>,
 		outCoin: Out
-	): CoinAmount<Out> {
+	): CoinAmount<Out> | null {
 		if (input.amount === 0) return new CoinAmount(0, outCoin);
 		const rIn = reserveForCoin(pool, input.coin);
 		const rOut = reserveForCoin(pool, outCoin);
@@ -173,7 +173,10 @@
 		if (rIn.raw === 0 && rOut.raw === 0) {
 			const usdIn = usdPriceForCoin(pool, input.coin);
 			const usdOut = usdPriceForCoin(pool, outCoin);
-			if (usdIn === 0 || usdOut === 0) return new CoinAmount(0, outCoin);
+			// No price for one side (a custom token's price comes from its own
+			// pool, which is empty): nothing to mirror, so leave the other side
+			// as typed and let the first LP set the starting price.
+			if (usdIn === 0 || usdOut === 0) return null;
 			return input.mulTo(usdIn / usdOut, outCoin);
 		}
 		const rInDisplay = rIn.raw / 10 ** rIn.decimals;
@@ -194,9 +197,9 @@
 		isSyncing = true;
 		try {
 			if (source === '0') {
-				amount1Ca = computeMirror(selectedPool, amount0Ca, amount1Ca.coin);
+				amount1Ca = computeMirror(selectedPool, amount0Ca, amount1Ca.coin) ?? amount1Ca;
 			} else {
-				amount0Ca = computeMirror(selectedPool, amount1Ca, amount0Ca.coin);
+				amount0Ca = computeMirror(selectedPool, amount1Ca, amount0Ca.coin) ?? amount0Ca;
 			}
 			// Pre-seed the keys to the post-sync values so the effect that
 			// fires next doesn't see the synced side as "user-edited" and

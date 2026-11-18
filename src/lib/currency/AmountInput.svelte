@@ -140,6 +140,14 @@
 		})();
 	});
 
+	/** Names the field for a screen reader: the asset chip beside it is the
+	 *  visible label, but it is not associated with the input. */
+	const amountLabel = $derived(
+		selected?.coin?.label && selected.coin.value !== Coin.unk.value
+			? `Amount in ${selected.coin.label}`
+			: 'Amount'
+	);
+
 	let showMax = $derived(
 		!disabled &&
 			maxAmount !== undefined &&
@@ -150,7 +158,9 @@
 
 	let showUsd = $derived(
 		!hideUsd &&
-		!(connectedCoinAmount?.coin.value === Coin.usd.value || selected.coin.value === Coin.usd.value)
+			!(
+				connectedCoinAmount?.coin.value === Coin.usd.value || selected.coin.value === Coin.usd.value
+			)
 	);
 
 	$effect(() => {
@@ -321,7 +331,15 @@
 			{/if}
 			{#key [selected, debouncedMax, min]}
 				{#if quiet}
-					<NumberInput bind:amount={inputAmt} bind:inputId={id} {max} {decimals} {min} {disabled} />
+					<NumberInput
+						bind:amount={inputAmt}
+						bind:inputId={id}
+						{max}
+						{decimals}
+						{min}
+						{disabled}
+						ariaLabel={amountLabel}
+					/>
 				{:else}
 					<NumberInput
 						bind:amount={inputAmt}
@@ -331,6 +349,7 @@
 						{decimals}
 						{min}
 						{disabled}
+						ariaLabel={amountLabel}
 					/>
 				{/if}
 			{/key}

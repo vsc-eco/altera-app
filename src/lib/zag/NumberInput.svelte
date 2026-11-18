@@ -11,6 +11,12 @@
 		max?: number;
 		inputId?: string;
 		disabled?: boolean;
+		/**
+		 * Accessible name for the field. The visible label is the asset chip
+		 * beside it, which is not associated with the input, so without this a
+		 * screen reader announces an unnamed spin button.
+		 */
+		ariaLabel?: string;
 	};
 	let {
 		amount = $bindable(),
@@ -19,7 +25,8 @@
 		min: minProp,
 		max = Number.MAX_SAFE_INTEGER,
 		inputId = $bindable(),
-		disabled = false
+		disabled = false,
+		ariaLabel
 	}: Props = $props();
 
 	let min = $derived(minProp ?? 10 ** -decimals);
@@ -113,6 +120,7 @@
 	<div {...api.getScrubberProps()}></div>
 	<input
 		{...api.getInputProps()}
+		aria-label={ariaLabel}
 		class={{ invalid: invalid && blurred }}
 		placeholder="0"
 		onfocus={() => (blurred = false)}

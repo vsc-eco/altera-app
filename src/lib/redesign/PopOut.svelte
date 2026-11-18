@@ -64,7 +64,13 @@
 	}
 </script>
 
-<button class="trigger" onclick={show} title="Show {title} bigger" aria-label="Show {title} bigger">
+<button
+	type="button"
+	class="trigger"
+	onclick={show}
+	title="Show {title} bigger"
+	aria-label="Show {title} bigger"
+>
 	<Expand size={15} aria-hidden="true" />
 </button>
 
@@ -77,7 +83,7 @@
 	<div class="panel">
 		<header>
 			<h2>{title}</h2>
-			<button class="close" onclick={() => dialog?.close()} aria-label="Close">
+			<button type="button" class="close" onclick={() => dialog?.close()} aria-label="Close">
 				<X size={18} aria-hidden="true" />
 			</button>
 		</header>

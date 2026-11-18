@@ -57,9 +57,13 @@
 {#if rest.href}
 	<a class={className} {...rest}>{@render inner()}</a>
 {:else if rest.onclick}
-	<button class={className} {...rest}>{@render inner()}</button>
+	<!-- `type` before the spread so a caller can still pass `submit`. Without a
+	     default, every PillButton is an implicit submit button: harmless while
+	     no screen has a <form>, and a latent whole-page reload the moment one
+	     does. Fixed here rather than at ~40 call sites. -->
+	<button type="button" class={className} {...rest}>{@render inner()}</button>
 {:else}
-	<button class={className}>actionless</button>
+	<button type="button" class={className}>actionless</button>
 {/if}
 
 <style lang="scss">

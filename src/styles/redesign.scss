@@ -14,6 +14,16 @@
  * drops the translucency and the mesh; Light is the light scheme.
  */
 
+/**
+ * Reserve the scrollbar's width whether or not it is showing, so the header
+ * and the centred card do not jump sideways when a page grows tall enough to
+ * need one. Set on the scroll container itself; `overflow: auto` ancestors do
+ * not inherit it.
+ */
+html {
+	scrollbar-gutter: stable;
+}
+
 .alt-root {
 	--alt-bg: #07070e;
 	--alt-card: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));

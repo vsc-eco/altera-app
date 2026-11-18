@@ -48,10 +48,20 @@
 			max: maxRc(bal.hbd, auth.value?.provider === 'aioha')
 		};
 	});
+	/**
+	 * Until balances arrive this showed "MAGI RC: 0 / 10,000" (L10) — a real
+	 * number, and an alarming one: zero RC means nothing can be signed. An
+	 * em dash says "not known yet", which is what is true.
+	 */
+	const rcLoading = $derived($accountBalance.loading);
 	const rcDisplay = $derived(
-		`MAGI RC: ${formatAmountGrouped(rc.now, 0)} / ${formatAmountGrouped(rc.max, 0)}`
+		rcLoading
+			? 'MAGI RC: —'
+			: `MAGI RC: ${formatAmountGrouped(rc.now, 0)} / ${formatAmountGrouped(rc.max, 0)}`
 	);
-	const rcCompact = $derived(`RC ${compactCount(rc.now)} / ${compactCount(rc.max)}`);
+	const rcCompact = $derived(
+		rcLoading ? 'RC —' : `RC ${compactCount(rc.now)} / ${compactCount(rc.max)}`
+	);
 
 	type MenuName = 'wallet' | 'market' | 'account' | null;
 	let menu = $state<MenuName>(null);
@@ -83,6 +93,17 @@
 
 	/** Marks the nav item for the page being viewed. Query strings matter here:
 	 *  Swap and Pools are the same route today, split only by `?tab=`. */
+	/**
+	 * True when the current route is one of a dropdown's destinations, so the
+	 * Wallet / Magi Market items highlight like the plain links do. They only
+	 * ever carried `open` (is the menu showing), never `active` (are we on one
+	 * of its pages), so every wallet page left the top bar with nothing lit.
+	 */
+	function groupActive(items: { href: string }[]): boolean {
+		const path = page.url.pathname;
+		return items.some((i) => path === i.href || path.startsWith(`${i.href}/`));
+	}
+
 	function isActive(href: string): boolean {
 		const [path, query] = href.split('?');
 		if (page.url.pathname !== path) return false;
@@ -260,7 +281,8 @@
 				{#if connected}
 					<div class="menu-wrap">
 						<button
-							class={['nav-item', { open: menu === 'wallet' }]}
+							type="button"
+							class={['nav-item', { open: menu === 'wallet', active: groupActive(walletItems) }]}
 							aria-expanded={menu === 'wallet'}
 							onclick={() => toggle('wallet')}
 						>
@@ -273,7 +295,8 @@
 
 					<div class="menu-wrap">
 						<button
-							class={['nav-item', { open: menu === 'market' }]}
+							type="button"
+							class={['nav-item', { open: menu === 'market', active: groupActive(marketItems) }]}
 							aria-expanded={menu === 'market'}
 							onclick={() => toggle('market')}
 						>

@@ -197,6 +197,17 @@ describe('btcPayoutSwapMinRc', () => {
 		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeLessThan(10_000);
 		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeGreaterThan(0);
 	});
+
+	it('from consensus 0.15 sits above both mainnet routes and leaves room for a second payout', () => {
+		// Mainnet dry runs 2026-11-17, repriced at 1 RC a new byte.
+		const hbdToBtc = 4_365;
+		const hiveToBtc = 4_686;
+		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeGreaterThanOrEqual(
+			Math.max(hbdToBtc, hiveToBtc) + 300
+		);
+		// After the dearer payout the free 10,000 RC still passes the check once more.
+		expect(10_000 - hiveToBtc).toBeGreaterThanOrEqual(BTC_PAYOUT_SWAP_MIN_RC_V0_15);
+	});
 });
 
 describe('btcPayoutShortfallMessage', () => {

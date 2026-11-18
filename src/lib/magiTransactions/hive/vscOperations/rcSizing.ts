@@ -73,10 +73,15 @@ export const BTC_PAYOUT_SWAP_MIN_RC = 11_700;
  * input; each extra input adds about 300 RC.
  *
  * Set above the dearer of the two routes, so an account that passes the check
- * can pay for either. (The number above sits between its two routes: an
- * account holding 11,700 to 11,886 RC passes it and fails a HIVE swap.)
+ * can pay for either, with about 300 RC to spare (one more vault input, or
+ * the contract's state growing by a few percent): an account that passes
+ * the check and then fails on chain is charged everything it sent as its
+ * limit, while one the check refuses keeps its RC. Still low enough that the
+ * free 10,000 RC pays for two payouts (10,000 - 4,686 = 5,314). (The number
+ * above sits between its two routes: an account holding 11,700 to 11,886 RC
+ * passes it and fails a HIVE swap.)
  */
-export const BTC_PAYOUT_SWAP_MIN_RC_V0_15 = 4_700;
+export const BTC_PAYOUT_SWAP_MIN_RC_V0_15 = 5_000;
 
 /** The consensus version from which a new stored byte costs 1 RC. */
 export const WRITE_PRICE_CUT_CONSENSUS = 15;

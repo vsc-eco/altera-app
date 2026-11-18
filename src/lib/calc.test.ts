@@ -33,6 +33,7 @@ import {
 	MAX_SLIPPAGE_PCT,
 	// §3 money
 	formatUsd,
+	formatPriceRatio,
 	formatUsdCost,
 	formatUsdPrice,
 	compactCount,
@@ -727,5 +728,30 @@ describe('formatUsdCost', () => {
 		expect(formatUsdCost(null)).toBe(formatUsd(null));
 		expect(formatUsdCost(undefined)).toBe(formatUsd(undefined));
 		expect(formatUsdCost(Number.NaN)).toBe(formatUsd(Number.NaN));
+	});
+});
+
+describe('formatPriceRatio', () => {
+	/** Pool rates were `toFixed(8)` whatever their size. */
+	it('gives a big rate cents, not eight decimals', () => {
+		expect(formatPriceRatio(65006.26)).toBe('65,006.26');
+		expect(formatPriceRatio(1234.5678)).toBe('1,234.57');
+	});
+
+	it('gives a mid-range rate four decimals', () => {
+		expect(formatPriceRatio(3.3356789)).toBe('3.3357');
+		expect(formatPriceRatio(1)).toBe('1');
+	});
+
+	/** A tiny rate needs its digits — that is the case toFixed(8) existed for. */
+	it('keeps four significant digits below one', () => {
+		expect(formatPriceRatio(0.00001234)).toBe('0.00001234');
+		expect(formatPriceRatio(0.3356789)).toBe('0.3357');
+	});
+
+	it('handles zero and nonsense', () => {
+		expect(formatPriceRatio(0)).toBe('0');
+		expect(formatPriceRatio(Number.NaN)).toBe('-');
+		expect(formatPriceRatio(Number.POSITIVE_INFINITY)).toBe('-');
 	});
 });

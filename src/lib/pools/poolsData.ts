@@ -21,6 +21,7 @@ import {
 import {
 	toDisplay,
 	formatAmountWithUnit,
+	formatPriceRatio,
 	formatUsdPrice,
 	lpShare,
 	lpPositionAmounts,
@@ -145,8 +146,10 @@ export function mapStateToPoolRow(
 	const asset1Json = state['asset1'];
 	const asset0 = asset0Json ? JSON.parse(asset0Json) : null;
 	const asset1 = asset1Json ? JSON.parse(asset1Json) : null;
-	const sym0 = (asset0?.asset as string | undefined)?.toUpperCase?.() ?? fallbackSymbols?.[0] ?? 'HBD';
-	const sym1 = (asset1?.asset as string | undefined)?.toUpperCase?.() ?? fallbackSymbols?.[1] ?? 'BTC';
+	const sym0 =
+		(asset0?.asset as string | undefined)?.toUpperCase?.() ?? fallbackSymbols?.[0] ?? 'HBD';
+	const sym1 =
+		(asset1?.asset as string | undefined)?.toUpperCase?.() ?? fallbackSymbols?.[1] ?? 'BTC';
 	const pairSym0 = `${sym0}`;
 	const pairSym1 = `${sym1}`;
 
@@ -166,11 +169,9 @@ export function mapStateToPoolRow(
 	// per-user share math working.
 	const snapshot = indexerData.liquidity.snapshot;
 	const reserve0 =
-		parseScaled(state['reserve0'], dec0) ??
-		(snapshot ? snapshot.reserve0 / 10 ** dec0 : null);
+		parseScaled(state['reserve0'], dec0) ?? (snapshot ? snapshot.reserve0 / 10 ** dec0 : null);
 	const reserve1 =
-		parseScaled(state['reserve1'], dec1) ??
-		(snapshot ? snapshot.reserve1 / 10 ** dec1 : null);
+		parseScaled(state['reserve1'], dec1) ?? (snapshot ? snapshot.reserve1 / 10 ** dec1 : null);
 
 	// USD prices per unit. The price feed only quotes HIVE/HBD/BTC.
 	function getFeedUsdPrice(sym: string): number {
@@ -208,10 +209,9 @@ export function mapStateToPoolRow(
 		inverse = usd1 / usd0;
 	}
 
-	const priceRatio =
-		ratio != null ? `${ratio.toFixed(8)} ${pairSym1}/${pairSym0}` : '-';
+	const priceRatio = ratio != null ? `${formatPriceRatio(ratio)} ${pairSym1}/${pairSym0}` : '-';
 	const priceInverse =
-		inverse != null ? `${inverse.toFixed(8)} ${pairSym0}/${pairSym1}` : '-';
+		inverse != null ? `${formatPriceRatio(inverse)} ${pairSym0}/${pairSym1}` : '-';
 
 	// Liquidity: prefer authoritative on-chain reserves (parsed above) over
 	// the indexer's adds-removes sum, which can drift if events are missing
@@ -231,9 +231,10 @@ export function mapStateToPoolRow(
 	const reserve0Raw = (reserve0 ?? idxAmt0) * 10 ** dec0;
 	const reserve1Raw = (reserve1 ?? idxAmt1) * 10 ** dec1;
 	const totalLpRawParsed = Number(state['total_lp']);
-	const totalLpRaw = Number.isFinite(totalLpRawParsed) && totalLpRawParsed > 0
-		? totalLpRawParsed
-		: snapshot?.totalLp ?? 0;
+	const totalLpRaw =
+		Number.isFinite(totalLpRawParsed) && totalLpRawParsed > 0
+			? totalLpRawParsed
+			: (snapshot?.totalLp ?? 0);
 
 	// Fees are collected PER ASSET (a pool takes a fee in both assets, one per
 	// swap direction). Value each asset's fees at ITS OWN price/decimals — the
@@ -348,10 +349,7 @@ export interface MyPoolRow {
  * already-fetched `pools` array — same source of truth as the global Pools
  * table — and only queries the indexer for the user's lp_balance.
  */
-export async function fetchMyPoolPositions(
-	did: string,
-	pools: PoolRow[]
-): Promise<MyPoolRow[]> {
+export async function fetchMyPoolPositions(did: string, pools: PoolRow[]): Promise<MyPoolRow[]> {
 	if (!did || pools.length === 0) return [];
 	const positions = await fetchUserLpPositions(did);
 	if (positions.length === 0) return [];
@@ -434,15 +432,45 @@ async function fetchSinglePool(
 // Zag renders EVERY tab's content (inactive ones are just hidden), so the
 // Pools and Custom pools tabs each mount their own PoolsContent and both
 // fetch on mount. Without coalescing that doubles the whole pool load — five
-// queries per pool, twice. Calls for the same range share one round-trip and
-// the entry is dropped as soon as it settles, so nothing is ever served from
-// a stale cache; this only de-duplicates work that is genuinely in flight.
+// queries per pool, twice. Calls for the same range share one round-trip.
 const inFlightPools = new Map<TimeRange, Promise<PoolRow[]>>();
 
+/**
+ * Settled results, briefly (L11).
+ *
+ * Only in-flight work was shared, so every range switch re-ran the whole
+ * load — prices, the registry and five queries per pool — and flicking
+ * 30d → 7d → 30d paid for the 30d load twice within a second.
+ *
+ * Deliberately short, and deliberately only here: `fetchPools` feeds the
+ * pools TABLE and nothing else. The swap card quotes through `swapCalc`
+ * against its own reads, so no quote, minimum or fee is ever computed from
+ * one of these rows. `getCryptoPrices`, which this same load depends on,
+ * already accepts 30s of staleness for the same screen.
+ */
+const POOLS_TTL_MS = 30_000;
+const settledPools = new Map<TimeRange, { at: number; rows: PoolRow[] }>();
+
+/** Drops the memo, for an explicit "refresh" or after a transaction. */
+export function invalidatePools(): void {
+	settledPools.clear();
+}
+
 export function fetchPools(range: TimeRange = '30d'): Promise<PoolRow[]> {
+	const fresh = settledPools.get(range);
+	if (fresh && Date.now() - fresh.at < POOLS_TTL_MS) return Promise.resolve(fresh.rows);
+
 	const pending = inFlightPools.get(range);
 	if (pending) return pending;
-	const request = fetchPoolsUncoalesced(range).finally(() => inFlightPools.delete(range));
+	const request = fetchPoolsUncoalesced(range)
+		.then((rows) => {
+			// Only a non-empty load is worth remembering: an empty result is
+			// what a failed registry read returns, and caching that would
+			// leave the table blank for the whole TTL.
+			if (rows.length > 0) settledPools.set(range, { at: Date.now(), rows });
+			return rows;
+		})
+		.finally(() => inFlightPools.delete(range));
 	inFlightPools.set(range, request);
 	return request;
 }

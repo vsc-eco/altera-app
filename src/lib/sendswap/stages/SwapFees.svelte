@@ -23,6 +23,7 @@
 	 */
 	import { TriangleAlert } from '@lucide/svelte';
 	import { Hint, Spinner, StatRow } from '$lib/ui';
+	import { impactLevel } from '$lib/calc';
 	import SlippageControl from './SlippageControl.svelte';
 
 	let {
@@ -63,7 +64,29 @@
 		onRetry?: () => void;
 	} = $props();
 
-	const impactTone = $derived(priceImpactPct >= 10 ? 'bad' : priceImpactPct >= 2 ? 'warn' : 'good');
+	/**
+	 * Price impact is a cost, so a small one is not good news — it is simply
+	 * not bad news. Green on 0.04% read as an endorsement and made the colour
+	 * meaningless by the time it mattered, so only "low" and above are
+	 * coloured and a negligible impact stays plain.
+	 *
+	 * Thresholds come from `impactLevel` in calc.ts rather than a second set
+	 * written here: the two already disagreed (this said 2% / 10%, calc says
+	 * 1% / 3% / 5%), and the warning banner below reads its own third set.
+	 */
+	const impactTone = $derived.by(() => {
+		switch (impactLevel(priceImpactPct)) {
+			case 'severe':
+			case 'high':
+				return 'bad';
+			case 'medium':
+				return 'warn';
+			case 'low':
+				return 'plain';
+			default:
+				return 'muted';
+		}
+	});
 	const warnLevel = $derived(
 		priceImpactPct >= 15 ? 'severe' : priceImpactPct >= 10 ? 'high' : 'none'
 	);

@@ -273,6 +273,24 @@ export function formatUsdCost(amount: number | undefined | null): string {
 }
 
 /**
+ * An exchange rate between two assets, e.g. "0.3356 HBD/HIVE".
+ *
+ * Pool rates were printed with `toFixed(8)` whatever their size, so a BTC
+ * pair read "65006.26000000" — eight digits of noise on a number whose last
+ * meaningful one is the cent — while a rate of 0.00001234 needs every one of
+ * them. Scaled instead: big numbers get cents, small ones get four
+ * significant digits.
+ */
+export function formatPriceRatio(value: number): string {
+	if (!Number.isFinite(value)) return '-';
+	const abs = Math.abs(value);
+	if (abs === 0) return '0';
+	if (abs >= 1000) return value.toLocaleString(NUMBER_LOCALE, { maximumFractionDigits: 2 });
+	if (abs >= 1) return value.toLocaleString(NUMBER_LOCALE, { maximumFractionDigits: 4 });
+	return value.toLocaleString(NUMBER_LOCALE, { maximumSignificantDigits: 4 });
+}
+
+/**
  * A per-unit price. Cents are enough for HIVE, HBD and BTC, but a custom
  * token can trade at $0.0007 — `formatUsd` renders that as `$0.00` and the
  * whole column reads as worthless — so below a cent this keeps three

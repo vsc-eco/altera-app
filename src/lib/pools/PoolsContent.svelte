@@ -262,8 +262,8 @@
 							</button>
 							<Hint size={14}>
 								Fees this pool charged over the selected period, split two ways:
-								<br /><b>LP</b> goes to whoever provided the liquidity — your share of
-								it is proportional to your share of the pool.
+								<br /><b>LP</b> goes to whoever provided the liquidity — your share of it is
+								proportional to your share of the pool.
 								<br /><b>Protocol</b> goes to the network.
 							</Hint>
 						</th>
@@ -327,8 +327,12 @@
 								<div class="price-cell">
 									<span>{pool.priceRatio}</span>
 									<span>{pool.priceInverse}</span>
+									<!-- Labelled: two bare dollar figures side by side gave no
+									     clue which asset each belonged to. -->
 									<span class="price-usd">
-										{pool.priceUsd[0]}, {pool.priceUsd[1]}
+										{pool.pairSymbols[0]}
+										{pool.priceUsd[0]} &middot; {pool.pairSymbols[1]}
+										{pool.priceUsd[1]}
 									</span>
 								</div>
 							</td>

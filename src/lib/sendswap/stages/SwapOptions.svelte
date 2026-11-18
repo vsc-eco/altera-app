@@ -1420,10 +1420,13 @@
 	<!-- ── Swap Card ── -->
 	<div class="swap-col-left">
 		<div class="quick-swap-card">
-			<!-- Card header: the task's name, and the one switch that reveals
-			     every expert control on this screen. -->
+			<!-- Card header: the one switch that reveals every expert control on
+			     this screen. The visible "Swap" title is gone — the nav tab and
+			     the submit button both already say it, so a third one on the
+			     same screen was noise. The heading stays for screen readers,
+			     which have no tab or button in view to borrow the name from. -->
 			<div class="card-head">
-				<h2 class="card-title">Swap</h2>
+				<h2 class="card-title-a11y">Swap</h2>
 				<label class="advanced-toggle">
 					<input
 						type="checkbox"
@@ -1820,19 +1823,29 @@
 		color: var(--dash-text-muted);
 	}
 
-	/* ── Card header: title + the Advanced switch ──────────────────────── */
+	/* ── Card header: the Advanced switch ──────────────────────────────── */
 	.card-head {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		/* The title is hidden, so the switch is the only thing laid out here;
+		   `space-between` would send it to the left edge. */
+		justify-content: flex-end;
 		gap: 0.5rem;
 		padding: 6px 8px 10px 14px;
 	}
-	.card-title {
-		margin: 0;
-		font-size: 16px;
-		font-weight: 700;
-		color: var(--dash-text-primary);
+	/* Kept in the accessibility tree, out of the layout. Clipped rather than
+	   `display: none`, which would drop it from the tree along with the
+	   document outline it gives the card. */
+	.card-title-a11y {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		border: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 	.advanced-toggle {
 		display: inline-flex;

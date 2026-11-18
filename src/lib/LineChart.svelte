@@ -37,6 +37,7 @@
 	import type { ScaleLinear } from 'd3-scale';
 	import { scaleLinear, scaleTime } from 'd3-scale';
 	import { extent, max } from 'd3-array';
+	import { alignedAxisTop } from '$lib/calc';
 	import { area, curveMonotoneX } from 'd3-shape';
 	import {
 		changeLocalInterpFunction,
@@ -130,6 +131,20 @@
 		return tops;
 	});
 
+	/**
+	 * Raise a nice()'d domain so its highest TICK covers the data, not just
+	 * its highest domain value — otherwise the top label reads below the line
+	 * drawn above it. Same tick count the axis renders with.
+	 */
+	function niceToTicks(
+		scale: ScaleLinear<number, number>,
+		tickCount: number
+	): ScaleLinear<number, number> {
+		const [lo, hi] = scale.domain();
+		const top = alignedAxisTop(hi, scale.ticks(tickCount));
+		return top > hi ? scale.domain([lo, top]) : scale;
+	}
+
 	const yScale = $derived.by((): ScaleLinear<number, number> => {
 		let scale: ScaleLinear<number, number>;
 
@@ -141,10 +156,13 @@
 			} else {
 				for (const s of shown) for (const v of s.values) if (v > maxVal) maxVal = v;
 			}
-			return scaleLinear()
-				.domain([0, maxVal > 0 ? maxVal : 1])
-				.nice()
-				.range([height - margin.bottom, margin.top]);
+			return niceToTicks(
+				scaleLinear()
+					.domain([0, maxVal > 0 ? maxVal : 1])
+					.nice()
+					.range([height - margin.bottom, margin.top]),
+				4
+			);
 		}
 
 		if (styleType === 'trend') {
@@ -164,10 +182,13 @@
 			}
 		} else {
 			const maxVal = data.length > 0 ? max(data, (d) => d.value)! : 1;
-			scale = scaleLinear()
-				.domain([0, maxVal])
-				.nice()
-				.range([height - margin.bottom, margin.top]);
+			scale = niceToTicks(
+				scaleLinear()
+					.domain([0, maxVal])
+					.nice()
+					.range([height - margin.bottom, margin.top]),
+				5
+			);
 		}
 
 		return scale;
@@ -394,9 +415,7 @@
 				></line>
 				{#each shown as s, i (s.key)}
 					{@const v =
-						mode === 'stacked'
-							? (stacked[i]?.[hoveredIndex] ?? 0)
-							: (s.values[hoveredIndex] ?? 0)}
+						mode === 'stacked' ? (stacked[i]?.[hoveredIndex] ?? 0) : (s.values[hoveredIndex] ?? 0)}
 					<circle class="series-dot" cx={crosshairX} cy={yScale(v)} r="4" fill={s.color} />
 				{/each}
 			{/if}

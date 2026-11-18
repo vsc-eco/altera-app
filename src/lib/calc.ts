@@ -273,6 +273,30 @@ export function formatUsdCost(amount: number | undefined | null): string {
 }
 
 /**
+ * The axis top a tick sequence actually labels.
+ *
+ * `scale.nice()` rounds the domain out, but `ticks()` is free to stop short of
+ * it: a max of 1.71 nices to a domain of [0, 1.8] whose ticks are 0, 0.5, 1,
+ * 1.5 — so the highest label reads 1.5 while the line is drawn above it, and
+ * the axis looks like it ends below the data. Raising the domain to the next
+ * tick boundary makes the top label cover every plotted point.
+ *
+ * Takes the ticks d3 produced rather than recomputing them, so it cannot
+ * disagree with the axis it is correcting.
+ */
+export function alignedAxisTop(domainMax: number, ticks: number[]): number {
+	if (!Number.isFinite(domainMax) || ticks.length === 0) return domainMax;
+	const last = ticks[ticks.length - 1];
+	if (!Number.isFinite(last) || last >= domainMax) return domainMax;
+	const step = ticks.length > 1 ? ticks[1] - ticks[0] : domainMax - last;
+	if (!(step > 0)) return domainMax;
+	let top = last;
+	// Bounded: `step` is positive and the gap is finite, so this closes.
+	while (top < domainMax) top += step;
+	return top;
+}
+
+/**
  * An exchange rate between two assets, e.g. "0.3356 HBD/HIVE".
  *
  * Pool rates were printed with `toFixed(8)` whatever their size, so a BTC

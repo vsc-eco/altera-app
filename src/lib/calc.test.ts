@@ -33,6 +33,7 @@ import {
 	MAX_SLIPPAGE_PCT,
 	// §3 money
 	formatUsd,
+	alignedAxisTop,
 	formatPriceRatio,
 	formatUsdCost,
 	formatUsdPrice,
@@ -753,5 +754,29 @@ describe('formatPriceRatio', () => {
 		expect(formatPriceRatio(0)).toBe('0');
 		expect(formatPriceRatio(Number.NaN)).toBe('-');
 		expect(formatPriceRatio(Number.POSITIVE_INFINITY)).toBe('-');
+	});
+});
+
+describe('alignedAxisTop', () => {
+	/** The reported case: 1.71 plotted above an axis labelled to 1.5. */
+	it('raises the top to the next tick when ticks stop short', () => {
+		expect(alignedAxisTop(1.8, [0, 0.5, 1, 1.5])).toBe(2);
+	});
+
+	it('leaves a domain its ticks already cover alone', () => {
+		expect(alignedAxisTop(2, [0, 0.5, 1, 1.5, 2])).toBe(2);
+		expect(alignedAxisTop(100, [0, 25, 50, 75, 100])).toBe(100);
+	});
+
+	it('climbs more than one step when needed', () => {
+		expect(alignedAxisTop(10, [0, 2, 4])).toBe(10);
+		expect(alignedAxisTop(9, [0, 2, 4])).toBe(10);
+	});
+
+	it('is a no-op without usable ticks', () => {
+		expect(alignedAxisTop(5, [])).toBe(5);
+		expect(alignedAxisTop(5, [3])).toBe(5);
+		expect(alignedAxisTop(5, [2, 2])).toBe(5);
+		expect(alignedAxisTop(Number.NaN, [0, 1])).toBeNaN();
 	});
 });

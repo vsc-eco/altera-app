@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { decideBroadcast } from './broadcastDecision';
-import { Coin, Network, isSelectableSource, mainnetSwapSource } from './sendOptions';
+import {
+	Coin,
+	Network,
+	isSelectableSource,
+	mainnetSwapSource,
+	resolveSourceNetwork
+} from './sendOptions';
 import { canUseMainnetSelf, resolveDestNetwork } from './recipientValidation';
 import type { TxState } from './txState.svelte';
 
@@ -219,5 +225,41 @@ describe('resolveDestNetwork', () => {
 		});
 		expect(r.network.value).toBe(Network.magi.value);
 		expect(r.blocked).toBe('wallet-cannot-receive');
+	});
+});
+
+/**
+ * The token picker's "clicked the other slot's token" shortcut swaps both
+ * sides, and gave the NEW source coin the OLD source's network. That is the
+ * H1 shape in a path the H1 fix did not cover: the flip was resolved, this
+ * was not.
+ *
+ * It was near-unreachable while every source sat on Magi. M9 makes Hive L1
+ * the normal source, so "HBD on Hive L1 -> BTC" became one click away from
+ * "BTC on Hive L1", a pair BTC cannot be on.
+ */
+describe('swapping slots keeps a source the new coin can be on', () => {
+	it('does not put BTC on Hive L1', () => {
+		expect(resolveSourceNetwork(Coin.btc.value, Network.hiveMainnet.value).value).toBe(
+			Network.magi.value
+		);
+		expect(isSelectableSource(Coin.btc.value, Network.hiveMainnet.value)).toBe(false);
+	});
+
+	it('refuses to sign it if one is built anyway', () => {
+		const d = decideBroadcast(
+			state(
+				{ coin: Coin.btc, network: Network.hiveMainnet },
+				{ coin: Coin.hbd as typeof Coin.btc, network: Network.magi }
+			),
+			'swap'
+		);
+		expect(d.action).toBe('error');
+	});
+
+	it('keeps Hive L1 when the new source coin can be there', () => {
+		expect(resolveSourceNetwork(Coin.hbd.value, Network.hiveMainnet.value).value).toBe(
+			Network.hiveMainnet.value
+		);
 	});
 });

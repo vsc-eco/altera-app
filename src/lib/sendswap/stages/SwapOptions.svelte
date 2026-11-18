@@ -890,6 +890,15 @@
 	// network: Magi reads from `$accountBalance.bal`, Hive Mainnet
 	// reads from `$accountBalance.connectedBal` (the L1 account
 	// snapshot populated by aioha).
+	/**
+	 * The balance of the source asset, or `undefined` when it is not KNOWN
+	 * yet — the two were conflated, so a zero balance hid both the "Balance:"
+	 * line and the Max button and the card showed no numbers at all (L5).
+	 * Zero is an answer; only an unloaded balance is not.
+	 *
+	 * `maxSendable` below is what the Max button uses, and it still goes
+	 * `undefined` when a BTC balance cannot cover its own miner fee.
+	 */
 	const maxAmount: CoinAmount<Coin> | undefined = $derived.by(() => {
 		const from = txState.from;
 		if (!from) return undefined;
@@ -904,21 +913,20 @@
 			const connected = $accountBalance.connectedBal;
 			if (!connected) return undefined;
 			const bal = connected[coinValue as keyof typeof connected];
-			if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
-			return new CoinAmount(bal, from.coin, true);
+			if (bal == null || typeof bal !== 'number') return undefined;
+			return new CoinAmount(Math.max(0, bal), from.coin, true);
 		}
 		// Custom tokens aren't in `accountBalance` — it's a fixed struct of
 		// native assets — so swapping FROM one would otherwise show no balance
 		// and no Max.
 		if (customTokens.some((t) => t.symbol === coinValue)) {
 			const raw = $customTokenBalances.bal[coinValue] ?? 0;
-			if (raw <= 0) return undefined;
-			return new CoinAmount(raw, from.coin, true);
+			return new CoinAmount(Math.max(0, raw), from.coin, true);
 		}
 		const key = coinValue as keyof AccountBalance;
 		const bal = $accountBalance.bal?.[key];
-		if (bal == null || typeof bal !== 'number' || bal <= 0) return undefined;
-		return new CoinAmount(bal, from.coin, true);
+		if (bal == null || typeof bal !== 'number') return undefined;
+		return new CoinAmount(Math.max(0, bal), from.coin, true);
 	});
 
 	// A BTC send from the wallet must leave room for its miner fee: asking the
@@ -931,6 +939,29 @@
 		if (!maxAmount || !paysBitcoinFee) return maxAmount;
 		const sats = maxSendableSats(maxAmount.amount, $btcSendFeeReserve);
 		return sats > 0 ? new CoinAmount(sats, maxAmount.coin, true) : undefined;
+	});
+
+	/**
+	 * Why "Review swap" is disabled, when nothing else on screen says so.
+	 *
+	 * The button just greyed out and the reader had to guess which of six
+	 * gates was unmet (L4). The three that already render their own inline
+	 * error — same coin, insufficient balance, pool depth — return
+	 * `undefined` here on purpose: the card should gain a reason, not a
+	 * second copy of one it already gave. That is also why this is not simply
+	 * a list of every failing condition.
+	 */
+	const reviewBlocker = $derived.by(() => {
+		if (!txState.from || !txState.to) return 'Pick the asset to pay with and the one to receive.';
+		if (!txState.fromAmount || txState.fromAmount === '0') return 'Enter an amount to swap.';
+		// Already explained inline, on the field that caused it.
+		if (sameCoinError || insufficientBalance || exceedsPoolDepth) return undefined;
+		if (destChoice === 'address' && !destAddress.trim()) {
+			return 'Enter the address the output should go to.';
+		}
+		if (!destValid) return undefined; // `destError` states the rule it broke.
+		if (!swapResult) return 'Fetching a price for this pair…';
+		return undefined;
 	});
 
 	let dialogOpen = $state(false);
@@ -1111,7 +1142,14 @@
 					const prevFromCoin = txState.from.coin;
 					const prevToCoin = txState.to.coin;
 					txState.to = { coin: prevFromCoin, network: txState.to.network };
-					txState.from = { coin: prevToCoin, network: txState.from.network };
+					// Resolve, don't inherit: handing the new source coin the old
+					// one's network is how H1 built "HIVE on the Bitcoin network".
+					// The flip above was fixed; this shortcut was missed, and M9
+					// made it reachable by making Hive L1 the normal source.
+					txState.from = {
+						coin: prevToCoin,
+						network: resolveSourceNetwork(prevToCoin.value, txState.from.network.value)
+					};
 				}
 				closeDialog();
 			}
@@ -1552,6 +1590,12 @@
 	</div>
 </div>
 
+<!-- Sits here, after the card and before the machine's own NavButtons, so the
+     reason reads directly above the button it explains (L4). -->
+{#if isActive && reviewBlocker}
+	<p class="review-blocker sm-caption">{reviewBlocker}</p>
+{/if}
+
 <!-- Status & Waiting Overlay -->
 {#if status.message}
 	<div class="status-wrapper">
@@ -1636,6 +1680,12 @@
 {/snippet}
 
 <style lang="scss">
+	.review-blocker {
+		margin: 0 0 0.25rem;
+		text-align: center;
+		color: var(--dash-text-muted);
+	}
+
 	/* ── Card header: title + the Advanced switch ──────────────────────── */
 	.card-head {
 		display: flex;

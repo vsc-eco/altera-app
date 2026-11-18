@@ -1,17 +1,20 @@
 <!--
-	Asset chip for the deposit timeline's "I want to receive" RadioGroup.
+	Asset chip for the deposit timeline's "Asset to deposit" RadioGroup.
 
 	Replaces the per-asset snippets (hiveChip / hbdChip / …) that were forced by
 	RadioGroup's self-referential Item generic — now a single component passed via
 	the items' `component` field, parameterised by `props`.
 -->
 <script lang="ts">
-	let { icon, label }: { icon: string; label: string } = $props();
+	/** `note` labels a chip that cannot be chosen. ETH sat greyed out with
+	 *  nothing saying why, which reads as broken rather than unfinished. */
+	let { icon, label, note }: { icon: string; label: string; note?: string } = $props();
 </script>
 
-<span class="asset-chip">
+<span class="asset-chip" title={note ? `${label}: ${note}` : undefined}>
 	<img src={icon} alt="" width="18" height="18" />
 	<span>{label}</span>
+	{#if note}<span class="asset-chip-note">{note}</span>{/if}
 </span>
 
 <style>
@@ -25,5 +28,11 @@
 	}
 	.asset-chip img {
 		display: block;
+	}
+	.asset-chip-note {
+		font-weight: 500;
+		font-size: 0.75rem;
+		opacity: 0.75;
+		white-space: nowrap;
 	}
 </style>

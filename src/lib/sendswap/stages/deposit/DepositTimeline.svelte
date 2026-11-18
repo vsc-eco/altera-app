@@ -115,7 +115,8 @@
 		{ value: Coin.hive.value, label: 'HIVE', icon: '/hive/hive.svg', disabled: false },
 		{ value: Coin.hbd.value, label: 'HBD', icon: '/hive/hbd.svg', disabled: false },
 		{ value: Coin.btc.value, label: 'BTC', icon: '/btc/btc.svg', disabled: false },
-		{ value: 'eth', label: 'ETH', icon: '/eth/eth.svg', disabled: true }
+		// Greyed out with no explanation reads as broken; say which it is.
+		{ value: 'eth', label: 'ETH', icon: '/eth/eth.svg', disabled: true, note: 'not yet' }
 	];
 	type AssetValue = (typeof ASSETS)[number]['value'];
 
@@ -371,7 +372,7 @@
 									items={ASSETS.map((a) => ({
 										value: a.value,
 										component: AssetChip,
-										props: { icon: a.icon, label: a.label },
+										props: { icon: a.icon, label: a.label, note: a.note },
 										disabled: a.disabled
 									}))}
 									bind:value={assetRadio}
@@ -380,7 +381,8 @@
 									class="other-asset-btn"
 									type="button"
 									disabled
-									aria-label="Search for another asset"
+									title="Searching for other assets is not available yet"
+									aria-label="Search for another asset — not available yet"
 								>
 									<Search size={14} />
 									<span>Other</span>

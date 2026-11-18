@@ -1384,6 +1384,13 @@
 				currentlyOpen === 'from' ? fromAssetObjs : toAssetObjs
 			)}
 			<div class="dialog-content">
+				<!-- The search box vanished on this step, so switching to a
+				     different asset meant going Back first — and the chips
+				     above are already filtered by the same term. -->
+				<div class="token-search-wrapper">
+					<Search size={16} />
+					<input bind:value={tokenSearch} placeholder="Search tokens..." />
+				</div>
 				{@render tokenChips(generalChips, tempCoinOpt.coin.value)}
 				<span class="dialog-section-label">ALL ASSETS</span>
 				<div class="network-cards">

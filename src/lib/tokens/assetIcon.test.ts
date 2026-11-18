@@ -20,6 +20,9 @@ describe('assetIcon', () => {
 		expect(assetIcon('LASSECASH')).toBe('https://lassecash.com/logo/lassecash-circle-512.png');
 		// Same artwork the swap and add-liquidity forms use.
 		expect(assetIcon('LASSECASH')).toBe(customTokenIcon('lassecash'));
+		// STARPRO in the HBD:STARPRO pool rows, same file as its swap coin.
+		expect(assetIcon('STARPRO')).toBe('/tokens/starpro.png');
+		expect(assetIcon('STARPRO')).toBe(customTokenIcon('starpro'));
 	});
 
 	it('is undefined for an unknown token, so callers keep their own fallback', () => {

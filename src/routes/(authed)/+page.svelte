@@ -37,7 +37,7 @@
 		POWERED BY MAGI NETWORK
 	</a>
 
-	<h1>Swap native assets &ndash; no wrapping, no bridges.</h1>
+	<h1>Swap native assets &ndash; no wrapped tokens, no custodian.</h1>
 
 	<SendSwap txType="swap" />
 

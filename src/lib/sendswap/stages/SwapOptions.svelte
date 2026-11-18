@@ -1225,7 +1225,7 @@
 				</div>
 				{@render tokenChips(generalChips)}
 				<span class="dialog-section-label">ALL ASSETS</span>
-				<p class="dialog-hint">select a token to see your available balances</p>
+				<p class="dialog-hint">Select a token to see your available balances</p>
 			</div>
 		{:else if dialogStep === 'custom'}
 			<!-- Drill-in from the Custom chip. Listed as cards rather than chips:
@@ -1447,18 +1447,25 @@
 					</button>
 
 					{#if destChoice === 'wallet'}
+						<!-- Logged out there is no wallet to name, and the label fell
+						     through to "EVM" and stated it as fact (L9). -->
 						{@const connectedWalletLabel =
 							auth.value?.provider === 'aioha'
 								? 'HIVE'
 								: auth.value?.did?.startsWith('did:pkh:bip122:')
 									? 'BTC'
 									: 'EVM'}
+						{@const settleOn = destNetwork.value === Network.magi.value ? 'Magi' : chainLabel}
 						<div class="wallet-settle-info">
 							<span class="settle-dot"></span>
-							<span class="settle-text"
-								>{coinDisplayLabel(toCoin)} will settle natively in your {connectedWalletLabel}
-								wallet on {destNetwork.value === Network.magi.value ? 'Magi' : chainLabel}.</span
-							>
+							<span class="settle-text">
+								{#if auth.status === 'authenticated'}
+									{coinDisplayLabel(toCoin)} will settle in your {connectedWalletLabel} wallet on
+									{settleOn}.
+								{:else}
+									Connect a wallet to receive {coinDisplayLabel(toCoin)} on {settleOn}.
+								{/if}
+							</span>
 						</div>
 					{/if}
 

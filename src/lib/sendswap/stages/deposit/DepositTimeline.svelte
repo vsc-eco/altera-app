@@ -158,7 +158,8 @@
 			icon: '/btc/btc.svg',
 			eta: '≈ 10 min',
 			fee: 'network fee varies',
-			blurb: 'Send BTC to a bridge-managed deposit address. Settles after 1 confirmation.',
+			blurb:
+				'Send BTC to your vault deposit address. Credited after 1 confirmation, which averages about 10 minutes.',
 			supports: [Coin.btc.value]
 		},
 		{
@@ -343,7 +344,7 @@
 		{#if !secondaryMenu}
 			<PageHeader
 				titleAs="h2"
-			spacing="page"
+				spacing="page"
 				title="Deposit"
 				subtitle="Add funds to your Magi balance."
 				hint="Pick what you want to end up with, then where it is coming from. If the two differ, Magi swaps for you on arrival."

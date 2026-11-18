@@ -5,7 +5,7 @@
 export const SITE_URL = 'https://alterawallet.com';
 
 export const SITE_NAME = 'Altera';
-export const SITE_TITLE = 'Altera — Swap native assets, no wrapping, no bridges';
+export const SITE_TITLE = 'Altera — Swap native assets, no wrapped tokens, no custodian';
 export const SITE_DESCRIPTION =
 	'Swap real BTC, real DASH and real HIVE. Zero fees, non-custodial, any wallet. Powered by Magi Network.';
 

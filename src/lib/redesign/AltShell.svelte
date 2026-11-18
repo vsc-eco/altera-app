@@ -145,12 +145,17 @@
 		if (e.key === 'Escape') closeMenus();
 	}
 
-	/** Coins drifting behind the swap card. Decorative only. */
+	/**
+	 * Coins drifting behind the swap card. Decorative, but they sit directly
+	 * behind a swap form, so they read as a list of what it can swap: DASH and
+	 * ETH were advertising pairs the card does not offer. Only swappable
+	 * assets here — positions and motion unchanged.
+	 */
 	const coins = [
 		{ src: '/hive/hive.svg', size: 76, left: '11%', top: '29%', blur: 0, op: 1, dur: 9, delay: -2 },
 		{ src: '/btc/btc.svg', size: 88, left: '84%', top: '37%', blur: 0, op: 1, dur: 11, delay: -5 },
 		{
-			src: '/coins/dash-coin.svg',
+			src: '/hive/hbd.svg',
 			size: 52,
 			left: '78%',
 			top: '12%',
@@ -160,7 +165,7 @@
 			delay: -1
 		},
 		{
-			src: '/coins/eth-coin.svg',
+			src: '/btc/btc.svg',
 			size: 56,
 			left: '7%',
 			top: '70%',
@@ -200,7 +205,7 @@
 			delay: -7
 		},
 		{
-			src: '/coins/dash-coin.svg',
+			src: '/hive/hbd.svg',
 			size: 26,
 			left: '66%',
 			top: '82%',

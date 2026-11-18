@@ -30,8 +30,10 @@ describe('walletTabs', () => {
 		expect(activeWalletTab('/dashboard')).toBeUndefined();
 	});
 
-	it('starts on Assets and offers both directions of moving funds', () => {
-		expect(WALLET_TABS[0].label).toBe('Assets');
+	it('starts on Portfolio and offers both directions of moving funds', () => {
+		// Named for the route it opens, which was always `/portfolio`.
+		expect(WALLET_TABS[0].label).toBe('Portfolio');
+		expect(WALLET_TABS[0].href).toBe('/portfolio');
 		const labels = WALLET_TABS.map((tab) => tab.label);
 		expect(labels).toContain('Deposit');
 		expect(labels).toContain('Withdraw');

@@ -72,7 +72,7 @@
 			<img src="/altera_med.png" alt="Altera" class="hero-logo-mark" />
 			<span class="hero-logo-text">ALTERA</span>
 		</div>
-		<h1 class="hero-tagline">Swap native assets - no wrapping, no bridges.</h1>
+		<h1 class="hero-tagline">Swap native assets - no wrapped tokens, no custodian.</h1>
 		<p class="hero-sub">Swap real BTC, real DASH, real HIVE.</p>
 		<p class="hero-hook">
 			<em

@@ -165,7 +165,7 @@
 					>{new CoinAmount($accountBalance.bal.btc, Coin.btc, true).toPrettyString()}</span
 				>
 			</div>
-			<span class="coin-sub">Bitcoin Native Asset Mapping</span>
+			<span class="coin-sub">Bitcoin, mapped 1:1 from the vault</span>
 		</div>
 	</div>
 </div>

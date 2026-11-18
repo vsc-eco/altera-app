@@ -32,7 +32,7 @@
 		{
 			icon: Repeat,
 			title: 'Native Cross-Chain Swaps',
-			desc: 'Swap BTC, HIVE and HBD directly. Assets settle natively - no wrapped tokens, no custodial bridges.',
+			desc: 'Swap BTC, HIVE and HBD directly. Assets settle as themselves - no wrapped tokens, and the vaults that hold them have no custodian.',
 			color: 'purple',
 			badge: null
 		},

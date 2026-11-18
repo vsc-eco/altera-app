@@ -63,9 +63,7 @@
 		onRetry?: () => void;
 	} = $props();
 
-	const impactTone = $derived(
-		priceImpactPct >= 10 ? 'bad' : priceImpactPct >= 2 ? 'warn' : 'good'
-	);
+	const impactTone = $derived(priceImpactPct >= 10 ? 'bad' : priceImpactPct >= 2 ? 'warn' : 'good');
 	const warnLevel = $derived(
 		priceImpactPct >= 15 ? 'severe' : priceImpactPct >= 10 ? 'high' : 'none'
 	);
@@ -102,7 +100,11 @@
 
 	<!-- One line, only when it applies. The row keeps a min-height so the
 	     panel does not jump as the amount is typed. -->
-	<div class="impact-warning" class:severe={warnLevel === 'severe'} class:shown={warnLevel !== 'none'}>
+	<div
+		class="impact-warning"
+		class:severe={warnLevel === 'severe'}
+		class:shown={warnLevel !== 'none'}
+	>
 		{#if warnLevel !== 'none'}
 			<TriangleAlert size={14} />
 			<span>
@@ -143,7 +145,9 @@
 					label="Exchange fee"
 					tone={exchangeFeePct === 0 ? 'good' : 'warn'}
 					value={exchangeFeePct === 0 ? 'Free' : `${exchangeFeePct}%`}
-					hint="Altera's own fee for running the swap. It is currently zero on every pair."
+					hint={exchangeFeePct === 0
+						? "Altera's own fee for running the swap. It is currently switched off, so every pair is free."
+						: `Altera's own fee for running the swap: ${exchangeFeePct}% of the input, on every pair.`}
 				/>
 			{/if}
 

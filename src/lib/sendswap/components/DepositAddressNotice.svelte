@@ -13,7 +13,7 @@
 <Notice
 	tone="warn"
 	title="Do not save this address."
-	hint="Magi's deposit vaults rotate on a schedule, so this address changes. The old vault forwards late deposits for a while and then retires, after which anything sent to it is not credited. Always copy the address shown on this screen, now."
+	hint="Magi's deposit vaults rotate on a schedule, so this address changes. A late deposit to a retired address is not credited automatically and needs support to recover, so always copy the address shown on this screen, now."
 >
 	Send only to the address shown here, now.
 </Notice>

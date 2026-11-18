@@ -30,8 +30,8 @@ export type WalletTab = {
  * drift: every menu item opens the tab of the same name.
  */
 export const WALLET_TABS: readonly WalletTab[] = [
-	{ href: '/portfolio', label: 'Assets', hint: 'What you hold' },
-	{ href: '/transactions', label: 'Transactions', hint: 'Everything on your account' },
+	{ href: '/portfolio', label: 'Portfolio', hint: 'What you hold' },
+	{ href: '/transactions', label: 'Transactions', hint: 'Your transaction history' },
 	{ href: '/transfer', label: 'Transfer', hint: 'Send to someone else' },
 	{ href: '/deposit', label: 'Deposit', hint: 'Move assets in' },
 	{ href: '/withdraw', label: 'Withdraw', hint: 'Move assets out' }
@@ -40,9 +40,7 @@ export const WALLET_TABS: readonly WalletTab[] = [
 /** The tab governing `pathname`, including its sub-routes, or undefined when
  *  the path is not part of the wallet at all. */
 export function activeWalletTab(pathname: string): WalletTab | undefined {
-	return WALLET_TABS.find(
-		(tab) => pathname === tab.href || pathname.startsWith(`${tab.href}/`)
-	);
+	return WALLET_TABS.find((tab) => pathname === tab.href || pathname.startsWith(`${tab.href}/`));
 }
 
 /** True when `pathname` should render inside the wallet's tabbed chrome. */

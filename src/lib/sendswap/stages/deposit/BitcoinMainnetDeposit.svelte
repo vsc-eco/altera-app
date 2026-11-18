@@ -131,9 +131,7 @@
 	// bip122 users, see fetchOnChainBtcBalance).
 	let coinAmount = $state(new CoinAmount(0, Coin.btc));
 	let inputId = $state('');
-	const maxAmount = $derived(
-		getBalanceAmount($accountBalance, Coin.btc, Network.btcMainnet)
-	);
+	const maxAmount = $derived(getBalanceAmount($accountBalance, Coin.btc, Network.btcMainnet));
 	// Reserve ~5000 sats from the Max button for miner fees.
 	// Leather computes coin selection against (amount + estimated
 	// fees) and rejects with `BitcoinError: InsufficientFunds` if
@@ -151,9 +149,7 @@
 		return new CoinAmount(raw - FEE_RESERVE_SATS, Coin.btc, true);
 	});
 	const hasAmount = $derived(coinAmount.amount > 0);
-	const exceedsBalance = $derived(
-		maxAmount.amount > 0 && coinAmount.amount > maxAmount.amount
-	);
+	const exceedsBalance = $derived(maxAmount.amount > 0 && coinAmount.amount > maxAmount.amount);
 	const canSign = $derived(
 		hasAmount &&
 			!exceedsBalance &&
@@ -172,9 +168,8 @@
 		signStatus = 'Waiting for Bitcoin wallet approval…';
 		signError = null;
 		try {
-			const { sendBtcFromConnectedWallet } = await import(
-				'$lib/magiTransactions/bitcoin/walletSend'
-			);
+			const { sendBtcFromConnectedWallet } =
+				await import('$lib/magiTransactions/bitcoin/walletSend');
 			const sentAmount = new CoinAmount(coinAmount.amount, Coin.btc, true);
 			const txHash = await sendBtcFromConnectedWallet({
 				amountSats: coinAmount.amount,
@@ -220,10 +215,16 @@
 			<Card>
 				<div class="blurb">
 					<span><Info /></span>
+					<!-- "unique to you" and "do not save this address" read as a
+					     contradiction when they sit on the same screen. Both are
+					     true, so say them as one thought. The settlement figure
+					     also has to agree with the timeline beside it, which
+					     credits after 1 confirmation. -->
 					<p>
-						Transfer {Coin.btc.value} to this bitcoin address with your favorite wallet or exchange. This
-						address is unique to you. Please keep in mind that transaction settlement time averages about
-						30 minutes.
+						Send {Coin.btc.label} to this Bitcoin address from your wallet or exchange. It is derived
+						for you alone, and it changes when the vault rotates &mdash; so take a fresh one from this
+						screen each time rather than saving it. Deposits are credited after 1 confirmation, which
+						averages about 10 minutes.
 					</p>
 				</div>
 			</Card>
@@ -255,9 +256,7 @@
 		{#if isReownBtc && btcAddress}
 			{#if !useSignFlow}
 				<div class="section">
-					<PillButton styleType="outline" onclick={enableSignFlow}>
-						Sign with wallet
-					</PillButton>
+					<PillButton styleType="outline" onclick={enableSignFlow}>Sign with wallet</PillButton>
 					<span class="hint">
 						Let your connected Bitcoin wallet sign the deposit directly instead of copying the
 						address manually.
@@ -275,9 +274,7 @@
 						/>
 					</div>
 					<div class="balance-row">
-						<span class="balance-label"
-							>Balance: {maxAmount.toPrettyAmountString()} BTC</span
-						>
+						<span class="balance-label">Balance: {maxAmount.toPrettyAmountString()} BTC</span>
 						<button
 							type="button"
 							class="max-btn"
@@ -313,7 +310,6 @@
 		{/if}
 	</div>
 {/if}
-
 
 <style lang="scss">
 	.sections {

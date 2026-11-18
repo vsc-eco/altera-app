@@ -2,7 +2,7 @@
 	import SwapFees from './SwapFees.svelte';
 	import SwapAmountField from './SwapAmountField.svelte';
 	import { getAuth } from '$lib/auth/store';
-	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { getAccountNameFromAddress, getUsernameFromAuth } from '$lib/getAccountName';
 	import {
 		getFee,
 		getTxSessionId,
@@ -599,10 +599,60 @@
 			? ({ ok: true } as const)
 			: validateRecipient(destAddress, recipientTarget, { testnet: isVscTestnet() })
 	);
-	const destValid = $derived(destCheck.ok);
+	/**
+	 * Does the typed Hive account actually exist?
+	 *
+	 * The regex only proves the NAME is well formed. Paying one that does not
+	 * exist reverts the whole router call on chain — no funds lost, but the RC
+	 * is spent and the card said nothing was wrong (M2). The BTC deposit-swap
+	 * path has checked this since #168; the swap card never did, so it uses
+	 * the same `hiveAccountExists`.
+	 *
+	 * Keyed by the name it describes, so a result from an earlier keystroke
+	 * can never be read as a verdict on the current one.
+	 */
+	let hiveNameCheck = $state<
+		{ name: string; state: 'checking' | 'missing' | 'present' | 'unreachable' } | undefined
+	>();
+
+	$effect(() => {
+		const raw = destAddress.trim();
+		const needed = destChoice === 'address' && recipientTarget === 'hive' && destCheck.ok && !!raw;
+		if (!needed) {
+			hiveNameCheck = undefined;
+			return;
+		}
+		const name = raw;
+		hiveNameCheck = { name, state: 'checking' };
+		// Debounced: this is a network call per keystroke otherwise.
+		const timer = setTimeout(async () => {
+			let next: 'missing' | 'present' | 'unreachable';
+			try {
+				const { hiveAccountExists } = await import('$lib/magiTransactions/bitcoin/swapDeposit');
+				next = (await hiveAccountExists(name)) ? 'present' : 'missing';
+			} catch {
+				next = 'unreachable';
+			}
+			// Still the name we were asked about?
+			if (untrack(() => hiveNameCheck?.name) === name) hiveNameCheck = { name, state: next };
+		}, 450);
+		return () => clearTimeout(timer);
+	});
+
+	const destValid = $derived(destCheck.ok && (!hiveNameCheck || hiveNameCheck.state === 'present'));
 	/** Shown only once something has been typed, so an untouched field is not
 	 *  scolded for being empty. */
-	const destError = $derived(!destCheck.ok && destAddress.trim() ? destCheck.reason : undefined);
+	const destError = $derived.by(() => {
+		if (!destCheck.ok) return destAddress.trim() ? destCheck.reason : undefined;
+		switch (hiveNameCheck?.state) {
+			case 'missing':
+				return `There is no Hive account ${hiveNameCheck.name.replace(/^hive:/, '').replace(/^@/, '')}.`;
+			case 'unreachable':
+				return 'Could not check that Hive account. Try again.';
+			default:
+				return undefined;
+		}
+	});
 
 	/**
 	 * True when the input amount exceeds 50% of the relevant pool's input-side
@@ -959,9 +1009,35 @@
 		if (destChoice === 'address' && !destAddress.trim()) {
 			return 'Enter the address the output should go to.';
 		}
+		// The existence check disables Review for a moment with nothing to show
+		// for it, so it says so rather than looking stuck.
+		if (hiveNameCheck?.state === 'checking') return 'Checking that Hive account…';
 		if (!destValid) return undefined; // `destError` states the rule it broke.
 		if (!swapResult) return 'Fetching a price for this pair…';
 		return undefined;
+	});
+
+	/**
+	 * Who gets paid, in one line, always on screen (M2).
+	 *
+	 * Every destination control lives under Advanced, which is off on a first
+	 * visit — so the card never said who the output was going to, and the
+	 * answer was not even constant: it depends on the login and on whether an
+	 * address was typed earlier. Showing it is also what makes the stale
+	 * `toUsername` class of bug visible instead of silent.
+	 */
+	const recipientSummary = $derived.by(() => {
+		const where = destNetwork.value === Network.magi.value ? 'Magi' : chainLabel;
+		const typed = destAddress.trim();
+		if (destChoice === 'address' && typed) {
+			return { who: getAccountNameFromAddress(typed), where, mine: false };
+		}
+		const own = getUsernameFromAuth(auth);
+		return {
+			who: own ? getAccountNameFromAddress(own) : 'your wallet',
+			where,
+			mine: true
+		};
 	});
 
 	let dialogOpen = $state(false);
@@ -1403,6 +1479,21 @@
 				errors={toErrors}
 			/>
 
+			<!-- Who gets paid. Not gated on Advanced: the controls are expert,
+			     the answer is not. -->
+			<div class="recipient-bar">
+				<span class="recipient-label">To</span>
+				<span class="recipient-who">{recipientSummary.who}</span>
+				{#if recipientSummary.mine}<span class="recipient-mine sm-caption">(you)</span>{/if}
+				<span class="tag-sep">&middot;</span>
+				<span class="recipient-where sm-caption">{recipientSummary.where}</span>
+				{#if !advanced}
+					<button type="button" class="recipient-change" onclick={() => setAdvanced(true)}>
+						Change
+					</button>
+				{/if}
+			</div>
+
 			<!-- Route Info -->
 			{#if txState.from && txState.to}
 				<div class="route-info">
@@ -1680,6 +1771,42 @@
 {/snippet}
 
 <style lang="scss">
+	.recipient-bar {
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin: 0.5rem 0 0;
+		padding: 0.5rem 0.75rem;
+		border-radius: 12px;
+		background: var(--alt-field-2, rgba(0, 0, 0, 0.18));
+		font-size: var(--text-sm);
+	}
+	.recipient-label {
+		color: var(--dash-text-muted);
+	}
+	.recipient-who {
+		font-weight: 600;
+		color: var(--dash-text-primary);
+		overflow-wrap: anywhere;
+	}
+	.recipient-mine,
+	.recipient-where {
+		color: var(--dash-text-muted);
+	}
+	.recipient-change {
+		margin-left: auto;
+		border: none;
+		background: transparent;
+		padding: 0 0.25rem;
+		font: inherit;
+		font-size: var(--text-sm);
+		color: var(--dash-accent-purple);
+		cursor: pointer;
+		text-decoration: underline;
+	}
+
 	.review-blocker {
 		margin: 0 0 0.25rem;
 		text-align: center;

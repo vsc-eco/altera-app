@@ -12,6 +12,7 @@
 	import AccBalance from '$lib/AccBalance.svelte';
 	import AssetBalanceChart from '$lib/cards/Balance/AssetBalanceChart.svelte';
 	import PopOut from '$lib/redesign/PopOut.svelte';
+	import ConnectedWalletCard from '$lib/redesign/ConnectedWalletCard.svelte';
 	import { ACTION_LABEL, ASSET_ACTIONS, assetActionHref } from '$lib/redesign/assetActions';
 	import { ArrowDownToLine, ArrowUpFromLine, Send } from '@lucide/svelte';
 	import { getAuth } from '$lib/auth/store';
@@ -56,6 +57,10 @@
 			<p class="empty">Connect a wallet to see your balances.</p>
 		{/if}
 	</section>
+
+	{#if did}
+		<ConnectedWalletCard />
+	{/if}
 
 	<section class="alt-card history">
 		<div class="card-head">

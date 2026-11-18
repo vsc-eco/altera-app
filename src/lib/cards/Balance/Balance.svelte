@@ -11,6 +11,8 @@
 	import { getTxSessionId } from '$lib/sendswap/utils/sendUtils';
 	import {
 		fetchConnectedWalletBalances,
+		formatWalletAmount,
+		walletAssetName,
 		type WalletBalance
 	} from '$lib/cards/ConnectedWallet/connectedWalletBalances';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -105,27 +107,10 @@
 		return total;
 	}
 
-	// Fixed decimals per asset so amounts line up (Hive/HBD 3dp, BTC 8dp, EVM 6dp).
-	const decimalsFor = (symbol: string) => (symbol === 'BTC' ? 8 : symbol === 'ETH' ? 6 : 3);
-	const fmtAmount = (n: number, symbol: string) =>
-		n.toLocaleString(undefined, {
-			minimumFractionDigits: decimalsFor(symbol),
-			maximumFractionDigits: decimalsFor(symbol)
-		});
-	// Match AccBalance's subtitle line under each coin name.
-	const subtitleFor = (symbol: string, sub?: string) => {
-		const base =
-			symbol === 'HIVE'
-				? 'Native Hive Token'
-				: symbol === 'HBD'
-					? 'Hive Backed Dollar'
-					: symbol === 'BTC'
-						? 'Bitcoin'
-						: symbol === 'ETH'
-							? 'Ethereum'
-							: symbol;
-		return sub ? `${base} · ${sub}` : base;
-	};
+	// Decimals-per-asset and the subtitle line moved to
+	// `connectedWalletBalances` when the portfolio page grew a card of its
+	// own: two screens rendering the same rows from two private copies is how
+	// they end up disagreeing.
 
 	function openDeposit() {
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static route; resolve() not exported in this kit version
@@ -219,9 +204,11 @@
 							<div class="wrow-info">
 								<div class="wname-row">
 									<span class="wcoin-name">{b.symbol}</span>
-									<span class="wrow-amount">{fmtAmount(b.amount, b.symbol)} {b.symbol}</span>
+									<span class="wrow-amount"
+										>{formatWalletAmount(b.amount, b.symbol)} {b.symbol}</span
+									>
 								</div>
-								<span class="wcoin-sub">{subtitleFor(b.symbol, b.sub)}</span>
+								<span class="wcoin-sub">{walletAssetName(b.symbol, b.sub)}</span>
 							</div>
 						</div>
 					{/each}

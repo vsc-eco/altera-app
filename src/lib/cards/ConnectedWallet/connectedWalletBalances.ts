@@ -1,5 +1,6 @@
 import { getHiveAccounts } from '$lib/auth/hive/getHiveAccounts';
 import { isBtcTestnetAddress } from '$lib/stores/currentBalance';
+import { spendableSats, type MempoolAddressStats } from '$lib/stores/btcSpendable';
 import type { Account } from '$lib/auth/hive/accountTypes';
 import type { Auth } from '$lib/auth/store';
 
@@ -53,42 +54,47 @@ export async function fetchEvmBalances(address: string, chainId = 1): Promise<Wa
 	// not have re-created it yet). Safe to call repeatedly.
 	const { initModal, wagmiConfig } = await import('$lib/auth/reown');
 	initModal();
-	if (!wagmiConfig) return [];
-	try {
-		const { getBalance } = await import('@wagmi/core');
-		const bal = (await getBalance(wagmiConfig, {
-			address: address as `0x${string}`,
-			chainId
-		})) as {
-			value: bigint;
-			decimals: number;
-			symbol?: string;
-		};
-		const amount = Number(bal.value) / 10 ** bal.decimals;
-		const symbol = bal.symbol || 'ETH';
-		return [{ symbol, amount, icon: symbol === 'ETH' ? '/eth/eth.svg' : undefined }];
-	} catch {
-		return [];
-	}
+	// Errors propagate: a caller that cannot tell "the RPC failed" from "the
+	// wallet is empty" renders a zero, and a zero balance is the one thing a
+	// user will act on without checking.
+	if (!wagmiConfig) throw new Error('Wallet connection is not initialised');
+	const { getBalance } = await import('@wagmi/core');
+	const bal = (await getBalance(wagmiConfig, {
+		address: address as `0x${string}`,
+		chainId
+	})) as {
+		value: bigint;
+		decimals: number;
+		symbol?: string;
+	};
+	const amount = Number(bal.value) / 10 ** bal.decimals;
+	const symbol = bal.symbol || 'ETH';
+	return [{ symbol, amount, icon: symbol === 'ETH' ? '/eth/eth.svg' : undefined }];
 }
 
-/** BTC balance of the connected address via mempool.space's public API. */
+/**
+ * BTC balance of the connected address via mempool.space's public API.
+ *
+ * The headline figure is `spendableSats` — the SAME number the swap card's
+ * Max uses. This used to add unconfirmed incoming coins to it, so the two
+ * screens quoted different balances for one wallet and the portfolio's was
+ * the one you could not spend. Incoming coins are not lost from view: they
+ * come back as a second `pending` row, the way savings do for Hive.
+ */
 export async function fetchBtcBalance(address: string): Promise<WalletBalance[]> {
 	const base = isBtcTestnetAddress(address)
 		? 'https://mempool.space/testnet/api'
 		: 'https://mempool.space/api';
-	try {
-		const res = await fetch(`${base}/address/${address}`);
-		if (!res.ok) return [];
-		const d = await res.json();
-		const sats =
-			(d.chain_stats.funded_txo_sum ?? 0) -
-			(d.chain_stats.spent_txo_sum ?? 0) +
-			((d.mempool_stats?.funded_txo_sum ?? 0) - (d.mempool_stats?.spent_txo_sum ?? 0));
-		return [{ symbol: 'BTC', amount: sats / 1e8, icon: '/btc/btc.svg' }];
-	} catch {
-		return [];
-	}
+	const res = await fetch(`${base}/address/${address}`);
+	if (!res.ok) throw new Error(`mempool.space returned ${res.status}`);
+	const stats = (await res.json()) as MempoolAddressStats;
+	const spendable = spendableSats(stats);
+	const mempoolIn =
+		(stats.mempool_stats?.funded_txo_sum ?? 0) - (stats.mempool_stats?.spent_txo_sum ?? 0);
+	const out: WalletBalance[] = [{ symbol: 'BTC', amount: spendable / 1e8, icon: '/btc/btc.svg' }];
+	if (mempoolIn > 0)
+		out.push({ symbol: 'BTC', amount: mempoolIn / 1e8, icon: '/btc/btc.svg', sub: 'pending' });
+	return out;
 }
 
 /** Dispatch to the right chain based on the auth provider / DID. */
@@ -105,4 +111,67 @@ export async function fetchConnectedWalletBalances(auth: Auth): Promise<WalletBa
 		}
 	}
 	return [];
+}
+
+/**
+ * How a connected wallet is named on screen: which chain it is, and which
+ * account on it. The address is middle-truncated — the first and last
+ * characters are what a reader checks against their wallet, and the middle
+ * is what makes a 42-character string unreadable.
+ */
+export function connectedWalletLabel(auth: Auth): { chain: string; account: string } | undefined {
+	const v = auth.value;
+	if (!v) return undefined;
+	if (v.provider === 'aioha' && v.username) return { chain: 'Hive', account: `@${v.username}` };
+	if (v.did?.startsWith('did:pkh:bip122:'))
+		return { chain: 'Bitcoin', account: truncateAddress(v.address) };
+	if (v.did?.startsWith('did:pkh:eip155:'))
+		return { chain: 'Ethereum', account: truncateAddress(v.address) };
+	return undefined;
+}
+
+/** `bc1qar0srrr7x...gdjkmdfnjd` — enough of both ends to check by eye. */
+export function truncateAddress(address: string, lead = 8, tail = 6): string {
+	if (!address) return '';
+	if (address.length <= lead + tail + 1) return address;
+	return `${address.slice(0, lead)}…${address.slice(-tail)}`;
+}
+
+/**
+ * Decimals per asset, so a column of amounts lines up on the point. BTC is
+ * 8 because that is its unit; ETH 6 because 18 is unreadable and the last
+ * twelve digits of a balance are never what anyone is reading for.
+ *
+ * These live here, next to the balances themselves, because two screens now
+ * render them. The dashboard card and the portfolio card had no way to stay
+ * in agreement while each kept its own copy.
+ */
+export function walletAssetDecimals(symbol: string): number {
+	if (symbol === 'BTC') return 8;
+	if (symbol === 'ETH') return 6;
+	return 3;
+}
+
+/** A wallet balance as text, at its asset's fixed precision. */
+export function formatWalletAmount(amount: number, symbol: string): string {
+	const dp = walletAssetDecimals(symbol);
+	return amount.toLocaleString(undefined, {
+		minimumFractionDigits: dp,
+		maximumFractionDigits: dp
+	});
+}
+
+/** The sub-line under a balance: the asset's full name, plus any qualifier. */
+export function walletAssetName(symbol: string, sub?: string): string {
+	const base =
+		symbol === 'HIVE'
+			? 'Native Hive Token'
+			: symbol === 'HBD'
+				? 'Hive Backed Dollar'
+				: symbol === 'BTC'
+					? 'Bitcoin'
+					: symbol === 'ETH'
+						? 'Ethereum'
+						: symbol;
+	return sub ? `${base} · ${sub}` : base;
 }

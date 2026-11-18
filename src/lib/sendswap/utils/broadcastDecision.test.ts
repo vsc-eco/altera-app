@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { getIntermediaryNetwork } from './getNetwork';
 import { decideBroadcast } from './broadcastDecision';
 import { SwapTxState, TransferTxState, DepositTxState, WithdrawTxState } from './txState.svelte';
 import { Coin, Network } from './sendOptions';
@@ -99,12 +100,30 @@ describe('decideBroadcast — broadcast intermediary per flow', () => {
 		});
 	});
 
-	it('cross-chain swap (BTC mainnet → HIVE hiveMainnet) → send via magi (per docs.magi.eco)', () => {
+	/**
+	 * The routing claim this test was written for still holds — a BTC/Hive
+	 * mainnet pair routes through Magi — so it is asserted directly on
+	 * `getIntermediaryNetwork`.
+	 *
+	 * The *decision* changed: Magi is the rail, but no single signed
+	 * transaction can move BTC from Bitcoin L1 onto that rail (the deposit is
+	 * an address + confirmations), so `send()` never classified this as a swap
+	 * and built a plain HIVE transfer instead. It is now refused.
+	 */
+	it('cross-chain BTC mainnet → HIVE hiveMainnet routes through magi (per docs)', () => {
+		expect(
+			getIntermediaryNetwork(
+				{ coin: Coin.btc, network: Network.btcMainnet },
+				{ coin: Coin.hive, network: Network.hiveMainnet }
+			)
+		).toEqual(Network.magi);
+	});
+
+	it('refuses to sign that pair as a swap — BTC cannot be sourced from Bitcoin', () => {
 		const state = new SwapTxState();
 		state.from = { coin: Coin.btc, network: Network.btcMainnet };
 		state.to = { coin: Coin.hive, network: Network.hiveMainnet };
-		const d = decideBroadcast(state, 'swap');
-		expect(d).toEqual({ action: 'send', intermediary: Network.magi });
+		expect(decideBroadcast(state, 'swap').action).toBe('error');
 	});
 
 	it('Hive Mainnet deposit (hiveMainnet → magi) → send via magi', () => {
@@ -186,8 +205,7 @@ describe('decideBroadcast — v4v popup branch', () => {
 			{ coin: Coin.hive, network: Network.magi },
 			{ coin: Coin.hive, network: Network.hiveMainnet },
 			{ coin: Coin.hbd, network: Network.hiveMainnet },
-			{ coin: Coin.btc, network: Network.magi },
-			{ coin: Coin.btc, network: Network.btcMainnet }
+			{ coin: Coin.btc, network: Network.magi }
 		]) {
 			const state = new SwapTxState();
 			state.from = from;
@@ -224,7 +242,9 @@ describe('decideBroadcast — railOverride is deliberately NOT read', () => {
 
 	it('railOverride = lightning on a BTC mainnet → HIVE swap is IGNORED — intermediary stays magi', () => {
 		const state = new SwapTxState();
-		state.from = { coin: Coin.btc, network: Network.btcMainnet };
+		// Sourced from Magi, not Bitcoin: the pair still has to be signable for
+		// the decision to reach the intermediary at all.
+		state.from = { coin: Coin.btc, network: Network.magi };
 		state.to = { coin: Coin.hive, network: Network.hiveMainnet };
 		state.railOverride = Network.lightning;
 		const d = decideBroadcast(state, 'swap');

@@ -27,4 +27,13 @@ export { default as EmptyState } from './EmptyState.svelte';
 export { default as PageHeader } from './PageHeader.svelte';
 export { default as LabelHint } from './LabelHint.svelte';
 export { default as Faq } from './Faq.svelte';
-export { scrollEdges, type ScrollEdges } from './scrollEdges';
+/**
+ * Split in two deliberately. Written as `export { scrollEdges, type
+ * ScrollEdges }`, Vite's dev transform strips the `type` keyword but KEEPS the
+ * name, serving `export { scrollEdges, ScrollEdges }` — so the browser demands
+ * a runtime export that does not exist and every page using this barrel 500s.
+ * `pnpm run build` erases it correctly, so it only ever broke `pnpm dev`.
+ * `export type { … }` is erased whole, by both.
+ */
+export { scrollEdges } from './scrollEdges';
+export type { ScrollEdges } from './scrollEdges';

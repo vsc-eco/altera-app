@@ -10,7 +10,12 @@
 		findToOpt,
 		findNetwork
 	} from '$lib/sendswap/utils/swapPersistence';
-	import { resolveSourceNetwork } from '$lib/sendswap/utils/sendOptions';
+	import {
+		mainnetSwapDest,
+		mainnetSwapSource,
+		resolveSourceNetwork
+	} from '$lib/sendswap/utils/sendOptions';
+	import { canUseMainnetSelf } from '$lib/sendswap/utils/recipientValidation';
 	import SwapOptions from './stages/SwapOptions.svelte';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import Complete from '$lib/sendswap/stages/Complete.svelte';
@@ -35,19 +40,61 @@
 	const txState = untrack(() => (txType === 'swap' ? new SwapTxState() : new TransferTxState()));
 	provideTxState(txState);
 
+	/**
+	 * The source pair `applyStartDetails` opened with, while it is still
+	 * eligible to be upgraded to the login's mainnet (M9). Cleared the first
+	 * time the upgrade runs, and ignored if the user has since picked a source
+	 * themselves — their choice outranks a default.
+	 */
+	let pendingSourceUpgrade = $state<{ coin?: string; network: string } | undefined>();
+
+	$effect(() => {
+		const want = pendingSourceUpgrade;
+		if (!want || auth.status !== 'authenticated') return;
+		// One shot either way: this must never fight the source dialog.
+		pendingSourceUpgrade = undefined;
+		const current = untrack(() => txState.from);
+		if (!current || current.coin.value !== want.coin || current.network.value !== want.network) {
+			return;
+		}
+		const target = mainnetSwapSource(current.coin.value);
+		if (target.value === current.network.value) return;
+		if (!canUseMainnetSelf(target.value, auth.value?.did, auth.value?.provider)) return;
+		txState.from = { coin: current.coin, network: target };
+	});
+
 	function applyStartDetails() {
 		if (txType === 'swap') {
 			const stored = loadSwapSelection(SWAP_PAGE_PREF_KEY);
 			const fromOpt = findFromOpt(stored?.fromCoin) ?? getFromOption(Coin.btc.value);
 			const toOpt = findToOpt(stored?.toCoin) ?? getToOption(Coin.hive.value);
-			// A stored pair is not re-checked anywhere else, so the impossible
-			// source H1 could create came back on every reload (M7). Resolve it
-			// against what the coin can actually be on.
+			/**
+			 * A stored pair is not re-checked anywhere else, so the impossible
+			 * source H1 could create came back on every reload (M7). Resolve it
+			 * against what the coin can actually be on.
+			 *
+			 * With nothing stored the card opens mainnet-to-mainnet (M9): the
+			 * normal swap pays from the wallet's own Hive L1 balance. That
+			 * depends on the login — a reown wallet has no Hive account to sign
+			 * the deposit op the L1 source needs — and the login resolves AFTER
+			 * mount, so it cannot be decided here. Magi is the safe opening
+			 * value and `upgradeSourceToMainnet` revisits it once the login is
+			 * known. `mainnetSwapSource` answers Magi for BTC regardless, which
+			 * cannot be swapped from Bitcoin L1 at all.
+			 *
+			 * The destination is NOT defaulted here: `SwapOptions` owns it, and
+			 * resolves the same mainnet preference against the asset and the
+			 * login every time either changes, so it needs no such catch-up.
+			 */
 			const fromNet = resolveSourceNetwork(
 				fromOpt?.coin.value,
 				(findNetwork(stored?.fromNetwork) ?? Network.magi).value
 			);
-			const toNet = findNetwork(stored?.toNetwork) ?? Network.magi;
+			// Only a pair we chose ourselves may be upgraded later.
+			pendingSourceUpgrade = findNetwork(stored?.fromNetwork)
+				? undefined
+				: { coin: fromOpt?.coin.value, network: fromNet.value };
+			const toNet = findNetwork(stored?.toNetwork) ?? mainnetSwapDest(toOpt?.coin.value);
 			// /swap page bridges external assets via Lightning even when
 			// neither from nor to is on the Lightning network — override the
 			// from/to-based derivation. See QuickSwap for the parallel case.

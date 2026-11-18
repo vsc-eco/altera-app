@@ -13,6 +13,7 @@
  */
 import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 import { hiveRegex } from '$lib/auth/validateHiveUsername';
+import { mainnetSwapDest, Network } from './sendOptions';
 
 /** Where the output lands, which is what decides the address format. */
 export type RecipientTarget = 'magi' | 'hive' | 'btc';
@@ -102,4 +103,77 @@ export function validateRecipient(
 						reason: `That is not ${recipientHint('magi')}.`
 					};
 	}
+}
+
+/**
+ * Can the CONNECTED account itself act on `networkValue` — sign a payment
+ * from it, or be paid on it without an address being typed?
+ *
+ * The swap card's "my own wallet" destination pays `getUsernameFromAuth`,
+ * which is a Hive name on an aioha login and a BTC or EVM address on a reown
+ * one. `send()` then prefixes a Hive-L1 payout with `hive:`, so a
+ * wallet-logged-in user settling to Hive mainnet would have built
+ * `hive:bc1q…` — a recipient that reverts the router call on chain and spends
+ * the RC for nothing. Mainnet-to-mainnet is the normal swap (M9), so this is
+ * what keeps that default from reaching an account that cannot receive there.
+ *
+ * Magi is always true: every login has a Magi ledger account.
+ */
+export function canUseMainnetSelf(
+	networkValue: string | undefined,
+	did: string | undefined,
+	provider: string | undefined
+): boolean {
+	if (networkValue === 'magi') return true;
+	if (networkValue === 'hive_mainnet') return provider === 'aioha';
+	if (networkValue === 'btc_mainnet') return !!did?.startsWith('did:pkh:bip122:');
+	return false;
+}
+
+/** The two destinations the swap card offers, and the two networks for them. */
+export type DestRecipient = 'wallet' | 'address';
+export type DestNetworkChoice = 'mainnet' | 'magi';
+
+export type DestResolution = {
+	/** The network the output will actually settle on. */
+	network: Network;
+	/**
+	 * Why mainnet settlement is unavailable, when it is. The card turns this
+	 * into a sentence — the asset's display name and the chain's label live
+	 * there, and differ on testnet.
+	 */
+	blocked?: 'magi-only-asset' | 'wallet-cannot-receive';
+};
+
+/**
+ * Where a swap's output settles, from the two things the user controls and the
+ * two the login decides.
+ *
+ * Pure and tested here rather than assembled in the card, because getting it
+ * wrong misroutes money: the previous version pinned Magi whenever the user
+ * was paying themselves, so "my own wallet" and "stays on Magi" were the same
+ * switch and the normal swap could never settle on mainnet (M9).
+ *
+ * `choice` is the user's standing preference and is never overwritten — a
+ * Magi-only asset resolves to Magi without clearing it, so selecting a custom
+ * token and then selecting HBD again returns to mainnet settlement.
+ */
+export function resolveDestNetwork(args: {
+	toCoin: string | undefined;
+	choice: DestNetworkChoice;
+	recipient: DestRecipient;
+	did: string | undefined;
+	provider: string | undefined;
+}): DestResolution {
+	const mainnet = mainnetSwapDest(args.toCoin);
+	// No mainnet form exists for this asset: a custom token, sHBD.
+	if (mainnet.value === Network.magi.value) {
+		return { network: Network.magi, blocked: 'magi-only-asset' };
+	}
+	// Paying yourself on a mainnet needs the login to exist on that chain.
+	// Typing an address is exempt: that is the user naming the recipient.
+	if (args.recipient === 'wallet' && !canUseMainnetSelf(mainnet.value, args.did, args.provider)) {
+		return { network: Network.magi, blocked: 'wallet-cannot-receive' };
+	}
+	return { network: args.choice === 'magi' ? Network.magi : mainnet };
 }

@@ -19,6 +19,7 @@
 		Network,
 		type CoinOnNetwork,
 		type AssetOption,
+		isSelectableSource,
 		resolveSourceNetwork
 	} from '$lib/sendswap/utils/sendOptions';
 	import AmountInput from '$lib/currency/AmountInput.svelte';
@@ -55,6 +56,7 @@
 	import { browser } from '$app/environment';
 	import {
 		recipientHint,
+		resolveDestNetwork,
 		validateRecipient,
 		type RecipientTarget
 	} from '$lib/sendswap/utils/recipientValidation';
@@ -460,6 +462,7 @@
 		if (on) return;
 		destChoice = 'wallet';
 		destAddress = '';
+		destNetworkChoice = 'mainnet';
 		slippageBps = DEFAULT_SLIPPAGE_BPS;
 	}
 
@@ -477,24 +480,49 @@
 		}
 	});
 
-	// Update toNetwork based on destination choice
+	/**
+	 * Where the output settles.
+	 *
+	 * `destChoice` decides WHO is paid — the signed-in account or a typed
+	 * address — and `destNetworkChoice` decides WHERE. The two are orthogonal,
+	 * which the old code could not express: its wallet branch pinned
+	 * `Network.magi`, so paying yourself always meant staying on Magi and the
+	 * normal swap defaulted to a Magi-to-Magi trade. The owner's rule (M9) is
+	 * that the normal swap is mainnet-to-mainnet and the Magi options are
+	 * expert controls, so both destinations now read the same network choice.
+	 *
+	 * A Magi-only asset — a custom token, sHBD — has no mainnet form to settle
+	 * to, so it resolves to Magi whatever is selected, and the mainnet button
+	 * is disabled rather than silently ignored. `destNetworkChoice` itself is
+	 * left alone in that case: overwriting it would persist "magi" and every
+	 * later session would open on the wrong default.
+	 */
+	const destResolution = $derived(
+		resolveDestNetwork({
+			toCoin: txState.to?.coin.value,
+			choice: destNetworkChoice === 'magi' ? 'magi' : 'mainnet',
+			recipient: destChoice,
+			did: auth.value?.did,
+			provider: auth.value?.provider
+		})
+	);
+	const destNetwork = $derived(destResolution.network);
+
+	/** The blocked reason as a sentence, or `undefined` when mainnet is open. */
+	const mainnetDestBlocked = $derived.by(() => {
+		switch (destResolution.blocked) {
+			case 'magi-only-asset':
+				return `${coinDisplayLabel(toCoin)} only exists on the Magi network.`;
+			case 'wallet-cannot-receive':
+				return `Your connected wallet cannot receive ${coinDisplayLabel(toCoin)} on ${chainLabel}. Choose "Pay someone else" and enter an address, or keep it on Magi.`;
+			default:
+				return undefined;
+		}
+	});
+
 	$effect(() => {
-		if (destChoice === 'wallet') {
-			if (txState.to && txState.to.network.value !== Network.magi.value) {
-				txState.to = { coin: txState.to.coin, network: Network.magi };
-			}
-		} else {
-			// A custom token has no mainnet form, so "settle to an address" has
-			// nowhere to go — fall back to Magi rather than the old blanket
-			// hiveMainnet default, which would have tried to settle a Magi-only
-			// token on Hive L1.
-			const externalNet = findToOption(txState.to?.coin.value)?.networks?.find(
-				(n: Network) => n.value !== Network.magi.value
-			);
-			const net = destNetworkChoice === 'magi' ? Network.magi : (externalNet ?? Network.magi);
-			if (txState.to && txState.to.network.value !== net.value) {
-				txState.to = { coin: txState.to.coin, network: net };
-			}
+		if (txState.to && txState.to.network.value !== destNetwork.value) {
+			txState.to = { coin: txState.to.coin, network: destNetwork };
 		}
 	});
 
@@ -552,7 +580,7 @@
 	 * format the recipient field must accept.
 	 */
 	const recipientTarget = $derived.by<RecipientTarget>(() => {
-		if (destNetworkChoice === 'magi') return 'magi';
+		if (destNetwork.value === Network.magi.value) return 'magi';
 		return txState.to?.coin.value === Coin.btc.value ? 'btc' : 'hive';
 	});
 
@@ -1026,10 +1054,18 @@
 
 	const canSwapPositions = $derived(!!(txState.from && txState.to));
 
-	/** The networks the source step would actually offer — it hides Lightning,
-	 *  so the count has to be computed the same way to stay in step with it. */
+	/**
+	 * The networks the source step offers, which is also what the step-skipping
+	 * count is computed from, so the two cannot drift apart.
+	 *
+	 * Filtered through `isSelectableSource`, not just "not Lightning": BTC is
+	 * listed on Bitcoin in `swapOptions.from` for the deposit and withdraw
+	 * flows, but a swap cannot start there, and offering the card meant the
+	 * user only found out at Review — before the gate existed, it signed a
+	 * plain transfer of the output asset instead.
+	 */
 	function selectableNetworks(opt: AssetOption): Network[] {
-		return opt.networks.filter((n) => n.value !== Network.lightning.value);
+		return opt.networks.filter((n) => isSelectableSource(opt.coin.value, n.value));
 	}
 
 	/**
@@ -1237,7 +1273,7 @@
 				{@render tokenChips(generalChips, tempCoinOpt.coin.value)}
 				<span class="dialog-section-label">ALL ASSETS</span>
 				<div class="network-cards">
-					{#each tempCoinOpt.networks.filter((n) => n.value !== Network.lightning.value) as net (net.value)}
+					{#each selectableNetworks(tempCoinOpt) as net (net.value)}
 						<button class="network-card" onclick={() => confirmFromSelection(tempCoinOpt!, net)}>
 							<img src={tempCoinOpt.coin.icon} alt="" class="network-card-icon" />
 							<div class="network-card-info">
@@ -1363,6 +1399,33 @@
 					</div>
 				{/if}
 
+				<!-- Settlement network. Governs BOTH destinations below: whether
+				     the output is paid to the user or to a typed address is a
+				     separate question from which chain it lands on. -->
+				<div class="dest-network-row">
+					<span class="dest-network-label">Settlement network</span>
+					<div class="dest-network-toggle">
+						<button
+							class:active={destNetwork.value !== Network.magi.value}
+							disabled={!!mainnetDestBlocked}
+							title={mainnetDestBlocked}
+							onclick={() => {
+								destNetworkChoice = 'mainnet';
+							}}>{chainLabel}</button
+						>
+						<button
+							class:active={destNetwork.value === Network.magi.value}
+							onclick={() => {
+								destNetworkChoice = 'magi';
+							}}>Magi Network</button
+						>
+					</div>
+				</div>
+
+				{#if mainnetDestBlocked && destNetworkChoice === 'mainnet'}
+					<p class="dest-hint sm-caption">{mainnetDestBlocked}</p>
+				{/if}
+
 				<div class="dest-options">
 					<button
 						class="dest-card"
@@ -1373,9 +1436,11 @@
 					>
 						<div class="dest-card-icon"><Wallet size={18} /></div>
 						<div class="dest-card-info">
-							<span class="dest-card-name">Keep on Magi Network</span>
+							<span class="dest-card-name">My own wallet</span>
 							<span class="dest-card-desc sm-caption"
-								>Swap to yourself &middot; Asset stays on Magi.</span
+								>Swap to yourself &middot; Settles on {destNetwork.value === Network.magi.value
+									? 'Magi'
+									: chainLabel}.</span
 							>
 						</div>
 						<div class="dest-radio" class:checked={destChoice === 'wallet'}></div>
@@ -1392,7 +1457,7 @@
 							<span class="settle-dot"></span>
 							<span class="settle-text"
 								>{coinDisplayLabel(toCoin)} will settle natively in your {connectedWalletLabel}
-								wallet on Magi.</span
+								wallet on {destNetwork.value === Network.magi.value ? 'Magi' : chainLabel}.</span
 							>
 						</div>
 					{/if}
@@ -1415,7 +1480,7 @@
 								{#if toIsMagiOnly}
 									Unavailable &middot; {coinDisplayLabel(toCoin)} only exists on Magi
 								{:else}
-									Enter a recipient address &middot; Choose Magi or mainnet settlement
+									Pay someone else &middot; Settles on the network chosen above
 								{/if}
 							</span>
 						</div>
@@ -1425,23 +1490,6 @@
 
 				<!-- Address Section -->
 				<div class="dest-address-section" class:hidden={destChoice !== 'address'}>
-					<div class="dest-network-row">
-						<span class="dest-network-label">Target Network</span>
-						<div class="dest-network-toggle">
-							<button
-								class:active={destNetworkChoice === 'mainnet'}
-								onclick={() => {
-									destNetworkChoice = 'mainnet';
-								}}>{chainLabel}</button
-							>
-							<button
-								class:active={destNetworkChoice === 'magi'}
-								onclick={() => {
-									destNetworkChoice = 'magi';
-								}}>Magi Network</button
-							>
-						</div>
-					</div>
 					<textarea
 						bind:value={destAddress}
 						placeholder="Paste {recipientHint(recipientTarget)}... *"
@@ -1457,7 +1505,7 @@
 						<p class="dest-error sm-caption">{destError}</p>
 					{:else}
 						<p class="dest-hint sm-caption">
-							{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi'
+							{coinDisplayLabel(toCoin)} arrives on {destNetwork.value === Network.magi.value
 								? 'Magi'
 								: chainLabel} &mdash; accepts {recipientHint(recipientTarget)}
 						</p>
@@ -1965,8 +2013,12 @@
 				background-color: var(--dash-accent-purple);
 				color: var(--dash-text-primary);
 			}
-			&:not(.active):hover {
+			&:not(.active):hover:not(:disabled) {
 				background-color: var(--dash-surface);
+			}
+			&:disabled {
+				opacity: 0.45;
+				cursor: not-allowed;
 			}
 		}
 	}

@@ -245,6 +245,14 @@ if (import.meta.env.DEV) {
  *
  * A coin with no entry in `swapOptions.from` (a custom token, SATS) exists on
  * Magi only, so Magi is the one legal answer for it.
+ *
+ * Being listed in `swapOptions.from` is necessary but NOT sufficient: that
+ * table is shared with the deposit, withdraw and transfer flows, which do
+ * legitimately source BTC from Bitcoin L1. `send()` classifies a swap source
+ * only as Magi, or Hive L1 for native HIVE/HBD (where it prepends the
+ * deposit op) — so "BTC on Bitcoin -> HIVE" passed every swap branch and was
+ * built by the generic sender as a plain HIVE transfer. The source dialog
+ * offered that pair, so this was reachable without any flip.
  */
 export function isSelectableSource(
 	coinValue: string | undefined,
@@ -254,7 +262,15 @@ export function isSelectableSource(
 	if (networkValue === Network.lightning.value) return false;
 	const opt = getFromOption(coinValue);
 	if (!opt) return networkValue === Network.magi.value;
-	return opt.networks.some((n) => n.value === networkValue);
+	if (!opt.networks.some((n) => n.value === networkValue)) return false;
+	// Magi is always sourceable: the router pulls from the Magi ledger.
+	if (networkValue === Network.magi.value) return true;
+	// Hive L1 only for native HIVE/HBD, which `send()` funds by prepending a
+	// deposit op. Every other mainnet — Bitcoin above all — has no such path.
+	return (
+		networkValue === Network.hiveMainnet.value &&
+		(coinValue === hive.value || coinValue === hbd.value)
+	);
 }
 
 /**
@@ -275,4 +291,36 @@ export function resolveSourceNetwork(
 	const opt = getFromOption(coinValue);
 	const first = opt?.networks.find((n) => n.value !== Network.lightning.value);
 	return first ?? Network.magi;
+}
+
+/**
+ * The mainnet network a coin SETTLES to: Bitcoin for BTC, Hive L1 for HIVE
+ * and HBD. A coin that exists only on Magi — a custom token, sHBD — has no
+ * mainnet form, and gets Magi back.
+ *
+ * Read from the same `swapOptions.to` table the destination picker uses, so a
+ * new asset is handled by listing it there and nowhere else.
+ */
+export function mainnetSwapDest(coinValue: string | undefined): Network {
+	const opt = getToOption(coinValue);
+	const external = opt?.networks.find(
+		(n) => n.value !== Network.magi.value && n.value !== Network.lightning.value
+	);
+	return external ?? Network.magi;
+}
+
+/**
+ * The mainnet network a coin can be PAID FROM in a swap — which is not the
+ * mirror of `mainnetSwapDest`: BTC settles to Bitcoin but cannot be sourced
+ * there (see `isSelectableSource`), so BTC starts on Magi.
+ *
+ * The swap card opens mainnet-to-mainnet (M9), and this keeps that default
+ * from being a pair the gate would then refuse to sign.
+ */
+export function mainnetSwapSource(coinValue: string | undefined): Network {
+	const opt = getFromOption(coinValue);
+	const external = opt?.networks.find(
+		(n) => n.value !== Network.magi.value && isSelectableSource(coinValue, n.value)
+	);
+	return external ?? Network.magi;
 }

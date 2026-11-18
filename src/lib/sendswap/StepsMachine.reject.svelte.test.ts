@@ -22,7 +22,10 @@ const { default: Harness } = await import('$lib/sendswap/testing/StepsMachineHar
 
 function state() {
 	const s = new SwapTxState();
-	s.from = { coin: Coin.btc, network: Network.btcMainnet };
+	// Sourced from Magi: BTC on Bitcoin is refused before `send()` is reached
+	// (it has no deposit-then-swap path), and these tests are about what the
+	// overlay does when send() itself fails, so the pair has to be signable.
+	s.from = { coin: Coin.btc, network: Network.magi };
 	s.to = { coin: Coin.hbd, network: Network.hiveMainnet };
 	s.fromAmount = '0.0001';
 	s.toAmount = '8.643';

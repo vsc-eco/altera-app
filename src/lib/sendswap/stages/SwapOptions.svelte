@@ -1525,7 +1525,22 @@
 		     column but is what every user reads before confirming. -->
 		{#if advanced}
 			<div class="deliver-to-card">
-				<span class="deliver-label">DELIVER TO</span>
+				<!-- "Change" on the recipient bar opens this box by switching
+				     Advanced on. Without the reverse here, the only way back to
+				     the simple layout is the Advanced checkbox at the top of the
+				     other card — which is not where the reader is looking, and
+				     is not obviously the thing that opened this. -->
+				<div class="deliver-head">
+					<span class="deliver-label">DELIVER TO</span>
+					<button
+						type="button"
+						class="deliver-hide"
+						onclick={() => setAdvanced(false)}
+						title="Back to the simple layout: pay to your own wallet, default slippage"
+					>
+						Hide
+					</button>
+				</div>
 
 				{#if txState.to}
 					<div class="dest-header">
@@ -2027,12 +2042,30 @@
 		flex-direction: column;
 		gap: 1rem;
 	}
+	.deliver-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
 	.deliver-label {
 		color: var(--dash-text-muted);
 		font-size: 0.7rem;
 		font-weight: 600;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
+	}
+	/* Deliberately the same affordance as the "Change" link that opens this,
+	   so the pair reads as one toggle rather than two unrelated controls. */
+	.deliver-hide {
+		border: none;
+		background: transparent;
+		padding: 0 0.25rem;
+		font: inherit;
+		font-size: var(--text-sm);
+		color: var(--dash-accent-purple);
+		cursor: pointer;
+		text-decoration: underline;
 	}
 	.dest-header {
 		display: flex;

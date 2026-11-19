@@ -99,6 +99,8 @@
 	function detectCoin(symbol: string): Coin {
 		const upper = symbol.toUpperCase();
 		if (upper === 'BTC') return Coin.btc;
+		if (upper === 'ETH') return Coin.eth;
+		if (upper === 'USDC') return Coin.usdc;
 		if (upper === 'HBD') return Coin.hbd;
 		if (upper === 'HIVE') return Coin.hive;
 		const custom = customTokens.find((t) => t.symbol === symbol.toLowerCase());

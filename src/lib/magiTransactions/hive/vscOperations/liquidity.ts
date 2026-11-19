@@ -2,6 +2,7 @@ import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId, DEX_ROUTER_CONTRACT_ID } from '../../../../client';
+import { toChainUnits } from '$lib/currency/chainAmount';
 
 /** Native (non-mapped) assets that need a `transfer.allow` intent so the
  *  router can `HiveDraw` them from the user. Mapped assets — BTC and every
@@ -65,8 +66,8 @@ export function getAddLiquidityOp(
 	// amounts stay aligned with the correct asset after router sorting.
 	let a0 = amount0.coin.value.toLowerCase();
 	let a1 = amount1.coin.value.toLowerCase();
-	let amt0Raw = amount0.amount.toString();
-	let amt1Raw = amount1.amount.toString();
+	let amt0Raw = toChainUnits(amount0);
+	let amt1Raw = toChainUnits(amount1);
 	if (a0 > a1) {
 		[a0, a1] = [a1, a0];
 		[amt0Raw, amt1Raw] = [amt1Raw, amt0Raw];

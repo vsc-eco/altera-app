@@ -2,6 +2,7 @@ import moment from 'moment';
 import { writable } from 'svelte/store';
 import { getBlockHeightFromDate } from '../../routes/(authed)/transactions/getDateFromBlockHeight';
 import { CoinAmount } from '$lib/currency/CoinAmount';
+import { fetchEvmUsdPrices } from '$lib/currency/evmUsdPrices';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import config from '../../../houdini.config';
 import { type Point } from '../LineChart.svelte';
@@ -52,7 +53,18 @@ export async function sumBalance(accBal: AccountBalance): Promise<number> {
 	for (const amt of Object.values(amts)) {
 		totalInUSD = totalInUSD.add(await amt.convertTo(Coin.usd, Network.lightning));
 	}
-	return totalInUSD.toNumber();
+	// ETH/USDC on the EVM bridge (smallest units): the feed above does not
+	// quote them. Zero on a network without the bridge, so no price is fetched.
+	const eth = accBal.eth ?? 0;
+	const usdc = accBal.usdc ?? 0;
+	let evmUsd = 0;
+	if (eth > 0 || usdc > 0) {
+		const prices = await fetchEvmUsdPrices();
+		evmUsd =
+			(eth / 10 ** Coin.eth.decimalPlaces) * prices.eth +
+			(usdc / 10 ** Coin.usdc.decimalPlaces) * prices.usdc;
+	}
+	return totalInUSD.toNumber() + evmUsd;
 }
 
 async function getBlockHeightSeries(

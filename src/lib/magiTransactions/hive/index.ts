@@ -10,6 +10,7 @@ import { getHiveWithdrawalOp } from './vscOperations/withdrawal';
 import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp } from './vscOperations/bitcoin';
+import { getEvmTransferOp } from './vscOperations/evm';
 import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
 import { getBtcApproveOp, getEvmAssetApproveOp, getTokenApproveOp } from './vscOperations/swap';
 import { isEvmBridgeCoin } from '../evmBridge';
@@ -271,6 +272,15 @@ export const getSendOpGenerator = (
 				`VSC does not currently support sending bitcoin from ${fromNetwork.label} to ${toNetwork.label}`
 			);
 		}
+	}
+	if (isEvmBridgeCoin(toCoin)) {
+		if (toNetwork.value === Network.magi.value) {
+			return getEvmTransferOp;
+		}
+		// Like the BTC unmap: sendUtils calls getEvmUnmapOp directly.
+		throw new Error(
+			`${toCoin.label} to ${toNetwork.label} requires the direct getEvmUnmapOp path (see sendUtils.ts)`
+		);
 	}
 	if (fromNetwork.value == Network.magi.value && toNetwork.value == Network.magi.value) {
 		return getHiveTransferOp;

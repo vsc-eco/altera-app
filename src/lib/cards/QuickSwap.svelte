@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isEvmBridgeCoin } from '$lib/magiTransactions/evmBridge';
 	import { getAuth } from '$lib/auth/store';
 	import { solveNetworkConstraints, optionsEqual } from '$lib/sendswap/utils/sendUtils';
 	import { SwapTxState, provideTxState } from '$lib/sendswap/utils/txState.svelte';
@@ -221,10 +222,12 @@
 			networkOptions = result.networkOptions;
 	});
 
-	// From tokens: all available coins (BTC, HIVE, HBD) — exclude sHBD
+	// From tokens: all available coins (BTC, HIVE, HBD) — exclude sHBD. This card
+	// quotes only the HIVE/HBD and BTC/HBD pools, so ETH/USDC (EVM bridge) stay
+	// on the /swap page, which routes every pool.
 	const fromAssetObjs: AssetObject[] = $derived(
 		swapOptions.from
-			.filter((opt) => opt.coin.value !== Coin.shbd?.value)
+			.filter((opt) => opt.coin.value !== Coin.shbd?.value && !isEvmBridgeCoin(opt.coin))
 			.map((opt) => ({
 				...opt.coin,
 				snippet: assetCard,
@@ -238,7 +241,7 @@
 	// To tokens: all coins Magi supports (show all, not just those with balance) — exclude sHBD
 	const toAssetObjs: AssetObject[] = $derived(
 		swapOptions.to
-			.filter((opt) => opt.coin.value !== Coin.shbd?.value)
+			.filter((opt) => opt.coin.value !== Coin.shbd?.value && !isEvmBridgeCoin(opt.coin))
 			.map((opt) => ({
 				...opt.coin,
 				snippet: assetCard,

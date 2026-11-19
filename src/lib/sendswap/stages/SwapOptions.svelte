@@ -34,7 +34,7 @@
 	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
 	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
-	import { numberFormatLanguage } from '$lib/constants';
+	import { EVM_BRIDGE_ENABLED, numberFormatLanguage } from '$lib/constants';
 	import { getHiveAssetName, getHbdAssetName, vscNetworkId } from '$lib/../client';
 	import {
 		fetchTypedPoolDepths,
@@ -83,6 +83,9 @@
 	// Pool depths and swap calculation state
 	let hiveHbdPool = $state.raw<TypedPoolDepths | null>(null);
 	let btcHbdPool = $state.raw<TypedPoolDepths | null>(null);
+	/** ETH/HBD and HBD/USDC when the EVM bridge is live: built-in assets routed
+	 *  exactly like BTC/HBD (a pool that won't load just leaves its asset out). */
+	let evmPools = $state.raw<TypedPoolDepths[]>([]);
 	/** Pool-backed custom tokens, and the pools that back them. Each is paired
 	 *  against HBD, so they slot straight into the same routing as the natives. */
 	let customTokens = $state.raw<CustomToken[]>([]);
@@ -108,13 +111,20 @@
 		poolLoadFailed = false;
 		poolLoadingRetry = true;
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			const [hiveHbd, btcHbd, tokens] = await Promise.all([
+			const [hiveHbd, btcHbd, tokens, evm] = await Promise.all([
 				hiveHbdPool ? null : fetchTypedPoolDepths('HIVE', 'HBD'),
 				btcHbdPool ? null : fetchTypedPoolDepths('BTC', 'HBD'),
-				customTokens.length ? customTokens : fetchCustomTokens()
+				customTokens.length ? customTokens : fetchCustomTokens(),
+				EVM_BRIDGE_ENABLED && evmPools.length < 2
+					? Promise.all([
+							fetchTypedPoolDepths('ETH', 'HBD'),
+							fetchTypedPoolDepths('HBD', 'USDC')
+						])
+					: null
 			]);
 			if (hiveHbd) hiveHbdPool = hiveHbd;
 			if (btcHbd) btcHbdPool = btcHbd;
+			if (evm) evmPools = evm.filter((d): d is TypedPoolDepths => d != null);
 			customTokens = tokens;
 
 			// Each custom token pairs against HBD. Load them alongside the
@@ -223,7 +233,9 @@
 
 	/** Every pool the picker can route through, native and custom alike. */
 	const allPools = $derived(
-		[hiveHbdPool, btcHbdPool, ...customPools].filter((p): p is TypedPoolDepths => p != null)
+		[hiveHbdPool, btcHbdPool, ...evmPools, ...customPools].filter(
+			(p): p is TypedPoolDepths => p != null
+		)
 	);
 
 	/** Symbols this control can swap: the natives plus any pool-backed token. */
@@ -232,6 +244,7 @@
 			Coin.hive.value,
 			Coin.hbd.value,
 			Coin.btc.value,
+			...evmPools.flatMap((p) => [p.asset0, p.asset1]),
 			...customTokens.map((t) => t.symbol)
 		])
 	);

@@ -163,10 +163,34 @@ export function btcPayoutSwapRcLimit(
 export async function sizeBtcPayoutSwap(
 	did: string,
 	hbdPulledFromMagi: number,
-	fallbackAvailable?: number
+	fallbackAvailable?: number,
+	/** True when the input is ETH or USDC (isEvmBridgeCoin): such payouts cost
+	 *  more (btcPayoutMinRcForInput). */
+	evmBridgeInput = false
 ): Promise<RcSizing> {
 	const [fresh, minRc] = await Promise.all([fetchAccountRc(did), fetchBtcPayoutSwapMinRc()]);
-	return btcPayoutSwapRcLimit(fresh ?? fallbackAvailable ?? 0, hbdPulledFromMagi, minRc);
+	return btcPayoutSwapRcLimit(
+		fresh ?? fallbackAvailable ?? 0,
+		hbdPulledFromMagi,
+		btcPayoutMinRcForInput(minRc, evmBridgeInput)
+	);
+}
+
+/**
+ * What a BTC payout costs on top when its input is ETH or USDC: the router
+ * also pulls it from the EVM bridge (transferFrom) and swaps it into HBD first.
+ * Measured on testnet at 0.15, 2026-11-19: ETH -> HBD -> BTC 6,544 RC against
+ * 5,487 for HBD -> BTC (+1,057). USDC takes the same pull and hop (the testnet
+ * USDC pool is too small to dry-run a payout). The hop writes no new bytes, so
+ * the difference is the same up to 0.14. Added to the version's minimum, which
+ * already holds room for one more vault input.
+ */
+export const BTC_PAYOUT_EVM_INPUT_EXTRA_RC = 1_000;
+
+/** The payout minimum for this input: the version's minimum, plus the bridge
+ *  pull and the extra hop when the input is ETH or USDC (isEvmBridgeCoin). */
+export function btcPayoutMinRcForInput(minRc: number, evmBridgeInput: boolean): number {
+	return evmBridgeInput ? minRc + BTC_PAYOUT_EVM_INPUT_EXTRA_RC : minRc;
 }
 
 /** What to tell a user whose RC cannot pay a BTC payout. The amount swapped

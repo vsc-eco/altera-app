@@ -958,7 +958,8 @@ export async function send(
 				const sizing = await sizeBtcPayoutSwap(
 					auth.value.did,
 					hbdFromMagi,
-					get(accountBalance).bal.resource_credits
+					get(accountBalance).bal.resource_credits,
+					isEvmBridgeCoin(fromCoin.coin)
 				);
 				if (!sizing.ok) {
 					const msg = btcPayoutShortfallMessage(sizing);

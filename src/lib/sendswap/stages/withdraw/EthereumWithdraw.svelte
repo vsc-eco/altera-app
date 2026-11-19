@@ -8,7 +8,8 @@
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network, type CoinOnNetwork } from '$lib/sendswap/utils/sendOptions';
 	import { useWithdrawState } from '$lib/sendswap/utils/txState.svelte';
-	import { accountBalance, getBalanceAmount } from '$lib/stores/currentBalance';
+	import { accountBalance, evmProofFee, getBalanceAmount } from '$lib/stores/currentBalance';
+	import { maxSendableSats } from '$lib/stores/btcSpendable';
 	import { isAddress } from 'viem';
 
 	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
@@ -33,9 +34,25 @@
 		}
 	});
 
-	// The bridge charges its fee in the withdrawn asset; taking it from the
-	// amount lets "max" go through.
+	// The bridge charges its Ethereum gas fee in the withdrawn asset; taking it
+	// from the amount lets "max" go through.
 	let deductFee = $state(true);
+
+	// Its proving fee is charged on top either way (prooffee.go), so max leaves
+	// room for it, as the BTC max leaves the miner fee (maxSendableSats).
+	const proofFee = $derived(
+		assetCoin.value === Coin.usdc.value ? $evmProofFee.usdc : $evmProofFee.eth
+	);
+	const proofFeeText = $derived(
+		(proofFee / 10 ** assetCoin.decimalPlaces).toLocaleString(undefined, {
+			maximumFractionDigits: 6
+		}) + ` ${assetCoin.label}`
+	);
+	const feeHint = $derived(
+		"The bridge's Ethereum gas fee is taken from the withdrawal instead of added on top. " +
+			(proofFee > 0 ? `Its proving fee (${proofFeeText}) is charged on top either way. ` : '') +
+			'Paid out after Ethereum finality (~20 min).'
+	);
 
 	function onAddressInput(value: string) {
 		ethAddress = value;
@@ -60,7 +77,8 @@
 	let max = $state(new CoinAmount(0, Coin.eth));
 	$effect(() => {
 		if (!open || !txState.from) return;
-		max = getBalanceAmount($accountBalance, txState.from.coin, txState.from.network);
+		const balance = getBalanceAmount($accountBalance, txState.from.coin, txState.from.network);
+		max = new CoinAmount(maxSendableSats(balance.amount, proofFee), balance.coin, true);
 	});
 
 	// Sync coinAmount -> state
@@ -125,10 +143,7 @@
 			<input type="checkbox" bind:checked={deductFee} />
 			<span>Deduct fee from amount</span>
 		</label>
-		<span class="hint"
-			>The bridge's Ethereum gas and proof fee is taken from the withdrawal instead of added on top.
-			Paid out after Ethereum finality (~20 min).</span
-		>
+		<span class="hint">{feeHint}</span>
 	</div>
 </div>
 

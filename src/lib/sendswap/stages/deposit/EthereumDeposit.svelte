@@ -3,6 +3,7 @@
 	// The BtcMainnetDeposit pattern: logged in with the matching wallet, the page
 	// sends for you; otherwise it shows where and how to send.
 	import { getAuth } from '$lib/auth/store';
+	import { evmProofFee } from '$lib/stores/currentBalance';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
@@ -41,6 +42,13 @@
 	});
 
 	const depositData = $derived(auth.value?.did ? depositToCalldata(auth.value.did) : null);
+
+	// The bridge keeps its proving fee out of every deposit it credits (prooffee.go).
+	const proofFee = $derived(asset.value === Coin.usdc.value ? $evmProofFee.usdc : $evmProofFee.eth);
+	const proofFeeText = $derived(
+		(proofFee / 10 ** asset.decimalPlaces).toLocaleString(undefined, { maximumFractionDigits: 6 }) +
+			` ${asset.label}`
+	);
 
 	let coinAmount = $state(new CoinAmount(0, Coin.eth));
 	$effect(() => {
@@ -121,6 +129,9 @@
 			A USDC transfer cannot name a Magi account, so it is credited to the Magi account of the
 			Ethereum address that sends it. Log in with that Ethereum wallet to deposit USDC and use it.
 		</p>
+	{/if}
+	{#if vaultAddress && proofFee > 0}
+		<p class="hint">The bridge keeps a proving fee of {proofFeeText} from each deposit.</p>
 	{/if}
 </div>
 

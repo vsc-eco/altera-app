@@ -6,7 +6,11 @@ import { getAuth, type Auth } from '$lib/auth/store';
 import { getUsernameFromAuth } from '$lib/getAccountName';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID, EVM_BRIDGE_ENABLED } from '$lib/constants';
+import {
+	BTC_MAPPING_CONTRACT_ID,
+	EVM_BRIDGE_CONTRACT_ID,
+	EVM_BRIDGE_ENABLED
+} from '$lib/constants';
 import { fromChainUnits } from '$lib/currency/chainAmount';
 import { evmBalanceKey } from '$lib/magiTransactions/evmBridge';
 import { queryOnce } from '$lib/queryOnce';
@@ -84,6 +88,14 @@ async function fetchBtcBalance(did: string): Promise<number> {
 }
 
 /**
+ * The EVM bridge's proving fee per asset, in smallest units (its pf-<asset>
+ * keys, prooffee.go): taken from every deposit and charged on top of every
+ * withdrawal, also when the gas fee is deducted from the amount. The withdraw
+ * max leaves room for it, as the BTC max leaves btcSendFeeReserve.
+ */
+export const evmProofFee = writable<{ eth: number; usdc: number }>({ eth: 0, usdc: 0 });
+
+/**
  * ETH and USDC held on Magi: the EVM bridge's ledger keys, stored as decimal
  * strings (wei / USDC's 6 places), under the account's canonical DID. Zero
  * when the bridge is not enabled on this network.
@@ -94,10 +106,17 @@ async function fetchEvmBalances(did: string): Promise<{ eth: number; usdc: numbe
 	const usdcKey = evmBalanceKey(did, Coin.usdc.value);
 	try {
 		const result = await queryOnce(new GetStateByKeysStore(), {
-			variables: { contractId: EVM_BRIDGE_CONTRACT_ID, keys: [ethKey, usdcKey] },
+			variables: {
+				contractId: EVM_BRIDGE_CONTRACT_ID,
+				keys: [ethKey, usdcKey, 'pf-eth', 'pf-usdc']
+			},
 			policy: 'NetworkOnly'
 		});
 		const state = (result.data?.getStateByKeys ?? {}) as Record<string, string | null>;
+		evmProofFee.set({
+			eth: fromChainUnits(state['pf-eth'], Coin.eth),
+			usdc: fromChainUnits(state['pf-usdc'], Coin.usdc)
+		});
 		return {
 			eth: fromChainUnits(state[ethKey], Coin.eth),
 			usdc: fromChainUnits(state[usdcKey], Coin.usdc)

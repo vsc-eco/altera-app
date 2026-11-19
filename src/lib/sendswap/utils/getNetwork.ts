@@ -32,7 +32,15 @@ function throughMagi(from: CoinOnNetwork, to: CoinOnNetwork) {
 	if (throughHive(from, to)) {
 		return false;
 	}
-	const magiSupportedNetworks: string[] = [Network.magi.value, Network.hiveMainnet.value, Network.btcMainnet.value];
+	// Ethereum like BTC mainnet: a withdrawal to it is a Magi call (the EVM
+	// bridge's unmapETH / unmapERC20). Without it the rail was unknown and the
+	// withdrawal failed "Unsupported transaction" before anything was signed.
+	const magiSupportedNetworks: string[] = [
+		Network.magi.value,
+		Network.hiveMainnet.value,
+		Network.btcMainnet.value,
+		Network.ethMainnet.value
+	];
 	return (
 		magiSupportedNetworks.includes(from.network.value) &&
 		magiSupportedNetworks.includes(to.network.value)

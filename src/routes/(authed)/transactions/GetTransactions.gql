@@ -29,6 +29,9 @@ query GetTransactions(
 			to
 			type
 		}
+		# The signer: the account the EVM bridge debits on its transfer / unmap
+		# calls (evmBridgeOp.ts). Served by both mainnet APIs (checked 2026-11-19).
+		required_auths
 		ops {
 			data
 			index

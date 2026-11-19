@@ -21,8 +21,11 @@ vi.mock('$lib/magiTransactions/dhive', () => ({
 	}
 }));
 
-const { accountBalance, evmProofFee, startAccountPolling, stopAccountPolling } =
+const { accountBalance, evmMinDeposit, evmProofFee, startAccountPolling, stopAccountPolling } =
 	await import('./currentBalance');
+const { ETH_CHAIN_ID, USDC_TOKEN_ADDRESS } = await import('$lib/constants');
+const USDC_REGISTRY_KEY = `t-${ETH_CHAIN_ID}-${USDC_TOKEN_ADDRESS.slice(2).toLowerCase()}`;
+let registry: Record<string, string> = {};
 
 type AuthLike = Parameters<typeof startAccountPolling>[0];
 const alice = {
@@ -38,6 +41,7 @@ const alice = {
 } as unknown as AuthLike;
 
 beforeEach(() => {
+	registry = { [USDC_REGISTRY_KEY]: 'usdc|6|3000000|0|200000' };
 	vi.stubGlobal(
 		'fetch',
 		vi.fn(
@@ -51,7 +55,8 @@ beforeEach(() => {
 								'a-hive:alice-eth': '1500000000000000000',
 								'a-hive:alice-usdc': '2500000',
 								'pf-eth': '50000000000000',
-								'pf-usdc': '150000'
+								'pf-usdc': '150000',
+								...registry
 							}
 						}
 					}),
@@ -65,6 +70,7 @@ afterEach(() => {
 	stopAccountPolling();
 	vi.unstubAllGlobals();
 	evmProofFee.set({ eth: 0, usdc: 0 });
+	evmMinDeposit.set({ eth: 1_000_000_000_000_000, usdc: null });
 });
 
 const settle = async () => {
@@ -89,5 +95,20 @@ describe('EVM bridge balances', () => {
 			.filter((b) => b.includes('pf-eth'));
 		expect(bodies.length).toBeGreaterThan(0);
 		expect(bodies[0]).toContain('a-hive:alice-eth');
+	});
+
+	it('reads the minimum deposits: ETH 0.001, a token a tenth of its minimum withdrawal', async () => {
+		startAccountPolling(alice);
+		await settle();
+		// 3 USDC minimum withdrawal -> 0.3 USDC minimum deposit (DUST-1).
+		expect(get(evmMinDeposit)).toEqual({ eth: 1_000_000_000_000_000, usdc: 300_000 });
+	});
+
+	it('leaves the USDC minimum unknown (no deposit offered) when its registry entry is missing', async () => {
+		registry = {};
+		evmMinDeposit.set({ eth: 1_000_000_000_000_000, usdc: 999 }); // a stale value must not survive
+		startAccountPolling(alice);
+		await settle();
+		expect(get(evmMinDeposit).usdc).toBeNull();
 	});
 });

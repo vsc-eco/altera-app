@@ -30,6 +30,10 @@ export const USDC_TOKEN_ADDRESS = isVscTestnet()
  *  (evm-mapping-contract constants.GasReserveDepositTaxBps; tokens pay none). */
 export const EVM_ETH_DEPOSIT_TAX_BPS = 100;
 
+/** Smallest ETH deposit the bridge credits, in wei; less is not credited and
+ *  stays in the vault (evm-mapping-contract MinETHDeposit, DUST-1). */
+export const EVM_MIN_ETH_DEPOSIT_WEI = 1_000_000_000_000_000;
+
 function vscExplorerBase(): string {
 	return isVscTestnet() ? 'https://magi-test.techcoderx.com' : 'https://vsc.techcoderx.com';
 }

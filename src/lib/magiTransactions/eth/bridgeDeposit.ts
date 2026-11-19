@@ -75,13 +75,22 @@ export function depositToCalldata(recipient: string): Hex {
  */
 export async function sendBridgeDepositFromWallet(
 	amount: CoinAmount<Coin>,
-	vaultAddress: string
+	vaultAddress: string,
+	/** The address the user is logged in with: the deposit is credited to the
+	 *  sender, so a wallet switched to another account must not send. */
+	expectedAddress: string
 ): Promise<Hex> {
 	initModal();
 	const config = wagmiConfig;
 	if (!config) throw new Error('The Ethereum wallet is not ready. Reload and try again.');
 	const account = getAccount(config);
 	if (!account.address) throw new Error('Connect your Ethereum wallet first.');
+	if (account.address.toLowerCase() !== expectedAddress.toLowerCase()) {
+		throw new Error(
+			`Your wallet is on ${account.address}, not ${expectedAddress} that you are logged in with. ` +
+				'Switch back to that account: a deposit is credited to the address that sends it.'
+		);
+	}
 	if (account.chainId !== ETH_CHAIN_ID) await switchChain(config, { chainId: ETH_CHAIN_ID });
 	const vault = getAddress(vaultAddress);
 	const value = BigInt(toChainUnits(amount));

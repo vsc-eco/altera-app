@@ -119,6 +119,10 @@
 	function getMaxForCoin(c: Coin): CoinAmount<Coin> | undefined {
 		if (c.value === Coin.btc.value) return new CoinAmount($accountBalance.bal.btc, Coin.btc, true);
 		if (c.value === Coin.hbd.value) return new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true);
+		// ETH/USDC on the EVM bridge are read with the other Magi balances.
+		if (c.value === Coin.eth.value) return new CoinAmount($accountBalance.bal.eth, Coin.eth, true);
+		if (c.value === Coin.usdc.value)
+			return new CoinAmount($accountBalance.bal.usdc, Coin.usdc, true);
 		if (c.value === Coin.hive.value)
 			return new CoinAmount($accountBalance.bal.hive, Coin.hive, true);
 		// Custom token balances are indexer rows, not part of `accountBalance`.

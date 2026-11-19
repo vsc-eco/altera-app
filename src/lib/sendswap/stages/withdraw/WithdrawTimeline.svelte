@@ -29,6 +29,8 @@
 	import { initWithdrawStateForDestination, type WithdrawDestination } from './withdrawInit';
 	import HiveMainnetWithdraw from './HiveMainnetWithdraw.svelte';
 	import BitcoinMainnetWithdraw from './BitcoinMainnetWithdraw.svelte';
+	import EthereumWithdraw from './EthereumWithdraw.svelte';
+	import { EVM_BRIDGE_ENABLED } from '$lib/constants';
 	import KeepsatsWithdraw from './KeepsatsWithdraw.svelte';
 	import type NavButtons from '$lib/sendswap/components/NavButtons.svelte';
 
@@ -68,7 +70,13 @@
 	const ASSET_DEFS = [
 		{ value: Coin.hive.value, coin: Coin.hive, label: 'HIVE', icon: '/hive/hive.svg' },
 		{ value: Coin.hbd.value, coin: Coin.hbd, label: 'HBD', icon: '/hive/hbd.svg' },
-		{ value: Coin.btc.value, coin: Coin.btc, label: 'BTC', icon: '/btc/btc.svg' }
+		{ value: Coin.btc.value, coin: Coin.btc, label: 'BTC', icon: '/btc/btc.svg' },
+		...(EVM_BRIDGE_ENABLED
+			? [
+					{ value: Coin.eth.value, coin: Coin.eth, label: 'ETH', icon: Coin.eth.icon },
+					{ value: Coin.usdc.value, coin: Coin.usdc, label: 'USDC', icon: Coin.usdc.icon }
+				]
+			: [])
 	];
 	const heldAssets = $derived(
 		ASSET_DEFS.map((a) => ({
@@ -107,6 +115,19 @@
 			blurb: 'Send BTC to an on-chain Bitcoin address.',
 			supports: [Coin.btc.value]
 		},
+		...(EVM_BRIDGE_ENABLED
+			? [
+					{
+						value: 'eth_mainnet' as const,
+						label: Network.ethMainnet.label,
+						icon: '/eth/eth.svg',
+						eta: '≈ 20 min',
+						fee: 'Ethereum gas + bridge fee',
+						blurb: 'Send ETH or USDC to an Ethereum address.',
+						supports: [Coin.eth.value, Coin.usdc.value]
+					}
+				]
+			: []),
 		{
 			value: 'lightning',
 			label: 'Lightning',
@@ -302,6 +323,8 @@
 							<HiveMainnetWithdraw {editStage} open={true} bind:secondaryMenu lockAsset={true} />
 						{:else if selectedDest === 'btc_mainnet'}
 							<BitcoinMainnetWithdraw {editStage} open={true} />
+						{:else if selectedDest === 'eth_mainnet'}
+							<EthereumWithdraw {editStage} open={true} />
 						{:else if selectedDest === 'lightning'}
 							<KeepsatsWithdraw {editStage} open={true} />
 						{:else}

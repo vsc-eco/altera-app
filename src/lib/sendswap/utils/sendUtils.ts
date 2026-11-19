@@ -34,7 +34,7 @@ import {
 	rcShortfallMessage,
 	sizeBtcPayoutSwap
 } from '$lib/magiTransactions/hive/vscOperations/rcSizing'
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants'
+import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants'
 import { fetchCustomTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens'
 import { assertBtcRecipientAllowed } from './btcAddressGuard'
 import {
@@ -741,19 +741,27 @@ export async function send(
 				txOps = prepared.ops;
 			} else {
 				const evmToDid =
-					toNetwork.value === Network.btcMainnet.value ? toUsername : getDidFromUsername(toUsername);
+					toNetwork.value === Network.btcMainnet.value || toNetwork.value === Network.ethMainnet.value
+						? toUsername
+						: getDidFromUsername(toUsername);
 				const sendOp = getEVMOpType(
 					fromNetwork,
 					toNetwork,
 					auth.value.did,
 					evmToDid,
-					new CoinAmount(amount, toCoin.coin)
+					new CoinAmount(amount, toCoin.coin),
+					details instanceof WithdrawTxState || details instanceof TransferTxState
+						? details.deductFee
+						: undefined
 				);
 
 				// A BTC withdrawal's cost grows with the vault coins it spends: size its
 				// rc_limit from a dry run, as the Hive path does. If the node cannot answer,
 				// the fixed limit stands.
-				if (sendOp.op === 'call' && sendOp.payload.action === 'unmap') {
+				if (
+					sendOp.op === 'call' &&
+					['unmap', 'unmapETH', 'unmapERC20'].includes(sendOp.payload.action)
+				) {
 					setStatus('Estimating network resources…');
 					const estimate = await estimateCallRc({
 						callerDid: auth.value.did,
@@ -1028,6 +1036,51 @@ export async function send(
 				rcLimit,
 				deductFee || undefined,
 				maxFee
+			);
+		} else if (isEvmBridgeCoin(toCoin.coin) && toNetwork.value === Network.ethMainnet.value) {
+			// ETH/USDC withdrawal to Ethereum: the BTC unmap branch above, on the EVM bridge.
+			opType = 'withdrawal';
+			const carriesFeeFields =
+				details instanceof WithdrawTxState || details instanceof TransferTxState;
+			const deductFee = carriesFeeFields ? details.deductFee : false;
+			const { getEvmUnmapCall, getEvmUnmapOp } = await import(
+				'$lib/magiTransactions/hive/vscOperations/evm'
+			);
+			const unmapAmount = new CoinAmount(amount, toCoin.coin);
+			const call = getEvmUnmapCall(toUsername, unmapAmount, deductFee || undefined);
+			setStatus('Estimating network resources…');
+			const estimate = await estimateCallRc({
+				callerDid: auth.value.did,
+				contractId: EVM_BRIDGE_CONTRACT_ID,
+				action: call.action,
+				payload: JSON.stringify(call.payload)
+			});
+			let rcLimit: number;
+			if (estimate.ok) {
+				rcLimit = estimate.rcLimit;
+			} else if (estimate.reason === 'insufficient-rc') {
+				const msg = rcShortfallMessage(estimate, 'withdrawal');
+				setStatus(msg, true);
+				return new Error(msg);
+			} else if (estimate.reason === 'call-fails') {
+				const msg = `This withdrawal would fail on chain: ${estimate.error}`;
+				setStatus(msg, true);
+				return new Error(msg);
+			} else {
+				console.warn('withdrawal RC estimate unavailable, using full RC balance', estimate.error);
+				rcLimit = Math.max(
+					1,
+					Math.min(get(accountBalance).bal.resource_credits || MAX_RC_LIMIT, MAX_RC_LIMIT)
+				);
+			}
+			setStatus('Waiting for Hive wallet approval…');
+			sendOp = getEvmUnmapOp(
+				auth.value.username!,
+				auth.value.did,
+				toUsername,
+				unmapAmount,
+				rcLimit,
+				deductFee || undefined
 			);
 		} else {
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);

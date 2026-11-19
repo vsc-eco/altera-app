@@ -37,6 +37,8 @@
 	import HiveMainnetDeposit from './HiveMainnetDeposit.svelte';
 	import LightningDeposit from './LightningDeposit.svelte';
 	import BtcMainnetDeposit from './BitcoinMainnetDeposit.svelte';
+	import EthereumDeposit from './EthereumDeposit.svelte';
+	import { EVM_BRIDGE_ENABLED } from '$lib/constants';
 	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
 	import type { NavButton } from '$lib/sendswap/components/NavButtons.svelte';
 	import type NavButtons from '$lib/sendswap/components/NavButtons.svelte';
@@ -112,7 +114,10 @@
 		{ value: Coin.hive.value, label: 'HIVE', icon: '/hive/hive.svg', disabled: false },
 		{ value: Coin.hbd.value, label: 'HBD', icon: '/hive/hbd.svg', disabled: false },
 		{ value: Coin.btc.value, label: 'BTC', icon: '/btc/btc.svg', disabled: false },
-		{ value: 'eth', label: 'ETH', icon: '/eth/eth.svg', disabled: true }
+		{ value: Coin.eth.value, label: 'ETH', icon: Coin.eth.icon, disabled: !EVM_BRIDGE_ENABLED },
+		...(EVM_BRIDGE_ENABLED
+			? [{ value: Coin.usdc.value, label: 'USDC', icon: Coin.usdc.icon, disabled: false }]
+			: [])
 	];
 	type AssetValue = (typeof ASSETS)[number]['value'];
 
@@ -157,6 +162,15 @@
 			fee: 'network fee varies',
 			blurb: 'Send BTC to a bridge-managed deposit address. Settles after 1 confirmation.',
 			supports: [Coin.btc.value]
+		},
+		{
+			value: 'eth_mainnet',
+			label: Network.ethMainnet.label,
+			icon: '/eth/eth.svg',
+			eta: '≈ 20 min',
+			fee: 'Ethereum gas',
+			blurb: 'Send ETH or USDC from an Ethereum wallet to the bridge vault.',
+			supports: [Coin.eth.value, Coin.usdc.value]
 		},
 		{
 			value: 'coinbase',
@@ -431,6 +445,8 @@
 							<LightningDeposit {editStage} open={true} bind:secondaryMenu lockAsset={true} />
 						{:else if selectedSource === 'btc_mainnet'}
 							<BtcMainnetDeposit {onClose} {onBroadcast} />
+						{:else if selectedSource === 'eth_mainnet'}
+							<EthereumDeposit />
 						{:else if selectedSource === 'coinbase'}
 							<CoinBaseDeposit bind:customButton />
 						{:else}

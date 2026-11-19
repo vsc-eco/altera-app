@@ -29,14 +29,9 @@ describe('EVM bridge payloads (evm-mapping-contract TransferParams)', () => {
 	});
 
 	it('signs the withdrawal as one vsc.call with the sized rc_limit', () => {
-		const [type, op] = getEvmUnmapOp(
-			'alice',
-			'hive:alice',
-			TO,
-			new CoinAmount('2', Coin.usdc),
-			4321
-		);
-		expect(type).toBe('custom_json');
+		const signed = getEvmUnmapOp('alice', 'hive:alice', TO, new CoinAmount('2', Coin.usdc), 4321);
+		const op = signed[1];
+		expect(signed[0]).toBe('custom_json');
 		expect(op.id).toBe('vsc.call');
 		expect(op.required_auths).toEqual(['alice']);
 		const json = JSON.parse(op.json);
@@ -45,7 +40,7 @@ describe('EVM bridge payloads (evm-mapping-contract TransferParams)', () => {
 	});
 
 	it('moves ETH between Magi accounts with transfer, naming the asset', () => {
-		const [, op] = getEvmTransferOp('alice', 'hive:bob', new CoinAmount('1234.5', Coin.eth));
+		const op = getEvmTransferOp('alice', 'hive:bob', new CoinAmount('1234.5', Coin.eth))[1];
 		const json = JSON.parse(op.json);
 		expect(json.action).toBe('transfer');
 		expect(json.payload).toEqual({

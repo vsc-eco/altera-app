@@ -10,6 +10,22 @@ export const BTC_MAPPING_CONTRACT_ID = isVscTestnet()
 	? 'vsc1BkWohDf5fPcwn7V9B9ar6TyiWc3A2ZGJ4t'
 	: 'vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d';
 
+// EVM bridge contract: holds ETH and USDC on Magi (map/unmapETH/unmapERC20/
+// approve/balance reads). Empty on a network where the bridge is not live yet:
+// every ETH/USDC surface checks EVM_BRIDGE_ENABLED and stays hidden.
+export const EVM_BRIDGE_CONTRACT_ID = isVscTestnet()
+	? 'vsc1Bo8h3TMFAYX5rkgCeauXFywZGiMbUftQL2'
+	: '';
+export const EVM_BRIDGE_ENABLED = EVM_BRIDGE_CONTRACT_ID !== '';
+
+/** The Ethereum chain the bridge watches (Sepolia on testnet). */
+export const ETH_CHAIN_ID = isVscTestnet() ? 11155111 : 1;
+
+/** The ERC-20 USDC contract the bridge maps as `usdc`. */
+export const USDC_TOKEN_ADDRESS = isVscTestnet()
+	? '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+	: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
 function vscExplorerBase(): string {
 	return isVscTestnet() ? 'https://magi-test.techcoderx.com' : 'https://vsc.techcoderx.com';
 }

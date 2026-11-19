@@ -2,7 +2,8 @@ import type { CustomJsonOperation } from '@hiveio/dhive';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { vscNetworkId, DEX_ROUTER_CONTRACT_ID } from '../../../../client';
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants';
+import { toChainUnits } from '$lib/currency/chainAmount';
 import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 
 export const ALTERA_FEE_BENEFICIARY = 'hive:altera.app';
@@ -124,7 +125,9 @@ export function getBtcApproveOp(
 export function getTokenApproveOp(
 	username: string,
 	mappingContractId: string,
-	rawAmount: number | string
+	rawAmount: number | string,
+	/** Required on the EVM bridge, which holds ETH and USDC on one contract. */
+	asset?: string
 ): CustomJsonOperation {
 	const caller = `hive:${username}`;
 	const op = {
@@ -134,7 +137,8 @@ export function getTokenApproveOp(
 		action: 'increaseAllowance',
 		payload: JSON.stringify({
 			spender: `contract:${SWAP_CONTRACT_ID}`,
-			amount: String(rawAmount)
+			amount: String(rawAmount),
+			...(asset ? { asset } : {})
 		}),
 		rc_limit: 1000,
 		intents: [] as Array<{ type: string; args: Record<string, string> }>
@@ -148,6 +152,14 @@ export function getTokenApproveOp(
 			json: JSON.stringify(op)
 		}
 	];
+}
+
+/** The router's allowance for ETH or USDC, on the EVM bridge that holds both. */
+export function getEvmAssetApproveOp(
+	username: string,
+	amount: CoinAmount<Coin>
+): CustomJsonOperation {
+	return getTokenApproveOp(username, EVM_BRIDGE_CONTRACT_ID, toChainUnits(amount), amount.coin.value);
 }
 
 export async function getHiveSwapOp(
@@ -187,8 +199,8 @@ export async function getHiveSwapOp(
 		version: '1.0.0',
 		asset_in: assetIn.value.toUpperCase(),
 		asset_out: assetOut.value.toUpperCase(),
-		amount_in: String(amount.amount),
-		min_amount_out: finalMinAmountOut ? String(finalMinAmountOut) : '0',
+		amount_in: toChainUnits(amount),
+		min_amount_out: finalMinAmountOut ? BigInt(Math.trunc(finalMinAmountOut)).toString() : '0',
 		recipient: destinationRecipient ?? caller
 	};
 	if (destinationChain) {

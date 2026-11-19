@@ -8,7 +8,9 @@
  * the account already held of the output asset went out instead.
  */
 
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants';
+import { toChainUnits } from '$lib/currency/chainAmount';
+import { isEvmBridgeCoin } from '../evmBridge';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import {
@@ -64,14 +66,14 @@ export function walletRouterSwapInstruction(
 	// scale the quote's pre-fee minimum down by the same bps.
 	const min =
 		feeQualifies && storeMin
-			? String(Math.floor((Number(storeMin) * (10000 - ALTERA_FEE_BPS)) / 10000))
+			? ((BigInt(storeMin) * BigInt(10000 - ALTERA_FEE_BPS)) / 10000n).toString()
 			: (storeMin ?? '0');
 	const instruction: Record<string, string | number> = {
 		type: 'swap',
 		version: '1.0.0',
 		asset_in: swap.fromCoin.value.toUpperCase(),
 		asset_out: swap.toCoin.value.toUpperCase(),
-		amount_in: String(swap.amount.amount),
+		amount_in: toChainUnits(swap.amount),
 		min_amount_out: min,
 		recipient: swap.recipient || (swap.destinationChain ? '' : swap.caller)
 	};
@@ -123,11 +125,18 @@ export function buildWalletRouterSwapOps(
 		rcLimit: sizing.rcLimit,
 		input: isNativeIn
 			? { kind: 'native', token: swap.fromCoin.value, limit: swap.amount.toAmountString(true) }
-			: {
-					kind: 'mapped',
-					mappingContractId: swap.mappedContractId ?? BTC_MAPPING_CONTRACT_ID,
-					rawAmount: String(swap.amount.amount)
-				}
+			: isEvmBridgeCoin(swap.fromCoin)
+				? {
+						kind: 'mapped',
+						mappingContractId: EVM_BRIDGE_CONTRACT_ID,
+						rawAmount: toChainUnits(swap.amount),
+						asset: swap.fromCoin.value
+					}
+				: {
+						kind: 'mapped',
+						mappingContractId: swap.mappedContractId ?? BTC_MAPPING_CONTRACT_ID,
+						rawAmount: toChainUnits(swap.amount)
+					}
 	});
 	return { ok: true, ops };
 }

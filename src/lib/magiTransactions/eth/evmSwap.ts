@@ -85,7 +85,7 @@ export type EvmSwapInput =
 	/** HIVE/HBD on the Magi ledger: the router draws it under a transfer.allow intent. */
 	| { kind: 'native'; token: string; limit: string }
 	/** A mapped asset: the router moves it with transferFrom, so it needs an allowance. */
-	| { kind: 'mapped'; mappingContractId: string; rawAmount: string };
+	| { kind: 'mapped'; mappingContractId: string; rawAmount: string; asset?: string };
 
 /** The ops of a DEX router swap signed by an EVM wallet, in the order they must run. */
 export function buildEvmSwapOps(args: {
@@ -116,7 +116,12 @@ export function buildEvmSwapOps(args: {
 		payload: {
 			contract_id: input.mappingContractId,
 			action: 'increaseAllowance',
-			payload: JSON.stringify({ spender: `contract:${routerId}`, amount: input.rawAmount }),
+			payload: JSON.stringify({
+				spender: `contract:${routerId}`,
+				amount: input.rawAmount,
+				// the EVM bridge holds ETH and USDC on one contract
+				...(input.asset ? { asset: input.asset } : {})
+			}),
 			rc_limit: EVM_APPROVE_RC_LIMIT,
 			intents: [],
 			caller

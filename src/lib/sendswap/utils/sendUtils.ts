@@ -1,4 +1,5 @@
 import { postingMetadataFromString, type Account } from '$lib/auth/hive/accountTypes'
+import { isEvmBridgeCoin } from '$lib/magiTransactions/evmBridge'
 import { wagmiConfig } from '$lib/auth/reown'
 import { authStore, getAuth, type Auth } from '$lib/auth/store'
 import { CoinAmount } from '$lib/currency/CoinAmount'
@@ -20,6 +21,7 @@ import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/depos
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
 import {
 	getBtcApproveOp,
+	getEvmAssetApproveOp,
 	getTokenApproveOp,
 	getHiveSwapOp,
 	hasQuoteMinimum,
@@ -901,6 +903,9 @@ export async function send(
 				extraOps.push(
 					getBtcApproveOp(auth.value.username!, fromCa as CoinAmount<typeof Coin.btc>)
 				);
+			} else if (isEvmBridgeCoin(fromCoin.coin)) {
+				// ETH/USDC: same as BTC, but on the EVM bridge, naming the asset.
+				extraOps.push(getEvmAssetApproveOp(auth.value.username!, fromCa));
 			} else if (customToken) {
 				// Same shape as BTC: the router pulls the funds with
 				// `transferFrom`, so it needs an allowance on the token's own

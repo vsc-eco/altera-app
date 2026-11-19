@@ -11,7 +11,8 @@ import { type OperationResult } from '@aioha/aioha/build/types';
 import { getHbdStakeOp, getHbdUnstakeOp } from './vscOperations/stake';
 import { getBitcoinTransferOp } from './vscOperations/bitcoin';
 import { getAddLiquidityOp, getRemoveLiquidityOp } from './vscOperations/liquidity';
-import { getBtcApproveOp, getTokenApproveOp } from './vscOperations/swap';
+import { getBtcApproveOp, getEvmAssetApproveOp, getTokenApproveOp } from './vscOperations/swap';
+import { isEvmBridgeCoin } from '../evmBridge';
 import { fetchPoolTokens } from '$lib/tokens/customTokens';
 import { getReserveVoteOp, getSlashRestoreVoteOp } from './vscOperations/governance';
 import type { PoolRow } from '$lib/pools/poolsData';
@@ -141,13 +142,19 @@ export const addLiquidityTx = async (
 		// Resolve custom tokens to their contracts. The ungated list: the
 		// approve itself is valid regardless of whether the router can route
 		// the pool, and the UI already blocks Add on unroutable pools.
-		const customTokens = mapped.some((a) => a.coin.value !== Coin.btc.value)
+		const customTokens = mapped.some(
+			(a) => a.coin.value !== Coin.btc.value && !isEvmBridgeCoin(a.coin)
+		)
 			? await fetchPoolTokens()
 			: [];
 
 		for (const amount of mapped) {
 			if (amount.coin.value === Coin.btc.value) {
 				approveOps.push(getBtcApproveOp(username, amount as CoinAmount<typeof Coin.btc>));
+				continue;
+			}
+			if (isEvmBridgeCoin(amount.coin)) {
+				approveOps.push(getEvmAssetApproveOp(username, amount));
 				continue;
 			}
 			const token = customTokens.find((t) => t.symbol === amount.coin.value.toLowerCase());

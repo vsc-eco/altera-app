@@ -158,6 +158,9 @@ export function mapStateToPoolRow(
 
 	function decimalPlaces(sym: string): number {
 		if (sym.toUpperCase() === 'BTC') return 8;
+		// EVM bridge assets: reserves are on-chain integers (wei for ETH).
+		if (sym.toUpperCase() === 'ETH') return 18;
+		if (sym.toUpperCase() === 'USDC') return 6;
 		const custom = tokenDecimals?.[sym.toLowerCase()];
 		if (custom != null && Number.isFinite(custom)) return custom;
 		return 3;

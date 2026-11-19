@@ -225,7 +225,7 @@
 		const s = symbol?.toUpperCase();
 		if (s === sym0.toUpperCase()) return pool.decimals0;
 		if (s === sym1.toUpperCase()) return pool.decimals1;
-		return s === 'BTC' ? 8 : 3;
+		return s === 'BTC' ? 8 : s === 'ETH' ? 18 : s === 'USDC' ? 6 : 3;
 	}
 
 	/** LP tokens are raw contract units with no decimal point — the same

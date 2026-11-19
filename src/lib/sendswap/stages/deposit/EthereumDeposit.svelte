@@ -4,6 +4,7 @@
 	// sends for you; otherwise it shows where and how to send.
 	import { getAuth } from '$lib/auth/store';
 	import { evmProofFee } from '$lib/stores/currentBalance';
+	import { EVM_ETH_DEPOSIT_TAX_BPS } from '$lib/constants';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
@@ -49,6 +50,17 @@
 		(proofFee / 10 ** asset.decimalPlaces).toLocaleString(undefined, { maximumFractionDigits: 6 }) +
 			` ${asset.label}`
 	);
+	// Measured on testnet 11-19: sent 17:38, credited 18:06 (finality, then the
+	// operator batches header proofs for up to 10 min and proves them).
+	const depositHint = $derived(
+		'Credited about 30 minutes after it is sent (Ethereum finality, then the bridge proves the block). ' +
+			(asset.value === Coin.eth.value
+				? `The bridge keeps ${EVM_ETH_DEPOSIT_TAX_BPS / 100}% of an ETH deposit for its gas reserve` +
+					(proofFee > 0 ? `, plus a proving fee of ${proofFeeText}.` : '.')
+				: proofFee > 0
+					? `The bridge keeps a proving fee of ${proofFeeText} from each deposit.`
+					: '')
+	);
 
 	let coinAmount = $state(new CoinAmount(0, Coin.eth));
 	$effect(() => {
@@ -84,7 +96,7 @@
 		<div class="section">
 			<p class="hint">
 				Sent from your connected wallet ({auth.value?.address}) to the bridge vault, and credited to
-				this account on Magi after Ethereum finality (~20 min).
+				this account on Magi.
 			</p>
 			<label for={inputId}>Amount</label>
 			<div class="amount-input">
@@ -130,8 +142,8 @@
 			Ethereum address that sends it. Log in with that Ethereum wallet to deposit USDC and use it.
 		</p>
 	{/if}
-	{#if vaultAddress && proofFee > 0}
-		<p class="hint">The bridge keeps a proving fee of {proofFeeText} from each deposit.</p>
+	{#if vaultAddress}
+		<p class="hint">{depositHint}</p>
 	{/if}
 </div>
 

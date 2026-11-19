@@ -5,8 +5,10 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('$houdini', () => ({ SimulateContractCallsStore: class {} }));
 
 import {
+	BTC_PAYOUT_EVM_INPUT_EXTRA_RC,
 	BTC_PAYOUT_SWAP_MIN_RC,
 	BTC_PAYOUT_SWAP_MIN_RC_V0_15,
+	btcPayoutMinRcForInput,
 	btcPayoutShortfallMessage,
 	btcPayoutSwapMinRc,
 	btcPayoutSwapRcLimit,
@@ -232,6 +234,20 @@ describe('btcPayoutShortfallMessage', () => {
 		if (refused.ok) throw new Error('expected a refusal');
 		expect(btcPayoutShortfallMessage(refused)).toContain(
 			`at least ${BTC_PAYOUT_SWAP_MIN_RC_V0_15.toLocaleString('en-US')} RC and you have 1,000`
+		);
+	});
+});
+
+describe('btcPayoutMinRcForInput', () => {
+	it('adds the bridge pull and the extra hop only for an ETH/USDC input', () => {
+		expect(btcPayoutMinRcForInput(6_200, true)).toBe(6_200 + BTC_PAYOUT_EVM_INPUT_EXTRA_RC);
+		expect(btcPayoutMinRcForInput(6_200, false)).toBe(6_200);
+	});
+
+	it('covers the ETH payout measured at 0.15 with room for one more vault input', () => {
+		// testnet 2026-11-19: ETH -> HBD -> BTC 6,544 RC.
+		expect(btcPayoutMinRcForInput(BTC_PAYOUT_SWAP_MIN_RC_V0_15, true)).toBeGreaterThanOrEqual(
+			6_544 + 300
 		);
 	});
 });

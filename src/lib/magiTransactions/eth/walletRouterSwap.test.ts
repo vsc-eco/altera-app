@@ -23,7 +23,7 @@ const {
 	walletRouterSwapInstruction,
 	walletSwapFromMagi
 } = await import('./walletRouterSwap');
-const { BTC_PAYOUT_SWAP_MIN_RC, BTC_PAYOUT_SWAP_MIN_RC_V0_15 } =
+const { BTC_PAYOUT_EVM_INPUT_EXTRA_RC, BTC_PAYOUT_SWAP_MIN_RC, BTC_PAYOUT_SWAP_MIN_RC_V0_15 } =
 	await import('../hive/vscOperations/rcSizing');
 
 const EVM = 'did:pkh:eip155:1:0x00000000000000000000000000000000000000a1';
@@ -299,6 +299,25 @@ describe('prepareWalletRouterSwap', () => {
 		const after = await prepareWalletRouterSwap(payout, 0);
 		if (!after.ok) throw new Error(after.error);
 		expect(after.ops[0].payload.rc_limit).toBe(8000);
+	});
+
+	it('an ETH payout needs the bridge pull and the extra hop on top of the minimum', async () => {
+		// 2026-11-19 testnet at 0.15: ETH -> HBD -> BTC 6,544 RC, HBD -> BTC 5,487.
+		fetchBtcPayoutSwapMinRc.mockResolvedValue(BTC_PAYOUT_SWAP_MIN_RC_V0_15);
+		const ethPayout = { ...payout, fromCoin: Coin.eth, amount: new CoinAmount('0.03', Coin.eth) };
+		const needed = BTC_PAYOUT_SWAP_MIN_RC_V0_15 + BTC_PAYOUT_EVM_INPUT_EXTRA_RC;
+		expect(needed).toBeGreaterThanOrEqual(6_544 + 300);
+
+		// Enough for an HBD payout (plus the allowance op), not for an ETH one.
+		fetchAccountRc.mockResolvedValue(BTC_PAYOUT_SWAP_MIN_RC_V0_15 + 1000);
+		const refused = await prepareWalletRouterSwap(ethPayout, 0);
+		expect(refused.ok).toBe(false);
+		if (refused.ok) throw new Error('expected a refusal');
+		expect(refused.error).toContain(`${needed.toLocaleString('en-US')} RC`);
+
+		fetchAccountRc.mockResolvedValue(needed + 1000);
+		const sent = await prepareWalletRouterSwap(ethPayout, 0);
+		if (!sent.ok) throw new Error(sent.error);
 	});
 });
 

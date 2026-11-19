@@ -25,6 +25,7 @@ import {
 import {
 	btcPayoutShortfallMessage,
 	fetchAccountRc,
+	btcPayoutMinRcForInput,
 	fetchBtcPayoutSwapMinRc,
 	rcShortfallMessage
 } from '../hive/vscOperations/rcSizing';
@@ -155,7 +156,9 @@ export async function prepareWalletRouterSwap(
 	const availableRc = (await fetchAccountRc(swap.caller)) ?? fallbackRc ?? 0;
 	// Only a BTC payout has a minimum that depends on the chain's version.
 	const btcPayoutMinRc =
-		swap.destinationChain === 'BTC' ? await fetchBtcPayoutSwapMinRc() : undefined;
+		swap.destinationChain === 'BTC'
+			? btcPayoutMinRcForInput(await fetchBtcPayoutSwapMinRc(), isEvmBridgeCoin(swap.fromCoin))
+			: undefined;
 	return buildWalletRouterSwapOps(swap, { feeQualifies, availableRc, btcPayoutMinRc });
 }
 

@@ -53,35 +53,35 @@ export function sizeRcLimit(rcUsed: number, available: number): RcSizing {
 }
 
 /**
- * The least a swap paid out to a BTC address costs. Measured with dry runs on
- * the mainnet contracts on 2026-11-05: 11,686 RC for HBD -> BTC and 12,007 RC
- * for HIVE -> HBD -> BTC, one vault input each (each extra input costs more).
+ * The least a swap paid out to a BTC address costs, up to consensus 0.14.
+ * Dry runs on the mainnet contracts (one vault input each):
+ *   2026-11-05: 11,686 RC HBD -> BTC, 12,007 RC HIVE -> HBD -> BTC
+ *   2026-11-17: 11,565 / 11,886
+ *   2026-11-19: 11,685 / 12,006
+ * The cost moves by about 150 RC with the BTC contract's state, and each extra
+ * vault input adds about 300. Set above the dearer route with room for both:
+ * a payout that passes this check and then fails on chain is charged
+ * everything it sent as its limit (all the account's RC), while one the check
+ * refuses keeps its RC. (It was 11,700 until 2026-11-19, under the HIVE route.)
  * Since the 0.12 BTC contract (live 2026-11-04) a withdrawal also writes its
  * settle record, so the payout costs more than the old fixed `rc_limit:
  * 10000`, and every such swap sent with it failed "cost limit exceeded".
  */
-export const BTC_PAYOUT_SWAP_MIN_RC = 11_700;
+export const BTC_PAYOUT_SWAP_MIN_RC = 12_400;
 
 /**
  * The minimum once the chain runs consensus 0.15.0. From that version the node
  * charges 1 RC for each new stored byte instead of 19 (go-vsc-node
- * params.WriteIoGasRcCost), and most of a payout's cost was the 400 bytes it
- * stores. Dry runs on the mainnet contracts on 2026-11-17: 11,565 RC for
- * HBD -> BTC and 11,886 RC for HIVE -> HBD -> BTC at 19 RC a byte, with 400
- * new bytes each (the BTC contract sits at its largest size, so all 400 are
- * charged as new), which is 4,365 and 4,686 RC at 1 RC a byte. One vault
- * input; each extra input adds about 300 RC.
- *
- * Set above the dearer of the two routes, so an account that passes the check
- * can pay for either, with about 300 RC to spare (one more vault input, or
- * the contract's state growing by a few percent): an account that passes
- * the check and then fails on chain is charged everything it sent as its
- * limit, while one the check refuses keeps its RC. Still low enough that the
- * free 10,000 RC pays for two payouts (10,000 - 4,686 = 5,314). (The number
- * above sits between its two routes: an account holding 11,700 to 11,886 RC
- * passes it and fails a HIVE swap.)
+ * params.WriteIoGasRcCost), and a payout stores about 400 new bytes (the
+ * withdrawal and its settle record). Measured:
+ *   mainnet 2026-11-19, repriced at 1 RC a byte: 4,485 HBD -> BTC, 4,806 HIVE
+ *   testnet 2026-11-19, 0.15 live: 5,487 HBD -> BTC (387 new bytes, one input);
+ *   its larger BTC contract state reads dearer, and a HIVE input adds one
+ *   pool hop (about 320 on mainnet), about 5,800
+ * Set above the dearest of these with room for one more vault input, for the
+ * same reason as above. The free 10,000 RC pays for one payout at a time.
  */
-export const BTC_PAYOUT_SWAP_MIN_RC_V0_15 = 5_000;
+export const BTC_PAYOUT_SWAP_MIN_RC_V0_15 = 6_200;
 
 /** The consensus version from which a new stored byte costs 1 RC. */
 export const WRITE_PRICE_CUT_CONSENSUS = 15;

@@ -198,15 +198,17 @@ describe('btcPayoutSwapMinRc', () => {
 		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeGreaterThan(0);
 	});
 
-	it('from consensus 0.15 sits above both mainnet routes and leaves room for a second payout', () => {
-		// Mainnet dry runs 2026-11-17, repriced at 1 RC a new byte.
-		const hbdToBtc = 4_365;
-		const hiveToBtc = 4_686;
-		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeGreaterThanOrEqual(
-			Math.max(hbdToBtc, hiveToBtc) + 300
-		);
-		// After the dearer payout the free 10,000 RC still passes the check once more.
-		expect(10_000 - hiveToBtc).toBeGreaterThanOrEqual(BTC_PAYOUT_SWAP_MIN_RC_V0_15);
+	it('from consensus 0.15 sits above every measured route with room for one more vault input', () => {
+		// Mainnet 2026-11-19 repriced at 1 RC a new byte; testnet 2026-11-19 at 0.15 live.
+		const mainnet = { hbdToBtc: 4_485, hiveToBtc: 4_806 };
+		const testnet = { hbdToBtc: 5_487, hiveToBtcEstimate: 5_487 + 320 };
+		const dearest = Math.max(...Object.values(mainnet), ...Object.values(testnet));
+		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeGreaterThanOrEqual(dearest + 300);
+	});
+
+	it('up to consensus 0.14 sits above both mainnet routes with room for one more vault input', () => {
+		// The dearest mainnet dry run so far (HIVE -> HBD -> BTC, 2026-11-05).
+		expect(BTC_PAYOUT_SWAP_MIN_RC).toBeGreaterThanOrEqual(12_007 + 300);
 	});
 });
 
@@ -216,12 +218,12 @@ describe('btcPayoutShortfallMessage', () => {
 			btcPayoutShortfallMessage({
 				ok: false,
 				reason: 'insufficient-rc',
-				needed: 11_700,
+				needed: 12_400,
 				available: 10_000
 			})
 		).toBe(
-			'Not enough RC to pay out to a Bitcoin address: it needs at least 11,700 RC and you ' +
-				'have 10,000. Deposit at least 1.70 HBD to Magi to cover it.'
+			'Not enough RC to pay out to a Bitcoin address: it needs at least 12,400 RC and you ' +
+				'have 10,000. Deposit at least 2.40 HBD to Magi to cover it.'
 		);
 	});
 

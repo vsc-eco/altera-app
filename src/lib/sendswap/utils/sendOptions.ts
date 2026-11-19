@@ -183,9 +183,10 @@ const ethMainnet: Network = {
 	value: 'eth_mainnet',
 	label: isVscTestnet() ? 'Ethereum (Sepolia)' : 'Ethereum',
 	icon: '/eth/eth.svg',
-	// A deposit waits for Ethereum finality and the bridge's header proof:
-	// measured 29 min on testnet 2026-11-19 (a withdrawal was mined in 3).
-	settlementSeconds: 1800
+	// Read by the review screen's settlement label, i.e. a withdrawal to
+	// Ethereum: mined 3 min after the request on testnet 2026-11-19. (A deposit
+	// waits for finality and the header proof, ~30 min; its page says so.)
+	settlementSeconds: 300
 };
 const lightning: IntermediaryNetwork = {
 	value: 'lightning',

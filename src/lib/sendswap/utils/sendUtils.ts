@@ -59,6 +59,7 @@ import { getIntermediaryNetwork } from './getNetwork'
 import swapOptions, {
 	Coin,
 	Network,
+	nativeSwapCoins,
 	networkMap,
 	getFromOption,
 	getToOption,
@@ -708,12 +709,7 @@ export async function send(
 					fromAmount: details.fromAmount ?? '',
 					toUsername,
 					minAmountOut: details instanceof SwapTxState ? details.minAmountOut : undefined,
-					swapCoins: [
-						Coin.hive.value,
-						Coin.hbd.value,
-						Coin.btc.value,
-						...customTokens.map((t) => t.symbol)
-					],
+					swapCoins: [...nativeSwapCoins(), ...customTokens.map((t) => t.symbol)],
 					customTokenContractId: customTokens.find((t) => t.symbol === fromCoin.coin.value)
 						?.contractId
 				});
@@ -844,12 +840,7 @@ export async function send(
 		// and falls back to [] on failure, which just leaves the native three.
 		const customTokens = await getCustomTokens();
 		const customToken = customTokens.find((t) => t.symbol === fromCoin.coin.value);
-		const swapCoins = [
-			Coin.hive.value,
-			Coin.hbd.value,
-			Coin.btc.value,
-			...customTokens.map((t) => t.symbol)
-		];
+		const swapCoins = [...nativeSwapCoins(), ...customTokens.map((t) => t.symbol)];
 		const fromIsNativeHive =
 			fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value;
 		const fromOnMagi = fromNetwork.value === Network.magi.value;

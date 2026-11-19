@@ -183,8 +183,9 @@ const ethMainnet: Network = {
 	value: 'eth_mainnet',
 	label: isVscTestnet() ? 'Ethereum (Sepolia)' : 'Ethereum',
 	icon: '/eth/eth.svg',
-	// Ethereum finality (~13 min) plus the bridge's header proof.
-	settlementSeconds: 1200
+	// A deposit waits for Ethereum finality and the bridge's header proof:
+	// measured 29 min on testnet 2026-11-19 (a withdrawal was mined in 3).
+	settlementSeconds: 1800
 };
 const lightning: IntermediaryNetwork = {
 	value: 'lightning',
@@ -287,4 +288,18 @@ export const getToOption = (coinValue: string | undefined): AssetOption | undefi
 // APP-17: only expose internals on globalThis in development builds.
 if (import.meta.env.DEV) {
 	globalThis.coins = Coin;
+}
+
+/**
+ * The built-in coins the DEX swaps: HIVE, HBD and BTC, and ETH/USDC once the EVM
+ * bridge is live. A pair outside these (and the custom tokens) is a send, so a
+ * coin missing here turns its swap into a transfer of the output coin.
+ */
+export function nativeSwapCoins(): string[] {
+	return [
+		Coin.hive.value,
+		Coin.hbd.value,
+		Coin.btc.value,
+		...(EVM_BRIDGE_ENABLED ? [Coin.eth.value, Coin.usdc.value] : [])
+	];
 }

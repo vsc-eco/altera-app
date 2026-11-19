@@ -6,7 +6,9 @@ vi.mock('$houdini', () => ({ SimulateContractCallsStore: class {} }));
 
 import {
 	BTC_PAYOUT_SWAP_MIN_RC,
+	BTC_PAYOUT_SWAP_MIN_RC_V0_15,
 	btcPayoutShortfallMessage,
+	btcPayoutSwapMinRc,
 	btcPayoutSwapRcLimit,
 	interpretSimulation,
 	MAX_RC_LIMIT,
@@ -144,6 +146,70 @@ describe('btcPayoutSwapRcLimit', () => {
 	it('is above the 10,000 every BTC payout swap failed with', () => {
 		expect(BTC_PAYOUT_SWAP_MIN_RC).toBeGreaterThan(10_000);
 	});
+
+	it('uses the higher minimum when none is passed', () => {
+		// A caller that has not asked the chain must not be let through on the
+		// lower minimum: before consensus 0.15 the swap would fail on chain.
+		expect(btcPayoutSwapRcLimit(BTC_PAYOUT_SWAP_MIN_RC - 1, 0)).toMatchObject({
+			ok: false,
+			needed: BTC_PAYOUT_SWAP_MIN_RC
+		});
+	});
+
+	it('from consensus 0.15 lets the free 10,000 RC pay for a payout', () => {
+		// The account the old minimum refused: 10,000 free RC, no HBD on Magi.
+		expect(btcPayoutSwapRcLimit(10_000, 0, BTC_PAYOUT_SWAP_MIN_RC_V0_15)).toEqual({
+			ok: true,
+			rcLimit: 10_000
+		});
+	});
+
+	it('from consensus 0.15 still refuses below the new minimum, and names it', () => {
+		expect(
+			btcPayoutSwapRcLimit(BTC_PAYOUT_SWAP_MIN_RC_V0_15 - 1, 0, BTC_PAYOUT_SWAP_MIN_RC_V0_15)
+		).toEqual({
+			ok: false,
+			reason: 'insufficient-rc',
+			needed: BTC_PAYOUT_SWAP_MIN_RC_V0_15,
+			available: BTC_PAYOUT_SWAP_MIN_RC_V0_15 - 1
+		});
+	});
+});
+
+describe('btcPayoutSwapMinRc', () => {
+	it('is the original minimum up to consensus 0.14', () => {
+		expect(btcPayoutSwapMinRc({ major: 0, consensus: 12 })).toBe(BTC_PAYOUT_SWAP_MIN_RC);
+		expect(btcPayoutSwapMinRc({ major: 0, consensus: 14 })).toBe(BTC_PAYOUT_SWAP_MIN_RC);
+	});
+
+	it('is the lower minimum from consensus 0.15', () => {
+		expect(btcPayoutSwapMinRc({ major: 0, consensus: 15 })).toBe(BTC_PAYOUT_SWAP_MIN_RC_V0_15);
+		expect(btcPayoutSwapMinRc({ major: 0, consensus: 16 })).toBe(BTC_PAYOUT_SWAP_MIN_RC_V0_15);
+	});
+
+	it('is the original minimum when the chain could not be asked', () => {
+		// Too high a minimum refuses a swap that would have passed; too low a
+		// one sends a swap that fails on chain and is charged its whole limit.
+		expect(btcPayoutSwapMinRc(undefined)).toBe(BTC_PAYOUT_SWAP_MIN_RC);
+	});
+
+	it('fits inside the 10,000 RC every Hive account has for free', () => {
+		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeLessThan(10_000);
+		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeGreaterThan(0);
+	});
+
+	it('from consensus 0.15 sits above every measured route with room for one more vault input', () => {
+		// Mainnet 2026-11-19 repriced at 1 RC a new byte; testnet 2026-11-19 at 0.15 live.
+		const mainnet = { hbdToBtc: 4_485, hiveToBtc: 4_806 };
+		const testnet = { hbdToBtc: 5_487, hiveToBtcEstimate: 5_487 + 320 };
+		const dearest = Math.max(...Object.values(mainnet), ...Object.values(testnet));
+		expect(BTC_PAYOUT_SWAP_MIN_RC_V0_15).toBeGreaterThanOrEqual(dearest + 300);
+	});
+
+	it('up to consensus 0.14 sits above both mainnet routes with room for one more vault input', () => {
+		// The dearest mainnet dry run so far (HIVE -> HBD -> BTC, 2026-11-05).
+		expect(BTC_PAYOUT_SWAP_MIN_RC).toBeGreaterThanOrEqual(12_007 + 300);
+	});
 });
 
 describe('btcPayoutShortfallMessage', () => {
@@ -152,12 +218,20 @@ describe('btcPayoutShortfallMessage', () => {
 			btcPayoutShortfallMessage({
 				ok: false,
 				reason: 'insufficient-rc',
-				needed: 11_700,
+				needed: 12_400,
 				available: 10_000
 			})
 		).toBe(
-			'Not enough RC to pay out to a Bitcoin address: it needs at least 11,700 RC and you ' +
-				'have 10,000. Deposit at least 1.70 HBD to Magi to cover it.'
+			'Not enough RC to pay out to a Bitcoin address: it needs at least 12,400 RC and you ' +
+				'have 10,000. Deposit at least 2.40 HBD to Magi to cover it.'
+		);
+	});
+
+	it('quotes the minimum the sizing refused at', () => {
+		const refused = btcPayoutSwapRcLimit(1_000, 0, BTC_PAYOUT_SWAP_MIN_RC_V0_15);
+		if (refused.ok) throw new Error('expected a refusal');
+		expect(btcPayoutShortfallMessage(refused)).toContain(
+			`at least ${BTC_PAYOUT_SWAP_MIN_RC_V0_15.toLocaleString('en-US')} RC and you have 1,000`
 		);
 	});
 });

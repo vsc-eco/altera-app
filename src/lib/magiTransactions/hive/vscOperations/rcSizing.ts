@@ -14,7 +14,7 @@
  * cost plus a margin, clamped to what the account actually has.
  */
 
-import { GetAccountBalanceStore, SimulateContractCallsStore } from '$houdini';
+import { ActiveConsensusStore, GetAccountBalanceStore, SimulateContractCallsStore } from '$houdini';
 import { queryOnce } from '$lib/queryOnce';
 
 /** The node rejects `rc_limit` outside [1, 100000] (schema.resolvers.go). */
@@ -53,14 +53,73 @@ export function sizeRcLimit(rcUsed: number, available: number): RcSizing {
 }
 
 /**
- * The least a swap paid out to a BTC address costs. Measured with dry runs on
- * the mainnet contracts on 2026-11-05: 11,686 RC for HBD -> BTC and 12,007 RC
- * for HIVE -> HBD -> BTC, one vault input each (each extra input costs more).
+ * The least a swap paid out to a BTC address costs, up to consensus 0.14.
+ * Dry runs on the mainnet contracts (one vault input each):
+ *   2026-11-05: 11,686 RC HBD -> BTC, 12,007 RC HIVE -> HBD -> BTC
+ *   2026-11-17: 11,565 / 11,886
+ *   2026-11-19: 11,685 / 12,006
+ * The cost moves by about 150 RC with the BTC contract's state, and each extra
+ * vault input adds about 300. Set above the dearer route with room for both:
+ * a payout that passes this check and then fails on chain is charged
+ * everything it sent as its limit (all the account's RC), while one the check
+ * refuses keeps its RC. (It was 11,700 until 2026-11-19, under the HIVE route.)
  * Since the 0.12 BTC contract (live 2026-11-04) a withdrawal also writes its
  * settle record, so the payout costs more than the old fixed `rc_limit:
  * 10000`, and every such swap sent with it failed "cost limit exceeded".
  */
-export const BTC_PAYOUT_SWAP_MIN_RC = 11_700;
+export const BTC_PAYOUT_SWAP_MIN_RC = 12_400;
+
+/**
+ * The minimum once the chain runs consensus 0.15.0. From that version the node
+ * charges 1 RC for each new stored byte instead of 19 (go-vsc-node
+ * params.WriteIoGasRcCost), and a payout stores about 400 new bytes (the
+ * withdrawal and its settle record). Measured:
+ *   mainnet 2026-11-19, repriced at 1 RC a byte: 4,485 HBD -> BTC, 4,806 HIVE
+ *   testnet 2026-11-19, 0.15 live: 5,487 HBD -> BTC (387 new bytes, one input);
+ *   its larger BTC contract state reads dearer, and a HIVE input adds one
+ *   pool hop (about 320 on mainnet), about 5,800
+ * Set above the dearest of these with room for one more vault input, for the
+ * same reason as above. The free 10,000 RC pays for one payout at a time.
+ */
+export const BTC_PAYOUT_SWAP_MIN_RC_V0_15 = 6_200;
+
+/** The consensus version from which a new stored byte costs 1 RC. */
+export const WRITE_PRICE_CUT_CONSENSUS = 15;
+
+/** The chain's active consensus version: the newest election's. */
+export type ActiveConsensus = { major: number; consensus: number };
+
+/**
+ * The least a swap paid out to a BTC address costs under the chain's active
+ * consensus version. `active` undefined means the node could not be asked: the
+ * higher minimum is used then, which can only refuse a swap that would have
+ * passed, never send one that fails on chain and is charged its whole limit.
+ */
+export function btcPayoutSwapMinRc(active: ActiveConsensus | undefined): number {
+	if (active && active.consensus >= WRITE_PRICE_CUT_CONSENSUS) {
+		return BTC_PAYOUT_SWAP_MIN_RC_V0_15;
+	}
+	return BTC_PAYOUT_SWAP_MIN_RC;
+}
+
+/** The chain's active consensus version (the node's newest election), or
+ *  undefined when the node does not answer. Every node reports the on-chain
+ *  election, so the answer does not depend on which build the node runs. */
+export async function fetchActiveConsensus(): Promise<ActiveConsensus | undefined> {
+	try {
+		const res = await queryOnce(new ActiveConsensusStore(), { policy: 'NetworkOnly' });
+		const el = res.data?.electionByBlockHeight;
+		if (el?.protocol_version == null || el?.version_major == null) return undefined;
+		return { major: Number(el.version_major), consensus: Number(el.protocol_version) };
+	} catch {
+		return undefined;
+	}
+}
+
+/** btcPayoutSwapMinRc for the chain as it is now. */
+export async function fetchBtcPayoutSwapMinRc(): Promise<number> {
+	return btcPayoutSwapMinRc(await fetchActiveConsensus());
+}
 
 /**
  * Pick the `rc_limit` for a swap paid out to a BTC address: everything the
@@ -76,17 +135,22 @@ export const BTC_PAYOUT_SWAP_MIN_RC = 11_700;
  * "insufficient balance". A deposit in the same transaction adds the input
  * itself, so the account's RC before it is the bound.
  *
- * Below BTC_PAYOUT_SWAP_MIN_RC the swap cannot succeed; report it before the
- * user signs instead of failing on chain.
+ * Below `minRc` the swap cannot succeed; report it before the user signs
+ * instead of failing on chain. `minRc` is btcPayoutSwapMinRc of the chain's
+ * active consensus version; left out, it is the higher minimum.
  */
-export function btcPayoutSwapRcLimit(available: number, hbdPulledFromMagi: number): RcSizing {
+export function btcPayoutSwapRcLimit(
+	available: number,
+	hbdPulledFromMagi: number,
+	minRc: number = BTC_PAYOUT_SWAP_MIN_RC
+): RcSizing {
 	const spendable = Math.floor(available - Math.max(0, hbdPulledFromMagi));
 	const cap = Math.min(spendable, MAX_RC_LIMIT);
-	if (cap < BTC_PAYOUT_SWAP_MIN_RC) {
+	if (cap < minRc) {
 		return {
 			ok: false,
 			reason: 'insufficient-rc',
-			needed: BTC_PAYOUT_SWAP_MIN_RC,
+			needed: minRc,
 			available: Math.max(0, spendable)
 		};
 	}
@@ -94,18 +158,21 @@ export function btcPayoutSwapRcLimit(available: number, hbdPulledFromMagi: numbe
 }
 
 /** The fresh RC (the node's getAccountRC) when the node answers, else
- *  `fallbackAvailable` (the polled balance store), sized by btcPayoutSwapRcLimit. */
+ *  `fallbackAvailable` (the polled balance store), sized by btcPayoutSwapRcLimit
+ *  against the minimum of the chain's active consensus version. */
 export async function sizeBtcPayoutSwap(
 	did: string,
 	hbdPulledFromMagi: number,
 	fallbackAvailable?: number
 ): Promise<RcSizing> {
-	const available = (await fetchAccountRc(did)) ?? fallbackAvailable ?? 0;
-	return btcPayoutSwapRcLimit(available, hbdPulledFromMagi);
+	const [fresh, minRc] = await Promise.all([fetchAccountRc(did), fetchBtcPayoutSwapMinRc()]);
+	return btcPayoutSwapRcLimit(fresh ?? fallbackAvailable ?? 0, hbdPulledFromMagi, minRc);
 }
 
 /** What to tell a user whose RC cannot pay a BTC payout. The amount swapped
- *  barely changes the cost, so a smaller swap does not help; HBD on Magi does. */
+ *  barely changes the cost, so a smaller swap does not help; HBD on Magi does.
+ *  The sizing functions above always fill `needed` with the minimum they
+ *  refused at; without it the higher minimum is quoted. */
 export function btcPayoutShortfallMessage(shortfall: InsufficientRc): string {
 	const needed = shortfall.needed ?? BTC_PAYOUT_SWAP_MIN_RC;
 	const missingHbd = Math.ceil(Math.max(0, needed - shortfall.available) / 10) / 100;

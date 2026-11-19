@@ -23,6 +23,7 @@ import {
 import {
 	btcPayoutShortfallMessage,
 	fetchAccountRc,
+	fetchBtcPayoutSwapMinRc,
 	rcShortfallMessage
 } from '../hive/vscOperations/rcSizing';
 import type { CallContractTransaction } from './client';
@@ -89,7 +90,7 @@ export function walletRouterSwapInstruction(
  */
 export function buildWalletRouterSwapOps(
 	swap: WalletRouterSwap,
-	ctx: { feeQualifies: boolean; availableRc: number }
+	ctx: { feeQualifies: boolean; availableRc: number; btcPayoutMinRc?: number }
 ): WalletRouterSwapOps {
 	if (swap.destinationChain && !swap.recipient) {
 		return { ok: false, error: 'Enter a receiver address for the target chain' };
@@ -103,7 +104,8 @@ export function buildWalletRouterSwapOps(
 		ctx.availableRc,
 		swap.fromCoin.value === Coin.hbd.value ? swap.amount.amount : 0,
 		isNativeIn ? 0 : EVM_APPROVE_RC_LIMIT,
-		swap.destinationChain === 'BTC'
+		swap.destinationChain === 'BTC',
+		ctx.btcPayoutMinRc
 	);
 	if (!sizing.ok) {
 		return {
@@ -142,7 +144,10 @@ export async function prepareWalletRouterSwap(
 		ALTERA_FEE_ACTIVE &&
 		(await qualifiesForAlteraFee(swap.amount, swap.toCoin, swap.destinationChain || undefined));
 	const availableRc = (await fetchAccountRc(swap.caller)) ?? fallbackRc ?? 0;
-	return buildWalletRouterSwapOps(swap, { feeQualifies, availableRc });
+	// Only a BTC payout has a minimum that depends on the chain's version.
+	const btcPayoutMinRc =
+		swap.destinationChain === 'BTC' ? await fetchBtcPayoutSwapMinRc() : undefined;
+	return buildWalletRouterSwapOps(swap, { feeQualifies, availableRc, btcPayoutMinRc });
 }
 
 /**

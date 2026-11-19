@@ -7,7 +7,10 @@ import {
 	EVM_SWAP_MIN_RC,
 	headerRcLimit
 } from './evmSwap';
-import { BTC_PAYOUT_SWAP_MIN_RC } from '../hive/vscOperations/rcSizing';
+import {
+	BTC_PAYOUT_SWAP_MIN_RC,
+	BTC_PAYOUT_SWAP_MIN_RC_V0_15
+} from '../hive/vscOperations/rcSizing';
 import type { CallContractTransaction, Transaction } from './client';
 
 const call = (rc_limit: number): CallContractTransaction => ({
@@ -67,6 +70,27 @@ describe('evmSwapRcLimit', () => {
 		expect(evmSwapRcLimit(BTC_PAYOUT_SWAP_MIN_RC, 0, EVM_APPROVE_RC_LIMIT, true)).toMatchObject({
 			ok: false,
 			needed: BTC_PAYOUT_SWAP_MIN_RC
+		});
+	});
+	it('sizes a BTC payout against the minimum it is given', () => {
+		// From consensus 0.15 a wallet account holding less than the original
+		// minimum can pay for a payout.
+		const rc = BTC_PAYOUT_SWAP_MIN_RC_V0_15 + EVM_APPROVE_RC_LIMIT;
+		expect(evmSwapRcLimit(rc, 0, EVM_APPROVE_RC_LIMIT, true)).toMatchObject({
+			ok: false,
+			needed: BTC_PAYOUT_SWAP_MIN_RC
+		});
+		expect(evmSwapRcLimit(rc, 0, EVM_APPROVE_RC_LIMIT, true, BTC_PAYOUT_SWAP_MIN_RC_V0_15)).toEqual(
+			{ ok: true, rcLimit: BTC_PAYOUT_SWAP_MIN_RC_V0_15 }
+		);
+		expect(
+			evmSwapRcLimit(rc - 1, 0, EVM_APPROVE_RC_LIMIT, true, BTC_PAYOUT_SWAP_MIN_RC_V0_15)
+		).toMatchObject({ ok: false, needed: BTC_PAYOUT_SWAP_MIN_RC_V0_15 });
+	});
+	it('ignores the payout minimum for a swap that stays on Magi', () => {
+		expect(evmSwapRcLimit(5000, 0, 0, false, BTC_PAYOUT_SWAP_MIN_RC_V0_15)).toEqual({
+			ok: true,
+			rcLimit: 5000
 		});
 	});
 });

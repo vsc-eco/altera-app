@@ -4,7 +4,11 @@
  */
 
 import type { CallContractTransaction, Transaction } from './client';
-import { btcPayoutSwapRcLimit, type RcSizing } from '../hive/vscOperations/rcSizing';
+import {
+	BTC_PAYOUT_SWAP_MIN_RC,
+	btcPayoutSwapRcLimit,
+	type RcSizing
+} from '../hive/vscOperations/rcSizing';
 
 /**
  * The per-op worst case the node's mempool adds up (transaction-pool
@@ -52,15 +56,19 @@ export const EVM_SWAP_MIN_RC = 1000;
  *
  * @param hbdPulledFromMagi the input in milli-HBD when it is HBD, else 0
  * @param approveRc         rc_limit of the allowance op sent with it, else 0
+ * @param btcPayoutMinRc    the least a BTC payout costs under the chain's active
+ *                          consensus version (btcPayoutSwapMinRc); left out, the
+ *                          higher minimum
  */
 export function evmSwapRcLimit(
 	available: number,
 	hbdPulledFromMagi: number,
 	approveRc: number,
-	btcPayout: boolean
+	btcPayout: boolean,
+	btcPayoutMinRc: number = BTC_PAYOUT_SWAP_MIN_RC
 ): RcSizing {
 	const afterApprove = available - approveRc;
-	if (btcPayout) return btcPayoutSwapRcLimit(afterApprove, hbdPulledFromMagi);
+	if (btcPayout) return btcPayoutSwapRcLimit(afterApprove, hbdPulledFromMagi, btcPayoutMinRc);
 	const spendable = Math.floor(afterApprove - Math.max(0, hbdPulledFromMagi));
 	if (spendable < EVM_SWAP_MIN_RC) {
 		return {

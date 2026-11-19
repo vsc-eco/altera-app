@@ -93,7 +93,11 @@
 		sendError = null;
 		sentHash = null;
 		try {
-			sentHash = await sendBridgeDepositFromWallet(coinAmount, vaultAddress);
+			sentHash = await sendBridgeDepositFromWallet(
+				coinAmount,
+				vaultAddress,
+				auth.value?.address ?? ''
+			);
 			coinAmount = new CoinAmount(0, asset);
 		} catch (err) {
 			sendError = err instanceof Error ? err.message : String(err);
@@ -148,7 +152,9 @@
 			<p class="hint">
 				Send ETH from any Ethereum wallet to the vault address below <b>with this data</b> attached.
 				The data credits it to {auth.value?.did}; without it the ETH goes to the Magi account of the
-				Ethereum address that sent it.
+				Ethereum address that sent it. Send from a wallet you control (MetaMask, Rabby, a hardware
+				wallet), <b>not from an exchange</b>: an exchange drops the data, and the ETH would be
+				credited to the exchange's address.
 			</p>
 			<Clipboard value={vaultAddress} label="Bridge vault address" disabled={false} />
 			{#if depositData}

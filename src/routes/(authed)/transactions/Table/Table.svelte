@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { evmBridgeOpAsTransfer } from '../evmBridgeOp';
 	import Tr from './tr/Tr.svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import {
@@ -368,9 +369,10 @@
 									return (b?.index ?? 0) - (a?.index ?? 0);
 								}) as op, i (`${tx.id}-${op?.index ?? i}`)}
 									{#if op}
-										{@const trType = getOpTrType(op)}
+										{@const evmOp = evmBridgeOpAsTransfer(op, tx.required_auths?.[0])}
+										{@const trType = evmOp ? 'regular' : getOpTrType(op)}
 										{#if trType === 'regular'}
-											<Tr {tx} {op} viewDid={did} onRowClick={toggleDetails} />
+											<Tr {tx} op={evmOp ?? op} viewDid={did} onRowClick={toggleDetails} />
 										{:else if trType === 'btc-vsc'}
 											<BtcMappingTr {tx} {op} viewDid={did} onRowClick={toggleDetails} />
 										{:else if trType === 'contract'}

@@ -289,6 +289,26 @@ describe('mapStateToPoolRow — custom token decimals', () => {
 		expect(Number.parseFloat(row.priceRatio.replace(/,/g, ''))).toBeCloseTo(272_589_601, -3);
 	});
 
+	it('keeps ETH at 18 dp for the math but shows 6, as the wallet card does', () => {
+		const row = mapStateToPoolRow(
+			'vsc1pool',
+			{
+				asset0: JSON.stringify({ asset: 'eth' }),
+				asset1: JSON.stringify({ asset: 'hbd' }),
+				total_lp: '0',
+				reserve0: '75106597798800250', // 0.0751065977988 ETH
+				reserve1: '40158' // 40.158 HBD
+			},
+			EMPTY_INDEXER,
+			STD_PRICES,
+			['ETH', 'HBD']
+		);
+		expect(row.decimals0).toBe(18);
+		expect(row.totalLiquidityAssets[0]).toBe('0.075107 ETH');
+		expect(row.totalLiquidityAssets[1]).toBe('40.158 HBD');
+		expect(Number.parseFloat(row.priceRatio)).toBeCloseTo(40.158 / 0.07510659779880025, 4);
+	});
+
 	it('leaves native pairs on their existing decimals', () => {
 		const row = mapStateToPoolRow('vsc1pool', HBD_HIVE_STATE, EMPTY_INDEXER, STD_PRICES, [
 			'HBD',

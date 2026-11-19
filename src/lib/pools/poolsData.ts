@@ -109,10 +109,12 @@ function parseScaled(raw: string | null | undefined, decimals = 3): number | nul
 }
 
 function formatNum(value: number, unit: string, decimals = 3): string {
+	// ETH is 18 dp on chain; show 6 like the wallet card (the math keeps all 18).
+	const shown = unit.toUpperCase() === 'ETH' ? Math.min(decimals, 6) : decimals;
 	const formatted = value.toLocaleString(undefined, {
 		useGrouping: true,
-		minimumFractionDigits: decimals,
-		maximumFractionDigits: decimals
+		minimumFractionDigits: shown,
+		maximumFractionDigits: shown
 	});
 	return unit === '$' ? `$${formatted}` : `${formatted} ${unit.toUpperCase()}`;
 }

@@ -26,6 +26,10 @@ export const USDC_TOKEN_ADDRESS = isVscTestnet()
 	? '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 	: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 
+/** Share of every ETH deposit the bridge keeps for its gas reserve, in bps
+ *  (evm-mapping-contract constants.GasReserveDepositTaxBps; tokens pay none). */
+export const EVM_ETH_DEPOSIT_TAX_BPS = 100;
+
 function vscExplorerBase(): string {
 	return isVscTestnet() ? 'https://magi-test.techcoderx.com' : 'https://vsc.techcoderx.com';
 }

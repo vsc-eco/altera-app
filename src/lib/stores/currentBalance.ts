@@ -8,8 +8,11 @@ import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import {
 	BTC_MAPPING_CONTRACT_ID,
+	ETH_CHAIN_ID,
 	EVM_BRIDGE_CONTRACT_ID,
-	EVM_BRIDGE_ENABLED
+	EVM_BRIDGE_ENABLED,
+	EVM_MIN_ETH_DEPOSIT_WEI,
+	USDC_TOKEN_ADDRESS
 } from '$lib/constants';
 import { fromChainUnits } from '$lib/currency/chainAmount';
 import { evmBalanceKey } from '$lib/magiTransactions/evmBridge';
@@ -96,6 +99,18 @@ async function fetchBtcBalance(did: string): Promise<number> {
 export const evmProofFee = writable<{ eth: number; usdc: number }>({ eth: 0, usdc: 0 });
 
 /**
+ * Smallest deposit the bridge credits per asset, in smallest units (DUST-1:
+ * less is not credited and stays in the vault). ETH's is a contract constant;
+ * a token's is a tenth of the minimum withdrawal in its registry entry
+ * (t-<chain>-<address> = "symbol|decimals|minWithdrawal|..."). null = not
+ * known yet, and the deposit page does not send.
+ */
+export const evmMinDeposit = writable<{ eth: number; usdc: number | null }>({
+	eth: EVM_MIN_ETH_DEPOSIT_WEI,
+	usdc: null
+});
+
+/**
  * ETH and USDC held on Magi: the EVM bridge's ledger keys, stored as decimal
  * strings (wei / USDC's 6 places), under the account's canonical DID. Zero
  * when the bridge is not enabled on this network.
@@ -104,11 +119,12 @@ async function fetchEvmBalances(did: string): Promise<{ eth: number; usdc: numbe
 	if (!EVM_BRIDGE_ENABLED) return { eth: 0, usdc: 0 };
 	const ethKey = evmBalanceKey(did, Coin.eth.value);
 	const usdcKey = evmBalanceKey(did, Coin.usdc.value);
+	const usdcRegistryKey = `t-${ETH_CHAIN_ID}-${USDC_TOKEN_ADDRESS.slice(2).toLowerCase()}`;
 	try {
 		const result = await queryOnce(new GetStateByKeysStore(), {
 			variables: {
 				contractId: EVM_BRIDGE_CONTRACT_ID,
-				keys: [ethKey, usdcKey, 'pf-eth', 'pf-usdc']
+				keys: [ethKey, usdcKey, 'pf-eth', 'pf-usdc', usdcRegistryKey]
 			},
 			policy: 'NetworkOnly'
 		});
@@ -116,6 +132,15 @@ async function fetchEvmBalances(did: string): Promise<{ eth: number; usdc: numbe
 		evmProofFee.set({
 			eth: fromChainUnits(state['pf-eth'], Coin.eth),
 			usdc: fromChainUnits(state['pf-usdc'], Coin.usdc)
+		});
+		const usdcMinWithdrawal = Number((state[usdcRegistryKey] ?? '').split('|')[2]);
+		evmMinDeposit.set({
+			eth: EVM_MIN_ETH_DEPOSIT_WEI,
+			// MinDeposit() = MinWithdrawal / MinDepositDivisor (10)
+			usdc:
+				Number.isFinite(usdcMinWithdrawal) && usdcMinWithdrawal > 0
+					? Math.floor(usdcMinWithdrawal / 10)
+					: null
 		});
 		return {
 			eth: fromChainUnits(state[ethKey], Coin.eth),

@@ -3,7 +3,7 @@
 	// The BtcMainnetDeposit pattern: logged in with the matching wallet, the page
 	// sends for you; otherwise it shows where and how to send.
 	import { getAuth } from '$lib/auth/store';
-	import { evmProofFee } from '$lib/stores/currentBalance';
+	import { evmMinDeposit, evmProofFee } from '$lib/stores/currentBalance';
 	import { EVM_ETH_DEPOSIT_TAX_BPS } from '$lib/constants';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -52,8 +52,23 @@
 	);
 	// Measured on testnet 11-19: sent 17:38, credited 18:06 (finality, then the
 	// operator batches header proofs for up to 10 min and proves them).
+	// Below the bridge's minimum a deposit is not credited and stays in the
+	// vault (DUST-1), so the page names the minimum and never sends less.
+	const minDeposit = $derived(
+		asset.value === Coin.usdc.value ? $evmMinDeposit.usdc : $evmMinDeposit.eth
+	);
+	const minDepositText = $derived(
+		minDeposit == null
+			? ''
+			: (minDeposit / 10 ** asset.decimalPlaces).toLocaleString(undefined, {
+					maximumFractionDigits: 6
+				}) + ` ${asset.label}`
+	);
 	const depositHint = $derived(
-		'Credited about 30 minutes after it is sent (Ethereum finality, then the bridge proves the block). ' +
+		(minDeposit != null
+			? `Send at least ${minDepositText}: less is not credited and stays in the bridge vault. `
+			: '') +
+			'Credited about 30 minutes after it is sent (Ethereum finality, then the bridge proves the block). ' +
 			(asset.value === Coin.eth.value
 				? `The bridge keeps ${EVM_ETH_DEPOSIT_TAX_BPS / 100}% of an ETH deposit for its gas reserve` +
 					(proofFee > 0 ? `, plus a proving fee of ${proofFeeText}.` : '.')
@@ -70,9 +85,10 @@
 	let sending = $state(false);
 	let sendError = $state<string | null>(null);
 	let sentHash = $state<string | null>(null);
+	const belowMin = $derived(minDeposit == null || coinAmount.amount < minDeposit);
 
 	async function sendFromWallet() {
-		if (!vaultAddress || coinAmount.amount <= 0) return;
+		if (!vaultAddress || belowMin) return;
 		sending = true;
 		sendError = null;
 		sentHash = null;
@@ -107,13 +123,16 @@
 					bind:id={inputId}
 				/>
 			</div>
-			<PillButton
-				styleType="invert"
-				disabled={sending || coinAmount.amount <= 0}
-				onclick={sendFromWallet}
-			>
+			<PillButton styleType="invert" disabled={sending || belowMin} onclick={sendFromWallet}>
 				{sending ? 'Waiting for your wallet…' : `Deposit ${asset.label}`}
 			</PillButton>
+			{#if minDeposit == null}
+				<p class="error">The bridge's minimum for {asset.label} could not be read yet.</p>
+			{:else if coinAmount.amount > 0 && belowMin}
+				<p class="error">
+					Below the minimum deposit ({minDepositText}): it would not be credited.
+				</p>
+			{/if}
 			{#if sendError}<p class="error">{sendError}</p>{/if}
 			{#if sentHash}
 				<p class="hint">

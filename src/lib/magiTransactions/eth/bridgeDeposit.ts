@@ -7,7 +7,10 @@
  * (evm-mapping-contract handlers.go parseCalldataInstructions). So:
  *  - logged in with an Ethereum wallet: a plain transfer from that wallet, sent
  *    here through wagmi, lands on the same account;
- *  - logged in with Hive: ETH sent to the vault with the deposit_to data.
+ *  - any login (Hive included): ETH or USDC through the MagiDeposit contract,
+ *    whose call names the account to credit (sendMagiDepositFromBrowserWallet);
+ *    The page lists the wallets installed in the browser (EIP-6963) and asks the
+ *    chosen one to sign; no address or hex data is shown to copy.
  */
 import {
 	getAccount,
@@ -16,7 +19,7 @@ import {
 	waitForTransactionReceipt,
 	writeContract
 } from '@wagmi/core';
-import { erc20Abi, getAddress, toHex, type Hex } from 'viem';
+import { erc20Abi, getAddress, isAddress, toHex, type Hex } from 'viem';
 import { SimulateContractCallsStore } from '$houdini';
 import { queryOnce } from '$lib/queryOnce';
 import { initModal, wagmiConfig } from '$lib/auth/reown';
@@ -66,6 +69,42 @@ export async function fetchActiveVaultAddress(callerDid: string): Promise<string
 /** The calldata a plain ETH deposit carries to credit `recipient` (e.g. "hive:alice"). */
 export function depositToCalldata(recipient: string): Hex {
 	return toHex(`deposit_to=${recipient}`);
+}
+
+/**
+ * The active vault generation's MagiDeposit contract (account-mapping
+ * l1-deposit/MagiDeposit.sol), read with a depositAddress dry run: null until the
+ * bridge has attested its code. Its deposit(recipient) and
+ * depositToken(token, amount, recipient) credit ANY Magi account the call names
+ * (RP-7), so a Hive account can be credited ETH and USDC without hex data.
+ */
+export async function fetchDepositContractAddress(callerDid: string): Promise<string | null> {
+	try {
+		const res = await queryOnce(new SimulateContractCallsStore(), {
+			variables: {
+				account: callerDid,
+				input: {
+					tx_id: `altera-deposit-contract-${Date.now()}`,
+					required_auths: [callerDid],
+					calls: [
+						{
+							contract_id: EVM_BRIDGE_CONTRACT_ID,
+							action: 'depositAddress',
+							payload: '',
+							rc_limit: 5000
+						}
+					]
+				}
+			},
+			policy: 'NetworkOnly'
+		});
+		const sim = res.data?.simulateContractCalls?.[0];
+		const ret = sim?.success ? (sim.ret ?? '').trim().replace(/^"|"$/g, '') : '';
+		return isAddress(ret) ? getAddress(ret) : null;
+	} catch (err) {
+		console.error('depositAddress dry run failed', err);
+		return null;
+	}
 }
 
 /**

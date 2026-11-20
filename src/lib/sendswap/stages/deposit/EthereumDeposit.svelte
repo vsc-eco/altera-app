@@ -3,8 +3,7 @@
 	// The BtcMainnetDeposit pattern: logged in with the matching wallet, the page
 	// sends for you; otherwise it shows where and how to send.
 	import { getAuth } from '$lib/auth/store';
-	import { evmMinDeposit, evmProofFee } from '$lib/stores/currentBalance';
-	import { EVM_ETH_DEPOSIT_TAX_BPS } from '$lib/constants';
+	import { evmMinDeposit } from '$lib/stores/currentBalance';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import Clipboard from '$lib/zag/Clipboard.svelte';
@@ -77,12 +76,6 @@
 	// Keeps listening: a wallet whose extension starts late still shows up.
 	onMount(() => watchBrowserWallets((w) => (wallets = w)));
 
-	// The bridge keeps its proving fee out of every deposit it credits (prooffee.go).
-	const proofFee = $derived(asset.value === Coin.usdc.value ? $evmProofFee.usdc : $evmProofFee.eth);
-	const proofFeeText = $derived(
-		(proofFee / 10 ** asset.decimalPlaces).toLocaleString(undefined, { maximumFractionDigits: 6 }) +
-			` ${asset.label}`
-	);
 	// Measured on testnet 11-19: sent 17:38, credited 18:06 (finality, then the
 	// operator batches header proofs for up to 10 min and proves them).
 	// Below the bridge's minimum a deposit is not credited and stays in the
@@ -101,13 +94,9 @@
 		(minDeposit != null
 			? `Send at least ${minDepositText}: less is not credited and stays in the bridge vault. `
 			: '') +
-			'Credited about 30 minutes after it is sent (Ethereum finality, then the bridge proves the block). ' +
-			(asset.value === Coin.eth.value
-				? `The bridge keeps ${EVM_ETH_DEPOSIT_TAX_BPS / 100}% of an ETH deposit for its gas reserve` +
-					(proofFee > 0 ? `, plus a proving fee of ${proofFeeText}.` : '.')
-				: proofFee > 0
-					? `The bridge keeps a proving fee of ${proofFeeText} from each deposit.`
-					: '')
+			// Deposits are free: the bridge credits the whole amount (account-mapping
+			// DEPOSIT-FREE-1); its proving fee is charged on withdrawals only.
+			'Credited in full about 30 minutes after it is sent (Ethereum finality, then the bridge proves the block).'
 	);
 
 	let coinAmount = $state(new CoinAmount(0, Coin.eth));

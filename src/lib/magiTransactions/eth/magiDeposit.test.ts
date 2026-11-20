@@ -59,6 +59,7 @@ function recordingWallet(opts: {
 	allowance?: bigint;
 	revert?: boolean;
 	code?: string | null;
+	balance?: bigint;
 }) {
 	const calls: { method: string; params?: unknown[] }[] = [];
 	let chainId = opts.chainId;
@@ -76,8 +77,15 @@ function recordingWallet(opts: {
 					return null;
 				case 'eth_getCode':
 					return opts.code === undefined ? '0x6080604052' : opts.code;
-				case 'eth_call':
-					return '0x' + (opts.allowance ?? 0n).toString(16).padStart(64, '0');
+				case 'eth_getBalance':
+					return '0x' + (opts.balance ?? 10n ** 30n).toString(16);
+				case 'eth_call': {
+					const data = (params?.[0] as { data: string }).data;
+					const v = data.startsWith('0x70a08231') // balanceOf
+						? (opts.balance ?? 10n ** 30n)
+						: (opts.allowance ?? 0n); // allowance
+					return '0x' + v.toString(16).padStart(64, '0');
+				}
 				case 'eth_sendTransaction':
 					return '0x' + String(++n).padStart(64, '0');
 				case 'eth_getTransactionReceipt':
@@ -105,12 +113,13 @@ describe('sendMagiDepositFromBrowserWallet', () => {
 			'eth_chainId',
 			'wallet_switchEthereumChain',
 			'eth_getCode',
+			'eth_getBalance',
 			'eth_sendTransaction',
 			'eth_getTransactionReceipt'
 		]);
 		expect(calls[2].params).toEqual([{ chainId: '0x' + ETH_CHAIN_ID.toString(16) }]);
 		expect(calls[3].params).toEqual([getAddress(DC), 'latest']);
-		const tx = calls[4].params?.[0] as {
+		const tx = calls[5].params?.[0] as {
 			from: string;
 			to: string;
 			value: string;
@@ -151,6 +160,26 @@ describe('sendMagiDepositFromBrowserWallet', () => {
 				expect(calls.some((c) => c.method === 'eth_sendTransaction')).toBe(false);
 			}
 		}
+	});
+
+	it('a wallet that holds less than the amount: nothing is sent, not even the approve (owner 11-20: 0.128 USDC for a 1 USDC deposit)', async () => {
+		const usdc = recordingWallet({ chainId: '0x1', balance: 128_312n });
+		await expect(
+			sendMagiDepositFromBrowserWallet(new CoinAmount('1', Coin.usdc), DC, HIVE, usdc.wallet)
+		).rejects.toThrow('This wallet holds 0.128312 USDC, less than the 1 USDC to deposit');
+		expect(usdc.calls.some((c) => c.method === 'eth_sendTransaction')).toBe(false);
+		const eth = recordingWallet({ chainId: '0x1', balance: 999_999_999_999_999n });
+		await expect(
+			sendMagiDepositFromBrowserWallet(new CoinAmount('0.001', Coin.eth), DC, HIVE, eth.wallet)
+		).rejects.toThrow(/holds 0.000999999999999999 ETH, less than the 0.001 ETH/);
+		expect(eth.calls.some((c) => c.method === 'eth_sendTransaction')).toBe(false);
+	});
+
+	it('exactly the amount is enough', async () => {
+		const { wallet } = recordingWallet({ chainId: '0x1', balance: 1_000_000n });
+		await expect(
+			sendMagiDepositFromBrowserWallet(new CoinAmount('1', Coin.usdc), DC, HIVE, wallet)
+		).resolves.toMatch(/^0x/);
 	});
 
 	it('a reverted transaction is an error, not a deposit', async () => {

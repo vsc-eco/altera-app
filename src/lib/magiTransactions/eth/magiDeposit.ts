@@ -7,7 +7,15 @@
  * signs. It talks to the wallet directly, never through the Reown modal, which
  * would log the user in as the wallet's address.
  */
-import { encodeFunctionData, erc20Abi, getAddress, parseAbi, toHex, type Hex } from 'viem';
+import {
+	encodeFunctionData,
+	erc20Abi,
+	formatUnits,
+	getAddress,
+	parseAbi,
+	toHex,
+	type Hex
+} from 'viem';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { toChainUnits } from '$lib/currency/chainAmount';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
@@ -176,8 +184,39 @@ export async function sendMagiDepositFromBrowserWallet(
 		throw new Error(
 			"The bridge's deposit contract for its current vault is not deployed yet, so nothing was sent. Try again later."
 		);
+	// The wallet must hold the amount before anything is signed: a USDC deposit
+	// it cannot cover reverts (MagiDeposit TokenTransferFailed) after the user
+	// already paid for the approve, and the wallet can only price the failing
+	// call with a fallback gas limit (owner 11-20: "$11 ... $79").
+	const want = BigInt(toChainUnits(amount));
+	const isUsdc = amount.coin.value === Coin.usdc.value;
+	const held = BigInt(
+		isUsdc
+			? ((await wallet.request({
+					method: 'eth_call',
+					params: [
+						{
+							to: getAddress(USDC_TOKEN_ADDRESS),
+							data: encodeFunctionData({
+								abi: erc20Abi,
+								functionName: 'balanceOf',
+								args: [getAddress(from)]
+							})
+						},
+						'latest'
+					]
+				})) as string)
+			: ((await wallet.request({ method: 'eth_getBalance', params: [from, 'latest'] })) as string)
+	);
+	if (held < want) {
+		const d = amount.coin.decimalPlaces;
+		throw new Error(
+			`This wallet holds ${formatUnits(held, d)} ${amount.coin.label}, less than the ${formatUnits(want, d)} ${amount.coin.label} to deposit, so nothing was sent.` +
+				(isUsdc ? '' : ' It also needs a little more ETH for the gas.')
+		);
+	}
 	let allowance = 0n;
-	if (amount.coin.value === Coin.usdc.value) {
+	if (isUsdc) {
 		const data = encodeFunctionData({
 			abi: erc20Abi,
 			functionName: 'allowance',

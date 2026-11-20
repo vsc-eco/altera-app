@@ -43,9 +43,10 @@ vi.mock('$lib/magiTransactions/eth/bridgeDeposit', () => ({
 }));
 const walletProvider = { request: vi.fn() };
 vi.mock('$lib/magiTransactions/eth/magiDeposit', () => ({
-	discoverBrowserWallets: vi
-		.fn()
-		.mockResolvedValue([{ id: 'io.metamask', name: 'MetaMask', provider: walletProvider }]),
+	watchBrowserWallets: vi.fn((cb: (w: unknown[]) => void) => {
+		cb([{ id: 'io.metamask', name: 'MetaMask', provider: walletProvider }]);
+		return () => {};
+	}),
 	sendMagiDepositFromBrowserWallet: vi.fn().mockResolvedValue('0x' + '2'.repeat(64))
 }));
 vi.mock('$lib/auth/sideWallet', () => ({
@@ -54,7 +55,7 @@ vi.mock('$lib/auth/sideWallet', () => ({
 
 const { default: EthereumDeposit } = await import('./EthereumDeposit.svelte');
 const { sendMagiDepositFromBrowserWallet } = await import('$lib/magiTransactions/eth/magiDeposit');
-const { sendBridgeDepositFromWallet, fetchDepositContractAddress } =
+const { sendBridgeDepositFromWallet, fetchDepositContractAddress, fetchActiveVaultAddress } =
 	await import('$lib/magiTransactions/eth/bridgeDeposit');
 const { withSideWallet } = await import('$lib/auth/sideWallet');
 
@@ -91,8 +92,9 @@ describe('EthereumDeposit per login', () => {
 		await fireEvent.click(btn);
 		await waitFor(() => expect(sendMagiDepositFromBrowserWallet).toHaveBeenCalledTimes(1));
 		expect(withSideWallet).toHaveBeenCalledWith('io.metamask', expect.any(Function));
-		const [amount, contract, did, provider] = vi.mocked(sendMagiDepositFromBrowserWallet).mock
-			.calls[0];
+		const [amount, contract, vault, did, provider] = vi.mocked(sendMagiDepositFromBrowserWallet)
+			.mock.calls[0];
+		expect(vault).toBe('0x88161a75f8519d0d333c83012df78ada5fff796a');
 		expect(amount.coin.value).toBe(Coin.eth.value);
 		expect(amount.amount).toBe(5_000_000_000_000_000);
 		expect(contract).toBe(DC);
@@ -101,6 +103,7 @@ describe('EthereumDeposit per login', () => {
 		expect(sendBridgeDepositFromWallet).not.toHaveBeenCalled();
 		// read once when the page loads and again at send time (a rotation may have happened)
 		expect(fetchDepositContractAddress).toHaveBeenCalledTimes(2);
+		expect(fetchActiveVaultAddress).toHaveBeenCalledTimes(2);
 	});
 
 	it('Hive login, USDC: same buttons, plus the two-prompt note', async () => {

@@ -19,7 +19,7 @@
 		sendBridgeDepositFromWallet
 	} from '$lib/magiTransactions/eth/bridgeDeposit';
 	import {
-		discoverBrowserWallets,
+		watchBrowserWallets,
 		sendMagiDepositFromBrowserWallet,
 		type BrowserWallet
 	} from '$lib/magiTransactions/eth/magiDeposit';
@@ -72,9 +72,8 @@
 	// $state.raw: the wallet's provider must reach the send untouched, never as a
 	// Svelte state proxy of it.
 	let wallets = $state.raw<BrowserWallet[] | null>(null);
-	onMount(() => {
-		discoverBrowserWallets().then((w) => (wallets = w));
-	});
+	// Keeps listening: a wallet whose extension starts late still shows up.
+	onMount(() => watchBrowserWallets((w) => (wallets = w)));
 
 	// The bridge keeps its proving fee out of every deposit it credits (prooffee.go).
 	const proofFee = $derived(asset.value === Coin.usdc.value ? $evmProofFee.usdc : $evmProofFee.eth);
@@ -150,12 +149,16 @@
 		try {
 			// Ask the bridge again: the vault (and its deposit contract) may have
 			// rotated since the page loaded.
-			const contract = await fetchDepositContractAddress(did);
-			if (!contract) throw new Error("The bridge's deposit contract could not be read. Try again.");
+			const [contract, vault] = await Promise.all([
+				fetchDepositContractAddress(did),
+				fetchActiveVaultAddress(did)
+			]);
+			if (!contract || !vault)
+				throw new Error("The bridge's deposit contract could not be read. Try again.");
 			depositContract = contract;
 			// withSideWallet: the signing wallet never becomes the login (sideWallet.ts).
 			sentHash = await withSideWallet(wallet.id, () =>
-				sendMagiDepositFromBrowserWallet(coinAmount, contract, did, wallet.provider)
+				sendMagiDepositFromBrowserWallet(coinAmount, contract, vault, did, wallet.provider)
 			);
 			coinAmount = new CoinAmount(0, asset);
 		} catch (err) {

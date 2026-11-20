@@ -18,8 +18,11 @@
  *  - the wallet gets wagmi's own "user disconnected" flag
  *    (`wagmi.<connector id>.disconnected`), which stops every auto-reconnect.
  *    wagmi clears that flag itself when the user really connects the wallet.
- * A connection that existed before the send (the user's own Reown login) is
- * never touched.
+ * With `keepExisting` a connection that existed before the send (the user's
+ * own Reown login) is left alone. The deposit page calls it without: it only
+ * sends this way for a Hive login, where no Reown connection can be the login,
+ * and one left behind (Reown reconnects any wallet the site was ever allowed)
+ * would become the login after a Hive logout.
  */
 let active = 0;
 
@@ -34,16 +37,23 @@ export function wagmiConnectorId(walletId: string): string {
 	return walletId === 'window.ethereum' ? 'injected' : walletId;
 }
 
-export async function withSideWallet<T>(walletId: string, fn: () => Promise<T>): Promise<T> {
+export async function withSideWallet<T>(
+	walletId: string,
+	fn: () => Promise<T>,
+	{ keepExisting = false }: { keepExisting?: boolean } = {}
+): Promise<T> {
 	// Read reown.wagmiConfig live (never destructured): Reown may start while the send runs.
 	const reown = await import('$lib/auth/reown');
 	const core = await import('@wagmi/core');
 	const cfg0 = reown.wagmiConfig;
-	const before = new Set(cfg0 ? core.getConnections(cfg0).map((c) => c.connector.uid) : []);
+	const before = new Set(
+		keepExisting && cfg0 ? core.getConnections(cfg0).map((c) => c.connector.uid) : []
+	);
 	const connectorId = wagmiConnectorId(walletId);
-	const userAlreadyConnected = cfg0
-		? core.getConnections(cfg0).some((c) => c.connector.id === connectorId)
-		: false;
+	const userAlreadyConnected =
+		keepExisting && cfg0
+			? core.getConnections(cfg0).some((c) => c.connector.id === connectorId)
+			: false;
 
 	let unwatch: (() => void) | undefined;
 	const sweep = async () => {

@@ -148,9 +148,14 @@
 		sendError = null;
 		sentHash = null;
 		try {
+			// Ask the bridge again: the vault (and its deposit contract) may have
+			// rotated since the page loaded.
+			const contract = await fetchDepositContractAddress(did);
+			if (!contract) throw new Error("The bridge's deposit contract could not be read. Try again.");
+			depositContract = contract;
 			// withSideWallet: the signing wallet never becomes the login (sideWallet.ts).
 			sentHash = await withSideWallet(wallet.id, () =>
-				sendMagiDepositFromBrowserWallet(coinAmount, depositContract!, did, wallet.provider)
+				sendMagiDepositFromBrowserWallet(coinAmount, contract, did, wallet.provider)
 			);
 			coinAmount = new CoinAmount(0, asset);
 		} catch (err) {

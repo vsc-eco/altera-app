@@ -54,7 +54,12 @@ describe('MagiDeposit calls (account-mapping l1-deposit/MagiDeposit.sol)', () =>
 });
 
 /** A wallet that records what the page asks and answers like MetaMask. */
-function recordingWallet(opts: { chainId: string; allowance?: bigint; revert?: boolean }) {
+function recordingWallet(opts: {
+	chainId: string;
+	allowance?: bigint;
+	revert?: boolean;
+	code?: string | null;
+}) {
 	const calls: { method: string; params?: unknown[] }[] = [];
 	let chainId = opts.chainId;
 	let n = 0;
@@ -69,6 +74,8 @@ function recordingWallet(opts: { chainId: string; allowance?: bigint; revert?: b
 				case 'wallet_switchEthereumChain':
 					chainId = (params?.[0] as { chainId: string }).chainId;
 					return null;
+				case 'eth_getCode':
+					return opts.code === undefined ? '0x6080604052' : opts.code;
 				case 'eth_call':
 					return '0x' + (opts.allowance ?? 0n).toString(16).padStart(64, '0');
 				case 'eth_sendTransaction':
@@ -97,11 +104,13 @@ describe('sendMagiDepositFromBrowserWallet', () => {
 			'eth_requestAccounts',
 			'eth_chainId',
 			'wallet_switchEthereumChain',
+			'eth_getCode',
 			'eth_sendTransaction',
 			'eth_getTransactionReceipt'
 		]);
 		expect(calls[2].params).toEqual([{ chainId: '0x' + ETH_CHAIN_ID.toString(16) }]);
-		const tx = calls[3].params?.[0] as {
+		expect(calls[3].params).toEqual([getAddress(DC), 'latest']);
+		const tx = calls[4].params?.[0] as {
 			from: string;
 			to: string;
 			value: string;
@@ -130,6 +139,18 @@ describe('sendMagiDepositFromBrowserWallet', () => {
 			'depositToken'
 		);
 		expect(calls.some((c) => c.method === 'wallet_switchEthereumChain')).toBe(false);
+	});
+
+	it('a deposit contract with no code (not deployed yet after a rotation): nothing is sent', async () => {
+		for (const code of ['0x', null]) {
+			for (const coin of [Coin.eth, Coin.usdc]) {
+				const { wallet, calls } = recordingWallet({ chainId: '0x1', code });
+				await expect(
+					sendMagiDepositFromBrowserWallet(new CoinAmount('5', coin), DC, HIVE, wallet)
+				).rejects.toThrow(/not deployed yet/);
+				expect(calls.some((c) => c.method === 'eth_sendTransaction')).toBe(false);
+			}
+		}
 	});
 
 	it('a reverted transaction is an error, not a deposit', async () => {

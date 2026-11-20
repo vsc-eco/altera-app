@@ -9,6 +9,7 @@ import { get } from 'svelte/store';
 import { cleanUpLogout, loginRetry } from '../store';
 import { isBtcTestnetAddress } from '$lib/stores/currentBalance';
 import { BTC_MAINNET_CAIP, BTC_TESTNET_CAIP } from '../btcCaip';
+import { sideWalletActive } from '../sideWallet';
 
 import { env as publicEnv } from '$env/dynamic/public';
 import { getAddress } from 'viem';
@@ -65,6 +66,9 @@ export function initModal() {
 
 	modal.subscribeAccount(async (value) => {
 		try {
+			// A wallet asked for accounts by a deposit (not a login) must not change
+			// the login (sideWallet.ts).
+			if (sideWalletActive()) return;
 			if (value.isConnected && value.address === lastAddress) return;
 			lastAddress = value.isConnected ? value.address : undefined;
 

@@ -163,6 +163,19 @@ export async function sendMagiDepositFromBrowserWallet(
 	if (((await wallet.request({ method: 'eth_chainId' })) as string).toLowerCase() !== chainHex) {
 		await wallet.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainHex }] });
 	}
+	// depositAddress() names the active vault's MagiDeposit whether or not it is
+	// deployed (CREATE2; after a key rotation nobody has deployed the new one
+	// yet). A deposit() call to an address with no code succeeds on Ethereum,
+	// emits no Deposit log and is never credited: the ETH would be lost. The bot
+	// alarms on the same thing (I-28, health.go checkDepositContracts).
+	const code = (await wallet.request({
+		method: 'eth_getCode',
+		params: [getAddress(depositContract), 'latest']
+	})) as string | null;
+	if (!code || code === '0x')
+		throw new Error(
+			"The bridge's deposit contract for its current vault is not deployed yet, so nothing was sent. Try again later."
+		);
 	let allowance = 0n;
 	if (amount.coin.value === Coin.usdc.value) {
 		const data = encodeFunctionData({

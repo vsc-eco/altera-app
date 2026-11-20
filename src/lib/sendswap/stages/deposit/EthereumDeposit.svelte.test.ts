@@ -48,7 +48,8 @@ vi.mock('$lib/auth/sideWallet', () => ({
 
 const { default: EthereumDeposit } = await import('./EthereumDeposit.svelte');
 const { sendMagiDepositFromBrowserWallet } = await import('$lib/magiTransactions/eth/magiDeposit');
-const { sendBridgeDepositFromWallet } = await import('$lib/magiTransactions/eth/bridgeDeposit');
+const { sendBridgeDepositFromWallet, fetchDepositContractAddress } =
+	await import('$lib/magiTransactions/eth/bridgeDeposit');
 const { withSideWallet } = await import('$lib/auth/sideWallet');
 
 beforeEach(() => {
@@ -92,6 +93,8 @@ describe('EthereumDeposit per login', () => {
 		expect(did).toBe('hive:alice');
 		expect(provider).toBe(walletProvider);
 		expect(sendBridgeDepositFromWallet).not.toHaveBeenCalled();
+		// read once when the page loads and again at send time (a rotation may have happened)
+		expect(fetchDepositContractAddress).toHaveBeenCalledTimes(2);
 	});
 
 	it('Hive login, USDC: same buttons, plus the two-prompt note', async () => {

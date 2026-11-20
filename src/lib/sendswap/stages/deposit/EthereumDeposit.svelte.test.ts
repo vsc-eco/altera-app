@@ -19,6 +19,12 @@ const h = vi.hoisted(() => ({
 const DC = '0x9cbe4Cf36d89A11FB584E514b6BB9d6177416096';
 
 vi.mock('$lib/auth/store', () => ({ getAuth: () => () => h.auth }));
+// The amount field's USD readout is not under test: no price feed here (its
+// fetch of /api/cryptoprices would reject unhandled and fail the run).
+vi.mock('$lib/currency/convert', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$lib/currency/convert')>()),
+	getExchangeRates: async () => null
+}));
 vi.mock('$lib/stores/currentBalance', () => ({
 	evmMinDeposit: readable({ eth: 1_000_000_000_000_000, usdc: 300_000 }),
 	evmProofFee: readable({ eth: 0, usdc: 0 })

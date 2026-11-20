@@ -60,6 +60,8 @@ function recordingWallet(opts: {
 	revert?: boolean;
 	code?: string | null;
 	balance?: bigint;
+	picker?: 'ok' | 'reject' | 'unsupported';
+	accounts?: string[];
 }) {
 	const calls: { method: string; params?: unknown[] }[] = [];
 	let chainId = opts.chainId;
@@ -68,8 +70,14 @@ function recordingWallet(opts: {
 		async request({ method, params }) {
 			calls.push({ method, params });
 			switch (method) {
+				case 'wallet_requestPermissions':
+					if (opts.picker === 'reject')
+						throw Object.assign(new Error('User rejected the request.'), { code: 4001 });
+					if (opts.picker === 'unsupported')
+						throw Object.assign(new Error('Method not found'), { code: -32601 });
+					return [{ parentCapability: 'eth_accounts' }];
 				case 'eth_requestAccounts':
-					return [FROM];
+					return opts.accounts ?? [FROM];
 				case 'eth_chainId':
 					return chainId;
 				case 'wallet_switchEthereumChain':
@@ -109,6 +117,7 @@ describe('sendMagiDepositFromBrowserWallet', () => {
 		);
 		expect(hash).toBe('0x' + '1'.padStart(64, '0'));
 		expect(calls.map((c) => c.method)).toEqual([
+			'wallet_requestPermissions',
 			'eth_requestAccounts',
 			'eth_chainId',
 			'wallet_switchEthereumChain',
@@ -117,9 +126,10 @@ describe('sendMagiDepositFromBrowserWallet', () => {
 			'eth_sendTransaction',
 			'eth_getTransactionReceipt'
 		]);
-		expect(calls[2].params).toEqual([{ chainId: '0x' + ETH_CHAIN_ID.toString(16) }]);
-		expect(calls[3].params).toEqual([getAddress(DC), 'latest']);
-		const tx = calls[5].params?.[0] as {
+		expect(calls[0].params).toEqual([{ eth_accounts: {} }]);
+		expect(calls[3].params).toEqual([{ chainId: '0x' + ETH_CHAIN_ID.toString(16) }]);
+		expect(calls[4].params).toEqual([getAddress(DC), 'latest']);
+		const tx = calls[6].params?.[0] as {
 			from: string;
 			to: string;
 			value: string;
@@ -166,13 +176,44 @@ describe('sendMagiDepositFromBrowserWallet', () => {
 		const usdc = recordingWallet({ chainId: '0x1', balance: 128_312n });
 		await expect(
 			sendMagiDepositFromBrowserWallet(new CoinAmount('1', Coin.usdc), DC, HIVE, usdc.wallet)
-		).rejects.toThrow('This wallet holds 0.128312 USDC, less than the 1 USDC to deposit');
+		).rejects.toThrow(
+			`The wallet account ${FROM} holds 0.128312 USDC, less than the 1 USDC to deposit`
+		);
 		expect(usdc.calls.some((c) => c.method === 'eth_sendTransaction')).toBe(false);
 		const eth = recordingWallet({ chainId: '0x1', balance: 999_999_999_999_999n });
 		await expect(
 			sendMagiDepositFromBrowserWallet(new CoinAmount('0.001', Coin.eth), DC, HIVE, eth.wallet)
 		).rejects.toThrow(/holds 0.000999999999999999 ETH, less than the 0.001 ETH/);
 		expect(eth.calls.some((c) => c.method === 'eth_sendTransaction')).toBe(false);
+	});
+
+	it("the wallet's account picker opens every time; the chosen account sends", async () => {
+		const SIX = '0x1111111111111111111111111111111111111111';
+		const { wallet, calls } = recordingWallet({ chainId: '0x1', accounts: [SIX, FROM] });
+		await sendMagiDepositFromBrowserWallet(new CoinAmount('0.005', Coin.eth), DC, HIVE, wallet);
+		expect(calls[0].method).toBe('wallet_requestPermissions');
+		const send = calls.find((c) => c.method === 'eth_sendTransaction')?.params?.[0] as {
+			from: string;
+		};
+		expect(send.from).toBe(SIX);
+	});
+
+	it('a refusal in the picker stops everything', async () => {
+		const { wallet, calls } = recordingWallet({ chainId: '0x1', picker: 'reject' });
+		await expect(
+			sendMagiDepositFromBrowserWallet(new CoinAmount('0.005', Coin.eth), DC, HIVE, wallet)
+		).rejects.toThrow('User rejected the request.');
+		expect(calls.map((c) => c.method)).toEqual(['wallet_requestPermissions']);
+	});
+
+	it('a wallet without the picker connects the usual way', async () => {
+		const { wallet, calls } = recordingWallet({ chainId: '0x1', picker: 'unsupported' });
+		await sendMagiDepositFromBrowserWallet(new CoinAmount('0.005', Coin.eth), DC, HIVE, wallet);
+		expect(calls.slice(0, 2).map((c) => c.method)).toEqual([
+			'wallet_requestPermissions',
+			'eth_requestAccounts'
+		]);
+		expect(calls.some((c) => c.method === 'eth_sendTransaction')).toBe(true);
 	});
 
 	it('exactly the amount is enough', async () => {

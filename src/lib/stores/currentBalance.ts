@@ -93,9 +93,9 @@ async function fetchBtcBalance(did: string): Promise<number> {
 
 /**
  * The EVM bridge's proving fee per asset, in smallest units (its pf-<asset>
- * keys, prooffee.go): taken from every deposit and charged on top of every
- * withdrawal, also when the gas fee is deducted from the amount. The withdraw
- * max leaves room for it, as the BTC max leaves btcSendFeeReserve.
+ * keys, prooffee.go): charged on top of every withdrawal, also when the gas fee
+ * is deducted from the amount (deposits pay none since DEPOSIT-FREE-1). The
+ * withdraw max leaves room for it, as the BTC max leaves btcSendFeeReserve.
  */
 export const evmProofFee = writable<{ eth: number; usdc: number }>({ eth: 0, usdc: 0 });
 

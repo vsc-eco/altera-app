@@ -77,11 +77,21 @@ describe('withSideWallet', () => {
 		expect(sideWalletActive()).toBe(false);
 	});
 
-	it("never touches the user's own Reown connection, nor flags a wallet that is the login", async () => {
+	it('Hive login (the deposit page): a Reown connection already there is cleared too (it would become the login after a Hive logout)', async () => {
+		const setItem = vi.fn(async () => {});
+		h.cfg = { storage: { setItem } };
+		h.conns = [{ connector: { uid: 'auto', id: 'io.metamask' } }]; // Reown's auto-reconnect at load
+		await withSideWallet('io.metamask', async () => 'hash');
+		await vi.advanceTimersByTimeAsync(6000);
+		expect(h.conns).toEqual([]);
+		expect(setItem).toHaveBeenCalledWith('io.metamask.disconnected', true);
+	});
+
+	it("keepExisting: never touches the user's own Reown connection, nor flags a wallet that is the login", async () => {
 		const setItem = vi.fn(async () => {});
 		h.cfg = { storage: { setItem } };
 		h.conns = [{ connector: { uid: 'mine', id: 'io.metamask' } }];
-		await withSideWallet('io.metamask', async () => 'hash');
+		await withSideWallet('io.metamask', async () => 'hash', { keepExisting: true });
 		await vi.advanceTimersByTimeAsync(6000);
 		expect(core.disconnect).not.toHaveBeenCalled();
 		expect(h.conns.map((c) => c.connector.uid)).toEqual(['mine']);

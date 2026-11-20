@@ -15,7 +15,7 @@ export const BTC_MAPPING_CONTRACT_ID = isVscTestnet()
 // every ETH/USDC surface checks EVM_BRIDGE_ENABLED and stays hidden.
 export const EVM_BRIDGE_CONTRACT_ID = isVscTestnet()
 	? 'vsc1Bo8h3TMFAYX5rkgCeauXFywZGiMbUftQL2'
-	: '';
+	: 'vsc1BqoXD32CWWx9UBfh18TnN7Es85RBut2Uhr';
 export const EVM_BRIDGE_ENABLED = EVM_BRIDGE_CONTRACT_ID !== '';
 
 /** The Ethereum chain the bridge watches (Sepolia on testnet). */

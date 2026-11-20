@@ -158,15 +158,36 @@ async function waitForReceipt(
  * Reown modal, which would log the user in as the wallet's address. Returns the
  * deposit transaction's hash once it is mined.
  */
+/**
+ * The account the deposit is sent from, picked by the user in the wallet.
+ * eth_requestAccounts alone returns the account the site is already connected
+ * to without asking (owner 11-20: MetaMask always used account 5, never
+ * account 6 that held the ETH). wallet_requestPermissions opens the wallet's
+ * account picker every time (EIP-2255, MetaMask's documented way to let a user
+ * choose another account); the wallet then lists the chosen account first.
+ * A wallet without it connects the usual way; a refusal in the picker stops.
+ */
+export async function chooseAccount(wallet: Eip1193): Promise<string> {
+	try {
+		await wallet.request({ method: 'wallet_requestPermissions', params: [{ eth_accounts: {} }] });
+	} catch (err) {
+		const code = (err as { code?: number })?.code;
+		// -32601 method not found, 4200 unsupported method: this wallet has no picker.
+		if (code !== -32601 && code !== 4200) throw err;
+	}
+	const accounts = (await wallet.request({ method: 'eth_requestAccounts' })) as string[];
+	const from = accounts?.[0];
+	if (!from) throw new Error('The wallet shared no account.');
+	return from;
+}
+
 export async function sendMagiDepositFromBrowserWallet(
 	amount: CoinAmount<Coin>,
 	depositContract: string,
 	recipient: string,
 	wallet: Eip1193
 ): Promise<Hex> {
-	const accounts = (await wallet.request({ method: 'eth_requestAccounts' })) as string[];
-	const from = accounts?.[0];
-	if (!from) throw new Error('The wallet shared no account.');
+	const from = await chooseAccount(wallet);
 	const chainHex = toHex(ETH_CHAIN_ID);
 	if (((await wallet.request({ method: 'eth_chainId' })) as string).toLowerCase() !== chainHex) {
 		await wallet.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainHex }] });
@@ -211,7 +232,7 @@ export async function sendMagiDepositFromBrowserWallet(
 	if (held < want) {
 		const d = amount.coin.decimalPlaces;
 		throw new Error(
-			`This wallet holds ${formatUnits(held, d)} ${amount.coin.label}, less than the ${formatUnits(want, d)} ${amount.coin.label} to deposit, so nothing was sent.` +
+			`The wallet account ${getAddress(from)} holds ${formatUnits(held, d)} ${amount.coin.label}, less than the ${formatUnits(want, d)} ${amount.coin.label} to deposit, so nothing was sent. Pick an account that holds it.` +
 				(isUsdc ? '' : ' It also needs a little more ETH for the gas.')
 		);
 	}

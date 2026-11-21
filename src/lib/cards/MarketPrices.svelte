@@ -2,6 +2,8 @@
 	import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 	import { Coin } from '$lib/sendswap/utils/sendOptions';
 	import { onMount } from 'svelte';
+	// ETH is live once the EVM bridge is: no "Soon" pill then (11-21).
+	import { EVM_BRIDGE_ENABLED } from '$lib/constants';
 
 	type MarketItem = {
 		symbol: string;
@@ -45,7 +47,7 @@
 			price: '--',
 			change: '--',
 			changePositive: true,
-			comingSoon: true
+			comingSoon: !EVM_BRIDGE_ENABLED
 		}
 	]);
 
@@ -95,7 +97,7 @@
 					price: ethPrice ? `$${ethPrice.toLocaleString(undefined, { maximumFractionDigits: 1 })}` : '--',
 					change: ethChange ? `${ethChange.toFixed(1)}%` : '--',
 					changePositive: ethChange >= 0,
-					comingSoon: true
+					comingSoon: !EVM_BRIDGE_ENABLED
 				}
 			];
 		} catch (e) {

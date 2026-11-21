@@ -12,6 +12,13 @@
 	import { isVscTestnet } from '$lib/../client';
 	import QRCode from 'qrcode';
 	import DepositAddressNotice from '$lib/sendswap/components/DepositAddressNotice.svelte';
+	import {
+		detectBtcBrowserWallets,
+		MIN_BTC_DEPOSIT_SATS,
+		sendBtcFromBrowserWallet,
+		type BtcBrowserWallet,
+		type BtcBrowserWalletId
+	} from '$lib/magiTransactions/bitcoin/btcBrowserWallet';
 
 	// `onClose` closes the parent Deposit dialog (wired via
 	// StepsMachine.extraProps to the parent Dialog's `toggle`).
@@ -157,8 +164,11 @@
 	const exceedsBalance = $derived(
 		maxAmount.amount > 0 && coinAmount.amount > maxAmount.amount
 	);
+	// The bridge does not credit less than MinDepositSats.
+	const belowMin = $derived(hasAmount && coinAmount.amount < MIN_BTC_DEPOSIT_SATS);
 	const canSign = $derived(
 		hasAmount &&
+			!belowMin &&
 			!exceedsBalance &&
 			!!btcAddress &&
 			auth.value?.provider === 'reown' &&
@@ -182,7 +192,10 @@
 			const txHash = await sendBtcFromConnectedWallet({
 				amountSats: coinAmount.amount,
 				recipient: btcAddress,
-				fallbackAddress: auth.value?.address
+				fallbackAddress: auth.value?.address,
+				// The account's own deposit address is reused for every deposit:
+				// a second deposit from this wallet is not a double payment.
+				reusableAddress: true
 			});
 			signStatus = '';
 			signError = null;
@@ -215,6 +228,49 @@
 	const isReownBtc = $derived(
 		auth.value?.provider === 'reown' && auth.value.did?.startsWith('did:pkh:bip122:')
 	);
+
+	// A Hive or Ethereum-wallet login can still pay from a Bitcoin wallet
+	// installed in the browser (Leather, Xverse, Unisat), called directly, never
+	// through Reown, so it never becomes the login (btcBrowserWallet.ts).
+	// Extensions can inject after the page loads: look again shortly after.
+	let browserWallets = $state<BtcBrowserWallet[]>([]);
+	$effect(() => {
+		if (!browser) return;
+		browserWallets = detectBtcBrowserWallets();
+		const t = setTimeout(() => (browserWallets = detectBtcBrowserWallets()), 1500);
+		return () => clearTimeout(t);
+	});
+	let pickedWallet = $state<BtcBrowserWallet | null>(null);
+	let walletAmount = $state(new CoinAmount(0, Coin.btc));
+	let walletInputId = $state('');
+	let walletSending = $state(false);
+	let walletError = $state<string | null>(null);
+	const walletBelowMin = $derived(
+		walletAmount.amount > 0 && walletAmount.amount < MIN_BTC_DEPOSIT_SATS
+	);
+
+	async function sendWithBrowserWallet() {
+		if (!btcAddress || !pickedWallet || walletSending) return;
+		walletSending = true;
+		walletError = null;
+		try {
+			const sats = walletAmount.amount;
+			const { txid } = await sendBtcFromBrowserWallet({
+				walletId: pickedWallet.id as BtcBrowserWalletId,
+				recipient: btcAddress,
+				amountSats: sats,
+				network: isVscTestnet() ? 'testnet' : 'mainnet'
+			});
+			const sent = new CoinAmount(sats, Coin.btc, true);
+			walletAmount = new CoinAmount(0, Coin.btc);
+			onBroadcast?.({ txHash: txid, amount: sent, address: btcAddress });
+			onClose?.();
+		} catch (err) {
+			walletError = err instanceof Error ? err.message : String(err);
+		} finally {
+			walletSending = false;
+		}
+	}
 </script>
 
 {#if auth.value}
@@ -295,6 +351,11 @@
 					{#if exceedsBalance}
 						<p class="error">Amount exceeds your wallet balance.</p>
 					{/if}
+					{#if belowMin}
+						<p class="error">
+							Send at least {MIN_BTC_DEPOSIT_SATS / 1e8} BTC: the bridge does not credit less.
+						</p>
+					{/if}
 					{#if signError}
 						<p class="error">{signError}</p>
 					{/if}
@@ -314,11 +375,66 @@
 				</div>
 			{/if}
 		{/if}
+
+		{#if !isReownBtc && btcAddress && browserWallets.length > 0}
+			<div class="section sign-flow">
+				<span class="field-label">Or send from a Bitcoin wallet in this browser</span>
+				<div class="wallet-picks">
+					{#each browserWallets as w (w.id)}
+						<PillButton
+							styleType={pickedWallet?.id === w.id ? 'invert' : 'outline'}
+							onclick={() => {
+								pickedWallet = w;
+								walletError = null;
+							}}
+						>
+							{w.name}
+						</PillButton>
+					{/each}
+				</div>
+				{#if pickedWallet}
+					<label class="field-label" for={walletInputId}>Amount</label>
+					<div class="amount-input">
+						<AmountInput
+							bind:coinAmount={walletAmount}
+							coinOpts={[{ coin: Coin.btc, network: Network.btcMainnet }]}
+							bind:id={walletInputId}
+						/>
+					</div>
+					<span class="hint">
+						{pickedWallet.name} opens and asks you to approve a payment to the address above. Your
+						login is not changed.
+					</span>
+					{#if walletBelowMin}
+						<p class="error">
+							Send at least {MIN_BTC_DEPOSIT_SATS / 1e8} BTC: the bridge does not credit less.
+						</p>
+					{/if}
+					{#if walletError}
+						<p class="error">{walletError}</p>
+					{/if}
+					<div class="sign-actions">
+						<PillButton
+							styleType="invert submit"
+							onclick={sendWithBrowserWallet}
+							disabled={walletAmount.amount < MIN_BTC_DEPOSIT_SATS || walletSending}
+						>
+							{walletSending ? `Waiting for ${pickedWallet.name}…` : `Send with ${pickedWallet.name}`}
+						</PillButton>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 {/if}
 
 
 <style lang="scss">
+	.wallet-picks {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
 	.sections {
 		display: flex;
 		flex-direction: column;

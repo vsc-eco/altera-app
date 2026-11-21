@@ -51,7 +51,15 @@
 		}
 	});
 
+	// A BTC wallet send reports its broadcast (the receipt below opens) and then
+	// asks the flow to close. Closing navigated to / at once and unmounted the
+	// receipt before it was seen, so the txid never showed (11-21). While a
+	// receipt is up, closing waits for it; closing the receipt goes home.
+	let receiptPending = false;
+	let receiptWasOpen = false;
+
 	function leave() {
+		if (receiptPending) return;
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- static root navigation; resolve() not exported in this kit version
 		goto('/');
 	}
@@ -87,6 +95,18 @@
 		}
 	});
 
+	$effect(() => {
+		if (receiptOpen) {
+			receiptWasOpen = true;
+			return;
+		}
+		if (receiptWasOpen && receiptPending) {
+			receiptWasOpen = false;
+			receiptPending = false;
+			leave();
+		}
+	});
+
 	function cancelReceiptTimer() {
 		receiptTimer?.stop();
 		receiptTimerCanceled = true;
@@ -103,6 +123,7 @@
 		receiptTxHash = info.txHash;
 		receiptAmount = info.amount;
 		receiptTimerCanceled = false;
+		receiptPending = true;
 		receiptToggle(true);
 	}
 

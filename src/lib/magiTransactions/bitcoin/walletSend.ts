@@ -1,31 +1,9 @@
 import { initModal, modal } from '$lib/auth/reown';
 
-/**
- * Best-effort extraction of a human-readable error message from
- * whatever wallet providers throw. Bitcoin wallets (Leather, Xverse,
- * Unisat, etc.) reject with plain objects (JSON-RPC-ish), not Error
- * instances, so a naive `String(err)` collapses to `[object Object]`.
- */
-export function formatWalletError(err: unknown): string {
-	if (err instanceof Error) return err.message;
-	if (typeof err === 'string') return err;
-	if (err && typeof err === 'object') {
-		const e = err as Record<string, unknown>;
-		if (typeof e.message === 'string') return e.message;
-		const nested = e.error;
-		if (nested && typeof nested === 'object') {
-			const m = (nested as Record<string, unknown>).message;
-			if (typeof m === 'string') return m;
-		}
-		if (typeof e.reason === 'string') return e.reason;
-		try {
-			return JSON.stringify(err);
-		} catch {
-			return 'Unknown wallet error';
-		}
-	}
-	return String(err);
-}
+import { formatWalletError } from './walletError';
+
+// Moved to walletError.ts (no Reown import); re-exported for existing callers.
+export { formatWalletError };
 
 /**
  * Send a BTC transfer via the connected reown Bitcoin wallet
@@ -56,6 +34,13 @@ export async function sendBtcFromConnectedWallet(params: {
 	recipient: string;
 	/** Fallback wallet address to consult if `modal.getAddress()` returns undefined. */
 	fallbackAddress?: string;
+	/**
+	 * True for the account's own deposit address (`deposit_to=<did>`), which is
+	 * the same address every time: paying it again is another deposit, not a
+	 * second swap, so the "already paid" stop must not block it. A swap's
+	 * deposit address is single-use and keeps the stop.
+	 */
+	reusableAddress?: boolean;
 }): Promise<string> {
 	// Ensure AppKit is initialised. Safe to call repeatedly — the
 	// internal guard in initModal short-circuits after the first run.
@@ -96,7 +81,9 @@ export async function sendBtcFromConnectedWallet(params: {
 	// A payment from this wallet to this deposit address means the user already
 	// paid (a send whose wallet window crashed or closed can still go out).
 	// Sending again would be a second swap. Stop and say so.
-	const paid = await findPendingPayment(params.recipient, walletAddress);
+	const paid = params.reusableAddress
+		? null
+		: await findPendingPayment(params.recipient, walletAddress);
 	if (paid) {
 		throw new Error(
 			`You already sent BTC to this deposit address (transaction ${paid.txid}). ` +

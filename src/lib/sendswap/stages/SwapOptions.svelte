@@ -40,7 +40,7 @@
 	import { isEvmBridgeCoin } from '$lib/magiTransactions/evmBridge';
 	import { isAddress } from 'viem';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
-	import { magiRecipient } from '$lib/sendswap/utils/magiRecipient';
+	import { isEthAddress, magiRecipient } from '$lib/sendswap/utils/magiRecipient';
 	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { EVM_BRIDGE_ENABLED, numberFormatLanguage } from '$lib/constants';
@@ -577,7 +577,7 @@ let expectedOutputUsd = $derived.by(() => {
 		if (evmPayout) {
 			// The bridge refuses the zero address; anything else that is not a
 			// 0x address would fail the whole swap on chain.
-			return isAddress(addr) && !/^0x0{40}$/i.test(addr);
+			return isEthAddress(addr) && !/^0x0{40}$/i.test(addr);
 		}
 		return !recipientError;
 	});

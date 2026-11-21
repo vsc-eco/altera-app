@@ -200,11 +200,12 @@ export function btcPayoutMinRcForInput(minRc: number, evmBridgeInput: boolean): 
 /**
  * Least RC a swap paid out on Ethereum needs (destination_chain ETH: the
  * router's swap, then the EVM bridge's unmapETH / unmapERC20). Mainnet dry
- * runs 11-21 at consensus 0.15: HBD->USDC->Ethereum 3,700 RC, BTC->USDC->
- * Ethereum (two hops) 4,589; this is 1.5x the larger. A call that runs out of
- * RC fails and is charged its whole rc_limit, so it is refused before signing.
+ * runs 11-21 at consensus 0.15: HBD->USDC 2,951-3,700 RC, HBD->ETH 3,785,
+ * BTC->USDC (two hops) 4,589. 1.2x the most, as the BTC payout's 6,200 is to
+ * its ~5,300: higher would refuse payouts the account can pay (it gets all
+ * its spendable RC); a call that runs out is charged its whole rc_limit.
  */
-export const EVM_PAYOUT_SWAP_MIN_RC = 7_000;
+export const EVM_PAYOUT_SWAP_MIN_RC = 5_500;
 
 /** btcPayoutSwapRcLimit with the Ethereum payout's minimum, on fresh RC. */
 export async function sizeEvmPayoutSwap(

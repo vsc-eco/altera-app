@@ -32,7 +32,7 @@
 		type AccountBalance
 	} from '$lib/stores/currentBalance';
 	import { EVM_BRIDGE_ENABLED } from '$lib/constants';
-	import { isAddress } from 'viem';
+	import { isEthAddress } from '$lib/sendswap/utils/magiRecipient';
 	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import { untrack } from 'svelte';
 	import { ArrowDown, ArrowUpDown, ChevronDown, Search } from '@lucide/svelte';
@@ -1059,7 +1059,7 @@
 		}
 		if (evmPayout) {
 			const addr = txState.toUsername?.trim() ?? '';
-			if (!isAddress(addr) || /^0x0{40}$/i.test(addr)) {
+			if (!isEthAddress(addr) || /^0x0{40}$/i.test(addr)) {
 				setError('Enter a valid Ethereum address (0x...)');
 				return false;
 			}

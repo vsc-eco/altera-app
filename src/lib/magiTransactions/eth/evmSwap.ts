@@ -46,14 +46,15 @@ export function headerRcLimit(txs: Transaction[]): number {
 export const EVM_APPROVE_RC_LIMIT = 1000;
 /** The most a swap that stays on Magi declares. */
 export const EVM_SWAP_MAX_RC = 10_000;
-/** Below this a one-hop swap that stays on Magi is refused before signing.
- *  1.5x the most a one-hop swap used in mainnet dry runs on 11-21 (BTC->HBD
- *  896 RC; HBD->BTC 630, ETH->HBD 856). A call that runs out of RC is charged
- *  its whole rc_limit, so a smaller floor let it fail and cost the account. */
-export const EVM_SWAP_MIN_RC = 1400;
-/** The same for a two-hop swap (through HBD): 1.5x the 1,465 RC an ETH->BTC
- *  swap kept on Magi used (USDC->BTC 1,440, HIVE->USDC 907). */
-export const EVM_TWO_HOP_SWAP_MIN_RC = 2200;
+/** Below this a one-hop swap that stays on Magi is refused before signing (it
+ *  then gets all the spendable RC). Every one-hop swap measured on mainnet
+ *  (11-21) used less: BTC->HBD 896, ETH->HBD 856, HBD->BTC 630 RC; it is the
+ *  1,000 it always was, so nothing that worked is refused. */
+export const EVM_SWAP_MIN_RC = 1000;
+/** The same for a two-hop swap (through HBD): the most one used, BTC->ETH
+ *  1,550 RC (ETH->BTC 1,465, USDC->BTC 1,440), rounded up. Below it a
+ *  two-hop swap ran out and was charged all the spendable RC. */
+export const EVM_TWO_HOP_SWAP_MIN_RC = 1600;
 
 /**
  * The swap's rc_limit for an EVM account. It has no free RC, so the node reserves the

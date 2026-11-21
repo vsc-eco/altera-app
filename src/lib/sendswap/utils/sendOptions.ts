@@ -181,7 +181,9 @@ const btcMainnet: Network = {
 };
 const ethMainnet: Network = {
 	value: 'eth_mainnet',
-	label: isVscTestnet() ? 'Ethereum (Sepolia)' : 'Ethereum',
+	// Chain 1 as wallets name it (MetaMask, chainlist.org), like 'BTC Mainnet':
+	// the same 0x address on BSC, Base or Arbitrum is not this network.
+	label: isVscTestnet() ? 'Ethereum (Sepolia)' : 'Ethereum Mainnet',
 	icon: '/eth/eth.svg',
 	// Read by the review screen's settlement label, i.e. a withdrawal to
 	// Ethereum: mined 3 min after the request on testnet 2026-11-19. (A deposit

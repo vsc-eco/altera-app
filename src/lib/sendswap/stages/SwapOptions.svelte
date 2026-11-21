@@ -72,6 +72,7 @@
 	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 	import { isVscTestnet } from '../../../client';
 	import { getAlteraFeePct } from '$lib/magiTransactions/hive/vscOperations/swap';
+	import { ETH_NETWORK, ETH_PAYOUT_NOTE } from '$lib/sendswap/utils/ethNetworkCopy';
 
 	let {
 		editStage,
@@ -1590,7 +1591,7 @@ let expectedOutputUsd = $derived.by(() => {
 				<textarea
 					bind:value={destAddress}
 					placeholder={evmPayout
-						? 'Paste an Ethereum address (0x...) *'
+						? `Paste an ${ETH_NETWORK} address (0x...) *`
 						: 'Paste Hive, BTC, EVM or DASH address... *'}
 					rows="2"
 					class:empty-required={destChoice === 'address' && !destAddress?.trim()}
@@ -1600,7 +1601,8 @@ let expectedOutputUsd = $derived.by(() => {
 					{@const unit = coinDisplayLabel(evmPayout.coin)}
 					{@const dec = evmPayout.coin.decimalPlaces}
 					<p class="dest-hint sm-caption">
-						{unit} is sent to this Ethereum address by the bridge. Its proving fee ({shortUnits(
+						{unit} is sent to this address on {ETH_NETWORK} by the bridge. {ETH_PAYOUT_NOTE} Its
+						proving fee ({shortUnits(
 							evmPayout.proofFee,
 							dec
 						)}
@@ -1908,6 +1910,7 @@ let expectedOutputUsd = $derived.by(() => {
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
+		gap: 0.4rem;
 	}
 	.section-label {
 		flex: 1;
@@ -1916,11 +1919,14 @@ let expectedOutputUsd = $derived.by(() => {
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
+		white-space: nowrap;
 	}
 	.section-header-center {
 		flex: 1;
 		display: flex;
 		justify-content: center;
+		/* the network pill stays one line ("Ethereum Mainnet" on a phone) */
+		min-width: max-content;
 	}
 	.section-balance {
 		flex: 1;
@@ -1939,6 +1945,7 @@ let expectedOutputUsd = $derived.by(() => {
 		color: var(--dash-accent-purple);
 		letter-spacing: 0.02em;
 		text-transform: uppercase;
+		white-space: nowrap;
 		&.external {
 			border-color: var(--dash-text-secondary);
 			color: var(--dash-text-secondary);

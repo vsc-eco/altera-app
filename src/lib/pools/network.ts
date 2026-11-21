@@ -12,10 +12,11 @@
 /** Pool symbols (upper case, as poolsData builds them) bridged from Ethereum. */
 const ETHEREUM_ASSETS: ReadonlySet<string> = new Set(['ETH', 'USDC']);
 
-/** Chain 1 as wallets name it (MetaMask, chainlist.org: "Ethereum Mainnet"). */
+/** The names Network.ethMainnet.label uses (sendOptions.ts): chain 1 as wallets
+ *  name it (MetaMask, chainlist.org), like 'BTC Mainnet'. */
 const NETWORKS: Readonly<Record<number, string>> = {
-	1: 'Ethereum mainnet',
-	11155111: 'Sepolia testnet'
+	1: 'Ethereum Mainnet',
+	11155111: 'Ethereum (Sepolia)'
 };
 
 /** The network to show for a pool, or null when no side of it is bridged from

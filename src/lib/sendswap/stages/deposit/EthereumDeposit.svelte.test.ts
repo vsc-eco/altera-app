@@ -76,6 +76,11 @@ describe('EthereumDeposit per login', () => {
 		expect(await screen.findByRole('button', { name: /Deposit ETH with MetaMask/ })).toBeTruthy();
 		expect(screen.queryByText(/logged in with a Bitcoin wallet/)).toBeNull();
 		expect(screen.queryByText(/Sent from your connected wallet/)).toBeNull();
+		// the wrong-network warning (WRONG-CHAIN): the same 0x address on BSC,
+		// Base or Arbitrum is not the bridge
+		expect(screen.getByRole('note').textContent).toMatch(
+			/Ethereum Mainnet only\..*BSC, Base, Arbitrum or any other network\s+is lost/s
+		);
 	});
 
 	it('Hive login: the deposit names the Hive account and runs inside withSideWallet', async () => {
@@ -120,6 +125,9 @@ describe('EthereumDeposit per login', () => {
 		render(EthereumDeposit);
 		await waitFor(() => expect(screen.getByText(/Sent from your connected wallet/)).toBeTruthy());
 		expect(screen.queryByRole('button', { name: /with MetaMask/ })).toBeNull();
+		// this login gets the vault address to copy: warned, and the copy box names the network
+		expect(screen.getByRole('note').textContent).toMatch(/Ethereum Mainnet only\./);
+		expect(screen.getByText('Bridge vault address (Ethereum Mainnet)')).toBeTruthy();
 	});
 
 	it('Bitcoin-wallet login: no browser-wallet deposit at all', async () => {
@@ -133,5 +141,7 @@ describe('EthereumDeposit per login', () => {
 		await waitFor(() => expect(screen.getByText(/logged in with a Bitcoin wallet/)).toBeTruthy());
 		expect(screen.queryByRole('button', { name: /with MetaMask/ })).toBeNull();
 		expect(screen.queryByText(/Sent from your connected wallet/)).toBeNull();
+		// nothing to deposit with here, so no network warning
+		expect(screen.queryByRole('note')).toBeNull();
 	});
 });

@@ -11,6 +11,7 @@
 	import { accountBalance, evmProofFee, getBalanceAmount } from '$lib/stores/currentBalance';
 	import { maxSendableSats } from '$lib/stores/btcSpendable';
 	import { isAddress } from 'viem';
+	import { ETH_NETWORK, ETH_PAYOUT_NOTE } from '$lib/sendswap/utils/ethNetworkCopy';
 
 	let { editStage, open }: { editStage: (complete: boolean) => void; open: boolean } = $props();
 
@@ -112,7 +113,7 @@
 
 <div class="sections">
 	<div class="section">
-		<label for="eth-address">Ethereum Address</label>
+		<label for="eth-address">{ETH_NETWORK} address</label>
 		<input
 			id="eth-address"
 			class="eth-address-input"
@@ -121,6 +122,7 @@
 			value={ethAddress}
 			oninput={(e) => onAddressInput(e.currentTarget.value.trim())}
 		/>
+		<span class="hint">{ETH_PAYOUT_NOTE}</span>
 		{#if ethAddressError}
 			<span class="error-message">{ethAddressError}</span>
 		{/if}

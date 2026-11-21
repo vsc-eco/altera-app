@@ -25,6 +25,8 @@
 	} from '$lib/magiTransactions/eth/magiDeposit';
 	import { onMount } from 'svelte';
 	import { withSideWallet } from '$lib/auth/sideWallet';
+	import EthNetworkNotice from '$lib/sendswap/components/EthNetworkNotice.svelte';
+	import { ETH_NETWORK } from '$lib/sendswap/utils/ethNetworkCopy';
 
 	const txState = useDepositState();
 	const auth = $derived(getAuth()());
@@ -170,6 +172,9 @@
 </script>
 
 <div class="sections">
+	{#if vaultAddress && !isBtcWallet}
+		<EthNetworkNotice />
+	{/if}
 	{#if vaultError}
 		<p class="error">{vaultError}</p>
 	{:else if !vaultAddress}
@@ -208,7 +213,7 @@
 				</p>
 			{/if}
 		</div>
-		<Clipboard value={vaultAddress} label="Bridge vault address" disabled={false} />
+		<Clipboard value={vaultAddress} label="Bridge vault address ({ETH_NETWORK})" disabled={false} />
 	{:else if isBtcWallet}
 		<p class="hint">
 			You are logged in with a Bitcoin wallet. To deposit ETH or USDC, log in with Hive or with the

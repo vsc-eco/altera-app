@@ -2,23 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { poolNetworkLabel } from './network';
 
 describe('poolNetworkLabel', () => {
-	const mainnet = { short: 'Ethereum', full: 'Ethereum mainnet' };
+	const mainnet = 'Ethereum mainnet';
 
-	it('names Ethereum for an ETH or USDC pool on mainnet', () => {
-		expect(poolNetworkLabel(['ETH', 'HBD'], 1)).toEqual(mainnet);
-		expect(poolNetworkLabel(['USDC', 'HBD'], 1)).toEqual(mainnet);
-		expect(poolNetworkLabel(['ETH', 'USDC'], 1)).toEqual(mainnet);
+	it('names Ethereum mainnet for an ETH or USDC pool on mainnet', () => {
+		expect(poolNetworkLabel(['ETH', 'HBD'], 1)).toBe(mainnet);
+		expect(poolNetworkLabel(['USDC', 'HBD'], 1)).toBe(mainnet);
+		expect(poolNetworkLabel(['ETH', 'USDC'], 1)).toBe(mainnet);
 	});
 
 	it('names Sepolia on testnet', () => {
-		expect(poolNetworkLabel(['USDC', 'HBD'], 11155111)).toEqual({
-			short: 'Sepolia',
-			full: 'Sepolia testnet'
-		});
+		expect(poolNetworkLabel(['USDC', 'HBD'], 11155111)).toBe('Sepolia testnet');
 	});
 
 	it('matches the symbol in any case', () => {
-		expect(poolNetworkLabel(['usdc', 'hbd'], 1)).toEqual(mainnet);
+		expect(poolNetworkLabel(['usdc', 'hbd'], 1)).toBe(mainnet);
 	});
 
 	it('shows nothing for pools with no bridged EVM asset', () => {

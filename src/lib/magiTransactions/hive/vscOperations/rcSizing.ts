@@ -197,6 +197,40 @@ export function btcPayoutMinRcForInput(minRc: number, evmBridgeInput: boolean): 
  *  barely changes the cost, so a smaller swap does not help; HBD on Magi does.
  *  The sizing functions above always fill `needed` with the minimum they
  *  refused at; without it the higher minimum is quoted. */
+/**
+ * Least RC a swap paid out on Ethereum needs (destination_chain ETH: the
+ * router's swap, then the EVM bridge's unmapETH / unmapERC20). Mainnet dry
+ * runs 11-21 at consensus 0.15: HBD->USDC->Ethereum 3,700 RC, BTC->USDC->
+ * Ethereum (two hops) 4,589; this is 1.5x the larger. A call that runs out of
+ * RC fails and is charged its whole rc_limit, so it is refused before signing.
+ */
+export const EVM_PAYOUT_SWAP_MIN_RC = 7_000;
+
+/** btcPayoutSwapRcLimit with the Ethereum payout's minimum, on fresh RC. */
+export async function sizeEvmPayoutSwap(
+	did: string,
+	hbdPulledFromMagi: number,
+	fallbackAvailable?: number
+): Promise<RcSizing> {
+	const fresh = await fetchAccountRc(did);
+	return btcPayoutSwapRcLimit(
+		fresh ?? fallbackAvailable ?? 0,
+		hbdPulledFromMagi,
+		EVM_PAYOUT_SWAP_MIN_RC
+	);
+}
+
+export function evmPayoutShortfallMessage(shortfall: InsufficientRc): string {
+	const needed = shortfall.needed ?? EVM_PAYOUT_SWAP_MIN_RC;
+	const missingHbd = Math.ceil(Math.max(0, needed - shortfall.available) / 10) / 100;
+	return (
+		`Not enough RC to pay out to an Ethereum address: it needs at least ` +
+		`${needed.toLocaleString('en-US')} RC and you have ` +
+		`${shortfall.available.toLocaleString('en-US')}. Deposit at least ` +
+		`${missingHbd.toFixed(2)} HBD to Magi to cover it.`
+	);
+}
+
 export function btcPayoutShortfallMessage(shortfall: InsufficientRc): string {
 	const needed = shortfall.needed ?? BTC_PAYOUT_SWAP_MIN_RC;
 	const missingHbd = Math.ceil(Math.max(0, needed - shortfall.available) / 10) / 100;

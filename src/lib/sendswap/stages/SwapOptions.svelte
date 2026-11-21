@@ -31,7 +31,15 @@
 	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import { usdPerUnit } from '$lib/currency/convert';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
+	import {
+		accountBalance,
+		evmMinWithdrawal,
+		evmProofFee,
+		getBalanceSmallestUnits
+	} from '$lib/stores/currentBalance';
+	import { isEvmBridgeCoin } from '$lib/magiTransactions/evmBridge';
+	import { isAddress } from 'viem';
+	import { getUsernameFromAuth } from '$lib/getAccountName';
 	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { EVM_BRIDGE_ENABLED, numberFormatLanguage } from '$lib/constants';
@@ -124,7 +132,11 @@
 			]);
 			if (hiveHbd) hiveHbdPool = hiveHbd;
 			if (btcHbd) btcHbdPool = btcHbd;
-			if (evm) evmPools = evm.filter((d): d is TypedPoolDepths => d != null);
+			// An empty pool has no reserves and no route: its asset stays off both lists.
+			if (evm)
+				evmPools = evm.filter(
+					(d): d is TypedPoolDepths => d != null && d.reserve0 > 0n && d.reserve1 > 0n
+				);
 			customTokens = tokens;
 
 			// Each custom token pairs against HBD. Load them alongside the
@@ -225,7 +237,15 @@
 	 *  `swapOptions.from.find(...)` returns undefined and the click does
 	 *  nothing at all. */
 	const fromOptions = $derived<AssetOption[]>([...swapOptions.from, ...customAssetOptions]);
-	const toOptions = $derived<AssetOption[]>([...swapOptions.to, ...customAssetOptions]);
+	// ETH and USDC can also be paid out on Ethereum: the router withdraws the
+	// output through the EVM bridge (destination_chain ETH, settleToEVM). Kept
+	// local: the shared catalog drives the withdraw and transfer pages too.
+	const toOptions = $derived<AssetOption[]>([
+		...swapOptions.to.map((o) =>
+			isEvmBridgeCoin(o.coin) ? { ...o, networks: [Network.magi, Network.ethMainnet] } : o
+		),
+		...customAssetOptions
+	]);
 	const findFromOption = (value: string | undefined) =>
 		fromOptions.find((o) => o.coin.value === value);
 	const findToOption = (value: string | undefined) =>
@@ -367,6 +387,14 @@
 		});
 	});
 
+	/** Smallest units as a short amount (no trailing zeros, at most 8 places):
+	 *  0.15 USDC, 0.00005 ETH. */
+	function shortUnits(raw: number, decimalPlaces: number): string {
+		return (raw / 10 ** decimalPlaces).toLocaleString(numberFormatLanguage, {
+			maximumFractionDigits: Math.min(decimalPlaces, 8)
+		});
+	}
+
 	function formatSmallUnits(raw: bigint, decimalPlaces: number): string {
 		const n = Number(raw) / 10 ** decimalPlaces;
 		return n.toLocaleString(numberFormatLanguage, {
@@ -491,10 +519,18 @@ let expectedOutputUsd = $derived.by(() => {
 		}
 	});
 
-	// Update toUsername when sending to address
+	// toUsername is the router's recipient, so it always says who is paid: the
+	// typed address, or the signed-in account. It used to be written only
+	// while "Send to address" held text and never cleared, so after switching
+	// back to "Keep on Magi" the old address stayed in state; now that a swap
+	// kept on Magi pays toUsername (M1), a stale value would be paid (M2,
+	// 11-17 review; facelift 7d42ac8).
 	$effect(() => {
+		const own = getUsernameFromAuth(auth);
 		if (destChoice === 'address' && destAddress.trim()) {
 			txState.toUsername = destAddress.trim();
+		} else if (own) {
+			txState.toUsername = own;
 		}
 	});
 
@@ -537,7 +573,35 @@ let expectedOutputUsd = $derived.by(() => {
 			const net = isVscTestnet() ? BtcNetwork.testnet : BtcNetwork.mainnet;
 			return validateBtcAddr(addr, net);
 		}
+		if (evmPayout) {
+			// The bridge refuses the zero address; anything else that is not a
+			// 0x address would fail the whole swap on chain.
+			return isAddress(addr) && !/^0x0{40}$/i.test(addr);
+		}
 		return true;
+	});
+
+	/**
+	 * A swap paid out on Ethereum: the router withdraws the output less the
+	 * bridge's proof fee (dex-router settleToEVM), and the bridge takes the
+	 * Ethereum gas out of what it sends. Below the bridge's minimum withdrawal
+	 * the whole swap fails on chain, so it is stopped here.
+	 */
+	const evmPayout = $derived.by(() => {
+		const to = txState.to;
+		if (!to || !isEvmBridgeCoin(to.coin) || to.network.value !== Network.ethMainnet.value)
+			return null;
+		const isUsdc = to.coin.value === Coin.usdc.value;
+		const proofFee = isUsdc ? $evmProofFee.usdc : $evmProofFee.eth;
+		const min = isUsdc ? $evmMinWithdrawal.usdc : $evmMinWithdrawal.eth;
+		const minOut = swapResult ? Number(swapResult.minAmountOut) : null;
+		return {
+			coin: to.coin,
+			proofFee,
+			min,
+			// Unknown minimum (registry not read yet) blocks rather than guesses.
+			belowMin: min == null || (minOut != null && minOut - proofFee < min)
+		};
 	});
 
 	/**
@@ -570,6 +634,7 @@ let expectedOutputUsd = $derived.by(() => {
 				!sameCoinError &&
 				!insufficientBalance &&
 				!exceedsPoolDepth &&
+				!evmPayout?.belowMin &&
 				!!swapResult
 		);
 	});
@@ -704,14 +769,32 @@ let expectedOutputUsd = $derived.by(() => {
 				net: Network.magi,
 				size: 'medium'
 			}
-		}
+		},
+		// ETH and USDC held on Magi, once their pool has loaded (as the To list
+		// already offers them). send() approves the router on the EVM bridge
+		// first, the way it approves BTC on the BTC contract.
+		...[Coin.eth, Coin.usdc]
+			.filter((coin) => swapAssets.has(coin.value))
+			.map((coin) => ({
+				...coin,
+				snippet: assetCard,
+				snippetData: {
+					fromOpt: { coin, networks: [Network.magi] },
+					net: Network.magi,
+					size: 'medium'
+				}
+			}))
 	]);
 	const toAssetObjs: AssetObject[] = $derived(
-		swapOptions.to.map((opt) => ({
-			...opt.coin,
-			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
-		}))
+		swapOptions.to
+			// ETH/USDC only once their pool has loaded, as on the From side: an
+			// empty pool has no route and the swap could not be quoted.
+			.filter((opt) => !isEvmBridgeCoin(opt.coin) || swapAssets.has(opt.coin.value))
+			.map((opt) => ({
+				...opt.coin,
+				snippet: assetCard,
+				snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
+			}))
 	);
 
 	/** Custom tokens as picker entries. These are NOT shown in the top-level
@@ -1482,15 +1565,47 @@ let expectedOutputUsd = $derived.by(() => {
 				</div>
 				<textarea
 					bind:value={destAddress}
-					placeholder="Paste Hive, BTC, EVM or DASH address... *"
+					placeholder={evmPayout
+						? 'Paste an Ethereum address (0x...) *'
+						: 'Paste Hive, BTC, EVM or DASH address... *'}
 					rows="2"
 					class:empty-required={destChoice === 'address' && !destAddress?.trim()}
 					disabled={destChoice !== 'address'}
 				></textarea>
-				<p class="dest-hint sm-caption">
-					{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi' ? 'Magi' : chainLabel} &mdash;
-					accepts Hive, BTC, EVM or DASH addresses
-				</p>
+				{#if evmPayout}
+					{@const unit = coinDisplayLabel(evmPayout.coin)}
+					{@const dec = evmPayout.coin.decimalPlaces}
+					<p class="dest-hint sm-caption">
+						{unit} is sent to this Ethereum address by the bridge. Its proving fee ({shortUnits(
+							evmPayout.proofFee,
+							dec
+						)}
+						{unit}) and the Ethereum gas{evmPayout.coin.value === Coin.usdc.value
+							? ' (up to half the minimum, paid in USDC)'
+							: ''} come out of the amount.
+					</p>
+					{#if destChoice === 'address' && destAddress.trim() && !destValid}
+						<p class="dest-hint sm-caption dest-error">
+							Not a valid Ethereum address: 0x and 40 hex characters (a mixed-case address
+							must match its checksum).
+						</p>
+					{/if}
+					{#if destChoice === 'address' && evmPayout.belowMin}
+						<p class="dest-hint sm-caption dest-error">
+							{#if evmPayout.min == null}
+								Loading the bridge's minimum withdrawal...
+							{:else}
+								The bridge sends at least {shortUnits(evmPayout.min, dec)}
+								{unit} after its proving fee: swap a larger amount.
+							{/if}
+						</p>
+					{/if}
+				{:else}
+					<p class="dest-hint sm-caption">
+						{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi' ? 'Magi' : chainLabel} &mdash;
+						accepts Hive, BTC, EVM or DASH addresses
+					</p>
+				{/if}
 			</div>
 		</div>
 		<!-- Fees Section (collapsible) -->
@@ -2384,6 +2499,9 @@ let expectedOutputUsd = $derived.by(() => {
 	.dest-hint {
 		margin: 0;
 		color: var(--dash-text-muted);
+	}
+	.dest-hint.dest-error {
+		color: var(--dash-accent-red);
 	}
 
 	/* ── Dialog: Token Grid ── */

@@ -46,4 +46,28 @@ describe('ETH and USDC in USD', () => {
 			(await new CoinAmount('3', Coin.hbd).convertTo(Coin.usd, Network.lightning)).toNumber()
 		).toBe(3);
 	});
+
+	it('into USDC and ETH: 1 HBD in USDC, 1 USDC in ETH (the swap rate line)', async () => {
+		const usdc = await new CoinAmount('1', Coin.hbd).convertTo(Coin.usdc, Network.lightning);
+		expect(usdc.toNumber()).toBeCloseTo(1 / 0.9998, 6);
+		const eth = await new CoinAmount('1620', Coin.usdc).convertTo(Coin.eth, Network.lightning);
+		expect(eth.toNumber()).toBeCloseTo(0.9998, 6);
+	});
+
+	it('into ETH with no ETH price: 0, never a wrong number', async () => {
+		prices.eth = 0;
+		const eth = await new CoinAmount('1', Coin.hbd).convertTo(Coin.eth, Network.lightning);
+		expect(eth.toNumber()).toBe(0);
+		prices.eth = 1620;
+	});
 });
+
+describe('amounts as text', () => {
+	it('ETH drops trailing zeros (a list row read "0.062270000000000000 ETH"); 8 places or fewer keep them', () => {
+		expect(new CoinAmount(62_270_000_000_000_000, Coin.eth, true).toPrettyAmountString()).toBe('0.06227');
+		expect(new CoinAmount(100_000, Coin.hbd, true).toPrettyAmountString()).toBe('100.000');
+		expect(new CoinAmount(320_000, Coin.btc, true).toPrettyAmountString()).toBe('0.00320000');
+		expect(new CoinAmount(99_850_000, Coin.usdc, true).toPrettyAmountString()).toBe('99.850000');
+	});
+});
+

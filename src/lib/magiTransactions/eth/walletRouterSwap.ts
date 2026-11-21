@@ -8,6 +8,7 @@
  * the account already held of the output asset went out instead.
  */
 
+import { getDidFromUsername } from '$lib/getAccountName';
 import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants';
 import { toChainUnits } from '$lib/currency/chainAmount';
 import { isEvmBridgeCoin } from '../evmBridge';
@@ -24,6 +25,8 @@ import {
 } from '../hive/vscOperations/swap';
 import {
 	btcPayoutShortfallMessage,
+	EVM_PAYOUT_SWAP_MIN_RC,
+	evmPayoutShortfallMessage,
 	fetchAccountRc,
 	btcPayoutMinRcForInput,
 	fetchBtcPayoutSwapMinRc,
@@ -103,12 +106,15 @@ export function buildWalletRouterSwapOps(
 	}
 	const isNativeIn =
 		swap.fromCoin.value === Coin.hive.value || swap.fromCoin.value === Coin.hbd.value;
+	// A payout on Bitcoin or Ethereum withdraws through a bridge in the same
+	// call: it gets the account's RC, with that payout's minimum.
+	const ethPayout = swap.destinationChain === 'ETH';
 	const sizing = evmSwapRcLimit(
 		ctx.availableRc,
 		swap.fromCoin.value === Coin.hbd.value ? swap.amount.amount : 0,
 		isNativeIn ? 0 : EVM_APPROVE_RC_LIMIT,
-		swap.destinationChain === 'BTC',
-		ctx.btcPayoutMinRc
+		swap.destinationChain === 'BTC' || ethPayout,
+		ethPayout ? EVM_PAYOUT_SWAP_MIN_RC : ctx.btcPayoutMinRc
 	);
 	if (!sizing.ok) {
 		return {
@@ -116,7 +122,9 @@ export function buildWalletRouterSwapOps(
 			error:
 				swap.destinationChain === 'BTC'
 					? btcPayoutShortfallMessage(sizing)
-					: rcShortfallMessage(sizing, 'swap')
+					: ethPayout
+						? evmPayoutShortfallMessage(sizing)
+						: rcShortfallMessage(sizing, 'swap')
 		};
 	}
 	const ops = buildEvmSwapOps({
@@ -194,6 +202,8 @@ export function walletSwapFromMagi(args: {
 	let destinationChain: string | undefined;
 	if (args.toNetwork === Network.hiveMainnet.value) destinationChain = 'HIVE';
 	else if (args.toNetwork === Network.btcMainnet.value) destinationChain = 'BTC';
+	else if (args.toNetwork === Network.ethMainnet.value && isEvmBridgeCoin(args.toCoin))
+		destinationChain = 'ETH';
 	else if (args.toNetwork !== Network.magi.value) {
 		return { error: 'This swap cannot pay out on that network.' };
 	}
@@ -205,6 +215,13 @@ export function walletSwapFromMagi(args: {
 				? `hive:${raw.replace(/^@/, '')}`
 				: raw;
 		if (!recipient) return { error: 'Missing recipient address for mainnet settlement' };
+	} else {
+		// Kept on Magi pays `toUsername` too: "Send to address" with Magi used
+		// to pay the swapper and ignore the address (M1, 11-17 review; facelift
+		// 7d42ac8). Blank means "pay me". getDidFromUsername, not a hive:
+		// prefix: a wallet login's own account is an address (did:pkh form).
+		const raw = (args.toUsername ?? '').trim();
+		if (raw) recipient = getDidFromUsername(raw) || undefined;
 	}
 	if (!/^[0-9]*\.?[0-9]+$/.test(args.fromAmount) || Number(args.fromAmount) <= 0) {
 		return { error: 'Enter an amount to swap.' };

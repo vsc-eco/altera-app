@@ -34,6 +34,10 @@ export const EVM_ETH_DEPOSIT_TAX_BPS = 100;
  *  stays in the vault (evm-mapping-contract MinETHDeposit, DUST-1). */
 export const EVM_MIN_ETH_DEPOSIT_WEI = 1_000_000_000_000_000;
 
+/** Smallest ETH withdrawal the bridge sends, in wei (evm-mapping-contract
+ *  MinETHWithdrawal, 0.01 ETH); a smaller unmapETH is refused. */
+export const EVM_MIN_ETH_WITHDRAWAL_WEI = 10_000_000_000_000_000;
+
 function vscExplorerBase(): string {
 	return isVscTestnet() ? 'https://magi-test.techcoderx.com' : 'https://vsc.techcoderx.com';
 }

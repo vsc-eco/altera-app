@@ -12,6 +12,7 @@ import {
 	EVM_BRIDGE_CONTRACT_ID,
 	EVM_BRIDGE_ENABLED,
 	EVM_MIN_ETH_DEPOSIT_WEI,
+	EVM_MIN_ETH_WITHDRAWAL_WEI,
 	USDC_TOKEN_ADDRESS
 } from '$lib/constants';
 import { fromChainUnits } from '$lib/currency/chainAmount';
@@ -111,6 +112,17 @@ export const evmMinDeposit = writable<{ eth: number; usdc: number | null }>({
 });
 
 /**
+ * Smallest withdrawal the bridge sends per asset, in smallest units: ETH's is
+ * a contract constant, a token's is in its registry entry (the third field).
+ * The router withdraws a swap's output less the proof fee, so a swap paid out
+ * on Ethereum needs that net amount at or above this. null = not known yet.
+ */
+export const evmMinWithdrawal = writable<{ eth: number; usdc: number | null }>({
+	eth: EVM_MIN_ETH_WITHDRAWAL_WEI,
+	usdc: null
+});
+
+/**
  * ETH and USDC held on Magi: the EVM bridge's ledger keys, stored as decimal
  * strings (wei / USDC's 6 places), under the account's canonical DID. Zero
  * when the bridge is not enabled on this network.
@@ -141,6 +153,11 @@ async function fetchEvmBalances(did: string): Promise<{ eth: number; usdc: numbe
 				Number.isFinite(usdcMinWithdrawal) && usdcMinWithdrawal > 0
 					? Math.floor(usdcMinWithdrawal / 10)
 					: null
+		});
+		evmMinWithdrawal.set({
+			eth: EVM_MIN_ETH_WITHDRAWAL_WEI,
+			usdc:
+				Number.isFinite(usdcMinWithdrawal) && usdcMinWithdrawal > 0 ? usdcMinWithdrawal : null
 		});
 		return {
 			eth: fromChainUnits(state[ethKey], Coin.eth),

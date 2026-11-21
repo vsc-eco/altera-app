@@ -174,6 +174,51 @@ describe('buildWalletRouterSwapOps: the swap QuickSwap has always sent', () => {
 		if (!r.ok) expect(r.error).toMatch(/Not enough RC to pay out to a Bitcoin address/);
 	});
 
+	it('an Ethereum payout: USDC allowance on the bridge, then the router with destination ETH and all spendable RC', () => {
+		const to = '0x00000000000000000000000000000000000000b2';
+		const r = buildWalletRouterSwapOps(
+			{
+				caller: EVM,
+				fromCoin: Coin.hbd,
+				toCoin: Coin.usdc,
+				amount: new CoinAmount('10', Coin.hbd),
+				minAmountOut: '9000000',
+				destinationChain: 'ETH',
+				recipient: to
+			},
+			{ feeQualifies: false, availableRc: 30_000 }
+		);
+		if (!r.ok) throw new Error(r.error);
+		const swap = r.ops[r.ops.length - 1];
+		expect(swap.payload.action).toBe('execute');
+		expect(JSON.parse(swap.payload.payload!)).toMatchObject({
+			asset_in: 'HBD',
+			asset_out: 'USDC',
+			destination_chain: 'ETH',
+			recipient: to
+		});
+		// HBD in is drawn from Magi, so it is not RC: 30,000 - 10,000.
+		expect(swap.payload.rc_limit).toBe(20_000);
+	});
+
+	it('refuses, before signing, an Ethereum payout the account cannot pay RC for', () => {
+		const r = buildWalletRouterSwapOps(
+			{
+				caller: EVM,
+				fromCoin: Coin.eth,
+				toCoin: Coin.usdc,
+				amount: new CoinAmount('0.01', Coin.eth),
+				minAmountOut: '9000000',
+				destinationChain: 'ETH',
+				recipient: '0x00000000000000000000000000000000000000b2'
+			},
+			{ feeQualifies: false, availableRc: 7_500 }
+		);
+		// 7,500 - the 1,000 RC approve leaves 6,500, under the 7,000 minimum.
+		expect(r.ok).toBe(false);
+		if (!r.ok) expect(r.error).toMatch(/Not enough RC to pay out to an Ethereum address/);
+	});
+
 	it('refuses a swap kept on Magi when the account has no RC (a Bitcoin wallet with no HBD)', () => {
 		const r = buildWalletRouterSwapOps(
 			{
@@ -350,11 +395,51 @@ describe('walletSwapFromMagi: which /swap sends are swaps', () => {
 		expect(walletSwapFromMagi({ ...base, fromNetwork: Network.btcMainnet.value })).toBeNull();
 	});
 
-	it('kept on Magi pays the caller, whatever the receiver field says', () => {
+	// CHANGED by M1 (11-17 review, facelift 7d42ac8): "Send to address" with
+	// Magi used to pay the caller whatever was typed while Review showed the
+	// typed address. The swap card resets toUsername to the signed-in account
+	// unless an address is chosen (M2), so a stale value cannot be paid.
+	it('kept on Magi pays the address it was given', () => {
 		const r = walletSwapFromMagi(base);
-		expect(r && !('error' in r) && r.recipient).toBe(undefined);
+		expect(r && !('error' in r) && r.recipient).toBe('hive:someone-else');
 		expect(r && !('error' in r) && r.destinationChain).toBe(undefined);
 		expect(r && !('error' in r) && r.amount.amount).toBe(50_000);
+	});
+
+	it('kept on Magi with no receiver still pays the caller', () => {
+		const r = walletSwapFromMagi({ ...base, toUsername: '' });
+		expect(r && !('error' in r) && r.recipient).toBe(undefined);
+		expect(r && !('error' in r) && r.destinationChain).toBe(undefined);
+	});
+
+	it('resolves an EVM account to its DID rather than prefixing hive:', () => {
+		const r = walletSwapFromMagi({ ...base, toUsername: EVM });
+		const recipient = r && !('error' in r) ? r.recipient : undefined;
+		expect(recipient).toMatch(/^did:pkh:eip155:/);
+		expect(recipient).not.toMatch(/^hive:/);
+	});
+
+	it('USDC paid out on Ethereum: destination ETH, the 0x address as entered', () => {
+		const to = '0x00000000000000000000000000000000000000b2';
+		const r = walletSwapFromMagi({
+			...base,
+			fromCoin: Coin.hbd,
+			toCoin: Coin.usdc,
+			fromAmount: '10',
+			toNetwork: Network.ethMainnet.value,
+			toUsername: to,
+			swapCoins: [...base.swapCoins, Coin.eth.value, Coin.usdc.value]
+		});
+		expect(r).toMatchObject({ destinationChain: 'ETH', recipient: to });
+	});
+
+	it('Ethereum is not a payout network for a non-EVM coin', () => {
+		const r = walletSwapFromMagi({
+			...base,
+			toNetwork: Network.ethMainnet.value,
+			toUsername: '0x00000000000000000000000000000000000000b2'
+		});
+		expect(r).toEqual({ error: 'This swap cannot pay out on that network.' });
 	});
 
 	it('a Hive payout names the hive: account', () => {

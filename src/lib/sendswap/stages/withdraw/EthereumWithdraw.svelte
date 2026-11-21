@@ -50,8 +50,14 @@
 		}) + ` ${assetCoin.label}`
 	);
 	// Measured on testnet 11-19: requested 17:37:41, mined on Sepolia 17:40:36.
+	// EVM-FEE-1: a withdrawal from the account's own balance is charged the most
+	// its Ethereum transaction can burn, and the unused part comes back to the
+	// account once the bridge has proven it mined (about half an hour). A
+	// withdrawal is not a swap: what comes back returns to where it was paid from.
 	const feeHint = $derived(
 		"The bridge's Ethereum gas fee is taken from the withdrawal instead of added on top. " +
+			'It is charged at the most the transaction can cost; the unused part comes back to your ' +
+			'Magi balance once the withdrawal settles, about half an hour after it arrives. ' +
 			(proofFee > 0 ? `Its proving fee (${proofFeeText}) is charged on top either way. ` : '') +
 			'It usually arrives on Ethereum within a few minutes.'
 	);

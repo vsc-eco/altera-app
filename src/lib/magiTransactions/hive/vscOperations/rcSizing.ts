@@ -166,15 +166,26 @@ export async function sizeBtcPayoutSwap(
 	fallbackAvailable?: number,
 	/** True when the input is ETH or USDC (isEvmBridgeCoin): such payouts cost
 	 *  more (btcPayoutMinRcForInput). */
-	evmBridgeInput = false
+	evmBridgeInput = false,
+	/** RC on top for a swap paid from the Hive wallet (HIVE_RETURN_PAYOUT_EXTRA_RC). */
+	extraRc = 0
 ): Promise<RcSizing> {
 	const [fresh, minRc] = await Promise.all([fetchAccountRc(did), fetchBtcPayoutSwapMinRc()]);
 	return btcPayoutSwapRcLimit(
 		fresh ?? fallbackAvailable ?? 0,
 		hbdPulledFromMagi,
-		btcPayoutMinRcForInput(minRc, evmBridgeInput)
+		btcPayoutMinRcForInput(minRc, evmBridgeInput) + extraRc
 	);
 }
+
+/**
+ * RC on top of a payout's minimum when the swap is paid from the Hive wallet:
+ * the router runs it in a call to itself it can roll back, so a failure goes
+ * back to Hive. Measured on the real wasm 11-21: +403 RC for the call, +745
+ * for an Ethereum payout (which also prices the floor of a swap back); 1.5x
+ * the larger. A payout that runs out of RC cannot be sent back.
+ */
+export const HIVE_RETURN_PAYOUT_EXTRA_RC = 1_200;
 
 /**
  * What a BTC payout costs on top when its input is ETH or USDC: the router
@@ -211,13 +222,15 @@ export const EVM_PAYOUT_SWAP_MIN_RC = 5_500;
 export async function sizeEvmPayoutSwap(
 	did: string,
 	hbdPulledFromMagi: number,
-	fallbackAvailable?: number
+	fallbackAvailable?: number,
+	/** RC on top for a swap paid from the Hive wallet (HIVE_RETURN_PAYOUT_EXTRA_RC). */
+	extraRc = 0
 ): Promise<RcSizing> {
 	const fresh = await fetchAccountRc(did);
 	return btcPayoutSwapRcLimit(
 		fresh ?? fallbackAvailable ?? 0,
 		hbdPulledFromMagi,
-		EVM_PAYOUT_SWAP_MIN_RC
+		EVM_PAYOUT_SWAP_MIN_RC + extraRc
 	);
 }
 

@@ -8,6 +8,7 @@
  * the account already held of the output asset went out instead.
  */
 
+import { ethPayoutGasLimit } from './payoutFee';
 import { magiRecipient, sameMagiAccount } from '$lib/sendswap/utils/magiRecipient';
 import { isVscTestnet } from '../../../client';
 import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants';
@@ -61,6 +62,8 @@ export type WalletRouterSwap = {
 	 * mapping contract. Unused for HIVE/HBD.
 	 */
 	mappedContractId?: string;
+	/** An ETH payout's gas limit sized for its recipient (ethPayoutGasLimit). */
+	payoutGasLimit?: number | null;
 };
 
 export type WalletRouterSwapOps =
@@ -89,6 +92,13 @@ export function walletRouterSwapInstruction(
 		recipient: swap.recipient || (swap.destinationChain ? '' : swap.caller)
 	};
 	if (swap.destinationChain) instruction.destination_chain = swap.destinationChain;
+	if (
+		swap.destinationChain === 'ETH' &&
+		swap.toCoin.value === Coin.eth.value &&
+		swap.payoutGasLimit
+	) {
+		instruction.payout_gas_limit = swap.payoutGasLimit;
+	}
 	if (feeQualifies) {
 		instruction.beneficiary = ALTERA_FEE_BENEFICIARY;
 		instruction.ref_bps = ALTERA_FEE_BPS;
@@ -172,6 +182,21 @@ export async function prepareWalletRouterSwap(
 		ALTERA_FEE_ACTIVE &&
 		(await qualifiesForAlteraFee(swap.amount, swap.toCoin, swap.destinationChain || undefined));
 	const availableRc = (await fetchAccountRc(swap.caller)) ?? fallbackRc ?? 0;
+	if (
+		swap.destinationChain === 'ETH' &&
+		swap.toCoin.value === Coin.eth.value &&
+		swap.recipient &&
+		swap.payoutGasLimit === undefined
+	) {
+		swap = {
+			...swap,
+			payoutGasLimit: await ethPayoutGasLimit(
+				swap.caller,
+				swap.recipient,
+				BigInt(swap.minAmountOut || '1')
+			)
+		};
+	}
 	// Only a BTC payout has a minimum that depends on the chain's version.
 	const btcPayoutMinRc =
 		swap.destinationChain === 'BTC'

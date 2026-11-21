@@ -6,12 +6,14 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import PillButton from '$lib/PillButton.svelte';
 	import DepositAddressNotice from '$lib/sendswap/components/DepositAddressNotice.svelte';
+	import BtcSenderNotice from '$lib/sendswap/components/BtcSenderNotice.svelte';
 	import { isVscTestnet } from '$lib/../client';
 	import {
 		buildBtcSwapInstruction,
 		hiveAccountExists,
 		requestBtcSwapDepositAddress
 	} from '$lib/magiTransactions/bitcoin/swapDeposit';
+	import { ethPayoutGasLimit } from '$lib/magiTransactions/eth/payoutFee';
 
 	// A swap paid with Bitcoin from the connected wallet. Same flow as the
 	// QuickSwap card's "Send Bitcoin" dialog: get a deposit address bound to the
@@ -25,6 +27,7 @@
 		fallbackAddress,
 		refundTo,
 		minAmountOut,
+		callerDid,
 		onback,
 		ondone
 	}: {
@@ -39,6 +42,8 @@
 		refundTo?: string;
 		/** The quote's smallest accepted output, in the output's smallest units. */
 		minAmountOut?: string;
+		/** The logged-in account (for the bridge's vault, to size an ETH payout's gas). */
+		callerDid?: string;
 		/** Back to the review. */
 		onback: () => void;
 		/** Close the flow. */
@@ -56,6 +61,15 @@
 	let qr = $state<string | null>(null);
 
 	onMount(async () => {
+		// An ETH payout carries the gas its recipient needs (+20%).
+		const to = (recipient ?? '').trim();
+		const payoutGasLimit =
+			toNetwork.value === Network.ethMainnet.value &&
+			toCoin.value === Coin.eth.value &&
+			/^0x[0-9a-fA-F]{40}$/.test(to) &&
+			callerDid
+				? await ethPayoutGasLimit(callerDid, to, BigInt(minAmountOut || '1'))
+				: null;
 		const built = buildBtcSwapInstruction({
 			recipient,
 			toCoin: toCoin.value,
@@ -63,6 +77,7 @@
 			amountSats: amount.amount,
 			refundTo,
 			minAmountOut,
+			payoutGasLimit,
 			testnet: isVscTestnet()
 		});
 		if (!built.ok) {
@@ -169,6 +184,7 @@
 		</div>
 	{:else}
 		<DepositAddressNotice />
+		<BtcSenderNotice />
 		{#if qr}
 			<div class="btc-deposit-qr">
 				<img src={qr} alt="Deposit address QR code" width="220" height="220" />

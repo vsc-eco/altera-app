@@ -730,6 +730,7 @@
 				? `hive:${auth.value.username}`
 				: auth.value?.address}
 			minAmountOut={asSwap?.minAmountOut}
+			callerDid={auth.value?.did}
 			onback={() => (btcDepositOpen = false)}
 			ondone={() => goHome?.()}
 		/>

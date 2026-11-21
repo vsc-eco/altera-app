@@ -5,6 +5,7 @@
 	import StakingEarnings from '$lib/cards/StakingEarnings.svelte';
 	import Table from './transactions/Table/Table.svelte';
 	import QuickSwap from '$lib/cards/QuickSwap.svelte';
+	import HeldReturns from '$lib/cards/HeldReturns.svelte';
 	import MarketPrices from '$lib/cards/MarketPrices.svelte';
 	import ResourceCredits from '$lib/cards/ResourceCredits/ResourceCredits.svelte';
 	import { getAccountNameFromAuth } from '$lib/getAccountName';
@@ -25,6 +26,7 @@
 	</div>
 
 	<div class="area-quickswap">
+		<HeldReturns />
 		<QuickSwap />
 	</div>
 

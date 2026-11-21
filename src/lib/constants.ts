@@ -26,7 +26,6 @@ export const USDC_TOKEN_ADDRESS = isVscTestnet()
 	? '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 	: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 
-
 /** Smallest ETH deposit the bridge credits, in wei; less is not credited and
  *  stays in the vault (evm-mapping-contract MinETHDeposit, DUST-1). */
 export const EVM_MIN_ETH_DEPOSIT_WEI = 1_000_000_000_000_000;
@@ -97,6 +96,22 @@ export function getMemPoolTxUrl(btcTxId: string): string {
  * every BTC deposit swap gets a 400. On first, bot second.
  */
 export const DEPOSIT_SWAP_REFUNDS_ACTIVE = true;
+
+/**
+ * SENDER-REFUND-1 (owner 11-21): a swap paid with Bitcoin that does not complete
+ * goes back to the address that SENT the BTC, which the BTC mapping contract
+ * proves itself (proveSender, sent by the mapping bot before the map). Nobody
+ * types a refund address, nothing lands in a Magi balance, and a swap can be
+ * paid out on Ethereum (ETH or USDC to an Ethereum address): one that comes back
+ * is swapped back to BTC and paid to the sender on Bitcoin.
+ *
+ * OFF until all of these are live on the network the app talks to: the BTC
+ * mapping contract with proveSender, the router that passes a Bitcoin return
+ * address, the EVM bridge that swaps a return back to BTC, and the mapping bot
+ * that proves senders and accepts these instructions. With it off nothing
+ * changes: Magi or Hive payouts only, and refund_to as before.
+ */
+export const BTC_SENDER_REFUNDS_ACTIVE = false;
 
 /**
  * Smallest deposit swap paid with Bitcoin, in sats: a failed swap's refund goes

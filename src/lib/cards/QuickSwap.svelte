@@ -26,9 +26,13 @@
 	import Clipboard from '$lib/zag/Clipboard.svelte';
 	import {
 		accountBalance,
+		evmMinWithdrawal,
+		evmProofFee,
 		getBalanceSmallestUnits,
 		type AccountBalance
 	} from '$lib/stores/currentBalance';
+	import { EVM_BRIDGE_ENABLED } from '$lib/constants';
+	import { isAddress } from 'viem';
 	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import { untrack } from 'svelte';
 	import { ArrowDown, ArrowUpDown, ChevronDown, Search } from '@lucide/svelte';
@@ -43,6 +47,11 @@
 		calculatePriceImpact,
 		swapFeeExceedsGuard,
 		swapFeeGuardMessage,
+		buildSwapRoute,
+		calculateRouteSwap,
+		exceedsPoolDepthForRoute,
+		priceImpactForRoute,
+		type SwapHop,
 		type TypedPoolDepths,
 		type SwapCalcResult
 	} from '$lib/pools/swapCalc';
@@ -57,7 +66,9 @@
 	import { retryWithBackoff } from '$lib/pools/retryWithBackoff';
 	import {
 		btcPayoutShortfallMessage,
-		sizeBtcPayoutSwap
+		evmPayoutShortfallMessage,
+		sizeBtcPayoutSwap,
+		sizeEvmPayoutSwap
 	} from '$lib/magiTransactions/hive/vscOperations/rcSizing';
 	import { prepareWalletRouterSwap } from '$lib/magiTransactions/eth/walletRouterSwap';
 	import { executeTx } from '$lib/magiTransactions/hive';
@@ -90,6 +101,7 @@
 	 */
 	function nativeNetworkFor(coinValue: string): Network {
 		if (coinValue === Coin.btc.value) return Network.btcMainnet;
+		if (coinValue === Coin.eth.value || coinValue === Coin.usdc.value) return Network.ethMainnet;
 		if (
 			coinValue === Coin.hive.value ||
 			coinValue === Coin.hbd.value ||
@@ -222,9 +234,10 @@
 			networkOptions = result.networkOptions;
 	});
 
-	// From tokens: all available coins (BTC, HIVE, HBD) — exclude sHBD. This card
-	// quotes only the HIVE/HBD and BTC/HBD pools, so ETH/USDC (EVM bridge) stay
-	// on the /swap page, which routes every pool.
+	// From tokens: all available coins (BTC, HIVE, HBD) — exclude sHBD. ETH and
+	// USDC are not a source here: this card pays from a mainnet wallet, and the
+	// EVM bridge runs no swap on a MagiDeposit or USDC deposit (only a plain ETH
+	// transfer can carry one). They are swapped from Magi on the /swap page.
 	const fromAssetObjs: AssetObject[] = $derived(
 		swapOptions.from
 			.filter((opt) => opt.coin.value !== Coin.shbd?.value && !isEvmBridgeCoin(opt.coin))
@@ -238,10 +251,15 @@
 				}
 			}))
 	);
-	// To tokens: all coins Magi supports (show all, not just those with balance) — exclude sHBD
+	// To tokens: all coins Magi supports (show all, not just those with balance) — exclude sHBD.
+	// ETH and USDC (paid out on Ethereum) once their pool has liquidity.
 	const toAssetObjs: AssetObject[] = $derived(
 		swapOptions.to
-			.filter((opt) => opt.coin.value !== Coin.shbd?.value && !isEvmBridgeCoin(opt.coin))
+			.filter(
+				(opt) =>
+					opt.coin.value !== Coin.shbd?.value &&
+					(!isEvmBridgeCoin(opt.coin) || evmSwapCoins.has(opt.coin.value))
+			)
 			.map((opt) => ({
 				...opt.coin,
 				snippet: assetCard,
@@ -329,6 +347,7 @@
 		if (!swapResult || swapResult.expectedOutput <= 0n) return 0;
 		const fromAmountInt = new CoinAmount(fromAmount, fromCoinDef.coin).amount;
 		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return 0;
+		if (evmRoute) return priceImpactForRoute(BigInt(fromAmountInt), evmRoute);
 		return calculatePriceImpact(
 			BigInt(fromAmountInt),
 			fromCoinDef.coin.value,
@@ -356,8 +375,9 @@
 	function formatRateAmount(amt: CoinAmount<Coin>): string {
 		const val = amt.toNumber();
 		if (val === 0) return `0 ${amt.getDisplayUnit()}`;
+		// ETH has 18 places; 10 is plenty for a rate (1 HBD = 0.0005850513 ETH).
 		const fixed = val
-			.toFixed(amt.coin.decimalPlaces)
+			.toFixed(Math.min(amt.coin.decimalPlaces, 10))
 			.replace(/(\.\d*[1-9])0+$/, '$1') // strip trailing zeros
 			.replace(/\.0*$/, ''); // strip trailing dot
 		const [intPart, decPart] = fixed.split('.');
@@ -393,6 +413,56 @@
 	// getStateByKeys support still work.
 	let hiveHbdPool = $state<TypedPoolDepths | null>(null);
 	let btcHbdPool = $state<TypedPoolDepths | null>(null);
+	/** ETH/HBD and HBD/USDC when the EVM bridge is live and the pool has
+	 *  liquidity: ETH and USDC are offered as outputs only then. Optional, so a
+	 *  pool that does not load never marks the card's own pools as failed. */
+	let evmPools = $state.raw<TypedPoolDepths[]>([]);
+	const evmSwapCoins = $derived(
+		new Set(evmPools.flatMap((p) => [p.asset0, p.asset1]).filter((a) => a !== Coin.hbd.value))
+	);
+	const isEvmCoinValue = (v: string | undefined) =>
+		v === Coin.eth.value || v === Coin.usdc.value;
+
+	/** The router's route for a pair with ETH or USDC in it (null otherwise, or
+	 *  when its pool has not loaded): the HIVE/HBD/BTC pairs keep their own
+	 *  quote code below. */
+	const evmRoute = $derived.by<SwapHop[] | null>(() => {
+		const a = txState.from?.coin.value;
+		const b = txState.to?.coin.value;
+		if (!a || !b || a === b || (!isEvmCoinValue(a) && !isEvmCoinValue(b))) return null;
+		const pools = [hiveHbdPool, btcHbdPool, ...evmPools].filter(
+			(p): p is TypedPoolDepths => p != null
+		);
+		return buildSwapRoute(
+			a,
+			b,
+			(x, y) =>
+				pools.find(
+					(p) => (p.asset0 === x && p.asset1 === y) || (p.asset0 === y && p.asset1 === x)
+				) ?? null
+		);
+	});
+
+	/**
+	 * A swap paid out on Ethereum (destination_chain ETH): the router withdraws
+	 * the output less the bridge's proof fee and the bridge takes the Ethereum
+	 * gas out of what it sends. Below the bridge's minimum the whole swap fails
+	 * on chain, so it is stopped before signing.
+	 */
+	const evmPayout = $derived.by(() => {
+		const to = txState.to;
+		if (!to || !isEvmCoinValue(to.coin.value)) return null;
+		const isUsdc = to.coin.value === Coin.usdc.value;
+		const proofFee = isUsdc ? $evmProofFee.usdc : $evmProofFee.eth;
+		const min = isUsdc ? $evmMinWithdrawal.usdc : $evmMinWithdrawal.eth;
+		const minOut = txState.minAmountOut ? Number(txState.minAmountOut) : null;
+		return {
+			coin: to.coin,
+			proofFee,
+			min,
+			belowMin: min == null || (minOut != null && minOut - proofFee < min)
+		};
+	});
 	let swapResult: SwapCalcResult | null = $state(null);
 	// A swap goes out only with a quote (SWAP_NEEDS_QUOTE_MESSAGE), so prices
 	// must not stay unloaded: a failed load is retried (1 s, 2 s), and the
@@ -408,12 +478,25 @@
 		poolsRefreshing = true;
 		try {
 			await retryWithBackoff(async () => {
-				const [hiveHbd, btcHbd] = await Promise.all([
+				const [hiveHbd, btcHbd, evm] = await Promise.all([
 					fetchTypedPoolDepths('HIVE', 'HBD'),
-					fetchTypedPoolDepths('BTC', 'HBD')
+					fetchTypedPoolDepths('BTC', 'HBD'),
+					EVM_BRIDGE_ENABLED
+						? Promise.all([
+								fetchTypedPoolDepths('ETH', 'HBD'),
+								fetchTypedPoolDepths('HBD', 'USDC')
+							]).catch(() => null)
+						: null
 				]);
 				if (hiveHbd) hiveHbdPool = hiveHbd;
 				if (btcHbd) btcHbdPool = btcHbd;
+				if (evm) {
+					// A pool that did not answer keeps its last reserves; an empty
+					// pool has no route, so its asset is left out.
+					const byId = new Map(evmPools.map((p) => [p.contractId, p]));
+					for (const d of evm) if (d) byId.set(d.contractId, d);
+					evmPools = [...byId.values()].filter((d) => d.reserve0 > 0n && d.reserve1 > 0n);
+				}
 				return !!hiveHbd && !!btcHbd;
 			}, maxAttempts);
 		} finally {
@@ -455,7 +538,12 @@
 			resetSwapState();
 			return;
 		}
-		const swapAssets = new Set([Coin.hive.value, Coin.hbd.value, Coin.btc.value]);
+		const swapAssets = new Set([
+			Coin.hive.value,
+			Coin.hbd.value,
+			Coin.btc.value,
+			...evmSwapCoins
+		]);
 		if (
 			!swapAssets.has(fromCoin.coin.value) ||
 			!swapAssets.has(toCoin.coin.value) ||
@@ -477,7 +565,14 @@
 		const involvesBtc = assetIn === Coin.btc.value || assetOut === Coin.btc.value;
 
 		let result: SwapCalcResult | null = null;
-		if (!involvesBtc) {
+		if (evmRoute) {
+			// ETH/USDC: quoted over the same route the router takes (one hop to
+			// HBD, two via HBD otherwise), as on the /swap page.
+			result = calculateRouteSwap(x, evmRoute, slippageBps);
+		} else if (isEvmCoinValue(assetIn) || isEvmCoinValue(assetOut)) {
+			resetSwapState();
+			return;
+		} else if (!involvesBtc) {
 			if (!hiveHbdPool) {
 				resetSwapState();
 				return;
@@ -700,6 +795,11 @@
 	 */
 	function isToTokenAllowed(value: string): boolean {
 		const fromValue = txState.from?.coin.value;
+		// A payout on Ethereum needs the router to be called with the 0x
+		// address: a Hive wallet does that. A swap paid with Bitcoin goes
+		// through a BTC deposit address whose swap_to must be a Magi account,
+		// which the router cannot pay on Ethereum.
+		if (isEvmCoinValue(value) && auth.value?.provider !== 'aioha') return false;
 		return !fromValue || value !== fromValue;
 	}
 
@@ -865,6 +965,7 @@
 		if (!fromCoin || !toCoin || !fromAmount || fromAmount === '0') return false;
 		const fromAmountInt = new CoinAmount(fromAmount, fromCoin.coin).amount;
 		if (!Number.isFinite(fromAmountInt) || fromAmountInt <= 0) return false;
+		if (evmRoute) return exceedsPoolDepthForRoute(BigInt(fromAmountInt), evmRoute);
 		return checkExceedsPoolDepth(
 			BigInt(fromAmountInt),
 			fromCoin.coin.value,
@@ -899,6 +1000,13 @@
 		slippageBps = Math.round(v * 100);
 		customSlippageInput = parseFloat(v.toFixed(2)).toString();
 		customSlippageOpen = false;
+	}
+
+	/** Smallest units as a short amount: 0.15 USDC, 0.01 ETH. */
+	function shortUnits(raw: number, decimalPlaces: number): string {
+		return (raw / 10 ** decimalPlaces).toLocaleString('en-US', {
+			maximumFractionDigits: Math.min(decimalPlaces, 8)
+		});
 	}
 
 	function setError(msg: string) {
@@ -946,6 +1054,21 @@
 					isVscTestnet()
 						? 'Enter a valid Bitcoin testnet address'
 						: 'Enter a valid Bitcoin mainnet address'
+				);
+				return false;
+			}
+		}
+		if (evmPayout) {
+			const addr = txState.toUsername?.trim() ?? '';
+			if (!isAddress(addr) || /^0x0{40}$/i.test(addr)) {
+				setError('Enter a valid Ethereum address (0x...)');
+				return false;
+			}
+			if (evmPayout.belowMin) {
+				setError(
+					evmPayout.min == null
+						? "The bridge's minimum withdrawal has not loaded yet: try again in a moment"
+						: `The bridge sends at least ${shortUnits(evmPayout.min, evmPayout.coin.decimalPlaces)} ${evmPayout.coin.label} after its proving fee: swap a larger amount`
 				);
 				return false;
 			}
@@ -1111,7 +1234,10 @@
 		const destChainMap: Record<string, string> = {
 			hive: 'HIVE',
 			hbd: 'HIVE',
-			btc: 'BTC'
+			btc: 'BTC',
+			// Paid to an Ethereum address through the EVM bridge (settleToEVM).
+			eth: 'ETH',
+			usdc: 'ETH'
 		};
 		const destinationChain = destChainMap[toCoinDef.value] ?? '';
 		const swapReceiver = txState.toUsername?.trim() ?? '';
@@ -1173,13 +1299,23 @@
 					);
 					if (!sizing.ok) throw new Error(btcPayoutShortfallMessage(sizing));
 					payoutRcLimit = sizing.rcLimit;
+				} else if (destinationChain === 'ETH') {
+					// The EVM bridge's withdrawal runs in the same call.
+					swapStatus = 'Estimating network resources...';
+					const sizing = await sizeEvmPayoutSwap(
+						auth.value.did,
+						0,
+						$accountBalance.bal?.resource_credits
+					);
+					if (!sizing.ok) throw new Error(evmPayoutShortfallMessage(sizing));
+					payoutRcLimit = sizing.rcLimit;
 				}
 				ops.push(
 					await getHiveSwapOp(
 						username,
 						amount,
-						fromCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
-						toCoinDef as typeof Coin.hive | typeof Coin.hbd | typeof Coin.btc,
+						fromCoinDef,
+						toCoinDef,
 						minOut,
 						destinationChain || undefined,
 						routerRecipient || undefined,
@@ -1377,11 +1513,25 @@
 				type="text"
 				required
 				bind:value={txState.toUsername}
-				placeholder="username or address"
+				placeholder={evmPayout ? 'Ethereum address (0x...)' : 'username or address'}
 				autocomplete="off"
 				spellcheck="false"
 			/>
 		</div>
+		{#if evmPayout}
+			{@const unit = evmPayout.coin.label}
+			<p class="receiver-hint">
+				Paid to this Ethereum address by the bridge. Its proving fee ({shortUnits(
+					evmPayout.proofFee,
+					evmPayout.coin.decimalPlaces
+				)}
+				{unit}) and the Ethereum gas{evmPayout.coin.value === Coin.usdc.value
+					? ' (up to half the minimum, paid in USDC)'
+					: ''} come out of the amount{evmPayout.min != null
+					? `; the bridge sends at least ${shortUnits(evmPayout.min, evmPayout.coin.decimalPlaces)} ${unit}`
+					: ''}.
+			</p>
+		{/if}
 	</div>
 
 	<!-- Slippage -->
@@ -1937,6 +2087,11 @@
 		background: rgba(111, 106, 248, 0.15);
 		color: var(--dash-text-primary);
 		border-color: var(--dash-accent-purple);
+	}
+	.receiver-hint {
+		margin: 0.35rem 0 0;
+		font-size: 0.75rem;
+		color: var(--dash-text-muted, rgba(255, 255, 255, 0.6));
 	}
 	.receiver-input-wrap {
 		display: flex;

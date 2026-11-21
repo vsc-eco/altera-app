@@ -33,11 +33,26 @@ function evmRates(usdPerUnit: number, prices: Cryptoprices): Record<string, numb
 	return out;
 }
 
+/** The rates with ETH and USDC added as targets (X per 1 base, through USD).
+ *  Without them a conversion INTO ETH/USDC (a swap's rate line, 1 HBD in
+ *  USDC) found no rate and showed 0. */
+function withEvmTargets(
+	rates: Record<string, number> | null,
+	usd: { eth: number; usdc: number }
+): Record<string, number> | null {
+	if (!rates || !(rates.USD > 0)) return rates;
+	const out = { ...rates };
+	if (usd.eth > 0) out.ETH = rates.USD / usd.eth;
+	if (usd.usdc > 0) out.USDC = rates.USD / usd.usdc;
+	return out;
+}
+
 const getLightningExchangeRates = async (base: Coin, target?: Coin) => {
 	const baseUnit = base.unit?.toUpperCase();
+	const targetIsEvm = !!target && EVM_UNITS.has(target.unit?.toUpperCase());
 	if (EVM_UNITS.has(baseUnit)) {
 		const [prices, usd] = await Promise.all([getCryptoPrices(), fetchEvmUsdPrices()]);
-		return evmRates(baseUnit === 'ETH' ? usd.eth : usd.usdc, prices);
+		return withEvmTargets(evmRates(baseUnit === 'ETH' ? usd.eth : usd.usdc, prices), usd);
 	}
 	// Pool-derived rates cost chain reads, so only fetch them when a custom
 	// token is actually involved. Native-to-native conversions — the vast
@@ -47,7 +62,9 @@ const getLightningExchangeRates = async (base: Coin, target?: Coin) => {
 		getCryptoPrices(),
 		needsTokenRates ? getCustomTokenHbdRates() : Promise.resolve({} as CustomTokenRates)
 	]);
-	return parseToRootedFormat(base, prices, tokenHbd);
+	const rates = parseToRootedFormat(base, prices, tokenHbd);
+	// ETH/USDC prices are only fetched when one is the target.
+	return targetIsEvm ? withEvmTargets(rates, await fetchEvmUsdPrices()) : rates;
 };
 
 function nativeRates(unit: string, prices: Cryptoprices): Record<string, number> | null {

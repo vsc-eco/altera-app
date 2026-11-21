@@ -30,9 +30,11 @@ import {
 import {
 	btcPayoutShortfallMessage,
 	estimateCallRc,
+	evmPayoutShortfallMessage,
 	MAX_RC_LIMIT,
 	rcShortfallMessage,
-	sizeBtcPayoutSwap
+	sizeBtcPayoutSwap,
+	sizeEvmPayoutSwap
 } from '$lib/magiTransactions/hive/vscOperations/rcSizing'
 import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants'
 import { fetchCustomTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens'
@@ -848,6 +850,10 @@ export async function send(
 		const toOnMagi = toNetwork.value === Network.magi.value;
 		const toOnHiveL1 = toNetwork.value === Network.hiveMainnet.value;
 		const toOnBtcL1 = toNetwork.value === Network.btcMainnet.value;
+		// ETH/USDC paid out on Ethereum: the router withdraws the output through
+		// the EVM bridge (dex-router settleToEVM, destination_chain ETH).
+		const toOnEthL1 =
+			toNetwork.value === Network.ethMainnet.value && isEvmBridgeCoin(toCoin.coin);
 		const differentCoins = fromCoin.coin.value !== toCoin.coin.value;
 		const bothSwapCoins =
 			swapCoins.includes(fromCoin.coin.value) && swapCoins.includes(toCoin.coin.value);
@@ -858,13 +864,13 @@ export async function send(
 		const isL1ToMagiSwap =
 			fromOnHiveL1 && toOnMagi && differentCoins && fromIsNativeHive && bothSwapCoins;
 		// Swap with external settlement: output settles on mainnet
-		// (Hive L1 or BTC L1) via the router's `destination_chain`.
+		// (Hive L1, BTC L1 or Ethereum) via the router's `destination_chain`.
 		// Source can be Magi or Hive L1 — if it's Hive L1, we also
 		// need the deposit op. Coins may match when only the network
 		// differs (e.g. HBD Magi → HBD Hive L1 isn't a swap, that's a
 		// withdrawal — so exclude that case).
 		const isSwapWithExternalSettlement =
-			(toOnHiveL1 || toOnBtcL1) &&
+			(toOnHiveL1 || toOnBtcL1 || toOnEthL1) &&
 			bothSwapCoins &&
 			differentCoins &&
 			(fromOnMagi || (fromOnHiveL1 && fromIsNativeHive));
@@ -930,13 +936,22 @@ export async function send(
 			let destinationChain: string | undefined;
 			let destinationRecipient: string | undefined;
 			if (isSwapWithExternalSettlement) {
-				destinationChain = toOnBtcL1 ? 'BTC' : 'HIVE';
+				destinationChain = toOnBtcL1 ? 'BTC' : toOnEthL1 ? 'ETH' : 'HIVE';
 				const raw = (toUsername ?? '').trim();
 				destinationRecipient =
 					toOnHiveL1 && !raw.startsWith('hive:') ? `hive:${raw.replace(/^@/, '')}` : raw;
 				if (!destinationRecipient) {
 					throw new Error('Missing recipient address for mainnet settlement');
 				}
+			} else {
+				// A swap kept on Magi pays `toUsername` as well. It used to pay the
+				// caller whatever was typed, so "Send to address" with Magi did what
+				// "Keep on Magi" does while Review printed the typed address (M1,
+				// 11-17 review; facelift 7d42ac8). The swap card resets toUsername
+				// to the signed-in account unless an address is chosen, so the
+				// default still pays the caller.
+				const raw = (toUsername ?? '').trim();
+				if (raw) destinationRecipient = getDidFromUsername(raw) || undefined;
 			}
 			// A BTC payout costs ~12,000 RC since the 0.12 BTC contract, over the
 			// fixed 10,000 every such swap failed with ("cost limit exceeded"):
@@ -954,6 +969,24 @@ export async function send(
 				);
 				if (!sizing.ok) {
 					const msg = btcPayoutShortfallMessage(sizing);
+					setStatus(msg, true);
+					return new Error(msg);
+				}
+				payoutRcLimit = sizing.rcLimit;
+				setStatus('Waiting for Hive wallet approval…');
+			} else if (destinationChain === 'ETH') {
+				// Same for a payout on Ethereum (the EVM bridge's withdrawal runs in
+				// the same call): refused before signing when the RC is short.
+				setStatus('Estimating network resources…');
+				const hbdFromMagi =
+					fromCoin.coin.value === Coin.hbd.value && !needsDeposit ? fromCa.amount : 0;
+				const sizing = await sizeEvmPayoutSwap(
+					auth.value.did,
+					hbdFromMagi,
+					get(accountBalance).bal.resource_credits
+				);
+				if (!sizing.ok) {
+					const msg = evmPayoutShortfallMessage(sizing);
 					setStatus(msg, true);
 					return new Error(msg);
 				}

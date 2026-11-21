@@ -192,8 +192,11 @@ export async function getHiveSwapOp(
 			? Math.floor((minAmountOut * (10000 - ALTERA_FEE_BPS)) / 10000)
 			: minAmountOut;
 
-	// TODO: estimate RC usage
-	let rcLimit = 2000;
+	// A swap kept on Magi. Mainnet dry runs 11-21: a two-hop swap through HBD
+	// uses up to 1,440 RC (USDC->BTC), 2,000 left 1.39x; a call that runs out
+	// is charged its whole rc_limit, so this keeps 1.5x+ (only what is used is
+	// charged otherwise).
+	let rcLimit = 3000;
 	const payload: Record<string, string | number> = {
 		type: 'swap',
 		version: '1.0.0',
@@ -206,7 +209,7 @@ export async function getHiveSwapOp(
 	if (destinationChain) {
 		payload.destination_chain = destinationChain;
 		rcLimit = 10000;
-		if (destinationChain === 'BTC' && payoutRcLimit != null) {
+		if ((destinationChain === 'BTC' || destinationChain === 'ETH') && payoutRcLimit != null) {
 			rcLimit = payoutRcLimit;
 		}
 	}

@@ -112,9 +112,29 @@ describe('send(): a wallet account swapping its Magi balance', () => {
 			asset_out: 'HBD',
 			amount_in: '50000',
 			min_amount_out: '42000',
-			// Kept on Magi: the swapper is paid, as on the Hive wallet path.
-			recipient: EVM_DID
+			// CHANGED by M1 (11-17 review, facelift 7d42ac8): kept on Magi pays
+			// the address it was given ("Send to address" + Magi). The swap card
+			// resets toUsername to the signed-in account unless an address is
+			// chosen (M2), so the default still pays the swapper (next test).
+			recipient: 'hive:someone-else'
 		});
+	});
+
+	it('EVM wallet, kept on Magi with its own account: still pays the swapper', async () => {
+		await run(
+			swap({
+				from: Coin.btc,
+				to: Coin.hbd,
+				toNet: Network.magi,
+				fromAmount: '0.0005',
+				toAmount: '43.000',
+				toUsername: EVM_DID,
+				min: '42000'
+			}),
+			evm
+		);
+		const ops = signedOps();
+		expect(JSON.parse(ops[1].payload.payload!).recipient).toBe(EVM_DID);
 	});
 
 	it('Bitcoin wallet, BTC on Magi -> HIVE on Hive: signed by the Bitcoin wallet', async () => {

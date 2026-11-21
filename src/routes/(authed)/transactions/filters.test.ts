@@ -394,3 +394,36 @@ describe('sortTxItems', () => {
 		expect(items).toEqual(before);
 	});
 });
+
+describe('EVM deposits (indexer rows) in the filters', () => {
+	const evm = (asset: 'eth' | 'usdc', amount: string): TxListItem => ({
+		kind: 'evm-deposit',
+		event: {
+			indexer_ts: '2026-11-21T02:40:00',
+			indexer_contract_id: 'vsc1BqoXD32CWWx9UBfh18TnN7Es85RBut2Uhr',
+			indexer_tx_hash: 'bafy' + asset,
+			indexer_block_height: 1,
+			amount,
+			recipient: 'hive:lordbutterfly',
+			sender: '0x00000000000000000000000000000000000000a1',
+			asset,
+			l1_block: 1,
+			l1_tx_index: 0
+		}
+	});
+	const items = [evm('usdc', '99850000'), evm('eth', '940000000000000')];
+
+	it('the USDC and ETH chips keep their own deposits', () => {
+		const usdc = applyClientFilters(items, { ...EMPTY_FILTERS, tokens: ['usdc'] });
+		expect(usdc.map((i) => (i.kind === 'evm-deposit' ? i.event.asset : ''))).toEqual(['usdc']);
+		const eth = applyClientFilters(items, { ...EMPTY_FILTERS, tokens: ['eth'] });
+		expect(eth.map((i) => (i.kind === 'evm-deposit' ? i.event.asset : ''))).toEqual(['eth']);
+	});
+
+	it('the deposit type and the sender address match them', () => {
+		expect(applyClientFilters(items, { ...EMPTY_FILTERS, types: ['deposit'] })).toHaveLength(2);
+		expect(
+			applyClientFilters(items, { ...EMPTY_FILTERS, address: '0x00000000000000000000000000000000000000a1' })
+		).toHaveLength(2);
+	});
+});

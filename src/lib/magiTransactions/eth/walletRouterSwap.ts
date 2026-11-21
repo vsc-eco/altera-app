@@ -8,7 +8,8 @@
  * the account already held of the output asset went out instead.
  */
 
-import { getDidFromUsername } from '$lib/getAccountName';
+import { magiRecipient, sameMagiAccount } from '$lib/sendswap/utils/magiRecipient';
+import { isVscTestnet } from '../../../client';
 import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants';
 import { toChainUnits } from '$lib/currency/chainAmount';
 import { isEvmBridgeCoin } from '../evmBridge';
@@ -33,7 +34,13 @@ import {
 	rcShortfallMessage
 } from '../hive/vscOperations/rcSizing';
 import type { CallContractTransaction } from './client';
-import { buildEvmSwapOps, evmSwapRcLimit, EVM_APPROVE_RC_LIMIT } from './evmSwap';
+import {
+	buildEvmSwapOps,
+	evmSwapRcLimit,
+	EVM_APPROVE_RC_LIMIT,
+	EVM_SWAP_MIN_RC,
+	EVM_TWO_HOP_SWAP_MIN_RC
+} from './evmSwap';
 
 export type WalletRouterSwap = {
 	/** The signing account's DID (did:pkh:eip155:... or did:pkh:bip122:...). */
@@ -109,12 +116,15 @@ export function buildWalletRouterSwapOps(
 	// A payout on Bitcoin or Ethereum withdraws through a bridge in the same
 	// call: it gets the account's RC, with that payout's minimum.
 	const ethPayout = swap.destinationChain === 'ETH';
+	// A pair without HBD on either side routes through it: two hops.
+	const twoHop = swap.fromCoin.value !== Coin.hbd.value && swap.toCoin.value !== Coin.hbd.value;
 	const sizing = evmSwapRcLimit(
 		ctx.availableRc,
 		swap.fromCoin.value === Coin.hbd.value ? swap.amount.amount : 0,
 		isNativeIn ? 0 : EVM_APPROVE_RC_LIMIT,
 		swap.destinationChain === 'BTC' || ethPayout,
-		ethPayout ? EVM_PAYOUT_SWAP_MIN_RC : ctx.btcPayoutMinRc
+		ethPayout ? EVM_PAYOUT_SWAP_MIN_RC : ctx.btcPayoutMinRc,
+		twoHop ? EVM_TWO_HOP_SWAP_MIN_RC : EVM_SWAP_MIN_RC
 	);
 	if (!sizing.ok) {
 		return {
@@ -218,10 +228,16 @@ export function walletSwapFromMagi(args: {
 	} else {
 		// Kept on Magi pays `toUsername` too: "Send to address" with Magi used
 		// to pay the swapper and ignore the address (M1, 11-17 review; facelift
-		// 7d42ac8). Blank means "pay me". getDidFromUsername, not a hive:
-		// prefix: a wallet login's own account is an address (did:pkh form).
+		// 7d42ac8). Blank means "pay me". A wallet login's own account is an
+		// address, which magiRecipient turns into its did:pkh form.
 		const raw = (args.toUsername ?? '').trim();
-		if (raw) recipient = getDidFromUsername(raw) || undefined;
+		if (raw) {
+			// Strict: a wrong checksum or unknown text is refused, not guessed.
+			const r = magiRecipient(raw, isVscTestnet());
+			if (!r.ok) return { error: r.error };
+			// The signed-in account itself: the router pays the caller.
+			recipient = sameMagiAccount(r.did, args.caller) ? undefined : r.did;
+		}
 	}
 	if (!/^[0-9]*\.?[0-9]+$/.test(args.fromAmount) || Number(args.fromAmount) <= 0) {
 		return { error: 'Enter an amount to swap.' };

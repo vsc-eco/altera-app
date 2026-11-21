@@ -258,7 +258,11 @@
 			.filter(
 				(opt) =>
 					opt.coin.value !== Coin.shbd?.value &&
-					(!isEvmBridgeCoin(opt.coin) || evmSwapCoins.has(opt.coin.value))
+					(!isEvmBridgeCoin(opt.coin) ||
+						// Paid on Ethereum, which needs the router called with the
+						// 0x address: a Hive login does that; a swap paid with
+						// Bitcoin cannot (its swap_to must be a Magi account).
+						(evmSwapCoins.has(opt.coin.value) && auth.value?.provider === 'aioha'))
 			)
 			.map((opt) => ({
 				...opt.coin,
@@ -795,11 +799,6 @@
 	 */
 	function isToTokenAllowed(value: string): boolean {
 		const fromValue = txState.from?.coin.value;
-		// A payout on Ethereum needs the router to be called with the 0x
-		// address: a Hive wallet does that. A swap paid with Bitcoin goes
-		// through a BTC deposit address whose swap_to must be a Magi account,
-		// which the router cannot pay on Ethereum.
-		if (isEvmCoinValue(value) && auth.value?.provider !== 'aioha') return false;
 		return !fromValue || value !== fromValue;
 	}
 
@@ -1316,7 +1315,8 @@
 						amount,
 						fromCoinDef,
 						toCoinDef,
-						minOut,
+						// The exact integer string, not the Number used above.
+						txState.minAmountOut ?? minOut,
 						destinationChain || undefined,
 						routerRecipient || undefined,
 						payoutRcLimit

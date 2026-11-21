@@ -39,6 +39,8 @@ import {
 import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants'
 import { fetchCustomTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens'
 import { assertBtcRecipientAllowed } from './btcAddressGuard'
+import { magiRecipient, sameMagiAccount } from './magiRecipient'
+import { isVscTestnet } from '../../../client'
 import {
 	accountBalance,
 	type AccountBalance,
@@ -950,8 +952,20 @@ export async function send(
 				// 11-17 review; facelift 7d42ac8). The swap card resets toUsername
 				// to the signed-in account unless an address is chosen, so the
 				// default still pays the caller.
+				// Strict (magiRecipient): a wrong 0x checksum, "@bob" or an
+				// unknown string is refused here, never re-checksummed into an
+				// address nobody owns nor silently paid to the caller.
 				const raw = (toUsername ?? '').trim();
-				if (raw) destinationRecipient = getDidFromUsername(raw) || undefined;
+				if (raw) {
+					const r = magiRecipient(raw, isVscTestnet());
+					if (!r.ok) {
+						setStatus(r.error, true);
+						return new Error(r.error);
+					}
+					// The signed-in account itself ("Keep on Magi" sets it): the
+					// router pays the caller, exactly as before.
+					destinationRecipient = sameMagiAccount(r.did, auth.value.did) ? undefined : r.did;
+				}
 			}
 			// A BTC payout costs ~12,000 RC since the 0.12 BTC contract, over the
 			// fixed 10,000 every such swap failed with ("cost limit exceeded"):
@@ -998,7 +1012,8 @@ export async function send(
 				fromCa,
 				fromCoin.coin,
 				toCoin.coin,
-				minOut,
+				// The exact integer string, not the Number used for the check above.
+				(details as SwapTxState).minAmountOut ?? minOut,
 				destinationChain,
 				destinationRecipient,
 				payoutRcLimit

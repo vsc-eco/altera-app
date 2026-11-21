@@ -167,7 +167,10 @@ export async function getHiveSwapOp(
 	amount: CoinAmount<Coin>,
 	assetIn: Coin,
 	assetOut: Coin,
-	minAmountOut?: number,
+	/** Smallest units of the output. Pass the exact integer string when there
+	 *  is one: a Number is exact only to 2^53, and an ETH minimum (18 places)
+	 *  can round up past the quote. */
+	minAmountOut?: number | string,
 	destinationChain?: string,
 	destinationRecipient?: string,
 	/** For a BTC payout: size it with `btcPayoutSwapRcLimit` (rcSizing.ts). The
@@ -187,10 +190,15 @@ export async function getHiveSwapOp(
 	// Contract validates min_amount_out AFTER the referral/altera deduction.
 	// Scale the caller's pre-fee min down by the same bps so slippage
 	// tolerance is measured against what the user actually receives.
-	const finalMinAmountOut =
-		feeQualifies && minAmountOut !== undefined
-			? Math.floor((minAmountOut * (10000 - ALTERA_FEE_BPS)) / 10000)
-			: minAmountOut;
+	const minBig =
+		typeof minAmountOut === 'string' && /^\d+$/.test(minAmountOut)
+			? BigInt(minAmountOut)
+			: minAmountOut !== undefined && Number(minAmountOut) > 0
+				? BigInt(Math.trunc(Number(minAmountOut)))
+				: 0n;
+	const finalMinAmountOut = feeQualifies
+		? (minBig * BigInt(10000 - ALTERA_FEE_BPS)) / 10000n
+		: minBig;
 
 	// A swap kept on Magi. Mainnet dry runs 11-21: a two-hop swap through HBD
 	// uses up to 1,440 RC (USDC->BTC), 2,000 left 1.39x; a call that runs out
@@ -203,7 +211,7 @@ export async function getHiveSwapOp(
 		asset_in: assetIn.value.toUpperCase(),
 		asset_out: assetOut.value.toUpperCase(),
 		amount_in: toChainUnits(amount),
-		min_amount_out: finalMinAmountOut ? BigInt(Math.trunc(finalMinAmountOut)).toString() : '0',
+		min_amount_out: finalMinAmountOut.toString(),
 		recipient: destinationRecipient ?? caller
 	};
 	if (destinationChain) {

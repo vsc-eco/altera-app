@@ -40,6 +40,7 @@
 	import { isEvmBridgeCoin } from '$lib/magiTransactions/evmBridge';
 	import { isAddress } from 'viem';
 	import { getUsernameFromAuth } from '$lib/getAccountName';
+	import { magiRecipient } from '$lib/sendswap/utils/magiRecipient';
 	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
 	import { EVM_BRIDGE_ENABLED, numberFormatLanguage } from '$lib/constants';
@@ -578,7 +579,30 @@ let expectedOutputUsd = $derived.by(() => {
 			// 0x address would fail the whole swap on chain.
 			return isAddress(addr) && !/^0x0{40}$/i.test(addr);
 		}
-		return true;
+		return !recipientError;
+	});
+
+	/**
+	 * Why the typed receiver cannot be paid, for a swap kept on Magi or paid
+	 * on Hive (null when it can). Strict (magiRecipient): a mistyped 0x
+	 * checksum would re-checksum to an address nobody owns, "@bob" or an
+	 * unknown string used to fail on chain or quietly pay the sender.
+	 */
+	const recipientError = $derived.by<string | null>(() => {
+		if (destChoice !== 'address') return null;
+		const addr = destAddress.trim();
+		if (!addr) return null;
+		const to = txState.to;
+		if (!to) return null;
+		if (destNetworkChoice === 'magi') {
+			const r = magiRecipient(addr, isVscTestnet());
+			return r.ok ? null : r.error;
+		}
+		if (to.network.value === Network.hiveMainnet.value) {
+			const r = magiRecipient(addr, isVscTestnet());
+			return r.ok && r.did.startsWith('hive:') ? null : 'Enter a Hive account to receive on Hive.';
+		}
+		return null;
 	});
 
 	/**
@@ -1603,8 +1627,15 @@ let expectedOutputUsd = $derived.by(() => {
 				{:else}
 					<p class="dest-hint sm-caption">
 						{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi' ? 'Magi' : chainLabel} &mdash;
-						accepts Hive, BTC, EVM or DASH addresses
+						{destNetworkChoice === 'magi'
+							? 'a Hive account, an Ethereum 0x address or a Bitcoin address'
+							: txState.to?.network.value === Network.btcMainnet.value
+								? 'a Bitcoin address'
+								: 'a Hive account'}
 					</p>
+					{#if recipientError}
+						<p class="dest-hint sm-caption dest-error">{recipientError}</p>
+					{/if}
 				{/if}
 			</div>
 		</div>

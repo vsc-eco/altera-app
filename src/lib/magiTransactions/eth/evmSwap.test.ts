@@ -5,6 +5,7 @@ import {
 	EVM_APPROVE_RC_LIMIT,
 	EVM_SWAP_MAX_RC,
 	EVM_SWAP_MIN_RC,
+	EVM_TWO_HOP_SWAP_MIN_RC,
 	headerRcLimit
 } from './evmSwap';
 import {
@@ -43,8 +44,20 @@ describe('evmSwapRcLimit', () => {
 		expect(evmSwapRcLimit(100_000, 5000, 0, false)).toEqual({ ok: true, rcLimit: EVM_SWAP_MAX_RC });
 	});
 	it('leaves an HBD input spendable (the node reserves the limit out of the HBD)', () => {
-		// 12 HBD held, 10 HBD swapped: a limit of 10,000 would reserve it out from under the pull.
-		expect(evmSwapRcLimit(12_000, 10_000, 0, false)).toEqual({ ok: true, rcLimit: 2000 });
+		// 12.5 HBD held, 10 HBD swapped: a limit of 10,000 would reserve it out from under the pull.
+		expect(evmSwapRcLimit(12_500, 10_000, 0, false)).toEqual({ ok: true, rcLimit: 2500 });
+	});
+	it('a one-hop swap needs 1,400 spendable, a two-hop one 2,200 (1.5x the measured cost)', () => {
+		expect(evmSwapRcLimit(1_500, 0, 0, false)).toEqual({ ok: true, rcLimit: 1500 });
+		expect(evmSwapRcLimit(1_399, 0, 0, false)).toMatchObject({ ok: false, needed: 1400 });
+		expect(evmSwapRcLimit(2_000, 0, 0, false, undefined, EVM_TWO_HOP_SWAP_MIN_RC)).toMatchObject({
+			ok: false,
+			needed: 2200
+		});
+		expect(evmSwapRcLimit(2_200, 0, 0, false, undefined, EVM_TWO_HOP_SWAP_MIN_RC)).toEqual({
+			ok: true,
+			rcLimit: 2200
+		});
 	});
 	it('leaves room for the allowance op in the header', () => {
 		expect(evmSwapRcLimit(5000, 0, EVM_APPROVE_RC_LIMIT, false)).toEqual({

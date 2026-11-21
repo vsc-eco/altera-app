@@ -111,6 +111,21 @@ describe('send(): a Hive wallet swapping its Magi balance', () => {
 		expect(r.toLowerCase()).toBe(`did:pkh:eip155:1:${ETH_TO}`);
 	});
 
+	it('Send to address on Magi with a mistyped checksum is refused before signing', async () => {
+		const res = await run(
+			swap({ from: Coin.hbd, to: Coin.usdc, toNet: Network.magi, fromAmount: '1', toAmount: '0.9', toUsername: '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAee', min: '900000' })
+		);
+		expect(String(res)).toMatch(/checksum/);
+		expect(exec).not.toHaveBeenCalled();
+	});
+
+	it('Send to address on Magi with "@bob" pays hive:bob, never hive:@bob', async () => {
+		await run(
+			swap({ from: Coin.hbd, to: Coin.usdc, toNet: Network.magi, fromAmount: '1', toAmount: '0.9', toUsername: '@bob', min: '900000' })
+		);
+		expect(JSON.parse(calls()[0].payload).recipient).toBe('hive:bob');
+	});
+
 	it('USDC on Magi -> HIVE kept on Magi: allowance on the EVM bridge for usdc, then the router', async () => {
 		await run(
 			swap({ from: Coin.usdc, to: Coin.hive, toNet: Network.magi, fromAmount: '5', toAmount: '60', toUsername: 'alice', min: '59000' })
@@ -136,10 +151,12 @@ describe('send(): a Hive wallet swapping its Magi balance', () => {
 
 	it('ETH paid out on Ethereum from USDC: allowance for usdc, destination ETH', async () => {
 		await run(
-			swap({ from: Coin.usdc, to: Coin.eth, toNet: Network.ethMainnet, fromAmount: '50', toAmount: '0.02', toUsername: ETH_TO, min: '19000000000000000' })
+			swap({ from: Coin.usdc, to: Coin.eth, toNet: Network.ethMainnet, fromAmount: '50', toAmount: '0.02', toUsername: ETH_TO, min: '19000000000000077' })
 		);
 		const [approve, router] = calls();
 		expect(JSON.parse(approve.payload).asset).toBe('usdc');
+		// Exact to the wei: a Number would have rounded it (2^53 < 1.9e16).
+		expect(JSON.parse(router.payload).min_amount_out).toBe('19000000000000077');
 		expect(JSON.parse(router.payload)).toMatchObject({ asset_in: 'USDC', asset_out: 'ETH', destination_chain: 'ETH', recipient: ETH_TO });
 	});
 

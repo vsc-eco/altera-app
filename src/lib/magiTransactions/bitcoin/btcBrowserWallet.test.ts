@@ -149,3 +149,47 @@ describe('btcAddressNetwork', () => {
 		expect(btcAddressNetwork('0x1234')).toBe(null);
 	});
 });
+
+describe('the wallet must be on Bitcoin mainnet', () => {
+	const base = { recipient: DEPOSIT, amountSats: 50_000, network: 'mainnet' as const };
+	it('Unisat on Fractal Bitcoin (also bc1 addresses) is refused before any send', async () => {
+		const sendBitcoin = vi.fn(async () => TXID);
+		const w = {
+			unisat: {
+				requestAccounts: vi.fn(async () => [PAYER]),
+				sendBitcoin,
+				getChain: vi.fn(async () => ({ enum: 'FRACTAL_BITCOIN_MAINNET' }))
+			}
+		};
+		await expect(sendBtcFromBrowserWallet({ ...base, walletId: 'unisat' }, w)).rejects.toThrow(
+			/another chain/
+		);
+		expect(sendBitcoin).not.toHaveBeenCalled();
+	});
+	it('Xverse reporting testnet4 is refused; reporting Mainnet goes ahead', async () => {
+		const mk = (name: string) => {
+			const request = vi.fn(async (method: string) => {
+				if (method === 'getAccounts') return { result: [{ address: PAYER, purpose: 'payment' }] };
+				if (method === 'wallet_getNetwork') return { result: { bitcoin: { name } } };
+				return { result: { txid: TXID } };
+			});
+			return { XverseProviders: { BitcoinProvider: { request } }, request };
+		};
+		const t = mk('Testnet4');
+		await expect(sendBtcFromBrowserWallet({ ...base, walletId: 'xverse' }, t)).rejects.toThrow(
+			/Bitcoin testnet/
+		);
+		expect(t.request.mock.calls.some((c) => c[0] === 'sendTransfer')).toBe(false);
+		const m = mk('Mainnet');
+		await expect(sendBtcFromBrowserWallet({ ...base, walletId: 'xverse' }, m)).resolves.toMatchObject({
+			txid: TXID
+		});
+	});
+	it('a payment address of no known network is refused', async () => {
+		const w = leather({ from: 'not-an-address' });
+		await expect(sendBtcFromBrowserWallet({ ...base, walletId: 'leather' }, w)).rejects.toThrow(
+			/not a Bitcoin mainnet address/
+		);
+	});
+});
+

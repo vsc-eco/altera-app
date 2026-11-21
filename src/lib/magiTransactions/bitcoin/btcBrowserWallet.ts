@@ -30,6 +30,10 @@ type RpcProvider = { request: (method: string, params?: unknown) => Promise<unkn
 type UnisatProvider = {
 	requestAccounts: () => Promise<string[]>;
 	sendBitcoin: (address: string, sats: number) => Promise<string>;
+	/** { enum: 'BITCOIN_MAINNET' | 'BITCOIN_TESTNET' | 'FRACTAL_BITCOIN_MAINNET' | ... } */
+	getChain?: () => Promise<{ enum?: string }>;
+	/** 'livenet' | 'testnet' (older API) */
+	getNetwork?: () => Promise<string>;
 };
 
 const NAMES: Record<BtcBrowserWalletId, string> = {
@@ -114,6 +118,45 @@ async function paymentAddress(id: BtcBrowserWalletId, p: RpcProvider | UnisatPro
 }
 
 /**
+ * The chain the wallet says it is on, when it can say (Unisat getChain /
+ * getNetwork, Xverse wallet_getNetwork); null when it does not answer, and
+ * the address check above stands alone.
+ */
+async function walletChain(
+	id: BtcBrowserWalletId,
+	p: RpcProvider | UnisatProvider
+): Promise<'mainnet' | 'testnet' | 'other' | null> {
+	try {
+		if (id === 'unisat') {
+			const u = p as UnisatProvider;
+			if (typeof u.getChain === 'function') {
+				const e = String((await u.getChain())?.enum ?? '');
+				if (!e) return null;
+				if (e === 'BITCOIN_MAINNET') return 'mainnet';
+				if (/^BITCOIN_(TESTNET|TESTNET4|SIGNET)$/.test(e)) return 'testnet';
+				return 'other'; // FRACTAL_BITCOIN_MAINNET and the like
+			}
+			if (typeof u.getNetwork === 'function') {
+				const n = await u.getNetwork();
+				return n === 'livenet' ? 'mainnet' : n ? 'testnet' : null;
+			}
+			return null;
+		}
+		if (id === 'xverse') {
+			const r = unwrap(await (p as RpcProvider).request('wallet_getNetwork')) as {
+				bitcoin?: { name?: string };
+			};
+			const n = String(r?.bitcoin?.name ?? '').toLowerCase();
+			if (!n) return null;
+			return n === 'mainnet' ? 'mainnet' : /testnet|signet|regtest/.test(n) ? 'testnet' : 'other';
+		}
+		return null; // Leather: the sendTransfer `network` field pins the chain
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Sends `amountSats` to `recipient` from the chosen wallet and returns the
  * Bitcoin txid. Refuses before the wallet is asked to sign when the amount is
  * under the bridge minimum, the recipient is not an address of `network`, or
@@ -154,9 +197,19 @@ export async function sendBtcFromBrowserWallet(
 	}
 	if (!from) throw new Error(`${name} gave no Bitcoin payment address.`);
 	const fromNet = btcAddressNetwork(from);
-	if (fromNet && fromNet !== network) {
+	if (fromNet !== network) {
 		throw new Error(
-			`${name} is on Bitcoin ${fromNet}, the deposit address is on ${network}: switch ${name} to ${network} first.`
+			fromNet
+				? `${name} is on Bitcoin ${fromNet}, the deposit address is on ${network}: switch ${name} to ${network} first.`
+				: `${name}'s address (${from}) is not a Bitcoin ${network} address.`
+		);
+	}
+	// An address cannot tell every chain apart (Fractal Bitcoin and Bitcoin
+	// both use bc1; testnet4 and signet look like testnet): ask the wallet.
+	const chain = await walletChain(walletId, p);
+	if (chain && chain !== network) {
+		throw new Error(
+			`${name} is set to ${chain === 'other' ? 'another chain' : `Bitcoin ${chain}`}, not Bitcoin ${network}: switch it first. Nothing was sent.`
 		);
 	}
 

@@ -46,8 +46,14 @@ export function headerRcLimit(txs: Transaction[]): number {
 export const EVM_APPROVE_RC_LIMIT = 1000;
 /** The most a swap that stays on Magi declares. */
 export const EVM_SWAP_MAX_RC = 10_000;
-/** Below this a swap that stays on Magi is refused before signing. */
-export const EVM_SWAP_MIN_RC = 1000;
+/** Below this a one-hop swap that stays on Magi is refused before signing.
+ *  1.5x the most a one-hop swap used in mainnet dry runs on 11-21 (BTC->HBD
+ *  896 RC; HBD->BTC 630, ETH->HBD 856). A call that runs out of RC is charged
+ *  its whole rc_limit, so a smaller floor let it fail and cost the account. */
+export const EVM_SWAP_MIN_RC = 1400;
+/** The same for a two-hop swap (through HBD): 1.5x the 1,465 RC an ETH->BTC
+ *  swap kept on Magi used (USDC->BTC 1,440, HIVE->USDC 907). */
+export const EVM_TWO_HOP_SWAP_MIN_RC = 2200;
 
 /**
  * The swap's rc_limit for an EVM account. It has no free RC, so the node reserves the
@@ -65,16 +71,18 @@ export function evmSwapRcLimit(
 	hbdPulledFromMagi: number,
 	approveRc: number,
 	btcPayout: boolean,
-	btcPayoutMinRc: number = BTC_PAYOUT_SWAP_MIN_RC
+	btcPayoutMinRc: number = BTC_PAYOUT_SWAP_MIN_RC,
+	/** EVM_TWO_HOP_SWAP_MIN_RC for a pair routed through HBD. */
+	swapMinRc: number = EVM_SWAP_MIN_RC
 ): RcSizing {
 	const afterApprove = available - approveRc;
 	if (btcPayout) return btcPayoutSwapRcLimit(afterApprove, hbdPulledFromMagi, btcPayoutMinRc);
 	const spendable = Math.floor(afterApprove - Math.max(0, hbdPulledFromMagi));
-	if (spendable < EVM_SWAP_MIN_RC) {
+	if (spendable < swapMinRc) {
 		return {
 			ok: false,
 			reason: 'insufficient-rc',
-			needed: EVM_SWAP_MIN_RC,
+			needed: swapMinRc,
 			available: Math.max(0, spendable)
 		};
 	}

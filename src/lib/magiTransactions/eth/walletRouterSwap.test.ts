@@ -412,11 +412,25 @@ describe('walletSwapFromMagi: which /swap sends are swaps', () => {
 		expect(r && !('error' in r) && r.destinationChain).toBe(undefined);
 	});
 
-	it('resolves an EVM account to its DID rather than prefixing hive:', () => {
-		const r = walletSwapFromMagi({ ...base, toUsername: EVM });
+	it('resolves another EVM account to its checksummed DID rather than prefixing hive:', () => {
+		const other = '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed';
+		const r = walletSwapFromMagi({ ...base, toUsername: other });
 		const recipient = r && !('error' in r) ? r.recipient : undefined;
-		expect(recipient).toMatch(/^did:pkh:eip155:/);
-		expect(recipient).not.toMatch(/^hive:/);
+		expect(recipient).toBe('did:pkh:eip155:1:0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed');
+	});
+
+	it('the signed-in account itself (Keep on Magi) leaves the recipient to the caller', () => {
+		const r = walletSwapFromMagi({ ...base, toUsername: EVM });
+		expect(r && !('error' in r) && r.recipient).toBe(undefined);
+	});
+
+	it('a mistyped checksum or an unknown receiver is refused, never paid', () => {
+		expect(
+			walletSwapFromMagi({ ...base, toUsername: '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAee' })
+		).toMatchObject({ error: expect.stringMatching(/checksum/) });
+		expect(walletSwapFromMagi({ ...base, toUsername: '@Bob' })).toMatchObject({
+			error: expect.stringMatching(/lower case/)
+		});
 	});
 
 	it('USDC paid out on Ethereum: destination ETH, the 0x address as entered', () => {

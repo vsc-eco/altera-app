@@ -315,7 +315,13 @@
 								<span>{pool.priceRatio}</span>
 								<span>{pool.priceInverse}</span>
 								<span class="price-usd">
-									{pool.priceUsd[0]}, {pool.priceUsd[1]}
+									<!-- In the order the name and icons show (HBD second); priceUsd
+									     is in asset0/asset1 order. -->
+									{#if pool.displaySymbols[0] === pool.pairSymbols[0]}
+										{pool.priceUsd[0]}, {pool.priceUsd[1]}
+									{:else}
+										{pool.priceUsd[1]}, {pool.priceUsd[0]}
+									{/if}
 								</span>
 							</div>
 						</td>

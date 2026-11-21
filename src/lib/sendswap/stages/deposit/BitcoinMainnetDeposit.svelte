@@ -95,13 +95,26 @@
 			});
 	});
 
+	// The account the shown address belongs to (deposit_to=<did>). After a
+	// switch of account on this page the old address stayed, and a send (now
+	// also from a browser wallet) credited the previous account.
+	let addressFor: string | null = null;
 	$effect(() => {
-		if (!auth.value || btcAddress || addressLoading) return;
+		const did = auth.value?.did;
+		if (!did) return;
+		if (addressFor !== null && addressFor !== did) {
+			btcAddress = null;
+			addressError = null;
+			addressFor = null;
+			pickedWallet = null;
+		}
+		if (btcAddress || addressLoading) return;
 		fetchAddress();
 	});
 
 	async function fetchAddress() {
 		if (!auth.value) return;
+		const did = auth.value.did;
 		addressLoading = true;
 		addressError = null;
 		try {
@@ -117,7 +130,7 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					instruction: `deposit_to=${auth.value.did}`,
+					instruction: `deposit_to=${did}`,
 					network: isVscTestnet() ? 'testnet' : 'mainnet'
 				})
 			});
@@ -127,7 +140,10 @@
 			}
 			const { address } = (await response.json()) as { address: string };
 			if (!address) throw new Error('Mapping bot returned no address');
+			// The account changed while this was in flight: not its address.
+			if (auth.value?.did !== did) return;
 			btcAddress = address;
+			addressFor = did;
 		} catch (err) {
 			addressError = err instanceof Error ? err.message : String(err);
 		} finally {

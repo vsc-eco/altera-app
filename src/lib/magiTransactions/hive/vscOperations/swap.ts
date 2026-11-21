@@ -76,6 +76,10 @@ export async function qualifiesForAlteraFee(
  */
 export const SWAP_CONTRACT_ID = DEX_ROUTER_CONTRACT_ID;
 
+/** rc_limit of a swap kept on Magi signed by a Hive wallet (see getHiveSwapOp). */
+export const SWAP_ONE_HOP_RC_LIMIT = 1400;
+export const SWAP_TWO_HOP_RC_LIMIT = 2400;
+
 /**
  * A router swap goes out only with the quote's min_amount_out. Without a quote
  * (pool prices did not load) the router would take any price, and the pool fee
@@ -200,11 +204,16 @@ export async function getHiveSwapOp(
 		? (minBig * BigInt(10000 - ALTERA_FEE_BPS)) / 10000n
 		: minBig;
 
-	// A swap kept on Magi. Mainnet dry runs 11-21: a two-hop swap through HBD
-	// uses up to 1,440 RC (USDC->BTC), 2,000 left 1.39x; a call that runs out
-	// is charged its whole rc_limit, so this keeps 1.5x+ (only what is used is
-	// charged otherwise).
-	let rcLimit = 3000;
+	// A swap kept on Magi, sized by its route (mainnet dry runs 11-21): one hop
+	// used at most 896 RC (BTC->HBD), two hops through HBD at most 1,550
+	// (BTC->ETH); 1.5x each, as a call that runs out is charged its whole
+	// rc_limit. The node also keeps rc_limit/1000 HBD back from an HBD input
+	// once the free RC is spent (measured: 2,000 left 20.193 of 22.193 HBD
+	// swappable, 3,000 only 19.193), so the limit stays low where HBD goes in:
+	// an HBD input is always one hop (1,400, below the 2,000 it had).
+	const twoHop =
+		assetIn.value.toLowerCase() !== Coin.hbd.value && assetOut.value.toLowerCase() !== Coin.hbd.value;
+	let rcLimit = twoHop ? SWAP_TWO_HOP_RC_LIMIT : SWAP_ONE_HOP_RC_LIMIT;
 	const payload: Record<string, string | number> = {
 		type: 'swap',
 		version: '1.0.0',

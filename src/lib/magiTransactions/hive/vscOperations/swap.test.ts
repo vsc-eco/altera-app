@@ -39,9 +39,15 @@ describe('getHiveSwapOp rc_limit', () => {
 		expect(await rcLimitOf('HIVE', 50_000)).toBe(10_000);
 	});
 
-	// 3,000 since 11-21 (was 2,000): a two-hop swap kept on Magi used 1,440 RC
-	// in a mainnet dry run (USDC->BTC), under the 1.5x margin at 2,000.
-	it('gives a swap that stays on Magi 3,000', async () => {
-		expect(await rcLimitOf(undefined, 50_000)).toBe(3_000);
+	// 11-21: by route (one hop 1,400, two 2,400; 1.5x the measured cost). An
+	// HBD input is one hop and the node keeps rc_limit/1000 HBD back from it, so
+	// 1,400 (below the old 2,000) leaves more of the balance swappable.
+	it('gives a two-hop swap that stays on Magi 2,400 (HIVE->BTC goes through HBD)', async () => {
+		expect(await rcLimitOf(undefined, 50_000)).toBe(2_400);
+	});
+
+	it('gives a one-hop swap that stays on Magi 1,400, so an HBD input keeps less HBD back', async () => {
+		const op = await getHiveSwapOp('audiohive-me', new CoinAmount('20', Coin.hbd), Coin.hbd, Coin.btc, 1454);
+		expect(JSON.parse(op[1].json).rc_limit).toBe(1_400);
 	});
 });

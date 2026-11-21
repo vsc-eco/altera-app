@@ -4,6 +4,12 @@ import { getDidFromUsername } from '$lib/getAccountName';
 
 export type MagiRecipient = { ok: true; did: string } | { ok: false; error: string };
 
+/** A valid Ethereum address: checksummed, or all lower / all upper case
+ *  (EIP-55's unchecksummed forms; viem's isAddress refuses all upper case). */
+export function isEthAddress(s: string): boolean {
+	return isAddress(s) || /^0x[0-9A-F]{40}$/.test(s);
+}
+
 /** The same Magi account: an Ethereum address compares without case (its
  *  checksum is only casing), anything else exactly. */
 export function sameMagiAccount(a: string, b: string): boolean {
@@ -36,19 +42,19 @@ export function magiRecipient(raw: string, btcTestnet = false): MagiRecipient {
 
 	const evm = s.match(/^did:pkh:eip155:(\d+):(0x[0-9a-fA-F]{40})$/);
 	if (evm) {
-		if (!isAddress(evm[2])) {
+		if (!isEthAddress(evm[2])) {
 			return { ok: false, error: 'Not a valid Ethereum address: check its checksum.' };
 		}
-		return { ok: true, did: `did:pkh:eip155:${evm[1]}:${getAddress(evm[2])}` };
+		return { ok: true, did: `did:pkh:eip155:${evm[1]}:${getAddress(evm[2].toLowerCase())}` };
 	}
 	if (/^0x/i.test(s)) {
-		if (!isAddress(s)) {
+		if (!isEthAddress(s)) {
 			return {
 				ok: false,
 				error: 'Not a valid Ethereum address: 0x and 40 hex characters, checksum included.'
 			};
 		}
-		return { ok: true, did: `did:pkh:eip155:1:${getAddress(s)}` };
+		return { ok: true, did: `did:pkh:eip155:1:${getAddress(s.toLowerCase())}` };
 	}
 
 	const btcNet = btcTestnet ? BtcNetwork.testnet : BtcNetwork.mainnet;

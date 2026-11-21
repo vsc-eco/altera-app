@@ -28,6 +28,13 @@ describe('magiRecipient ("Send to address" on Magi)', () => {
 		});
 	});
 
+	it('an all-upper-case 0x address is valid (EIP-55 unchecksummed) and paid checksummed', () => {
+		expect(magiRecipient('0x' + GOOD.slice(2).toUpperCase())).toEqual({
+			ok: true,
+			did: `did:pkh:eip155:1:${GOOD}`
+		});
+	});
+
 	it('a Bitcoin address becomes its did:pkh:bip122', () => {
 		const r = magiRecipient('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
 		expect(r).toMatchObject({ ok: true, did: expect.stringMatching(/^did:pkh:bip122:.*:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq$/) });

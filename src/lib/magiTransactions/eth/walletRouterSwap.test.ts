@@ -212,9 +212,9 @@ describe('buildWalletRouterSwapOps: the swap QuickSwap has always sent', () => {
 				destinationChain: 'ETH',
 				recipient: '0x00000000000000000000000000000000000000b2'
 			},
-			{ feeQualifies: false, availableRc: 7_500 }
+			{ feeQualifies: false, availableRc: 6_000 }
 		);
-		// 7,500 - the 1,000 RC approve leaves 6,500, under the 7,000 minimum.
+		// 6,000 - the 1,000 RC approve leaves 5,000, under the 5,500 minimum.
 		expect(r.ok).toBe(false);
 		if (!r.ok) expect(r.error).toMatch(/Not enough RC to pay out to an Ethereum address/);
 	});

@@ -185,6 +185,17 @@ describe('the wallet must be on Bitcoin mainnet', () => {
 			txid: TXID
 		});
 	});
+	it('a chain name the code does not know is not a refusal (fail open to the address check)', async () => {
+		const request = vi.fn(async (method: string) => {
+			if (method === 'getAccounts') return { result: [{ address: PAYER, purpose: 'payment' }] };
+			if (method === 'wallet_getNetwork') return { result: { bitcoin: { name: 'BitcoinMain' } } };
+			return { result: { txid: TXID } };
+		});
+		await expect(
+			sendBtcFromBrowserWallet({ ...base, walletId: 'xverse' }, { XverseProviders: { BitcoinProvider: { request } } })
+		).resolves.toMatchObject({ txid: TXID });
+	});
+
 	it('a payment address of no known network is refused', async () => {
 		const w = leather({ from: 'not-an-address' });
 		await expect(sendBtcFromBrowserWallet({ ...base, walletId: 'leather' }, w)).rejects.toThrow(

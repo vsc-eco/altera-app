@@ -161,8 +161,8 @@ describe('send(): a Hive wallet swapping its Magi balance', () => {
 	});
 
 	it('an Ethereum payout the account cannot pay RC for is refused before signing', async () => {
-		rc = 6_000;
-		setRc(6_000);
+		rc = 5_000;
+		setRc(5_000);
 		const res = await run(
 			swap({ from: Coin.hbd, to: Coin.usdc, toNet: Network.ethMainnet, fromAmount: '10', toAmount: '9.4', toUsername: ETH_TO, min: '9000000' })
 		);

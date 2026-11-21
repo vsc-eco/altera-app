@@ -133,8 +133,11 @@ async function walletChain(
 				const e = String((await u.getChain())?.enum ?? '');
 				if (!e) return null;
 				if (e === 'BITCOIN_MAINNET') return 'mainnet';
-				if (/^BITCOIN_(TESTNET|TESTNET4|SIGNET)$/.test(e)) return 'testnet';
-				return 'other'; // FRACTAL_BITCOIN_MAINNET and the like
+				if (/TESTNET|SIGNET|REGTEST/.test(e)) return 'testnet';
+				if (/FRACTAL/.test(e)) return 'other';
+				// A name not known here: the address check stands alone, rather
+				// than refuse a wallet that is in fact on mainnet.
+				return null;
 			}
 			if (typeof u.getNetwork === 'function') {
 				const n = await u.getNetwork();
@@ -148,7 +151,9 @@ async function walletChain(
 			};
 			const n = String(r?.bitcoin?.name ?? '').toLowerCase();
 			if (!n) return null;
-			return n === 'mainnet' ? 'mainnet' : /testnet|signet|regtest/.test(n) ? 'testnet' : 'other';
+			if (n === 'mainnet') return 'mainnet';
+			if (/testnet|signet|regtest/.test(n)) return 'testnet';
+			return null; // unknown name: the address check stands alone
 		}
 		return null; // Leather: the sendTransfer `network` field pins the chain
 	} catch {

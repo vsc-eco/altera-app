@@ -108,7 +108,10 @@
 			addressFor = null;
 			pickedWallet = null;
 		}
-		if (btcAddress || addressLoading) return;
+		// A failed fetch is retried after 5 s (below), not at once: the effect
+		// re-ran on addressLoading going false and requested again in a loop
+		// for as long as the mapping bot kept failing.
+		if (btcAddress || addressLoading || addressError) return;
 		fetchAddress();
 	});
 
@@ -146,6 +149,9 @@
 			addressFor = did;
 		} catch (err) {
 			addressError = err instanceof Error ? err.message : String(err);
+			setTimeout(() => {
+				if (auth.value?.did === did) addressError = null; // retried by the effect
+			}, 5000);
 		} finally {
 			addressLoading = false;
 		}

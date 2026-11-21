@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { Layers, ArrowUpDown, BarChart2, ChevronUp, ChevronDown, Plus, Minus } from '@lucide/svelte';
-	import { fetchPools, fetchMyPoolPositions, poolKind, type TimeRange } from './poolsData';
+	import {
+		cachedPools,
+		fetchPools,
+		fetchMyPoolPositions,
+		poolKind,
+		type TimeRange
+	} from './poolsData';
 	import type { PoolRow, MyPoolRow, PoolKind } from './poolsData';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
@@ -57,20 +63,37 @@
 		pools.filter((p) => myPools.some((mp) => mp.contractId === p.contractId))
 	);
 
+	// True while the rows on screen are the last list kept from a previous
+	// load (cachedPools) and fresh numbers are on their way. Add/Remove stay
+	// disabled meanwhile: the liquidity dialogs compute with a row's reserves.
+	// Stays true when the refresh fails, rather than act on old reserves.
+	let refreshing = $state(false);
+
 	$effect(() => {
 		const range = timeRange;
 		// Read synchronously so the effect tracks it; reading `kind` inside the
 		// `.then` callback would leave this effect subscribed to `timeRange` only.
 		const wanted = kind;
 		let cancelled = false;
-		loading = true;
+		const cached = cachedPools(range);
+		if (cached) {
+			pools = cached.filter((p) => poolKind(p) === wanted);
+			loading = false;
+			refreshing = true;
+		} else {
+			loading = true;
+		}
 		fetchPools(range).then((result) => {
 			// Guard against out-of-order resolves: if the range changed while
 			// this fetch was in flight, drop the stale result so it can't
 			// overwrite the newer range's numbers.
 			if (cancelled) return;
+			// A failed fetch returns []: keep the last list (still refreshing)
+			// instead of blanking the page.
+			if (result.length === 0 && cached) return;
 			pools = result.filter((p) => poolKind(p) === wanted);
 			loading = false;
+			refreshing = false;
 		});
 		return () => {
 			cancelled = true;
@@ -169,6 +192,9 @@
 			bind:value={searchQuery}
 			aria-label="Search pools"
 		/>
+		{#if refreshing}
+			<span class="refresh-note" aria-live="polite">Updating…</span>
+		{/if}
 		<div class="time-filters" role="group" aria-label="Time range">
 			{#each timeRangeLabels as tr}
 				<button
@@ -326,11 +352,11 @@
 									type="button"
 									class="row-action row-action-primary"
 									aria-label="Add liquidity to {pool.pair}"
-									disabled={addBlocked}
-									title={addHint}
+									disabled={addBlocked || refreshing}
+									title={refreshing ? 'Updating the pool numbers…' : addHint}
 									onclick={(e) => {
 										e.stopPropagation();
-										if (addBlocked) return;
+										if (addBlocked || refreshing) return;
 										openAddForPool(pool);
 									}}
 								>
@@ -342,8 +368,11 @@
 										type="button"
 										class="row-action row-action-outline"
 										aria-label="Remove liquidity from {pool.pair}"
+										disabled={refreshing}
+										title={refreshing ? 'Updating the pool numbers…' : undefined}
 										onclick={(e) => {
 											e.stopPropagation();
+											if (refreshing) return;
 											openRemoveForPool(pool);
 										}}
 									>
@@ -446,6 +475,11 @@
 {/if}
 
 <style lang="scss">
+	.refresh-note {
+		font-size: 0.75rem;
+		color: var(--dash-text-muted, rgba(255, 255, 255, 0.6));
+		align-self: center;
+	}
 	.pools-content {
 		display: flex;
 		flex-direction: column;

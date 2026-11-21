@@ -303,10 +303,7 @@
 										<span class="icon icon-b">{pool.displaySymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
-								<span class="pair-name">
-									<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
-									{#if network}<span class="pair-network" title={network.full}>{network.short}</span>{/if}
-								</span>
+								<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
 								{#if deprecated}
 									<span class="deprecated-tag">deprecated</span>
 								{:else if unregistered}
@@ -315,6 +312,7 @@
 									<span class="deprecated-tag unregistered-tag" title={addHint}>not on dex</span>
 								{/if}
 							</div>
+							{#if network}<div class="pair-network">{network}</div>{/if}
 						</td>
 						<td class="col-price">
 							<div class="price-cell">
@@ -450,11 +448,9 @@
 										<span class="icon icon-b">{row.displaySymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
-								<span class="pair-name">
-									<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}>{row.pair}</span>
-									{#if network}<span class="pair-network" title={network.full}>{network.short}</span>{/if}
-								</span>
+								<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}>{row.pair}</span>
 							</div>
+							{#if network}<div class="pair-network">{network}</div>{/if}
 						</td>
 						<td class="col-share">
 							<span class="share-pct">{row.sharePct.toFixed(4)}%</span>
@@ -663,16 +659,14 @@
 		font-weight: 500;
 		color: var(--dash-text-primary);
 	}
-	/* The network an ETH/USDC pool's tokens are on, under the pair: a second
-	   line in a row the price and fee columns already make taller, and a short
-	   name no wider than the pair's, so the Pair column keeps its width. */
-	.pair-name {
-		display: flex;
-		flex-direction: column;
-		line-height: 1.2;
-	}
+	/* The network an ETH/USDC pool's tokens are on, on its own line under the
+	   icons and the pair: narrower than the pair row above it, so the Pair
+	   column keeps its width, in a row the price and fee columns already make
+	   taller. */
 	.pair-network {
+		margin-top: 0.25rem;
 		font-size: 0.6875rem;
+		line-height: 1.2;
 		color: var(--dash-text-muted);
 		white-space: nowrap;
 	}

@@ -76,7 +76,10 @@ export function activeFilterCount(f: TxFilters): number {
 export const TOKEN_OPTIONS = [
 	{ value: 'hive', label: 'HIVE' },
 	{ value: 'hbd', label: 'HBD' },
-	{ value: 'btc', label: 'BTC' }
+	{ value: 'btc', label: 'BTC' },
+	// The EVM bridge's assets (their deposits, withdrawals and swaps).
+	{ value: 'eth', label: 'ETH' },
+	{ value: 'usdc', label: 'USDC' }
 ] as const;
 
 /** Operation/ledger types the filter offers. Values match both
@@ -110,7 +113,11 @@ const ASSET_DECIMALS: Record<string, number> = {
 	hive: 3,
 	hbd: 3,
 	btc: 8,
-	sats: 0
+	sats: 0,
+	// The EVM bridge's assets (wei; USDC's 6 places), so the amount filter
+	// reads their rows too.
+	eth: 18,
+	usdc: 6
 };
 
 /** "hbd_savings" → "hbd"; "HIVE" → "hive". */
@@ -145,6 +152,17 @@ type TxEntry = {
 };
 
 function entriesOf(item: TxListItem): TxEntry[] {
+	if (item.kind === 'evm-deposit') {
+		return [
+			{
+				asset: item.event.asset,
+				amountHuman: toHumanAmount(item.event.amount, item.event.asset),
+				from: item.event.sender ?? '',
+				to: item.event.recipient ?? '',
+				type: 'deposit'
+			}
+		];
+	}
 	if (item.kind === 'btc-deposit') {
 		return [
 			{
@@ -184,7 +202,7 @@ function entriesOf(item: TxListItem): TxEntry[] {
 }
 
 export function itemTimestampMs(item: TxListItem): number {
-	if (item.kind === 'btc-deposit') {
+	if (item.kind === 'btc-deposit' || item.kind === 'evm-deposit') {
 		const ts = item.event.indexer_ts;
 		return new Date(ts.endsWith('Z') ? ts : ts + 'Z').getTime();
 	}

@@ -85,6 +85,7 @@
 	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 	import QRCode from 'qrcode';
 	import DepositAddressNotice from '$lib/sendswap/components/DepositAddressNotice.svelte';
+	import { ETH_NETWORK, ETH_PAYOUT_NOTE } from '$lib/sendswap/utils/ethNetworkCopy';
 	import {
 		buildBtcSwapInstruction,
 		hiveAccountExists,
@@ -1513,7 +1514,7 @@
 				type="text"
 				required
 				bind:value={txState.toUsername}
-				placeholder={evmPayout ? 'Ethereum address (0x...)' : 'username or address'}
+				placeholder={evmPayout ? `${ETH_NETWORK} address (0x...)` : 'username or address'}
 				autocomplete="off"
 				spellcheck="false"
 			/>
@@ -1521,7 +1522,7 @@
 		{#if evmPayout}
 			{@const unit = evmPayout.coin.label}
 			<p class="receiver-hint">
-				Paid to this Ethereum address by the bridge. Its proving fee ({shortUnits(
+				Paid to this address on {ETH_NETWORK} by the bridge. {ETH_PAYOUT_NOTE} Its proving fee ({shortUnits(
 					evmPayout.proofFee,
 					evmPayout.coin.decimalPlaces
 				)}

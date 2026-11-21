@@ -22,11 +22,27 @@ import {
 export type { TimeRange, UserLpPosition, PoolRegistryEntry } from '$lib/indexer/poolQueries';
 export { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from '$lib/indexer/poolQueries';
 
+/**
+ * The two symbols in DISPLAY order: HBD always second ("ETH:HBD", "HIVE:HBD",
+ * "USDC:HBD"), as the owner wants pool names to read. Display only: the pool's
+ * own asset order (pairSymbols = asset0/asset1, alphabetical) still drives
+ * every amount, payload and balance, and is never reordered.
+ */
+export function hbdSecond(symbols: readonly [string, string]): [string, string] {
+	return symbols[0].toLowerCase() === 'hbd' && symbols[1].toLowerCase() !== 'hbd'
+		? [symbols[1], symbols[0]]
+		: [symbols[0], symbols[1]];
+}
+
 export interface PoolRow {
 	id: string;
 	contractId: string;
+	/** Display label, HBD second (hbdSecond). Never parse it for the asset order. */
 	pair: string;
+	/** The pool's asset0/asset1 order (alphabetical): amounts, payloads, balances. */
 	pairSymbols: [string, string];
+	/** pairSymbols in display order (HBD second), for the label and the icons. */
+	displaySymbols: [string, string];
 	priceRatio: string;
 	priceInverse: string;
 	priceUsd: [string, string];
@@ -314,8 +330,9 @@ export function mapStateToPoolRow(
 	return {
 		id: poolContractId,
 		contractId: poolContractId,
-		pair: `${pairSym0}:${pairSym1}`,
+		pair: hbdSecond([pairSym0, pairSym1]).join(':'),
 		pairSymbols: [pairSym0, pairSym1],
+		displaySymbols: hbdSecond([pairSym0, pairSym1]),
 		priceRatio,
 		priceInverse,
 		priceUsd: [formatUsdPrice(usd0), formatUsdPrice(usd1)],
@@ -346,6 +363,7 @@ export interface MyPoolRow {
 	contractId: string;
 	pair: string;
 	pairSymbols: [string, string];
+	displaySymbols: [string, string];
 	lpBalance: number;
 	totalLp: number;
 	sharePct: number; // 0..100
@@ -383,6 +401,7 @@ export async function fetchMyPoolPositions(
 			contractId: pos.contractId,
 			pair: pool.pair,
 			pairSymbols: pool.pairSymbols,
+			displaySymbols: pool.displaySymbols,
 			lpBalance: pos.lpBalance,
 			totalLp: pool.totalLpRaw,
 			sharePct: share * 100,

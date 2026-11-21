@@ -183,6 +183,12 @@
 		}
 	];
 
+	function sourceDef(value: DepositSource): SourceDef {
+		const def = SOURCES.find((s) => s.value === value);
+		if (!def) throw new Error(`unknown deposit source ${value}`);
+		return def;
+	}
+
 	// Sources that can deliver the chosen asset directly. Step 2 shows only
 	// these (DepositFlow's availableSources filtering pattern).
 	const availableSources = $derived.by(() => {
@@ -222,6 +228,10 @@
 			!SOURCES.find((s) => s.value === selectedSource)?.supports.includes(value)
 		) {
 			selectedSource = null;
+			// The source RadioGroup's bound value must go too: left set, the
+			// sourceRadio effect below re-picks the stale source at once and step 3
+			// keeps the old asset's form (HIVE's Hive Mainnet form under BTC/ETH/USDC).
+			sourceRadio = null;
 			editStage(false);
 		}
 		// Re-run init if a compatible source is already selected (asset
@@ -280,10 +290,14 @@
 </script>
 
 <!-- Source card snippets — one per source (same reason). -->
-{#snippet hiveMainnetCard()}{@render sourceCardLayout(SOURCES[0])}{/snippet}
-{#snippet lightningCard()}{@render sourceCardLayout(SOURCES[1])}{/snippet}
-{#snippet btcMainnetCard()}{@render sourceCardLayout(SOURCES[2])}{/snippet}
-{#snippet coinbaseCard()}{@render sourceCardLayout(SOURCES[3])}{/snippet}
+<!-- By source value, never by position in SOURCES: inserting the Ethereum
+     source at index 3 once made the Coinbase card draw Ethereum (with a
+     "via swap" badge) under BTC. -->
+{#snippet hiveMainnetCard()}{@render sourceCardLayout(sourceDef('hive_mainnet'))}{/snippet}
+{#snippet lightningCard()}{@render sourceCardLayout(sourceDef('lightning'))}{/snippet}
+{#snippet btcMainnetCard()}{@render sourceCardLayout(sourceDef('btc_mainnet'))}{/snippet}
+{#snippet ethMainnetCard()}{@render sourceCardLayout(sourceDef('eth_mainnet'))}{/snippet}
+{#snippet coinbaseCard()}{@render sourceCardLayout(sourceDef('coinbase'))}{/snippet}
 
 {#snippet sourceCardLayout(def: (typeof SOURCES)[number])}
 	{@const viaSwap = isViaSwap(def, selectedAsset as AssetValue | null)}
@@ -401,14 +415,13 @@
 							{:else}
 								<RadioGroup
 									items={availableSources.map((s) => {
-										const snippet =
-											s.value === 'hive_mainnet'
-												? hiveMainnetCard
-												: s.value === 'lightning'
-													? lightningCard
-													: s.value === 'btc_mainnet'
-														? btcMainnetCard
-														: coinbaseCard;
+										const snippet = {
+											hive_mainnet: hiveMainnetCard,
+											lightning: lightningCard,
+											btc_mainnet: btcMainnetCard,
+											eth_mainnet: ethMainnetCard,
+											coinbase: coinbaseCard
+										}[s.value];
 										return { value: s.value, snippet };
 									})}
 									bind:value={sourceRadio}

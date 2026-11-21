@@ -1,5 +1,6 @@
 import Dinero from 'dinero.js';
 import { getCryptoPrices, type Cryptoprices } from '$lib/sendswap/v4v/api-types/cryptoprices';
+import { fetchEvmUsdPrices } from './evmUsdPrices';
 import { Network, Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
 import { btcToSats, satsToBtc } from '$lib/sendswap/utils/units';
 import type { CoinAmount, UnkCoinAmount } from './CoinAmount';
@@ -17,7 +18,27 @@ function isNativeUnit(coin: Coin): boolean {
 	return NATIVE_UNITS.has(coin.unit?.toUpperCase());
 }
 
+/** ETH and USDC are not in the v4v feed: their USD prices come from the
+ *  shared CoinGecko helper (evmUsdPrices.ts, cached a minute, keeps the last
+ *  good prices), as the Magi balance total already does. */
+const EVM_UNITS: ReadonlySet<string> = new Set(['ETH', 'USDC']);
+
+/** X per 1 unit of an ETH/USDC base: its USD price times X per USD. */
+function evmRates(usdPerUnit: number, prices: Cryptoprices): Record<string, number> | null {
+	const perUsd = nativeRates('USD', prices);
+	if (!(usdPerUnit > 0) || !perUsd) return null;
+	const out: Record<string, number> = {};
+	for (const [k, v] of Object.entries(perUsd)) out[k] = usdPerUnit * v;
+	out.USD = usdPerUnit;
+	return out;
+}
+
 const getLightningExchangeRates = async (base: Coin, target?: Coin) => {
+	const baseUnit = base.unit?.toUpperCase();
+	if (EVM_UNITS.has(baseUnit)) {
+		const [prices, usd] = await Promise.all([getCryptoPrices(), fetchEvmUsdPrices()]);
+		return evmRates(baseUnit === 'ETH' ? usd.eth : usd.usdc, prices);
+	}
 	// Pool-derived rates cost chain reads, so only fetch them when a custom
 	// token is actually involved. Native-to-native conversions — the vast
 	// majority — keep exactly the round-trips they had before.

@@ -263,15 +263,15 @@
 						<td class="col-pair">
 							<div class="pair-cell">
 								<span class="pair-icons" aria-hidden="true">
-									{#if assetIcon(pool.pairSymbols[0])}
-										<img class="coin-icon icon-a" src={assetIcon(pool.pairSymbols[0])} alt={pool.pairSymbols[0]} />
+									{#if assetIcon(pool.displaySymbols[0])}
+										<img class="coin-icon icon-a" src={assetIcon(pool.displaySymbols[0])} alt={pool.displaySymbols[0]} />
 									{:else}
-										<span class="icon icon-a">{pool.pairSymbols[0].slice(0, 3)}</span>
+										<span class="icon icon-a">{pool.displaySymbols[0].slice(0, 3)}</span>
 									{/if}
-									{#if assetIcon(pool.pairSymbols[1])}
-										<img class="coin-icon icon-b" src={assetIcon(pool.pairSymbols[1])} alt={pool.pairSymbols[1]} />
+									{#if assetIcon(pool.displaySymbols[1])}
+										<img class="coin-icon icon-b" src={assetIcon(pool.displaySymbols[1])} alt={pool.displaySymbols[1]} />
 									{:else}
-										<span class="icon icon-b">{pool.pairSymbols[1].slice(0, 3)}</span>
+										<span class="icon icon-b">{pool.displaySymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
 								<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
@@ -397,15 +397,15 @@
 						<td class="col-pair">
 							<div class="pair-cell">
 								<span class="pair-icons" aria-hidden="true">
-									{#if assetIcon(row.pairSymbols[0])}
-										<img class="coin-icon icon-a" src={assetIcon(row.pairSymbols[0])} alt={row.pairSymbols[0]} />
+									{#if assetIcon(row.displaySymbols[0])}
+										<img class="coin-icon icon-a" src={assetIcon(row.displaySymbols[0])} alt={row.displaySymbols[0]} />
 									{:else}
-										<span class="icon icon-a">{row.pairSymbols[0].slice(0, 3)}</span>
+										<span class="icon icon-a">{row.displaySymbols[0].slice(0, 3)}</span>
 									{/if}
-									{#if assetIcon(row.pairSymbols[1])}
-										<img class="coin-icon icon-b" src={assetIcon(row.pairSymbols[1])} alt={row.pairSymbols[1]} />
+									{#if assetIcon(row.displaySymbols[1])}
+										<img class="coin-icon icon-b" src={assetIcon(row.displaySymbols[1])} alt={row.displaySymbols[1]} />
 									{:else}
-										<span class="icon icon-b">{row.pairSymbols[1].slice(0, 3)}</span>
+										<span class="icon icon-b">{row.displaySymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
 								<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}>{row.pair}</span>

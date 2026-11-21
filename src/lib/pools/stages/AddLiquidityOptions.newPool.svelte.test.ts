@@ -48,8 +48,9 @@ function poolRow(over: Partial<PoolRow>): PoolRow {
 	return {
 		id: STARPRO.poolContractId,
 		contractId: STARPRO.poolContractId,
-		pair: 'HBD:STARPRO',
+		pair: 'STARPRO:HBD',
 		pairSymbols: ['HBD', 'STARPRO'],
+		displaySymbols: ['STARPRO', 'HBD'],
 		priceRatio: '-',
 		priceInverse: '-',
 		priceUsd: ['$1.00', '$0.00'],

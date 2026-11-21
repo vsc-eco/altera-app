@@ -15,9 +15,15 @@
 
 	// APP-19: only treat the QR payload as a navigable link when it uses an
 	// expected safe scheme; otherwise render a non-link container.
+	//
+	// `has://` is HiveAuth's deeplink scheme (`has://auth_req/<base64>`, the
+	// payload aioha hands to `hiveauth.cbWait`). It has to be on this list or
+	// the login QR renders as a bare <div> and tapping it on a phone does
+	// nothing — the one platform where the deeplink is the whole point, since
+	// there is no browser extension to hand the request to.
+	const SAFE_QR_SCHEMES = ['https://', 'lightning:', 'has://'];
 	const safeHref = $derived(
-		typeof data === 'string' &&
-			(data.startsWith('lightning:') || data.startsWith('https://'))
+		typeof data === 'string' && SAFE_QR_SCHEMES.some((scheme) => data.startsWith(scheme))
 			? data
 			: undefined
 	);

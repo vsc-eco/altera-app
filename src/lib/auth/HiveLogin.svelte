@@ -132,6 +132,12 @@
 			<p>Tap or scan the QR Code below to open the HiveAuth app.</p>
 
 			<Qr data={qrData}></Qr>
+			<!-- Explicit affordance for phones: tapping the QR itself works (it is a
+			     `has://` link), but a QR does not look tappable, and on a phone the
+			     deeplink is the only way in — there is no extension to fall back on. -->
+			<div class="qr-deeplink">
+				<PillButton href={qrData} theme="primary" styleType="invert">Open HiveAuth app</PillButton>
+			</div>
 		{:else}
 			<form onsubmit={loginOnSubmit} oninvalidcapture={loginOnSubmit}>
 				<div class="error">{aiohaErrorText}</div>
@@ -210,6 +216,19 @@
 	.error {
 		min-height: 1em;
 		margin-top: 0.25rem;
+	}
+	/* The HiveAuth deeplink only resolves where a HiveAuth-capable wallet app is
+	   installed, i.e. phones/tablets. Keyboard-and-mouse visitors scan the code
+	   with their phone instead, so the button would be a dead end there. */
+	.qr-deeplink {
+		display: none;
+		justify-content: center;
+		margin-top: 0.5rem;
+	}
+	@media (pointer: coarse), (max-width: 640px) {
+		.qr-deeplink {
+			display: flex;
+		}
 	}
 	.metamask-dot {
 		display: inline-block;

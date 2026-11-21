@@ -4,6 +4,7 @@ import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 import { fetchTokenDecimals } from '$lib/tokens/customTokens';
 import { isNativeAsset } from './assets';
 import { fetchRouterRegistrations } from './routerRegistry';
+import { vscNetworkId } from '../../client';
 
 export { isNativeAsset } from './assets';
 import {
@@ -457,6 +458,50 @@ async function fetchSinglePool(
 	);
 }
 
+// The pool list waits for ~5 reads per pool (state, reserves, volume, fees,
+// liquidity) plus the router's registrations, and showed nothing until the
+// slowest answered: ~5 s on mainnet (11-21). The last list is kept (memory,
+// and localStorage for a reload) per network and range, so the page shows it
+// at once and refreshes behind it, as Lumen serves its pages stale while it
+// revalidates. Only for display: PoolsContent keeps Add/Remove disabled until
+// the fresh rows arrive, since the add-liquidity ratio reads a row's reserves.
+const POOLS_CACHE_PREFIX = 'altera.pools.v1.';
+const POOLS_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const memoryPools = new Map<string, PoolRow[]>();
+
+function poolsCacheKey(range: TimeRange): string {
+	return `${POOLS_CACHE_PREFIX}${vscNetworkId}.${range}`;
+}
+
+/** The last pool list fetched for this range, or null. */
+export function cachedPools(range: TimeRange): PoolRow[] | null {
+	const key = poolsCacheKey(range);
+	const mem = memoryPools.get(key);
+	if (mem) return mem;
+	try {
+		const raw = globalThis.localStorage?.getItem(key);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as { ts?: number; rows?: PoolRow[] };
+		if (!Array.isArray(parsed.rows) || parsed.rows.length === 0) return null;
+		if (!(Date.now() - (parsed.ts ?? 0) < POOLS_CACHE_MAX_AGE_MS)) return null;
+		memoryPools.set(key, parsed.rows);
+		return parsed.rows;
+	} catch {
+		return null;
+	}
+}
+
+function storePools(range: TimeRange, rows: PoolRow[]): void {
+	if (rows.length === 0) return; // a failed fetch returns [], never cache that
+	const key = poolsCacheKey(range);
+	memoryPools.set(key, rows);
+	try {
+		globalThis.localStorage?.setItem(key, JSON.stringify({ ts: Date.now(), rows }));
+	} catch {
+		/* storage full or blocked: the memory copy still serves this visit */
+	}
+}
+
 // Zag renders EVERY tab's content (inactive ones are just hidden), so the
 // Pools and Custom pools tabs each mount their own PoolsContent and both
 // fetch on mount. Without coalescing that doubles the whole pool load — five
@@ -518,7 +563,7 @@ async function fetchPoolsUncoalesced(range: TimeRange): Promise<PoolRow[]> {
 			)
 		]);
 
-		return poolRows.map((row) => {
+		const rows = poolRows.map((row) => {
 			const reg = registrations.get(row.contractId);
 			return {
 				...row,
@@ -526,6 +571,8 @@ async function fetchPoolsUncoalesced(range: TimeRange): Promise<PoolRow[]> {
 				registrationMissing: reg?.missing
 			};
 		});
+		storePools(range, rows);
+		return rows;
 	} catch (err) {
 		console.error('Failed to fetch pool state', err);
 		return [];

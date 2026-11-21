@@ -73,8 +73,11 @@
 		// by most Bitcoin wallets as a "pay this address" intent.
 		QRCode.toDataURL(`bitcoin:${addr}`, {
 			width: 220,
-			margin: 1,
-			color: { dark: '#FFFFFF', light: '#00000000' }
+			// Dark modules on white with a 4-module quiet zone, as QR readers
+			// expect: the light-on-dark version did not decode in a standard
+			// reader (checked 11-21) and some wallet cameras miss inverted codes.
+			margin: 4,
+			color: { dark: '#000000', light: '#FFFFFF' }
 		})
 			.then((url) => {
 				btcQrDataUrl = url;
@@ -346,7 +349,7 @@
 		padding: 0.75rem 0 0.25rem;
 	}
 	.qr-img {
-		background: rgba(255, 255, 255, 0.04);
+		background: #ffffff;
 		border: 1px solid var(--dash-card-border);
 		border-radius: 16px;
 		padding: 0.75rem;

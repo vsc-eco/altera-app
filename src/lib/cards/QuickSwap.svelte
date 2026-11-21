@@ -819,8 +819,11 @@
 			btcAmount && btcAmount !== '0' ? `bitcoin:${addr}?amount=${btcAmount}` : `bitcoin:${addr}`;
 		QRCode.toDataURL(uri, {
 			width: 220,
-			margin: 1,
-			color: { dark: '#FFFFFF', light: '#00000000' }
+			// Dark modules on white with a 4-module quiet zone, as QR readers
+			// expect: the light-on-dark version did not decode in a standard
+			// reader (checked 11-21) and some wallet cameras miss inverted codes.
+			margin: 4,
+			color: { dark: '#000000', light: '#FFFFFF' }
 		})
 			.then((url) => {
 				btcDepositQr = url;

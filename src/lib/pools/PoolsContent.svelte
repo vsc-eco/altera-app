@@ -15,6 +15,8 @@
 	import { isDeprecatedPool } from '../../client';
 	import { registrationHint } from './routerRegistry';
 	import { assetIcon } from '$lib/tokens/assetIcon';
+	import { ETH_CHAIN_ID } from '$lib/constants';
+	import { poolNetworkLabel } from './network';
 
 	/** Which slice of the registry this instance shows. The Pools and Custom
 	 *  pools tabs render the same component; only this prop differs, so every
@@ -275,6 +277,7 @@
 			<tbody>
 				{#each rows as pool (pool.id)}
 					{@const deprecated = isDeprecatedPool(pool.contractId)}
+					{@const network = poolNetworkLabel(pool.pairSymbols, ETH_CHAIN_ID)}
 					{@const unregistered = !pool.routerRegistered}
 					{@const addBlocked = deprecated || unregistered}
 					{@const addHint = deprecated
@@ -300,7 +303,10 @@
 										<span class="icon icon-b">{pool.displaySymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
-								<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
+								<span class="pair-name">
+									<span class="pair-label" class:deprecated title={deprecated ? 'Deprecated pool — withdraw only' : undefined}>{pool.pair}</span>
+									{#if network}<span class="pair-network" title={network.full}>{network.short}</span>{/if}
+								</span>
 								{#if deprecated}
 									<span class="deprecated-tag">deprecated</span>
 								{:else if unregistered}
@@ -423,6 +429,7 @@
 			<tbody>
 				{#each rows as row (row.id)}
 					{@const fullPool = pools.find((p) => p.contractId === row.contractId)}
+					{@const network = poolNetworkLabel(row.pairSymbols, ETH_CHAIN_ID)}
 					<tr
 						class="clickable"
 						onclick={() => {
@@ -443,7 +450,10 @@
 										<span class="icon icon-b">{row.displaySymbols[1].slice(0, 3)}</span>
 									{/if}
 								</span>
-								<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}>{row.pair}</span>
+								<span class="pair-name">
+									<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}>{row.pair}</span>
+									{#if network}<span class="pair-network" title={network.full}>{network.short}</span>{/if}
+								</span>
 							</div>
 						</td>
 						<td class="col-share">
@@ -652,6 +662,19 @@
 	.pair-label {
 		font-weight: 500;
 		color: var(--dash-text-primary);
+	}
+	/* The network an ETH/USDC pool's tokens are on, under the pair: a second
+	   line in a row the price and fee columns already make taller, and a short
+	   name no wider than the pair's, so the Pair column keeps its width. */
+	.pair-name {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.2;
+	}
+	.pair-network {
+		font-size: 0.6875rem;
+		color: var(--dash-text-muted);
+		white-space: nowrap;
 	}
 	.pair-label.deprecated {
 		text-decoration: line-through;

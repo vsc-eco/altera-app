@@ -39,8 +39,6 @@
 	import BtcMainnetDeposit from './BitcoinMainnetDeposit.svelte';
 	import EthereumDeposit from './EthereumDeposit.svelte';
 	import { EVM_BRIDGE_ENABLED } from '$lib/constants';
-	import CoinBaseDeposit from './CoinBaseDeposit.svelte';
-	import type { NavButton } from '$lib/sendswap/components/NavButtons.svelte';
 	import type NavButtons from '$lib/sendswap/components/NavButtons.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 
@@ -124,7 +122,7 @@
 	// ─── Source picker (RadioGroup with snippets per option) ──────────────────
 	// `supports` lists the assets this source can deliver DIRECTLY. This is
 	// the CONFIRMED/wired support matrix (HIVE → hive_mainnet, lightning;
-	// HBD → hive_mainnet, lightning; BTC → lightning, btc_mainnet, coinbase).
+	// HBD → hive_mainnet, lightning; BTC → lightning, btc_mainnet).
 	// Step 2 shows ONLY sources whose `supports` includes the chosen asset.
 	type SourceDef = {
 		value: DepositSource;
@@ -171,16 +169,9 @@
 			fee: 'Ethereum gas',
 			blurb: 'Send ETH or USDC from an Ethereum wallet to the bridge vault.',
 			supports: [Coin.eth.value, Coin.usdc.value]
-		},
-		{
-			value: 'coinbase',
-			label: 'Coinbase',
-			icon: '/btc/CoinBase_logo.svg',
-			eta: '≈ 15 min',
-			fee: 'Coinbase rates apply',
-			blurb: 'Buy with card and have it deposited to Magi in one step.',
-			supports: [Coin.btc.value]
 		}
+		// Coinbase (buy BTC with a card) removed 11-21, owner: it is still
+		// awaiting Coinbase's approval and its own warning says funds can be lost.
 	];
 
 	function sourceDef(value: DepositSource): SourceDef {
@@ -269,18 +260,12 @@
 	$effect(() => {
 		onHomePage =
 			selectedSource === 'lightning' ||
-			(selectedSource === 'hive_mainnet' && auth.value?.provider === 'aioha') ||
-			selectedSource === 'coinbase';
+			(selectedSource === 'hive_mainnet' && auth.value?.provider === 'aioha');
 	});
 
-	// Coinbase exports its Deposit button into the parent's footer.
-	let customButton: NavButton = $state({ label: '', action: () => {} });
+	// No source exports a footer button any more (Coinbase did).
 	$effect(() => {
-		if (selectedSource === 'coinbase' && customButton) {
-			customButtons = { fwd: customButton };
-		} else {
-			customButtons = undefined;
-		}
+		customButtons = undefined;
 	});
 
 	// Child asset-picker overlay state (Lightning/HiveMainnet own pickers).
@@ -297,7 +282,6 @@
 {#snippet lightningCard()}{@render sourceCardLayout(sourceDef('lightning'))}{/snippet}
 {#snippet btcMainnetCard()}{@render sourceCardLayout(sourceDef('btc_mainnet'))}{/snippet}
 {#snippet ethMainnetCard()}{@render sourceCardLayout(sourceDef('eth_mainnet'))}{/snippet}
-{#snippet coinbaseCard()}{@render sourceCardLayout(sourceDef('coinbase'))}{/snippet}
 
 {#snippet sourceCardLayout(def: (typeof SOURCES)[number])}
 	{@const viaSwap = isViaSwap(def, selectedAsset as AssetValue | null)}
@@ -419,9 +403,8 @@
 											hive_mainnet: hiveMainnetCard,
 											lightning: lightningCard,
 											btc_mainnet: btcMainnetCard,
-											eth_mainnet: ethMainnetCard,
-											coinbase: coinbaseCard
-										}[s.value];
+											eth_mainnet: ethMainnetCard
+										}[s.value as Exclude<DepositSource, 'coinbase'>];
 										return { value: s.value, snippet };
 									})}
 									bind:value={sourceRadio}
@@ -460,8 +443,6 @@
 							<BtcMainnetDeposit {onClose} {onBroadcast} />
 						{:else if selectedSource === 'eth_mainnet'}
 							<EthereumDeposit />
-						{:else if selectedSource === 'coinbase'}
-							<CoinBaseDeposit bind:customButton />
 						{:else}
 							<p class="locked-hint">Select a source above to continue.</p>
 						{/if}

@@ -60,6 +60,7 @@
 		getBtcApproveOp,
 		getAlteraFeePct,
 		hasQuoteMinimum,
+		hivePaidSwapRcShortfall,
 		SWAP_NEEDS_QUOTE_MESSAGE
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
@@ -67,10 +68,18 @@
 	import {
 		btcPayoutShortfallMessage,
 		evmPayoutShortfallMessage,
+		HIVE_RETURN_PAYOUT_EXTRA_RC,
+		rcShortfallMessage,
 		sizeBtcPayoutSwap,
 		sizeEvmPayoutSwap
 	} from '$lib/magiTransactions/hive/vscOperations/rcSizing';
 	import { prepareWalletRouterSwap } from '$lib/magiTransactions/eth/walletRouterSwap';
+	import {
+		ethPayoutGasLimit,
+		fetchEvmPayoutGas,
+		payoutArrival,
+		type EvmPayoutGas
+	} from '$lib/magiTransactions/eth/payoutFee';
 	import { executeTx } from '$lib/magiTransactions/hive';
 	import { addLocalTransaction } from '$lib/stores/localStorageTxs';
 	import {
@@ -85,6 +94,7 @@
 	import { validate as validateBtcAddr, Network as BtcNetwork } from 'bitcoin-address-validation';
 	import QRCode from 'qrcode';
 	import DepositAddressNotice from '$lib/sendswap/components/DepositAddressNotice.svelte';
+	import BtcSenderNotice from '$lib/sendswap/components/BtcSenderNotice.svelte';
 	import { ETH_NETWORK, ETH_PAYOUT_NOTE } from '$lib/sendswap/utils/ethNetworkCopy';
 	import {
 		buildBtcSwapInstruction,
@@ -465,9 +475,58 @@
 			coin: to.coin,
 			proofFee,
 			min,
+			minOut,
 			belowMin: min == null || (minOut != null && minOut - proofFee < min)
 		};
 	});
+	// Only the payout's coin drives the fee effects below (the quote object is
+	// rebuilt on every price tick; reading it would re-run them each time).
+	const payoutCoinValue = $derived(evmPayout?.coin.value ?? null);
+	// The gas limit an ETH payout will carry (its recipient's estimate + 20%,
+	// as sent at signing), so the gas shown is priced as the bridge charges it.
+	let payoutGasLimitEst: number | null = $state(null);
+	$effect(() => {
+		const did = auth.value?.did;
+		const to = txState.toUsername?.trim() ?? '';
+		const isEth = payoutCoinValue === Coin.eth.value;
+		payoutGasLimitEst = null;
+		if (!did || !isEth || !/^0x[0-9a-fA-F]{40}$/.test(to)) return;
+		let live = true;
+		const t = setTimeout(() => {
+			const value = BigInt(untrack(() => evmPayout?.minOut) || 1);
+			ethPayoutGasLimit(did, to, value).then((g) => {
+				if (live) payoutGasLimitEst = g;
+			});
+		}, 600);
+		return () => {
+			live = false;
+			clearTimeout(t);
+		};
+	});
+	// The Ethereum gas the bridge takes from the payout now (payoutFee.ts).
+	let payoutGas: EvmPayoutGas = $state({ status: 'unknown' });
+	$effect(() => {
+		const coin = payoutCoinValue;
+		const did = auth.value?.did;
+		const gasLimit = coin === Coin.eth.value ? payoutGasLimitEst : null;
+		if (!coin || !did) return;
+		let live = true;
+		const load = () =>
+			fetchEvmPayoutGas(did, coin, gasLimit).then((g) => {
+				if (live) payoutGas = g;
+			});
+		load();
+		const timer = setInterval(load, 30_000);
+		return () => {
+			live = false;
+			clearInterval(timer);
+		};
+	});
+	const payoutLine = $derived(
+		evmPayout?.minOut != null
+			? payoutArrival(evmPayout.minOut, evmPayout.proofFee, payoutGas)
+			: null
+	);
 	let swapResult: SwapCalcResult | null = $state(null);
 	// A swap goes out only with a quote (SWAP_NEEDS_QUOTE_MESSAGE), so prices
 	// must not stay unloaded: a failed load is retried (1 s, 2 s), and the
@@ -1068,7 +1127,7 @@
 				setError(
 					evmPayout.min == null
 						? "The bridge's minimum withdrawal has not loaded yet: try again in a moment"
-						: `The bridge sends at least ${shortUnits(evmPayout.min, evmPayout.coin.decimalPlaces)} ${evmPayout.coin.label} after its proving fee: swap a larger amount`
+						: `A payout on Ethereum needs at least ${shortUnits(evmPayout.min, evmPayout.coin.decimalPlaces)} ${evmPayout.coin.label} after the bridge's proving fee (its minimum withdrawal): swap a larger amount`
 				);
 				return false;
 			}
@@ -1139,6 +1198,17 @@
 				// Same instruction and refund rules as the /swap page
 				// (swapDeposit.ts): the sender's own refund_to, the quote's
 				// min_amount_out, a minimum that a Bitcoin refund can pay for.
+				// An ETH payout carries the gas its recipient needs (+20%).
+				const btcPayoutGasLimit =
+					txState.to!.network.value === Network.ethMainnet.value &&
+					txState.to!.coin.value === Coin.eth.value &&
+					/^0x[0-9a-fA-F]{40}$/.test(txState.toUsername?.trim() ?? '')
+						? await ethPayoutGasLimit(
+								auth.value.did,
+								txState.toUsername!.trim(),
+								BigInt(txState.minAmountOut || '1')
+							)
+						: null;
 				const built = buildBtcSwapInstruction({
 					recipient: txState.toUsername,
 					toCoin: txState.to!.coin.value,
@@ -1146,6 +1216,7 @@
 					amountSats: inputAmount.amount,
 					refundTo: auth.value?.address,
 					minAmountOut: txState.minAmountOut,
+					payoutGasLimit: btcPayoutGasLimit,
 					testnet: isVscTestnet()
 				});
 				if (!built.ok) throw new Error(built.error);
@@ -1290,12 +1361,15 @@
 				// same transaction (above) and a BTC input is pulled by allowance, so
 				// no HBD already on Magi is pulled.
 				let payoutRcLimit: number | undefined;
+				let payoutGasLimit: number | null = null;
 				if (destinationChain === 'BTC') {
 					swapStatus = 'Estimating network resources...';
 					const sizing = await sizeBtcPayoutSwap(
 						auth.value.did,
 						0,
-						$accountBalance.bal?.resource_credits
+						$accountBalance.bal?.resource_credits,
+						false,
+						isNativeIn ? HIVE_RETURN_PAYOUT_EXTRA_RC : 0
 					);
 					if (!sizing.ok) throw new Error(btcPayoutShortfallMessage(sizing));
 					payoutRcLimit = sizing.rcLimit;
@@ -1305,10 +1379,32 @@
 					const sizing = await sizeEvmPayoutSwap(
 						auth.value.did,
 						0,
-						$accountBalance.bal?.resource_credits
+						$accountBalance.bal?.resource_credits,
+						isNativeIn ? HIVE_RETURN_PAYOUT_EXTRA_RC : 0
 					);
 					if (!sizing.ok) throw new Error(evmPayoutShortfallMessage(sizing));
 					payoutRcLimit = sizing.rcLimit;
+					if (toCoinDef.value === Coin.eth.value && routerRecipient) {
+						payoutGasLimit = await ethPayoutGasLimit(
+							auth.value.did,
+							routerRecipient,
+							BigInt(txState.minAmountOut || '1')
+						);
+					}
+				} else if (isNativeIn) {
+					// Paid from the Hive wallet: refused here, before anything
+					// leaves it, when the RC cannot carry the swap (a failure the
+					// router cannot send back would leave the deposit on Magi).
+					const short = await hivePaidSwapRcShortfall(
+						auth.value.did,
+						fromCoinDef,
+						toCoinDef,
+						destinationChain || undefined
+					);
+					if (short)
+						throw new Error(
+							rcShortfallMessage({ ok: false, reason: 'insufficient-rc', ...short }, 'swap')
+						);
 				}
 				ops.push(
 					await getHiveSwapOp(
@@ -1320,7 +1416,11 @@
 						txState.minAmountOut ?? minOut,
 						destinationChain || undefined,
 						routerRecipient || undefined,
-						payoutRcLimit
+						payoutRcLimit,
+						// Paid from the Hive wallet (deposited above): a swap that
+						// fails goes back there, not into the Magi balance.
+						isNativeIn,
+						payoutGasLimit
 					)
 				);
 
@@ -1521,17 +1621,32 @@
 		</div>
 		{#if evmPayout}
 			{@const unit = evmPayout.coin.label}
+			{@const dec = evmPayout.coin.decimalPlaces}
 			<p class="receiver-hint">
 				Paid to this address on {ETH_NETWORK} by the bridge. {ETH_PAYOUT_NOTE} Its proving fee ({shortUnits(
 					evmPayout.proofFee,
-					evmPayout.coin.decimalPlaces
+					dec
 				)}
-				{unit}) and the Ethereum gas{evmPayout.coin.value === Coin.usdc.value
-					? ' (up to half the minimum, paid in USDC)'
-					: ''} come out of the amount{evmPayout.min != null
-					? `; the bridge sends at least ${shortUnits(evmPayout.min, evmPayout.coin.decimalPlaces)} ${unit}`
-					: ''}.
+				{unit}) and the Ethereum gas come out of the amount.
+				{#if payoutLine?.arrives != null && payoutLine.gas != null}
+					Ethereum gas now: {shortUnits(payoutLine.gas, dec)}
+					{unit}. Arrives: about {shortUnits(payoutLine.arrives, dec)}
+					{unit}.
+				{:else if payoutGas.status === 'legacy'}
+					The bridge takes the most the Ethereum gas can cost{evmPayout.coin.value ===
+					Coin.usdc.value
+						? ' (up to half its minimum withdrawal, in USDC)'
+						: ''} and returns the unused part to your Magi account after the payout settles.
+				{:else if payoutGas.status === 'unavailable'}
+					The bridge is waiting for a fresh Ethereum block: the payout goes out as soon as it can,
+					usually within minutes.
+				{/if}
 			</p>
+			{#if payoutLine?.heavy}
+				<p class="receiver-hint receiver-warn">
+					Ethereum gas is more than a tenth of this payout: a larger swap loses less to it.
+				</p>
+			{/if}
 		{/if}
 	</div>
 
@@ -1761,6 +1876,7 @@
 				<p class="btc-deposit-error">{btcDepositError}</p>
 			{:else if btcDepositAddress}
 				<DepositAddressNotice />
+				<BtcSenderNotice />
 				{#if btcDepositQr}
 					<div class="btc-deposit-qr">
 						<img src={btcDepositQr} alt="Deposit address QR code" width="220" height="220" />
@@ -2093,6 +2209,9 @@
 		margin: 0.35rem 0 0;
 		font-size: 0.75rem;
 		color: var(--dash-text-muted, rgba(255, 255, 255, 0.6));
+	}
+	.receiver-warn {
+		color: var(--dash-accent-red, #e2595b);
 	}
 	.receiver-input-wrap {
 		display: flex;

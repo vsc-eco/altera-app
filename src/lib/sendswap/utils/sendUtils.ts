@@ -17,6 +17,7 @@ import {
 } from '$lib/magiTransactions/eth/walletRouterSwap'
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi'
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive'
+import { ethPayoutGasLimit } from '$lib/magiTransactions/eth/payoutFee'
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit'
 import { getKeepsatsDestinationDid, getKeepsatsTransferOp } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer'
 import {
@@ -25,12 +26,14 @@ import {
 	getTokenApproveOp,
 	getHiveSwapOp,
 	hasQuoteMinimum,
+	hivePaidSwapRcShortfall,
 	SWAP_NEEDS_QUOTE_MESSAGE
 } from '$lib/magiTransactions/hive/vscOperations/swap'
 import {
 	btcPayoutShortfallMessage,
 	estimateCallRc,
 	evmPayoutShortfallMessage,
+	HIVE_RETURN_PAYOUT_EXTRA_RC,
 	MAX_RC_LIMIT,
 	rcShortfallMessage,
 	sizeBtcPayoutSwap,
@@ -971,6 +974,7 @@ export async function send(
 			// fixed 10,000 every such swap failed with ("cost limit exceeded"):
 			// give it the RC the account has, or say why it cannot pay.
 			let payoutRcLimit: number | undefined;
+			let payoutGasLimit: number | null = null;
 			if (destinationChain === 'BTC') {
 				setStatus('Estimating network resources…');
 				const hbdFromMagi =
@@ -979,7 +983,8 @@ export async function send(
 					auth.value.did,
 					hbdFromMagi,
 					get(accountBalance).bal.resource_credits,
-					isEvmBridgeCoin(fromCoin.coin)
+					isEvmBridgeCoin(fromCoin.coin),
+					needsDeposit ? HIVE_RETURN_PAYOUT_EXTRA_RC : 0
 				);
 				if (!sizing.ok) {
 					const msg = btcPayoutShortfallMessage(sizing);
@@ -997,7 +1002,8 @@ export async function send(
 				const sizing = await sizeEvmPayoutSwap(
 					auth.value.did,
 					hbdFromMagi,
-					get(accountBalance).bal.resource_credits
+					get(accountBalance).bal.resource_credits,
+					needsDeposit ? HIVE_RETURN_PAYOUT_EXTRA_RC : 0
 				);
 				if (!sizing.ok) {
 					const msg = evmPayoutShortfallMessage(sizing);
@@ -1005,7 +1011,32 @@ export async function send(
 					return new Error(msg);
 				}
 				payoutRcLimit = sizing.rcLimit;
+				if (toCoin.coin.value === Coin.eth.value && destinationRecipient) {
+					payoutGasLimit = await ethPayoutGasLimit(
+						auth.value.did,
+						destinationRecipient,
+						BigInt((details as SwapTxState).minAmountOut || '1')
+					);
+				}
 				setStatus('Waiting for Hive wallet approval…');
+			} else if (needsDeposit) {
+				// Paid from the Hive wallet: refused here, before anything leaves
+				// it, when the RC cannot carry the swap (a failure the router
+				// cannot send back would leave the deposit on Magi).
+				const short = await hivePaidSwapRcShortfall(
+					auth.value.did,
+					fromCoin.coin,
+					toCoin.coin,
+					destinationChain
+				);
+				if (short) {
+					const msg = rcShortfallMessage(
+						{ ok: false, reason: 'insufficient-rc', ...short },
+						'swap'
+					);
+					setStatus(msg, true);
+					return new Error(msg);
+				}
 			}
 			sendOp = await getHiveSwapOp(
 				auth.value.username!,
@@ -1016,7 +1047,12 @@ export async function send(
 				(details as SwapTxState).minAmountOut ?? minOut,
 				destinationChain,
 				destinationRecipient,
-				payoutRcLimit
+				payoutRcLimit,
+				// Paid from the Hive wallet (deposited in this transaction): a swap
+				// that fails goes back there. One paid from the Magi balance may
+				// come back to the Magi balance.
+				needsDeposit,
+				payoutGasLimit
 			);
 			opType = 'swap';
 		} else if (

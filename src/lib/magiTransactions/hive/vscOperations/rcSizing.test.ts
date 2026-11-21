@@ -12,6 +12,8 @@ import {
 	btcPayoutShortfallMessage,
 	btcPayoutSwapMinRc,
 	btcPayoutSwapRcLimit,
+	EVM_PAYOUT_SWAP_MIN_RC,
+	HIVE_RETURN_PAYOUT_EXTRA_RC,
 	interpretSimulation,
 	MAX_RC_LIMIT,
 	rcShortfallMessage,
@@ -249,5 +251,18 @@ describe('btcPayoutMinRcForInput', () => {
 		expect(btcPayoutMinRcForInput(BTC_PAYOUT_SWAP_MIN_RC_V0_15, true)).toBeGreaterThanOrEqual(
 			6_544 + 300
 		);
+	});
+});
+
+// A payout paid from the Hive wallet needs the router's self-call on top
+// (HIVE_RETURN_PAYOUT_EXTRA_RC): an account short of that is refused before
+// signing, not left to run out of RC with its deposit on Magi.
+describe('Hive-return payout floor', () => {
+	const floor = EVM_PAYOUT_SWAP_MIN_RC + HIVE_RETURN_PAYOUT_EXTRA_RC;
+	it('refuses an account with only the plain minimum', () => {
+		expect(btcPayoutSwapRcLimit(EVM_PAYOUT_SWAP_MIN_RC, 0, floor).ok).toBe(false);
+	});
+	it('takes an account with the raised minimum', () => {
+		expect(btcPayoutSwapRcLimit(floor, 0, floor)).toEqual({ ok: true, rcLimit: floor });
 	});
 });

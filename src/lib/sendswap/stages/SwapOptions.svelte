@@ -73,6 +73,12 @@
 	import { isVscTestnet } from '../../../client';
 	import { getAlteraFeePct } from '$lib/magiTransactions/hive/vscOperations/swap';
 	import { ETH_NETWORK, ETH_PAYOUT_NOTE } from '$lib/sendswap/utils/ethNetworkCopy';
+	import {
+		ethPayoutGasLimit,
+		fetchEvmPayoutGas,
+		payoutArrival,
+		type EvmPayoutGas
+	} from '$lib/magiTransactions/eth/payoutFee';
 
 	let {
 		editStage,
@@ -624,10 +630,59 @@ let expectedOutputUsd = $derived.by(() => {
 			coin: to.coin,
 			proofFee,
 			min,
+			minOut,
 			// Unknown minimum (registry not read yet) blocks rather than guesses.
 			belowMin: min == null || (minOut != null && minOut - proofFee < min)
 		};
 	});
+	// Only the payout's coin drives the fee effects below (the quote object is
+	// rebuilt on every price tick; reading it would re-run them each time).
+	const payoutCoinValue = $derived(evmPayout?.coin.value ?? null);
+	// The gas limit an ETH payout will carry (its recipient's estimate + 20%,
+	// as sent at signing), so the gas shown is priced as the bridge charges it.
+	let payoutGasLimitEst: number | null = $state(null);
+	$effect(() => {
+		const did = auth.value?.did;
+		const to = destAddress?.trim() ?? '';
+		const isEth = payoutCoinValue === Coin.eth.value;
+		payoutGasLimitEst = null;
+		if (!did || !isEth || !/^0x[0-9a-fA-F]{40}$/.test(to)) return;
+		let live = true;
+		const t = setTimeout(() => {
+			const value = BigInt(untrack(() => evmPayout?.minOut) || 1);
+			ethPayoutGasLimit(did, to, value).then((g) => {
+				if (live) payoutGasLimitEst = g;
+			});
+		}, 600);
+		return () => {
+			live = false;
+			clearTimeout(t);
+		};
+	});
+	// The Ethereum gas the bridge takes from the payout now (payoutFee.ts).
+	let payoutGas: EvmPayoutGas = $state({ status: 'unknown' });
+	$effect(() => {
+		const coin = payoutCoinValue;
+		const did = auth.value?.did;
+		const gasLimit = coin === Coin.eth.value ? payoutGasLimitEst : null;
+		if (!coin || !did) return;
+		let live = true;
+		const load = () =>
+			fetchEvmPayoutGas(did, coin, gasLimit).then((g) => {
+				if (live) payoutGas = g;
+			});
+		load();
+		const timer = setInterval(load, 30_000);
+		return () => {
+			live = false;
+			clearInterval(timer);
+		};
+	});
+	const payoutLine = $derived(
+		evmPayout?.minOut != null
+			? payoutArrival(evmPayout.minOut, evmPayout.proofFee, payoutGas)
+			: null
+	);
 
 	/**
 	 * True when the input amount exceeds 50% of the relevant pool's input-side
@@ -1606,10 +1661,26 @@ let expectedOutputUsd = $derived.by(() => {
 							evmPayout.proofFee,
 							dec
 						)}
-						{unit}) and the Ethereum gas{evmPayout.coin.value === Coin.usdc.value
-							? ' (up to half the minimum, paid in USDC)'
-							: ''} come out of the amount.
+						{unit}) and the Ethereum gas come out of the amount.
+						{#if payoutLine?.arrives != null && payoutLine.gas != null}
+							Ethereum gas now: {shortUnits(payoutLine.gas, dec)}
+							{unit}. Arrives: about {shortUnits(payoutLine.arrives, dec)}
+							{unit}.
+						{:else if payoutGas.status === 'legacy'}
+							The bridge takes the most the Ethereum gas can cost{evmPayout.coin.value ===
+							Coin.usdc.value
+								? ' (up to half its minimum withdrawal, in USDC)'
+								: ''} and returns the unused part to your Magi account after the payout settles.
+						{:else if payoutGas.status === 'unavailable'}
+							The bridge is waiting for a fresh Ethereum block: the payout goes out as soon as it
+							can, usually within minutes.
+						{/if}
 					</p>
+					{#if payoutLine?.heavy}
+						<p class="dest-hint sm-caption dest-error">
+							Ethereum gas is more than a tenth of this payout: a larger swap loses less to it.
+						</p>
+					{/if}
 					{#if destChoice === 'address' && destAddress.trim() && !destValid}
 						<p class="dest-hint sm-caption dest-error">
 							Not a valid Ethereum address: 0x and 40 hex characters (a mixed-case address
@@ -1621,8 +1692,8 @@ let expectedOutputUsd = $derived.by(() => {
 							{#if evmPayout.min == null}
 								Loading the bridge's minimum withdrawal...
 							{:else}
-								The bridge sends at least {shortUnits(evmPayout.min, dec)}
-								{unit} after its proving fee: swap a larger amount.
+								A payout on Ethereum needs at least {shortUnits(evmPayout.min, dec)}
+								{unit} after the bridge's proving fee (its minimum withdrawal): swap a larger amount.
 							{/if}
 						</p>
 					{/if}

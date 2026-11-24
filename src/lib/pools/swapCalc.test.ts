@@ -17,7 +17,10 @@ import {
 	checkExceedsPoolDepth,
 	calculatePriceImpact,
 	swapFeeExceedsGuard,
+	swapFeeGuardMessage,
+	swapFeeLabelPct,
 	SWAP_FEE_GUARD_BPS,
+	SWAP_FEE_GUARD_PARITY_BPS,
 	SLIP_FEE_RULE,
 	buildSwapRoute,
 	calculateRouteSwap,
@@ -35,7 +38,7 @@ const hiveHbdPool: TypedPoolDepths = {
 	asset0: 'hive',
 	asset1: 'hbd',
 	reserve0: 2_221_000n, // 2,221.000 HIVE
-	reserve1: 2_221_000n  // 2,221.000 HBD (1:1 peg for simplicity)
+	reserve1: 2_221_000n // 2,221.000 HBD (1:1 peg for simplicity)
 };
 
 /** BTC/HBD pool: reserve0=BTC (satoshis, 8 dp), reserve1=HBD (3 dp) */
@@ -43,8 +46,8 @@ const btcHbdPool: TypedPoolDepths = {
 	contractId: 'vs41q9c3yetfkv8xssdqtuy9jq3g25f3tjzsy82m4b',
 	asset0: 'btc',
 	asset1: 'hbd',
-	reserve0: 3_340n,       // 0.00003340 BTC ≈ $3,340 at $100k/BTC
-	reserve1: 3_340_000n    // 3,340.000 HBD ≈ $3,340
+	reserve0: 3_340n, // 0.00003340 BTC ≈ $3,340 at $100k/BTC
+	reserve1: 3_340_000n // 3,340.000 HBD ≈ $3,340
 };
 
 // ─── getOrderedDepthsFor ──────────────────────────────────────────────────────
@@ -288,14 +291,14 @@ describe('calculatePriceImpact', () => {
 
 	it('result is always in [0, 100] range', () => {
 		const cases: Array<[bigint, string, string]> = [
-			[300n,     'hive', 'hbd'],   // tiny HIVE→HBD
-			[1_000n,   'hive', 'hbd'],   // 1 HIVE
-			[100_000n, 'hive', 'hbd'],   // 100 HIVE
-			[1n,       'btc',  'hbd'],   // 1 sat
-			[100n,     'btc',  'hbd'],   // 100 sat
-			[300n,     'hive', 'btc'],   // tiny HIVE→BTC two-hop
-			[100_000n, 'hive', 'btc'],   // 100 HIVE→BTC two-hop
-			[50n,      'btc',  'hive'],  // 50 sat→HIVE two-hop
+			[300n, 'hive', 'hbd'], // tiny HIVE→HBD
+			[1_000n, 'hive', 'hbd'], // 1 HIVE
+			[100_000n, 'hive', 'hbd'], // 100 HIVE
+			[1n, 'btc', 'hbd'], // 1 sat
+			[100n, 'btc', 'hbd'], // 100 sat
+			[300n, 'hive', 'btc'], // tiny HIVE→BTC two-hop
+			[100_000n, 'hive', 'btc'], // 100 HIVE→BTC two-hop
+			[50n, 'btc', 'hive'] // 50 sat→HIVE two-hop
 		];
 		for (const [x, aIn, aOut] of cases) {
 			const pct = calculatePriceImpact(x, aIn, aOut, hiveHbdPool, btcHbdPool);
@@ -328,7 +331,7 @@ describe('calculatePriceImpact', () => {
 	it('impact scales proportionally for HBD→HIVE (symmetric pool)', () => {
 		// Same pool, symmetric reserves → same impact formula
 		const hiveIn = calculatePriceImpact(10_000n, 'hive', 'hbd', hiveHbdPool, btcHbdPool);
-		const hbdIn  = calculatePriceImpact(10_000n, 'hbd',  'hive', hiveHbdPool, btcHbdPool);
+		const hbdIn = calculatePriceImpact(10_000n, 'hbd', 'hive', hiveHbdPool, btcHbdPool);
 		expect(hiveIn).toBeCloseTo(hbdIn, 5); // identical since reserves are equal
 	});
 
@@ -337,7 +340,7 @@ describe('calculatePriceImpact', () => {
 	it('1 sat BTC→HBD has tiny impact', () => {
 		// impact = 1 / (3,340 + 1) = 1 / 3,341 ≈ 0.030%
 		const pct = calculatePriceImpact(1n, 'btc', 'hbd', hiveHbdPool, btcHbdPool);
-		expect(pct).toBeCloseTo(0.030, 2);
+		expect(pct).toBeCloseTo(0.03, 2);
 	});
 
 	it('100 sat BTC→HBD reflects shallow pool depth', () => {
@@ -350,7 +353,7 @@ describe('calculatePriceImpact', () => {
 	it('HBD→BTC: 1,000 mHBD (1.000 HBD) has small impact', () => {
 		// impact = 1,000 / (3,340,000 + 1,000) = 1,000 / 3,341,000 ≈ 0.030%
 		const pct = calculatePriceImpact(1_000n, 'hbd', 'btc', hiveHbdPool, btcHbdPool);
-		expect(pct).toBeCloseTo(0.030, 2);
+		expect(pct).toBeCloseTo(0.03, 2);
 	});
 
 	// ── BTC ↔ HIVE two-hop ──
@@ -387,8 +390,8 @@ describe('calculatePriceImpact', () => {
 
 	it('two-hop impact is higher than either single-hop alone for same input', () => {
 		// HIVE→BTC via HBD should have more impact than just HIVE→HBD alone
-		const twoHop   = calculatePriceImpact(100_000n, 'hive', 'btc', hiveHbdPool, btcHbdPool);
-		const singleH  = calculatePriceImpact(100_000n, 'hive', 'hbd', hiveHbdPool, btcHbdPool);
+		const twoHop = calculatePriceImpact(100_000n, 'hive', 'btc', hiveHbdPool, btcHbdPool);
+		const singleH = calculatePriceImpact(100_000n, 'hive', 'hbd', hiveHbdPool, btcHbdPool);
 		expect(twoHop).toBeGreaterThan(singleH);
 	});
 });
@@ -468,9 +471,8 @@ const lassecashHbdPool: TypedPoolDepths = {
 
 const ALL_POOLS = [hiveHbdPool, btcHbdPool, lassecashHbdPool];
 const findPool = (a: string, b: string) =>
-	ALL_POOLS.find(
-		(p) => (p.asset0 === a && p.asset1 === b) || (p.asset0 === b && p.asset1 === a)
-	) ?? null;
+	ALL_POOLS.find((p) => (p.asset0 === a && p.asset1 === b) || (p.asset0 === b && p.asset1 === a)) ??
+	null;
 
 describe('buildSwapRoute', () => {
 	it('routes a direct pair in one hop, either way round', () => {
@@ -649,5 +651,86 @@ describe('swap-fee rule (THORChain: max(full slip fee, protocol tier))', () => {
 			expect(byDefault.minAmountOut).toBe(named.minAmountOut);
 		}
 		expect(swapFeeExceedsGuard(301)).toBe(swapFeeExceedsGuard(301, SLIP_FEE_RULE));
+	});
+
+	// ── SLIP-FEE ACTIVATION (00-README-ORDER-AND-SLIP-FEE-ACTIVATION.md step 3) ──
+
+	it("ships as 'both', so one quote holds whichever rule the swap meets", () => {
+		expect(SLIP_FEE_RULE).toBe('both');
+		for (const amt of [1_000n, x, 400_000n]) {
+			const off = calculateSwap(amt, X, Y, 100, 'off');
+			const on = calculateSwap(amt, X, Y, 100, 'on');
+			const both = calculateSwap(amt, X, Y, 100, 'both');
+			// The fee quoted is the worse of the two, so min_amount_out is a floor
+			// the chain clears under either rule across the activation height.
+			expect(both.totalFee).toBe(off.totalFee > on.totalFee ? off.totalFee : on.totalFee);
+			expect(both.minAmountOut).toBeLessThanOrEqual(off.minAmountOut);
+			expect(both.minAmountOut).toBeLessThanOrEqual(on.minAmountOut);
+		}
+	});
+
+	it('the guard limit the shipped rule uses is the 10% parity backstop', () => {
+		// 3% would refuse any trade above ~3% of a pool once the slip fee is
+		// charged in full (README: "at 3% any trade above about 3% of a pool
+		// would be refused").
+		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_BPS + 1)).toBe(false);
+		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_PARITY_BPS)).toBe(false);
+		expect(swapFeeExceedsGuard(SWAP_FEE_GUARD_PARITY_BPS + 1)).toBe(true);
+	});
+
+	it('a fee label built from baseFee alone would hide most of what is charged', () => {
+		// The regression the card fix addresses: both cards priced the label from
+		// `baseFee` (the protocol leg) and never added `clpFee`. Under the slip
+		// rule the slip leg dominates, so the label understated the real cost.
+		const r = calculateSwap(x, X, Y, 100, 'on');
+		expect(r.clpFee).toBeGreaterThan(0n);
+		expect(r.totalFee).toBe(r.baseFee + r.clpFee);
+		expect(Number(r.totalFee)).toBeGreaterThan(Number(r.baseFee) * 10);
+	});
+
+	it('the two-hop label total is each hop total, not each hop base', () => {
+		const hops = calculateTwoHopSwap(
+			200n,
+			btcHbdPool,
+			hiveHbdPool,
+			'btc',
+			'hbd',
+			'hive',
+			100,
+			'on'
+		);
+		expect(hops.hop1Fee).toBeDefined();
+		expect(hops.hop1Fee!.totalFee).toBe(hops.hop1Fee!.baseFee + hops.hop1Fee!.clpFee);
+		expect(hops.totalFee).toBe(hops.baseFee + hops.clpFee);
+	});
+
+	it('the fee label rate comes from the quote, not a hardcoded tier', () => {
+		// "0.08%" was true only of the protocol tier. The effective rate now
+		// rises with the trade's size against the pool.
+		const small = calculateSwap(1_000n, X, Y, 100, 'on');
+		const large = calculateSwap(400_000n, X, Y, 100, 'on');
+		const smallPct = swapFeeLabelPct(small.feeBps);
+		const largePct = swapFeeLabelPct(large.feeBps);
+		expect(smallPct).toMatch(/^\d+\.\d{2}%$/);
+		expect(largePct).toMatch(/^\d+\.\d{2}%$/);
+		expect(parseFloat(largePct!)).toBeGreaterThan(parseFloat(smallPct!));
+		// Two decimals: the protocol tier alone is 0.08% and "0.1%" rounds it away.
+		expect(swapFeeLabelPct(8)).toBe('0.08%');
+		expect(swapFeeLabelPct(0)).toBe('0.00%');
+		expect(swapFeeLabelPct(null)).toBeNull();
+		expect(swapFeeLabelPct(undefined)).toBeNull();
+		expect(swapFeeLabelPct(NaN)).toBeNull();
+		expect(swapFeeLabelPct(-1)).toBeNull();
+	});
+
+	it('the guard message does not call a slip fee abnormal under the new rule', () => {
+		// Under THORChain's rule the fee IS the trade's price impact, so the old
+		// wording ("well above the usual ~0.1%") would have been a false claim.
+		expect(swapFeeGuardMessage(1_200, 'off')).toContain('usual ~0.1%');
+		const parity = swapFeeGuardMessage(1_200, 'on');
+		expect(parity).not.toContain('usual ~0.1%');
+		expect(parity).not.toContain('abnormally high');
+		expect(parity).toContain('12.0%');
+		expect(swapFeeGuardMessage(1_200)).toBe(swapFeeGuardMessage(1_200, SLIP_FEE_RULE));
 	});
 });

@@ -53,6 +53,7 @@
 		calculateRouteSwap,
 		exceedsPoolDepthForRoute,
 		priceImpactForRoute,
+		swapFeeLabelPct,
 		type SwapHop,
 		type TypedPoolDepths,
 		type SwapCalcResult
@@ -408,20 +409,28 @@
 	);
 
 	/**
-	 * Total protocol fee across all hops in USD.
+	 * Total swap fee across all hops in USD: the protocol tier AND the slip
+	 * fee, which is what the pool actually charges. It used to read `baseFee`,
+	 * the protocol leg alone, so the slip leg was never shown — small while
+	 * that leg was scaled to 1/16, but under THORChain's rule
+	 * (`SLIP_FEE_RULE`) the slip fee is the larger of the two on any sizeable
+	 * trade, and the label would have understated the cost by most of it.
 	 * For two-hop routes (BTC↔HIVE), the intermediate hop fee is denominated in
 	 * HBD (≈ $1 pegged). Final-hop fee is in the output coin.
 	 */
-	let totalProtocolFeeUsd = $derived.by(() => {
+	let totalSwapFeeUsd = $derived.by(() => {
 		const toCoinDef = txState.to;
 		if (!swapResult || toPriceUsdRaw <= 0 || !toCoinDef) return null;
 		const finalHopUsd =
-			(Number(swapResult.baseFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+			(Number(swapResult.totalFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
 		if (!swapResult.hop1Fee) return finalHopUsd;
 		// hop1 intermediate is always HBD for BTC↔HIVE routes; HBD ≈ $1 pegged
-		const hop1Usd = Number(swapResult.hop1Fee.baseFee) / 10 ** Coin.hbd.decimalPlaces;
+		const hop1Usd = Number(swapResult.hop1Fee.totalFee) / 10 ** Coin.hbd.decimalPlaces;
 		return hop1Usd + finalHopUsd;
 	});
+
+	/** The modelled effective rate for the fee label (both hops summed). */
+	let swapFeePct = $derived.by(() => swapFeeLabelPct(swapResult?.feeBps));
 
 	// Pool-based fee calculation — resolve both HIVE/HBD and BTC/HBD
 	// pools upfront so the swap calc can route HIVE↔HBD single-hop,
@@ -1724,12 +1733,14 @@
 				</div>
 				<div class="detail-row">
 					<span class="detail-label">
-						Protocol fee
-						<span class="detail-sublabel">({swapResult?.hop1Fee ? '0.16%' : '0.08%'})</span>
+						Swap fee
+						{#if swapFeePct}
+							<span class="detail-sublabel">({swapFeePct})</span>
+						{/if}
 					</span>
 					<span class="detail-value">
-						{#if totalProtocolFeeUsd !== null}
-							≈ ${formatUsd(totalProtocolFeeUsd)}
+						{#if totalSwapFeeUsd !== null}
+							≈ ${formatUsd(totalSwapFeeUsd)}
 						{:else}
 							—
 						{/if}

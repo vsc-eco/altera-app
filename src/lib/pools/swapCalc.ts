@@ -72,7 +72,7 @@ const CLP_SCALE_BPS = 625n;
  * Set 'both' in the release before the node height, 'on' once it has passed.
  */
 export type SlipFeeRule = 'off' | 'both' | 'on';
-export const SLIP_FEE_RULE: SlipFeeRule = 'off';
+export const SLIP_FEE_RULE: SlipFeeRule = 'both';
 
 import { GetStateByKeysStore } from '$houdini';
 import { queryOnce } from '$lib/queryOnce';
@@ -172,13 +172,38 @@ export function swapFeeExceedsGuard(
 }
 
 /** Single source of truth for the user-facing guard message. */
-export function swapFeeGuardMessage(feeBps: number | undefined | null): string {
+export function swapFeeGuardMessage(
+	feeBps: number | undefined | null,
+	rule: SlipFeeRule = SLIP_FEE_RULE
+): string {
 	const pct = feeBps != null ? (feeBps / 100).toFixed(1) : '?';
+	if (rule === 'off') {
+		return (
+			`Swap cancelled to protect you: the network would currently charge an abnormally high fee ` +
+			`(~${pct}%, well above the usual ~0.1%) on this trade. Try a smaller amount, or wait until ` +
+			`this is resolved.`
+		);
+	}
+	// Under THORChain's rule the fee IS the trade's own price impact, so a high
+	// one means the trade is large against the pool, not that anything is wrong.
+	// Saying "abnormally high ... above the usual ~0.1%" would be false here.
 	return (
-		`Swap cancelled to protect you: the network would currently charge an abnormally high fee ` +
-		`(~${pct}%, well above the usual ~0.1%) on this trade. Try a smaller amount, or wait until ` +
-		`this is resolved.`
+		`Swap cancelled to protect you: this trade is large enough against the pool that the ` +
+		`network would charge ~${pct}% of it in slip fee. Try a smaller amount, or split it over ` +
+		`several swaps.`
 	);
+}
+
+/**
+ * The effective swap fee as a percentage string for a fee label, from the
+ * modelled `feeBps` (both hops summed). The fee is no longer a fixed tier the
+ * UI can hardcode: under THORChain's rule it is `max(slip fee, protocol tier)`,
+ * so it rises with the trade's size against the pool. Two decimals, because the
+ * protocol tier alone is 0.08% and "0.1%" would round it away.
+ */
+export function swapFeeLabelPct(feeBps: number | undefined | null): string | null {
+	if (feeBps == null || !Number.isFinite(feeBps) || feeBps < 0) return null;
+	return `${(feeBps / 100).toFixed(2)}%`;
 }
 
 /** Effective fee in bps = totalFee / grossOut, where grossOut = out + fee. */
@@ -193,9 +218,7 @@ function feeBpsOf(totalFee: bigint, expectedOutput: bigint): number {
  * pool contract. Callers are responsible for resolving the right contract ID
  * (e.g. via `fetchPoolRegistry` or a selected pool).
  */
-export async function fetchPoolDepths(
-	poolContractId: string
-): Promise<PoolDepths | null> {
+export async function fetchPoolDepths(poolContractId: string): Promise<PoolDepths | null> {
 	if (!poolContractId) return null;
 	try {
 		const result = await queryOnce(new GetStateByKeysStore(), {
@@ -225,10 +248,7 @@ export async function fetchPoolDepths(
  * (order-independent). Returns the first matching pool. Use when callers
  * only know the assets, not the contract ID directly.
  */
-export async function findPoolByPair(
-	assetA: string,
-	assetB: string
-): Promise<string | null> {
+export async function findPoolByPair(assetA: string, assetB: string): Promise<string | null> {
 	const a = assetA.toUpperCase();
 	const b = assetB.toUpperCase();
 	try {
@@ -510,10 +530,8 @@ function nativeRoute(
 		assetIn,
 		assetOut,
 		(a, b) =>
-			pools.find(
-				(p) =>
-					(p.asset0 === a && p.asset1 === b) || (p.asset0 === b && p.asset1 === a)
-			) ?? null
+			pools.find((p) => (p.asset0 === a && p.asset1 === b) || (p.asset0 === b && p.asset1 === a)) ??
+			null
 	);
 }
 

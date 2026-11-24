@@ -69,12 +69,33 @@ const CLP_SCALE_BPS = 625n;
  *            larger of the full slip fee x²·Y/(x+X)² and the protocol tier.
  *  - 'both': across the activation height, quote the higher of the two fees so
  *            min_amount_out holds whichever rule the swap meets.
- * Set 'both' in the release before the node height, 'on' once it has passed.
  */
 export type SlipFeeRule = 'off' | 'both' | 'on';
-export const SLIP_FEE_RULE: SlipFeeRule = 'both';
+
+/**
+ * Derived from the selected network, in the manner of DEPOSIT_SWAP_REFUNDS_ACTIVE
+ * in $lib/constants: a rule is 'on' only once that network has passed its own
+ * PendulumSlipParityHeight.
+ *
+ * TESTNET is 'on': go-vsc-node #327 sets the height there, and nothing else does.
+ * Quoting the final rule outright is the point of a testnet -- 'both' would hide
+ * a wrong number behind a max() of the two rules.
+ *
+ * MAINNET is 'both': no mainnet height is scheduled, so the node still charges
+ * the old rule, and 'both' quotes the higher of the two. That keeps
+ * min_amount_out good on either side of a crossing, so this build is safe to
+ * ship before the height and stays correct across it. Flip to 'on' once the
+ * mainnet height has passed, and delete the 'off' branch a release later.
+ *
+ * isVscTestnet() reads the viewer's own network choice out of localStorage, so
+ * ONE deployment serves both: a visitor on testnet gets 'on', everyone else
+ * 'both'. It is captured at module load, like vscNetworkId itself -- switching
+ * network in the UI reloads the app, which is what re-evaluates it.
+ */
+export const SLIP_FEE_RULE: SlipFeeRule = isVscTestnet() ? 'on' : 'both';
 
 import { GetStateByKeysStore } from '$houdini';
+import { isVscTestnet } from '../../client';
 import { queryOnce } from '$lib/queryOnce';
 import { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from './poolsData';
 

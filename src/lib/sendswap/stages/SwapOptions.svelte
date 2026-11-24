@@ -9,7 +9,9 @@
 	import { useSwapState } from '$lib/sendswap/utils/txState.svelte';
 	import { assetCard, type AssetObject } from '$lib/sendswap/components/info/SendSnippets.svelte';
 	import { onMount, untrack } from 'svelte';
-	import swapOptions, { getFromOption, getToOption,
+	import swapOptions, {
+		getFromOption,
+		getToOption,
 		Coin,
 		Network,
 		type CoinOnNetwork,
@@ -62,10 +64,7 @@
 		CUSTOM_TOKEN_ICON,
 		type CustomToken
 	} from '$lib/tokens/customTokens';
-	import {
-		customTokenBalances,
-		refreshCustomTokenBalances
-	} from '$lib/tokens/customTokenBalances';
+	import { customTokenBalances, refreshCustomTokenBalances } from '$lib/tokens/customTokenBalances';
 	import CoinNetworkIcon from '$lib/currency/CoinNetworkIcon.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { browser } from '$app/environment';
@@ -132,10 +131,7 @@
 				btcHbdPool ? null : fetchTypedPoolDepths('BTC', 'HBD'),
 				customTokens.length ? customTokens : fetchCustomTokens(),
 				EVM_BRIDGE_ENABLED && evmPools.length < 2
-					? Promise.all([
-							fetchTypedPoolDepths('ETH', 'HBD'),
-							fetchTypedPoolDepths('HBD', 'USDC')
-						])
+					? Promise.all([fetchTypedPoolDepths('ETH', 'HBD'), fetchTypedPoolDepths('HBD', 'USDC')])
 					: null
 			]);
 			if (hiveHbd) hiveHbdPool = hiveHbd;
@@ -157,9 +153,7 @@
 				);
 				const loaded = depths.filter((d): d is TypedPoolDepths => d != null);
 				customPools = loaded;
-				const routable = new Set(
-					loaded.flatMap((d) => [d.asset0, d.asset1])
-				);
+				const routable = new Set(loaded.flatMap((d) => [d.asset0, d.asset1]));
 				customTokens = tokens.filter((t) => routable.has(t.symbol));
 			}
 
@@ -256,8 +250,7 @@
 	]);
 	const findFromOption = (value: string | undefined) =>
 		fromOptions.find((o) => o.coin.value === value);
-	const findToOption = (value: string | undefined) =>
-		toOptions.find((o) => o.coin.value === value);
+	const findToOption = (value: string | undefined) => toOptions.find((o) => o.coin.value === value);
 
 	/** Every pool the picker can route through, native and custom alike. */
 	const allPools = $derived(
@@ -412,7 +405,7 @@
 		});
 	}
 
-let expectedOutputUsd = $derived.by(() => {
+	let expectedOutputUsd = $derived.by(() => {
 		const toCoinDef = txState.to;
 		if (!swapResult || swapResult.expectedOutput <= 0n || toPriceUsdRaw <= 0 || !toCoinDef)
 			return null;
@@ -436,10 +429,7 @@ let expectedOutputUsd = $derived.by(() => {
 	});
 
 	let exchangeFeePct = $derived(
-		getAlteraFeePct(
-			txState.from?.coin.value ?? '',
-			txState.to?.coin.value ?? ''
-		)
+		getAlteraFeePct(txState.from?.coin.value ?? '', txState.to?.coin.value ?? '')
 	);
 
 	/**
@@ -519,8 +509,7 @@ let expectedOutputUsd = $derived.by(() => {
 			const externalNet = findToOption(txState.to?.coin.value)?.networks?.find(
 				(n: Network) => n.value !== Network.magi.value
 			);
-			const net =
-				destNetworkChoice === 'magi' ? Network.magi : (externalNet ?? Network.magi);
+			const net = destNetworkChoice === 'magi' ? Network.magi : (externalNet ?? Network.magi);
 			if (txState.to && txState.to.network.value !== net.value) {
 				txState.to = { coin: txState.to.coin, network: net };
 			}
@@ -557,10 +546,7 @@ let expectedOutputUsd = $derived.by(() => {
 		untrack(() => {
 			if (valid) {
 				getFee(txState.toAmount, txState).then((fee) => {
-					if (
-						fee?.amount !== txState.fee?.amount ||
-						fee?.coin.value !== txState.fee?.coin.value
-					)
+					if (fee?.amount !== txState.fee?.amount || fee?.coin.value !== txState.fee?.coin.value)
 						txState.fee = fee;
 				});
 			}
@@ -743,7 +729,7 @@ let expectedOutputUsd = $derived.by(() => {
 
 	$effect(() => {
 		// FROM auto selection
-		if (!(txState.from) && assetOptions.length > 0) {
+		if (!txState.from && assetOptions.length > 0) {
 			const btcOption = assetOptions.find(
 				(opt) => opt.coin.value === Coin.btc.value && !opt.disabled
 			);
@@ -761,7 +747,7 @@ let expectedOutputUsd = $derived.by(() => {
 			const bal = getBalanceSmallestUnits($accountBalance, coinDef, Network.magi);
 			return bal > 0.001;
 		});
-		if (!(txState.to)) {
+		if (!txState.to) {
 			let nextToCoin: (typeof swapOptions.to)[number] | undefined;
 			let nextToNetwork: Network | undefined;
 			if (visibleToObjs.length > 0) {
@@ -795,9 +781,7 @@ let expectedOutputUsd = $derived.by(() => {
 
 	// Same-coin error: show when from and to are the same asset
 	let sameCoinError = $derived(
-		txState.from && txState.to
-			? txState.from.coin.value === txState.to.coin.value
-			: false
+		txState.from && txState.to ? txState.from.coin.value === txState.to.coin.value : false
 	);
 
 	// Insufficient balance: check if from amount exceeds available balance.
@@ -898,9 +882,7 @@ let expectedOutputUsd = $derived.by(() => {
 	);
 
 	// Only the from coin for the amount input – no dropdown; from is changed only via the left card.
-	let amountInputCoinOpts: CoinOnNetwork[] = $derived(
-		txState.from ? [txState.from] : []
-	);
+	let amountInputCoinOpts: CoinOnNetwork[] = $derived(txState.from ? [txState.from] : []);
 
 	let inputAmount = $state(new CoinAmount(0, Coin.unk));
 	$effect(() => {
@@ -945,9 +927,7 @@ let expectedOutputUsd = $derived.by(() => {
 		if (raw && raw !== '0' && !fromEmpty) return new CoinAmount(raw, toCoin);
 		return new CoinAmount(0, toCoin);
 	});
-	const toAmountCoinOpts: CoinOnNetwork[] = $derived(
-		txState.to ? [txState.to] : []
-	);
+	const toAmountCoinOpts: CoinOnNetwork[] = $derived(txState.to ? [txState.to] : []);
 
 	let fromPriceUsdRaw = $state(0);
 	let toPriceUsdRaw = $state(0);
@@ -1182,10 +1162,7 @@ let expectedOutputUsd = $derived.by(() => {
 		const cameFrom: 'tokens' | 'custom' = dialogStep === 'custom' ? 'custom' : 'tokens';
 
 		// If the user picks the token already in the OTHER slot, swap tokens.
-		const otherValue =
-			currentlyOpen === 'from'
-				? txState.to?.coin.value
-				: txState.from?.coin.value;
+		const otherValue = currentlyOpen === 'from' ? txState.to?.coin.value : txState.from?.coin.value;
 
 		if (otherValue && token.value === otherValue) {
 			if (currentlyOpen === 'from') {
@@ -1277,7 +1254,8 @@ let expectedOutputUsd = $derived.by(() => {
 			</button>
 		{/each}
 		{#if customAssetObjs.length > 0}
-			{@const customIsFrom = !!activeCustomObj && activeCustomObj.value === txState.from?.coin.value}
+			{@const customIsFrom =
+				!!activeCustomObj && activeCustomObj.value === txState.from?.coin.value}
 			{@const customIsTo = !!activeCustomObj && activeCustomObj.value === txState.to?.coin.value}
 			{@const customIsSelected = customIsFrom || customIsTo}
 			{@const customIsActive =
@@ -1290,11 +1268,7 @@ let expectedOutputUsd = $derived.by(() => {
 				]}
 				onclick={openCustomStep}
 			>
-				<img
-					src={activeCustomObj?.icon ?? CUSTOM_TOKEN_ICON}
-					alt=""
-					class="chip-icon"
-				/>
+				<img src={activeCustomObj?.icon ?? CUSTOM_TOKEN_ICON} alt="" class="chip-icon" />
 				<span>{activeCustomObj ? coinDisplayLabel(activeCustomObj) : 'Custom'}</span>
 				{#if customIsSelected && !customIsActive}
 					<span class="chip-role-badge">{customIsFrom ? 'FROM' : 'TO'}</span>
@@ -1401,7 +1375,9 @@ let expectedOutputUsd = $derived.by(() => {
 					<span class="section-label">From</span>
 					<span class="section-header-center">
 						{#if txState.from}
-							<span class={['network-pill', { external: txState.from.network.value !== 'magi' }]}>{txState.from.network.label}</span>
+							<span class={['network-pill', { external: txState.from.network.value !== 'magi' }]}
+								>{txState.from.network.label}</span
+							>
 						{/if}
 					</span>
 					<span class="section-balance sm-caption">
@@ -1454,7 +1430,9 @@ let expectedOutputUsd = $derived.by(() => {
 								: `Insufficient ${coinDisplayLabel(txState.from.coin)} balance`}</span
 						>
 					{:else if exceedsPoolDepth}
-						<span class="section-error-inline">Insufficient pool liquidity — try a smaller amount</span>
+						<span class="section-error-inline"
+							>Insufficient pool liquidity — try a smaller amount</span
+						>
 					{/if}
 				</div>
 			</div>
@@ -1479,7 +1457,9 @@ let expectedOutputUsd = $derived.by(() => {
 					<span class="section-label">You Receive</span>
 					<span class="section-header-center">
 						{#if txState.to}
-							<span class={['network-pill', { external: txState.to.network.value !== 'magi' }]}>{txState.to.network.label}</span>
+							<span class={['network-pill', { external: txState.to.network.value !== 'magi' }]}
+								>{txState.to.network.label}</span
+							>
 						{/if}
 					</span>
 					<span class="section-balance sm-caption"></span>
@@ -1555,11 +1535,7 @@ let expectedOutputUsd = $derived.by(() => {
 
 			{#if txState.to}
 				<div class="dest-header">
-					<CoinNetworkIcon
-						coin={toCoin}
-						network={txState.to?.network ?? Network.magi}
-						size={28}
-					/>
+					<CoinNetworkIcon coin={toCoin} network={txState.to?.network ?? Network.magi} size={28} />
 					<h3>Where should {coinDisplayLabel(toCoin)} go?</h3>
 				</div>
 			{/if}
@@ -1656,11 +1632,8 @@ let expectedOutputUsd = $derived.by(() => {
 					{@const unit = coinDisplayLabel(evmPayout.coin)}
 					{@const dec = evmPayout.coin.decimalPlaces}
 					<p class="dest-hint sm-caption">
-						{unit} is sent to this address on {ETH_NETWORK} by the bridge. {ETH_PAYOUT_NOTE} Its
-						proving fee ({shortUnits(
-							evmPayout.proofFee,
-							dec
-						)}
+						{unit} is sent to this address on {ETH_NETWORK} by the bridge. {ETH_PAYOUT_NOTE} Its proving
+						fee ({shortUnits(evmPayout.proofFee, dec)}
 						{unit}) and the Ethereum gas come out of the amount.
 						{#if payoutLine?.arrives != null && payoutLine.gas != null}
 							Ethereum gas now: {shortUnits(payoutLine.gas, dec)}
@@ -1683,8 +1656,8 @@ let expectedOutputUsd = $derived.by(() => {
 					{/if}
 					{#if destChoice === 'address' && destAddress.trim() && !destValid}
 						<p class="dest-hint sm-caption dest-error">
-							Not a valid Ethereum address: 0x and 40 hex characters (a mixed-case address
-							must match its checksum).
+							Not a valid Ethereum address: 0x and 40 hex characters (a mixed-case address must
+							match its checksum).
 						</p>
 					{/if}
 					{#if destChoice === 'address' && evmPayout.belowMin}
@@ -1699,7 +1672,9 @@ let expectedOutputUsd = $derived.by(() => {
 					{/if}
 				{:else}
 					<p class="dest-hint sm-caption">
-						{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi' ? 'Magi' : chainLabel} &mdash;
+						{coinDisplayLabel(toCoin)} arrives on {destNetworkChoice === 'magi'
+							? 'Magi'
+							: chainLabel} &mdash;
 						{destNetworkChoice === 'magi'
 							? 'a Hive account, an Ethereum 0x address or a Bitcoin address'
 							: txState.to?.network.value === Network.btcMainnet.value

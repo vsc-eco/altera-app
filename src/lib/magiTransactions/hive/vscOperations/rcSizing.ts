@@ -14,7 +14,7 @@
  * cost plus a margin, clamped to what the account actually has.
  */
 
-import { GetAccountBalanceStore, SimulateContractCallsStore } from '$houdini';
+import { ActiveConsensusStore, GetAccountBalanceStore, SimulateContractCallsStore } from '$houdini';
 import { queryOnce } from '$lib/queryOnce';
 import { rcShortfallToHbd } from '$lib/calc';
 
@@ -25,33 +25,132 @@ export {
 	MAX_RC_LIMIT,
 	RC_MARGIN,
 	BTC_PAYOUT_SWAP_MIN_RC,
+	BTC_PAYOUT_SWAP_MIN_RC_V0_15,
+	WRITE_PRICE_CUT_CONSENSUS,
+	btcPayoutSwapMinRc,
 	sizeRcLimit,
 	btcPayoutSwapRcLimit
 } from '$lib/calc';
-export type { InsufficientRc, RcSizing } from '$lib/calc';
+export type { ActiveConsensus, InsufficientRc, RcSizing } from '$lib/calc';
 
 import {
 	MAX_RC_LIMIT,
 	BTC_PAYOUT_SWAP_MIN_RC,
+	btcPayoutSwapMinRc,
 	sizeRcLimit,
 	btcPayoutSwapRcLimit,
+	type ActiveConsensus,
 	type InsufficientRc,
 	type RcSizing
 } from '$lib/calc';
 
+/** The chain's active consensus version (the node's newest election), or
+ *  undefined when the node does not answer. Every node reports the on-chain
+ *  election, so the answer does not depend on which build the node runs. */
+export async function fetchActiveConsensus(): Promise<ActiveConsensus | undefined> {
+	try {
+		const res = await queryOnce(new ActiveConsensusStore(), { policy: 'NetworkOnly' });
+		const el = res.data?.electionByBlockHeight;
+		if (el?.protocol_version == null || el?.version_major == null) return undefined;
+		return { major: Number(el.version_major), consensus: Number(el.protocol_version) };
+	} catch {
+		return undefined;
+	}
+}
+
+/** btcPayoutSwapMinRc for the chain as it is now. */
+export async function fetchBtcPayoutSwapMinRc(): Promise<number> {
+	return btcPayoutSwapMinRc(await fetchActiveConsensus());
+}
+
 /** The fresh RC (the node's getAccountRC) when the node answers, else
- *  `fallbackAvailable` (the polled balance store), sized by btcPayoutSwapRcLimit. */
+ *  `fallbackAvailable` (the polled balance store), sized by btcPayoutSwapRcLimit
+ *  against the minimum of the chain's active consensus version. */
 export async function sizeBtcPayoutSwap(
 	did: string,
 	hbdPulledFromMagi: number,
-	fallbackAvailable?: number
+	fallbackAvailable?: number,
+	/** True when the input is ETH or USDC (isEvmBridgeCoin): such payouts cost
+	 *  more (btcPayoutMinRcForInput). */
+	evmBridgeInput = false,
+	/** RC on top for a swap paid from the Hive wallet (HIVE_RETURN_PAYOUT_EXTRA_RC). */
+	extraRc = 0
 ): Promise<RcSizing> {
-	const available = (await fetchAccountRc(did)) ?? fallbackAvailable ?? 0;
-	return btcPayoutSwapRcLimit(available, hbdPulledFromMagi);
+	const [fresh, minRc] = await Promise.all([fetchAccountRc(did), fetchBtcPayoutSwapMinRc()]);
+	return btcPayoutSwapRcLimit(
+		fresh ?? fallbackAvailable ?? 0,
+		hbdPulledFromMagi,
+		btcPayoutMinRcForInput(minRc, evmBridgeInput) + extraRc
+	);
+}
+
+/**
+ * RC on top of a payout's minimum when the swap is paid from the Hive wallet:
+ * the router runs it in a call to itself it can roll back, so a failure goes
+ * back to Hive. Measured on the real wasm 11-21: +403 RC for the call, +745
+ * for an Ethereum payout (which also prices the floor of a swap back); 1.5x
+ * the larger. A payout that runs out of RC cannot be sent back.
+ */
+export const HIVE_RETURN_PAYOUT_EXTRA_RC = 1_200;
+
+/**
+ * What a BTC payout costs on top when its input is ETH or USDC: the router
+ * also pulls it from the EVM bridge (transferFrom) and swaps it into HBD first.
+ * Measured on testnet at 0.15, 2026-11-19: ETH -> HBD -> BTC 6,544 RC against
+ * 5,487 for HBD -> BTC (+1,057). USDC takes the same pull and hop (the testnet
+ * USDC pool is too small to dry-run a payout). The hop writes no new bytes, so
+ * the difference is the same up to 0.14. Added to the version's minimum, which
+ * already holds room for one more vault input.
+ */
+export const BTC_PAYOUT_EVM_INPUT_EXTRA_RC = 1_000;
+
+/** The payout minimum for this input: the version's minimum, plus the bridge
+ *  pull and the extra hop when the input is ETH or USDC (isEvmBridgeCoin). */
+export function btcPayoutMinRcForInput(minRc: number, evmBridgeInput: boolean): number {
+	return evmBridgeInput ? minRc + BTC_PAYOUT_EVM_INPUT_EXTRA_RC : minRc;
 }
 
 /** What to tell a user whose RC cannot pay a BTC payout. The amount swapped
- *  barely changes the cost, so a smaller swap does not help; HBD on Magi does. */
+ *  barely changes the cost, so a smaller swap does not help; HBD on Magi does.
+ *  The sizing functions above always fill `needed` with the minimum they
+ *  refused at; without it the higher minimum is quoted. */
+/**
+ * Least RC a swap paid out on Ethereum needs (destination_chain ETH: the
+ * router's swap, then the EVM bridge's unmapETH / unmapERC20). Mainnet dry
+ * runs 11-21 at consensus 0.15: HBD->USDC 2,951-3,700 RC, HBD->ETH 3,785,
+ * BTC->USDC (two hops) 4,589. 1.2x the most, as the BTC payout's 6,200 is to
+ * its ~5,300: higher would refuse payouts the account can pay (it gets all
+ * its spendable RC); a call that runs out is charged its whole rc_limit.
+ */
+export const EVM_PAYOUT_SWAP_MIN_RC = 5_500;
+
+/** btcPayoutSwapRcLimit with the Ethereum payout's minimum, on fresh RC. */
+export async function sizeEvmPayoutSwap(
+	did: string,
+	hbdPulledFromMagi: number,
+	fallbackAvailable?: number,
+	/** RC on top for a swap paid from the Hive wallet (HIVE_RETURN_PAYOUT_EXTRA_RC). */
+	extraRc = 0
+): Promise<RcSizing> {
+	const fresh = await fetchAccountRc(did);
+	return btcPayoutSwapRcLimit(
+		fresh ?? fallbackAvailable ?? 0,
+		hbdPulledFromMagi,
+		EVM_PAYOUT_SWAP_MIN_RC + extraRc
+	);
+}
+
+export function evmPayoutShortfallMessage(shortfall: InsufficientRc): string {
+	const needed = shortfall.needed ?? EVM_PAYOUT_SWAP_MIN_RC;
+	const missingHbd = Math.ceil(Math.max(0, needed - shortfall.available) / 10) / 100;
+	return (
+		`Not enough RC to pay out to an Ethereum address: it needs at least ` +
+		`${needed.toLocaleString('en-US')} RC and you have ` +
+		`${shortfall.available.toLocaleString('en-US')}. Deposit at least ` +
+		`${missingHbd.toFixed(2)} HBD to Magi to cover it.`
+	);
+}
+
 export function btcPayoutShortfallMessage(shortfall: InsufficientRc): string {
 	const needed = shortfall.needed ?? BTC_PAYOUT_SWAP_MIN_RC;
 	const missingHbd = rcShortfallToHbd(needed, shortfall.available);

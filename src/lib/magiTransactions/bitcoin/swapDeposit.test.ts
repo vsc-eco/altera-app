@@ -332,3 +332,57 @@ describe('a refund address on the wrong network is caught here, not at the bot',
 		);
 	});
 });
+
+// SENDER-REFUND-1: the contract refunds the address that sent the BTC, so a
+// swap paid with Bitcoin can pay out on Ethereum and needs no refund address.
+describe('swaps paid with Bitcoin into Ethereum wallets (sender refunds)', () => {
+	const eth = {
+		recipient: '0x00000000000000000000000000000000000000E2',
+		toCoin: 'eth',
+		toNetwork: 'eth_mainnet',
+		amountSats: 20_000,
+		minAmountOut: '1000000000000000',
+		senderRefunds: true
+	};
+	it('pays an Ethereum address as its identity, with the gas limit for ETH', () => {
+		const r = buildBtcSwapInstruction({ ...eth, payoutGasLimit: 25_200 });
+		expect(r.ok && r.instruction).toBe(
+			'swap_to=did%3Apkh%3Aeip155%3A1%3A0x00000000000000000000000000000000000000e2&swap_asset_out=eth&destination_chain=ETH&payout_gas_limit=25200&min_amount_out=1000000000000000'
+		);
+	});
+	it('USDC carries no gas limit; only ETH or USDC on Ethereum', () => {
+		const usdc = buildBtcSwapInstruction({ ...eth, toCoin: 'usdc', payoutGasLimit: 25_200 });
+		expect(usdc.ok && usdc.instruction).not.toContain('payout_gas_limit');
+		expect(buildBtcSwapInstruction({ ...eth, toCoin: 'hbd' }).ok).toBe(false);
+	});
+	it('needs a real Ethereum address', () => {
+		for (const recipient of [
+			'0xabc',
+			'hive:alice',
+			'0x0000000000000000000000000000000000000000',
+			''
+		]) {
+			expect(buildBtcSwapInstruction({ ...eth, recipient }).ok, recipient).toBe(false);
+		}
+	});
+	it('never sends a hive: refund_to; keeps a Bitcoin wallet login address as the fallback', () => {
+		const hive = buildBtcSwapInstruction({ ...eth, refundTo: 'hive:sender' });
+		expect(hive.ok && hive.instruction).not.toContain('refund_to');
+		const btc = buildBtcSwapInstruction({
+			...eth,
+			refundTo: 'bc1qf87mytrp3dj9sm2y2yensj3g454n3p6k2t6sr5',
+			testnet: false
+		});
+		expect(btc.ok && btc.instruction).toContain(
+			'refund_to=bc1qf87mytrp3dj9sm2y2yensj3g454n3p6k2t6sr5'
+		);
+		// An Ethereum (MetaMask) login needs no refund address at all.
+		expect(buildBtcSwapInstruction({ ...eth, refundTo: 'did:pkh:eip155:1:0xabc' }).ok).toBe(true);
+	});
+	it('still needs the quote minimum', () => {
+		expect(buildBtcSwapInstruction({ ...eth, minAmountOut: undefined }).ok).toBe(false);
+	});
+	it('with sender refunds off, Ethereum is refused as before', () => {
+		expect(buildBtcSwapInstruction({ ...eth, senderRefunds: false }).ok).toBe(false);
+	});
+});

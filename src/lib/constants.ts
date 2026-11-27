@@ -12,6 +12,30 @@ export const BTC_MAPPING_CONTRACT_ID = isVscTestnet()
 	? 'vsc1BkWohDf5fPcwn7V9B9ar6TyiWc3A2ZGJ4t'
 	: 'vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d';
 
+// EVM bridge contract: holds ETH and USDC on Magi (map/unmapETH/unmapERC20/
+// approve/balance reads). Empty on a network where the bridge is not live yet:
+// every ETH/USDC surface checks EVM_BRIDGE_ENABLED and stays hidden.
+export const EVM_BRIDGE_CONTRACT_ID = isVscTestnet()
+	? 'vsc1Bo8h3TMFAYX5rkgCeauXFywZGiMbUftQL2'
+	: 'vsc1BqoXD32CWWx9UBfh18TnN7Es85RBut2Uhr';
+export const EVM_BRIDGE_ENABLED = EVM_BRIDGE_CONTRACT_ID !== '';
+
+/** The Ethereum chain the bridge watches (Sepolia on testnet). */
+export const ETH_CHAIN_ID = isVscTestnet() ? 11155111 : 1;
+
+/** The ERC-20 USDC contract the bridge maps as `usdc`. */
+export const USDC_TOKEN_ADDRESS = isVscTestnet()
+	? '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+	: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
+/** Smallest ETH deposit the bridge credits, in wei; less is not credited and
+ *  stays in the vault (evm-mapping-contract MinETHDeposit, DUST-1). */
+export const EVM_MIN_ETH_DEPOSIT_WEI = 1_000_000_000_000_000;
+
+/** Smallest ETH withdrawal the bridge sends, in wei (evm-mapping-contract
+ *  MinETHWithdrawal, 0.01 ETH); a smaller unmapETH is refused. */
+export const EVM_MIN_ETH_WITHDRAWAL_WEI = 10_000_000_000_000_000;
+
 function vscExplorerBase(): string {
 	return isVscTestnet() ? 'https://magi-test.techcoderx.com' : 'https://vsc.techcoderx.com';
 }
@@ -77,6 +101,22 @@ export function getMemPoolTxUrl(btcTxId: string): string {
  * every BTC deposit swap gets a 400. On first, bot second.
  */
 export const DEPOSIT_SWAP_REFUNDS_ACTIVE = true;
+
+/**
+ * SENDER-REFUND-1 (owner 11-21): a swap paid with Bitcoin that does not complete
+ * goes back to the address that SENT the BTC, which the BTC mapping contract
+ * proves itself (proveSender, sent by the mapping bot before the map). Nobody
+ * types a refund address, nothing lands in a Magi balance, and a swap can be
+ * paid out on Ethereum (ETH or USDC to an Ethereum address): one that comes back
+ * is swapped back to BTC and paid to the sender on Bitcoin.
+ *
+ * OFF until all of these are live on the network the app talks to: the BTC
+ * mapping contract with proveSender, the router that passes a Bitcoin return
+ * address, the EVM bridge that swaps a return back to BTC, and the mapping bot
+ * that proves senders and accepts these instructions. With it off nothing
+ * changes: Magi or Hive payouts only, and refund_to as before.
+ */
+export const BTC_SENDER_REFUNDS_ACTIVE = false;
 
 /**
  * Smallest deposit swap paid with Bitcoin, in sats: a failed swap's refund goes

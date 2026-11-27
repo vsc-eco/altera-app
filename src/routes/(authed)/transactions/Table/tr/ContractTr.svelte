@@ -23,6 +23,7 @@
 		isAwaitingSettledAmount,
 		swapEventHashCandidates
 	} from './swapDisplay';
+	import { loadSwapRefund, type SwapRefund } from './failureReason';
 	import { coinForAsset, isNativeAssetName, loadCustomTokenCoins } from '$lib/tokens/assetCoin.svelte';
 
 	type Props = {
@@ -117,17 +118,40 @@
 		})();
 	});
 
+	// F9: a Hive-paid swap the router could not run went back to Hive in the
+	// same transaction, which still confirms. Its own result says so
+	// (`refunded`); without reading it the row showed a swap waiting forever for
+	// a settled amount that never comes.
+	let refund = $state.raw<SwapRefund | null>(null);
+	let refundCheckedTxId = '';
+	$effect(() => {
+		if (!isSwap || !swapPayload?.isNewRouter || tx.isPending || tx.status !== 'CONFIRMED') return;
+		const thisTxId = tx.id;
+		if (thisTxId === refundCheckedTxId) return;
+		refundCheckedTxId = thisTxId;
+		refund = null;
+		loadSwapRefund(thisTxId, tx.output, op.index)
+			.then((r) => {
+				if (refundCheckedTxId === thisTxId) refund = r;
+			})
+			.catch(() => {});
+	});
+
 	// True while a confirmed new-router swap's real output is still unknown — the
 	// window in which we must NOT show min_amount_out. Drives the loading copy.
 	const isFailedTx = $derived(tx.status === 'FAILED');
 	const awaitingSettledAmount = $derived(
-		isAwaitingSettledAmount({
-			isSwap,
-			isNewRouter: !!swapPayload?.isNewRouter,
-			isPending: tx.isPending,
-			hasIndexerAmount: !!indexerAmountOut,
-			isFailed: isFailedTx
-		})
+		!refund &&
+			isAwaitingSettledAmount({
+				isSwap,
+				isNewRouter: !!swapPayload?.isNewRouter,
+				isPending: tx.isPending,
+				hasIndexerAmount: !!indexerAmountOut,
+				isFailed: isFailedTx
+			})
+	);
+	const refundedAmount = $derived(
+		refund ? new CoinAmount(refund.amount, coinForAsset(refund.asset), true) : null
 	);
 
 	// ── Liquidity amounts ───────────────────────────────────────────────────
@@ -238,6 +262,7 @@
 
 	// ── Display type & direction ────────────────────────────────────────────
 	const displayType: string = $derived.by(() => {
+		if (isSwap && refund) return 'swap refunded';
 		if (isSwap) return 'swap';
 		if (opKind === 'add-liquidity') return 'add liquidity';
 		if (opKind === 'remove-liquidity') return 'remove liquidity';
@@ -274,7 +299,7 @@
 		{fromAmount}
 		{direction}
 		pendingAmount={awaitingSettledAmount}
-		failed={isFailedTx}
+		failed={isFailedTx || !!refund}
 		secondAmount={opKind === 'add-liquidity' ? liqAmount1 : removeLiqAmount1}
 		lpInfo={lpAmount}
 	/>
@@ -292,7 +317,7 @@
 		<div class="amount">
 			{#if isSwap && fromAmount}
 				{fromAmount.toPrettyString()} →
-				{#if isFailedTx}
+				{#if isFailedTx || refund}
 					<span class="none">—</span>
 				{:else if awaitingSettledAmount}
 					<span class="settling"><WaveLoading size={28} /></span>
@@ -314,6 +339,9 @@
 			<span class="approx-usd">
 				{#if isFailedTx}
 					Failed — nothing was received.
+				{:else if refund && refundedAmount}
+					Refunded — the swap could not run, so {refundedAmount.toPrettyString()} went back to
+					{refund.to.replace(/^hive:/, '')} on Hive.
 				{:else if awaitingSettledAmount}
 					Waiting for the network to report the settled amount…
 					{#if minReceived}

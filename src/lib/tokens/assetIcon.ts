@@ -19,6 +19,10 @@ export function assetIcon(symbol: string): string | undefined {
 			return Coin.hbd.icon;
 		case 'HIVE':
 			return Coin.hive.icon;
+		case 'ETH':
+			return Coin.eth.icon;
+		case 'USDC':
+			return Coin.usdc.icon;
 	}
 	return knownTokenIcon(symbol);
 }

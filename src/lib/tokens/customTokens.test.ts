@@ -245,8 +245,13 @@ describe('customTokenIcon', () => {
 		expect(customTokenIcon('lassecash')).toBe('https://lassecash.com/logo/lassecash-circle-512.png');
 	});
 
+	it('uses artwork shipped with the app (STARPRO)', () => {
+		expect(customTokenIcon('starpro')).toBe('/tokens/starpro.png');
+	});
+
 	it('is case-insensitive, since symbols arrive in either case', () => {
 		expect(customTokenIcon('LASSECASH')).toBe(customTokenIcon('lassecash'));
+		expect(customTokenIcon('STARPRO')).toBe(customTokenIcon('starpro'));
 	});
 
 	it('falls back to the Magi mark for an unknown token', () => {

@@ -1,4 +1,5 @@
 import { postingMetadataFromString, type Account } from '$lib/auth/hive/accountTypes';
+import { isEvmBridgeCoin } from '$lib/magiTransactions/evmBridge';
 import { wagmiConfig } from '$lib/auth/reown';
 import { authStore, getAuth, type Auth } from '$lib/auth/store';
 import { CoinAmount } from '$lib/currency/CoinAmount';
@@ -16,6 +17,7 @@ import {
 } from '$lib/magiTransactions/eth/walletRouterSwap';
 import { wagmiSigner } from '$lib/magiTransactions/eth/wagmi';
 import { executeTx, getSendOpGenerator, getSendOpType } from '$lib/magiTransactions/hive';
+import { ethPayoutGasLimit } from '$lib/magiTransactions/eth/payoutFee';
 import { getHiveDepositOp } from '$lib/magiTransactions/hive/vscOperations/deposit';
 import {
 	getKeepsatsDestinationDid,
@@ -23,21 +25,29 @@ import {
 } from '$lib/magiTransactions/hive/vscOperations/keepsatsTransfer';
 import {
 	getBtcApproveOp,
+	getEvmAssetApproveOp,
 	getTokenApproveOp,
 	getHiveSwapOp,
 	hasQuoteMinimum,
+	hivePaidSwapRcShortfall,
 	SWAP_NEEDS_QUOTE_MESSAGE
 } from '$lib/magiTransactions/hive/vscOperations/swap';
 import {
 	btcPayoutShortfallMessage,
 	estimateCallRc,
+	evmPayoutShortfallMessage,
+	HIVE_RETURN_PAYOUT_EXTRA_RC,
 	MAX_RC_LIMIT,
 	rcShortfallMessage,
-	sizeBtcPayoutSwap
+	sizeBtcPayoutSwap,
+	sizeEvmPayoutSwap
 } from '$lib/magiTransactions/hive/vscOperations/rcSizing';
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants';
 import { fetchCustomTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens';
 import { assertBtcRecipientAllowed } from './btcAddressGuard';
+import { getCustomTokenTransferOp } from '$lib/magiTransactions/hive/vscOperations/customTokenTransfer';
+import { magiRecipient, sameMagiAccount } from './magiRecipient';
+import { isVscTestnet } from '../../../client';
 import {
 	accountBalance,
 	type AccountBalance,
@@ -60,6 +70,7 @@ import { getIntermediaryNetwork } from './getNetwork';
 import swapOptions, {
 	Coin,
 	Network,
+	nativeSwapCoins,
 	networkMap,
 	getFromOption,
 	getToOption,
@@ -576,7 +587,15 @@ export function solveToNetworks(state: TxStateBase): Network[] {
 	const recipientNetworks: Network[] | undefined = state.toUsername
 		? getRecipientNetworks(getDidFromUsername(state.toUsername)).filter((net) => !net.disabled)
 		: undefined;
-	const coinNetworks = state.from ? getFromOption(state.from.coin.value)?.networks : undefined;
+	// An asset outside the static catalog is a custom token, and a custom token
+	// exists on Magi only (`resolveSendAssets` says the same). Without this the
+	// networks fell through to the RECIPIENT's list, so the route dropdown
+	// offered "Hive Mainnet" for a token that cannot leave Magi.
+	const coinNetworks = state.from
+		? state.from.coin.value === Coin.unk.value
+			? undefined
+			: (getFromOption(state.from.coin.value)?.networks ?? [Network.magi])
+		: undefined;
 	const intersection =
 		recipientNetworks && coinNetworks
 			? coinNetworks.filter((net) =>
@@ -707,12 +726,7 @@ export async function send(
 					fromAmount: details.fromAmount ?? '',
 					toUsername,
 					minAmountOut: details instanceof SwapTxState ? details.minAmountOut : undefined,
-					swapCoins: [
-						Coin.hive.value,
-						Coin.hbd.value,
-						Coin.btc.value,
-						...customTokens.map((t) => t.symbol)
-					],
+					swapCoins: [...nativeSwapCoins(), ...customTokens.map((t) => t.symbol)],
 					customTokenContractId: customTokens.find((t) => t.symbol === fromCoin.coin.value)
 						?.contractId
 				});
@@ -740,7 +754,7 @@ export async function send(
 				txOps = prepared.ops;
 			} else {
 				const evmToDid =
-					toNetwork.value === Network.btcMainnet.value
+					toNetwork.value === Network.btcMainnet.value || toNetwork.value === Network.ethMainnet.value
 						? toUsername
 						: getDidFromUsername(toUsername);
 				const sendOp = getEVMOpType(
@@ -748,13 +762,19 @@ export async function send(
 					toNetwork,
 					auth.value.did,
 					evmToDid,
-					new CoinAmount(amount, toCoin.coin)
+					new CoinAmount(amount, toCoin.coin),
+					details instanceof WithdrawTxState || details instanceof TransferTxState
+						? details.deductFee
+						: undefined
 				);
 
 				// A BTC withdrawal's cost grows with the vault coins it spends: size its
 				// rc_limit from a dry run, as the Hive path does. If the node cannot answer,
 				// the fixed limit stands.
-				if (sendOp.op === 'call' && sendOp.payload.action === 'unmap') {
+				if (
+					sendOp.op === 'call' &&
+					['unmap', 'unmapETH', 'unmapERC20'].includes(sendOp.payload.action)
+				) {
 					setStatus('Estimating network resources…');
 					const estimate = await estimateCallRc({
 						callerDid: auth.value.did,
@@ -837,12 +857,7 @@ export async function send(
 		// and falls back to [] on failure, which just leaves the native three.
 		const customTokens = await getCustomTokens();
 		const customToken = customTokens.find((t) => t.symbol === fromCoin.coin.value);
-		const swapCoins = [
-			Coin.hive.value,
-			Coin.hbd.value,
-			Coin.btc.value,
-			...customTokens.map((t) => t.symbol)
-		];
+		const swapCoins = [...nativeSwapCoins(), ...customTokens.map((t) => t.symbol)];
 		const fromIsNativeHive =
 			fromCoin.coin.value === Coin.hive.value || fromCoin.coin.value === Coin.hbd.value;
 		const fromOnMagi = fromNetwork.value === Network.magi.value;
@@ -850,6 +865,10 @@ export async function send(
 		const toOnMagi = toNetwork.value === Network.magi.value;
 		const toOnHiveL1 = toNetwork.value === Network.hiveMainnet.value;
 		const toOnBtcL1 = toNetwork.value === Network.btcMainnet.value;
+		// ETH/USDC paid out on Ethereum: the router withdraws the output through
+		// the EVM bridge (dex-router settleToEVM, destination_chain ETH).
+		const toOnEthL1 =
+			toNetwork.value === Network.ethMainnet.value && isEvmBridgeCoin(toCoin.coin);
 		const differentCoins = fromCoin.coin.value !== toCoin.coin.value;
 		const bothSwapCoins =
 			swapCoins.includes(fromCoin.coin.value) && swapCoins.includes(toCoin.coin.value);
@@ -860,13 +879,13 @@ export async function send(
 		const isL1ToMagiSwap =
 			fromOnHiveL1 && toOnMagi && differentCoins && fromIsNativeHive && bothSwapCoins;
 		// Swap with external settlement: output settles on mainnet
-		// (Hive L1 or BTC L1) via the router's `destination_chain`.
+		// (Hive L1, BTC L1 or Ethereum) via the router's `destination_chain`.
 		// Source can be Magi or Hive L1 — if it's Hive L1, we also
 		// need the deposit op. Coins may match when only the network
 		// differs (e.g. HBD Magi → HBD Hive L1 isn't a swap, that's a
 		// withdrawal — so exclude that case).
 		const isSwapWithExternalSettlement =
-			(toOnHiveL1 || toOnBtcL1) &&
+			(toOnHiveL1 || toOnBtcL1 || toOnEthL1) &&
 			bothSwapCoins &&
 			differentCoins &&
 			(fromOnMagi || (fromOnHiveL1 && fromIsNativeHive));
@@ -905,7 +924,12 @@ export async function send(
 			}
 			const fromCa = new CoinAmount(fromAmountStr, fromCoin.coin);
 			if (fromCoin.coin.value === Coin.btc.value) {
-				extraOps.push(getBtcApproveOp(auth.value.username!, fromCa as CoinAmount<typeof Coin.btc>));
+				extraOps.push(
+					getBtcApproveOp(auth.value.username!, fromCa as CoinAmount<typeof Coin.btc>)
+				);
+			} else if (isEvmBridgeCoin(fromCoin.coin)) {
+				// ETH/USDC: same as BTC, but on the EVM bridge, naming the asset.
+				extraOps.push(getEvmAssetApproveOp(auth.value.username!, fromCa));
 			} else if (customToken) {
 				// Same shape as BTC: the router pulls the funds with
 				// `transferFrom`, so it needs an allowance on the token's own
@@ -931,7 +955,7 @@ export async function send(
 			let destinationChain: string | undefined;
 			let destinationRecipient: string | undefined;
 			if (isSwapWithExternalSettlement) {
-				destinationChain = toOnBtcL1 ? 'BTC' : 'HIVE';
+				destinationChain = toOnBtcL1 ? 'BTC' : toOnEthL1 ? 'ETH' : 'HIVE';
 				const raw = (toUsername ?? '').trim();
 				destinationRecipient =
 					toOnHiveL1 && !raw.startsWith('hive:') ? `hive:${raw.replace(/^@/, '')}` : raw;
@@ -939,34 +963,32 @@ export async function send(
 					throw new Error('Missing recipient address for mainnet settlement');
 				}
 			} else {
-				/**
-				 * A swap that stays on Magi pays `toUsername` as well.
-				 *
-				 * It used to pay the caller whatever was typed, so "Send to
-				 * address" with Magi selected did exactly what "Keep on Magi"
-				 * does, while the Review screen printed the typed address as
-				 * the receiver (M1). The router already accepts and validates
-				 * a Magi recipient, so this needs no contract change.
-				 *
-				 * `toUsername` is the signed-in account whenever the user has
-				 * not chosen an address (the swap card resets it), so the
-				 * default is unchanged: the caller is paid.
-				 */
+				// A swap kept on Magi pays `toUsername` as well. It used to pay the
+				// caller whatever was typed, so "Send to address" with Magi did what
+				// "Keep on Magi" does while Review printed the typed address (M1,
+				// 11-17 review; facelift 7d42ac8). The swap card resets toUsername
+				// to the signed-in account unless an address is chosen, so the
+				// default still pays the caller.
+				// Strict (magiRecipient): a wrong 0x checksum, "@bob" or an
+				// unknown string is refused here, never re-checksummed into an
+				// address nobody owns nor silently paid to the caller.
 				const raw = (toUsername ?? '').trim();
 				if (raw) {
-					// `getDidFromUsername` and not a `hive:` prefix: on a wallet
-					// login the account IS an EVM or BTC address, so prefixing
-					// it would build a bogus `hive:0x…` recipient. This maps a
-					// Hive name to `hive:name`, an EVM address to its
-					// checksummed `did:pkh:eip155:` form, and passes a DID
-					// through unchanged.
-					destinationRecipient = getDidFromUsername(raw) || undefined;
+					const r = magiRecipient(raw, isVscTestnet());
+					if (!r.ok) {
+						setStatus(r.error, true);
+						return new Error(r.error);
+					}
+					// The signed-in account itself ("Keep on Magi" sets it): the
+					// router pays the caller, exactly as before.
+					destinationRecipient = sameMagiAccount(r.did, auth.value.did) ? undefined : r.did;
 				}
 			}
 			// A BTC payout costs ~12,000 RC since the 0.12 BTC contract, over the
 			// fixed 10,000 every such swap failed with ("cost limit exceeded"):
 			// give it the RC the account has, or say why it cannot pay.
 			let payoutRcLimit: number | undefined;
+			let payoutGasLimit: number | null = null;
 			if (destinationChain === 'BTC') {
 				setStatus('Estimating network resources…');
 				const hbdFromMagi =
@@ -974,7 +996,9 @@ export async function send(
 				const sizing = await sizeBtcPayoutSwap(
 					auth.value.did,
 					hbdFromMagi,
-					get(accountBalance).bal.resource_credits
+					get(accountBalance).bal.resource_credits,
+					isEvmBridgeCoin(fromCoin.coin),
+					needsDeposit ? HIVE_RETURN_PAYOUT_EXTRA_RC : 0
 				);
 				if (!sizing.ok) {
 					const msg = btcPayoutShortfallMessage(sizing);
@@ -983,16 +1007,66 @@ export async function send(
 				}
 				payoutRcLimit = sizing.rcLimit;
 				setStatus('Waiting for Hive wallet approval…');
+			} else if (destinationChain === 'ETH') {
+				// Same for a payout on Ethereum (the EVM bridge's withdrawal runs in
+				// the same call): refused before signing when the RC is short.
+				setStatus('Estimating network resources…');
+				const hbdFromMagi =
+					fromCoin.coin.value === Coin.hbd.value && !needsDeposit ? fromCa.amount : 0;
+				const sizing = await sizeEvmPayoutSwap(
+					auth.value.did,
+					hbdFromMagi,
+					get(accountBalance).bal.resource_credits,
+					needsDeposit ? HIVE_RETURN_PAYOUT_EXTRA_RC : 0
+				);
+				if (!sizing.ok) {
+					const msg = evmPayoutShortfallMessage(sizing);
+					setStatus(msg, true);
+					return new Error(msg);
+				}
+				payoutRcLimit = sizing.rcLimit;
+				if (toCoin.coin.value === Coin.eth.value && destinationRecipient) {
+					payoutGasLimit = await ethPayoutGasLimit(
+						auth.value.did,
+						destinationRecipient,
+						BigInt((details as SwapTxState).minAmountOut || '1')
+					);
+				}
+				setStatus('Waiting for Hive wallet approval…');
+			} else if (needsDeposit) {
+				// Paid from the Hive wallet: refused here, before anything leaves
+				// it, when the RC cannot carry the swap (a failure the router
+				// cannot send back would leave the deposit on Magi).
+				const short = await hivePaidSwapRcShortfall(
+					auth.value.did,
+					fromCoin.coin,
+					toCoin.coin,
+					destinationChain
+				);
+				if (short) {
+					const msg = rcShortfallMessage(
+						{ ok: false, reason: 'insufficient-rc', ...short },
+						'swap'
+					);
+					setStatus(msg, true);
+					return new Error(msg);
+				}
 			}
 			sendOp = await getHiveSwapOp(
 				auth.value.username!,
 				fromCa,
 				fromCoin.coin,
 				toCoin.coin,
-				minOut,
+				// The exact integer string, not the Number used for the check above.
+				(details as SwapTxState).minAmountOut ?? minOut,
 				destinationChain,
 				destinationRecipient,
-				payoutRcLimit
+				payoutRcLimit,
+				// Paid from the Hive wallet (deposited in this transaction): a swap
+				// that fails goes back there. One paid from the Magi balance may
+				// come back to the Magi balance.
+				needsDeposit,
+				payoutGasLimit
 			);
 			opType = 'swap';
 		} else if (
@@ -1052,6 +1126,72 @@ export async function send(
 				rcLimit,
 				deductFee || undefined,
 				maxFee
+			);
+		} else if (isEvmBridgeCoin(toCoin.coin) && toNetwork.value === Network.ethMainnet.value) {
+			// ETH/USDC withdrawal to Ethereum: the BTC unmap branch above, on the EVM bridge.
+			opType = 'withdrawal';
+			const carriesFeeFields =
+				details instanceof WithdrawTxState || details instanceof TransferTxState;
+			const deductFee = carriesFeeFields ? details.deductFee : false;
+			const { getEvmUnmapCall, getEvmUnmapOp } = await import(
+				'$lib/magiTransactions/hive/vscOperations/evm'
+			);
+			const unmapAmount = new CoinAmount(amount, toCoin.coin);
+			const call = getEvmUnmapCall(toUsername, unmapAmount, deductFee || undefined);
+			setStatus('Estimating network resources…');
+			const estimate = await estimateCallRc({
+				callerDid: auth.value.did,
+				contractId: EVM_BRIDGE_CONTRACT_ID,
+				action: call.action,
+				payload: JSON.stringify(call.payload)
+			});
+			let rcLimit: number;
+			if (estimate.ok) {
+				rcLimit = estimate.rcLimit;
+			} else if (estimate.reason === 'insufficient-rc') {
+				const msg = rcShortfallMessage(estimate, 'withdrawal');
+				setStatus(msg, true);
+				return new Error(msg);
+			} else if (estimate.reason === 'call-fails') {
+				const msg = `This withdrawal would fail on chain: ${estimate.error}`;
+				setStatus(msg, true);
+				return new Error(msg);
+			} else {
+				console.warn('withdrawal RC estimate unavailable, using full RC balance', estimate.error);
+				rcLimit = Math.max(
+					1,
+					Math.min(get(accountBalance).bal.resource_credits || MAX_RC_LIMIT, MAX_RC_LIMIT)
+				);
+			}
+			setStatus('Waiting for Hive wallet approval…');
+			sendOp = getEvmUnmapOp(
+				auth.value.username!,
+				auth.value.did,
+				toUsername,
+				unmapAmount,
+				rcLimit,
+				deductFee || undefined
+			);
+		} else if (customToken && fromOnMagi && toOnMagi && !differentCoins) {
+			// Sending a custom token to someone, not swapping it.
+			//
+			// A custom token is not a ledger asset: its balances live in its own
+			// `magi_token` contract, so moving it is a contract call, not the
+			// ledger `transfer` op `getSendOpGenerator` builds. On that generic
+			// path the op named an asset the ledger does not have, so nothing
+			// moved and the RC was spent anyway.
+			//
+			// `customToken` is resolved from the pool the symbol is bound to
+			// (mainnet has two LASSECASH contracts), and its own `decimals` set
+			// the smallest unit the contract counts in.
+			const raw = new CoinAmount(amount, customTokenCoin(customToken)).amount;
+			opType = 'transfer';
+			setStatus('Waiting for Hive wallet approval…');
+			sendOp = getCustomTokenTransferOp(
+				auth.value.username!,
+				customToken.contractId,
+				getDidFromUsername(toUsername),
+				raw
 			);
 		} else {
 			const getSendOp = getSendOpGenerator(fromNetwork, toNetwork, toCoin.coin);

@@ -6,7 +6,17 @@ import { getAuth, type Auth } from '$lib/auth/store';
 import { getUsernameFromAuth } from '$lib/getAccountName';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+import {
+	BTC_MAPPING_CONTRACT_ID,
+	ETH_CHAIN_ID,
+	EVM_BRIDGE_CONTRACT_ID,
+	EVM_BRIDGE_ENABLED,
+	EVM_MIN_ETH_DEPOSIT_WEI,
+	EVM_MIN_ETH_WITHDRAWAL_WEI,
+	USDC_TOKEN_ADDRESS
+} from '$lib/constants';
+import { fromChainUnits } from '$lib/currency/chainAmount';
+import { evmBalanceKey } from '$lib/magiTransactions/evmBridge';
 import { queryOnce } from '$lib/queryOnce';
 import {
 	btcSendFeeReserve,
@@ -82,6 +92,84 @@ async function fetchBtcBalance(did: string): Promise<number> {
 }
 
 /**
+ * The EVM bridge's proving fee per asset, in smallest units (its pf-<asset>
+ * keys, prooffee.go): charged on top of every withdrawal, also when the gas fee
+ * is deducted from the amount (deposits pay none since DEPOSIT-FREE-1). The
+ * withdraw max leaves room for it, as the BTC max leaves btcSendFeeReserve.
+ */
+export const evmProofFee = writable<{ eth: number; usdc: number }>({ eth: 0, usdc: 0 });
+
+/**
+ * Smallest deposit the bridge credits per asset, in smallest units (DUST-1:
+ * less is not credited and stays in the vault). ETH's is a contract constant;
+ * a token's is a tenth of the minimum withdrawal in its registry entry
+ * (t-<chain>-<address> = "symbol|decimals|minWithdrawal|..."). null = not
+ * known yet, and the deposit page does not send.
+ */
+export const evmMinDeposit = writable<{ eth: number; usdc: number | null }>({
+	eth: EVM_MIN_ETH_DEPOSIT_WEI,
+	usdc: null
+});
+
+/**
+ * Smallest withdrawal the bridge sends per asset, in smallest units: ETH's is
+ * a contract constant, a token's is in its registry entry (the third field).
+ * The router withdraws a swap's output less the proof fee, so a swap paid out
+ * on Ethereum needs that net amount at or above this. null = not known yet.
+ */
+export const evmMinWithdrawal = writable<{ eth: number; usdc: number | null }>({
+	eth: EVM_MIN_ETH_WITHDRAWAL_WEI,
+	usdc: null
+});
+
+/**
+ * ETH and USDC held on Magi: the EVM bridge's ledger keys, stored as decimal
+ * strings (wei / USDC's 6 places), under the account's canonical DID. Zero
+ * when the bridge is not enabled on this network.
+ */
+async function fetchEvmBalances(did: string): Promise<{ eth: number; usdc: number }> {
+	if (!EVM_BRIDGE_ENABLED) return { eth: 0, usdc: 0 };
+	const ethKey = evmBalanceKey(did, Coin.eth.value);
+	const usdcKey = evmBalanceKey(did, Coin.usdc.value);
+	const usdcRegistryKey = `t-${ETH_CHAIN_ID}-${USDC_TOKEN_ADDRESS.slice(2).toLowerCase()}`;
+	try {
+		const result = await queryOnce(new GetStateByKeysStore(), {
+			variables: {
+				contractId: EVM_BRIDGE_CONTRACT_ID,
+				keys: [ethKey, usdcKey, 'pf-eth', 'pf-usdc', usdcRegistryKey]
+			},
+			policy: 'NetworkOnly'
+		});
+		const state = (result.data?.getStateByKeys ?? {}) as Record<string, string | null>;
+		evmProofFee.set({
+			eth: fromChainUnits(state['pf-eth'], Coin.eth),
+			usdc: fromChainUnits(state['pf-usdc'], Coin.usdc)
+		});
+		const usdcMinWithdrawal = Number((state[usdcRegistryKey] ?? '').split('|')[2]);
+		evmMinDeposit.set({
+			eth: EVM_MIN_ETH_DEPOSIT_WEI,
+			// MinDeposit() = MinWithdrawal / MinDepositDivisor (10)
+			usdc:
+				Number.isFinite(usdcMinWithdrawal) && usdcMinWithdrawal > 0
+					? Math.floor(usdcMinWithdrawal / 10)
+					: null
+		});
+		evmMinWithdrawal.set({
+			eth: EVM_MIN_ETH_WITHDRAWAL_WEI,
+			usdc:
+				Number.isFinite(usdcMinWithdrawal) && usdcMinWithdrawal > 0 ? usdcMinWithdrawal : null
+		});
+		return {
+			eth: fromChainUnits(state[ethKey], Coin.eth),
+			usdc: fromChainUnits(state[usdcKey], Coin.usdc)
+		};
+	} catch (err) {
+		console.error('Failed to fetch ETH/USDC balances', err);
+		return { eth: 0, usdc: 0 };
+	}
+}
+
+/**
  * Detect Bitcoin network from address prefix. `tb1`, `2`, `m` and
  * `n` are testnet (including regtest which shares the same prefixes
  * as testnet3); everything else is mainnet.
@@ -131,6 +219,9 @@ export type AccountBalance = {
 	hive_consensus: number;
 	consensus_unstaking: number;
 	btc: number;
+	/** wei, rounded down to whole gwei (chainAmount.fromChainUnits) */
+	eth: number;
+	usdc: number;
 	resource_credits: number;
 	last_tx_height: number;
 };
@@ -168,6 +259,8 @@ export function getDefaultBalance(): AccountBalance {
 		hive_consensus: 0,
 		consensus_unstaking: 0,
 		btc: 0,
+		eth: 0,
+		usdc: 0,
 		resource_credits: 0,
 		last_tx_height: 0
 	};
@@ -222,7 +315,7 @@ async function fetchAccountData(auth: Auth) {
 			auth.value?.provider === 'reown' && auth.value.did?.startsWith('did:pkh:bip122:');
 		const btcWalletAddress = isReownBtc ? auth.value!.address : undefined;
 
-		const [magiBal, btcBalance, connectedBal, onChainBtcBalance] = await Promise.all([
+		const [magiBal, btcBalance, connectedBal, onChainBtcBalance, evmBalances] = await Promise.all([
 			queryOnce(accBalancesStore, {
 				variables: { account: auth.value!.did },
 				policy: 'NetworkOnly'
@@ -231,7 +324,8 @@ async function fetchAccountData(auth: Auth) {
 			auth.value?.provider === 'aioha' && username
 				? DHive.database.getAccounts([username])
 				: undefined,
-			btcWalletAddress ? fetchOnChainBtcBalance(btcWalletAddress) : Promise.resolve(undefined)
+			btcWalletAddress ? fetchOnChainBtcBalance(btcWalletAddress) : Promise.resolve(undefined),
+			fetchEvmBalances(auth.value!.did)
 		]);
 
 		const magiBalanceObj = (() => {
@@ -248,6 +342,8 @@ async function fetchAccountData(auth: Auth) {
 					hive_consensus: resultBal?.hive_consensus ?? 0,
 					consensus_unstaking: resultBal?.consensus_unstaking ?? 0,
 					btc: btcBalance,
+					eth: evmBalances.eth,
+					usdc: evmBalances.usdc,
 					resource_credits: resultRC?.amount ?? 0,
 					last_tx_height: resultRC?.block_height ?? 0
 				};

@@ -13,6 +13,7 @@
 	import AssetBalanceChart from '$lib/cards/Balance/AssetBalanceChart.svelte';
 	import PopOut from '$lib/redesign/PopOut.svelte';
 	import ConnectedWalletCard from '$lib/redesign/ConnectedWalletCard.svelte';
+	import HeldReturns from '$lib/cards/HeldReturns.svelte';
 	import { ACTION_LABEL, ASSET_ACTIONS, assetActionHref } from '$lib/redesign/assetActions';
 	import { ArrowDownToLine, ArrowUpFromLine, Send } from '@lucide/svelte';
 	import { getAuth } from '$lib/auth/store';
@@ -60,6 +61,13 @@
 
 	{#if did}
 		<ConnectedWalletCard />
+	{/if}
+
+	<!-- A payout that failed on Ethereum is held for its sender rather than
+	     credited anywhere, so without this the money is invisible until the
+	     bridge's bot swaps it back. It renders nothing when there is none. -->
+	{#if did}
+		<HeldReturns />
 	{/if}
 
 	<section class="alt-card history">

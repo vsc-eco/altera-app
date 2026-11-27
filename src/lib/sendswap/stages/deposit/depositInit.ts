@@ -26,7 +26,7 @@ import swapOptions, {
 } from '../../utils/sendOptions';
 
 /** The four deposit sources the picker offers. */
-export type DepositSource = 'lightning' | 'hive_mainnet' | 'coinbase' | 'btc_mainnet';
+export type DepositSource = 'lightning' | 'hive_mainnet' | 'coinbase' | 'btc_mainnet' | 'eth_mainnet';
 
 /** Minimal slice of DepositTxState the init functions touch. */
 export type DepositInitState = {

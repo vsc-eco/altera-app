@@ -1,6 +1,8 @@
 import { getV4VMetadata } from '../v4v/api-types/metadata';
 import { CoinAmount, type UnkCoinAmount } from '$lib/currency/CoinAmount';
 import type { ImageIconOption } from '$lib/components/ImageIconRenderer.svelte';
+import { EVM_BRIDGE_ENABLED } from '$lib/constants';
+import { isVscTestnet } from '../../../client';
 
 export type CoinOnNetwork = { coin: Coin; network: Network };
 
@@ -52,6 +54,26 @@ const sats: Coin = {
 	unit: 'SATS',
 	decimalPlaces: 0
 };
+// ETH and USDC as the EVM bridge maps them on Magi (wei and USDC's 6 places,
+// the contracts' own units, so every existing quote/payload path works as is).
+// A JS number is exact only to 2^53: read chain balances and write payload
+// amounts through $lib/currency/chainAmount, which keeps both exact.
+const eth: Coin = {
+	value: 'eth',
+	label: 'ETH',
+	icon: '/eth/eth.svg',
+	unit: 'ETH',
+	ucid: '1027',
+	decimalPlaces: 18
+};
+const usdc: Coin = {
+	value: 'usdc',
+	label: 'USDC',
+	icon: '/usdc/usdc.svg',
+	unit: 'USDC',
+	ucid: '3408',
+	decimalPlaces: 6
+};
 const unk: Coin = {
 	value: 'UNK',
 	label: 'UNK',
@@ -65,6 +87,8 @@ export const Coin = {
 	hbd,
 	shbd,
 	btc,
+	eth,
+	usdc,
 	sats,
 	usd,
 	unk
@@ -155,6 +179,17 @@ const btcMainnet: Network = {
 	icon: '/btc/btc.svg',
 	settlementSeconds: 600 // ~10 min on L1
 };
+const ethMainnet: Network = {
+	value: 'eth_mainnet',
+	// Chain 1 as wallets name it (MetaMask, chainlist.org), like 'BTC Mainnet':
+	// the same 0x address on BSC, Base or Arbitrum is not this network.
+	label: isVscTestnet() ? 'Ethereum (Sepolia)' : 'Ethereum Mainnet',
+	icon: '/eth/eth.svg',
+	// Read by the review screen's settlement label, i.e. a withdrawal to
+	// Ethereum: mined 3 min after the request on testnet 2026-11-19. (A deposit
+	// waits for finality and the header proof, ~30 min; its page says so.)
+	settlementSeconds: 300
+};
 const lightning: IntermediaryNetwork = {
 	value: 'lightning',
 	label: 'Lightning',
@@ -175,6 +210,7 @@ const lightning: IntermediaryNetwork = {
 
 export const Network = {
 	btcMainnet,
+	ethMainnet,
 	lightning,
 	hiveMainnet,
 	magi,
@@ -191,9 +227,22 @@ export type AssetOption = {
 export type CoinOptions = AssetOption[];
 
 export const networkMap: Map<string, Coin[]> = new Map([
-	[Network.magi.value, [Coin.hive, Coin.hbd, Coin.shbd, Coin.btc, Coin.sats]],
+	[
+		Network.magi.value,
+		[
+			Coin.hive,
+			Coin.hbd,
+			Coin.shbd,
+			Coin.btc,
+			...(EVM_BRIDGE_ENABLED ? [Coin.eth, Coin.usdc] : []),
+			Coin.sats
+		]
+	],
 	[Network.hiveMainnet.value, [Coin.hive, Coin.hbd]],
-	[Network.lightning.value, [Coin.btc]]
+	[Network.lightning.value, [Coin.btc]],
+	...(EVM_BRIDGE_ENABLED
+		? ([[Network.ethMainnet.value, [Coin.eth, Coin.usdc]]] as [string, Coin[]][])
+		: [])
 ]);
 
 const swapOptions: {
@@ -204,12 +253,26 @@ const swapOptions: {
 		{ coin: hive, networks: [magi, hiveMainnet] },
 		{ coin: hbd, networks: [magi, hiveMainnet] },
 		{ coin: shbd, networks: [magi] },
-		{ coin: btc, networks: [magi, btcMainnet] }
+		{ coin: btc, networks: [magi, btcMainnet] },
+		// ETH/USDC move in and out of Magi through the deposit and withdraw pages;
+		// the swap card trades the Magi balances.
+		...(EVM_BRIDGE_ENABLED
+			? [
+					{ coin: eth, networks: [magi] },
+					{ coin: usdc, networks: [magi] }
+				]
+			: [])
 	],
 	to: [
 		{ coin: hive, networks: [magi, hiveMainnet] },
 		{ coin: hbd, networks: [magi, hiveMainnet] },
-		{ coin: btc, networks: [btcMainnet, magi] }
+		{ coin: btc, networks: [btcMainnet, magi] },
+		...(EVM_BRIDGE_ENABLED
+			? [
+					{ coin: eth, networks: [magi] },
+					{ coin: usdc, networks: [magi] }
+				]
+			: [])
 	]
 };
 
@@ -323,4 +386,18 @@ export function mainnetSwapSource(coinValue: string | undefined): Network {
 		(n) => n.value !== Network.magi.value && isSelectableSource(coinValue, n.value)
 	);
 	return external ?? Network.magi;
+}
+
+/**
+ * The built-in coins the DEX swaps: HIVE, HBD and BTC, and ETH/USDC once the EVM
+ * bridge is live. A pair outside these (and the custom tokens) is a send, so a
+ * coin missing here turns its swap into a transfer of the output coin.
+ */
+export function nativeSwapCoins(): string[] {
+	return [
+		Coin.hive.value,
+		Coin.hbd.value,
+		Coin.btc.value,
+		...(EVM_BRIDGE_ENABLED ? [Coin.eth.value, Coin.usdc.value] : [])
+	];
 }

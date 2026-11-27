@@ -156,6 +156,16 @@ describe('decideBroadcast — broadcast intermediary per flow', () => {
 		});
 	});
 
+	it('Ethereum withdraw of ETH (magi → ethMainnet) → send via magi, like BTC mainnet', () => {
+		const state = new WithdrawTxState();
+		state.from = { coin: Coin.eth, network: Network.magi };
+		state.to = { coin: Coin.eth, network: Network.ethMainnet };
+		expect(decideBroadcast(state, 'withdraw')).toEqual({
+			action: 'send',
+			intermediary: Network.magi
+		});
+	});
+
 	it('Keepsats withdraw (magi → lightning) → send via lightning (withdraw bypasses v4v popup)', () => {
 		// Lightning withdraw is the one case where intermediary === lightning but
 		// the v4v popup is NOT opened — `send()` handles the lightning broadcast

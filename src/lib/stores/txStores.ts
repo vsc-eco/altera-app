@@ -6,6 +6,7 @@ import moment from 'moment';
 import { authStore } from '$lib/auth/store';
 import { clearLastPaidCache } from '$lib/sendswap/utils/sendUtils';
 import { type BtcDepositEvent, fetchBtcDepositsByRecipient } from '$lib/indexer/btcMappingQueries';
+import { type EvmDepositEvent, fetchEvmDepositsByRecipient } from '$lib/indexer/evmMappingQueries';
 import { queryOnce } from '$lib/queryOnce';
 
 type MagiTransaction = NonNullable<GetTransactions$result['findTransaction']>[number];
@@ -35,11 +36,26 @@ export function toTransactionInter(txs: MagiTransaction[]): TransactionInter[] {
 
 export type TxListItem =
 	| { kind: 'vsc'; tx: TransactionInter }
-	| { kind: 'btc-deposit'; event: BtcDepositEvent };
+	| { kind: 'btc-deposit'; event: BtcDepositEvent }
+	| { kind: 'evm-deposit'; event: EvmDepositEvent };
+
+/** A list key for an indexer deposit row: one Magi map call credits one L1
+ *  deposit, named by its Ethereum block and tx index on the EVM side. */
+export function depositRowKey(event: {
+	indexer_tx_hash: string;
+	l1_block?: number;
+	l1_tx_index?: number;
+}): string {
+	return event.l1_block != null
+		? `${event.indexer_tx_hash}:${event.l1_block}:${event.l1_tx_index ?? 0}`
+		: event.indexer_tx_hash;
+}
 
 export const magiTxsStore = writable<TransactionInter[]>([]);
 export const localTxsStore = writable<TransactionInter[]>([]);
 export const btcDepositStore = writable<BtcDepositEvent[]>([]);
+/** ETH/USDC deposits the EVM bridge credited to this account (indexer). */
+export const evmDepositStore = writable<EvmDepositEvent[]>([]);
 
 /**
  * The account whose rows the shared stores above currently hold.
@@ -149,8 +165,8 @@ function deduplicate(txs: TransactionInter[]) {
 
 // Create a derived store that combines and sorts transactions
 export const allTransactionsStore = derived(
-	[magiTxsStore, localTxsStore, btcDepositStore],
-	([$magiTxsStore, $localTxsStore, $btcDepositStore]) => {
+	[magiTxsStore, localTxsStore, btcDepositStore, evmDepositStore],
+	([$magiTxsStore, $localTxsStore, $btcDepositStore, $evmDepositStore]) => {
 		const vscItems: TxListItem[] = deduplicate([...$magiTxsStore, ...$localTxsStore]).map((tx) => ({
 			kind: 'vsc',
 			tx
@@ -159,8 +175,12 @@ export const allTransactionsStore = derived(
 			kind: 'btc-deposit',
 			event
 		}));
+		const evmItems: TxListItem[] = $evmDepositStore.map((event) => ({
+			kind: 'evm-deposit',
+			event
+		}));
 
-		return [...vscItems, ...btcItems].sort((a, b) => {
+		return [...vscItems, ...btcItems, ...evmItems].sort((a, b) => {
 			const tsA =
 				a.kind === 'vsc'
 					? new Date(getTimestamp(a.tx)).getTime()
@@ -213,6 +233,42 @@ export async function fetchBtcDeposits(
 	}
 }
 
+/**
+ * Fetch the ETH/USDC deposits the EVM bridge credited to this DID and merge
+ * them into evmDepositStore, as fetchBtcDeposits does for BTC. Nothing until
+ * the indexer has the EVM bridge's mapping (the query then returns []).
+ */
+export async function fetchEvmDeposits(
+	did: string,
+	type: 'set' | 'update' | 'extend',
+	limit = 20
+): Promise<void> {
+	if (!did) return;
+	useStoresFor(did);
+	try {
+		let beforeHeight: number | undefined;
+		if (type === 'extend') {
+			const current = get(evmDepositStore);
+			if (current.length === 0) return;
+			beforeHeight = Math.min(...current.map((e) => e.indexer_block_height));
+		}
+		const events = await fetchEvmDepositsByRecipient(did, limit, beforeHeight);
+		if (storesDid !== did) return;
+		if (type === 'set') {
+			evmDepositStore.set(events);
+			return;
+		}
+		if (events.length === 0) return;
+		evmDepositStore.update((current) => {
+			const byKey = new Map(current.map((e) => [depositRowKey(e), e]));
+			for (const e of events) byKey.set(depositRowKey(e), e);
+			return Array.from(byKey.values());
+		});
+	} catch (e) {
+		console.error('Failed to fetch EVM deposits', e);
+	}
+}
+
 export function updateTxsFromLocalStorage(did: string) {
 	const txs = getLocalTransactions();
 	let hasThisAcc = [];
@@ -245,6 +301,7 @@ export function clearAllStores() {
 	magiTxsStore.set([]);
 	localTxsStore.set([]);
 	btcDepositStore.set([]);
+	evmDepositStore.set([]);
 	storesDid = null;
 }
 

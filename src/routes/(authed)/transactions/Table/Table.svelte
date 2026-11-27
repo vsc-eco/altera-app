@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { evmBridgeOpAsTransfer } from '../evmBridgeOp';
 	import Tr from './tr/Tr.svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import {
@@ -7,6 +8,8 @@
 		fetchTxs,
 		waitForExtend,
 		fetchBtcDeposits,
+		fetchEvmDeposits,
+		depositRowKey,
 		useStoresFor,
 		type TxListItem,
 		type TransactionOpType
@@ -16,6 +19,7 @@
 	import ContractTr from './tr/ContractTr.svelte';
 	import BtcMappingTr from './tr/BtcMappingTr.svelte';
 	import BtcDepositTr from './tr/BtcDepositTr.svelte';
+	import EvmDepositTr from './tr/EvmDepositTr.svelte';
 	import {
 		EMPTY_FILTERS,
 		applyClientFilters,
@@ -153,6 +157,7 @@
 	function updateAll() {
 		fetchTxs(did, 'update', (val) => (loading = val), 12, serverVars);
 		fetchBtcDeposits(did, 'update');
+		fetchEvmDeposits(did, 'update');
 	}
 
 	let skeletonRowCount = $state(8);
@@ -165,6 +170,7 @@
 		if (!initialOpen && $allTransactionsStore.length < fetchLimit) {
 			fetchTxs(did, 'set', (val) => (loading = val), fetchLimit, serverVars);
 			fetchBtcDeposits(did, 'set', fetchLimit);
+			fetchEvmDeposits(did, 'set', fetchLimit);
 		}
 		const rootStyle = getComputedStyle(document.documentElement);
 		const remValue = parseFloat(rootStyle.fontSize);
@@ -320,6 +326,7 @@
 					lastLength = currStoreLen;
 					fetchTxs(did, 'extend', (val) => (loading = val), 12, serverVars);
 					fetchBtcDeposits(did, 'extend', 12);
+					fetchEvmDeposits(did, 'extend', 12);
 				}
 			}}
 		>
@@ -343,9 +350,11 @@
 						{/if}
 					{/each}
 				{/each} -->
-						{#each displayTxs as item (item.kind === 'vsc' ? item.tx.id : item.event.indexer_tx_hash)}
+						{#each displayTxs as item (item.kind === 'vsc' ? item.tx.id : depositRowKey(item.event))}
 							{#if item.kind === 'btc-deposit'}
 								<BtcDepositTr event={item.event} onRowClick={toggleDetails} />
+							{:else if item.kind === 'evm-deposit'}
+								<EvmDepositTr event={item.event} onRowClick={toggleDetails} />
 							{:else}
 								{@const tx = item.tx}
 								{@const { ops } = tx}
@@ -368,9 +377,10 @@
 									return (b?.index ?? 0) - (a?.index ?? 0);
 								}) as op, i (`${tx.id}-${op?.index ?? i}`)}
 									{#if op}
-										{@const trType = getOpTrType(op)}
+										{@const evmOp = evmBridgeOpAsTransfer(op, tx.required_auths?.[0])}
+										{@const trType = evmOp ? 'regular' : getOpTrType(op)}
 										{#if trType === 'regular'}
-											<Tr {tx} {op} viewDid={did} onRowClick={toggleDetails} />
+											<Tr {tx} op={evmOp ?? op} viewDid={did} onRowClick={toggleDetails} />
 										{:else if trType === 'btc-vsc'}
 											<BtcMappingTr {tx} {op} viewDid={did} onRowClick={toggleDetails} />
 										{:else if trType === 'contract'}

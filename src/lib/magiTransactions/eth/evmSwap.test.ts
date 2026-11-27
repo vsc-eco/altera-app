@@ -5,9 +5,13 @@ import {
 	EVM_APPROVE_RC_LIMIT,
 	EVM_SWAP_MAX_RC,
 	EVM_SWAP_MIN_RC,
+	EVM_TWO_HOP_SWAP_MIN_RC,
 	headerRcLimit
 } from './evmSwap';
-import { BTC_PAYOUT_SWAP_MIN_RC } from '../hive/vscOperations/rcSizing';
+import {
+	BTC_PAYOUT_SWAP_MIN_RC,
+	BTC_PAYOUT_SWAP_MIN_RC_V0_15
+} from '../hive/vscOperations/rcSizing';
 import type { CallContractTransaction, Transaction } from './client';
 
 const call = (rc_limit: number): CallContractTransaction => ({
@@ -40,8 +44,20 @@ describe('evmSwapRcLimit', () => {
 		expect(evmSwapRcLimit(100_000, 5000, 0, false)).toEqual({ ok: true, rcLimit: EVM_SWAP_MAX_RC });
 	});
 	it('leaves an HBD input spendable (the node reserves the limit out of the HBD)', () => {
-		// 12 HBD held, 10 HBD swapped: a limit of 10,000 would reserve it out from under the pull.
-		expect(evmSwapRcLimit(12_000, 10_000, 0, false)).toEqual({ ok: true, rcLimit: 2000 });
+		// 12.5 HBD held, 10 HBD swapped: a limit of 10,000 would reserve it out from under the pull.
+		expect(evmSwapRcLimit(12_500, 10_000, 0, false)).toEqual({ ok: true, rcLimit: 2500 });
+	});
+	it('a one-hop swap needs 1,000 spendable (as before), a two-hop one 1,600 (the most one used)', () => {
+		expect(evmSwapRcLimit(1_000, 0, 0, false)).toEqual({ ok: true, rcLimit: 1000 });
+		expect(evmSwapRcLimit(999, 0, 0, false)).toMatchObject({ ok: false, needed: 1000 });
+		expect(evmSwapRcLimit(1_599, 0, 0, false, undefined, EVM_TWO_HOP_SWAP_MIN_RC)).toMatchObject({
+			ok: false,
+			needed: 1600
+		});
+		expect(evmSwapRcLimit(1_600, 0, 0, false, undefined, EVM_TWO_HOP_SWAP_MIN_RC)).toEqual({
+			ok: true,
+			rcLimit: 1600
+		});
 	});
 	it('leaves room for the allowance op in the header', () => {
 		expect(evmSwapRcLimit(5000, 0, EVM_APPROVE_RC_LIMIT, false)).toEqual({
@@ -67,6 +83,27 @@ describe('evmSwapRcLimit', () => {
 		expect(evmSwapRcLimit(BTC_PAYOUT_SWAP_MIN_RC, 0, EVM_APPROVE_RC_LIMIT, true)).toMatchObject({
 			ok: false,
 			needed: BTC_PAYOUT_SWAP_MIN_RC
+		});
+	});
+	it('sizes a BTC payout against the minimum it is given', () => {
+		// From consensus 0.15 a wallet account holding less than the original
+		// minimum can pay for a payout.
+		const rc = BTC_PAYOUT_SWAP_MIN_RC_V0_15 + EVM_APPROVE_RC_LIMIT;
+		expect(evmSwapRcLimit(rc, 0, EVM_APPROVE_RC_LIMIT, true)).toMatchObject({
+			ok: false,
+			needed: BTC_PAYOUT_SWAP_MIN_RC
+		});
+		expect(evmSwapRcLimit(rc, 0, EVM_APPROVE_RC_LIMIT, true, BTC_PAYOUT_SWAP_MIN_RC_V0_15)).toEqual(
+			{ ok: true, rcLimit: BTC_PAYOUT_SWAP_MIN_RC_V0_15 }
+		);
+		expect(
+			evmSwapRcLimit(rc - 1, 0, EVM_APPROVE_RC_LIMIT, true, BTC_PAYOUT_SWAP_MIN_RC_V0_15)
+		).toMatchObject({ ok: false, needed: BTC_PAYOUT_SWAP_MIN_RC_V0_15 });
+	});
+	it('ignores the payout minimum for a swap that stays on Magi', () => {
+		expect(evmSwapRcLimit(5000, 0, 0, false, BTC_PAYOUT_SWAP_MIN_RC_V0_15)).toEqual({
+			ok: true,
+			rcLimit: 5000
 		});
 	});
 });

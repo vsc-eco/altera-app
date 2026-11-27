@@ -4,7 +4,11 @@
  */
 
 import type { CallContractTransaction, Transaction } from './client';
-import { btcPayoutSwapRcLimit, type RcSizing } from '../hive/vscOperations/rcSizing';
+import {
+	BTC_PAYOUT_SWAP_MIN_RC,
+	btcPayoutSwapRcLimit,
+	type RcSizing
+} from '../hive/vscOperations/rcSizing';
 
 /**
  * The per-op worst case the node's mempool adds up (transaction-pool
@@ -42,8 +46,15 @@ export function headerRcLimit(txs: Transaction[]): number {
 export const EVM_APPROVE_RC_LIMIT = 1000;
 /** The most a swap that stays on Magi declares. */
 export const EVM_SWAP_MAX_RC = 10_000;
-/** Below this a swap that stays on Magi is refused before signing. */
+/** Below this a one-hop swap that stays on Magi is refused before signing (it
+ *  then gets all the spendable RC). Every one-hop swap measured on mainnet
+ *  (11-21) used less: BTC->HBD 896, ETH->HBD 856, HBD->BTC 630 RC; it is the
+ *  1,000 it always was, so nothing that worked is refused. */
 export const EVM_SWAP_MIN_RC = 1000;
+/** The same for a two-hop swap (through HBD): the most one used, BTC->ETH
+ *  1,550 RC (ETH->BTC 1,465, USDC->BTC 1,440), rounded up. Below it a
+ *  two-hop swap ran out and was charged all the spendable RC. */
+export const EVM_TWO_HOP_SWAP_MIN_RC = 1600;
 
 /**
  * The swap's rc_limit for an EVM account. It has no free RC, so the node reserves the
@@ -52,21 +63,27 @@ export const EVM_SWAP_MIN_RC = 1000;
  *
  * @param hbdPulledFromMagi the input in milli-HBD when it is HBD, else 0
  * @param approveRc         rc_limit of the allowance op sent with it, else 0
+ * @param btcPayoutMinRc    the least a BTC payout costs under the chain's active
+ *                          consensus version (btcPayoutSwapMinRc); left out, the
+ *                          higher minimum
  */
 export function evmSwapRcLimit(
 	available: number,
 	hbdPulledFromMagi: number,
 	approveRc: number,
-	btcPayout: boolean
+	btcPayout: boolean,
+	btcPayoutMinRc: number = BTC_PAYOUT_SWAP_MIN_RC,
+	/** EVM_TWO_HOP_SWAP_MIN_RC for a pair routed through HBD. */
+	swapMinRc: number = EVM_SWAP_MIN_RC
 ): RcSizing {
 	const afterApprove = available - approveRc;
-	if (btcPayout) return btcPayoutSwapRcLimit(afterApprove, hbdPulledFromMagi);
+	if (btcPayout) return btcPayoutSwapRcLimit(afterApprove, hbdPulledFromMagi, btcPayoutMinRc);
 	const spendable = Math.floor(afterApprove - Math.max(0, hbdPulledFromMagi));
-	if (spendable < EVM_SWAP_MIN_RC) {
+	if (spendable < swapMinRc) {
 		return {
 			ok: false,
 			reason: 'insufficient-rc',
-			needed: EVM_SWAP_MIN_RC,
+			needed: swapMinRc,
 			available: Math.max(0, spendable)
 		};
 	}
@@ -77,7 +94,7 @@ export type EvmSwapInput =
 	/** HIVE/HBD on the Magi ledger: the router draws it under a transfer.allow intent. */
 	| { kind: 'native'; token: string; limit: string }
 	/** A mapped asset: the router moves it with transferFrom, so it needs an allowance. */
-	| { kind: 'mapped'; mappingContractId: string; rawAmount: string };
+	| { kind: 'mapped'; mappingContractId: string; rawAmount: string; asset?: string };
 
 /** The ops of a DEX router swap signed by an EVM wallet, in the order they must run. */
 export function buildEvmSwapOps(args: {
@@ -108,7 +125,12 @@ export function buildEvmSwapOps(args: {
 		payload: {
 			contract_id: input.mappingContractId,
 			action: 'increaseAllowance',
-			payload: JSON.stringify({ spender: `contract:${routerId}`, amount: input.rawAmount }),
+			payload: JSON.stringify({
+				spender: `contract:${routerId}`,
+				amount: input.rawAmount,
+				// the EVM bridge holds ETH and USDC on one contract
+				...(input.asset ? { asset: input.asset } : {})
+			}),
 			rc_limit: EVM_APPROVE_RC_LIMIT,
 			intents: [],
 			caller

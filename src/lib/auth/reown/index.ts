@@ -2,12 +2,14 @@ import { createAppKit } from '@reown/appkit';
 import { mainnet } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { BitcoinAdapter } from '@reown/appkit-adapter-bitcoin';
-import { bitcoin, bitcoinTestnet } from '@reown/appkit/networks';
+import { bitcoin, bitcoinTestnet, sepolia } from '@reown/appkit/networks';
+import { isVscTestnet } from '../../../client';
 import { DOMAIN } from '../url';
 import { get } from 'svelte/store';
 import { cleanUpLogout, loginRetry } from '../store';
 import { isBtcTestnetAddress } from '$lib/stores/currentBalance';
 import { BTC_MAINNET_CAIP, BTC_TESTNET_CAIP } from '../btcCaip';
+import { sideWalletActive } from '../sideWallet';
 
 import { env as publicEnv } from '$env/dynamic/public';
 import { getAddress } from 'viem';
@@ -20,7 +22,10 @@ export const projectId = publicEnv.PUBLIC_REOWN_PROJECT_ID || '55a54e098e74ddb21
 // Mainnet-first for BTC so Xverse (which defaults to Mainnet) doesn't
 // get handed a testnet network it isn't configured for when the
 // connection popup opens.
-export const networks = [mainnet, bitcoin, bitcoinTestnet];
+// Sepolia only on testnet: the testnet EVM bridge watches it (ETH deposits).
+export const networks = isVscTestnet()
+	? [mainnet, bitcoin, bitcoinTestnet, sepolia]
+	: [mainnet, bitcoin, bitcoinTestnet];
 
 export let wagmiConfig: WagmiAdapter['wagmiConfig'] | null = null;
 export let modal: ReturnType<typeof createAppKit> | null = null;
@@ -61,6 +66,9 @@ export function initModal() {
 
 	modal.subscribeAccount(async (value) => {
 		try {
+			// A wallet asked for accounts by a deposit (not a login) must not change
+			// the login (sideWallet.ts).
+			if (sideWalletActive()) return;
 			if (value.isConnected && value.address === lastAddress) return;
 			lastAddress = value.isConnected ? value.address : undefined;
 

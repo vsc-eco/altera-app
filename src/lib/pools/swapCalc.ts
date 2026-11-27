@@ -17,21 +17,23 @@
  */
 
 import { GetStateByKeysStore } from '$houdini';
+import { isVscTestnet } from '../../client';
 import { queryOnce } from '$lib/queryOnce';
 import { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from './poolsData';
 import {
 	buildSwapRoute,
 	type SwapHop,
+	type SlipFeeRule,
 	type TypedPoolDepths,
 	type PoolDepths,
 	DEX_BASE_ASSET,
 	priceImpactForRoute,
-	exceedsPoolDepthForRoute
+	exceedsPoolDepthForRoute,
+	setSlipFeeRule
 } from '$lib/calc';
 
 export {
-	// Fee rule and constants
-	SLIP_FEE_RULE,
+	// Fee constants
 	STABILIZER_CAP_BPS,
 	CLP_SCALE_BPS,
 	BPS_SCALE,
@@ -42,6 +44,7 @@ export {
 	SWAP_FEE_GUARD_PARITY_BPS,
 	swapFeeExceedsGuard,
 	swapFeeGuardMessage,
+	swapFeeLabelPct,
 	// Quote math
 	calculateSwap,
 	calculateTwoHopSwap,
@@ -69,6 +72,33 @@ export type {
 	PoolDepthMap,
 	ImpactLevel
 } from '$lib/calc';
+
+/**
+ * Which swap-fee rule the node charges, derived from the selected network in
+ * the manner of DEPOSIT_SWAP_REFUNDS_ACTIVE in $lib/constants: a rule is 'on'
+ * only once that network has passed its own PendulumSlipParityHeight.
+ *
+ * TESTNET is 'on': go-vsc-node #327 sets the height there, and nothing else
+ * does. Quoting the final rule outright is the point of a testnet -- 'both'
+ * would hide a wrong number behind a max() of the two rules.
+ *
+ * MAINNET is 'both': no mainnet height is scheduled, so the node still charges
+ * the old rule, and 'both' quotes the higher of the two. That keeps
+ * min_amount_out good on either side of a crossing, so this build is safe to
+ * ship before the height and stays correct across it. Flip to 'on' once the
+ * mainnet height has passed, and delete the 'off' branch a release later.
+ *
+ * isVscTestnet() reads the viewer's own network choice out of localStorage, so
+ * ONE deployment serves both: a visitor on testnet gets 'on', everyone else
+ * 'both'. It is captured at module load, like vscNetworkId itself -- switching
+ * network in the UI reloads the app, which is what re-evaluates it.
+ *
+ * The swap arithmetic lives in `$lib/calc`, which imports nothing, so the rule
+ * is INSTALLED there rather than imported from there. This is the only place
+ * that decides it; `calc.slipFeeRuleInForce()` is the only place that reads it.
+ */
+export const SLIP_FEE_RULE: SlipFeeRule = isVscTestnet() ? 'on' : 'both';
+setSlipFeeRule(SLIP_FEE_RULE);
 
 /**
  * The pool contract stores reserves as big-endian `big.Int.Bytes()` under

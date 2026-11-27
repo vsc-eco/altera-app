@@ -8,13 +8,17 @@
  * the account already held of the output asset went out instead.
  */
 
-import { getDidFromUsername } from '$lib/getAccountName';
-import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
+import { ethPayoutGasLimit } from './payoutFee';
+import { magiRecipient, sameMagiAccount } from '$lib/sendswap/utils/magiRecipient';
+import { isVscTestnet } from '../../../client';
+import { BTC_MAPPING_CONTRACT_ID, EVM_BRIDGE_CONTRACT_ID } from '$lib/constants';
+import { toChainUnits } from '$lib/currency/chainAmount';
+import { isEvmBridgeCoin } from '../evmBridge';
 import { CoinAmount } from '$lib/currency/CoinAmount';
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import {
 	swapPaysAlteraFee,
-	applyAlteraFee,
+	applyAlteraFeeBig,
 	ALTERA_FEE_BENEFICIARY,
 	ALTERA_FEE_BPS,
 	hasQuoteMinimum,
@@ -23,11 +27,21 @@ import {
 } from '../hive/vscOperations/swap';
 import {
 	btcPayoutShortfallMessage,
+	EVM_PAYOUT_SWAP_MIN_RC,
+	evmPayoutShortfallMessage,
 	fetchAccountRc,
+	btcPayoutMinRcForInput,
+	fetchBtcPayoutSwapMinRc,
 	rcShortfallMessage
 } from '../hive/vscOperations/rcSizing';
 import type { CallContractTransaction } from './client';
-import { buildEvmSwapOps, evmSwapRcLimit, EVM_APPROVE_RC_LIMIT } from './evmSwap';
+import {
+	buildEvmSwapOps,
+	evmSwapRcLimit,
+	EVM_APPROVE_RC_LIMIT,
+	EVM_SWAP_MIN_RC,
+	EVM_TWO_HOP_SWAP_MIN_RC
+} from './evmSwap';
 
 export type WalletRouterSwap = {
 	/** The signing account's DID (did:pkh:eip155:... or did:pkh:bip122:...). */
@@ -48,6 +62,8 @@ export type WalletRouterSwap = {
 	 * mapping contract. Unused for HIVE/HBD.
 	 */
 	mappedContractId?: string;
+	/** An ETH payout's gas limit sized for its recipient (ethPayoutGasLimit). */
+	payoutGasLimit?: number | null;
 };
 
 export type WalletRouterSwapOps =
@@ -64,18 +80,25 @@ export function walletRouterSwapInstruction(
 	// scale the quote's pre-fee minimum down by the same bps.
 	const min =
 		feeQualifies && storeMin
-			? String(applyAlteraFee(Number(storeMin)))
+			? applyAlteraFeeBig(BigInt(storeMin)).toString()
 			: (storeMin ?? '0');
 	const instruction: Record<string, string | number> = {
 		type: 'swap',
 		version: '1.0.0',
 		asset_in: swap.fromCoin.value.toUpperCase(),
 		asset_out: swap.toCoin.value.toUpperCase(),
-		amount_in: String(swap.amount.amount),
+		amount_in: toChainUnits(swap.amount),
 		min_amount_out: min,
 		recipient: swap.recipient || (swap.destinationChain ? '' : swap.caller)
 	};
 	if (swap.destinationChain) instruction.destination_chain = swap.destinationChain;
+	if (
+		swap.destinationChain === 'ETH' &&
+		swap.toCoin.value === Coin.eth.value &&
+		swap.payoutGasLimit
+	) {
+		instruction.payout_gas_limit = swap.payoutGasLimit;
+	}
 	if (feeQualifies) {
 		instruction.beneficiary = ALTERA_FEE_BENEFICIARY;
 		instruction.ref_bps = ALTERA_FEE_BPS;
@@ -90,7 +113,7 @@ export function walletRouterSwapInstruction(
  */
 export function buildWalletRouterSwapOps(
 	swap: WalletRouterSwap,
-	ctx: { feeQualifies: boolean; availableRc: number }
+	ctx: { feeQualifies: boolean; availableRc: number; btcPayoutMinRc?: number }
 ): WalletRouterSwapOps {
 	if (swap.destinationChain && !swap.recipient) {
 		return { ok: false, error: 'Enter a receiver address for the target chain' };
@@ -100,11 +123,18 @@ export function buildWalletRouterSwapOps(
 	}
 	const isNativeIn =
 		swap.fromCoin.value === Coin.hive.value || swap.fromCoin.value === Coin.hbd.value;
+	// A payout on Bitcoin or Ethereum withdraws through a bridge in the same
+	// call: it gets the account's RC, with that payout's minimum.
+	const ethPayout = swap.destinationChain === 'ETH';
+	// A pair without HBD on either side routes through it: two hops.
+	const twoHop = swap.fromCoin.value !== Coin.hbd.value && swap.toCoin.value !== Coin.hbd.value;
 	const sizing = evmSwapRcLimit(
 		ctx.availableRc,
 		swap.fromCoin.value === Coin.hbd.value ? swap.amount.amount : 0,
 		isNativeIn ? 0 : EVM_APPROVE_RC_LIMIT,
-		swap.destinationChain === 'BTC'
+		swap.destinationChain === 'BTC' || ethPayout,
+		ethPayout ? EVM_PAYOUT_SWAP_MIN_RC : ctx.btcPayoutMinRc,
+		twoHop ? EVM_TWO_HOP_SWAP_MIN_RC : EVM_SWAP_MIN_RC
 	);
 	if (!sizing.ok) {
 		return {
@@ -112,7 +142,9 @@ export function buildWalletRouterSwapOps(
 			error:
 				swap.destinationChain === 'BTC'
 					? btcPayoutShortfallMessage(sizing)
-					: rcShortfallMessage(sizing, 'swap')
+					: ethPayout
+						? evmPayoutShortfallMessage(sizing)
+						: rcShortfallMessage(sizing, 'swap')
 		};
 	}
 	const ops = buildEvmSwapOps({
@@ -122,11 +154,18 @@ export function buildWalletRouterSwapOps(
 		rcLimit: sizing.rcLimit,
 		input: isNativeIn
 			? { kind: 'native', token: swap.fromCoin.value, limit: swap.amount.toAmountString(true) }
-			: {
-					kind: 'mapped',
-					mappingContractId: swap.mappedContractId ?? BTC_MAPPING_CONTRACT_ID,
-					rawAmount: String(swap.amount.amount)
-				}
+			: isEvmBridgeCoin(swap.fromCoin)
+				? {
+						kind: 'mapped',
+						mappingContractId: EVM_BRIDGE_CONTRACT_ID,
+						rawAmount: toChainUnits(swap.amount),
+						asset: swap.fromCoin.value
+					}
+				: {
+						kind: 'mapped',
+						mappingContractId: swap.mappedContractId ?? BTC_MAPPING_CONTRACT_ID,
+						rawAmount: toChainUnits(swap.amount)
+					}
 	});
 	return { ok: true, ops };
 }
@@ -142,7 +181,27 @@ export async function prepareWalletRouterSwap(
 	const feeQualifies =
 		swapPaysAlteraFee();
 	const availableRc = (await fetchAccountRc(swap.caller)) ?? fallbackRc ?? 0;
-	return buildWalletRouterSwapOps(swap, { feeQualifies, availableRc });
+	if (
+		swap.destinationChain === 'ETH' &&
+		swap.toCoin.value === Coin.eth.value &&
+		swap.recipient &&
+		swap.payoutGasLimit === undefined
+	) {
+		swap = {
+			...swap,
+			payoutGasLimit: await ethPayoutGasLimit(
+				swap.caller,
+				swap.recipient,
+				BigInt(swap.minAmountOut || '1')
+			)
+		};
+	}
+	// Only a BTC payout has a minimum that depends on the chain's version.
+	const btcPayoutMinRc =
+		swap.destinationChain === 'BTC'
+			? btcPayoutMinRcForInput(await fetchBtcPayoutSwapMinRc(), isEvmBridgeCoin(swap.fromCoin))
+			: undefined;
+	return buildWalletRouterSwapOps(swap, { feeQualifies, availableRc, btcPayoutMinRc });
 }
 
 /**
@@ -177,6 +236,8 @@ export function walletSwapFromMagi(args: {
 	let destinationChain: string | undefined;
 	if (args.toNetwork === Network.hiveMainnet.value) destinationChain = 'HIVE';
 	else if (args.toNetwork === Network.btcMainnet.value) destinationChain = 'BTC';
+	else if (args.toNetwork === Network.ethMainnet.value && isEvmBridgeCoin(args.toCoin))
+		destinationChain = 'ETH';
 	else if (args.toNetwork !== Network.magi.value) {
 		return { error: 'This swap cannot pay out on that network.' };
 	}
@@ -189,18 +250,18 @@ export function walletSwapFromMagi(args: {
 				: raw;
 		if (!recipient) return { error: 'Missing recipient address for mainnet settlement' };
 	} else {
-		/**
-		 * Staying on Magi pays `toUsername` too — the wallet-path sibling of
-		 * the same fix in `sendUtils`. "Send to address" with Magi selected
-		 * used to pay the swapper and ignore the address (M1). Blank means
-		 * "pay me": `buildRouterInstruction` falls back to the caller.
-		 */
+		// Kept on Magi pays `toUsername` too: "Send to address" with Magi used
+		// to pay the swapper and ignore the address (M1, 11-17 review; facelift
+		// 7d42ac8). Blank means "pay me". A wallet login's own account is an
+		// address, which magiRecipient turns into its did:pkh form.
 		const raw = (args.toUsername ?? '').trim();
-		// `getDidFromUsername`, not a `hive:` prefix: the caller here is an EVM
-		// or BTC wallet, so its own account IS an address and `hive:0x…` would
-		// be nonsense. This resolves a Hive name to `hive:name`, an EVM address
-		// to its checksummed `did:pkh:eip155:` form, and passes a DID through.
-		if (raw) recipient = getDidFromUsername(raw) || undefined;
+		if (raw) {
+			// Strict: a wrong checksum or unknown text is refused, not guessed.
+			const r = magiRecipient(raw, isVscTestnet());
+			if (!r.ok) return { error: r.error };
+			// The signed-in account itself: the router pays the caller.
+			recipient = sameMagiAccount(r.did, args.caller) ? undefined : r.did;
+		}
 	}
 	if (!/^[0-9]*\.?[0-9]+$/.test(args.fromAmount) || Number(args.fromAmount) <= 0) {
 		return { error: 'Enter an amount to swap.' };

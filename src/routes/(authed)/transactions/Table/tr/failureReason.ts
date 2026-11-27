@@ -192,3 +192,70 @@ export async function loadFailureReason(
 	);
 	return pickFailureReason(resolved, txId, opIndex);
 }
+
+/**
+ * A Hive-paid swap the router could not run (F9).
+ *
+ * With `return_address: {chain: "HIVE"}` the router runs the swap in try mode;
+ * when it cannot (price, pool, a refused payout request) it sends the input
+ * back to that Hive account in the same transaction and still succeeds, with
+ * `ret` = `{"amount_out":"0","refunded":"<amount>","asset":"<hive|hbd>","to":"hive:<name>"}`
+ * (dex-router-v2 `executeHiveReturnSwap`). The transaction is CONFIRMED and the
+ * indexer has no swap event for it, so without this the row showed a swap
+ * that kept "waiting for the settled amount".
+ */
+export type SwapRefund = {
+	/** The refunded input, in the asset's base units (milli-HBD / milli-HIVE). */
+	amount: string;
+	asset: string;
+	/** The Hive account it went back to. */
+	to: string;
+};
+
+/** The router's refund from this operation's own result (pure, for tests). */
+export function pickSwapRefund(
+	outputs: readonly { ref: OutputRef; dag: ContractOutputDag | null }[],
+	txId: string,
+	opIndex: number
+): SwapRefund | null {
+	const own = opInputId(txId, opIndex);
+	for (const { ref, dag } of outputs) {
+		if (!dag) continue;
+		const results = dag.results ?? [];
+		const inputs = dag.inputs ?? [];
+		const indices = ref.index?.length ? ref.index : results.map((_, i) => i);
+		for (const i of indices) {
+			const result = results[i];
+			const input = inputs[i];
+			if (!result || result.ok !== true || !result.ret) continue;
+			// Only this operation's result, never a sibling's or another tx's.
+			if (input != null && input !== own) continue;
+			let ret: unknown;
+			try {
+				ret = JSON.parse(result.ret);
+			} catch {
+				continue;
+			}
+			if (typeof ret !== 'object' || ret === null) continue;
+			const r = ret as Record<string, unknown>;
+			const amount = r.refunded;
+			if (typeof amount !== 'string' || !/^[0-9]+$/.test(amount) || amount === '0') continue;
+			return { amount, asset: String(r.asset ?? ''), to: String(r.to ?? '') };
+		}
+	}
+	return null;
+}
+
+/** Fetch whether a confirmed swap was refunded instead of run (see SwapRefund). */
+export async function loadSwapRefund(
+	txId: string,
+	outputs: readonly (OutputRef | null | undefined)[] | null | undefined,
+	opIndex: number
+): Promise<SwapRefund | null> {
+	const refs = (outputs ?? []).filter((o): o is OutputRef => !!o?.id);
+	if (refs.length === 0) return null;
+	const resolved = await Promise.all(
+		refs.map(async (ref) => ({ ref, dag: await fetchDag(ref.id) }))
+	);
+	return pickSwapRefund(resolved, txId, opIndex);
+}

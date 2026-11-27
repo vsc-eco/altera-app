@@ -17,7 +17,12 @@
 import { getToOption, Coin, Network, type CoinOnNetwork } from '../../utils/sendOptions';
 
 /** The destinations the withdraw picker offers. */
-export type WithdrawDestination = 'hive_mainnet' | 'btc_mainnet' | 'lightning' | 'coinbase';
+export type WithdrawDestination =
+	| 'hive_mainnet'
+	| 'btc_mainnet'
+	| 'eth_mainnet'
+	| 'lightning'
+	| 'coinbase';
 
 /** Minimal slice of WithdrawTxState the init functions touch. */
 export type WithdrawInitState = {
@@ -45,6 +50,15 @@ export function initBtcMainnetWithdraw(txState: WithdrawInitState): void {
 }
 
 /**
+ * Ethereum withdraw of ETH or USDC held on Magi (the EVM bridge's unmapETH /
+ * unmapERC20). Like BTC mainnet, with the asset chosen up-front.
+ */
+export function initEthMainnetWithdraw(txState: WithdrawInitState, assetCoin: Coin): void {
+	txState.from = { coin: assetCoin, network: Network.magi };
+	txState.to = { coin: assetCoin, network: Network.ethMainnet };
+}
+
+/**
  * Lightning / Keepsats withdraw — mirror of WithdrawOptions'
  * `lightningTransferOpen` effect. The `to` coin comes from `getToOption` (BTC
  * isn't necessarily in the from-list with a lightning network). rail derives
@@ -69,5 +83,6 @@ export function initWithdrawStateForDestination(
 ): void {
 	if (destination === 'hive_mainnet') initHiveMainnetWithdraw(txState, assetCoin);
 	else if (destination === 'btc_mainnet') initBtcMainnetWithdraw(txState);
+	else if (destination === 'eth_mainnet') initEthMainnetWithdraw(txState, assetCoin);
 	else if (destination === 'lightning') initLightningWithdraw(txState);
 }

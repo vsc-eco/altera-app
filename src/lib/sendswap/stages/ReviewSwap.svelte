@@ -456,8 +456,14 @@
 	// btcMainnet floor preserves the legacy ~10 min override even on
 	// magi-internal sats↔hbd swaps where the chosen networks would otherwise
 	// suggest "Instant".
+	// An ETH/USDC withdrawal to Ethereum adds Ethereum's own time (the rail is
+	// Magi, which alone reads "Instant").
 	const settlementTime = $derived(
-		settlementLabel([txState.rail, isBtcSwap ? Network.btcMainnet : undefined])
+		settlementLabel([
+			txState.rail,
+			isBtcSwap ? Network.btcMainnet : undefined,
+			txState.to?.network?.value === Network.ethMainnet.value ? Network.ethMainnet : undefined
+		])
 	);
 
 </script>
@@ -728,6 +734,7 @@
 				? `hive:${auth.value.username}`
 				: auth.value?.address}
 			minAmountOut={asSwap?.minAmountOut}
+			callerDid={auth.value?.did}
 			onback={() => (btcDepositOpen = false)}
 			ondone={() => goHome?.()}
 		/>

@@ -293,6 +293,60 @@ export async function fetchCustomTokens(): Promise<CustomToken[]> {
 	return (await fetchPoolTokens()).filter((t) => t.routerRegistered);
 }
 
+/** One token contract as the indexer's registry knows it. */
+export type TokenRegistryEntry = {
+	contractId: string;
+	/** Lowercase symbol — matches `Coin.value`. */
+	symbol: string;
+	/** Upper-case symbol, for display. */
+	label: string;
+	name: string;
+	decimals: number;
+};
+
+let registryInFlight: Promise<TokenRegistryEntry[]> | null = null;
+let registryCache: TokenRegistryEntry[] | null = null;
+
+/**
+ * EVERY magi_token contract the indexer knows, pool-backed or not, keyed by
+ * CONTRACT — which is what a transaction gives you. `fetchPoolTokens` cannot
+ * answer this: it starts from pools, so a token with no pool is missing, and
+ * two contracts can share a symbol (mainnet has two LASSECASH), so the symbol
+ * alone cannot say which one a call was addressed to.
+ *
+ * Never throws; an empty result is not cached, so the next caller retries.
+ */
+export async function fetchTokenRegistry(): Promise<TokenRegistryEntry[]> {
+	if (registryCache) return registryCache;
+	if (!registryInFlight) {
+		registryInFlight = (async () => {
+			try {
+				const overview = await fetchTokenOverview();
+				const rows: TokenRegistryEntry[] = [];
+				for (const [contractId, row] of overview) {
+					const symbol = (row.symbol ?? '').toLowerCase();
+					if (!symbol) continue;
+					rows.push({
+						contractId,
+						symbol,
+						label: symbol.toUpperCase(),
+						name: row.name ?? symbol.toUpperCase(),
+						decimals: Number(row.decimals ?? 0) || 0
+					});
+				}
+				if (rows.length) registryCache = rows;
+				return rows;
+			} catch (err) {
+				console.error('Failed to fetch the token registry', err);
+				return [];
+			} finally {
+				registryInFlight = null;
+			}
+		})();
+	}
+	return registryInFlight;
+}
+
 /** Decimals by lowercase symbol, for formatting pool amounts. Custom tokens
  *  are not all 3 dp — LASSECASH is 8 — and getting this wrong misreports
  *  reserves and price ratios by orders of magnitude. */

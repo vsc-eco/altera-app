@@ -13,8 +13,7 @@
 	import Amount from '../tds/Amount.svelte';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
-	import { satsToBtc } from '$lib/sendswap/utils/units';
-	import ToFrom from '../tds/ToFrom.svelte';
+	import Party from '../tds/Party.svelte';
 	import Status from '../tds/Status.svelte';
 	import { getAuth } from '$lib/auth/store';
 	import StatusView from './StatusView.svelte';
@@ -25,6 +24,7 @@
 	} from '$lib/indexer/btcMappingQueries';
 	import { BTC_MAPPING_CONTRACT_ID, getVscExplorerTxUrl, getMemPoolTxUrl } from '$lib/constants';
 	import PopupTitleRow from './PopupTitleRow.svelte';
+	import { getAccountNameFromDid } from '$lib/getAccountName';
 
 	type Props = {
 		tx: TransactionInter;
@@ -41,6 +41,14 @@
 	let toAccount = $state('');
 
 	const did = $derived(viewDid ?? getAuth()().value?.did ?? '');
+	/**
+	 * Who signed the call — the caller the contract itself debits, and the one
+	 * party a transaction always states. The fallbacks below used to answer
+	 * "the account being viewed", which is only the sender when the viewer
+	 * happens to be it: risingstarhub's transfer to jef-001, read on jef-001's
+	 * page, came out as "jef-001 → jef-001".
+	 */
+	const signer = $derived(tx.required_auths?.[0] ?? '');
 	const { anchr_height: block_height } = $derived(tx);
 
 	const contractInfo = $derived.by(() => {
@@ -50,12 +58,24 @@
 		}
 
 		const action = payload.action;
+		// A transfer is only outgoing for the account that SENT it. On the
+		// recipient's page it is money coming in, and the row printed it as a
+		// debit ("-0.00030000 BTC") of an account that had just been paid.
+		const received = !!did && toAccount === did && fromAccount !== did;
 		if (action === 'unmap') {
 			return { action, displayType: 'withdraw', direction: 'outgoing' as const };
 		} else if (action === 'transfer') {
-			return { action, displayType: 'transfer', direction: 'outgoing' as const };
+			return {
+				action,
+				displayType: 'transfer',
+				direction: (received ? 'incoming' : 'outgoing') as 'incoming' | 'outgoing'
+			};
 		} else if (action === 'transferFrom') {
-			return { action, displayType: 'transfer from', direction: 'outgoing' as const };
+			return {
+				action,
+				displayType: 'transfer from',
+				direction: (received ? 'incoming' : 'outgoing') as 'incoming' | 'outgoing'
+			};
 		}
 		return {
 			action: '',
@@ -117,18 +137,18 @@
 			if (result) {
 				indexerEvent = result;
 				if (result.action === 'unmap') {
-					fromAccount = result.event.from_addr || did;
+					fromAccount = result.event.from_addr || signer || did;
 					// to_addr is null on older unmap rows — fall back to the original
 					// call payload's `to` field (the BTC destination address).
 					toAccount = result.event.to_addr || payloadData?.to || 'Unknown';
 				} else if (result.action === 'map') {
 					// deposit table names its parties sender/recipient
-					fromAccount = result.event.sender || did;
+					fromAccount = result.event.sender || signer || did;
 					toAccount = result.event.recipient || 'Unknown';
 				} else {
 					// transfer / transferFrom (VSC → VSC) — the transfer table uses
 					// from_addr/to_addr, same as unmap.
-					fromAccount = result.event.from_addr || did;
+					fromAccount = result.event.from_addr || signer || did;
 					toAccount = result.event.to_addr || payloadData?.to || 'Unknown';
 				}
 			} else {
@@ -136,12 +156,12 @@
 				// btc_mapping_transfer_events row, but it can lag the contract-state
 				// finality (and map/unmap rows can also be briefly absent), so fall
 				// back to what we can read directly from the payload meanwhile.
-				fromAccount = did;
+				fromAccount = signer || did;
 				toAccount = payloadData?.to ?? 'Unknown';
 			}
 		} catch (e) {
 			console.error('Failed to load BTC mapping indexer data', e);
-			fromAccount = did;
+			fromAccount = signer || did;
 			toAccount = payloadData?.to ?? 'Unknown';
 		}
 		loaded = true;
@@ -152,6 +172,7 @@
 	// shows "Loading details..." rather than stale data from the previous account.
 	$effect(() => {
 		if (!did) return; // wait for auth to settle
+		signer; // re-read when the transaction's signer lands
 		loaded = false;
 		loadIndexerData();
 	});
@@ -167,7 +188,10 @@
 		} else {
 			sats = payloadData?.amount || 0;
 		}
-		return new CoinAmount(satsToBtc(Number(sats)).toString(), Coin.btc, true);
+		// Sats ARE BTC's base unit (8 dp), so hand them over as they are. Going
+		// via satsToBtc built a float first ("0.00030000000000000003") and only
+		// the parser's truncation put it back.
+		return new CoinAmount(Number(sats) || 0, Coin.btc, true);
 	});
 
 	let inUsd = $state('');
@@ -176,8 +200,6 @@
 			inUsd = amount.toAmountString();
 		});
 	});
-
-	const otherAccount = $derived(toAccount === did || !toAccount ? fromAccount : toAccount);
 
 	function handleTrigger() {
 		onRowClick([tx.id, op.index], contractRowContent);
@@ -194,20 +216,19 @@
 	<PopupTitleRow title={popupTitle} status={tx.status} {tx} opIndex={op.index} />
 	<p class="popup-subtitle">
 		{moment(getTimestamp(tx)).format('MMM DD, YYYY [at] H:mm')}
-		{#if fromAccount} · {fromAccount} → {toAccount}{/if}
+		{#if fromAccount} · {getAccountNameFromDid(fromAccount)} → {toAccount === 'Unknown'
+				? 'Unknown'
+				: getAccountNameFromDid(toAccount)}{/if}
 	</p>
 	<div class="sections">
 		{#if !loaded}
 			<p>Loading details...</p>
 		{:else}
 			<div class="amount">
-				{#if indexerEvent?.action === 'unmap'}
-					{satsToBtc(Number(indexerEvent.event.deducted))} BTC
-				{:else if indexerEvent?.action === 'transfer' || indexerEvent?.action === 'transferFrom'}
-					{satsToBtc(Number(indexerEvent.event.amount))} BTC
-				{:else}
-					{satsToBtc(Number(payloadData?.amount || 0))} BTC
-				{/if}
+				<!-- Through CoinAmount, not the raw number: satsToBtc divides by
+				     1e8 in binary floating point, so 30,000 sats printed as
+				     "0.00030000000000000003 BTC". -->
+				{displayAmount.toPrettyAmountString()} BTC
 				<span class="approx-usd"> Approx. ${inUsd} USD </span>
 			</div>
 
@@ -216,11 +237,16 @@
 				{#if fee > 0}
 					<div class="section">
 						<h3>Amount Sent</h3>
-						<div class="copyable-text">{satsToBtc(Number(indexerEvent.event.sent))} BTC</div>
+						<div class="copyable-text">
+							{new CoinAmount(Number(indexerEvent.event.sent) || 0, Coin.btc, true)
+								.toPrettyAmountString()} BTC
+						</div>
 					</div>
 					<div class="section">
 						<h3>Bridge Fee</h3>
-						<div class="copyable-text">{satsToBtc(fee)} BTC</div>
+						<div class="copyable-text">
+							{new CoinAmount(fee, Coin.btc, true).toPrettyAmountString()} BTC
+						</div>
 					</div>
 				{/if}
 			{/if}
@@ -264,7 +290,10 @@
 			<div class="contract-id section">
 				<h3>Contract ID</h3>
 				<div class="copyable-text">
-					<BasicCopy value={BTC_MAPPING_CONTRACT_ID} />
+					<!-- The op's own contract, not the constant: naming the BTC
+					     mapping contract on a call that went somewhere else
+					     makes the popup state something untrue. -->
+					<BasicCopy value={op.data?.contract_id || BTC_MAPPING_CONTRACT_ID} />
 				</div>
 			</div>
 
@@ -299,7 +328,8 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
-	<ToFrom {otherAccount} />
+	<Party account={fromAccount} />
+	<Party account={toAccount && toAccount !== 'Unknown' ? toAccount : undefined} />
 	<Status status={tx.status} {tx} opIndex={op.index} />
 	<Amount amount={displayAmount} direction={contractInfo.direction} />
 	<Type direction={contractInfo.direction} t={contractInfo.displayType} />

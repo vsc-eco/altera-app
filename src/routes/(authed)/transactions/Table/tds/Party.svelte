@@ -6,24 +6,38 @@
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import { MessageSquare } from '@lucide/svelte';
 
+	/**
+	 * ONE party of a transaction — the table lists the sender and the
+	 * recipient in their own columns, so a row says who paid whom without
+	 * being opened. It used to show a single "other" account, which on a row
+	 * the viewer neither sent nor received (a contract moving funds between
+	 * two other accounts) could only guess.
+	 */
 	let isHovered = $state(false);
 	let {
-		otherAccount,
-		memo
-	}: { otherAccount: string; memo?: string | undefined } = $props();
+		account,
+		memo,
+		/** Shown in place of an unknown party, e.g. a pending row's recipient. */
+		placeholder = '\u2014'
+	}: { account: string | undefined; memo?: string | undefined; placeholder?: string } = $props();
+
+	const name = $derived(account ? getUsernameFromDid(account) : '');
 
 	// APP-14: strip bidi/control chars from the user-controlled memo.
 	let safeMemo = $derived(sanitizeBidiText(memo));
 </script>
 
 <td onmouseenter={() => (isHovered = true)} onmouseleave={() => (isHovered = false)}>
+	{#if !account}
+		<span class="unknown">{placeholder}</span>
+	{:else}
 	<span class="to-from">
 		<span class="pfp">
-			<Avatar did={otherAccount} fallback="" size={"small"}></Avatar>
+			<Avatar did={account} fallback="" size={"small"}></Avatar>
 		</span>
 		<span class="toFrom">
-			<BasicCopy value={getUsernameFromDid(otherAccount)} show={isHovered}>
-				{getUsernameFromDid(otherAccount)}
+			<BasicCopy value={name} show={isHovered}>
+				{name}
 				{#snippet trailing()}
 					{#if safeMemo}
 						<button
@@ -39,9 +53,14 @@
 			</BasicCopy>
 		</span>
 	</span>
+	{/if}
 </td>
 
 <style>
+	.unknown {
+		color: var(--dash-text-muted);
+	}
+
 	td {
 		padding-top: 0 !important;
 		padding-bottom: 0 !important;

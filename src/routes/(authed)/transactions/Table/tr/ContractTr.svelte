@@ -14,6 +14,7 @@
 	import { CoinAmount, formatUsd } from '$lib/currency/CoinAmount';
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import ContractId from '../tds/ContractId.svelte';
+	import Party from '../tds/Party.svelte';
 	import PopupTitleRow from './PopupTitleRow.svelte';
 	import WaveLoading from '$lib/components/WaveLoading.svelte';
 	import { hasuraQuery } from '$lib/indexer/query';
@@ -292,6 +293,10 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(getTimestamp(tx)).format('MMM DD')}</td>
+	<!-- A contract call is signed by one account and addressed to a contract:
+	     that is its From and its To. The signer is the transaction's first
+	     required auth, which is the caller the contract itself sees. -->
+	<Party account={tx.required_auths?.[0] ?? undefined} />
 	<ContractId address={op.data.contract_id ?? ''} />
 	<Status status={tx.status} {tx} opIndex={op.index} />
 	<Amount

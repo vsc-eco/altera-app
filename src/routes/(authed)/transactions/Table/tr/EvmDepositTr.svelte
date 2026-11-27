@@ -10,7 +10,7 @@
 	import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 	import { fromChainUnits } from '$lib/currency/chainAmount';
 	import { isVscTestnet } from '$lib/../client';
-	import ToFrom from '../tds/ToFrom.svelte';
+	import Party from '../tds/Party.svelte';
 	import Status from '../tds/Status.svelte';
 	import StatusView from './StatusView.svelte';
 	import { EVM_BRIDGE_CONTRACT_ID, getVscExplorerTxUrl } from '$lib/constants';
@@ -116,7 +116,8 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(anchorTs).format('MMM DD')}</td>
-	<ToFrom otherAccount={event.sender} />
+	<Party account={event.sender} />
+	<Party account={event.recipient} />
 	<Status status="CONFIRMED" />
 	<Amount amount={displayAmount} direction="incoming" />
 	<Type direction="incoming" t="deposit" />

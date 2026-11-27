@@ -12,7 +12,7 @@
 
 import { SvelteMap } from 'svelte/reactivity';
 import { Coin } from '$lib/sendswap/utils/sendOptions';
-import { customTokenCoin, fetchPoolTokens } from './customTokens';
+import { customTokenCoin, customTokenIcon, fetchPoolTokens, fetchTokenRegistry } from './customTokens';
 
 const customCoins = new SvelteMap<string, Coin>();
 let loading: Promise<void> | null = null;
@@ -45,4 +45,44 @@ export function coinForAsset(asset: string): Coin {
 		return Coin[asset.toLowerCase().split('_')[0] as keyof typeof Coin];
 	}
 	return customCoins.get(asset.toLowerCase()) ?? Coin.unk;
+}
+
+// ── Token contracts ────────────────────────────────────────────────────────
+//
+// A transaction names the CONTRACT it called, never the symbol, and the same
+// symbol can live on two contracts — so a transfer can only be read as "0.3
+// STARPRO" by looking the contract up. Reactive for the same reason as above:
+// the row renders before discovery lands, then re-renders with the token.
+
+const tokenContracts = new SvelteMap<string, Coin>();
+let registryLoading: Promise<void> | null = null;
+
+/** Discover every magi_token contract once per session. Shared by all callers,
+ *  never throws, and an empty result is not cached so the next caller retries. */
+export function loadTokenContracts(): Promise<void> {
+	if (!registryLoading) {
+		registryLoading = fetchTokenRegistry().then((tokens) => {
+			for (const token of tokens) {
+				tokenContracts.set(token.contractId, {
+					value: token.symbol,
+					label: token.label,
+					icon: customTokenIcon(token.symbol),
+					unit: token.label,
+					decimalPlaces: token.decimals
+				});
+				// Also by symbol, so `coinForAsset` resolves a token with no pool.
+				if (!customCoins.has(token.symbol)) customCoins.set(token.symbol, tokenContracts.get(token.contractId)!);
+			}
+			if (!tokens.length) registryLoading = null;
+		});
+	}
+	return registryLoading;
+}
+
+/** The token held by a contract, or undefined when it is not one (or when
+ *  discovery has not landed yet). Reactive: reading it inside `$derived`
+ *  re-runs once the registry arrives. */
+export function tokenForContract(contractId: string | undefined | null): Coin | undefined {
+	if (!contractId) return undefined;
+	return tokenContracts.get(contractId);
 }

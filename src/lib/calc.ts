@@ -1133,6 +1133,20 @@ export function lpPositionUsd(
 }
 
 /**
+ * Everything an account has sitting in pools, in USD — the figure the wallet
+ * header prints beside its spendable total.
+ *
+ * A pool whose USD price is unknown contributes NaN from `lpPositionUsd`, and
+ * one such pool would turn the whole total into "$NaN". Those are skipped, so
+ * the figure is "what we can price" rather than nothing at all.
+ */
+export function lpPortfolioUsd(positionUsds: readonly number[]): number {
+	let total = 0;
+	for (const usd of positionUsds) if (Number.isFinite(usd)) total += usd;
+	return total;
+}
+
+/**
  * The other side of a liquidity add, at the pool's current ratio.
  *
  * An empty pool has no ratio, so it falls back to the USD prices — which is

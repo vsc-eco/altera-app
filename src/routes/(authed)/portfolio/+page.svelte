@@ -13,6 +13,7 @@
 	import AssetBalanceChart from '$lib/cards/Balance/AssetBalanceChart.svelte';
 	import PopOut from '$lib/redesign/PopOut.svelte';
 	import ConnectedWalletCard from '$lib/redesign/ConnectedWalletCard.svelte';
+	import PoolPositionsCard from '$lib/redesign/PoolPositionsCard.svelte';
 	import HeldReturns from '$lib/cards/HeldReturns.svelte';
 	import { ACTION_LABEL, ASSET_ACTIONS, assetActionHref } from '$lib/redesign/assetActions';
 	import { ArrowDownToLine, ArrowUpFromLine, Send } from '@lucide/svelte';
@@ -59,8 +60,15 @@
 		{/if}
 	</section>
 
+	<!-- Both cards answer "where else is my money?", so they stack in one
+	     column beside Assets rather than being placed independently — grid
+	     auto-placement would have dropped the second one under Assets, a
+	     screen away from the card it belongs with. -->
 	{#if did}
-		<ConnectedWalletCard />
+		<div class="side">
+			<ConnectedWalletCard />
+			<PoolPositionsCard />
+		</div>
 	{/if}
 
 	<!-- A payout that failed on Ethereum is held for its sender rather than
@@ -70,6 +78,10 @@
 		<HeldReturns />
 	{/if}
 
+	<!-- Full width, under everything else. It is a time series over the whole
+	     wallet, not a per-asset detail, and in one grid column the plot had
+	     half the room of the list it is explaining — a year of balance
+	     squeezed into 380px while the right of the page sat empty. -->
 	<section class="alt-card history">
 		<div class="card-head">
 			<h2>Balance by asset</h2>
@@ -101,6 +113,21 @@
 	section {
 		padding: 18px;
 		min-width: 0;
+	}
+	/* "In your wallet" and "In pools", one under the other. The wrapper is the
+	   grid item; the cards inside it are not, so they keep their own heights
+	   instead of being stretched to a shared row. */
+	.side {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		min-width: 0;
+	}
+	/* Every column of the row. `auto-fit` tracks are explicit tracks, so
+	   `1 / -1` spans however many the viewport turned out to have — one on a
+	   phone, two or three on a desktop. */
+	.history {
+		grid-column: 1 / -1;
 	}
 	h2 {
 		margin: 0 0 10px;

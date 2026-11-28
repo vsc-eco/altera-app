@@ -9,6 +9,8 @@
 	import { page } from '$app/state';
 	import { accountBalance } from '$lib/stores/currentBalance';
 	import { sumBalance } from '$lib/stores/balanceHistory';
+	import { getAuth } from '$lib/auth/store';
+	import { poolPositions, loadPoolPositions } from '$lib/stores/poolPositions';
 	import { numberFormatLanguage } from '$lib/constants';
 	import { WALLET_TABS, activeWalletTab } from './walletTabs';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
@@ -48,14 +50,37 @@
 	});
 
 	const loading = $derived($accountBalance.loading);
-	const totalCents = $derived(Math.round(total * 100));
-	const dollars = $derived(Math.floor(totalCents / 100));
-	const cents = $derived(
-		new Intl.NumberFormat(numberFormatLanguage, {
-			minimumIntegerDigits: 2,
-			maximumFractionDigits: 0
-		}).format(totalCents % 100)
-	);
+
+	/** Split a dollar figure the way this header prints one: big dollars, small
+	 *  cents. Shared by the wallet total and the pools total so the two line up
+	 *  rather than being two different-looking numbers side by side. */
+	function split(value: number) {
+		const totalCents = Math.round(value * 100);
+		return {
+			dollars: Math.floor(totalCents / 100),
+			cents: new Intl.NumberFormat(numberFormatLanguage, {
+				minimumIntegerDigits: 2,
+				maximumFractionDigits: 0
+			}).format(totalCents % 100)
+		};
+	}
+	const dollars = $derived(split(total).dollars);
+	const cents = $derived(split(total).cents);
+
+	/**
+	 * What the account has in liquidity pools. Loaded here as well as by the
+	 * card on the Assets tab; `loadPoolPositions` serves both from one read.
+	 */
+	const did = $derived(getAuth()().value?.did);
+	$effect(() => {
+		if (did && showWalletInfo) void loadPoolPositions(did);
+	});
+	/** Only this account's rows: between a switch and the next load the store
+	 *  still holds the previous one's. */
+	const poolsMine = $derived($poolPositions.did === did ? $poolPositions : undefined);
+	const poolsLoading = $derived(!poolsMine || poolsMine.loading);
+	const poolDollars = $derived(split(poolsMine?.totalUsd ?? 0).dollars);
+	const poolCents = $derived(split(poolsMine?.totalUsd ?? 0).cents);
 
 	/**
 	 * Transactions can show ANOTHER account's history via `?account=`. The
@@ -108,6 +133,25 @@
 					</div>
 				{/if}
 			</div>
+			<!-- The wallet total counts only what is spendable. Liquidity is
+			     held by the pool contract, so money put to work vanished from
+			     this header entirely; beside the total it reads as the second
+			     half of the same sentence. -->
+			{#if !viewingOther && did}
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- static route -->
+				<a class="title-area pools" href="/pools">
+					<h1>Pools</h1>
+					<div class="total" class:loading={poolsLoading}>
+						{#if poolsLoading}
+							<span class="dollars">—</span>
+						{:else}
+							<span class="dollars">${poolDollars.toLocaleString(numberFormatLanguage)}</span><span
+								class="cents">.{poolCents}</span
+							>
+						{/if}
+					</div>
+				</a>
+			{/if}
 		</header>
 	{/if}
 
@@ -123,11 +167,15 @@
 		gap: 16px;
 		min-height: 0;
 	}
+	/* The two figures sit side by side, not at opposite ends of the row:
+	   `space-between` would have thrown Pools to the far edge of a 1120px
+	   page, where it reads as an unrelated statistic rather than as the rest
+	   of the same total. */
 	header {
 		display: flex;
 		align-items: flex-end;
-		justify-content: space-between;
-		gap: 16px;
+		justify-content: flex-start;
+		gap: clamp(28px, 5vw, 52px);
 		flex-wrap: wrap;
 	}
 	h1 {
@@ -156,6 +204,20 @@
 		font-size: 16px;
 		font-weight: 600;
 		color: var(--alt-tx);
+	}
+
+	/* The same type as the wallet total, down to the colour. These are two
+	   halves of one answer to "what do I have?", and sizing the second one
+	   down made it read as a different KIND of number — a statistic beside
+	   the total rather than the rest of it. Only the link behaviour differs. */
+	.pools {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+	}
+	.pools:hover .dollars,
+	.pools:hover .cents {
+		opacity: 0.8;
 	}
 
 	/* The handoff's segmented toggle, sized up for navigation rather than a

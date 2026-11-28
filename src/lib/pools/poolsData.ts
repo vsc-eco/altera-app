@@ -369,6 +369,10 @@ export interface MyPoolRow {
 	myAmounts: [string, string]; // formatted with units
 	myAmountsRaw: [number, number]; // unscaled display units
 	myLiquidityUsd: string;
+	/** The same figure as `myLiquidityUsd`, unformatted, so callers that add
+	 *  positions up (the wallet's Pools total) do not have to parse "$1,234.56"
+	 *  back into a number. */
+	myLiquidityUsdRaw: number;
 }
 
 /**
@@ -411,7 +415,8 @@ export async function fetchMyPoolPositions(did: string, pools: PoolRow[]): Promi
 				formatNum(myAmt1, pool.pairSymbols[1], pool.decimals1)
 			],
 			myAmountsRaw: [myAmt0, myAmt1],
-			myLiquidityUsd: formatNum(myUsd, '$', 2)
+			myLiquidityUsd: formatNum(myUsd, '$', 2),
+			myLiquidityUsdRaw: myUsd
 		});
 	}
 	return out;

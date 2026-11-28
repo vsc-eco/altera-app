@@ -1,7 +1,8 @@
 import Dinero from 'dinero.js';
 import { getCryptoPrices, type Cryptoprices } from '$lib/sendswap/v4v/api-types/cryptoprices';
+import { fetchEvmUsdPrices } from './evmUsdPrices';
 import { Network, Coin, type IntermediaryNetwork } from '$lib/sendswap/utils/sendOptions';
-import { composeRates, isFeedUnit, type FeedPrices } from '$lib/calc';
+import { composeRates, isFeedUnit, nativeRates, type FeedPrices } from '$lib/calc';
 import type { CoinAmount, UnkCoinAmount } from './CoinAmount';
 import {
 	getCustomTokenHbdRates,
@@ -29,7 +30,45 @@ function toFeedPrices(prices: Cryptoprices): FeedPrices {
 	};
 }
 
+/** ETH and USDC are not in the v4v feed: their USD prices come from the
+ *  shared CoinGecko helper (evmUsdPrices.ts, cached a minute, keeps the last
+ *  good prices), as the Magi balance total already does. */
+const EVM_UNITS: ReadonlySet<string> = new Set(['ETH', 'USDC']);
+
+/** X per 1 unit of an ETH/USDC base: its USD price times X per USD. */
+function evmRates(usdPerUnit: number, prices: Cryptoprices): Record<string, number> | null {
+	// Through the one cross-rate table in `$lib/calc`, not a second one here:
+	// the merge left this calling a local `nativeRates` that the math move had
+	// already taken out of this file.
+	const perUsd = nativeRates('USD', toFeedPrices(prices));
+	if (!(usdPerUnit > 0) || !perUsd) return null;
+	const out: Record<string, number> = {};
+	for (const [k, v] of Object.entries(perUsd)) out[k] = usdPerUnit * v;
+	out.USD = usdPerUnit;
+	return out;
+}
+
+/** The rates with ETH and USDC added as targets (X per 1 base, through USD).
+ *  Without them a conversion INTO ETH/USDC (a swap's rate line, 1 HBD in
+ *  USDC) found no rate and showed 0. */
+function withEvmTargets(
+	rates: Record<string, number> | null,
+	usd: { eth: number; usdc: number }
+): Record<string, number> | null {
+	if (!rates || !(rates.USD > 0)) return rates;
+	const out = { ...rates };
+	if (usd.eth > 0) out.ETH = rates.USD / usd.eth;
+	if (usd.usdc > 0) out.USDC = rates.USD / usd.usdc;
+	return out;
+}
+
 const getLightningExchangeRates = async (base: Coin, target?: Coin) => {
+	const baseUnit = base.unit?.toUpperCase();
+	const targetIsEvm = !!target && EVM_UNITS.has(target.unit?.toUpperCase());
+	if (EVM_UNITS.has(baseUnit)) {
+		const [prices, usd] = await Promise.all([getCryptoPrices(), fetchEvmUsdPrices()]);
+		return withEvmTargets(evmRates(baseUnit === 'ETH' ? usd.eth : usd.usdc, prices), usd);
+	}
 	// Pool-derived rates cost chain reads, so only fetch them when a custom
 	// token is actually involved. Native-to-native conversions — the vast
 	// majority — keep exactly the round-trips they had before.
@@ -38,7 +77,9 @@ const getLightningExchangeRates = async (base: Coin, target?: Coin) => {
 		getCryptoPrices(),
 		needsTokenRates ? getCustomTokenHbdRates() : Promise.resolve({} as CustomTokenRates)
 	]);
-	return parseToRootedFormat(base, prices, tokenHbd);
+	const rates = parseToRootedFormat(base, prices, tokenHbd);
+	// ETH/USDC prices are only fetched when one is the target.
+	return targetIsEvm ? withEvmTargets(rates, await fetchEvmUsdPrices()) : rates;
 };
 
 /**

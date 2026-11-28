@@ -4,6 +4,7 @@ import { getCryptoPrices } from '$lib/sendswap/v4v/api-types/cryptoprices';
 import { fetchTokenDecimals } from '$lib/tokens/customTokens';
 import { isNativeAsset } from './assets';
 import { fetchRouterRegistrations } from './routerRegistry';
+import { vscNetworkId } from '../../client';
 
 export { isNativeAsset } from './assets';
 import {
@@ -32,11 +33,27 @@ import {
 export type { TimeRange, UserLpPosition, PoolRegistryEntry } from '$lib/indexer/poolQueries';
 export { fetchPoolRegistry, fetchPoolLiquiditySnapshot } from '$lib/indexer/poolQueries';
 
+/**
+ * The two symbols in DISPLAY order: HBD always second ("ETH:HBD", "HIVE:HBD",
+ * "USDC:HBD"), as the owner wants pool names to read. Display only: the pool's
+ * own asset order (pairSymbols = asset0/asset1, alphabetical) still drives
+ * every amount, payload and balance, and is never reordered.
+ */
+export function hbdSecond(symbols: readonly [string, string]): [string, string] {
+	return symbols[0].toLowerCase() === 'hbd' && symbols[1].toLowerCase() !== 'hbd'
+		? [symbols[1], symbols[0]]
+		: [symbols[0], symbols[1]];
+}
+
 export interface PoolRow {
 	id: string;
 	contractId: string;
+	/** Display label, HBD second (hbdSecond). Never parse it for the asset order. */
 	pair: string;
+	/** The pool's asset0/asset1 order (alphabetical): amounts, payloads, balances. */
 	pairSymbols: [string, string];
+	/** pairSymbols in display order (HBD second), for the label and the icons. */
+	displaySymbols: [string, string];
 	priceRatio: string;
 	priceInverse: string;
 	priceUsd: [string, string];
@@ -120,7 +137,13 @@ function parseScaled(raw: string | null | undefined, decimals = 3): number | nul
 	return toDisplay(n, decimals);
 }
 
-const formatNum = formatAmountWithUnit;
+/** Pool rows show ETH with 6 dp like the wallet card — the math keeps all 18. */
+const formatNum = (value: number, unit: string, decimals = 3): string =>
+	formatAmountWithUnit(
+		value,
+		unit,
+		unit.toUpperCase() === 'ETH' ? Math.min(decimals, 6) : decimals
+	);
 
 export function mapStateToPoolRow(
 	poolContractId: string,
@@ -155,6 +178,9 @@ export function mapStateToPoolRow(
 
 	function decimalPlaces(sym: string): number {
 		if (sym.toUpperCase() === 'BTC') return 8;
+		// EVM bridge assets: reserves are on-chain integers (wei for ETH).
+		if (sym.toUpperCase() === 'ETH') return 18;
+		if (sym.toUpperCase() === 'USDC') return 6;
 		const custom = tokenDecimals?.[sym.toLowerCase()];
 		if (custom != null && Number.isFinite(custom)) return custom;
 		return 3;
@@ -303,8 +329,9 @@ export function mapStateToPoolRow(
 	return {
 		id: poolContractId,
 		contractId: poolContractId,
-		pair: `${pairSym0}:${pairSym1}`,
+		pair: hbdSecond([pairSym0, pairSym1]).join(':'),
 		pairSymbols: [pairSym0, pairSym1],
+		displaySymbols: hbdSecond([pairSym0, pairSym1]),
 		priceRatio,
 		priceInverse,
 		priceUsd: [formatUsdPrice(usd0), formatUsdPrice(usd1)],
@@ -335,12 +362,17 @@ export interface MyPoolRow {
 	contractId: string;
 	pair: string;
 	pairSymbols: [string, string];
+	displaySymbols: [string, string];
 	lpBalance: number;
 	totalLp: number;
 	sharePct: number; // 0..100
 	myAmounts: [string, string]; // formatted with units
 	myAmountsRaw: [number, number]; // unscaled display units
 	myLiquidityUsd: string;
+	/** The same figure as `myLiquidityUsd`, unformatted, so callers that add
+	 *  positions up (the wallet's Pools total) do not have to parse "$1,234.56"
+	 *  back into a number. */
+	myLiquidityUsdRaw: number;
 }
 
 /**
@@ -374,6 +406,7 @@ export async function fetchMyPoolPositions(did: string, pools: PoolRow[]): Promi
 			contractId: pos.contractId,
 			pair: pool.pair,
 			pairSymbols: pool.pairSymbols,
+			displaySymbols: pool.displaySymbols,
 			lpBalance: pos.lpBalance,
 			totalLp: pool.totalLpRaw,
 			sharePct: share * 100,
@@ -382,7 +415,8 @@ export async function fetchMyPoolPositions(did: string, pools: PoolRow[]): Promi
 				formatNum(myAmt1, pool.pairSymbols[1], pool.decimals1)
 			],
 			myAmountsRaw: [myAmt0, myAmt1],
-			myLiquidityUsd: formatNum(myUsd, '$', 2)
+			myLiquidityUsd: formatNum(myUsd, '$', 2),
+			myLiquidityUsdRaw: myUsd
 		});
 	}
 	return out;
@@ -427,6 +461,50 @@ async function fetchSinglePool(
 		fallbackSymbols,
 		tokenDecimals
 	);
+}
+
+// The pool list waits for ~5 reads per pool (state, reserves, volume, fees,
+// liquidity) plus the router's registrations, and showed nothing until the
+// slowest answered: ~5 s on mainnet (11-21). The last list is kept (memory,
+// and localStorage for a reload) per network and range, so the page shows it
+// at once and refreshes behind it, as Lumen serves its pages stale while it
+// revalidates. Only for display: PoolsContent keeps Add/Remove disabled until
+// the fresh rows arrive, since the add-liquidity ratio reads a row's reserves.
+const POOLS_CACHE_PREFIX = 'altera.pools.v1.';
+const POOLS_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const memoryPools = new Map<string, PoolRow[]>();
+
+function poolsCacheKey(range: TimeRange): string {
+	return `${POOLS_CACHE_PREFIX}${vscNetworkId}.${range}`;
+}
+
+/** The last pool list fetched for this range, or null. */
+export function cachedPools(range: TimeRange): PoolRow[] | null {
+	const key = poolsCacheKey(range);
+	const mem = memoryPools.get(key);
+	if (mem) return mem;
+	try {
+		const raw = globalThis.localStorage?.getItem(key);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as { ts?: number; rows?: PoolRow[] };
+		if (!Array.isArray(parsed.rows) || parsed.rows.length === 0) return null;
+		if (!(Date.now() - (parsed.ts ?? 0) < POOLS_CACHE_MAX_AGE_MS)) return null;
+		memoryPools.set(key, parsed.rows);
+		return parsed.rows;
+	} catch {
+		return null;
+	}
+}
+
+function storePools(range: TimeRange, rows: PoolRow[]): void {
+	if (rows.length === 0) return; // a failed fetch returns [], never cache that
+	const key = poolsCacheKey(range);
+	memoryPools.set(key, rows);
+	try {
+		globalThis.localStorage?.setItem(key, JSON.stringify({ ts: Date.now(), rows }));
+	} catch {
+		/* storage full or blocked: the memory copy still serves this visit */
+	}
 }
 
 // Zag renders EVERY tab's content (inactive ones are just hidden), so the
@@ -520,7 +598,7 @@ async function fetchPoolsUncoalesced(range: TimeRange): Promise<PoolRow[]> {
 			)
 		]);
 
-		return poolRows.map((row) => {
+		const rows = poolRows.map((row) => {
 			const reg = registrations.get(row.contractId);
 			return {
 				...row,
@@ -528,6 +606,8 @@ async function fetchPoolsUncoalesced(range: TimeRange): Promise<PoolRow[]> {
 				registrationMissing: reg?.missing
 			};
 		});
+		storePools(range, rows);
+		return rows;
 	} catch (err) {
 		console.error('Failed to fetch pool state', err);
 		return [];

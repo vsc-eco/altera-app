@@ -35,6 +35,7 @@
 		minAmountOut,
 		minAmountOutUsd,
 		protocolFeeUsd,
+		swapFeePct = null,
 		twoHop = false,
 		exchangeFeePct,
 		hasQuote,
@@ -53,6 +54,11 @@
 		minAmountOut?: string;
 		minAmountOutUsd?: string | null;
 		protocolFeeUsd?: string | null;
+		/** The quote's own fee rate, e.g. "0.12%". The fee stopped being a flat
+		 *  tier with the slip-parity rule — it is max(slip fee, tier), so it
+		 *  rises with the trade's size against the pool and cannot be stated
+		 *  from the route alone. null falls back to naming the tier. */
+		swapFeePct?: string | null;
 		/** Two-hop routes pay the protocol tier twice. */
 		twoHop?: boolean;
 		/** null hides the row; 0 renders as "Free". */
@@ -156,11 +162,13 @@
 			</StatRow>
 
 			<StatRow
-				label="Protocol fee"
+				label={swapFeePct ? `Swap fee (${swapFeePct})` : 'Protocol fee'}
 				value={protocolFeeUsd ?? '—'}
-				hint={twoHop
-					? 'The Magi network charges 0.08% per pool. This route goes through two pools, so 0.16% in total.'
-					: 'The Magi network charges 0.08% of the swap. It is already taken out of the expected output above.'}
+				hint={swapFeePct
+					? 'The network charges the larger of its 0.08% tier (per pool) and this trade\u2019s own slip fee, which grows with how much of the pool the trade moves. Already taken out of the expected output above.'
+					: twoHop
+						? 'The Magi network charges 0.08% per pool. This route goes through two pools, so 0.16% in total.'
+						: 'The Magi network charges 0.08% of the swap. It is already taken out of the expected output above.'}
 			/>
 
 			{#if exchangeFeePct != null}

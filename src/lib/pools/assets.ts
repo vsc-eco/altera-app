@@ -11,7 +11,7 @@
  *  a token registered through the Magi token contract — i.e. a custom token.
  *  Add new mapped assets here as they land, or their pools will be treated as
  *  custom throughout the UI. */
-const NATIVE_POOL_ASSETS: ReadonlySet<string> = new Set(['HIVE', 'HBD', 'BTC']);
+const NATIVE_POOL_ASSETS: ReadonlySet<string> = new Set(['HIVE', 'HBD', 'BTC', 'ETH', 'USDC']);
 
 /** True for the DEX's built-in assets; false for Magi custom tokens. */
 export function isNativeAsset(symbol: string): boolean {

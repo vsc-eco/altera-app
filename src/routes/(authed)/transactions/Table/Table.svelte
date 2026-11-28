@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { evmBridgeOpAsTransfer } from '../evmBridgeOp';
+	import { customTokenOpAsTransfer } from '../customTokenOp';
+	import { loadTokenContracts } from '$lib/tokens/assetCoin.svelte';
+	import { BTC_MAPPING_CONTRACT_ID } from '$lib/constants';
 	import Tr from './tr/Tr.svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import {
@@ -7,6 +11,8 @@
 		fetchTxs,
 		waitForExtend,
 		fetchBtcDeposits,
+		fetchEvmDeposits,
+		depositRowKey,
 		useStoresFor,
 		type TxListItem,
 		type TransactionOpType
@@ -16,6 +22,7 @@
 	import ContractTr from './tr/ContractTr.svelte';
 	import BtcMappingTr from './tr/BtcMappingTr.svelte';
 	import BtcDepositTr from './tr/BtcDepositTr.svelte';
+	import EvmDepositTr from './tr/EvmDepositTr.svelte';
 	import {
 		EMPTY_FILTERS,
 		applyClientFilters,
@@ -141,10 +148,19 @@
 		}
 		if (op.type === 'call_contract' || op.type === 'call') {
 			const action: string = op.data?.action || '';
-			if (action === 'unmap' || action === 'transfer' || action === 'transferFrom') {
+			if (action === 'increaseAllowance') return null;
+			// `transfer` / `transferFrom` / `unmap` are named by EVERY contract
+			// that moves an asset, so the action alone cannot say which one ran.
+			// Routing on the name sent a STARPRO transfer to the BTC row, which
+			// read its amount as satoshis and priced it as Bitcoin. Only the BTC
+			// mapping contract's own calls belong there; a token contract's are
+			// turned into transfers above, and anything else is a contract call.
+			if (
+				op.data?.contract_id === BTC_MAPPING_CONTRACT_ID &&
+				(action === 'unmap' || action === 'transfer' || action === 'transferFrom')
+			) {
 				return 'btc-vsc';
 			}
-			if (action === 'increaseAllowance') return null;
 			return 'contract';
 		}
 		return null;
@@ -153,10 +169,14 @@
 	function updateAll() {
 		fetchTxs(did, 'update', (val) => (loading = val), 12, serverVars);
 		fetchBtcDeposits(did, 'update');
+		fetchEvmDeposits(did, 'update');
 	}
 
 	let skeletonRowCount = $state(8);
 	onMount(() => {
+		// Which contracts are tokens, so a token transfer can be read as one
+		// rather than as a call. Shared, cached, and never throws.
+		loadTokenContracts();
 		const fetchLimit = limitProp ?? 20;
 		// The shared stores may hold another account's rows (the transactions
 		// page can show any account); empty them first so the length check
@@ -165,6 +185,7 @@
 		if (!initialOpen && $allTransactionsStore.length < fetchLimit) {
 			fetchTxs(did, 'set', (val) => (loading = val), fetchLimit, serverVars);
 			fetchBtcDeposits(did, 'set', fetchLimit);
+			fetchEvmDeposits(did, 'set', fetchLimit);
 		}
 		const rootStyle = getComputedStyle(document.documentElement);
 		const remValue = parseFloat(rootStyle.fontSize);
@@ -296,7 +317,8 @@
 					{#if sortDir === 'desc'}<ChevronDown size={13} />{:else}<ChevronUp size={13} />{/if}
 				{/if}
 			</button>
-			<div class="h h-to-from">To/From</div>
+			<div class="h h-party">From</div>
+			<div class="h h-party">To</div>
 			<div class="h h-status">Status</div>
 			<button
 				class="h h-amount sortable"
@@ -320,6 +342,7 @@
 					lastLength = currStoreLen;
 					fetchTxs(did, 'extend', (val) => (loading = val), 12, serverVars);
 					fetchBtcDeposits(did, 'extend', 12);
+					fetchEvmDeposits(did, 'extend', 12);
 				}
 			}}
 		>
@@ -343,9 +366,11 @@
 						{/if}
 					{/each}
 				{/each} -->
-						{#each displayTxs as item (item.kind === 'vsc' ? item.tx.id : item.event.indexer_tx_hash)}
+						{#each displayTxs as item (item.kind === 'vsc' ? item.tx.id : depositRowKey(item.event))}
 							{#if item.kind === 'btc-deposit'}
 								<BtcDepositTr event={item.event} onRowClick={toggleDetails} />
+							{:else if item.kind === 'evm-deposit'}
+								<EvmDepositTr event={item.event} onRowClick={toggleDetails} />
 							{:else}
 								{@const tx = item.tx}
 								{@const { ops } = tx}
@@ -368,9 +393,15 @@
 									return (b?.index ?? 0) - (a?.index ?? 0);
 								}) as op, i (`${tx.id}-${op?.index ?? i}`)}
 									{#if op}
-										{@const trType = getOpTrType(op)}
+										<!-- A contract that moves an asset — the EVM bridge, a
+										     magi_token — calls its op `transfer`, so it reads as the
+										     transfer it is rather than as a call. -->
+										{@const asTransfer =
+											evmBridgeOpAsTransfer(op, tx.required_auths?.[0]) ??
+											customTokenOpAsTransfer(op, tx.required_auths?.[0])}
+										{@const trType = asTransfer ? 'regular' : getOpTrType(op)}
 										{#if trType === 'regular'}
-											<Tr {tx} {op} viewDid={did} onRowClick={toggleDetails} />
+											<Tr {tx} op={asTransfer ?? op} viewDid={did} onRowClick={toggleDetails} />
 										{:else if trType === 'btc-vsc'}
 											<BtcMappingTr {tx} {op} viewDid={did} onRowClick={toggleDetails} />
 										{:else if trType === 'contract'}
@@ -385,6 +416,7 @@
 							<tr class="skeleton-row blurred-skeleton">
 								<td><div class="skeleton-cell date"></div></td>
 								<td><div class="skeleton-cell to-from"></div></td>
+								<td><div class="skeleton-cell to-from"></div></td>
 								<td><div class="skeleton-cell status"></div></td>
 								<td><div class="skeleton-cell amount"></div></td>
 								<td><div class="skeleton-cell type"></div></td>
@@ -395,6 +427,7 @@
 						{#each Array(skeletonRowCount) as _, i}
 							<tr class="skeleton-row">
 								<td><div class="skeleton-cell date"></div></td>
+								<td><div class="skeleton-cell to-from"></div></td>
 								<td><div class="skeleton-cell to-from"></div></td>
 								<td><div class="skeleton-cell status"></div></td>
 								<td><div class="skeleton-cell amount"></div></td>
@@ -454,7 +487,8 @@
 		display: grid;
 		grid-template-columns:
 			minmax(5rem, 1fr)
-			minmax(12rem, 2fr)
+			minmax(7rem, 1fr)
+			minmax(7rem, 1fr)
 			minmax(8rem, 1fr)
 			minmax(min-content, 1fr)
 			minmax(min-content, 1fr);
@@ -504,7 +538,7 @@
 	button.h.sortable :global(svg) {
 		flex-shrink: 0;
 	}
-	.h-to-from {
+	.h-party {
 		text-align: left;
 	}
 	.h-status,
@@ -633,7 +667,8 @@
 	@media (max-width: 600px) {
 		.table-scroll {
 			grid-template-columns:
-				minmax(12rem, 2fr)
+				minmax(7rem, 1fr)
+				minmax(7rem, 1fr)
 				minmax(8rem, 1fr)
 				minmax(min-content, 1fr)
 				minmax(min-content, 1fr);

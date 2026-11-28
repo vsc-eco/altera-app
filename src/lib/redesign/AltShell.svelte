@@ -545,6 +545,12 @@
 		/* The account popup's items are <button>s, the nav popups' are <a>s;
 		   these four lines are what make a button look like the link. */
 		width: 100%;
+		/* There is no global border-box in this project, so `width: 100%` was
+		   the popup's CONTENT width and the 12px side padding was ADDED to it:
+		   every item ended up 24px wider than the panel, and hovering one drew
+		   a highlight that hung 18px off the panel's right edge, past its
+		   rounded corner — the stray overlay in the nav dropdowns. */
+		box-sizing: border-box;
 		text-align: left;
 		background: none;
 		border: 0;

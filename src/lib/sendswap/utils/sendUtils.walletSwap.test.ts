@@ -112,13 +112,10 @@ describe('send(): a wallet account swapping its Magi balance', () => {
 			asset_out: 'HBD',
 			amount_in: '50000',
 			min_amount_out: '42000',
-			// CHANGED by M1 (11-17 review): kept on Magi now pays the address
-			// it was given. This used to assert the swapper was paid whatever
-			// the receiver field said, which is the bug — "Send to address"
-			// with Magi selected behaved exactly like "Keep on Magi" while
-			// Review printed the typed address as the receiver. Safe because
-			// the swap card resets `toUsername` to the signed-in account
-			// whenever the destination is not an address (M2).
+			// CHANGED by M1 (11-17 review, facelift 7d42ac8): kept on Magi pays
+			// the address it was given ("Send to address" + Magi). The swap card
+			// resets toUsername to the signed-in account unless an address is
+			// chosen (M2), so the default still pays the swapper (next test).
 			recipient: 'hive:someone-else'
 		});
 	});

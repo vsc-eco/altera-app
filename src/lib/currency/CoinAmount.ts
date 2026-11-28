@@ -51,7 +51,9 @@ export class CoinAmount<C extends Coin> {
 	 * Same as `toAmountString` but with trailing zeroes
 	 */
 	toPrettyAmountString() {
-		return this.toAmountString(true);
+		// Fixed places read well up to BTC's 8 (100.000 HBD, 0.00320000 BTC);
+		// ETH's 18 printed "0.062270000000000000 ETH", so those drop the zeros.
+		return this.toAmountString(this.coin.decimalPlaces <= 8);
 	}
 
 	isNegative() {

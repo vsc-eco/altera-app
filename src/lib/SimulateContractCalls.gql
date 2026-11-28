@@ -4,6 +4,7 @@ query SimulateContractCalls($input: SimulateContractCallsInput!, $account: Strin
 		err
 		err_msg
 		rc_used
+		ret
 	}
 	getAccountRC(account: $account) {
 		amount

@@ -627,7 +627,30 @@ export const PROTOCOL_FEE_BPS = 8n;
  *            `min_amount_out` holds under whichever rule the swap meets.
  */
 export type SlipFeeRule = 'off' | 'both' | 'on';
-export const SLIP_FEE_RULE: SlipFeeRule = 'off';
+
+/**
+ * The rule in force for this session. There is exactly ONE of these in the
+ * app: `$lib/pools/swapCalc` derives it from the viewer's selected network
+ * (`isVscTestnet()`) and installs it here with `setSlipFeeRule()` at module
+ * load, which keeps this file import-free while every default below still
+ * follows the network.
+ *
+ * The seed is `'both'` — the mainnet value, and the safe one: it quotes the
+ * higher of the two rules, so a `min_amount_out` computed before the rule is
+ * installed still holds under either. Never read this through a captured
+ * const; call `slipFeeRuleInForce()`.
+ */
+let slipFeeRule: SlipFeeRule = 'both';
+
+/** The slip-fee rule in force. */
+export function slipFeeRuleInForce(): SlipFeeRule {
+	return slipFeeRule;
+}
+
+/** Install the session's rule. Called once, from `$lib/pools/swapCalc`. */
+export function setSlipFeeRule(rule: SlipFeeRule): void {
+	slipFeeRule = rule;
+}
 
 /** Pool reserves with explicit asset ordering, so one struct covers any pair. */
 export interface TypedPoolDepths {
@@ -692,20 +715,45 @@ export const SWAP_FEE_GUARD_PARITY_BPS = 1000;
 /** True when a modelled swap fee is above the safety threshold. */
 export function swapFeeExceedsGuard(
 	feeBps: number | undefined | null,
-	rule: SlipFeeRule = SLIP_FEE_RULE
+	rule: SlipFeeRule = slipFeeRuleInForce()
 ): boolean {
 	const limit = rule === 'off' ? SWAP_FEE_GUARD_BPS : SWAP_FEE_GUARD_PARITY_BPS;
 	return feeBps != null && feeBps > limit;
 }
 
 /** The one wording of the guard message. */
-export function swapFeeGuardMessage(feeBps: number | undefined | null): string {
+export function swapFeeGuardMessage(
+	feeBps: number | undefined | null,
+	rule: SlipFeeRule = slipFeeRuleInForce()
+): string {
 	const pct = feeBps != null ? bpsToPct(feeBps).toFixed(1) : '?';
+	if (rule === 'off') {
+		return (
+			`Swap cancelled to protect you: the network would currently charge an abnormally high fee ` +
+			`(~${pct}%, well above the usual ~0.1%) on this trade. Try a smaller amount, or wait until ` +
+			`this is resolved.`
+		);
+	}
+	// Under the parity rule the fee IS the trade's own price impact, so a high
+	// one means the trade is large against the pool, not that anything is
+	// wrong. "Abnormally high ... above the usual ~0.1%" would be false here.
 	return (
-		`Swap cancelled to protect you: the network would currently charge an abnormally high fee ` +
-		`(~${pct}%, well above the usual ~0.1%) on this trade. Try a smaller amount, or wait until ` +
-		`this is resolved.`
+		`Swap cancelled to protect you: this trade is large enough against the pool that the ` +
+		`network would charge ~${pct}% of it in slip fee. Try a smaller amount, or split it over ` +
+		`several swaps.`
 	);
+}
+
+/**
+ * The effective swap fee as a percentage string for a fee label, from the
+ * modelled `feeBps` (both hops summed). The fee is no longer a fixed tier the
+ * UI can hardcode: under the parity rule it is `max(slip fee, protocol tier)`,
+ * so it rises with the trade's size against the pool. Two decimals, because
+ * the protocol tier alone is 0.08% and "0.1%" would round it away.
+ */
+export function swapFeeLabelPct(feeBps: number | undefined | null): string | null {
+	if (feeBps == null || !Number.isFinite(feeBps) || feeBps < 0) return null;
+	return `${bpsToPct(feeBps).toFixed(2)}%`;
 }
 
 /** Effective fee in bps = totalFee / grossOut, where grossOut = out + fee. */
@@ -749,7 +797,7 @@ export function calculateSwap(
 	X: bigint,
 	Y: bigint,
 	slippageBps: number,
-	rule: SlipFeeRule = SLIP_FEE_RULE
+	rule: SlipFeeRule = slipFeeRuleInForce()
 ): SwapCalcResult {
 	if (x <= 0n || X <= 0n || Y <= 0n) return emptySwapResult(slippageBps);
 
@@ -859,7 +907,7 @@ export function calculateTwoHopSwap(
 	hopAsset: string,
 	assetOut: string,
 	slippageBps: number,
-	rule: SlipFeeRule = SLIP_FEE_RULE
+	rule: SlipFeeRule = slipFeeRuleInForce()
 ): SwapCalcResult {
 	const hop1Depths = getOrderedDepthsFor(pool1, assetIn);
 	if (!hop1Depths) return emptySwapResult(slippageBps);
@@ -1085,6 +1133,20 @@ export function lpPositionUsd(
 }
 
 /**
+ * Everything an account has sitting in pools, in USD — the figure the wallet
+ * header prints beside its spendable total.
+ *
+ * A pool whose USD price is unknown contributes NaN from `lpPositionUsd`, and
+ * one such pool would turn the whole total into "$NaN". Those are skipped, so
+ * the figure is "what we can price" rather than nothing at all.
+ */
+export function lpPortfolioUsd(positionUsds: readonly number[]): number {
+	let total = 0;
+	for (const usd of positionUsds) if (Number.isFinite(usd)) total += usd;
+	return total;
+}
+
+/**
  * The other side of a liquidity add, at the pool's current ratio.
  *
  * An empty pool has no ratio, so it falls back to the USD prices — which is
@@ -1159,11 +1221,51 @@ export const MAX_RC_LIMIT = 100_000;
 export const RC_MARGIN = 1.25;
 
 /**
- * The least a swap paid out to a BTC address costs. Measured with dry runs on
- * the mainnet contracts on 2026-11-05: 11,686 RC for HBD→BTC and 12,007 for
- * HIVE→HBD→BTC, one vault input each.
+ * The least a swap paid out to a BTC address costs, up to consensus 0.14.
+ * Dry runs on the mainnet contracts (one vault input each):
+ *   2026-11-05: 11,686 RC HBD → BTC, 12,007 RC HIVE → HBD → BTC
+ *   2026-11-17: 11,565 / 11,886
+ *   2026-11-19: 11,685 / 12,006
+ * The cost moves by about 150 RC with the BTC contract's state, and each extra
+ * vault input adds about 300. Set above the dearer route with room for both:
+ * a payout that passes this check and then fails on chain is charged
+ * everything it sent as its limit (all the account's RC), while one the check
+ * refuses keeps its RC. (It was 11,700 until 2026-11-19, under the HIVE route.)
  */
-export const BTC_PAYOUT_SWAP_MIN_RC = 11_700;
+export const BTC_PAYOUT_SWAP_MIN_RC = 12_400;
+
+/**
+ * The minimum once the chain runs consensus 0.15.0. From that version the node
+ * charges 1 RC for each new stored byte instead of 19 (go-vsc-node
+ * params.WriteIoGasRcCost), and a payout stores about 400 new bytes (the
+ * withdrawal and its settle record). Measured:
+ *   mainnet 2026-11-19, repriced at 1 RC a byte: 4,485 HBD → BTC, 4,806 HIVE
+ *   testnet 2026-11-19, 0.15 live: 5,487 HBD → BTC (387 new bytes, one input);
+ *   its larger BTC contract state reads dearer, and a HIVE input adds one
+ *   pool hop (about 320 on mainnet), about 5,800
+ * Set above the dearest of these with room for one more vault input, for the
+ * same reason as above. The free 10,000 RC pays for one payout at a time.
+ */
+export const BTC_PAYOUT_SWAP_MIN_RC_V0_15 = 6_200;
+
+/** The consensus version from which a new stored byte costs 1 RC. */
+export const WRITE_PRICE_CUT_CONSENSUS = 15;
+
+/** The chain's active consensus version: the newest election's. */
+export type ActiveConsensus = { major: number; consensus: number };
+
+/**
+ * The least a swap paid out to a BTC address costs under the chain's active
+ * consensus version. `active` undefined means the node could not be asked: the
+ * higher minimum is used then, which can only refuse a swap that would have
+ * passed, never send one that fails on chain and is charged its whole limit.
+ */
+export function btcPayoutSwapMinRc(active: ActiveConsensus | undefined): number {
+	if (active && active.consensus >= WRITE_PRICE_CUT_CONSENSUS) {
+		return BTC_PAYOUT_SWAP_MIN_RC_V0_15;
+	}
+	return BTC_PAYOUT_SWAP_MIN_RC;
+}
 
 /** The free RC allowance a Hive account gets before its HBD counts. */
 export const FREE_RC_ALLOWANCE = 10_000;
@@ -1206,15 +1308,23 @@ export function sizeRcLimit(rcUsed: number, available: number): RcSizing {
  * ledger. The node reserves (rc_limit − free RC) of the caller's HBD against
  * RC before an HBD intent pull, so the limit has to leave the input amount
  * spendable or the swap fails "insufficient balance".
+ *
+ * Below `minRc` the swap cannot succeed; report it before the user signs
+ * instead of failing on chain. `minRc` is `btcPayoutSwapMinRc` of the chain's
+ * active consensus version; left out, it is the higher minimum.
  */
-export function btcPayoutSwapRcLimit(available: number, hbdPulledFromMagi: number): RcSizing {
+export function btcPayoutSwapRcLimit(
+	available: number,
+	hbdPulledFromMagi: number,
+	minRc: number = BTC_PAYOUT_SWAP_MIN_RC
+): RcSizing {
 	const spendable = Math.floor(available - Math.max(0, hbdPulledFromMagi));
 	const cap = Math.min(spendable, MAX_RC_LIMIT);
-	if (cap < BTC_PAYOUT_SWAP_MIN_RC) {
+	if (cap < minRc) {
 		return {
 			ok: false,
 			reason: 'insufficient-rc',
-			needed: BTC_PAYOUT_SWAP_MIN_RC,
+			needed: minRc,
 			available: Math.max(0, spendable)
 		};
 	}

@@ -1,6 +1,10 @@
 import { Coin, Network } from '$lib/sendswap/utils/sendOptions';
 import { getDidFromUsername } from '$lib/getAccountName';
-import { DEPOSIT_SWAP_REFUNDS_ACTIVE, MIN_BTC_DEPOSIT_SWAP_SATS } from '$lib/constants';
+import {
+	BTC_SENDER_REFUNDS_ACTIVE,
+	DEPOSIT_SWAP_REFUNDS_ACTIVE,
+	MIN_BTC_DEPOSIT_SWAP_SATS
+} from '$lib/constants';
 
 /**
  * Swaps paid with Bitcoin from the user's own wallet (Leather, Xverse, ...).
@@ -31,6 +35,14 @@ export type BtcSwapInstructionInput = {
 	minAmountOut?: string;
 	/** Defaults to DEPOSIT_SWAP_REFUNDS_ACTIVE (tests set it). */
 	refundsActive?: boolean;
+	/**
+	 * Defaults to BTC_SENDER_REFUNDS_ACTIVE (tests set it): the contract refunds
+	 * the address that sent the BTC, so refund_to is optional and the swap can be
+	 * paid out on Ethereum.
+	 */
+	senderRefunds?: boolean;
+	/** An ETH payout's Ethereum gas limit (ethPayoutGasLimit), when estimated. */
+	payoutGasLimit?: number | null;
 	/**
 	 * Which Bitcoin network this instruction is for, so a refund address on the
 	 * other one is caught here instead of at the mapping bot. Omitted: unchecked.
@@ -100,19 +112,41 @@ export function buildBtcSwapInstruction(input: BtcSwapInstructionInput): BtcSwap
 		return { ok: false, error: 'Pick a coin other than BTC to swap into.' };
 	}
 
+	const senderRefunds = input.senderRefunds ?? BTC_SENDER_REFUNDS_ACTIVE;
 	let destinationChain: string | undefined;
 	if (input.toNetwork === Network.hiveMainnet.value) {
 		destinationChain = 'HIVE';
+	} else if (input.toNetwork === Network.ethMainnet.value && senderRefunds) {
+		if (input.toCoin !== Coin.eth.value && input.toCoin !== Coin.usdc.value) {
+			return { ok: false, error: 'On Ethereum a swap paid with Bitcoin pays ETH or USDC.' };
+		}
+		destinationChain = 'ETH';
 	} else if (input.toNetwork !== Network.magi.value) {
 		return {
 			ok: false,
-			error: 'A swap paid with Bitcoin can settle on Magi or Hive only.'
+			error: senderRefunds
+				? 'A swap paid with Bitcoin can settle on Magi, Hive or Ethereum.'
+				: 'A swap paid with Bitcoin can settle on Magi or Hive only.'
 		};
 	}
 
 	const raw = (input.recipient ?? '').trim().replace(/^@/, '');
 	if (!raw) {
 		return { ok: false, error: 'Enter a receiver.' };
+	}
+	if (destinationChain === 'ETH') {
+		// The BTC contract pays a user identity: an Ethereum address as its DID,
+		// which the router pays at the address.
+		const addr = raw.replace(/^did:pkh:eip155:1:/i, '');
+		if (!/^0x[0-9a-fA-F]{40}$/.test(addr) || /^0x0{40}$/.test(addr)) {
+			return { ok: false, error: 'Enter an Ethereum address to receive on Ethereum.' };
+		}
+		return finishBtcSwapInstruction(
+			input,
+			`did:pkh:eip155:1:${addr.toLowerCase()}`,
+			destinationChain,
+			senderRefunds
+		);
 	}
 	const recipient = getDidFromUsername(raw);
 	if (!recipient || !(recipient.startsWith('hive:') || recipient.startsWith('did:pkh:'))) {
@@ -122,6 +156,15 @@ export function buildBtcSwapInstruction(input: BtcSwapInstructionInput): BtcSwap
 		return { ok: false, error: 'Enter a Hive account to receive on Hive.' };
 	}
 
+	return finishBtcSwapInstruction(input, recipient, destinationChain, senderRefunds);
+}
+
+function finishBtcSwapInstruction(
+	input: BtcSwapInstructionInput,
+	recipient: string,
+	destinationChain: string | undefined,
+	senderRefunds: boolean
+): BtcSwapInstruction {
 	if (input.amountSats !== undefined && input.amountSats < MIN_BTC_DEPOSIT_SWAP_SATS) {
 		return {
 			ok: false,
@@ -131,6 +174,33 @@ export function buildBtcSwapInstruction(input: BtcSwapInstructionInput): BtcSwap
 
 	const params = new URLSearchParams({ swap_to: recipient, swap_asset_out: input.toCoin });
 	if (destinationChain) params.set('destination_chain', destinationChain);
+	if (destinationChain === 'ETH' && input.toCoin === Coin.eth.value && input.payoutGasLimit) {
+		params.set('payout_gas_limit', String(input.payoutGasLimit));
+	}
+
+	if (senderRefunds) {
+		// The contract refunds the address that sent the BTC (it proves it): no
+		// refund address to give, and a hive: one would not be used. A Bitcoin
+		// wallet login's own address still goes along, as a fallback when the
+		// sending transaction cannot be proven.
+		const refundTo = (input.refundTo ?? '').trim();
+		const refundNetwork = btcAddressNetwork(refundTo);
+		if (
+			refundNetwork &&
+			(input.testnet === undefined || refundNetwork === (input.testnet ? 'testnet' : 'mainnet'))
+		) {
+			params.set('refund_to', refundTo);
+		}
+		const min = (input.minAmountOut ?? '').trim();
+		if (!/^[0-9]+$/.test(min) || /^0+$/.test(min)) {
+			return {
+				ok: false,
+				error: 'The quote is not ready yet: wait for the minimum amount received, then try again.'
+			};
+		}
+		params.set('min_amount_out', min);
+		return { ok: true, instruction: params.toString(), recipient };
+	}
 
 	if (input.refundsActive ?? DEPOSIT_SWAP_REFUNDS_ACTIVE) {
 		// The contract sends a swap that does not complete back to refund_to; a

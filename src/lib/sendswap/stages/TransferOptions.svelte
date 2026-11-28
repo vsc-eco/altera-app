@@ -33,6 +33,11 @@
 		type Contact
 	} from '$lib/sendswap/contacts/contacts';
 	import ContactSearchBox from '$lib/sendswap/contacts/ContactSearchBox.svelte';
+	import { fetchCustomTokens, customTokenCoin, type CustomToken } from '$lib/tokens/customTokens';
+	import {
+		customTokenBalances,
+		refreshCustomTokenBalances
+	} from '$lib/tokens/customTokenBalances';
 	import { CoinAmount } from '$lib/currency/CoinAmount';
 	import { type AssetObject } from '../components/info/SendSnippets.svelte';
 	import AssetInfo from '../components/info/AssetInfo.svelte';
@@ -207,6 +212,14 @@
 		const from = txState.from;
 		if (!from || from.coin.value === Coin.unk.value) {
 			max = undefined;
+			return;
+		}
+		const customRaw = customRawBalance(from.coin.value);
+		if (customRaw !== null) {
+			// A custom token's balance is in its own store and its own decimals;
+			// `getBalanceAmount` would look it up in the native struct and
+			// return 0, which leaves Max at zero and the amount check unbounded.
+			max = new CoinAmount(customRaw, from.coin, true);
 			return;
 		}
 		const balance = getBalanceAmount($accountBalance, from.coin, from.network);
@@ -399,6 +412,16 @@
 				}
 			}
 		}
+		// Custom tokens sit outside the static catalog, so they are added from
+		// their own store. A token with nothing in it is left out, exactly as a
+		// native asset with no balance is.
+		for (const token of customTokens) {
+			const coin = customTokenCoin(token);
+			const raw = $customTokenBalances.bal[token.symbol] ?? 0;
+			if (raw > 0) {
+				result.push({ coin, coinOpt: { coin, networks: [Network.magi] } });
+			}
+		}
 		return result;
 	});
 
@@ -453,8 +476,43 @@
 		txState.to = { coin, network: keepDestination };
 	}
 
+	/**
+	 * Magi custom tokens (`magi_token` contracts), which a transfer can move
+	 * like any other Magi holding.
+	 *
+	 * They are not in `accountBalance`: that store is a fixed struct of the
+	 * native assets the VSC node reports, while token balances are per-contract
+	 * rows in the indexer — hence the separate store, refreshed for whoever is
+	 * signed in. Magi only: a custom token has no mainnet form.
+	 */
+	let customTokens = $state.raw<CustomToken[]>([]);
+
+	$effect(() => {
+		const did = auth.value?.did;
+		if (!did) {
+			customTokens = [];
+			return;
+		}
+		let live = true;
+		fetchCustomTokens().then((tokens) => {
+			if (live) customTokens = tokens;
+		});
+		refreshCustomTokenBalances(did);
+		return () => {
+			live = false;
+		};
+	});
+
+	/** Raw smallest units of a custom token, or null when `coin` is not one. */
+	function customRawBalance(coinValue: string): number | null {
+		if (!customTokens.some((t) => t.symbol === coinValue)) return null;
+		return $customTokenBalances.bal[coinValue] ?? 0;
+	}
+
 	/** The balance behind each chip, for the sub-line. */
 	function chipBalance(coin: Coin) {
+		const raw = customRawBalance(coin.value);
+		if (raw !== null) return new CoinAmount(raw, coin, true);
 		return getBalanceAmount($accountBalance, coin, Network.magi);
 	}
 

@@ -8,7 +8,13 @@
 		Plus,
 		Minus
 	} from '@lucide/svelte';
-	import { fetchPools, fetchMyPoolPositions, poolKind, type TimeRange } from './poolsData';
+	import {
+		cachedPools,
+		fetchPools,
+		fetchMyPoolPositions,
+		poolKind,
+		type TimeRange
+	} from './poolsData';
 	import type { PoolRow, MyPoolRow, PoolKind } from './poolsData';
 	import AddLiquidityPopup from './AddLiquidityPopup.svelte';
 	import RemoveLiquidityPopup from './RemoveLiquidityPopup.svelte';
@@ -19,6 +25,8 @@
 	import { registrationHint } from './routerRegistry';
 	import PairIcons from './PairIcons.svelte';
 	import { Hint } from '$lib/ui';
+	import { ETH_CHAIN_ID } from '$lib/constants';
+	import { poolNetworkLabel } from './network';
 
 	/** Which slice of the registry this instance shows. The Pools and Custom
 	 *  pools tabs render the same component; only this prop differs, so every
@@ -69,20 +77,37 @@
 		pools.filter((p) => myPools.some((mp) => mp.contractId === p.contractId))
 	);
 
+	// True while the rows on screen are the last list kept from a previous
+	// load (cachedPools) and fresh numbers are on their way. Add/Remove stay
+	// disabled meanwhile: the liquidity dialogs compute with a row's reserves.
+	// Stays true when the refresh fails, rather than act on old reserves.
+	let refreshing = $state(false);
+
 	$effect(() => {
 		const range = timeRange;
 		// Read synchronously so the effect tracks it; reading `kind` inside the
 		// `.then` callback would leave this effect subscribed to `timeRange` only.
 		const wanted = kind;
 		let cancelled = false;
-		loading = true;
+		const cached = cachedPools(range);
+		if (cached) {
+			pools = cached.filter((p) => poolKind(p) === wanted);
+			loading = false;
+			refreshing = true;
+		} else {
+			loading = true;
+		}
 		fetchPools(range).then((result) => {
 			// Guard against out-of-order resolves: if the range changed while
 			// this fetch was in flight, drop the stale result so it can't
 			// overwrite the newer range's numbers.
 			if (cancelled) return;
+			// A failed fetch returns []: keep the last list (still refreshing)
+			// instead of blanking the page.
+			if (result.length === 0 && cached) return;
 			pools = result.filter((p) => poolKind(p) === wanted);
 			loading = false;
+			refreshing = false;
 		});
 		return () => {
 			cancelled = true;
@@ -180,6 +205,9 @@
 				bind:value={searchQuery}
 				aria-label="Search pools"
 			/>
+			{#if refreshing}
+				<span class="refresh-note" aria-live="polite">Updating…</span>
+			{/if}
 			<div class="time-filters" role="group" aria-label="Time range">
 				{#each timeRangeLabels as tr (tr.value)}
 					<button
@@ -304,10 +332,11 @@
 										pool.pair
 									)
 								: undefined}
+						{@const network = poolNetworkLabel(pool.pairSymbols, ETH_CHAIN_ID)}
 						<tr class="clickable" onclick={() => (selectedPool = pool)}>
 							<td class="col-pair" data-label="Pair">
 								<div class="pair-cell">
-									<PairIcons symbols={pool.pairSymbols} />
+									<PairIcons symbols={pool.displaySymbols} />
 									<span
 										class="pair-label"
 										class:deprecated
@@ -322,6 +351,9 @@
 										<span class="deprecated-tag unregistered-tag" title={addHint}>not on dex</span>
 									{/if}
 								</div>
+								<!-- Which ETH and USDC these are: the bridge maps them from one
+								     chain only, and an EVM address looks the same on all of them. -->
+								{#if network}<div class="pair-network">{network}</div>{/if}
 							</td>
 							<td class="col-price" data-label="Price">
 								<div class="price-cell">
@@ -369,11 +401,11 @@
 										type="button"
 										class="row-action row-action-primary"
 										aria-label="Add liquidity to {pool.pair}"
-										disabled={addBlocked}
-										title={addHint}
+										disabled={addBlocked || refreshing}
+										title={refreshing ? 'Updating the pool numbers…' : addHint}
 										onclick={(e) => {
 											e.stopPropagation();
-											if (addBlocked) return;
+											if (addBlocked || refreshing) return;
 											openAddForPool(pool);
 										}}
 									>
@@ -385,8 +417,11 @@
 											type="button"
 											class="row-action row-action-outline"
 											aria-label="Remove liquidity from {pool.pair}"
+											disabled={refreshing}
+											title={refreshing ? 'Updating the pool numbers…' : undefined}
 											onclick={(e) => {
 												e.stopPropagation();
+												if (refreshing) return;
 												openRemoveForPool(pool);
 											}}
 										>
@@ -443,6 +478,7 @@
 				<tbody>
 					{#each rows as row (row.id)}
 						{@const fullPool = pools.find((p) => p.contractId === row.contractId)}
+						{@const network = poolNetworkLabel(row.pairSymbols, ETH_CHAIN_ID)}
 						<tr
 							class="clickable"
 							onclick={() => {
@@ -451,11 +487,12 @@
 						>
 							<td class="col-pair" data-label="Pair">
 								<div class="pair-cell">
-									<PairIcons symbols={row.pairSymbols} />
+									<PairIcons symbols={row.displaySymbols} />
 									<span class="pair-label" class:deprecated={isDeprecatedPool(row.contractId)}
 										>{row.pair}</span
 									>
 								</div>
+								{#if network}<div class="pair-network">{network}</div>{/if}
 							</td>
 							<td class="col-share" data-label="My share">
 								<span class="share-pct">{row.sharePct.toFixed(4)}%</span>
@@ -491,6 +528,11 @@
 {/if}
 
 <style lang="scss">
+	.refresh-note {
+		font-size: 0.75rem;
+		color: var(--dash-text-muted, rgba(255, 255, 255, 0.6));
+		align-self: center;
+	}
 	.pools-content {
 		display: flex;
 		flex-direction: column;
@@ -612,6 +654,17 @@
 	.pair-label {
 		font-weight: 500;
 		color: var(--dash-text-primary);
+	}
+	/* The network an ETH/USDC pool's tokens are on, on its own line under the
+	   icons and the pair: narrower than the pair row above it, so the Pair
+	   column keeps its width, in a row the price and fee columns already make
+	   taller. */
+	.pair-network {
+		margin-top: 0.25rem;
+		font-size: 0.6875rem;
+		line-height: 1.2;
+		color: var(--dash-text-muted);
+		white-space: nowrap;
 	}
 	.pair-label.deprecated {
 		text-decoration: line-through;

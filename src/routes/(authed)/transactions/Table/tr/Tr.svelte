@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ToFrom from '../tds/ToFrom.svelte';
+	import Party from '../tds/Party.svelte';
 	import Status from '../tds/Status.svelte';
 	import Amount from '../tds/Amount.svelte';
 	import Type from '../tds/Type.svelte';
@@ -22,6 +22,7 @@
 	import { getHiveAssetName, getHbdAssetName } from '../../../../../client';
 	import { numberFormatLanguage, getVscExplorerTxUrl, getHiveExplorerTxUrl } from '$lib/constants';
 	import { getAccountNameFromDid } from '$lib/getAccountName';
+	import { coinForAsset } from '$lib/tokens/assetCoin.svelte';
 	import PopupTitleRow from './PopupTitleRow.svelte';
 
 	type Props = {
@@ -71,9 +72,12 @@
 				...data,
 				memo: memo,
 				memoNoId: memoNoId,
+				// `coinForAsset`, not the static `Coin` table: a custom token's
+				// symbol is not in it, so a STARPRO transfer rendered as "UNK"
+				// with 3 decimals instead of the token's own.
 				coinAmount: new CoinAmount(
 					data.amount,
-					Coin[data.asset.split('_')[0] as keyof typeof Coin] || Coin.unk,
+					coinForAsset(data.asset),
 					typeof data.amount == 'number' // whether the number is preshifted (i.e. int without decimal)
 				),
 				type: op.type
@@ -84,11 +88,7 @@
 				...out,
 				memo: memo,
 				memoNoId: memoNoId,
-				coinAmount: new CoinAmount(
-					out.amount,
-					Coin[out.asset.split('_')[0] as keyof typeof Coin],
-					true
-				)
+				coinAmount: new CoinAmount(out.amount, coinForAsset(out.asset), true)
 			};
 		}
 	});
@@ -234,7 +234,8 @@
 	class="clickable-row"
 >
 	<td class="date">{moment(timestamp).format('MMM DD')}</td>
-	<ToFrom {otherAccount} memo={memoNoId?.get('msg') ?? undefined} />
+	<Party account={from} />
+	<Party account={to} memo={memoNoId?.get('msg') ?? undefined} />
 	<Status {status} {tx} opIndex={op.index} />
 	<Amount {amount} {direction} />
 	<Type {direction} {t} />

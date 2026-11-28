@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { mapStateToPoolRow, poolKind } from './poolsData';
+import { hbdSecond, mapStateToPoolRow, poolKind } from './poolsData';
 
 function parseUsd(s: string): number {
 	return Number.parseFloat(s.replace(/[$,]/g, ''));
@@ -289,6 +289,26 @@ describe('mapStateToPoolRow — custom token decimals', () => {
 		expect(Number.parseFloat(row.priceRatio.replace(/,/g, ''))).toBeCloseTo(272_589_601, -3);
 	});
 
+	it('keeps ETH at 18 dp for the math but shows 6, as the wallet card does', () => {
+		const row = mapStateToPoolRow(
+			'vsc1pool',
+			{
+				asset0: JSON.stringify({ asset: 'eth' }),
+				asset1: JSON.stringify({ asset: 'hbd' }),
+				total_lp: '0',
+				reserve0: '75106597798800250', // 0.0751065977988 ETH
+				reserve1: '40158' // 40.158 HBD
+			},
+			EMPTY_INDEXER,
+			STD_PRICES,
+			['ETH', 'HBD']
+		);
+		expect(row.decimals0).toBe(18);
+		expect(row.totalLiquidityAssets[0]).toBe('0.075107 ETH');
+		expect(row.totalLiquidityAssets[1]).toBe('40.158 HBD');
+		expect(Number.parseFloat(row.priceRatio)).toBeCloseTo(40.158 / 0.07510659779880025, 4);
+	});
+
 	it('leaves native pairs on their existing decimals', () => {
 		const row = mapStateToPoolRow('vsc1pool', HBD_HIVE_STATE, EMPTY_INDEXER, STD_PRICES, [
 			'HBD',
@@ -368,5 +388,34 @@ describe('mapStateToPoolRow — custom token USD pricing', () => {
 		expect(r.usdPrice0).toBe(0);
 		expect(r.usdPrice1).toBe(0);
 		expect(r.feeEarnedUsd).toBe('$0.00');
+	});
+});
+
+describe('pool names read with HBD second (owner 11-21; display only)', () => {
+	it('hbdSecond puts HBD second and leaves other pairs alone', () => {
+		expect(hbdSecond(['HBD', 'HIVE'])).toEqual(['HIVE', 'HBD']);
+		expect(hbdSecond(['HBD', 'USDC'])).toEqual(['USDC', 'HBD']);
+		expect(hbdSecond(['BTC', 'HBD'])).toEqual(['BTC', 'HBD']);
+		expect(hbdSecond(['ETH', 'HBD'])).toEqual(['ETH', 'HBD']);
+		expect(hbdSecond(['hbd', 'starpro'])).toEqual(['starpro', 'hbd']);
+		expect(hbdSecond(['ETH', 'USDC'])).toEqual(['ETH', 'USDC']);
+	});
+
+	it('the row label and icons flip, the pool asset order (amounts, payloads) does not', () => {
+		const row = mapStateToPoolRow(
+			'vsc1pool',
+			HBD_HIVE_STATE,
+			{
+				volume: { count: 0, touched: {} },
+				fees: [],
+				liquidity: { netAmount0: 0, netAmount1: 0, netLp: 0, snapshot: null }
+			},
+			STD_PRICES,
+			['HBD', 'HIVE']
+		);
+		expect(row.pair).toBe('HIVE:HBD');
+		expect(row.displaySymbols).toEqual(['HIVE', 'HBD']);
+		expect(row.pairSymbols).toEqual(['HBD', 'HIVE']);
+		expect(row.reserve0Raw).toBe(1_000_000); // still asset0 = HBD
 	});
 });

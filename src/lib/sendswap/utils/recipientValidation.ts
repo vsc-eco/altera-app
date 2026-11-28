@@ -16,7 +16,7 @@ import { hiveRegex } from '$lib/auth/validateHiveUsername';
 import { mainnetSwapDest, Network } from './sendOptions';
 
 /** Where the output lands, which is what decides the address format. */
-export type RecipientTarget = 'magi' | 'hive' | 'btc';
+export type RecipientTarget = 'magi' | 'hive' | 'btc' | 'eth';
 
 export type RecipientCheck = { ok: true } | { ok: false; reason: string };
 
@@ -56,6 +56,8 @@ export function recipientHint(target: RecipientTarget): string {
 			return 'a Hive username';
 		case 'magi':
 			return 'a Hive username, or an EVM or Bitcoin address';
+		case 'eth':
+			return 'an Ethereum address (0x…)';
 	}
 }
 
@@ -89,6 +91,18 @@ export function validateRecipient(
 						reason:
 							'That is not a valid Hive username. Use 3–16 characters: letters, digits and dashes.'
 					};
+		case 'eth':
+			// A payout on Ethereum is sent by the bridge to this address on
+			// chain. Only a 0x address can receive it — a Hive name here would
+			// revert the router call and spend the RC — and the bridge itself
+			// refuses the zero address, which is the one 0x form that passes
+			// the shape test and burns the funds.
+			if (!EVM_ADDRESS.test(addr)) {
+				return { ok: false, reason: `That is not ${recipientHint('eth')}.` };
+			}
+			return /^0x0{40}$/i.test(addr)
+				? { ok: false, reason: 'The zero address cannot receive a payout.' }
+				: { ok: true };
 		case 'magi':
 			// A Magi account can be reached as a Hive name or as the address of
 			// an EVM or Bitcoin wallet, all of which `getDidFromUsername`

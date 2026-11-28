@@ -59,6 +59,7 @@ import {
 	lpShare,
 	lpPositionAmounts,
 	lpPositionUsd,
+	lpPortfolioUsd,
 	mirrorLiquidityAmount,
 	poolPriceRatio,
 	impliedPoolUsdPrices,
@@ -502,6 +503,15 @@ describe('pool and LP math', () => {
 		const amounts = lpPositionAmounts(0.25, 4_000_000, 400_000_000, 3, 8);
 		expect(amounts).toEqual([1000, 1]);
 		expect(lpPositionUsd(amounts, 1, 90_000)).toBe(1000 + 90_000);
+	});
+
+	it('adds positions up, and does not let one unpriced pool erase the total', () => {
+		expect(lpPortfolioUsd([20.6, 10.64, 4.25])).toBeCloseTo(35.49, 10);
+		expect(lpPortfolioUsd([])).toBe(0);
+		// A pool with no USD price for one side yields NaN from lpPositionUsd.
+		// The wallet header still has to print the pools it CAN price.
+		expect(lpPortfolioUsd([20.6, NaN, 4.25])).toBeCloseTo(24.85, 10);
+		expect(lpPortfolioUsd([Infinity, 4.25])).toBe(4.25);
 	});
 
 	it('mirrors a liquidity add at the pool ratio', () => {

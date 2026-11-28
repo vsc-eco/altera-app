@@ -7,7 +7,7 @@
 	import { accountBalance } from './stores/currentBalance';
 	import moment from 'moment';
 	import InfoToolip from './components/InfoTooltip.svelte';
-	import { numberFormatLanguage } from '$lib/constants';
+	import { EVM_BRIDGE_ENABLED, numberFormatLanguage } from '$lib/constants';
 	import { sHbdAprStore } from '$lib/stores/aprStore';
 
 	type Props = {
@@ -168,6 +168,36 @@
 			<span class="coin-sub">Bitcoin, mapped 1:1 from the vault</span>
 		</div>
 	</div>
+
+	{#if EVM_BRIDGE_ENABLED}
+		<div class="balance-row">
+			<div class="row-icon eth"><img src={Coin.eth.icon} alt="Ethereum" /></div>
+			<div class="row-info">
+				<div class="name-row">
+					<span class="coin-name">Ethereum</span>
+					<!-- 6 places, as the connected-wallet card shows ETH (Balance.svelte decimalsFor) -->
+					<span class="row-amount"
+						>{($accountBalance.bal.eth / 10 ** Coin.eth.decimalPlaces).toLocaleString(
+							numberFormatLanguage,
+							{ minimumFractionDigits: 6, maximumFractionDigits: 6 }
+						)} ETH</span
+					>
+				</div>
+				<span class="coin-sub">Ethereum Native Asset Mapping</span>
+			</div>
+		</div>
+
+		<div class="balance-row">
+			<div class="row-icon usdc"><img src={Coin.usdc.icon} alt="USD Coin" /></div>
+			<div class="row-info">
+				<div class="name-row">
+					<span class="coin-name">USD Coin</span>
+					<span class="row-amount">{new CoinAmount($accountBalance.bal.usdc, Coin.usdc, true).toPrettyString()}</span>
+				</div>
+				<span class="coin-sub">USDC (Ethereum) Asset Mapping</span>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style lang="scss">

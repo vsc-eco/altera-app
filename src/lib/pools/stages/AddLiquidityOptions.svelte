@@ -99,6 +99,8 @@
 	function detectCoin(symbol: string): Coin {
 		const upper = symbol.toUpperCase();
 		if (upper === 'BTC') return Coin.btc;
+		if (upper === 'ETH') return Coin.eth;
+		if (upper === 'USDC') return Coin.usdc;
 		if (upper === 'HBD') return Coin.hbd;
 		if (upper === 'HIVE') return Coin.hive;
 		const custom = customTokens.find((t) => t.symbol === symbol.toLowerCase());
@@ -117,6 +119,10 @@
 	function getMaxForCoin(c: Coin): CoinAmount<Coin> | undefined {
 		if (c.value === Coin.btc.value) return new CoinAmount($accountBalance.bal.btc, Coin.btc, true);
 		if (c.value === Coin.hbd.value) return new CoinAmount($accountBalance.bal.hbd, Coin.hbd, true);
+		// ETH/USDC on the EVM bridge are read with the other Magi balances.
+		if (c.value === Coin.eth.value) return new CoinAmount($accountBalance.bal.eth, Coin.eth, true);
+		if (c.value === Coin.usdc.value)
+			return new CoinAmount($accountBalance.bal.usdc, Coin.usdc, true);
 		if (c.value === Coin.hive.value)
 			return new CoinAmount($accountBalance.bal.hive, Coin.hive, true);
 		// Custom token balances are indexer rows, not part of `accountBalance`.
@@ -163,7 +169,7 @@
 		pool: PoolRow,
 		input: CoinAmount<Coin>,
 		outCoin: Out
-	): CoinAmount<Out> {
+	): CoinAmount<Out> | null {
 		if (input.amount === 0) return new CoinAmount(0, outCoin);
 		const rIn = reserveForCoin(pool, input.coin);
 		const rOut = reserveForCoin(pool, outCoin);
@@ -173,7 +179,10 @@
 		if (rIn.raw === 0 && rOut.raw === 0) {
 			const usdIn = usdPriceForCoin(pool, input.coin);
 			const usdOut = usdPriceForCoin(pool, outCoin);
-			if (usdIn === 0 || usdOut === 0) return new CoinAmount(0, outCoin);
+			// No price for one side (a custom token's price comes from its own
+			// pool, which is empty): nothing to mirror, so leave the other side
+			// as typed and let the first LP set the starting price.
+			if (usdIn === 0 || usdOut === 0) return null;
 			return input.mulTo(usdIn / usdOut, outCoin);
 		}
 		const rInDisplay = rIn.raw / 10 ** rIn.decimals;
@@ -194,9 +203,9 @@
 		isSyncing = true;
 		try {
 			if (source === '0') {
-				amount1Ca = computeMirror(selectedPool, amount0Ca, amount1Ca.coin);
+				amount1Ca = computeMirror(selectedPool, amount0Ca, amount1Ca.coin) ?? amount1Ca;
 			} else {
-				amount0Ca = computeMirror(selectedPool, amount1Ca, amount0Ca.coin);
+				amount0Ca = computeMirror(selectedPool, amount1Ca, amount0Ca.coin) ?? amount0Ca;
 			}
 			// Pre-seed the keys to the post-sync values so the effect that
 			// fires next doesn't see the synced side as "user-edited" and

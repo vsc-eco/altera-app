@@ -28,10 +28,18 @@
 	import { CoinAmount, formatUsd, formatUsdCost } from '$lib/currency/CoinAmount';
 	import { usdPerUnit } from '$lib/currency/convert';
 	import Dialog from '$lib/zag/Dialog.svelte';
-	import { accountBalance, getBalanceSmallestUnits } from '$lib/stores/currentBalance';
+	import {
+		accountBalance,
+		evmMinWithdrawal,
+		evmProofFee,
+		getBalanceSmallestUnits
+	} from '$lib/stores/currentBalance';
+	import { isEvmBridgeCoin } from '$lib/magiTransactions/evmBridge';
+	import { isAddress } from 'viem';
+	import { isEthAddress, magiRecipient } from '$lib/sendswap/utils/magiRecipient';
 	import { btcSendFeeReserve, maxSendableSats } from '$lib/stores/btcSpendable';
 	import type { AccountBalance } from '$lib/stores/currentBalance';
-	import { numberFormatLanguage } from '$lib/constants';
+	import { EVM_BRIDGE_ENABLED, numberFormatLanguage } from '$lib/constants';
 	import { getHiveAssetName, getHbdAssetName, vscNetworkId } from '$lib/../client';
 	import {
 		fetchTypedPoolDepths,
@@ -39,6 +47,7 @@
 		calculateRouteSwap,
 		exceedsPoolDepthForRoute,
 		priceImpactForRoute,
+		swapFeeLabelPct,
 		DEX_BASE_ASSET,
 		type TypedPoolDepths,
 		type SwapHop,
@@ -66,6 +75,13 @@
 		applyAlteraFeeBig,
 		swapPaysAlteraFee
 	} from '$lib/magiTransactions/hive/vscOperations/swap';
+	import { ETH_NETWORK, ETH_PAYOUT_NOTE } from '$lib/sendswap/utils/ethNetworkCopy';
+	import {
+		ethPayoutGasLimit,
+		fetchEvmPayoutGas,
+		payoutArrival,
+		type EvmPayoutGas
+	} from '$lib/magiTransactions/eth/payoutFee';
 
 	let {
 		editStage,
@@ -86,6 +102,9 @@
 	// Pool depths and swap calculation state
 	let hiveHbdPool = $state.raw<TypedPoolDepths | null>(null);
 	let btcHbdPool = $state.raw<TypedPoolDepths | null>(null);
+	/** ETH/HBD and HBD/USDC when the EVM bridge is live: built-in assets routed
+	 *  exactly like BTC/HBD (a pool that won't load just leaves its asset out). */
+	let evmPools = $state.raw<TypedPoolDepths[]>([]);
 	/** Pool-backed custom tokens, and the pools that back them. Each is paired
 	 *  against HBD, so they slot straight into the same routing as the natives. */
 	let customTokens = $state.raw<CustomToken[]>([]);
@@ -111,13 +130,21 @@
 		poolLoadFailed = false;
 		poolLoadingRetry = true;
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			const [hiveHbd, btcHbd, tokens] = await Promise.all([
+			const [hiveHbd, btcHbd, tokens, evm] = await Promise.all([
 				hiveHbdPool ? null : fetchTypedPoolDepths('HIVE', 'HBD'),
 				btcHbdPool ? null : fetchTypedPoolDepths('BTC', 'HBD'),
-				customTokens.length ? customTokens : fetchCustomTokens()
+				customTokens.length ? customTokens : fetchCustomTokens(),
+				EVM_BRIDGE_ENABLED && evmPools.length < 2
+					? Promise.all([fetchTypedPoolDepths('ETH', 'HBD'), fetchTypedPoolDepths('HBD', 'USDC')])
+					: null
 			]);
 			if (hiveHbd) hiveHbdPool = hiveHbd;
 			if (btcHbd) btcHbdPool = btcHbd;
+			// An empty pool has no reserves and no route: its asset stays off both lists.
+			if (evm)
+				evmPools = evm.filter(
+					(d): d is TypedPoolDepths => d != null && d.reserve0 > 0n && d.reserve1 > 0n
+				);
 			customTokens = tokens;
 
 			// Each custom token pairs against HBD. Load them alongside the
@@ -178,19 +205,35 @@
 	 *  `swapOptions.from.find(...)` returns undefined and the click does
 	 *  nothing at all. */
 	const fromOptions = $derived<AssetOption[]>([...swapOptions.from, ...customAssetOptions]);
-	const toOptions = $derived<AssetOption[]>([...swapOptions.to, ...customAssetOptions]);
+	// ETH and USDC can also be paid out on Ethereum: the router withdraws the
+	// output through the EVM bridge (destination_chain ETH, settleToEVM). Kept
+	// local: the shared catalog drives the withdraw and transfer pages too.
+	const toOptions = $derived<AssetOption[]>([
+		...swapOptions.to.map((o) =>
+			isEvmBridgeCoin(o.coin) ? { ...o, networks: [Network.magi, Network.ethMainnet] } : o
+		),
+		...customAssetOptions
+	]);
 	const findFromOption = (value: string | undefined) =>
 		fromOptions.find((o) => o.coin.value === value);
 	const findToOption = (value: string | undefined) => toOptions.find((o) => o.coin.value === value);
 
 	/** Every pool the picker can route through, native and custom alike. */
 	const allPools = $derived(
-		[hiveHbdPool, btcHbdPool, ...customPools].filter((p): p is TypedPoolDepths => p != null)
+		[hiveHbdPool, btcHbdPool, ...evmPools, ...customPools].filter(
+			(p): p is TypedPoolDepths => p != null
+		)
 	);
 
 	/** Symbols this control can swap: the natives plus any pool-backed token. */
 	const swapAssets = $derived(
-		new Set([Coin.hive.value, Coin.hbd.value, Coin.btc.value, ...customTokens.map((t) => t.symbol)])
+		new Set([
+			Coin.hive.value,
+			Coin.hbd.value,
+			Coin.btc.value,
+			...evmPools.flatMap((p) => [p.asset0, p.asset1]),
+			...customTokens.map((t) => t.symbol)
+		])
 	);
 
 	/**
@@ -316,6 +359,14 @@
 		});
 	});
 
+	/** Smallest units as a short amount (no trailing zeros, at most 8 places):
+	 *  0.15 USDC, 0.00005 ETH. */
+	function shortUnits(raw: number, decimalPlaces: number): string {
+		return (raw / 10 ** decimalPlaces).toLocaleString(numberFormatLanguage, {
+			maximumFractionDigits: Math.min(decimalPlaces, 8)
+		});
+	}
+
 	function formatSmallUnits(raw: bigint, decimalPlaces: number): string {
 		const n = Number(raw) / 10 ** decimalPlaces;
 		return n.toLocaleString(numberFormatLanguage, {
@@ -381,20 +432,28 @@
 	let exchangeFeePct = $derived(alteraFeePct());
 
 	/**
-	 * Total protocol fee across all hops in USD.
+	 * Total swap fee across all hops in USD: the protocol tier AND the slip
+	 * fee, which is what the pool actually charges. It used to read `baseFee`,
+	 * the protocol leg alone, so the slip leg was never shown — small while
+	 * that leg was scaled to 1/16, but under THORChain's rule
+	 * (`SLIP_FEE_RULE`) the slip fee is the larger of the two on any sizeable
+	 * trade, and the label would have understated the cost by most of it.
 	 * For two-hop routes (BTC↔HIVE), the intermediate hop fee is denominated in
 	 * HBD (≈ $1 pegged). Final-hop fee is in the output coin.
 	 */
-	let totalProtocolFeeUsd = $derived.by(() => {
+	let totalSwapFeeUsd = $derived.by(() => {
 		const toCoinDef = txState.to;
 		if (!swapResult || toPriceUsdRaw <= 0 || !toCoinDef) return null;
 		const finalHopUsd =
-			(Number(swapResult.baseFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
+			(Number(swapResult.totalFee) / 10 ** toCoinDef.coin.decimalPlaces) * toPriceUsdRaw;
 		if (!swapResult.hop1Fee) return finalHopUsd;
 		// hop1 intermediate is always HBD for BTC↔HIVE routes; HBD ≈ $1 pegged
-		const hop1Usd = Number(swapResult.hop1Fee.baseFee) / 10 ** Coin.hbd.decimalPlaces;
+		const hop1Usd = Number(swapResult.hop1Fee.totalFee) / 10 ** Coin.hbd.decimalPlaces;
 		return hop1Usd + finalHopUsd;
 	});
+
+	/** The modelled effective rate for the fee label (both hops summed). */
+	let swapFeePct = $derived.by(() => swapFeeLabelPct(swapResult?.feeBps));
 
 	const auth = $derived(getAuth()());
 
@@ -581,6 +640,7 @@
 	 */
 	const recipientTarget = $derived.by<RecipientTarget>(() => {
 		if (destNetwork.value === Network.magi.value) return 'magi';
+		if (destNetwork.value === Network.ethMainnet.value) return 'eth';
 		return txState.to?.coin.value === Coin.btc.value ? 'btc' : 'hive';
 	});
 
@@ -655,6 +715,101 @@
 	});
 
 	/**
+	 * Why the typed receiver cannot be paid, for a swap kept on Magi or paid
+	 * on Hive (null when it can). Strict (magiRecipient): a mistyped 0x
+	 * checksum would re-checksum to an address nobody owns, "@bob" or an
+	 * unknown string used to fail on chain or quietly pay the sender.
+	 */
+	const recipientError = $derived.by<string | null>(() => {
+		if (destChoice !== 'address') return null;
+		const addr = destAddress.trim();
+		if (!addr) return null;
+		const to = txState.to;
+		if (!to) return null;
+		if (destNetworkChoice === 'magi') {
+			const r = magiRecipient(addr, isVscTestnet());
+			return r.ok ? null : r.error;
+		}
+		if (to.network.value === Network.hiveMainnet.value) {
+			const r = magiRecipient(addr, isVscTestnet());
+			return r.ok && r.did.startsWith('hive:') ? null : 'Enter a Hive account to receive on Hive.';
+		}
+		return null;
+	});
+
+	/**
+	 * A swap paid out on Ethereum: the router withdraws the output less the
+	 * bridge's proof fee (dex-router settleToEVM), and the bridge takes the
+	 * Ethereum gas out of what it sends. Below the bridge's minimum withdrawal
+	 * the whole swap fails on chain, so it is stopped here.
+	 */
+	const evmPayout = $derived.by(() => {
+		const to = txState.to;
+		if (!to || !isEvmBridgeCoin(to.coin) || to.network.value !== Network.ethMainnet.value)
+			return null;
+		const isUsdc = to.coin.value === Coin.usdc.value;
+		const proofFee = isUsdc ? $evmProofFee.usdc : $evmProofFee.eth;
+		const min = isUsdc ? $evmMinWithdrawal.usdc : $evmMinWithdrawal.eth;
+		const minOut = swapResult ? Number(swapResult.minAmountOut) : null;
+		return {
+			coin: to.coin,
+			proofFee,
+			min,
+			minOut,
+			// Unknown minimum (registry not read yet) blocks rather than guesses.
+			belowMin: min == null || (minOut != null && minOut - proofFee < min)
+		};
+	});
+	// Only the payout's coin drives the fee effects below (the quote object is
+	// rebuilt on every price tick; reading it would re-run them each time).
+	const payoutCoinValue = $derived(evmPayout?.coin.value ?? null);
+	// The gas limit an ETH payout will carry (its recipient's estimate + 20%,
+	// as sent at signing), so the gas shown is priced as the bridge charges it.
+	let payoutGasLimitEst: number | null = $state(null);
+	$effect(() => {
+		const did = auth.value?.did;
+		const to = destAddress?.trim() ?? '';
+		const isEth = payoutCoinValue === Coin.eth.value;
+		payoutGasLimitEst = null;
+		if (!did || !isEth || !/^0x[0-9a-fA-F]{40}$/.test(to)) return;
+		let live = true;
+		const t = setTimeout(() => {
+			const value = BigInt(untrack(() => evmPayout?.minOut) || 1);
+			ethPayoutGasLimit(did, to, value).then((g) => {
+				if (live) payoutGasLimitEst = g;
+			});
+		}, 600);
+		return () => {
+			live = false;
+			clearTimeout(t);
+		};
+	});
+	// The Ethereum gas the bridge takes from the payout now (payoutFee.ts).
+	let payoutGas: EvmPayoutGas = $state({ status: 'unknown' });
+	$effect(() => {
+		const coin = payoutCoinValue;
+		const did = auth.value?.did;
+		const gasLimit = coin === Coin.eth.value ? payoutGasLimitEst : null;
+		if (!coin || !did) return;
+		let live = true;
+		const load = () =>
+			fetchEvmPayoutGas(did, coin, gasLimit).then((g) => {
+				if (live) payoutGas = g;
+			});
+		load();
+		const timer = setInterval(load, 30_000);
+		return () => {
+			live = false;
+			clearInterval(timer);
+		};
+	});
+	const payoutLine = $derived(
+		evmPayout?.minOut != null
+			? payoutArrival(evmPayout.minOut, evmPayout.proofFee, payoutGas)
+			: null
+	);
+
+	/**
 	 * True when the input amount exceeds 50% of the relevant pool's input-side
 	 * reserve. The contract hard-caps swaps at this threshold; any transaction
 	 * beyond it will be rejected on-chain, so we block submission here.
@@ -684,6 +839,7 @@
 				!sameCoinError &&
 				!insufficientBalance &&
 				!exceedsPoolDepth &&
+				!evmPayout?.belowMin &&
 				!!swapResult
 		);
 	});
@@ -816,14 +972,32 @@
 				net: Network.magi,
 				size: 'medium'
 			}
-		}
+		},
+		// ETH and USDC held on Magi, once their pool has loaded (as the To list
+		// already offers them). send() approves the router on the EVM bridge
+		// first, the way it approves BTC on the BTC contract.
+		...[Coin.eth, Coin.usdc]
+			.filter((coin) => swapAssets.has(coin.value))
+			.map((coin) => ({
+				...coin,
+				snippet: assetCard,
+				snippetData: {
+					fromOpt: { coin, networks: [Network.magi] },
+					net: Network.magi,
+					size: 'medium'
+				}
+			}))
 	]);
 	const toAssetObjs: AssetObject[] = $derived(
-		swapOptions.to.map((opt) => ({
-			...opt.coin,
-			snippet: assetCard,
-			snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
-		}))
+		swapOptions.to
+			// ETH/USDC only once their pool has loaded, as on the From side: an
+			// empty pool has no route and the swap could not be quoted.
+			.filter((opt) => !isEvmBridgeCoin(opt.coin) || swapAssets.has(opt.coin.value))
+			.map((opt) => ({
+				...opt.coin,
+				snippet: assetCard,
+				snippetData: { fromOpt: opt, net: txState.to?.network, size: 'medium' }
+			}))
 	);
 
 	/** Custom tokens as picker entries. These are NOT shown in the top-level
@@ -1664,6 +1838,52 @@
 					></textarea>
 					{#if destError}
 						<p class="dest-error sm-caption">{destError}</p>
+					{:else if evmPayout}
+						<!-- A payout on Ethereum is not just "it arrives": the bridge's
+						     proving fee and the chain's gas come out of the amount, and
+						     below its minimum withdrawal it cannot go at all. -->
+						{@const unit = coinDisplayLabel(evmPayout.coin)}
+						{@const dec = evmPayout.coin.decimalPlaces}
+						<p class="dest-hint sm-caption">
+							{unit} is sent to this address on {ETH_NETWORK} by the bridge. {ETH_PAYOUT_NOTE} Its
+							proving fee ({shortUnits(evmPayout.proofFee, dec)}
+							{unit}) and the Ethereum gas come out of the amount.
+							{#if payoutLine?.arrives != null && payoutLine.gas != null}
+								Ethereum gas now: {shortUnits(payoutLine.gas, dec)}
+								{unit}. Arrives: about {shortUnits(payoutLine.arrives, dec)}
+								{unit}.
+							{:else if payoutGas.status === 'legacy'}
+								The bridge takes the most the Ethereum gas can cost{evmPayout.coin.value ===
+								Coin.usdc.value
+									? ' (up to half its minimum withdrawal, in USDC)'
+									: ''} and returns the unused part to your Magi account after the payout settles.
+							{:else if payoutGas.status === 'unavailable'}
+								The bridge is waiting for a fresh Ethereum block: the payout goes out as soon as it
+								can, usually within minutes.
+							{/if}
+						</p>
+						{#if payoutLine?.heavy}
+							<p class="dest-error sm-caption">
+								Ethereum gas is more than a tenth of this payout: a larger swap loses less to it.
+							</p>
+						{/if}
+						{#if destChoice === 'address' && destAddress.trim() && !destValid}
+							<p class="dest-error sm-caption">
+								Not a valid Ethereum address: 0x and 40 hex characters (a mixed-case address must
+								match its checksum).
+							</p>
+						{/if}
+						{#if destChoice === 'address' && evmPayout.belowMin}
+							<p class="dest-error sm-caption">
+								{#if evmPayout.min == null}
+									Loading the bridge's minimum withdrawal&hellip;
+								{:else}
+									A payout on Ethereum needs at least {shortUnits(evmPayout.min, dec)}
+									{unit} after the bridge's proving fee (its minimum withdrawal): swap a larger
+									amount.
+								{/if}
+							</p>
+						{/if}
 					{:else}
 						<p class="dest-hint sm-caption">
 							{coinDisplayLabel(toCoin)} arrives on {destNetwork.value === Network.magi.value
@@ -1692,9 +1912,10 @@
 					? `${formatSmallUnits(shownMinAmountOut, toDec)} ${toUnit}`
 					: undefined}
 				minAmountOutUsd={minAmountOutUsd !== null ? `\u2248 ${formatUsd(minAmountOutUsd)}` : null}
-				protocolFeeUsd={totalProtocolFeeUsd !== null
-					? `\u2248 ${formatUsdCost(totalProtocolFeeUsd)}`
+				protocolFeeUsd={totalSwapFeeUsd !== null
+					? `\u2248 ${formatUsdCost(totalSwapFeeUsd)}`
 					: null}
+				{swapFeePct}
 				twoHop={!!swapResult?.hop1Fee}
 				{exchangeFeePct}
 				hasQuote={!!swapResult}
@@ -2268,6 +2489,9 @@
 	.dest-hint {
 		margin: 0;
 		color: var(--dash-text-muted);
+	}
+	.dest-hint.dest-error {
+		color: var(--dash-accent-red);
 	}
 
 	/* ── Dialog: Token Grid ── */
